@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: walletweather
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      POSTGRES_DB: walletweather
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U walletweather -d walletweather"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    # Option A: Build from source (default — for development or if you cloned the repo)
+    build: ./backend
+    # Option B: Pull from GitHub Container Registry (uncomment and replace <username>)
+    # image: ghcr.io/<username>/walletweather:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://walletweather:${DB_PASSWORD}@db:5432/walletweather
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY in .env}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8300}
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
+      ALLOWED_EMAILS: ${ALLOWED_EMAILS:-}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      BACKUP_DIR: /data/backups
+    ports:
+      - "8300:8000"
+    volumes:
+      - backup_data:/data/backups
+
+volumes:
+  db_data:
+  backup_data:

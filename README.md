@@ -29,7 +29,7 @@ Built with FastAPI, PostgreSQL, and a single-page vanilla JS frontend. Runs on D
 ## Quick Start
 
 ```bash
-git clone https://github.com/<your-username>/walletweather.git
+git clone https://github.com/mkolakowski/walletweather.git
 cd walletweather
 cp .env.example .env
 # Edit .env — set DB_PASSWORD, SESSION_SECRET, ENCRYPTION_KEY

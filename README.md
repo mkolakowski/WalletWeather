@@ -4,6 +4,11 @@ A self-hosted personal finance forecasting app. Track your accounts, set up recu
 
 Built with FastAPI, PostgreSQL, and a single-page vanilla JS frontend. Runs on Docker — no build tools, no npm, no webpack. One `docker compose up` and you're running.
 
+<img width="1527" height="603" alt="image" src="https://github.com/user-attachments/assets/67f00eb6-dcf6-4f49-a04e-b0ee5953c765" />
+
+<img width="1519" height="1681" alt="image" src="https://github.com/user-attachments/assets/db8c397c-7137-433d-a5ee-463b96c86a83" />
+
+
 ## Features
 
 - **Dashboard** — at-a-glance view of all your accounts with monthly forecast vs actual highs and lows

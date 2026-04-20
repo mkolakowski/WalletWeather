@@ -1,5 +1,7 @@
 # WalletWeather
 
+## !!WARNING!! : DO NOT DEPLOY TO THE PUBLIC INTERNET
+
 A self-hosted personal finance forecasting app. Track your accounts, set up recurring transactions, forecast your balance into the future, and compare what you planned against what actually happened.
 
 Built with FastAPI, PostgreSQL, and a single-page vanilla JS frontend. Runs on Docker — no build tools, no npm, no webpack. One `docker compose up` and you're running.

@@ -1,0 +1,2385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WalletWeather</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+<link rel="apple-touch-icon" href="/static/favicon.svg">
+<style>
+  :root { --bg:#0f1419; --panel:#1a2027; --border:#2a323c; --text:#e6edf3; --muted:#8b949e;
+          --accent:#58a6ff; --good:#3fb950; --bad:#f85149; --warn:#d29922; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+         background:var(--bg); color:var(--text); }
+  header { padding:12px 20px; border-bottom:1px solid var(--border); display:flex;
+           align-items:center; justify-content:space-between; background:var(--panel); }
+  h1 { font-size:18px; margin:0; font-weight:600; }
+  main { padding:20px; max-width:1380px; margin:0 auto; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:8px;
+           padding:16px; margin-bottom:16px; }
+  .panel h2 { margin:0 0 12px; font-size:15px; font-weight:600; color:var(--muted);
+              text-transform:uppercase; letter-spacing:.05em; }
+  button { background:var(--accent); color:#fff; border:0; padding:8px 14px;
+           border-radius:6px; cursor:pointer; font-size:13px; font-weight:500; }
+  button:hover { filter:brightness(1.1); }
+  button.ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
+  button.danger { background:var(--bad); }
+  input, select { background:#0d1117; border:1px solid var(--border); color:var(--text);
+                  padding:7px 10px; border-radius:6px; font:inherit; }
+  label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
+  .row > div { flex:1; min-width:140px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); }
+  th { color:var(--muted); font-weight:500; font-size:11px; text-transform:uppercase; }
+  tr.forecast { color:var(--muted); }
+  tr.actual { color:var(--text); }
+  .pos { color:var(--good); }
+  .neg { color:var(--bad); }
+  .pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px;
+          background:#21262d; color:var(--muted); }
+  .pill.actual { background:#0d2818; color:var(--good); }
+  .login { text-align:center; padding:80px 20px; }
+  .login h1 { font-size:24px; margin-bottom:8px; }
+  .login p { color:var(--muted); margin-bottom:24px; }
+  .auth-card { max-width:360px; margin:0 auto; background:var(--panel); border:1px solid var(--border);
+               border-radius:10px; padding:24px; text-align:left; }
+  .auth-card label { margin-top:10px; }
+  .auth-card input { width:100%; }
+  .tabs { display:flex; gap:4px; margin-bottom:16px; background:#0d1117;
+          padding:4px; border-radius:8px; }
+  .tab { flex:1; background:transparent; color:var(--muted); padding:8px;
+         border-radius:6px; font-weight:500; }
+  .tab.active { background:var(--panel); color:var(--text); }
+  .auth-error { margin-top:12px; padding:10px; border-radius:6px;
+                background:rgba(248,81,73,0.1); color:var(--bad); font-size:13px; }
+  .divider { display:flex; align-items:center; gap:10px; margin:18px 0;
+             color:var(--muted); font-size:12px; }
+  .divider::before, .divider::after { content:""; flex:1; height:1px; background:var(--border); }
+  .accounts-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  .account-tab { padding:8px 14px; border-radius:6px; background:var(--panel);
+                 border:1px solid var(--border); cursor:pointer; }
+  .account-tab.active { border-color:var(--accent); color:var(--accent); }
+  .summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+             gap:12px; margin-bottom:16px; }
+  .stat { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:14px; }
+  .stat .v { font-size:22px; font-weight:600; margin-top:4px; }
+  .stat .l { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  .stat .d { font-size:11px; color:var(--muted); margin-top:2px; font-variant-numeric:tabular-nums; }
+  .stat .v.pos { color:var(--good); }
+  .stat .v.neg { color:var(--bad); }
+  .recurring-fields { transition:opacity 0.15s; }
+  .recurring-fields.disabled { opacity:0.4; }
+  .disabled-wrap { opacity:0.4; }
+  input:disabled, select:disabled { cursor:not-allowed; }
+  .nav-btn { background:transparent; color:var(--muted); border:1px solid transparent;
+             padding:6px 14px; border-radius:6px; font-weight:500; font-size:13px; cursor:pointer; }
+  .nav-btn:hover { color:var(--text); }
+  .nav-btn.active { background:#0d1117; color:var(--accent); border-color:var(--border); }
+  .tab.small { padding:4px 10px; font-size:12px; }
+  .backup-subhead { font-size:12px; font-weight:600; color:var(--muted);
+                    text-transform:uppercase; letter-spacing:.05em; margin:0 0 10px; }
+  .account-checklist { display:flex; flex-wrap:wrap; gap:6px;
+                       background:#0d1117; border:1px solid var(--border);
+                       border-radius:6px; padding:10px; min-height:36px; }
+  .account-checklist label { display:inline-flex; align-items:center; gap:6px;
+                             padding:4px 10px; background:var(--panel);
+                             border:1px solid var(--border); border-radius:6px;
+                             cursor:pointer; margin:0; font-size:13px;
+                             color:var(--text); text-transform:none; letter-spacing:0; }
+  .account-checklist label:hover { border-color:var(--accent); }
+  .account-checklist input[type="checkbox"] { width:auto; margin:0; }
+  .notes-col { max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .notes-col.muted { color:var(--muted); }
+  .pagination { display:flex; justify-content:space-between; align-items:center;
+                margin-top:14px; gap:12px; flex-wrap:wrap; }
+  .pagination-left, .pagination-right { display:flex; align-items:center; gap:10px; }
+  .pagination label { margin:0; }
+  .pagination-range, .pagination-label { font-size:12px; color:var(--muted); }
+  .pagination button:disabled { opacity:0.4; cursor:not-allowed; }
+  .inline-label { display:block; font-size:10px; color:var(--muted); text-transform:uppercase;
+                  letter-spacing:.04em; margin-bottom:3px; font-weight:500; }
+  .report-charts { display:grid; gap:16px;
+                   grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
+  .pie-host { display:flex; gap:20px; align-items:center; flex-wrap:wrap; }
+  .pie-host svg { flex-shrink:0; }
+  .pie-legend { flex:1; min-width:140px; font-size:12px; }
+  .pie-legend .legend-row { display:flex; align-items:center; gap:8px;
+                            padding:3px 0; }
+  .pie-legend .swatch { width:12px; height:12px; border-radius:3px; flex-shrink:0; }
+  .pie-legend .lname { flex:1; }
+  .pie-legend .lval { color:var(--muted); font-variant-numeric:tabular-nums; }
+  .pie-empty { color:var(--muted); font-size:13px; padding:10px; }
+  .ro-badge { background:#21262d; color:var(--muted); font-size:9px; padding:2px 6px;
+              border-radius:8px; margin-left:6px; text-transform:uppercase;
+              letter-spacing:.05em; vertical-align:middle; }
+  .owner-flag { color:var(--warn); font-size:12px; }
+  td.muted { color:var(--muted); }
+  .dashboard-grid { display:grid; gap:14px;
+                    grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); }
+  .dash-card { background:#0d1117; border:1px solid var(--border); border-radius:8px;
+               padding:16px; transition:border-color 0.15s; }
+  .dash-card:hover { border-color:var(--accent); }
+  .dash-card h3 { margin:0 0 4px; font-size:15px; font-weight:600; cursor:pointer; color:var(--text); }
+  .dash-card h3:hover { color:var(--accent); }
+  .dash-card .month { font-size:11px; color:var(--muted); text-transform:uppercase;
+                      letter-spacing:.05em; margin-bottom:14px; }
+  .dash-card .pair { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+  .dash-card .field { background:#161b22; border:1px solid var(--border); border-radius:6px;
+                      padding:8px 10px; }
+  .dash-card .field .l { font-size:10px; color:var(--muted); text-transform:uppercase;
+                         letter-spacing:.04em; }
+  .dash-card .field .v { font-size:15px; font-weight:600; margin-top:2px; font-variant-numeric:tabular-nums; }
+  .dash-card .field .d { font-size:10px; color:var(--muted); margin-top:2px; }
+  .dash-card .section-label { font-size:10px; color:var(--muted); text-transform:uppercase;
+                              letter-spacing:.05em; margin:4px 0 6px; }
+
+  /* ---------- Mobile (≤768px) ---------- */
+  @media (max-width: 768px) {
+    main { padding:10px; }
+    header { padding:10px 12px; flex-wrap:wrap; gap:6px; }
+    h1 { font-size:16px; }
+    #userEmail { display:none; }
+    .nav-btn { padding:5px 10px; font-size:12px; }
+    .panel { padding:12px; margin-bottom:12px; }
+    .panel h2 { font-size:13px; }
+
+    /* Form rows become a 3-column grid; inline flex styles are ignored
+       because children are now grid items, not flex items. */
+    .row {
+      display:grid !important;
+      grid-template-columns: repeat(3, 1fr) !important;
+      gap:8px;
+      align-items:end;
+    }
+    .row > div { min-width:0 !important; flex:none !important; }
+    /* Description and Notes get the full row width on mobile */
+    .row > div.span-full { grid-column: 1 / -1; }
+    .row > div:has(input#addDesc),
+    .row > div:has(input#addNotes),
+    .row > div:has(input#newAccName),
+    .row > div:has(input#newCatName) { grid-column: 1 / -1; }
+    /* Buttons inside rows shouldn't stretch awkwardly */
+    .row > div:has(> button) { grid-column: auto; }
+    .row > div > button { width:100%; }
+
+    /* Summary stats: 2 columns on mobile */
+    .summary { grid-template-columns: repeat(2, 1fr); gap:8px; }
+    .stat { padding:10px; }
+    .stat .v { font-size:18px; }
+
+    /* Tables: tighter padding, smaller font, horizontal scroll */
+    table { font-size:12px; }
+    th, td { padding:6px 8px; }
+    .inline-edit { width:80px; font-size:11px; }
+    .inline-edit.date { width:120px; }
+
+    /* Auth login card: full width on tiny screens */
+    .auth-card { max-width:100%; }
+  }
+  th.sortable { cursor:pointer; user-select:none; }
+  th.sortable:hover { color:var(--text); }
+  th.num, td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  th.sort-asc::after { content:" ▲"; font-size:9px; color:var(--accent); }
+  th.sort-desc::after { content:" ▼"; font-size:9px; color:var(--accent); }
+  .inline-edit { background:#0d1117; border:1px solid var(--border); color:var(--text);
+                 padding:3px 6px; border-radius:4px; font:inherit; font-size:12px;
+                 width:90px; }
+  .inline-edit.date { width:130px; }
+  .inline-edit.defaulted { color:var(--muted); border-color:transparent; background:transparent; }
+  .inline-edit.defaulted:hover, .inline-edit.defaulted:focus { color:var(--text); border-color:var(--border); background:#0d1117; }
+  .notes-icon { display:inline-block; margin-left:6px; cursor:pointer; font-size:11px;
+                opacity:0.85; user-select:none; }
+  .notes-icon:hover { opacity:1; }
+  .notes-icon.empty { color:var(--muted); opacity:0.4; }
+  .notes-icon.empty:hover { opacity:1; }
+  .diff-pos { color:var(--good); }
+  .diff-neg { color:var(--bad); }
+  .diff-zero { color:var(--muted); }
+  .cat-pill { display:inline-block; padding:1px 8px; border-radius:10px;
+              font-size:11px; background:#21262d; color:var(--muted); }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+
+<div id="login" class="login hidden">
+  <h1>WalletWeather</h1>
+  <p>Track balances, forecast cashflow, compare planned vs actual.</p>
+
+  <div class="auth-card">
+    <div class="tabs">
+      <button id="tabSignin" class="tab active" onclick="switchTab('signin')">Sign in</button>
+      <button id="tabSignup" class="tab" onclick="switchTab('signup')">Create account</button>
+    </div>
+
+    <div id="formSignin">
+      <label>Email</label>
+      <input id="siEmail" type="email" autocomplete="email">
+      <label>Password</label>
+      <input id="siPass" type="password" autocomplete="current-password">
+      <button onclick="doSignin()" style="width:100%;margin-top:12px">Sign in</button>
+    </div>
+
+    <div id="formSignup" class="hidden">
+      <label>Name</label>
+      <input id="suName" type="text" autocomplete="name">
+      <label>Email</label>
+      <input id="suEmail" type="email" autocomplete="email">
+      <label>Password (8+ characters)</label>
+      <input id="suPass" type="password" autocomplete="new-password">
+      <button onclick="doSignup()" style="width:100%;margin-top:12px">Create account</button>
+    </div>
+
+    <div id="authError" class="auth-error hidden"></div>
+
+    <div id="googleWrap" class="hidden">
+      <div class="divider"><span>or</span></div>
+      <a href="/auth/login"><button class="ghost" style="width:100%">Sign in with Google</button></a>
+    </div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <h1>WalletWeather</h1>
+    <div>
+      <button id="navDashboard" class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
+      <button id="navAccounts" class="nav-btn" onclick="showPage('accounts')">Accounts</button>
+      <button id="navReports" class="nav-btn" onclick="showPage('reports')">Reports</button>
+      <button id="navSettings" class="nav-btn" onclick="showPage('settings')">Settings</button>
+      <button id="navAdmin" class="nav-btn hidden" onclick="showPage('admin')">Admin</button>
+      <span id="userEmail" style="color:var(--muted);margin:0 10px"></span>
+      <button class="ghost" onclick="logout()">Log out</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="pageDashboard">
+      <div class="panel">
+        <h2>Dashboard</h2>
+        <div id="dashboardGrid" class="dashboard-grid">
+          <div style="color:var(--muted);grid-column:1/-1;text-align:center;padding:20px">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pageAccounts" class="hidden">
+    <div class="accounts-bar" id="accountsBar"></div>
+
+    <div id="accountView" class="hidden">
+      <div class="summary" id="summary"></div>
+
+      <div class="panel">
+        <h2>Recurring transactions
+          <span style="float:right;font-weight:normal">
+            <button id="recTabActive" class="tab small active" onclick="switchRecView('active')">Active</button>
+            <button id="recTabArchived" class="tab small" onclick="switchRecView('archived')">Archived</button>
+          </span>
+        </h2>
+        <div style="overflow-x:auto">
+        <table id="recurringTable"><thead><tr>
+          <th class="sortable" data-key="description">Description</th>
+          <th class="sortable" data-key="category_name">Category</th>
+          <th class="sortable num" data-key="amount">Amount</th>
+          <th class="sortable" data-key="frequency">Frequency</th>
+          <th class="sortable" data-key="when">When</th>
+          <th class="sortable" data-key="end_date">Ends</th>
+          <th>Notes</th>
+          <th></th>
+        </tr></thead><tbody></tbody></table>
+        </div>
+        <div id="recurringPagination" class="pagination hidden">
+          <div class="pagination-left">
+            <label>Per page</label>
+            <select id="recurringPageSize" onchange="onRecurringPageSizeChange()">
+              <option value="5" selected>5</option>
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+            <span id="recurringPageRange" class="pagination-range"></span>
+          </div>
+          <div class="pagination-right">
+            <button id="recurringPrevPage" class="ghost" onclick="changeRecurringPage(-1)">« Prev</button>
+            <span id="recurringPageLabel" class="pagination-label"></span>
+            <button id="recurringNextPage" class="ghost" onclick="changeRecurringPage(1)">Next »</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Add transaction</h2>
+        <div id="addForm">
+          <button id="addToggle" onclick="toggleAddForm(true)">+ Add transaction</button>
+          <div id="addFormInner" class="hidden" style="margin-top:10px">
+            <div class="row">
+              <div><label>Description</label><input id="addDesc"></div>
+              <div><label>Type</label>
+                <select id="addType">
+                  <option value="withdraw" selected>Withdraw</option>
+                  <option value="deposit">Deposit</option>
+                </select>
+              </div>
+              <div><label>Amount</label><input id="addAmt" type="number" step="0.01" min="0"></div>
+              <div><label>Category</label>
+                <select id="addCat"><option value="">— none —</option></select>
+              </div>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <div id="addDateWrap"><label>Date</label><input id="addDate" type="date"></div>
+              <div id="addStatusWrap"><label>Status</label>
+                <select id="addStatus">
+                  <option value="forecast">Forecast (planned)</option>
+                  <option value="actual">Actual (cleared)</option>
+                </select>
+              </div>
+              <div style="flex:2"><label>Notes (optional, max 256)</label><input id="addNotes" maxlength="256"></div>
+            </div>
+            <div class="row" style="margin-top:14px;align-items:center">
+              <div style="flex:0 0 auto">
+                <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;margin:0">
+                  <input id="addRecToggle" type="checkbox" onchange="onRecToggle()" style="width:auto">
+                  <span>Make this recurring</span>
+                </label>
+              </div>
+            </div>
+            <div id="addRecFields" class="row recurring-fields disabled" style="margin-top:8px">
+              <div><label>Frequency</label>
+                <select id="addFreq" onchange="toggleAddWhenFields()" disabled>
+                  <option value="monthly_day">Monthly (day of month)</option>
+                  <option value="biweekly">Biweekly</option>
+                  <option value="weekly">Weekly</option>
+                </select>
+              </div>
+              <div id="addDayWrap"><label>Day of month</label><input id="addDay" type="number" min="1" max="31" value="1" disabled></div>
+              <div id="addAnchorWrap" class="hidden"><label>Anchor date</label><input id="addAnchor" type="date" disabled></div>
+              <div style="flex:2"><label>End date (optional)</label><input id="addEnd" type="date" disabled></div>
+            </div>
+            <div class="row" style="margin-top:14px">
+              <div style="flex:0 0 auto"><button onclick="submitAddForm()">Save</button></div>
+              <div style="flex:0 0 auto"><button class="ghost" onclick="toggleAddForm(false)">Cancel</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Forecast</h2>
+        <div class="row" style="margin-bottom:14px">
+          <div>
+            <label>View</label>
+            <select id="forecastMode" onchange="onForecastModeChange()">
+              <option value="month" selected>Month</option>
+              <option value="duration">Duration</option>
+            </select>
+          </div>
+          <div id="forecastMonthWrap">
+            <label>Month</label>
+            <select id="forecastMonthSel" onchange="loadForecast()">
+              <option value="1">January</option><option value="2">February</option>
+              <option value="3">March</option><option value="4">April</option>
+              <option value="5">May</option><option value="6">June</option>
+              <option value="7">July</option><option value="8">August</option>
+              <option value="9">September</option><option value="10">October</option>
+              <option value="11">November</option><option value="12">December</option>
+            </select>
+          </div>
+          <div id="forecastYearWrap">
+            <label>Year</label>
+            <select id="forecastYearSel" onchange="loadForecast()"></select>
+          </div>
+          <div id="forecastDurationWrap" class="hidden">
+            <label>Range</label>
+            <select id="forecastDays" onchange="loadForecast()">
+              <option value="30">30 days</option>
+              <option value="60">60 days</option>
+              <option value="90">90 days</option>
+              <option value="180">180 days</option>
+              <option value="365">1 year</option>
+            </select>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+        <table id="forecastTable"><thead><tr>
+          <th class="sortable" data-key="forecast_date">Forecast date</th>
+          <th class="sortable" data-key="actual_date">Actual date</th>
+          <th class="sortable" data-key="description">Description</th>
+          <th class="sortable" data-key="category">Category</th>
+          <th class="sortable num" data-key="forecast_amount">Forecast amt</th>
+          <th class="sortable num" data-key="forecast_balance">Forecast bal</th>
+          <th class="sortable num" data-key="actual_amount">Actual amt</th>
+          <th class="sortable num" data-key="actual_balance">Actual bal</th>
+          <th class="sortable num" data-key="diff_amount">Δ Amt</th>
+          <th class="sortable num" data-key="diff_balance">Δ Bal</th>
+          <th>Notes</th>
+          <th></th>
+        </tr></thead><tbody></tbody></table>
+        </div>
+        <div id="forecastPagination" class="pagination hidden">
+          <div class="pagination-left">
+            <label>Per page</label>
+            <select id="forecastPageSize" onchange="onForecastPageSizeChange()">
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            <span id="forecastPageRange" class="pagination-range"></span>
+          </div>
+          <div class="pagination-right">
+            <button id="forecastPrevPage" class="ghost" onclick="changeForecastPage(-1)">« Prev</button>
+            <span id="forecastPageLabel" class="pagination-label"></span>
+            <button id="forecastNextPage" class="ghost" onclick="changeForecastPage(1)">Next »</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div><!-- /pageAccounts -->
+
+    <div id="pageReports" class="hidden">
+      <div class="panel">
+        <h2>Reports</h2>
+        <div class="row">
+          <div>
+            <label>Account</label>
+            <select id="reportAccount" onchange="loadReport()">
+              <option value="">All accounts</option>
+            </select>
+          </div>
+          <div>
+            <label>Range</label>
+            <select id="reportMode" onchange="onReportModeChange()">
+              <option value="month" selected>Month</option>
+              <option value="ytd">Year to date</option>
+              <option value="year">Full year</option>
+              <option value="custom">Custom range</option>
+            </select>
+          </div>
+          <div id="reportMonthWrap">
+            <label>Month</label>
+            <select id="reportMonthSel" onchange="loadReport()">
+              <option value="1">January</option><option value="2">February</option>
+              <option value="3">March</option><option value="4">April</option>
+              <option value="5">May</option><option value="6">June</option>
+              <option value="7">July</option><option value="8">August</option>
+              <option value="9">September</option><option value="10">October</option>
+              <option value="11">November</option><option value="12">December</option>
+            </select>
+          </div>
+          <div id="reportYearWrap">
+            <label>Year</label>
+            <select id="reportYearSel" onchange="loadReport()"></select>
+          </div>
+          <div id="reportCustomStart" class="hidden">
+            <label>Start</label>
+            <input id="reportStart" type="date" onchange="loadReport()">
+          </div>
+          <div id="reportCustomEnd" class="hidden">
+            <label>End</label>
+            <input id="reportEnd" type="date" onchange="loadReport()">
+          </div>
+          <div style="flex:0 0 auto">
+            <label>Export</label>
+            <div style="display:flex;gap:6px">
+              <button class="ghost" onclick="exportReport('csv')">CSV</button>
+              <button class="ghost" onclick="exportReport('json')">JSON</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="summary" id="reportSummary"></div>
+
+      <div class="panel">
+        <h2>By category</h2>
+        <div id="reportTableWrap" style="overflow-x:auto">
+          <div style="color:var(--muted);padding:8px">Loading…</div>
+        </div>
+      </div>
+
+      <div class="report-charts">
+        <div class="panel">
+          <h2>Spending by category</h2>
+          <div id="reportPieSpending" class="pie-host"></div>
+        </div>
+        <div class="panel">
+          <h2>Income by category</h2>
+          <div id="reportPieIncome" class="pie-host"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pageAdmin" class="hidden">
+      <div class="panel">
+        <h2>User management</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          View and manage all registered users. Disable users to block login without deleting their data.
+          Deleting a user permanently removes their accounts, transactions, and categories.
+        </p>
+        <div id="adminUsersList" style="overflow-x:auto">
+          <div style="color:var(--muted);padding:8px">Loading…</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>All permissions</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Admin override: modify permissions on any account regardless of your own access level.
+          The last-owner guardrail still applies.
+        </p>
+        <div id="adminPermContent" style="overflow-x:auto">
+          <div style="color:var(--muted);padding:8px">Loading…</div>
+        </div>
+        <div id="adminPermStatus" style="margin-top:10px;font-size:13px;color:var(--muted)"></div>
+      </div>
+
+      <div class="panel">
+        <h2>System backups</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Full-system backups include all users' data. Scheduled backups run automatically
+          at the configured time. Manual backups can be triggered anytime.
+        </p>
+
+        <h3 class="backup-subhead">Schedule</h3>
+        <div class="row">
+          <div><label>Enabled</label>
+            <select id="adminBackupEnabled">
+              <option value="false">Disabled</option>
+              <option value="true">Enabled</option>
+            </select>
+          </div>
+          <div><label>Frequency</label>
+            <select id="adminBackupFreq">
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </div>
+          <div><label>Hour (UTC, 0-23)</label>
+            <input id="adminBackupHour" type="number" min="0" max="23" value="3">
+          </div>
+          <div><label>Retention (days)</label>
+            <input id="adminBackupRetention" type="number" min="1" value="30">
+          </div>
+          <div style="flex:0 0 auto"><button onclick="saveBackupConfig()">Save schedule</button></div>
+        </div>
+        <div id="adminBackupScheduleStatus" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
+
+        <h3 class="backup-subhead" style="margin-top:20px">Manual</h3>
+        <div class="row">
+          <div style="flex:0 0 auto"><button onclick="triggerBackupNow()">Run backup now</button></div>
+        </div>
+        <div id="adminBackupNowStatus" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
+
+        <h3 class="backup-subhead" style="margin-top:20px">Existing backups</h3>
+        <div id="adminBackupsList">
+          <div style="color:var(--muted);font-size:13px">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pageSettings" class="hidden">
+      <div class="panel">
+        <h2>Accounts</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Create a new bank account to track, or archive an existing one to hide it from the
+          Dashboard and Accounts page without losing its data.
+        </p>
+        <div class="row">
+          <div><label>Name</label><input id="newAccName" placeholder="Checking"></div>
+          <div><label>Starting balance</label><input id="newAccBal" type="number" step="0.01" value="0"></div>
+          <div><label>As of date</label><input id="newAccDate" type="date"></div>
+          <div><button onclick="createAccount()">Create</button></div>
+        </div>
+        <div id="manageAccountsList" style="margin-top:16px"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Categories</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Categories let you tag transactions for easier tracking. They're shared across all your accounts.
+        </p>
+        <div id="categoriesList" style="margin-bottom:14px;color:var(--muted);font-size:13px">No categories yet.</div>
+        <div class="row">
+          <div><label>New category name</label><input id="newCatName" placeholder="Groceries"></div>
+          <div><label>Color</label><input id="newCatColor" type="color" value="#58a6ff"></div>
+          <div><button onclick="createCategory()">Add category</button></div>
+        </div>
+      </div>
+
+      <div class="panel" id="permissionsPanel">
+        <h2>Permissions</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Grant other users access to your accounts.
+          <strong>Owner</strong> can manage all permissions including other owners, and can delete the account.
+          <strong>Edit</strong> can modify data, run backups, and manage read/edit permissions, but cannot touch owners.
+          <strong>Read</strong> can view the forecast only.
+          <strong>Deny</strong> hides the account.
+          A ★ next to an account name means you own it.
+        </p>
+        <div id="permissionsContent" style="overflow-x:auto">
+          <div style="color:var(--muted);padding:8px">Loading…</div>
+        </div>
+        <div id="permissionsStatus" style="margin-top:10px;font-size:13px;color:var(--muted)"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Backup &amp; restore</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Backups are JSON files containing accounts, recurring transactions, categories, and history.
+          <strong style="color:var(--warn)">Files are unencrypted</strong> — store them somewhere safe.
+        </p>
+
+        <h3 class="backup-subhead">Export</h3>
+        <div style="margin-bottom:8px">
+          <label>Select accounts to include</label>
+          <div id="exportAccountList" class="account-checklist">
+            <span style="color:var(--muted)">Loading…</span>
+          </div>
+        </div>
+        <div class="row">
+          <div style="flex:0 0 auto"><button onclick="exportBackup()">Download backup</button></div>
+        </div>
+
+        <h3 class="backup-subhead" style="margin-top:20px">Restore</h3>
+        <div class="row">
+          <div style="flex:2">
+            <label>Backup file</label>
+            <input id="importFile" type="file" accept="application/json,.json" onchange="onImportFileChosen()">
+          </div>
+          <div><label>Mode</label>
+            <select id="importMode">
+              <option value="merge">Merge (add to existing)</option>
+              <option value="replace">Replace (wipe my data first)</option>
+            </select>
+          </div>
+        </div>
+        <div id="importAccountWrap" class="hidden" style="margin-top:10px">
+          <label>Select accounts to restore</label>
+          <div id="importAccountList" class="account-checklist"></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <div style="flex:0 0 auto"><button class="danger" onclick="importBackup()">Restore</button></div>
+        </div>
+        <div id="backupStatus" style="margin-top:10px;font-size:13px"></div>
+      </div>
+    </div><!-- /pageSettings -->
+  </main>
+</div>
+
+<script>
+let me=null, accounts=[], currentAccountId=null, categories=[], recView='active', editingRecId=null;
+
+const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
+
+async function api(path, opts={}) {
+  const res = await fetch(path, { headers:{'Content-Type':'application/json'}, ...opts });
+  if (res.status===401) { showLogin(); throw new Error('auth'); }
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+function showPage(name) {
+  document.getElementById('pageDashboard').classList.toggle('hidden', name!=='dashboard');
+  document.getElementById('pageAccounts').classList.toggle('hidden', name!=='accounts');
+  document.getElementById('pageReports').classList.toggle('hidden', name!=='reports');
+  document.getElementById('pageAdmin').classList.toggle('hidden', name!=='admin');
+  document.getElementById('pageSettings').classList.toggle('hidden', name!=='settings');
+  document.getElementById('navDashboard').classList.toggle('active', name==='dashboard');
+  document.getElementById('navAccounts').classList.toggle('active', name==='accounts');
+  document.getElementById('navReports').classList.toggle('active', name==='reports');
+  document.getElementById('navAdmin').classList.toggle('active', name==='admin');
+  document.getElementById('navSettings').classList.toggle('active', name==='settings');
+  if (name === 'settings') { loadCategories(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); }
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'reports') initReportsPage();
+  if (name === 'admin') loadAdminPage();
+}
+
+async function loadDashboard() {
+  const grid = document.getElementById('dashboardGrid');
+  let data;
+  try {
+    data = await api('/api/dashboard');
+  } catch (e) {
+    grid.innerHTML = `<div style="color:var(--bad);grid-column:1/-1;text-align:center;padding:20px">Could not load dashboard: ${escapeHtml(e.message)}</div>`;
+    return;
+  }
+  if (!data.cards.length) {
+    grid.innerHTML = `<div style="color:var(--muted);grid-column:1/-1;text-align:center;padding:20px">
+      No accounts yet. Head to <a href="#" onclick="showPage('settings');return false" style="color:var(--accent)">Settings</a> to create one.
+    </div>`;
+    return;
+  }
+  grid.innerHTML = data.cards.map(c => {
+    const fHigh = fmt(c.forecast_high);
+    const fLow  = fmt(c.forecast_low);
+    const aHigh = fmt(c.actual_high);
+    const aLow  = fmt(c.actual_low);
+    const fHighDate = c.forecast_high_date || '—';
+    const fLowDate  = c.forecast_low_date  || '—';
+    return `
+      <div class="dash-card">
+        <h3 onclick="openAccountFromDashboard(${c.id})">${escapeHtml(c.name)}</h3>
+        <div class="month">${escapeHtml(c.month_label)}</div>
+        <div class="section-label">Forecast</div>
+        <div class="pair">
+          <div class="field">
+            <div class="l">High</div>
+            <div class="v ${c.forecast_high>=0?'pos':'neg'}">${fHigh}</div>
+            <div class="d">${fHighDate}</div>
+          </div>
+          <div class="field">
+            <div class="l">Low</div>
+            <div class="v ${c.forecast_low>=0?'pos':'neg'}">${fLow}</div>
+            <div class="d">${fLowDate}</div>
+          </div>
+        </div>
+        <div class="section-label">Actual</div>
+        <div class="pair">
+          <div class="field">
+            <div class="l">High</div>
+            <div class="v ${c.actual_high>=0?'pos':'neg'}">${aHigh}</div>
+          </div>
+          <div class="field">
+            <div class="l">Low</div>
+            <div class="v ${c.actual_low>=0?'pos':'neg'}">${aLow}</div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function openAccountFromDashboard(id) {
+  showPage('accounts');
+  selectAccount(id);
+}
+
+// ============ Reports page ============
+let reportData = null;
+let reportInitialized = false;
+
+function initReportsPage() {
+  // Populate the year dropdown and account list once, then load.
+  if (!reportInitialized) {
+    const yearSel = document.getElementById('reportYearSel');
+    const now = new Date();
+    yearSel.innerHTML = '';
+    for (let y = now.getFullYear() - 5; y <= now.getFullYear() + 1; y++) {
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = y;
+      if (y === now.getFullYear()) opt.selected = true;
+      yearSel.appendChild(opt);
+    }
+    document.getElementById('reportMonthSel').value = String(now.getMonth() + 1);
+    reportInitialized = true;
+  }
+  // Refresh accounts dropdown each visit (might have changed)
+  api('/api/accounts').then(list => {
+    const sel = document.getElementById('reportAccount');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">All accounts</option>' +
+      list.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
+    sel.value = current;
+    loadReport();
+  }).catch(e => {
+    document.getElementById('reportTableWrap').innerHTML =
+      `<div style="color:var(--bad)">Could not load accounts: ${escapeHtml(e.message)}</div>`;
+  });
+}
+
+function onReportModeChange() {
+  const mode = document.getElementById('reportMode').value;
+  document.getElementById('reportMonthWrap').classList.toggle('hidden', mode !== 'month');
+  document.getElementById('reportYearWrap').classList.toggle('hidden',
+    mode !== 'month' && mode !== 'ytd' && mode !== 'year');
+  document.getElementById('reportCustomStart').classList.toggle('hidden', mode !== 'custom');
+  document.getElementById('reportCustomEnd').classList.toggle('hidden', mode !== 'custom');
+  loadReport();
+}
+
+function _reportRange() {
+  // Returns [start, end] as ISO date strings based on the current mode.
+  const mode = document.getElementById('reportMode').value;
+  const pad = n => String(n).padStart(2, '0');
+  if (mode === 'month') {
+    const m = parseInt(document.getElementById('reportMonthSel').value);
+    const y = parseInt(document.getElementById('reportYearSel').value);
+    const lastDay = new Date(y, m, 0).getDate();
+    return [`${y}-${pad(m)}-01`, `${y}-${pad(m)}-${pad(lastDay)}`];
+  }
+  if (mode === 'ytd') {
+    const y = parseInt(document.getElementById('reportYearSel').value);
+    const today = new Date();
+    // YTD only makes sense for the current year — clamp to today
+    const isCurrent = y === today.getFullYear();
+    const endStr = isCurrent
+      ? `${y}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`
+      : `${y}-12-31`;
+    return [`${y}-01-01`, endStr];
+  }
+  if (mode === 'year') {
+    const y = parseInt(document.getElementById('reportYearSel').value);
+    return [`${y}-01-01`, `${y}-12-31`];
+  }
+  // custom
+  const s = document.getElementById('reportStart').value;
+  const e = document.getElementById('reportEnd').value;
+  return [s || null, e || null];
+}
+
+async function loadReport() {
+  const [s, e] = _reportRange();
+  if (!s || !e) return;
+  const acctId = document.getElementById('reportAccount').value;
+  let url = `/api/report?start=${s}&end=${e}`;
+  if (acctId) url += `&account_id=${acctId}`;
+  try {
+    reportData = await api(url);
+  } catch (err) {
+    document.getElementById('reportTableWrap').innerHTML =
+      `<div style="color:var(--bad)">Could not load report: ${escapeHtml(err.message)}</div>`;
+    return;
+  }
+  renderReport();
+}
+
+function renderReport() {
+  if (!reportData) return;
+  const d = reportData;
+  const t = d.totals;
+  const sum = document.getElementById('reportSummary');
+  const netCls = (t.actual_net >= 0) ? 'pos' : 'neg';
+  const fnetCls = (t.forecast_net >= 0) ? 'pos' : 'neg';
+  sum.innerHTML = `
+    <div class="stat"><div class="l">Forecast income</div><div class="v pos">${fmt(t.forecast_income)}</div></div>
+    <div class="stat"><div class="l">Actual income</div><div class="v pos">${fmt(t.actual_income)}</div></div>
+    <div class="stat"><div class="l">Forecast spending</div><div class="v neg">${fmt(t.forecast_spending)}</div></div>
+    <div class="stat"><div class="l">Actual spending</div><div class="v neg">${fmt(t.actual_spending)}</div></div>
+    <div class="stat"><div class="l">Forecast net</div><div class="v ${fnetCls}">${fmt(t.forecast_net)}</div></div>
+    <div class="stat"><div class="l">Actual net</div><div class="v ${netCls}">${fmt(t.actual_net)}</div></div>`;
+
+  // Category table
+  const wrap = document.getElementById('reportTableWrap');
+  if (!d.categories.length) {
+    wrap.innerHTML = '<div style="color:var(--muted);padding:8px">No activity in this range.</div>';
+  } else {
+    const rows = d.categories.map(c => {
+      const diff = c.actual_total - c.forecast_total;
+      const diffCls = Math.abs(diff) < 0.005 ? 'diff-zero' : (diff > 0 ? 'diff-pos' : 'diff-neg');
+      const swatch = c.color
+        ? `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${c.color};margin-right:6px;vertical-align:middle"></span>`
+        : '';
+      return `<tr>
+        <td>${swatch}${escapeHtml(c.name)}</td>
+        <td class="num">${fmt(c.forecast_total)}</td>
+        <td class="num">${fmt(c.actual_total)}</td>
+        <td class="num ${diffCls}">${fmt(diff)}</td>
+        <td class="num" style="color:var(--muted)">${c.actual_count}</td>
+      </tr>`;
+    }).join('');
+    wrap.innerHTML = `<table><thead><tr>
+      <th>Category</th>
+      <th class="num">Forecast</th>
+      <th class="num">Actual</th>
+      <th class="num">Δ</th>
+      <th class="num">Items</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  // Pies — separate for spending (negative actuals) and income (positive)
+  const spending = d.categories
+    .filter(c => c.actual_total < 0)
+    .map(c => ({label: c.name, value: -c.actual_total, color: c.color}));
+  const income = d.categories
+    .filter(c => c.actual_total > 0)
+    .map(c => ({label: c.name, value: c.actual_total, color: c.color}));
+  renderPie('reportPieSpending', spending);
+  renderPie('reportPieIncome', income);
+}
+
+function renderPie(elId, slices) {
+  const host = document.getElementById(elId);
+  if (!slices.length) {
+    host.innerHTML = '<div class="pie-empty">No data in this range.</div>';
+    return;
+  }
+  const total = slices.reduce((s, x) => s + x.value, 0);
+  if (total <= 0) {
+    host.innerHTML = '<div class="pie-empty">No data in this range.</div>';
+    return;
+  }
+  // Sort by value desc, stable color fallback for missing colors
+  const fallback = ['#58a6ff','#3fb950','#f0883e','#a371f7','#56d4dd','#ff7b72',
+                    '#e3b341','#db61a2','#7c6be6','#d29922','#2ea043','#8b949e'];
+  slices = slices.slice().sort((a,b)=>b.value-a.value);
+  const size = 220;
+  const r = 100;
+  const cx = size / 2, cy = size / 2;
+  let acc = 0;
+  let svgPaths = '';
+  let legend = '';
+  slices.forEach((s, i) => {
+    const color = s.color || fallback[i % fallback.length];
+    const pct = s.value / total;
+    const startAngle = acc * 2 * Math.PI - Math.PI / 2;
+    acc += pct;
+    const endAngle = acc * 2 * Math.PI - Math.PI / 2;
+    const x1 = cx + r * Math.cos(startAngle);
+    const y1 = cy + r * Math.sin(startAngle);
+    const x2 = cx + r * Math.cos(endAngle);
+    const y2 = cy + r * Math.sin(endAngle);
+    const largeArc = pct > 0.5 ? 1 : 0;
+    // Special case: a single 100% slice can't be drawn as an arc, use a circle
+    if (slices.length === 1) {
+      svgPaths += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" />`;
+    } else {
+      svgPaths += `<path d="M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z" fill="${color}" />`;
+    }
+    const pctStr = (pct * 100).toFixed(1) + '%';
+    legend += `<div class="legend-row">
+      <span class="swatch" style="background:${color}"></span>
+      <span class="lname">${escapeHtml(s.label)}</span>
+      <span class="lval">${fmt(s.value)} (${pctStr})</span>
+    </div>`;
+  });
+  host.innerHTML = `
+    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      ${svgPaths}
+    </svg>
+    <div class="pie-legend">${legend}</div>`;
+}
+
+function exportReport(format) {
+  if (!reportData) return;
+  const d = reportData;
+  const dateStamp = `${d.start}_to_${d.end}`;
+  let blob, filename;
+  if (format === 'csv') {
+    const rows = [
+      ['Category', 'Forecast', 'Actual', 'Difference', 'Item count'],
+    ];
+    d.categories.forEach(c => {
+      rows.push([
+        c.name,
+        c.forecast_total.toFixed(2),
+        c.actual_total.toFixed(2),
+        (c.actual_total - c.forecast_total).toFixed(2),
+        c.actual_count,
+      ]);
+    });
+    rows.push([]);
+    rows.push(['Forecast income',   d.totals.forecast_income.toFixed(2)]);
+    rows.push(['Actual income',     d.totals.actual_income.toFixed(2)]);
+    rows.push(['Forecast spending', d.totals.forecast_spending.toFixed(2)]);
+    rows.push(['Actual spending',   d.totals.actual_spending.toFixed(2)]);
+    rows.push(['Forecast net',      d.totals.forecast_net.toFixed(2)]);
+    rows.push(['Actual net',        d.totals.actual_net.toFixed(2)]);
+    const csv = rows.map(r => r.map(cell => {
+      const s = String(cell ?? '');
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    }).join(',')).join('\n');
+    blob = new Blob([csv], {type: 'text/csv'});
+    filename = `walletweather-report-${dateStamp}.csv`;
+  } else {
+    blob = new Blob([JSON.stringify(d, null, 2)], {type: 'application/json'});
+    filename = `walletweather-report-${dateStamp}.json`;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function loadPermissions() {
+  const container = document.getElementById('permissionsContent');
+  const panel = document.getElementById('permissionsPanel');
+  let data;
+  try {
+    data = await api('/api/permissions');
+  } catch (e) {
+    container.innerHTML = `<div style="color:var(--bad)">Could not load permissions: ${escapeHtml(e.message)}</div>`;
+    return;
+  }
+  if (!data.accounts.length) {
+    panel.classList.add('hidden');
+    return;
+  }
+  panel.classList.remove('hidden');
+
+  // Build a quick lookup: permsByPair["accountId:userId"] = level
+  const permsByPair = {};
+  data.permissions.forEach(p => {
+    permsByPair[`${p.account_id}:${p.user_id}`] = p.level;
+  });
+
+  // Header row: blank corner cell + one col per account
+  let html = '<table style="width:auto;min-width:100%"><thead><tr>';
+  html += '<th style="position:sticky;left:0;background:var(--panel)">User</th>';
+  data.accounts.forEach(a => {
+    html += `<th>${escapeHtml(a.name)}${a.caller_level==='owner'?' <span class="owner-flag" title="You own this account">★</span>':''}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  const otherUsers = data.users.filter(u => u.id !== data.self_id);
+  if (otherUsers.length === 0) {
+    html += '<tr><td colspan="' + (data.accounts.length + 1) + '" style="color:var(--muted);text-align:center;padding:14px">No other users have registered yet.</td></tr>';
+  } else {
+    otherUsers.forEach(u => {
+      html += '<tr>';
+      html += `<td style="position:sticky;left:0;background:var(--panel);white-space:nowrap">${escapeHtml(u.email)}</td>`;
+      data.accounts.forEach(a => {
+        const level = permsByPair[`${a.id}:${u.id}`] || 'deny';
+        const callerIsOwner = a.caller_level === 'owner';
+        // Non-owners cannot touch rows where the target is currently owner.
+        const lockedOut = level === 'owner' && !callerIsOwner;
+        // Options: Deny / Read / Edit always; Owner only if caller is owner.
+        const opts = [
+          `<option value="deny"${level==='deny'?' selected':''}>Deny</option>`,
+          `<option value="read"${level==='read'?' selected':''}>Read</option>`,
+          `<option value="edit"${level==='edit'?' selected':''}>Edit</option>`,
+        ];
+        if (callerIsOwner || level === 'owner') {
+          opts.push(`<option value="owner"${level==='owner'?' selected':''}>Owner</option>`);
+        }
+        const disabledAttr = lockedOut ? ' disabled title="Only owners can modify this"' : '';
+        html += `<td><select onchange="setPermission(${a.id},${u.id},this.value)"${disabledAttr}>
+          ${opts.join('')}
+        </select></td>`;
+      });
+      html += '</tr>';
+    });
+  }
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+  document.getElementById('permissionsStatus').textContent = '';
+}
+
+async function setPermission(accountId, userId, level) {
+  const status = document.getElementById('permissionsStatus');
+  status.textContent = 'Saving…';
+  status.style.color = 'var(--muted)';
+  try {
+    await api('/api/permissions', {
+      method: 'POST',
+      body: JSON.stringify({account_id: accountId, user_id: userId, level: level}),
+    });
+    status.textContent = 'Saved.';
+    status.style.color = 'var(--good)';
+    setTimeout(() => { status.textContent = ''; }, 2000);
+  } catch (e) {
+    status.textContent = 'Save failed: ' + e.message;
+    status.style.color = 'var(--bad)';
+    // Reload to revert the dropdown to its actual server-side value
+    await loadPermissions();
+  }
+}
+
+function showLogin() {
+  document.getElementById('login').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+}
+function showApp() {
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+}
+
+async function init() {
+  // Always check auth config first so we know whether to show Google
+  try {
+    const cfg = await fetch('/api/auth/config').then(r=>r.json());
+    if (cfg.google_enabled) document.getElementById('googleWrap').classList.remove('hidden');
+    if (!cfg.registration_enabled) document.getElementById('tabSignup').classList.add('hidden');
+  } catch {}
+  try { me = await api('/api/me'); }
+  catch { showLogin(); return; }
+  showApp();
+  document.getElementById('userEmail').textContent = me.email;
+  // Show admin tab only for admins
+  if (me.is_admin) {
+    document.getElementById('navAdmin').classList.remove('hidden');
+  }
+  document.getElementById('newAccDate').valueAsDate = new Date();
+  // Populate year dropdown (current - 2 .. current + 5) and default to current month/year
+  const now = new Date();
+  const yearSel = document.getElementById('forecastYearSel');
+  yearSel.innerHTML = '';
+  for (let y = now.getFullYear() - 2; y <= now.getFullYear() + 5; y++) {
+    const opt = document.createElement('option');
+    opt.value = y; opt.textContent = y;
+    if (y === now.getFullYear()) opt.selected = true;
+    yearSel.appendChild(opt);
+  }
+  document.getElementById('forecastMonthSel').value = String(now.getMonth() + 1);
+  wireForecastSort();
+  wireRecurringSort();
+  await loadCategories();
+  await loadAccounts();
+  showPage('dashboard');
+}
+
+function switchTab(which) {
+  const si = which==='signin';
+  document.getElementById('tabSignin').classList.toggle('active', si);
+  document.getElementById('tabSignup').classList.toggle('active', !si);
+  document.getElementById('formSignin').classList.toggle('hidden', !si);
+  document.getElementById('formSignup').classList.toggle('hidden', si);
+  document.getElementById('authError').classList.add('hidden');
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+async function doSignin() {
+  const email = document.getElementById('siEmail').value.trim();
+  const password = document.getElementById('siPass').value;
+  if (!email || !password) return showAuthError('Email and password required');
+  try {
+    const res = await fetch('/api/auth/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email, password})
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({detail:'Sign in failed'}));
+      return showAuthError(err.detail || 'Sign in failed');
+    }
+    location.reload();
+  } catch (e) { showAuthError('Network error'); }
+}
+
+async function doSignup() {
+  const name = document.getElementById('suName').value.trim();
+  const email = document.getElementById('suEmail').value.trim();
+  const password = document.getElementById('suPass').value;
+  if (!email || !password) return showAuthError('Email and password required');
+  if (password.length < 8) return showAuthError('Password must be at least 8 characters');
+  try {
+    const res = await fetch('/api/auth/register', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name, email, password})
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({detail:'Registration failed'}));
+      return showAuthError(err.detail || 'Registration failed');
+    }
+    location.reload();
+  } catch (e) { showAuthError('Network error'); }
+}
+
+async function loadAccounts() {
+  accounts = await api('/api/accounts');
+  const bar = document.getElementById('accountsBar');
+  bar.innerHTML = '';
+  accounts.forEach(a => {
+    const el = document.createElement('div');
+    el.className = 'account-tab' + (a.id===currentAccountId?' active':'');
+    const readOnly = a.level === 'read';
+    el.innerHTML = escapeHtml(a.name) +
+      (readOnly ? ' <span class="ro-badge">read only</span>' : '');
+    el.onclick = () => selectAccount(a.id);
+    bar.appendChild(el);
+  });
+  if (accounts.length && !currentAccountId) selectAccount(accounts[0].id);
+  else if (!accounts.length) document.getElementById('accountView').classList.add('hidden');
+}
+
+function currentAccountLevel() {
+  const a = accounts.find(x => x.id === currentAccountId);
+  return a ? a.level : 'deny';
+}
+
+function isCurrentAccountReadOnly() {
+  return currentAccountLevel() === 'read';
+}
+
+async function createAccount() {
+  const name = document.getElementById('newAccName').value.trim();
+  if (!name) return;
+  await api('/api/accounts', { method:'POST', body: JSON.stringify({
+    name, starting_balance: parseFloat(document.getElementById('newAccBal').value)||0,
+    starting_date: document.getElementById('newAccDate').value
+  })});
+  document.getElementById('newAccName').value='';
+  await loadAccounts();
+}
+
+async function selectAccount(id) {
+  currentAccountId = id;
+  document.querySelectorAll('.account-tab').forEach((el,i)=>{
+    el.classList.toggle('active', accounts[i].id===id);
+  });
+  document.getElementById('accountView').classList.remove('hidden');
+  // Hide the add transaction toggle entirely on read-only accounts
+  const ro = isCurrentAccountReadOnly();
+  document.getElementById('addToggle').classList.toggle('hidden', ro);
+  document.getElementById('addFormInner').classList.add('hidden');
+  await loadCategories();
+  await Promise.all([loadRecurring(), loadForecast()]);
+}
+
+async function loadCategories() {
+  categories = await api('/api/categories');
+  // Render the categories list
+  const list = document.getElementById('categoriesList');
+  if (!categories.length) {
+    list.innerHTML = '<span style="color:var(--muted)">No categories yet. Add one below to tag your transactions.</span>';
+  } else {
+    list.innerHTML = categories.map(c =>
+      `<span class="cat-pill" style="${c.color?`background:${c.color}22;color:${c.color}`:''};margin-right:6px;padding:4px 10px">
+        ${escapeHtml(c.name)}
+        <a href="#" onclick="delCategory(${c.id});return false" style="color:inherit;margin-left:6px;text-decoration:none">×</a>
+      </span>`
+    ).join('');
+  }
+  // Populate the add form's category dropdown
+  for (const selId of ['addCat']) {
+    const sel = document.getElementById(selId);
+    if (!sel) continue;
+    const current = sel.value;
+    sel.innerHTML = '<option value="">— none —</option>' +
+      categories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    if (current) sel.value = current;
+  }
+}
+
+async function createCategory() {
+  const name = document.getElementById('newCatName').value.trim();
+  if (!name) return;
+  const color = document.getElementById('newCatColor').value;
+  try {
+    await api('/api/categories', {method:'POST', body: JSON.stringify({name, color})});
+  } catch (e) {
+    alert('Could not create category: ' + e.message);
+    return;
+  }
+  document.getElementById('newCatName').value = '';
+  await loadCategories();
+}
+
+async function delCategory(id) {
+  if (!confirm('Delete this category? Transactions using it will keep the label cleared.')) return;
+  await api('/api/categories/'+id, {method:'DELETE'});
+  await loadCategories();
+  if (currentAccountId) {
+    await loadRecurring();
+    await loadForecast();
+  }
+}
+
+function switchRecView(view) {
+  recView = view;
+  document.getElementById('recTabActive').classList.toggle('active', view==='active');
+  document.getElementById('recTabArchived').classList.toggle('active', view==='archived');
+  loadRecurring();
+}
+
+// --- Recurring pagination state ---
+let recurringData = [];            // last-loaded list from the server
+let recurringPage = 0;
+let recurringPageSize = 5;
+let recurringSortKey = 'description';
+let recurringSortDir = 'asc';
+
+async function loadRecurring() {
+  const archived = recView === 'archived';
+  recurringData = await api(`/api/accounts/${currentAccountId}/recurring?archived=${archived}`);
+  recurringPage = 0;
+  renderRecurring();
+}
+
+function renderRecurring() {
+  const unsorted = recurringData;
+  const archived = recView === 'archived';
+  const tbody = document.querySelector('#recurringTable tbody');
+  tbody.innerHTML = '';
+  if (!unsorted.length) {
+    tbody.innerHTML = `<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:16px">
+      ${archived ? 'No expired recurring transactions.' : 'No active recurring transactions yet.'}
+    </td></tr>`;
+    document.getElementById('recurringPagination').classList.add('hidden');
+    return;
+  }
+
+  // Update sort indicators on column headers
+  document.querySelectorAll('#recurringTable th.sortable').forEach(th => {
+    th.classList.remove('sort-asc','sort-desc');
+    if (th.dataset.key === recurringSortKey) {
+      th.classList.add(recurringSortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+    }
+  });
+
+  // Sort a copy. The "when" key is derived from frequency + day_of_month/anchor_date,
+  // so we synthesize a string that orders naturally.
+  const list = unsorted.slice().sort((a, b) => {
+    let av, bv;
+    if (recurringSortKey === 'when') {
+      av = a.frequency === 'monthly_day'
+        ? `day_${String(a.day_of_month || 0).padStart(2,'0')}`
+        : `anchor_${a.anchor_date || ''}`;
+      bv = b.frequency === 'monthly_day'
+        ? `day_${String(b.day_of_month || 0).padStart(2,'0')}`
+        : `anchor_${b.anchor_date || ''}`;
+    } else {
+      av = a[recurringSortKey];
+      bv = b[recurringSortKey];
+    }
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (typeof av === 'number' && typeof bv === 'number') {
+      return recurringSortDir === 'asc' ? av - bv : bv - av;
+    }
+    const as = String(av), bs = String(bv);
+    return recurringSortDir === 'asc' ? as.localeCompare(bs) : bs.localeCompare(as);
+  });
+
+  // Paginate
+  const total = list.length;
+  const totalPages = Math.max(1, Math.ceil(total / recurringPageSize));
+  if (recurringPage >= totalPages) recurringPage = totalPages - 1;
+  if (recurringPage < 0) recurringPage = 0;
+  const startIdx = recurringPage * recurringPageSize;
+  const endIdx = Math.min(startIdx + recurringPageSize, total);
+  const pageRows = list.slice(startIdx, endIdx);
+
+  // Update pagination UI (hide entirely if everything fits on the smallest page)
+  const paginationBar = document.getElementById('recurringPagination');
+  if (total <= 5) {
+    paginationBar.classList.add('hidden');
+  } else {
+    paginationBar.classList.remove('hidden');
+    document.getElementById('recurringPageRange').textContent =
+      `${startIdx + 1}–${endIdx} of ${total}`;
+    document.getElementById('recurringPageLabel').textContent =
+      `Page ${recurringPage + 1} of ${totalPages}`;
+    document.getElementById('recurringPrevPage').disabled = recurringPage === 0;
+    document.getElementById('recurringNextPage').disabled = recurringPage >= totalPages - 1;
+  }
+
+  pageRows.forEach(r => {
+    const tr = document.createElement('tr');
+    if (editingRecId === r.id) {
+      tr.innerHTML = renderEditRow(r);
+    } else {
+      const when = r.frequency==='monthly_day' ? `Day ${r.day_of_month}` : `from ${r.anchor_date}`;
+      const ends = r.end_date || '—';
+      const cat = r.category_name
+        ? `<span class="cat-pill">${escapeHtml(r.category_name)}</span>`
+        : '<span style="color:var(--muted)">—</span>';
+      const notesCell = r.notes
+        ? `<span title="${escapeAttr(r.notes)}" style="cursor:help">📝</span>`
+        : '<span style="color:var(--muted)">—</span>';
+      const actionsCell = isCurrentAccountReadOnly() ? '<td></td>' : `
+        <td style="white-space:nowrap">
+          <button class="ghost" onclick="startEditRecurring(${r.id})" title="Edit">✎</button>
+        </td>`;
+      tr.innerHTML = `<td>${escapeHtml(r.description)}</td>
+        <td>${cat}</td>
+        <td class="${r.amount>=0?'pos':'neg'}">${fmt(r.amount)}</td>
+        <td>${r.frequency}</td><td>${when}</td><td>${ends}</td>
+        <td>${notesCell}</td>
+        ${actionsCell}`;
+    }
+    tbody.appendChild(tr);
+  });
+}
+
+function onRecurringPageSizeChange() {
+  recurringPageSize = parseInt(document.getElementById('recurringPageSize').value);
+  recurringPage = 0;
+  renderRecurring();
+}
+
+function changeRecurringPage(delta) {
+  recurringPage += delta;
+  renderRecurring();
+}
+
+function renderEditRow(r) {
+  const catOptions = ['<option value="">— none —</option>']
+    .concat(categories.map(c =>
+      `<option value="${c.id}"${c.id===r.category_id?' selected':''}>${escapeHtml(c.name)}</option>`
+    )).join('');
+  const freqOptions = ['monthly_day','biweekly','weekly']
+    .map(f => `<option value="${f}"${f===r.frequency?' selected':''}>${f}</option>`).join('');
+  const whenField = r.frequency === 'monthly_day'
+    ? `<input id="editDay_${r.id}" type="number" min="1" max="31" value="${r.day_of_month||1}" style="width:100%">`
+    : `<input id="editAnchor_${r.id}" type="date" value="${r.anchor_date||''}" style="width:100%">`;
+  return `
+    <td><input id="editDesc_${r.id}" value="${escapeAttr(r.description)}" style="width:100%"></td>
+    <td><select id="editCat_${r.id}" style="width:100%">${catOptions}</select></td>
+    <td><input id="editAmt_${r.id}" type="number" step="0.01" value="${r.amount}" style="width:100%"></td>
+    <td><select id="editFreq_${r.id}" onchange="reloadEditRow(${r.id})" style="width:100%">${freqOptions}</select></td>
+    <td>${whenField}</td>
+    <td><input id="editEnd_${r.id}" type="date" value="${r.end_date||''}" style="width:100%"></td>
+    <td><input id="editNotes_${r.id}" maxlength="256" value="${escapeAttr(r.notes||'')}" style="width:100%"></td>
+    <td style="white-space:nowrap">
+      <button onclick="saveRecurring(${r.id})" title="Save">✓</button>
+      <button class="ghost" onclick="cancelEditRecurring()" title="Cancel">✕</button>
+      <button class="danger" onclick="delRecurring(${r.id})" title="Delete">🗑</button>
+    </td>`;
+}
+
+function escapeAttr(s){return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+
+function startEditRecurring(id) {
+  editingRecId = id;
+  renderRecurring();
+}
+
+function cancelEditRecurring() {
+  editingRecId = null;
+  renderRecurring();
+}
+
+async function reloadEditRow(id) {
+  // User changed frequency; we need to swap the "when" input type.
+  // Easiest: just pull fresh data, overwrite the frequency with the current select value,
+  // and re-render the row. Since we don't save yet, the new frequency is just the edit state.
+  const list = await api(`/api/accounts/${currentAccountId}/recurring?archived=${recView==='archived'}`);
+  const r = list.find(x => x.id === id);
+  if (!r) return;
+  r.frequency = document.getElementById(`editFreq_${id}`).value;
+  r.description = document.getElementById(`editDesc_${id}`).value;
+  r.amount = parseFloat(document.getElementById(`editAmt_${id}`).value) || r.amount;
+  r.notes = document.getElementById(`editNotes_${id}`).value;
+  const row = document.querySelector(`#recurringTable tbody`).querySelector(`button[onclick="saveRecurring(${id})"]`).closest('tr');
+  row.innerHTML = renderEditRow(r);
+}
+
+async function saveRecurring(id) {
+  const freq = document.getElementById(`editFreq_${id}`).value;
+  const catVal = document.getElementById(`editCat_${id}`).value;
+  const body = {
+    description: document.getElementById(`editDesc_${id}`).value.trim(),
+    amount: parseFloat(document.getElementById(`editAmt_${id}`).value),
+    frequency: freq,
+    day_of_month: freq==='monthly_day' ? parseInt(document.getElementById(`editDay_${id}`).value) : null,
+    anchor_date: freq!=='monthly_day' ? document.getElementById(`editAnchor_${id}`).value : null,
+    end_date: document.getElementById(`editEnd_${id}`).value || null,
+    category_id: catVal ? parseInt(catVal) : null,
+    notes: document.getElementById(`editNotes_${id}`).value.trim() || null,
+    active: true,
+  };
+  if (!body.description || isNaN(body.amount)) {
+    alert('Description and amount are required.');
+    return;
+  }
+  await api('/api/recurring/'+id, {method:'PATCH', body: JSON.stringify(body)});
+  editingRecId = null;
+  await loadRecurring();
+  await loadForecast();
+}
+
+async function delRecurring(id) {
+  if (!confirm('Delete this recurring transaction template? Past actuals already logged against it will remain, but no new occurrences will be projected.')) return;
+  try {
+    await api('/api/recurring/'+id, {method:'DELETE'});
+  } catch (e) {
+    alert('Could not delete: ' + e.message);
+    return;
+  }
+  editingRecId = null;
+  await loadRecurring();
+  await loadForecast();
+}
+
+function toggleAddWhenFields() {
+  const f = document.getElementById('addFreq').value;
+  document.getElementById('addDayWrap').classList.toggle('hidden', f!=='monthly_day');
+  document.getElementById('addAnchorWrap').classList.toggle('hidden', f==='monthly_day');
+}
+
+function toggleAddForm(show) {
+  document.getElementById('addFormInner').classList.toggle('hidden', !show);
+  document.getElementById('addToggle').classList.toggle('hidden', show);
+  if (show) {
+    // Default the date to today if empty
+    if (!document.getElementById('addDate').value) {
+      document.getElementById('addDate').valueAsDate = new Date();
+    }
+    document.getElementById('addDesc').focus();
+  }
+}
+
+function onRecToggle() {
+  const isRec = document.getElementById('addRecToggle').checked;
+  // Recurring fields: enable/disable + grey
+  document.getElementById('addRecFields').classList.toggle('disabled', !isRec);
+  ['addFreq','addDay','addAnchor','addEnd'].forEach(id => {
+    document.getElementById(id).disabled = !isRec;
+  });
+  // For a recurring, the per-occurrence Date and Status don't apply: the
+  // schedule + day-of-month/anchor define the dates, and recurring templates
+  // are forecasts by definition (actuals are logged later on individual rows).
+  document.getElementById('addDateWrap').classList.toggle('disabled-wrap', isRec);
+  document.getElementById('addStatusWrap').classList.toggle('disabled-wrap', isRec);
+  document.getElementById('addDate').disabled = isRec;
+  document.getElementById('addStatus').disabled = isRec;
+}
+
+async function submitAddForm() {
+  const isRec = document.getElementById('addRecToggle').checked;
+  const desc = document.getElementById('addDesc').value.trim();
+  const type = document.getElementById('addType').value;
+  const rawAmt = parseFloat(document.getElementById('addAmt').value);
+  const signedAmt = isNaN(rawAmt) ? NaN : (type === 'withdraw' ? -Math.abs(rawAmt) : Math.abs(rawAmt));
+  const catVal = document.getElementById('addCat').value;
+  const notesVal = document.getElementById('addNotes').value.trim();
+
+  if (!desc || isNaN(signedAmt)) {
+    alert('Description and amount are required.');
+    return;
+  }
+
+  if (isRec) {
+    const f = document.getElementById('addFreq').value;
+    const endVal = document.getElementById('addEnd').value;
+    const body = {
+      description: desc,
+      amount: signedAmt,
+      frequency: f,
+      day_of_month: f==='monthly_day' ? parseInt(document.getElementById('addDay').value) : null,
+      anchor_date: f!=='monthly_day' ? document.getElementById('addAnchor').value : null,
+      end_date: endVal || null,
+      category_id: catVal ? parseInt(catVal) : null,
+      notes: notesVal || null,
+    };
+    if (f !== 'monthly_day' && !body.anchor_date) {
+      alert('Weekly and biweekly recurring transactions need an anchor date.');
+      return;
+    }
+    try {
+      await api(`/api/accounts/${currentAccountId}/recurring`, {method:'POST', body: JSON.stringify(body)});
+    } catch (e) {
+      alert('Could not save: ' + e.message);
+      return;
+    }
+  } else {
+    const kind = document.getElementById('addStatus').value;
+    const d = document.getElementById('addDate').value;
+    if (!d) {
+      alert('Date is required for one-time transactions.');
+      return;
+    }
+    const body = {
+      description: desc,
+      amount: signedAmt,
+      forecast_date: kind==='forecast' ? d : null,
+      actual_date: kind==='actual' ? d : null,
+      is_actual: kind==='actual',
+      category_id: catVal ? parseInt(catVal) : null,
+      notes: notesVal || null,
+    };
+    try {
+      await api(`/api/accounts/${currentAccountId}/transactions`, {method:'POST', body: JSON.stringify(body)});
+    } catch (e) {
+      alert('Could not save: ' + e.message);
+      return;
+    }
+  }
+
+  // Reset and close
+  document.getElementById('addDesc').value = '';
+  document.getElementById('addAmt').value = '';
+  document.getElementById('addCat').value = '';
+  document.getElementById('addNotes').value = '';
+  document.getElementById('addType').value = 'withdraw';
+  document.getElementById('addEnd').value = '';
+  document.getElementById('addAnchor').value = '';
+  document.getElementById('addDay').value = '1';
+  document.getElementById('addRecToggle').checked = false;
+  onRecToggle();  // re-grey the recurring fields
+  toggleAddForm(false);
+  await loadRecurring();
+  await loadForecast();
+}
+
+// --- Forecast state ---
+let forecastData = null;            // last loaded payload
+let sortKey = 'forecast_date';
+let sortDir = 'asc';                // 'asc' | 'desc'
+let editingForecastRowKey = null;   // unique row id for inline-edit mode
+let forecastPage = 0;               // 0-based page index
+let forecastPageSize = 10;          // 10 | 25 | 50 | 100
+
+function _forecastRowKey(r) {
+  // A unique identifier for a forecast row. Real transactions use their id;
+  // pure projections use recurring_id + forecast_date since no id exists.
+  if (r.transaction_id) return `t:${r.transaction_id}`;
+  return `r:${r.recurring_id||''}:${r.forecast_date||''}`;
+}
+
+function onForecastModeChange() {
+  const mode = document.getElementById('forecastMode').value;
+  document.getElementById('forecastMonthWrap').classList.toggle('hidden', mode !== 'month');
+  document.getElementById('forecastDurationWrap').classList.toggle('hidden', mode !== 'duration');
+  loadForecast();
+}
+
+function _monthRangeFromSelects() {
+  const m = parseInt(document.getElementById('forecastMonthSel').value);
+  const y = parseInt(document.getElementById('forecastYearSel').value);
+  const lastDay = new Date(y, m, 0).getDate();
+  const pad = n => String(n).padStart(2, '0');
+  return [`${y}-${pad(m)}-01`, `${y}-${pad(m)}-${pad(lastDay)}`];
+}
+
+async function loadForecast() {
+  if (!currentAccountId) return;
+  const mode = document.getElementById('forecastMode').value;
+  let url = `/api/accounts/${currentAccountId}/forecast`;
+  if (mode === 'month') {
+    const [s, e] = _monthRangeFromSelects();
+    url += `?start=${s}&end=${e}`;
+  } else {
+    const days = document.getElementById('forecastDays').value;
+    url += `?days=${days}`;
+  }
+  forecastData = await api(url);
+  forecastPage = 0;  // reset to first page when the dataset changes
+  renderForecast();
+}
+
+function onForecastPageSizeChange() {
+  forecastPageSize = parseInt(document.getElementById('forecastPageSize').value);
+  forecastPage = 0;
+  renderForecast();
+}
+
+function changeForecastPage(delta) {
+  forecastPage += delta;
+  renderForecast();
+}
+
+function renderForecast() {
+  if (!forecastData) return;
+  const data = forecastData;
+  const sum = document.getElementById('summary');
+
+  // Walk rows once to find min/max of the actual balance series and the dates.
+  // Start from opening balance (before any rows) as the baseline if no rows
+  // exist; otherwise the first row's actual_balance is both min and max.
+  let minBal = data.opening_balance;
+  let maxBal = data.opening_balance;
+  let minDate = null;
+  let maxDate = null;
+  data.rows.forEach(r => {
+    const v = r.actual_balance;
+    if (v < minBal) { minBal = v; minDate = r.forecast_date; }
+    if (v > maxBal) { maxBal = v; maxDate = r.forecast_date; }
+  });
+
+  // Delta: how far actual end-of-period is from forecast end-of-period
+  const deltaEnd = data.actual_ending_balance - data.forecast_ending_balance;
+  const deltaCls = Math.abs(deltaEnd) < 0.005 ? '' : (deltaEnd > 0 ? 'pos' : 'neg');
+  const deltaSign = deltaEnd > 0 ? '+' : '';
+
+  const hiDateLabel = maxDate || '—';
+  const loDateLabel = minDate || '—';
+
+  sum.innerHTML = `
+    <div class="stat"><div class="l">Opening balance</div><div class="v">${fmt(data.opening_balance)}</div></div>
+    <div class="stat"><div class="l">Forecast end</div><div class="v">${fmt(data.forecast_ending_balance)}</div></div>
+    <div class="stat"><div class="l">Actual end</div><div class="v">${fmt(data.actual_ending_balance)}</div></div>
+    <div class="stat"><div class="l">Δ Actual − Forecast</div><div class="v ${deltaCls}">${deltaSign}${fmt(deltaEnd)}</div></div>
+    <div class="stat"><div class="l">Highest point</div><div class="v">${fmt(maxBal)}</div><div class="d">${hiDateLabel}</div></div>
+    <div class="stat"><div class="l">Lowest point</div><div class="v ${minBal<0?'neg':''}">${fmt(minBal)}</div><div class="d">${loDateLabel}</div></div>`;
+
+  // Update sort indicators on column headers
+  document.querySelectorAll('#forecastTable th.sortable').forEach(th => {
+    th.classList.remove('sort-asc','sort-desc');
+    if (th.dataset.key === sortKey) {
+      th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+    }
+  });
+
+  // Sort a copy
+  const rows = data.rows.slice().sort((a,b) => {
+    const av = a[sortKey], bv = b[sortKey];
+    // Nulls always sort last regardless of direction
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (typeof av === 'number' && typeof bv === 'number') {
+      return sortDir === 'asc' ? av - bv : bv - av;
+    }
+    const as = String(av), bs = String(bv);
+    return sortDir === 'asc' ? as.localeCompare(bs) : bs.localeCompare(as);
+  });
+
+  const tbody = document.querySelector('#forecastTable tbody');
+  tbody.innerHTML = '';
+  const ro = isCurrentAccountReadOnly();
+
+  // Paginate
+  const totalRows = rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / forecastPageSize));
+  if (forecastPage >= totalPages) forecastPage = totalPages - 1;
+  if (forecastPage < 0) forecastPage = 0;
+  const startIdx = forecastPage * forecastPageSize;
+  const endIdx = Math.min(startIdx + forecastPageSize, totalRows);
+  const pageRows = rows.slice(startIdx, endIdx);
+
+  // Update pagination UI (hide entirely if the smallest page size would fit everything)
+  const paginationBar = document.getElementById('forecastPagination');
+  if (totalRows <= 10) {
+    paginationBar.classList.add('hidden');
+  } else {
+    paginationBar.classList.remove('hidden');
+    document.getElementById('forecastPageRange').textContent =
+      totalRows === 0 ? '' : `${startIdx + 1}–${endIdx} of ${totalRows}`;
+    document.getElementById('forecastPageLabel').textContent =
+      `Page ${forecastPage + 1} of ${totalPages}`;
+    document.getElementById('forecastPrevPage').disabled = forecastPage === 0;
+    document.getElementById('forecastNextPage').disabled = forecastPage >= totalPages - 1;
+  }
+
+  pageRows.forEach((r, idx) => {
+    const tr = document.createElement('tr');
+    const rowKey = _forecastRowKey(r);
+    if (editingForecastRowKey === rowKey && !ro) {
+      tr.innerHTML = _renderForecastEditRow(r);
+      tbody.appendChild(tr);
+      return;
+    }
+    const cat = r.category
+      ? `<span class="cat-pill">${escapeHtml(r.category)}</span>`
+      : '<span style="color:var(--muted)">—</span>';
+    const fAmt = r.forecast_amount != null ? fmt(r.forecast_amount) : '—';
+    const fBal = r.forecast_balance != null ? fmt(r.forecast_balance) : '—';
+    const aBal = r.actual_balance != null ? fmt(r.actual_balance) : '—';
+    const dAmt = r.diff_amount != null ? fmt(r.diff_amount) : '—';
+    const dBal = r.diff_balance != null ? fmt(r.diff_balance) : '—';
+    const dAmtCls = r.diff_amount == null ? 'diff-zero' : (r.diff_amount > 0 ? 'diff-pos' : (r.diff_amount < 0 ? 'diff-neg' : 'diff-zero'));
+    const dBalCls = r.diff_balance == null ? 'diff-zero' : (r.diff_balance > 0 ? 'diff-pos' : (r.diff_balance < 0 ? 'diff-neg' : 'diff-zero'));
+
+    // All cells are static display. Press ✎ in the Actions column to edit.
+    // Defaulted (not-yet-real) actuals are shown muted so they look like placeholders.
+    const actAmtVal = r.actual_amount != null ? r.actual_amount : null;
+    const actDateVal = r.actual_date || '';
+    const defaultedCls = r.is_actual_real ? '' : ' muted';
+    const notesCell = r.notes
+      ? `<td class="notes-col" title="${escapeAttr(r.notes)}">${escapeHtml(r.notes)}</td>`
+      : `<td class="notes-col muted">—</td>`;
+    const actDateCell = `<td class="${defaultedCls}">${actDateVal || '—'}</td>`;
+    const actAmtCell  = `<td class="num${defaultedCls}">${actAmtVal != null ? fmt(actAmtVal) : '—'}</td>`;
+    const actionsCell = ro
+      ? '<td></td>'
+      : `<td><button class="ghost" title="Edit row" onclick="startEditForecastRow('${rowKey}')">✎</button></td>`;
+
+    tr.innerHTML = `
+      <td>${r.forecast_date || '—'}</td>
+      ${actDateCell}
+      <td>${escapeHtml(r.description)}</td>
+      <td>${cat}</td>
+      <td class="num ${r.forecast_amount>=0?'pos':'neg'}">${fAmt}</td>
+      <td class="num">${fBal}</td>
+      ${actAmtCell}
+      <td class="num">${aBal}</td>
+      <td class="num ${dAmtCls}">${dAmt}</td>
+      <td class="num ${dBalCls}">${dBal}</td>
+      ${notesCell}
+      ${actionsCell}`;
+    tbody.appendChild(tr);
+  });
+}
+
+function _renderForecastEditRow(r) {
+  const rowKey = _forecastRowKey(r);
+  const catOptions = ['<option value="">— none —</option>']
+    .concat(categories.map(c => {
+      // Match by name since forecast rows only carry category name, not id
+      const selected = c.name === r.category ? ' selected' : '';
+      return `<option value="${c.id}"${selected}>${escapeHtml(c.name)}</option>`;
+    })).join('');
+  const fAmtVal = r.forecast_amount != null ? r.forecast_amount : '';
+  const aAmtVal = r.actual_amount != null ? r.actual_amount : '';
+  return `
+    <td><label class="inline-label">Forecast date</label><input type="date" class="inline-edit date" id="editFcFDate" value="${r.forecast_date||''}"></td>
+    <td><label class="inline-label">Actual date</label><input type="date" class="inline-edit date" id="editFcADate" value="${r.actual_date||''}"></td>
+    <td><label class="inline-label">Description</label><input class="inline-edit" id="editFcDesc" value="${escapeAttr(r.description||'')}" style="width:100%"></td>
+    <td><label class="inline-label">Category</label><select id="editFcCat" style="width:100%">${catOptions}</select></td>
+    <td class="num" colspan="2"><label class="inline-label">Forecast amt</label><input type="number" step="0.01" class="inline-edit" id="editFcFAmt" value="${fAmtVal}" style="width:100%"></td>
+    <td class="num" colspan="2"><label class="inline-label">Actual amt</label><input type="number" step="0.01" class="inline-edit" id="editFcAAmt" value="${aAmtVal}" style="width:100%"></td>
+    <td colspan="3"><label class="inline-label">Notes</label><input class="inline-edit" id="editFcNotes" maxlength="256" placeholder="e.g. paid early" value="${escapeAttr(r.notes||'')}" style="width:100%"></td>
+    <td style="white-space:nowrap;vertical-align:bottom">
+      <button title="Save" onclick="saveForecastRowEdit('${rowKey}')">✓</button>
+      <button class="ghost" title="Cancel" onclick="cancelEditForecastRow()">✕</button>
+      ${r.transaction_id ? `<button class="danger" title="Delete" onclick="deleteForecastRow(${r.transaction_id})">🗑</button>` : ''}
+    </td>`;
+}
+
+function startEditForecastRow(rowKey) {
+  editingForecastRowKey = rowKey;
+  renderForecast();
+}
+
+function cancelEditForecastRow() {
+  editingForecastRowKey = null;
+  renderForecast();
+}
+
+async function deleteForecastRow(tid) {
+  if (!confirm('Delete this transaction? This cannot be undone.')) return;
+  try {
+    await api('/api/transactions/' + tid, { method: 'DELETE' });
+  } catch (e) {
+    alert('Could not delete: ' + e.message);
+    return;
+  }
+  editingForecastRowKey = null;
+  await loadForecast();
+}
+
+async function saveForecastRowEdit(rowKey) {
+  const row = forecastData.rows.find(r => _forecastRowKey(r) === rowKey);
+  if (!row) return;
+  const fDate = document.getElementById('editFcFDate').value || null;
+  const aDate = document.getElementById('editFcADate').value || null;
+  const desc  = document.getElementById('editFcDesc').value.trim();
+  const notes = document.getElementById('editFcNotes').value.trim();
+  const catId = document.getElementById('editFcCat').value || null;
+  const fAmtRaw = document.getElementById('editFcFAmt').value;
+  const aAmtRaw = document.getElementById('editFcAAmt').value;
+  const fAmt = fAmtRaw !== '' ? parseFloat(fAmtRaw) : null;
+  const aAmt = aAmtRaw !== '' ? parseFloat(aAmtRaw) : null;
+
+  if (!desc) { alert('Description cannot be empty.'); return; }
+  if (aAmt == null && fAmt == null) { alert('At least one amount is required.'); return; }
+
+  // The canonical "amount" stored on the transaction is the actual amount if
+  // the row has one (or the forecast amount otherwise).
+  const primaryAmt = aAmt != null ? aAmt : fAmt;
+  const isActual = aAmt != null;
+
+  const body = {
+    description: desc,
+    amount: primaryAmt,
+    forecast_date: fDate,
+    actual_date: aDate,
+    forecast_amount: fAmt,
+    is_actual: isActual,
+    category_id: catId ? parseInt(catId) : null,
+    recurring_id: row.recurring_id || null,
+    notes: notes || null,
+  };
+
+  try {
+    if (row.transaction_id) {
+      // Update existing transaction
+      await api('/api/transactions/' + row.transaction_id, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      });
+    } else {
+      // Create a new transaction backing this recurring projection
+      await api(`/api/accounts/${currentAccountId}/transactions`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+    }
+  } catch (e) {
+    alert('Could not save row: ' + e.message);
+    return;
+  }
+  editingForecastRowKey = null;
+  await loadForecast();
+}
+
+// Wire up sort handlers (called once after init)
+function wireForecastSort() {
+  document.querySelectorAll('#forecastTable th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.key;
+      if (sortKey === key) {
+        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortKey = key;
+        sortDir = 'asc';
+      }
+      forecastPage = 0;
+      renderForecast();
+    });
+  });
+}
+
+function wireRecurringSort() {
+  document.querySelectorAll('#recurringTable th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.key;
+      if (recurringSortKey === key) {
+        recurringSortDir = recurringSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        recurringSortKey = key;
+        recurringSortDir = 'asc';
+      }
+      recurringPage = 0;
+      renderRecurring();
+    });
+  });
+}
+
+async function logout() {
+  await fetch('/auth/logout', {method:'POST'});
+  location.reload();
+}
+
+function escapeHtml(s){return (s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));}
+
+// State for the import flow: parsed backup waiting to be applied
+let pendingImportPayload = null;
+
+async function loadManageAccounts() {
+  const wrap = document.getElementById('manageAccountsList');
+  if (!wrap) return;
+  let list;
+  try {
+    // Include archived so the management view sees everything
+    list = await api('/api/accounts?include_archived=true');
+  } catch (e) {
+    wrap.innerHTML = `<div style="color:var(--bad)">Could not load accounts: ${escapeHtml(e.message)}</div>`;
+    return;
+  }
+  if (!list.length) {
+    wrap.innerHTML = '<div style="color:var(--muted);font-size:13px">No accounts yet.</div>';
+    return;
+  }
+  // Sort: active first, archived below, each group alphabetical
+  list.sort((a, b) => {
+    if (a.archived !== b.archived) return a.archived ? 1 : -1;
+    return a.name.localeCompare(b.name);
+  });
+  const rows = list.map(a => {
+    const canEdit = a.level === 'owner' || a.level === 'edit';
+    const archivedBadge = a.archived ? ' <span class="ro-badge">archived</span>' : '';
+    const actionBtn = canEdit
+      ? (a.archived
+          ? `<button class="ghost" onclick="setAccountArchived(${a.id}, false)">Unarchive</button>`
+          : `<button class="ghost" onclick="setAccountArchived(${a.id}, true)">Archive</button>`)
+      : '<span style="color:var(--muted);font-size:12px">Read only</span>';
+    return `<tr>
+      <td>${escapeHtml(a.name)}${archivedBadge}</td>
+      <td style="color:var(--muted);font-size:12px">${escapeHtml(a.level)}</td>
+      <td style="text-align:right">${actionBtn}</td>
+    </tr>`;
+  }).join('');
+  wrap.innerHTML = `<table style="width:100%"><thead><tr>
+    <th>Account</th><th>Access</th><th></th>
+  </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function setAccountArchived(id, archived) {
+  const msg = archived
+    ? 'Archive this account? It will be hidden from the Dashboard and Accounts page but its data is preserved.'
+    : 'Unarchive this account? It will reappear on the Dashboard and Accounts page.';
+  if (!confirm(msg)) return;
+  try {
+    await api('/api/accounts/' + id, {
+      method: 'PATCH',
+      body: JSON.stringify({archived}),
+    });
+  } catch (e) {
+    alert('Could not update account: ' + e.message);
+    return;
+  }
+  // Refresh everywhere the account list matters
+  await loadManageAccounts();
+  await loadExportAccounts();
+  // The main accounts list (tab bar) needs a reload too since archived items
+  // should disappear from it. If the currently-selected account just got
+  // archived, clear the selection so the forecast doesn't try to reload it.
+  if (archived && currentAccountId === id) {
+    currentAccountId = null;
+  }
+  await loadAccounts();
+}
+
+async function loadExportAccounts() {
+  const wrap = document.getElementById('exportAccountList');
+  if (!wrap) return;
+  try {
+    // Accounts endpoint returns what the user can see; filter to edit+ for export
+    const list = await api('/api/accounts');
+    const editable = list.filter(a => a.level === 'edit' || a.level === 'owner');
+    if (!editable.length) {
+      wrap.innerHTML = '<span style="color:var(--muted)">No accounts available to export.</span>';
+      return;
+    }
+    wrap.innerHTML = editable.map(a =>
+      `<label><input type="checkbox" class="export-acct" value="${a.id}" checked> ${escapeHtml(a.name)}</label>`
+    ).join('');
+  } catch (e) {
+    wrap.innerHTML = `<span style="color:var(--bad)">Could not load accounts: ${escapeHtml(e.message)}</span>`;
+  }
+}
+
+async function exportBackup() {
+  const status = document.getElementById('backupStatus');
+  const selected = Array.from(document.querySelectorAll('.export-acct:checked'))
+    .map(cb => cb.value);
+  if (!selected.length) {
+    status.textContent = 'Select at least one account to export.';
+    status.style.color = 'var(--bad)';
+    return;
+  }
+  status.textContent = 'Preparing backup...';
+  status.style.color = 'var(--muted)';
+  try {
+    const url = '/api/backup/export?account_ids=' + encodeURIComponent(selected.join(','));
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Export failed');
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objUrl;
+    a.download = `walletweather-backup-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(objUrl);
+    status.textContent = `Exported ${selected.length} account(s).`;
+    status.style.color = 'var(--good)';
+  } catch (e) {
+    status.textContent = 'Export failed: ' + e.message;
+    status.style.color = 'var(--bad)';
+  }
+}
+
+async function onImportFileChosen() {
+  const status = document.getElementById('backupStatus');
+  const wrap = document.getElementById('importAccountWrap');
+  const list = document.getElementById('importAccountList');
+  const fileInput = document.getElementById('importFile');
+  pendingImportPayload = null;
+  if (!fileInput.files.length) {
+    wrap.classList.add('hidden');
+    return;
+  }
+  try {
+    const text = await fileInput.files[0].text();
+    const payload = JSON.parse(text);
+    if (!payload.accounts || !Array.isArray(payload.accounts)) {
+      throw new Error('File does not look like a valid backup');
+    }
+    pendingImportPayload = payload;
+    if (!payload.accounts.length) {
+      list.innerHTML = '<span style="color:var(--muted)">Backup contains no accounts.</span>';
+    } else {
+      list.innerHTML = payload.accounts.map((a, i) =>
+        `<label><input type="checkbox" class="import-acct" value="${escapeAttr(a.name)}" checked> ${escapeHtml(a.name || 'Unnamed')}</label>`
+      ).join('');
+    }
+    wrap.classList.remove('hidden');
+    status.textContent = `Loaded ${payload.accounts.length} account(s) from file. Select which to restore.`;
+    status.style.color = 'var(--muted)';
+  } catch (e) {
+    wrap.classList.add('hidden');
+    status.textContent = 'Could not read file: ' + e.message;
+    status.style.color = 'var(--bad)';
+  }
+}
+
+async function importBackup() {
+  const status = document.getElementById('backupStatus');
+  const mode = document.getElementById('importMode').value;
+  if (!pendingImportPayload) {
+    status.textContent = 'Choose a backup file first.';
+    status.style.color = 'var(--bad)';
+    return;
+  }
+  const selectedNames = Array.from(document.querySelectorAll('.import-acct:checked'))
+    .map(cb => cb.value);
+  if (!selectedNames.length) {
+    status.textContent = 'Select at least one account to restore.';
+    status.style.color = 'var(--bad)';
+    return;
+  }
+  if (mode === 'replace') {
+    if (!confirm('Replace mode will DELETE all your current accounts and transactions before importing. This cannot be undone. Continue?')) return;
+  }
+  status.textContent = 'Importing...';
+  status.style.color = 'var(--muted)';
+  try {
+    const res = await fetch('/api/backup/import', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        mode,
+        payload: pendingImportPayload,
+        account_names: selectedNames,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Import failed');
+    status.textContent = `Imported ${data.imported.accounts} account(s), ${data.imported.recurring} recurring, ${data.imported.transactions} transaction(s), ${data.imported.categories||0} categor${(data.imported.categories||0)===1?'y':'ies'}.`;
+    status.style.color = 'var(--good)';
+    document.getElementById('importFile').value = '';
+    document.getElementById('importAccountWrap').classList.add('hidden');
+    pendingImportPayload = null;
+    currentAccountId = null;
+    await loadAccounts();
+    await loadExportAccounts();  // refresh in case new accounts now exist
+  } catch (e) {
+    status.textContent = 'Import failed: ' + e.message;
+    status.style.color = 'var(--bad)';
+  }
+}
+
+// ============ Admin page ============
+function loadAdminPage() {
+  loadAdminUsers();
+  loadAdminPermissions();
+  loadAdminBackupConfig();
+  loadAdminBackups();
+}
+
+async function loadAdminUsers() {
+  const wrap = document.getElementById('adminUsersList');
+  try {
+    const users = await api('/api/admin/users');
+    if (!users.length) {
+      wrap.innerHTML = '<div style="color:var(--muted)">No users.</div>';
+      return;
+    }
+    const rows = users.map(u => {
+      const badges = [];
+      if (u.is_admin) badges.push('<span class="ro-badge" style="background:#d29922;color:#000">admin</span>');
+      if (u.disabled) badges.push('<span class="ro-badge" style="background:var(--bad)">disabled</span>');
+      const authMethods = [];
+      if (u.has_password) authMethods.push('local');
+      if (u.has_google) authMethods.push('google');
+      return `<tr>
+        <td>${escapeHtml(u.email)} ${badges.join(' ')}</td>
+        <td>${escapeHtml(u.name || '—')}</td>
+        <td style="color:var(--muted);font-size:12px">${authMethods.join(', ')}</td>
+        <td class="num">${u.owned_count} owned, ${u.account_count} total</td>
+        <td style="color:var(--muted);font-size:12px">${u.created_at ? u.created_at.slice(0,10) : '—'}</td>
+        <td style="white-space:nowrap">
+          <button class="ghost" onclick="adminToggleDisable(${u.id}, ${!u.disabled})" title="${u.disabled ? 'Enable' : 'Disable'}">
+            ${u.disabled ? '✓ Enable' : '⊘ Disable'}
+          </button>
+          <button class="ghost" onclick="adminResetPassword(${u.id})" title="Reset password">🔑</button>
+          <button class="danger" onclick="adminDeleteUser(${u.id}, '${escapeAttr(u.email)}')" title="Delete">🗑</button>
+        </td>
+      </tr>`;
+    }).join('');
+    wrap.innerHTML = `<table><thead><tr>
+      <th>Email</th><th>Name</th><th>Auth</th><th>Accounts</th><th>Created</th><th></th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+  } catch (e) {
+    wrap.innerHTML = `<div style="color:var(--bad)">Error: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function adminToggleDisable(uid, disabled) {
+  const action = disabled ? 'disable' : 'enable';
+  if (!confirm(`${disabled ? 'Disable' : 'Enable'} this user? ${disabled ? 'They will be logged out and unable to sign in.' : 'They will be able to sign in again.'}`)) return;
+  try {
+    await api('/api/admin/users/' + uid, {
+      method: 'PATCH',
+      body: JSON.stringify({disabled}),
+    });
+  } catch (e) {
+    alert('Failed: ' + e.message);
+    return;
+  }
+  await loadAdminUsers();
+}
+
+async function adminResetPassword(uid) {
+  const pw = prompt('Enter new password (min 8 characters):');
+  if (!pw) return;
+  if (pw.length < 8) { alert('Password must be at least 8 characters.'); return; }
+  try {
+    await api('/api/admin/users/' + uid, {
+      method: 'PATCH',
+      body: JSON.stringify({new_password: pw}),
+    });
+    alert('Password reset successfully.');
+  } catch (e) {
+    alert('Failed: ' + e.message);
+  }
+}
+
+async function adminDeleteUser(uid, email) {
+  if (!confirm(`Permanently delete user "${email}" and ALL their accounts, transactions, and categories? This cannot be undone.`)) return;
+  try {
+    await api('/api/admin/users/' + uid, {method: 'DELETE'});
+  } catch (e) {
+    alert('Failed: ' + e.message);
+    return;
+  }
+  await loadAdminUsers();
+}
+
+async function loadAdminPermissions() {
+  const container = document.getElementById('adminPermContent');
+  try {
+    const data = await api('/api/admin/permissions');
+    if (!data.accounts.length) {
+      container.innerHTML = '<div style="color:var(--muted)">No accounts in the system.</div>';
+      return;
+    }
+    const permsByPair = {};
+    data.permissions.forEach(p => {
+      permsByPair[`${p.account_id}:${p.user_id}`] = p.level;
+    });
+    let html = '<table style="width:auto;min-width:100%"><thead><tr>';
+    html += '<th style="position:sticky;left:0;background:var(--panel)">User</th>';
+    data.accounts.forEach(a => {
+      html += `<th>${escapeHtml(a.name)}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    data.users.forEach(u => {
+      html += '<tr>';
+      html += `<td style="position:sticky;left:0;background:var(--panel);white-space:nowrap">${escapeHtml(u.email)}</td>`;
+      data.accounts.forEach(a => {
+        const level = permsByPair[`${a.id}:${u.id}`] || 'deny';
+        html += `<td><select onchange="adminSetPerm(${a.id},${u.id},this.value)">
+          <option value="deny"${level==='deny'?' selected':''}>Deny</option>
+          <option value="read"${level==='read'?' selected':''}>Read</option>
+          <option value="edit"${level==='edit'?' selected':''}>Edit</option>
+          <option value="owner"${level==='owner'?' selected':''}>Owner</option>
+        </select></td>`;
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = `<div style="color:var(--bad)">Error: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function adminSetPerm(accountId, userId, level) {
+  const status = document.getElementById('adminPermStatus');
+  status.textContent = 'Saving…';
+  status.style.color = 'var(--muted)';
+  try {
+    await api('/api/admin/permissions', {
+      method: 'POST',
+      body: JSON.stringify({account_id: accountId, user_id: userId, level: level}),
+    });
+    status.textContent = 'Saved.';
+    status.style.color = 'var(--good)';
+    setTimeout(() => { status.textContent = ''; }, 2000);
+  } catch (e) {
+    status.textContent = 'Failed: ' + e.message;
+    status.style.color = 'var(--bad)';
+    await loadAdminPermissions();
+  }
+}
+
+async function loadAdminBackupConfig() {
+  try {
+    const cfg = await api('/api/admin/backup-config');
+    document.getElementById('adminBackupEnabled').value = cfg.enabled ? 'true' : 'false';
+    document.getElementById('adminBackupFreq').value = cfg.frequency || 'daily';
+    document.getElementById('adminBackupHour').value = cfg.hour ?? 3;
+    document.getElementById('adminBackupRetention').value = cfg.retention_days ?? 30;
+    const statusEl = document.getElementById('adminBackupScheduleStatus');
+    if (cfg.last_run_at) {
+      statusEl.textContent = `Last run: ${cfg.last_run_at.slice(0,19).replace('T',' ')} UTC — ${cfg.last_run_status || 'unknown'}`;
+    } else {
+      statusEl.textContent = 'No scheduled backup has run yet.';
+    }
+  } catch (e) {
+    document.getElementById('adminBackupScheduleStatus').textContent = 'Could not load config.';
+  }
+}
+
+async function saveBackupConfig() {
+  const status = document.getElementById('adminBackupScheduleStatus');
+  status.textContent = 'Saving…';
+  try {
+    await api('/api/admin/backup-config', {
+      method: 'POST',
+      body: JSON.stringify({
+        enabled: document.getElementById('adminBackupEnabled').value === 'true',
+        frequency: document.getElementById('adminBackupFreq').value,
+        hour: parseInt(document.getElementById('adminBackupHour').value),
+        retention_days: parseInt(document.getElementById('adminBackupRetention').value),
+      }),
+    });
+    status.textContent = 'Schedule saved.';
+    status.style.color = 'var(--good)';
+  } catch (e) {
+    status.textContent = 'Failed: ' + e.message;
+    status.style.color = 'var(--bad)';
+  }
+}
+
+async function triggerBackupNow() {
+  const status = document.getElementById('adminBackupNowStatus');
+  status.textContent = 'Running backup…';
+  status.style.color = 'var(--muted)';
+  try {
+    const res = await api('/api/admin/backups/now', {method: 'POST'});
+    status.textContent = `Backup complete: ${res.filename}`;
+    status.style.color = 'var(--good)';
+    await loadAdminBackups();
+  } catch (e) {
+    status.textContent = 'Failed: ' + e.message;
+    status.style.color = 'var(--bad)';
+  }
+}
+
+async function loadAdminBackups() {
+  const wrap = document.getElementById('adminBackupsList');
+  try {
+    const files = await api('/api/admin/backups');
+    if (!files.length) {
+      wrap.innerHTML = '<div style="color:var(--muted);font-size:13px">No backups found.</div>';
+      return;
+    }
+    const fmtSize = bytes => {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1048576).toFixed(1) + ' MB';
+    };
+    const rows = files.map(f => `<tr>
+      <td>${escapeHtml(f.filename)}</td>
+      <td style="color:var(--muted);font-size:12px">${fmtSize(f.size)}</td>
+      <td style="color:var(--muted);font-size:12px">${f.modified.slice(0,19).replace('T',' ')}</td>
+      <td style="white-space:nowrap">
+        <button class="ghost" onclick="downloadAdminBackup('${escapeAttr(f.filename)}')">Download</button>
+        <button class="danger" onclick="restoreAdminBackup('${escapeAttr(f.filename)}')">Restore</button>
+      </td>
+    </tr>`).join('');
+    wrap.innerHTML = `<table><thead><tr>
+      <th>File</th><th>Size</th><th>Date</th><th></th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+  } catch (e) {
+    wrap.innerHTML = `<div style="color:var(--bad)">Error: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function downloadAdminBackup(filename) {
+  window.location.href = `/api/admin/backups/download/${encodeURIComponent(filename)}`;
+}
+
+async function restoreAdminBackup(filename) {
+  if (!confirm(`Restore from "${filename}"?\n\nThis will REPLACE all data for all users present in the backup. This cannot be undone.\n\nAre you sure?`)) return;
+  const wrap = document.getElementById('adminBackupsList');
+  try {
+    const res = await api(`/api/admin/backups/restore/${encodeURIComponent(filename)}`, {
+      method: 'POST',
+    });
+    alert(`Restore complete: ${res.restored.users} user(s), ${res.restored.accounts} account(s).`);
+    await loadAdminPage();
+  } catch (e) {
+    alert('Restore failed: ' + e.message);
+  }
+}
+
+init();
+</script>
+</body>
+</html>

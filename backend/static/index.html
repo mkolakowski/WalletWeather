@@ -8,7 +8,14 @@
 <link rel="apple-touch-icon" href="/static/favicon.svg">
 <style>
   :root { --bg:#0f1419; --panel:#1a2027; --border:#2a323c; --text:#e6edf3; --muted:#8b949e;
-          --accent:#58a6ff; --good:#3fb950; --bad:#f85149; --warn:#d29922; }
+          --accent:#58a6ff; --good:#3fb950; --bad:#f85149; --warn:#d29922;
+          --bg-deep:#0d1117; --chip-bg:#21262d; --good-bg:#0d2818; --field-bg:#161b22;
+          --bad-bg:rgba(248,81,73,0.1); --on-accent:#fff; }
+  :root[data-theme="light"] {
+          --bg:#ffffff; --panel:#f6f8fa; --border:#d0d7de; --text:#1f2328; --muted:#656d76;
+          --accent:#0969da; --good:#1a7f37; --bad:#cf222e; --warn:#9a6700;
+          --bg-deep:#eaeef2; --chip-bg:#eaeef2; --good-bg:#dafbe1; --field-bg:#ffffff;
+          --bad-bg:rgba(207,34,46,0.08); --on-accent:#ffffff; }
   * { box-sizing:border-box; }
   body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
          background:var(--bg); color:var(--text); }
@@ -20,12 +27,12 @@
            padding:16px; margin-bottom:16px; }
   .panel h2 { margin:0 0 12px; font-size:15px; font-weight:600; color:var(--muted);
               text-transform:uppercase; letter-spacing:.05em; }
-  button { background:var(--accent); color:#fff; border:0; padding:8px 14px;
+  button { background:var(--accent); color:var(--on-accent); border:0; padding:8px 14px;
            border-radius:6px; cursor:pointer; font-size:13px; font-weight:500; }
   button:hover { filter:brightness(1.1); }
   button.ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
   button.danger { background:var(--bad); }
-  input, select { background:#0d1117; border:1px solid var(--border); color:var(--text);
+  input, select { background:var(--bg-deep); border:1px solid var(--border); color:var(--text);
                   padding:7px 10px; border-radius:6px; font:inherit; }
   label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
   .row { display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
@@ -38,8 +45,8 @@
   .pos { color:var(--good); }
   .neg { color:var(--bad); }
   .pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px;
-          background:#21262d; color:var(--muted); }
-  .pill.actual { background:#0d2818; color:var(--good); }
+          background:var(--chip-bg); color:var(--muted); }
+  .pill.actual { background:var(--good-bg); color:var(--good); }
   .login { text-align:center; padding:80px 20px; }
   .login h1 { font-size:24px; margin-bottom:8px; }
   .login p { color:var(--muted); margin-bottom:24px; }
@@ -47,13 +54,13 @@
                border-radius:10px; padding:24px; text-align:left; }
   .auth-card label { margin-top:10px; }
   .auth-card input { width:100%; }
-  .tabs { display:flex; gap:4px; margin-bottom:16px; background:#0d1117;
+  .tabs { display:flex; gap:4px; margin-bottom:16px; background:var(--bg-deep);
           padding:4px; border-radius:8px; }
   .tab { flex:1; background:transparent; color:var(--muted); padding:8px;
          border-radius:6px; font-weight:500; }
   .tab.active { background:var(--panel); color:var(--text); }
   .auth-error { margin-top:12px; padding:10px; border-radius:6px;
-                background:rgba(248,81,73,0.1); color:var(--bad); font-size:13px; }
+                background:var(--bad-bg); color:var(--bad); font-size:13px; }
   .divider { display:flex; align-items:center; gap:10px; margin:18px 0;
              color:var(--muted); font-size:12px; }
   .divider::before, .divider::after { content:""; flex:1; height:1px; background:var(--border); }
@@ -76,12 +83,12 @@
   .nav-btn { background:transparent; color:var(--muted); border:1px solid transparent;
              padding:6px 14px; border-radius:6px; font-weight:500; font-size:13px; cursor:pointer; }
   .nav-btn:hover { color:var(--text); }
-  .nav-btn.active { background:#0d1117; color:var(--accent); border-color:var(--border); }
+  .nav-btn.active { background:var(--bg-deep); color:var(--accent); border-color:var(--border); }
   .tab.small { padding:4px 10px; font-size:12px; }
   .backup-subhead { font-size:12px; font-weight:600; color:var(--muted);
                     text-transform:uppercase; letter-spacing:.05em; margin:0 0 10px; }
   .account-checklist { display:flex; flex-wrap:wrap; gap:6px;
-                       background:#0d1117; border:1px solid var(--border);
+                       background:var(--bg-deep); border:1px solid var(--border);
                        border-radius:6px; padding:10px; min-height:36px; }
   .account-checklist label { display:inline-flex; align-items:center; gap:6px;
                              padding:4px 10px; background:var(--panel);
@@ -111,14 +118,14 @@
   .pie-legend .lname { flex:1; }
   .pie-legend .lval { color:var(--muted); font-variant-numeric:tabular-nums; }
   .pie-empty { color:var(--muted); font-size:13px; padding:10px; }
-  .ro-badge { background:#21262d; color:var(--muted); font-size:9px; padding:2px 6px;
+  .ro-badge { background:var(--chip-bg); color:var(--muted); font-size:9px; padding:2px 6px;
               border-radius:8px; margin-left:6px; text-transform:uppercase;
               letter-spacing:.05em; vertical-align:middle; }
   .owner-flag { color:var(--warn); font-size:12px; }
   td.muted { color:var(--muted); }
   .dashboard-grid { display:grid; gap:14px;
                     grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); }
-  .dash-card { background:#0d1117; border:1px solid var(--border); border-radius:8px;
+  .dash-card { background:var(--bg-deep); border:1px solid var(--border); border-radius:8px;
                padding:16px; transition:border-color 0.15s; }
   .dash-card:hover { border-color:var(--accent); }
   .dash-card h3 { margin:0 0 4px; font-size:15px; font-weight:600; cursor:pointer; color:var(--text); }
@@ -126,7 +133,7 @@
   .dash-card .month { font-size:11px; color:var(--muted); text-transform:uppercase;
                       letter-spacing:.05em; margin-bottom:14px; }
   .dash-card .pair { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
-  .dash-card .field { background:#161b22; border:1px solid var(--border); border-radius:6px;
+  .dash-card .field { background:var(--field-bg); border:1px solid var(--border); border-radius:6px;
                       padding:8px 10px; }
   .dash-card .field .l { font-size:10px; color:var(--muted); text-transform:uppercase;
                          letter-spacing:.04em; }
@@ -183,12 +190,12 @@
   th.num, td.num { text-align:right; font-variant-numeric:tabular-nums; }
   th.sort-asc::after { content:" ▲"; font-size:9px; color:var(--accent); }
   th.sort-desc::after { content:" ▼"; font-size:9px; color:var(--accent); }
-  .inline-edit { background:#0d1117; border:1px solid var(--border); color:var(--text);
+  .inline-edit { background:var(--bg-deep); border:1px solid var(--border); color:var(--text);
                  padding:3px 6px; border-radius:4px; font:inherit; font-size:12px;
                  width:90px; }
   .inline-edit.date { width:130px; }
   .inline-edit.defaulted { color:var(--muted); border-color:transparent; background:transparent; }
-  .inline-edit.defaulted:hover, .inline-edit.defaulted:focus { color:var(--text); border-color:var(--border); background:#0d1117; }
+  .inline-edit.defaulted:hover, .inline-edit.defaulted:focus { color:var(--text); border-color:var(--border); background:var(--bg-deep); }
   .notes-icon { display:inline-block; margin-left:6px; cursor:pointer; font-size:11px;
                 opacity:0.85; user-select:none; }
   .notes-icon:hover { opacity:1; }
@@ -198,9 +205,22 @@
   .diff-neg { color:var(--bad); }
   .diff-zero { color:var(--muted); }
   .cat-pill { display:inline-block; padding:1px 8px; border-radius:10px;
-              font-size:11px; background:#21262d; color:var(--muted); }
+              font-size:11px; background:var(--chip-bg); color:var(--muted); }
   .hidden { display:none; }
 </style>
+<script>
+  // Apply saved theme before first paint to avoid a light/dark flash.
+  (function() {
+    try {
+      var saved = localStorage.getItem('ww-theme') || 'dark';
+      var effective = saved;
+      if (saved === 'system') {
+        effective = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+      }
+      if (effective === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    } catch (e) { /* localStorage unavailable — stay on default (dark) */ }
+  })();
+</script>
 </head>
 <body>
 
@@ -209,6 +229,17 @@
   <p>Track balances, forecast cashflow, compare planned vs actual.</p>
 
   <div class="auth-card">
+    <div id="demoBanner" class="hidden" style="margin-bottom:14px;padding:10px 12px;border-radius:8px;
+         background:var(--good-bg);border:1px solid var(--border);font-size:13px;color:var(--text);line-height:1.45">
+      <strong style="color:var(--good)">Demo mode</strong> — explore the app with sample data.
+      <div style="margin-top:6px">
+        <div>Email: <code id="demoEmail" style="color:var(--accent)"></code></div>
+        <div>Password: <code id="demoPass" style="color:var(--accent)"></code></div>
+      </div>
+      <button type="button" class="ghost" style="margin-top:8px;width:100%" onclick="fillDemoCreds()">
+        Fill demo credentials
+      </button>
+    </div>
     <div class="tabs">
       <button id="tabSignin" class="tab active" onclick="switchTab('signin')">Sign in</button>
       <button id="tabSignup" class="tab" onclick="switchTab('signup')">Create account</button>
@@ -582,6 +613,27 @@
 
     <div id="pageSettings" class="hidden">
       <div class="panel">
+        <h2>Appearance</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Choose how WalletWeather looks on this device. Your choice is saved locally in this browser.
+        </p>
+        <div id="themePicker" class="row" style="gap:16px" onchange="onThemeChange(event)">
+          <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;margin:0;flex:0 0 auto">
+            <input type="radio" name="themeChoice" value="dark" style="width:auto">
+            <span>Dark <span style="color:var(--muted);font-size:12px">(default)</span></span>
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;margin:0;flex:0 0 auto">
+            <input type="radio" name="themeChoice" value="light" style="width:auto">
+            <span>Light</span>
+          </label>
+          <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;margin:0;flex:0 0 auto">
+            <input type="radio" name="themeChoice" value="system" style="width:auto">
+            <span>Match system</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="panel">
         <h2>Accounts</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           Create a new bank account to track, or archive an existing one to hide it from the
@@ -674,6 +726,41 @@ let me=null, accounts=[], currentAccountId=null, categories=[], recView='active'
 
 const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
 
+// ---------- Theme (dark / light / system) ----------
+const THEME_KEY = 'ww-theme';
+function getStoredTheme() {
+  try { return localStorage.getItem(THEME_KEY) || 'dark'; } catch { return 'dark'; }
+}
+function applyTheme(choice) {
+  let effective = choice;
+  if (choice === 'system') {
+    effective = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+  }
+  if (effective === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+}
+function loadThemePicker() {
+  const choice = getStoredTheme();
+  const radio = document.querySelector(`#themePicker input[name="themeChoice"][value="${choice}"]`);
+  if (radio) radio.checked = true;
+}
+function onThemeChange(event) {
+  const choice = event.target.value;
+  try { localStorage.setItem(THEME_KEY, choice); } catch {}
+  applyTheme(choice);
+}
+// Re-apply when system preference changes, if the user picked "system"
+if (window.matchMedia) {
+  try {
+    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+      if (getStoredTheme() === 'system') applyTheme('system');
+    });
+  } catch {}
+}
+
 async function api(path, opts={}) {
   const res = await fetch(path, { headers:{'Content-Type':'application/json'}, ...opts });
   if (res.status===401) { showLogin(); throw new Error('auth'); }
@@ -692,7 +779,7 @@ function showPage(name) {
   document.getElementById('navReports').classList.toggle('active', name==='reports');
   document.getElementById('navAdmin').classList.toggle('active', name==='admin');
   document.getElementById('navSettings').classList.toggle('active', name==='settings');
-  if (name === 'settings') { loadCategories(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); }
+  if (name === 'settings') { loadThemePicker(); loadCategories(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); }
   if (name === 'dashboard') loadDashboard();
   if (name === 'reports') initReportsPage();
   if (name === 'admin') loadAdminPage();
@@ -1095,6 +1182,12 @@ async function init() {
     const cfg = await fetch('/api/auth/config').then(r=>r.json());
     if (cfg.google_enabled) document.getElementById('googleWrap').classList.remove('hidden');
     if (!cfg.registration_enabled) document.getElementById('tabSignup').classList.add('hidden');
+    if (cfg.demo_mode && cfg.demo_email && cfg.demo_password) {
+      window._demoCreds = { email: cfg.demo_email, password: cfg.demo_password };
+      document.getElementById('demoEmail').textContent = cfg.demo_email;
+      document.getElementById('demoPass').textContent = cfg.demo_password;
+      document.getElementById('demoBanner').classList.remove('hidden');
+    }
   } catch {}
   try { me = await api('/api/me'); }
   catch { showLogin(); return; }
@@ -1130,6 +1223,14 @@ function switchTab(which) {
   document.getElementById('formSignin').classList.toggle('hidden', !si);
   document.getElementById('formSignup').classList.toggle('hidden', si);
   document.getElementById('authError').classList.add('hidden');
+}
+
+function fillDemoCreds() {
+  const c = window._demoCreds;
+  if (!c) return;
+  switchTab('signin');
+  document.getElementById('siEmail').value = c.email;
+  document.getElementById('siPass').value = c.password;
 }
 
 function showAuthError(msg) {

@@ -27,6 +27,18 @@ ALLOW_REGISTRATION = os.environ.get("ALLOW_REGISTRATION", "true").lower() == "tr
 ADMIN_EMAILS = {e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()}
 BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", "/data/backups"))
 
+# Demo mode: when on, the app boots with a pre-seeded admin user and sample
+# data. Default ON so first-time users can click around without signing up.
+# Set DEMO_MODE=false to turn the demo off and wipe its data on next start.
+DEMO_MODE = os.environ.get("DEMO_MODE", "true").lower() == "true"
+from .demo import (
+    DEMO_ADMIN_EMAIL, DEMO_ADMIN_PASSWORD, seed_demo_data, wipe_demo_data,
+)
+if DEMO_MODE:
+    # Make the demo admin an actual admin without requiring the operator to
+    # add them to ADMIN_EMAILS in .env.
+    ADMIN_EMAILS.add(DEMO_ADMIN_EMAIL.lower())
+
 # Google OAuth is optional - only enabled if both client id and secret are set
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
@@ -63,6 +75,15 @@ def _startup():
     try:
         for user in db.query(User).all():
             seed_default_categories(db, user)
+        # Demo-mode reconciliation. This must run after init_db so the
+        # admin_settings table exists.
+        if DEMO_MODE:
+            seed_demo_data(db, seed_default_categories)
+        else:
+            # If the demo was seeded previously and the operator has now
+            # turned it off, wipe the demo user(s) and their data. Real
+            # users are safe — we only delete the reserved demo email suffix.
+            wipe_demo_data(db)
     finally:
         db.close()
     # Start the backup scheduler daemon thread
@@ -208,6 +229,9 @@ def auth_config():
     return {
         "google_enabled": GOOGLE_ENABLED,
         "registration_enabled": ALLOW_REGISTRATION,
+        "demo_mode": DEMO_MODE,
+        "demo_email": DEMO_ADMIN_EMAIL if DEMO_MODE else None,
+        "demo_password": DEMO_ADMIN_PASSWORD if DEMO_MODE else None,
     }
 
 

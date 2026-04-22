@@ -33,6 +33,7 @@ services:
       ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
       ALLOWED_EMAILS: ${ALLOWED_EMAILS:-}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      DEMO_MODE: ${DEMO_MODE:-true}
       BACKUP_DIR: /data/backups
     ports:
       - "8300:8000"

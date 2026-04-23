@@ -36,6 +36,26 @@
           --accent:#ff6ac1; --good:#00f5d4; --bad:#ff3864; --warn:#fede1b;
           --bg-deep:#1e1530; --chip-bg:#3a2c4a; --good-bg:#0f4a45; --field-bg:#1e1530;
           --bad-bg:rgba(255,56,100,0.14); --on-accent:#1e1530; }
+  :root[data-theme="forest"] {
+          --bg:#1a2421; --panel:#243330; --border:#3a5048; --text:#e4ebe3; --muted:#8fa598;
+          --accent:#5eb583; --good:#9bd680; --bad:#e57373; --warn:#f0c674;
+          --bg-deep:#151e1b; --chip-bg:#2d413c; --good-bg:#1e3a28; --field-bg:#151e1b;
+          --bad-bg:rgba(229,115,115,0.12); --on-accent:#1a2421; }
+  :root[data-theme="mint"] {
+          --bg:#f3faf5; --panel:#e1f2e5; --border:#b8d9bf; --text:#15372a; --muted:#557d67;
+          --accent:#2d9065; --good:#1e7a4c; --bad:#c23030; --warn:#b88312;
+          --bg-deep:#e7f4ea; --chip-bg:#d3e9d8; --good-bg:#cde8d2; --field-bg:#ffffff;
+          --bad-bg:rgba(194,48,48,0.08); --on-accent:#ffffff; }
+  :root[data-theme="monokai"] {
+          --bg:#272822; --panel:#34352f; --border:#49483e; --text:#f8f8f2; --muted:#75715e;
+          --accent:#fd971f; --good:#a6e22e; --bad:#f92672; --warn:#e6db74;
+          --bg-deep:#1e1f1a; --chip-bg:#49483e; --good-bg:#2e3d24; --field-bg:#1e1f1a;
+          --bad-bg:rgba(249,38,114,0.12); --on-accent:#272822; }
+  :root[data-theme="sunset"] {
+          --bg:#2a1e1a; --panel:#3a2a25; --border:#5a3e35; --text:#fce8d8; --muted:#a68876;
+          --accent:#ff7f3f; --good:#80c26e; --bad:#ef4f56; --warn:#ffb84a;
+          --bg-deep:#1f1613; --chip-bg:#4a342d; --good-bg:#2c3d25; --field-bg:#1f1613;
+          --bad-bg:rgba(239,79,86,0.12); --on-accent:#1f1613; }
   * { box-sizing:border-box; }
   body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
          background:var(--bg); color:var(--text); }
@@ -252,7 +272,8 @@
   // Whitelist of supported keys must stay in sync with the THEMES list in the
   // main script below.
   (function() {
-    var KEYS = ['dark','light','system','dracula','solarized','nord','synthwave'];
+    var KEYS = ['dark','light','system','dracula','solarized','nord','synthwave',
+                'forest','mint','monokai','sunset'];
     try {
       var saved = localStorage.getItem('ww-theme');
       if (!saved || KEYS.indexOf(saved) === -1) saved = 'dark';
@@ -658,7 +679,7 @@
       <div class="panel">
         <h2>Appearance</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
-          Choose how WalletWeather looks on this device. Your choice is saved locally in this browser.
+          Pick a look for WalletWeather. Your choice is saved to your account and follows you across browsers and devices.
         </p>
         <div id="themePicker" class="theme-grid" onchange="onThemeChange(event)"></div>
       </div>
@@ -769,6 +790,10 @@ const THEMES = [
   { key: 'solarized', name: 'Solarized', hint: 'Warm cream',       swatches: ['#fdf6e3', '#eee8d5', '#268bd2'] },
   { key: 'nord',      name: 'Nord',      hint: 'Arctic blue',      swatches: ['#2e3440', '#3b4252', '#88c0d0'] },
   { key: 'synthwave', name: 'Synthwave', hint: 'Neon retro',       swatches: ['#2b213a', '#3a2c4a', '#ff6ac1'] },
+  { key: 'forest',    name: 'Forest',    hint: 'Deep green',        swatches: ['#1a2421', '#243330', '#5eb583'] },
+  { key: 'mint',      name: 'Mint',      hint: 'Fresh green',       swatches: ['#f3faf5', '#e1f2e5', '#2d9065'] },
+  { key: 'monokai',   name: 'Monokai',   hint: 'Classic orange',    swatches: ['#272822', '#34352f', '#fd971f'] },
+  { key: 'sunset',    name: 'Sunset',    hint: 'Warm amber',        swatches: ['#2a1e1a', '#3a2a25', '#ff7f3f'] },
 ];
 const THEME_KEYS = new Set(THEMES.map(t => t.key));
 const THEME_KEY = 'ww-theme';

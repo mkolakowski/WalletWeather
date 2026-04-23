@@ -334,6 +334,7 @@ def me(user: User = Depends(current_user)):
 ALLOWED_THEMES = {
     "dark", "light", "system",
     "dracula", "solarized", "nord", "synthwave",
+    "forest", "mint", "monokai", "sunset",
 }
 
 

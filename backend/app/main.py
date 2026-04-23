@@ -27,6 +27,18 @@ ALLOW_REGISTRATION = os.environ.get("ALLOW_REGISTRATION", "true").lower() == "tr
 ADMIN_EMAILS = {e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()}
 BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", "/data/backups"))
 
+# Demo mode: when on, the app boots with a pre-seeded admin user and sample
+# data. Default ON so first-time users can click around without signing up.
+# Set DEMO_MODE=false to turn the demo off and wipe its data on next start.
+DEMO_MODE = os.environ.get("DEMO_MODE", "true").lower() == "true"
+from .demo import (
+    DEMO_ADMIN_EMAIL, DEMO_ADMIN_PASSWORD, seed_demo_data, wipe_demo_data,
+)
+if DEMO_MODE:
+    # Make the demo admin an actual admin without requiring the operator to
+    # add them to ADMIN_EMAILS in .env.
+    ADMIN_EMAILS.add(DEMO_ADMIN_EMAIL.lower())
+
 # Google OAuth is optional - only enabled if both client id and secret are set
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
@@ -63,6 +75,15 @@ def _startup():
     try:
         for user in db.query(User).all():
             seed_default_categories(db, user)
+        # Demo-mode reconciliation. This must run after init_db so the
+        # admin_settings table exists.
+        if DEMO_MODE:
+            seed_demo_data(db, seed_default_categories)
+        else:
+            # If the demo was seeded previously and the operator has now
+            # turned it off, wipe the demo user(s) and their data. Real
+            # users are safe — we only delete the reserved demo email suffix.
+            wipe_demo_data(db)
     finally:
         db.close()
     # Start the backup scheduler daemon thread
@@ -208,6 +229,9 @@ def auth_config():
     return {
         "google_enabled": GOOGLE_ENABLED,
         "registration_enabled": ALLOW_REGISTRATION,
+        "demo_mode": DEMO_MODE,
+        "demo_email": DEMO_ADMIN_EMAIL if DEMO_MODE else None,
+        "demo_password": DEMO_ADMIN_PASSWORD if DEMO_MODE else None,
     }
 
 
@@ -303,7 +327,34 @@ async def logout(request: Request):
 @app.get("/api/me")
 def me(user: User = Depends(current_user)):
     return {"id": user.id, "email": user.email, "name": user.name,
-            "is_admin": is_admin(user)}
+            "is_admin": is_admin(user),
+            "theme_preference": user.theme_preference}
+
+
+ALLOWED_THEMES = {
+    "dark", "light", "system",
+    "dracula", "solarized", "nord", "synthwave",
+    "forest", "mint", "monokai", "sunset",
+}
+
+
+class PreferencesIn(BaseModel):
+    # Only the fields we want users to be able to change live here.
+    # None means "don't touch this field"; use explicit values to set.
+    theme_preference: str | None = None
+
+
+@app.patch("/api/me/preferences")
+def update_preferences(payload: PreferencesIn,
+                       user: User = Depends(current_user),
+                       db: Session = Depends(get_db)):
+    """Update the current user's UI preferences."""
+    if payload.theme_preference is not None:
+        if payload.theme_preference not in ALLOWED_THEMES:
+            raise HTTPException(400, f"theme_preference must be one of {sorted(ALLOWED_THEMES)}")
+        user.theme_preference = payload.theme_preference
+    db.commit()
+    return {"ok": True, "theme_preference": user.theme_preference}
 
 
 # ---------- Schemas ----------

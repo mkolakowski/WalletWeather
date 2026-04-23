@@ -8,7 +8,54 @@
 <link rel="apple-touch-icon" href="/static/favicon.svg">
 <style>
   :root { --bg:#0f1419; --panel:#1a2027; --border:#2a323c; --text:#e6edf3; --muted:#8b949e;
-          --accent:#58a6ff; --good:#3fb950; --bad:#f85149; --warn:#d29922; }
+          --accent:#58a6ff; --good:#3fb950; --bad:#f85149; --warn:#d29922;
+          --bg-deep:#0d1117; --chip-bg:#21262d; --good-bg:#0d2818; --field-bg:#161b22;
+          --bad-bg:rgba(248,81,73,0.1); --on-accent:#fff; }
+  :root[data-theme="light"] {
+          --bg:#ffffff; --panel:#f6f8fa; --border:#d0d7de; --text:#1f2328; --muted:#656d76;
+          --accent:#0969da; --good:#1a7f37; --bad:#cf222e; --warn:#9a6700;
+          --bg-deep:#eaeef2; --chip-bg:#eaeef2; --good-bg:#dafbe1; --field-bg:#ffffff;
+          --bad-bg:rgba(207,34,46,0.08); --on-accent:#ffffff; }
+  :root[data-theme="dracula"] {
+          --bg:#282a36; --panel:#343746; --border:#44475a; --text:#f8f8f2; --muted:#6272a4;
+          --accent:#bd93f9; --good:#50fa7b; --bad:#ff5555; --warn:#f1fa8c;
+          --bg-deep:#21222c; --chip-bg:#44475a; --good-bg:#1e3b2a; --field-bg:#21222c;
+          --bad-bg:rgba(255,85,85,0.12); --on-accent:#282a36; }
+  :root[data-theme="solarized"] {
+          --bg:#fdf6e3; --panel:#eee8d5; --border:#cbc4a8; --text:#073642; --muted:#657b83;
+          --accent:#268bd2; --good:#859900; --bad:#dc322f; --warn:#b58900;
+          --bg-deep:#f5ead0; --chip-bg:#eee8d5; --good-bg:#e4eecb; --field-bg:#fdf6e3;
+          --bad-bg:rgba(220,50,47,0.08); --on-accent:#fdf6e3; }
+  :root[data-theme="nord"] {
+          --bg:#2e3440; --panel:#3b4252; --border:#434c5e; --text:#eceff4; --muted:#81a1c1;
+          --accent:#88c0d0; --good:#a3be8c; --bad:#bf616a; --warn:#ebcb8b;
+          --bg-deep:#292e39; --chip-bg:#434c5e; --good-bg:#2e3d2e; --field-bg:#292e39;
+          --bad-bg:rgba(191,97,106,0.12); --on-accent:#2e3440; }
+  :root[data-theme="synthwave"] {
+          --bg:#2b213a; --panel:#3a2c4a; --border:#55456b; --text:#f9f2e7; --muted:#b8aebc;
+          --accent:#ff6ac1; --good:#00f5d4; --bad:#ff3864; --warn:#fede1b;
+          --bg-deep:#1e1530; --chip-bg:#3a2c4a; --good-bg:#0f4a45; --field-bg:#1e1530;
+          --bad-bg:rgba(255,56,100,0.14); --on-accent:#1e1530; }
+  :root[data-theme="forest"] {
+          --bg:#1a2421; --panel:#243330; --border:#3a5048; --text:#e4ebe3; --muted:#8fa598;
+          --accent:#5eb583; --good:#9bd680; --bad:#e57373; --warn:#f0c674;
+          --bg-deep:#151e1b; --chip-bg:#2d413c; --good-bg:#1e3a28; --field-bg:#151e1b;
+          --bad-bg:rgba(229,115,115,0.12); --on-accent:#1a2421; }
+  :root[data-theme="mint"] {
+          --bg:#f3faf5; --panel:#e1f2e5; --border:#b8d9bf; --text:#15372a; --muted:#557d67;
+          --accent:#2d9065; --good:#1e7a4c; --bad:#c23030; --warn:#b88312;
+          --bg-deep:#e7f4ea; --chip-bg:#d3e9d8; --good-bg:#cde8d2; --field-bg:#ffffff;
+          --bad-bg:rgba(194,48,48,0.08); --on-accent:#ffffff; }
+  :root[data-theme="monokai"] {
+          --bg:#272822; --panel:#34352f; --border:#49483e; --text:#f8f8f2; --muted:#75715e;
+          --accent:#fd971f; --good:#a6e22e; --bad:#f92672; --warn:#e6db74;
+          --bg-deep:#1e1f1a; --chip-bg:#49483e; --good-bg:#2e3d24; --field-bg:#1e1f1a;
+          --bad-bg:rgba(249,38,114,0.12); --on-accent:#272822; }
+  :root[data-theme="sunset"] {
+          --bg:#2a1e1a; --panel:#3a2a25; --border:#5a3e35; --text:#fce8d8; --muted:#a68876;
+          --accent:#ff7f3f; --good:#80c26e; --bad:#ef4f56; --warn:#ffb84a;
+          --bg-deep:#1f1613; --chip-bg:#4a342d; --good-bg:#2c3d25; --field-bg:#1f1613;
+          --bad-bg:rgba(239,79,86,0.12); --on-accent:#1f1613; }
   * { box-sizing:border-box; }
   body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
          background:var(--bg); color:var(--text); }
@@ -20,12 +67,12 @@
            padding:16px; margin-bottom:16px; }
   .panel h2 { margin:0 0 12px; font-size:15px; font-weight:600; color:var(--muted);
               text-transform:uppercase; letter-spacing:.05em; }
-  button { background:var(--accent); color:#fff; border:0; padding:8px 14px;
+  button { background:var(--accent); color:var(--on-accent); border:0; padding:8px 14px;
            border-radius:6px; cursor:pointer; font-size:13px; font-weight:500; }
   button:hover { filter:brightness(1.1); }
   button.ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
   button.danger { background:var(--bad); }
-  input, select { background:#0d1117; border:1px solid var(--border); color:var(--text);
+  input, select { background:var(--bg-deep); border:1px solid var(--border); color:var(--text);
                   padding:7px 10px; border-radius:6px; font:inherit; }
   label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
   .row { display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
@@ -38,8 +85,8 @@
   .pos { color:var(--good); }
   .neg { color:var(--bad); }
   .pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px;
-          background:#21262d; color:var(--muted); }
-  .pill.actual { background:#0d2818; color:var(--good); }
+          background:var(--chip-bg); color:var(--muted); }
+  .pill.actual { background:var(--good-bg); color:var(--good); }
   .login { text-align:center; padding:80px 20px; }
   .login h1 { font-size:24px; margin-bottom:8px; }
   .login p { color:var(--muted); margin-bottom:24px; }
@@ -47,13 +94,13 @@
                border-radius:10px; padding:24px; text-align:left; }
   .auth-card label { margin-top:10px; }
   .auth-card input { width:100%; }
-  .tabs { display:flex; gap:4px; margin-bottom:16px; background:#0d1117;
+  .tabs { display:flex; gap:4px; margin-bottom:16px; background:var(--bg-deep);
           padding:4px; border-radius:8px; }
   .tab { flex:1; background:transparent; color:var(--muted); padding:8px;
          border-radius:6px; font-weight:500; }
   .tab.active { background:var(--panel); color:var(--text); }
   .auth-error { margin-top:12px; padding:10px; border-radius:6px;
-                background:rgba(248,81,73,0.1); color:var(--bad); font-size:13px; }
+                background:var(--bad-bg); color:var(--bad); font-size:13px; }
   .divider { display:flex; align-items:center; gap:10px; margin:18px 0;
              color:var(--muted); font-size:12px; }
   .divider::before, .divider::after { content:""; flex:1; height:1px; background:var(--border); }
@@ -76,12 +123,12 @@
   .nav-btn { background:transparent; color:var(--muted); border:1px solid transparent;
              padding:6px 14px; border-radius:6px; font-weight:500; font-size:13px; cursor:pointer; }
   .nav-btn:hover { color:var(--text); }
-  .nav-btn.active { background:#0d1117; color:var(--accent); border-color:var(--border); }
+  .nav-btn.active { background:var(--bg-deep); color:var(--accent); border-color:var(--border); }
   .tab.small { padding:4px 10px; font-size:12px; }
   .backup-subhead { font-size:12px; font-weight:600; color:var(--muted);
                     text-transform:uppercase; letter-spacing:.05em; margin:0 0 10px; }
   .account-checklist { display:flex; flex-wrap:wrap; gap:6px;
-                       background:#0d1117; border:1px solid var(--border);
+                       background:var(--bg-deep); border:1px solid var(--border);
                        border-radius:6px; padding:10px; min-height:36px; }
   .account-checklist label { display:inline-flex; align-items:center; gap:6px;
                              padding:4px 10px; background:var(--panel);
@@ -111,14 +158,14 @@
   .pie-legend .lname { flex:1; }
   .pie-legend .lval { color:var(--muted); font-variant-numeric:tabular-nums; }
   .pie-empty { color:var(--muted); font-size:13px; padding:10px; }
-  .ro-badge { background:#21262d; color:var(--muted); font-size:9px; padding:2px 6px;
+  .ro-badge { background:var(--chip-bg); color:var(--muted); font-size:9px; padding:2px 6px;
               border-radius:8px; margin-left:6px; text-transform:uppercase;
               letter-spacing:.05em; vertical-align:middle; }
   .owner-flag { color:var(--warn); font-size:12px; }
   td.muted { color:var(--muted); }
   .dashboard-grid { display:grid; gap:14px;
                     grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); }
-  .dash-card { background:#0d1117; border:1px solid var(--border); border-radius:8px;
+  .dash-card { background:var(--bg-deep); border:1px solid var(--border); border-radius:8px;
                padding:16px; transition:border-color 0.15s; }
   .dash-card:hover { border-color:var(--accent); }
   .dash-card h3 { margin:0 0 4px; font-size:15px; font-weight:600; cursor:pointer; color:var(--text); }
@@ -126,7 +173,7 @@
   .dash-card .month { font-size:11px; color:var(--muted); text-transform:uppercase;
                       letter-spacing:.05em; margin-bottom:14px; }
   .dash-card .pair { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
-  .dash-card .field { background:#161b22; border:1px solid var(--border); border-radius:6px;
+  .dash-card .field { background:var(--field-bg); border:1px solid var(--border); border-radius:6px;
                       padding:8px 10px; }
   .dash-card .field .l { font-size:10px; color:var(--muted); text-transform:uppercase;
                          letter-spacing:.04em; }
@@ -183,12 +230,12 @@
   th.num, td.num { text-align:right; font-variant-numeric:tabular-nums; }
   th.sort-asc::after { content:" ▲"; font-size:9px; color:var(--accent); }
   th.sort-desc::after { content:" ▼"; font-size:9px; color:var(--accent); }
-  .inline-edit { background:#0d1117; border:1px solid var(--border); color:var(--text);
+  .inline-edit { background:var(--bg-deep); border:1px solid var(--border); color:var(--text);
                  padding:3px 6px; border-radius:4px; font:inherit; font-size:12px;
                  width:90px; }
   .inline-edit.date { width:130px; }
   .inline-edit.defaulted { color:var(--muted); border-color:transparent; background:transparent; }
-  .inline-edit.defaulted:hover, .inline-edit.defaulted:focus { color:var(--text); border-color:var(--border); background:#0d1117; }
+  .inline-edit.defaulted:hover, .inline-edit.defaulted:focus { color:var(--text); border-color:var(--border); background:var(--bg-deep); }
   .notes-icon { display:inline-block; margin-left:6px; cursor:pointer; font-size:11px;
                 opacity:0.85; user-select:none; }
   .notes-icon:hover { opacity:1; }
@@ -198,9 +245,46 @@
   .diff-neg { color:var(--bad); }
   .diff-zero { color:var(--muted); }
   .cat-pill { display:inline-block; padding:1px 8px; border-radius:10px;
-              font-size:11px; background:#21262d; color:var(--muted); }
+              font-size:11px; background:var(--chip-bg); color:var(--muted); }
   .hidden { display:none; }
+
+  /* ---------- Theme picker (Settings > Appearance) ---------- */
+  .theme-grid { display:grid; gap:10px;
+                grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); }
+  .theme-card { position:relative; display:block; cursor:pointer;
+                border:2px solid var(--border); border-radius:8px;
+                padding:10px; background:var(--bg-deep);
+                transition:border-color 0.15s, transform 0.1s; }
+  .theme-card:hover { border-color:var(--accent); }
+  .theme-card.selected { border-color:var(--accent); }
+  .theme-card input { position:absolute; opacity:0; pointer-events:none; }
+  .theme-card .preview { display:flex; height:40px; border-radius:4px;
+                         overflow:hidden; margin-bottom:8px;
+                         border:1px solid var(--border); }
+  .theme-card .preview .sw { flex:1; }
+  .theme-card .name { font-size:13px; font-weight:500; color:var(--text); }
+  .theme-card .hint { font-size:11px; color:var(--muted); margin-top:2px; }
+  .theme-card.selected::after { content:"✓"; position:absolute; top:6px; right:8px;
+                                color:var(--accent); font-weight:700; font-size:14px; }
 </style>
+<script>
+  // Apply saved theme before first paint to avoid a flash of the wrong theme.
+  // Whitelist of supported keys must stay in sync with the THEMES list in the
+  // main script below.
+  (function() {
+    var KEYS = ['dark','light','system','dracula','solarized','nord','synthwave',
+                'forest','mint','monokai','sunset'];
+    try {
+      var saved = localStorage.getItem('ww-theme');
+      if (!saved || KEYS.indexOf(saved) === -1) saved = 'dark';
+      var effective = saved;
+      if (saved === 'system') {
+        effective = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+      }
+      if (effective !== 'dark') document.documentElement.setAttribute('data-theme', effective);
+    } catch (e) { /* localStorage unavailable — stay on default (dark) */ }
+  })();
+</script>
 </head>
 <body>
 
@@ -209,6 +293,17 @@
   <p>Track balances, forecast cashflow, compare planned vs actual.</p>
 
   <div class="auth-card">
+    <div id="demoBanner" class="hidden" style="margin-bottom:14px;padding:10px 12px;border-radius:8px;
+         background:var(--good-bg);border:1px solid var(--border);font-size:13px;color:var(--text);line-height:1.45">
+      <strong style="color:var(--good)">Demo mode</strong> — explore the app with sample data.
+      <div style="margin-top:6px">
+        <div>Email: <code id="demoEmail" style="color:var(--accent)"></code></div>
+        <div>Password: <code id="demoPass" style="color:var(--accent)"></code></div>
+      </div>
+      <button type="button" class="ghost" style="margin-top:8px;width:100%" onclick="fillDemoCreds()">
+        Fill demo credentials
+      </button>
+    </div>
     <div class="tabs">
       <button id="tabSignin" class="tab active" onclick="switchTab('signin')">Sign in</button>
       <button id="tabSignup" class="tab" onclick="switchTab('signup')">Create account</button>
@@ -582,6 +677,14 @@
 
     <div id="pageSettings" class="hidden">
       <div class="panel">
+        <h2>Appearance</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Pick a look for WalletWeather. Your choice is saved to your account and follows you across browsers and devices.
+        </p>
+        <div id="themePicker" class="theme-grid" onchange="onThemeChange(event)"></div>
+      </div>
+
+      <div class="panel">
         <h2>Accounts</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           Create a new bank account to track, or archive an existing one to hide it from the
@@ -674,6 +777,103 @@ let me=null, accounts=[], currentAccountId=null, categories=[], recView='active'
 
 const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
 
+// ---------- Theme ----------
+// Adding a new theme is one line here plus a :root[data-theme="<key>"] CSS
+// block above. The three `swatches` are the colors used in the preview card
+// (bg, panel, accent) — hardcoded so each card shows its own colors even
+// while another theme is active.
+const THEMES = [
+  { key: 'dark',      name: 'Dark',      hint: 'Default',          swatches: ['#0f1419', '#1a2027', '#58a6ff'] },
+  { key: 'light',     name: 'Light',     hint: '',                 swatches: ['#ffffff', '#f6f8fa', '#0969da'] },
+  { key: 'system',    name: 'System',    hint: 'Match OS',         swatches: ['#0f1419', '#ffffff', '#888888'] },
+  { key: 'dracula',   name: 'Dracula',   hint: 'Classic purple',   swatches: ['#282a36', '#343746', '#bd93f9'] },
+  { key: 'solarized', name: 'Solarized', hint: 'Warm cream',       swatches: ['#fdf6e3', '#eee8d5', '#268bd2'] },
+  { key: 'nord',      name: 'Nord',      hint: 'Arctic blue',      swatches: ['#2e3440', '#3b4252', '#88c0d0'] },
+  { key: 'synthwave', name: 'Synthwave', hint: 'Neon retro',       swatches: ['#2b213a', '#3a2c4a', '#ff6ac1'] },
+  { key: 'forest',    name: 'Forest',    hint: 'Deep green',        swatches: ['#1a2421', '#243330', '#5eb583'] },
+  { key: 'mint',      name: 'Mint',      hint: 'Fresh green',       swatches: ['#f3faf5', '#e1f2e5', '#2d9065'] },
+  { key: 'monokai',   name: 'Monokai',   hint: 'Classic orange',    swatches: ['#272822', '#34352f', '#fd971f'] },
+  { key: 'sunset',    name: 'Sunset',    hint: 'Warm amber',        swatches: ['#2a1e1a', '#3a2a25', '#ff7f3f'] },
+];
+const THEME_KEYS = new Set(THEMES.map(t => t.key));
+const THEME_KEY = 'ww-theme';
+const DEFAULT_THEME = 'dark';
+
+function getStoredTheme() {
+  try {
+    const v = localStorage.getItem(THEME_KEY);
+    return v && THEME_KEYS.has(v) ? v : DEFAULT_THEME;
+  } catch { return DEFAULT_THEME; }
+}
+function resolveTheme(choice) {
+  if (choice === 'system') {
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+  }
+  return choice;
+}
+function applyTheme(choice) {
+  const effective = resolveTheme(choice);
+  if (effective === DEFAULT_THEME) {
+    document.documentElement.removeAttribute('data-theme');
+  } else {
+    document.documentElement.setAttribute('data-theme', effective);
+  }
+}
+function renderThemePicker() {
+  const grid = document.getElementById('themePicker');
+  if (grid.dataset.rendered === '1') return;
+  grid.innerHTML = THEMES.map(t => `
+    <label class="theme-card" data-theme-key="${t.key}">
+      <input type="radio" name="themeChoice" value="${t.key}">
+      <div class="preview" aria-hidden="true">
+        ${t.swatches.map(c => `<div class="sw" style="background:${c}"></div>`).join('')}
+      </div>
+      <div class="name">${t.name}</div>
+      ${t.hint ? `<div class="hint">${t.hint}</div>` : ''}
+    </label>
+  `).join('');
+  grid.dataset.rendered = '1';
+}
+function markSelectedCard(choice) {
+  document.querySelectorAll('.theme-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.themeKey === choice);
+  });
+}
+function loadThemePicker() {
+  renderThemePicker();
+  // Server is source of truth once signed in; fall back to the local cache
+  // (or default) if the user hasn't chosen yet.
+  const choice = (me && me.theme_preference) || getStoredTheme();
+  const radio = document.querySelector(`#themePicker input[name="themeChoice"][value="${choice}"]`);
+  if (radio) radio.checked = true;
+  markSelectedCard(choice);
+}
+async function onThemeChange(event) {
+  const choice = event.target.value;
+  if (!THEME_KEYS.has(choice)) return;
+  // Apply + update cache immediately (optimistic) so the UI responds fast.
+  try { localStorage.setItem(THEME_KEY, choice); } catch {}
+  applyTheme(choice);
+  markSelectedCard(choice);
+  // Persist to the server so it follows the user across browsers/devices.
+  try {
+    const res = await fetch('/api/me/preferences', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ theme_preference: choice }),
+    });
+    if (res.ok && me) me.theme_preference = choice;
+  } catch { /* network hiccup — cache still holds it until next login */ }
+}
+// Re-apply when system preference changes, if the user picked "system"
+if (window.matchMedia) {
+  try {
+    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+      if (getStoredTheme() === 'system') applyTheme('system');
+    });
+  } catch {}
+}
+
 async function api(path, opts={}) {
   const res = await fetch(path, { headers:{'Content-Type':'application/json'}, ...opts });
   if (res.status===401) { showLogin(); throw new Error('auth'); }
@@ -692,7 +892,7 @@ function showPage(name) {
   document.getElementById('navReports').classList.toggle('active', name==='reports');
   document.getElementById('navAdmin').classList.toggle('active', name==='admin');
   document.getElementById('navSettings').classList.toggle('active', name==='settings');
-  if (name === 'settings') { loadCategories(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); }
+  if (name === 'settings') { loadThemePicker(); loadCategories(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); }
   if (name === 'dashboard') loadDashboard();
   if (name === 'reports') initReportsPage();
   if (name === 'admin') loadAdminPage();
@@ -1095,6 +1295,12 @@ async function init() {
     const cfg = await fetch('/api/auth/config').then(r=>r.json());
     if (cfg.google_enabled) document.getElementById('googleWrap').classList.remove('hidden');
     if (!cfg.registration_enabled) document.getElementById('tabSignup').classList.add('hidden');
+    if (cfg.demo_mode && cfg.demo_email && cfg.demo_password) {
+      window._demoCreds = { email: cfg.demo_email, password: cfg.demo_password };
+      document.getElementById('demoEmail').textContent = cfg.demo_email;
+      document.getElementById('demoPass').textContent = cfg.demo_password;
+      document.getElementById('demoBanner').classList.remove('hidden');
+    }
   } catch {}
   try { me = await api('/api/me'); }
   catch { showLogin(); return; }
@@ -1103,6 +1309,13 @@ async function init() {
   // Show admin tab only for admins
   if (me.is_admin) {
     document.getElementById('navAdmin').classList.remove('hidden');
+  }
+  // Server is the source of truth for theme. Apply the signed-in user's
+  // preference and refresh the localStorage cache so the next page load is
+  // flash-free. If the user has no preference set, leave the cache alone.
+  if (me.theme_preference) {
+    try { localStorage.setItem(THEME_KEY, me.theme_preference); } catch {}
+    applyTheme(me.theme_preference);
   }
   document.getElementById('newAccDate').valueAsDate = new Date();
   // Populate year dropdown (current - 2 .. current + 5) and default to current month/year
@@ -1130,6 +1343,14 @@ function switchTab(which) {
   document.getElementById('formSignin').classList.toggle('hidden', !si);
   document.getElementById('formSignup').classList.toggle('hidden', si);
   document.getElementById('authError').classList.add('hidden');
+}
+
+function fillDemoCreds() {
+  const c = window._demoCreds;
+  if (!c) return;
+  switchTab('signin');
+  document.getElementById('siEmail').value = c.email;
+  document.getElementById('siPass').value = c.password;
 }
 
 function showAuthError(msg) {
@@ -1930,6 +2151,9 @@ function wireRecurringSort() {
 
 async function logout() {
   await fetch('/auth/logout', {method:'POST'});
+  // Clear the theme cache so the next user on this browser doesn't briefly
+  // see the previous user's theme before their own preference loads.
+  try { localStorage.removeItem(THEME_KEY); } catch {}
   location.reload();
 }
 

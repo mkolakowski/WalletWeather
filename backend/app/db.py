@@ -63,6 +63,8 @@ class User(Base):
     # bcrypt hash (which embeds its own per-user salt). Null for OAuth-only users.
     password_hash = Column(String(255), nullable=True)
     disabled = Column(Boolean, default=False, nullable=False)
+    # UI preference: 'dark' | 'light' | 'system'. NULL means unset → treat as dark.
+    theme_preference = Column(String(20), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     accounts = relationship("Account", back_populates="owner", cascade="all, delete-orphan")
@@ -281,6 +283,8 @@ def init_db():
         "ALTER TABLE accounts ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT FALSE",
         # v4 → v5: user disabled flag
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS disabled BOOLEAN NOT NULL DEFAULT FALSE",
+        # v5 → v6: per-user UI theme preference
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS theme_preference VARCHAR(20)",
     ]
     with engine.begin() as conn:
         for sql in migrations:

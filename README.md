@@ -68,6 +68,27 @@ All configuration is via environment variables in `.env`:
 | `ADMIN_EMAILS` | No | — | Comma-separated admin emails (enables Admin panel) |
 | `GOOGLE_CLIENT_ID` | No | — | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | No | — | Google OAuth client secret |
+| `DEMO_MODE` | No | `true` | Boot with a pre-seeded demo admin and sample data. Set to `false` to disable and wipe demo data on next start. |
+
+## Demo mode
+
+By default, WalletWeather starts in **demo mode** with a pre-loaded admin
+user and a set of realistic sample accounts, recurring transactions, and
+actual postings so you can explore the app immediately.
+
+- **Demo admin:** `admin@demo.walletweather.local` / `demo1234`
+- **What's seeded:** three accounts (Checking, Savings, Credit Card), a
+  paycheck / rent / bill / subscription schedule, and a few weeks of actual
+  transactions.
+- **Turning it off:** set `DEMO_MODE=false` in your `.env` and restart the
+  container. On the next start the demo user and all data owned by any
+  `@demo.walletweather.local` address is deleted. Accounts you created for
+  yourself under real email addresses are never touched.
+- **Turning it back on later:** set `DEMO_MODE=true` and restart. The demo
+  user and sample data will be re-seeded.
+
+The login screen shows the demo credentials while demo mode is on, and has
+a "Fill demo credentials" button so you don't have to type them.
 
 ## Pulling from GitHub Container Registry
 

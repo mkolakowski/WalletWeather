@@ -327,7 +327,33 @@ async def logout(request: Request):
 @app.get("/api/me")
 def me(user: User = Depends(current_user)):
     return {"id": user.id, "email": user.email, "name": user.name,
-            "is_admin": is_admin(user)}
+            "is_admin": is_admin(user),
+            "theme_preference": user.theme_preference}
+
+
+ALLOWED_THEMES = {
+    "dark", "light", "system",
+    "dracula", "solarized", "nord", "synthwave",
+}
+
+
+class PreferencesIn(BaseModel):
+    # Only the fields we want users to be able to change live here.
+    # None means "don't touch this field"; use explicit values to set.
+    theme_preference: str | None = None
+
+
+@app.patch("/api/me/preferences")
+def update_preferences(payload: PreferencesIn,
+                       user: User = Depends(current_user),
+                       db: Session = Depends(get_db)):
+    """Update the current user's UI preferences."""
+    if payload.theme_preference is not None:
+        if payload.theme_preference not in ALLOWED_THEMES:
+            raise HTTPException(400, f"theme_preference must be one of {sorted(ALLOWED_THEMES)}")
+        user.theme_preference = payload.theme_preference
+    db.commit()
+    return {"ok": True, "theme_preference": user.theme_preference}
 
 
 # ---------- Schemas ----------

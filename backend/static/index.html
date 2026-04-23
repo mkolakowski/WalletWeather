@@ -16,6 +16,26 @@
           --accent:#0969da; --good:#1a7f37; --bad:#cf222e; --warn:#9a6700;
           --bg-deep:#eaeef2; --chip-bg:#eaeef2; --good-bg:#dafbe1; --field-bg:#ffffff;
           --bad-bg:rgba(207,34,46,0.08); --on-accent:#ffffff; }
+  :root[data-theme="dracula"] {
+          --bg:#282a36; --panel:#343746; --border:#44475a; --text:#f8f8f2; --muted:#6272a4;
+          --accent:#bd93f9; --good:#50fa7b; --bad:#ff5555; --warn:#f1fa8c;
+          --bg-deep:#21222c; --chip-bg:#44475a; --good-bg:#1e3b2a; --field-bg:#21222c;
+          --bad-bg:rgba(255,85,85,0.12); --on-accent:#282a36; }
+  :root[data-theme="solarized"] {
+          --bg:#fdf6e3; --panel:#eee8d5; --border:#cbc4a8; --text:#073642; --muted:#657b83;
+          --accent:#268bd2; --good:#859900; --bad:#dc322f; --warn:#b58900;
+          --bg-deep:#f5ead0; --chip-bg:#eee8d5; --good-bg:#e4eecb; --field-bg:#fdf6e3;
+          --bad-bg:rgba(220,50,47,0.08); --on-accent:#fdf6e3; }
+  :root[data-theme="nord"] {
+          --bg:#2e3440; --panel:#3b4252; --border:#434c5e; --text:#eceff4; --muted:#81a1c1;
+          --accent:#88c0d0; --good:#a3be8c; --bad:#bf616a; --warn:#ebcb8b;
+          --bg-deep:#292e39; --chip-bg:#434c5e; --good-bg:#2e3d2e; --field-bg:#292e39;
+          --bad-bg:rgba(191,97,106,0.12); --on-accent:#2e3440; }
+  :root[data-theme="synthwave"] {
+          --bg:#2b213a; --panel:#3a2c4a; --border:#55456b; --text:#f9f2e7; --muted:#b8aebc;
+          --accent:#ff6ac1; --good:#00f5d4; --bad:#ff3864; --warn:#fede1b;
+          --bg-deep:#1e1530; --chip-bg:#3a2c4a; --good-bg:#0f4a45; --field-bg:#1e1530;
+          --bad-bg:rgba(255,56,100,0.14); --on-accent:#1e1530; }
   * { box-sizing:border-box; }
   body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
          background:var(--bg); color:var(--text); }
@@ -207,17 +227,40 @@
   .cat-pill { display:inline-block; padding:1px 8px; border-radius:10px;
               font-size:11px; background:var(--chip-bg); color:var(--muted); }
   .hidden { display:none; }
+
+  /* ---------- Theme picker (Settings > Appearance) ---------- */
+  .theme-grid { display:grid; gap:10px;
+                grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); }
+  .theme-card { position:relative; display:block; cursor:pointer;
+                border:2px solid var(--border); border-radius:8px;
+                padding:10px; background:var(--bg-deep);
+                transition:border-color 0.15s, transform 0.1s; }
+  .theme-card:hover { border-color:var(--accent); }
+  .theme-card.selected { border-color:var(--accent); }
+  .theme-card input { position:absolute; opacity:0; pointer-events:none; }
+  .theme-card .preview { display:flex; height:40px; border-radius:4px;
+                         overflow:hidden; margin-bottom:8px;
+                         border:1px solid var(--border); }
+  .theme-card .preview .sw { flex:1; }
+  .theme-card .name { font-size:13px; font-weight:500; color:var(--text); }
+  .theme-card .hint { font-size:11px; color:var(--muted); margin-top:2px; }
+  .theme-card.selected::after { content:"✓"; position:absolute; top:6px; right:8px;
+                                color:var(--accent); font-weight:700; font-size:14px; }
 </style>
 <script>
-  // Apply saved theme before first paint to avoid a light/dark flash.
+  // Apply saved theme before first paint to avoid a flash of the wrong theme.
+  // Whitelist of supported keys must stay in sync with the THEMES list in the
+  // main script below.
   (function() {
+    var KEYS = ['dark','light','system','dracula','solarized','nord','synthwave'];
     try {
-      var saved = localStorage.getItem('ww-theme') || 'dark';
+      var saved = localStorage.getItem('ww-theme');
+      if (!saved || KEYS.indexOf(saved) === -1) saved = 'dark';
       var effective = saved;
       if (saved === 'system') {
         effective = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
       }
-      if (effective === 'light') document.documentElement.setAttribute('data-theme', 'light');
+      if (effective !== 'dark') document.documentElement.setAttribute('data-theme', effective);
     } catch (e) { /* localStorage unavailable — stay on default (dark) */ }
   })();
 </script>
@@ -617,20 +660,7 @@
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           Choose how WalletWeather looks on this device. Your choice is saved locally in this browser.
         </p>
-        <div id="themePicker" class="row" style="gap:16px" onchange="onThemeChange(event)">
-          <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;margin:0;flex:0 0 auto">
-            <input type="radio" name="themeChoice" value="dark" style="width:auto">
-            <span>Dark <span style="color:var(--muted);font-size:12px">(default)</span></span>
-          </label>
-          <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;margin:0;flex:0 0 auto">
-            <input type="radio" name="themeChoice" value="light" style="width:auto">
-            <span>Light</span>
-          </label>
-          <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;margin:0;flex:0 0 auto">
-            <input type="radio" name="themeChoice" value="system" style="width:auto">
-            <span>Match system</span>
-          </label>
-        </div>
+        <div id="themePicker" class="theme-grid" onchange="onThemeChange(event)"></div>
       </div>
 
       <div class="panel">
@@ -726,31 +756,89 @@ let me=null, accounts=[], currentAccountId=null, categories=[], recView='active'
 
 const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
 
-// ---------- Theme (dark / light / system) ----------
+// ---------- Theme ----------
+// Adding a new theme is one line here plus a :root[data-theme="<key>"] CSS
+// block above. The three `swatches` are the colors used in the preview card
+// (bg, panel, accent) — hardcoded so each card shows its own colors even
+// while another theme is active.
+const THEMES = [
+  { key: 'dark',      name: 'Dark',      hint: 'Default',          swatches: ['#0f1419', '#1a2027', '#58a6ff'] },
+  { key: 'light',     name: 'Light',     hint: '',                 swatches: ['#ffffff', '#f6f8fa', '#0969da'] },
+  { key: 'system',    name: 'System',    hint: 'Match OS',         swatches: ['#0f1419', '#ffffff', '#888888'] },
+  { key: 'dracula',   name: 'Dracula',   hint: 'Classic purple',   swatches: ['#282a36', '#343746', '#bd93f9'] },
+  { key: 'solarized', name: 'Solarized', hint: 'Warm cream',       swatches: ['#fdf6e3', '#eee8d5', '#268bd2'] },
+  { key: 'nord',      name: 'Nord',      hint: 'Arctic blue',      swatches: ['#2e3440', '#3b4252', '#88c0d0'] },
+  { key: 'synthwave', name: 'Synthwave', hint: 'Neon retro',       swatches: ['#2b213a', '#3a2c4a', '#ff6ac1'] },
+];
+const THEME_KEYS = new Set(THEMES.map(t => t.key));
 const THEME_KEY = 'ww-theme';
+const DEFAULT_THEME = 'dark';
+
 function getStoredTheme() {
-  try { return localStorage.getItem(THEME_KEY) || 'dark'; } catch { return 'dark'; }
+  try {
+    const v = localStorage.getItem(THEME_KEY);
+    return v && THEME_KEYS.has(v) ? v : DEFAULT_THEME;
+  } catch { return DEFAULT_THEME; }
+}
+function resolveTheme(choice) {
+  if (choice === 'system') {
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+  }
+  return choice;
 }
 function applyTheme(choice) {
-  let effective = choice;
-  if (choice === 'system') {
-    effective = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
-  }
-  if (effective === 'light') {
-    document.documentElement.setAttribute('data-theme', 'light');
-  } else {
+  const effective = resolveTheme(choice);
+  if (effective === DEFAULT_THEME) {
     document.documentElement.removeAttribute('data-theme');
+  } else {
+    document.documentElement.setAttribute('data-theme', effective);
   }
+}
+function renderThemePicker() {
+  const grid = document.getElementById('themePicker');
+  if (grid.dataset.rendered === '1') return;
+  grid.innerHTML = THEMES.map(t => `
+    <label class="theme-card" data-theme-key="${t.key}">
+      <input type="radio" name="themeChoice" value="${t.key}">
+      <div class="preview" aria-hidden="true">
+        ${t.swatches.map(c => `<div class="sw" style="background:${c}"></div>`).join('')}
+      </div>
+      <div class="name">${t.name}</div>
+      ${t.hint ? `<div class="hint">${t.hint}</div>` : ''}
+    </label>
+  `).join('');
+  grid.dataset.rendered = '1';
+}
+function markSelectedCard(choice) {
+  document.querySelectorAll('.theme-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.themeKey === choice);
+  });
 }
 function loadThemePicker() {
-  const choice = getStoredTheme();
+  renderThemePicker();
+  // Server is source of truth once signed in; fall back to the local cache
+  // (or default) if the user hasn't chosen yet.
+  const choice = (me && me.theme_preference) || getStoredTheme();
   const radio = document.querySelector(`#themePicker input[name="themeChoice"][value="${choice}"]`);
   if (radio) radio.checked = true;
+  markSelectedCard(choice);
 }
-function onThemeChange(event) {
+async function onThemeChange(event) {
   const choice = event.target.value;
+  if (!THEME_KEYS.has(choice)) return;
+  // Apply + update cache immediately (optimistic) so the UI responds fast.
   try { localStorage.setItem(THEME_KEY, choice); } catch {}
   applyTheme(choice);
+  markSelectedCard(choice);
+  // Persist to the server so it follows the user across browsers/devices.
+  try {
+    const res = await fetch('/api/me/preferences', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ theme_preference: choice }),
+    });
+    if (res.ok && me) me.theme_preference = choice;
+  } catch { /* network hiccup — cache still holds it until next login */ }
 }
 // Re-apply when system preference changes, if the user picked "system"
 if (window.matchMedia) {
@@ -1196,6 +1284,13 @@ async function init() {
   // Show admin tab only for admins
   if (me.is_admin) {
     document.getElementById('navAdmin').classList.remove('hidden');
+  }
+  // Server is the source of truth for theme. Apply the signed-in user's
+  // preference and refresh the localStorage cache so the next page load is
+  // flash-free. If the user has no preference set, leave the cache alone.
+  if (me.theme_preference) {
+    try { localStorage.setItem(THEME_KEY, me.theme_preference); } catch {}
+    applyTheme(me.theme_preference);
   }
   document.getElementById('newAccDate').valueAsDate = new Date();
   // Populate year dropdown (current - 2 .. current + 5) and default to current month/year
@@ -2031,6 +2126,9 @@ function wireRecurringSort() {
 
 async function logout() {
   await fetch('/auth/logout', {method:'POST'});
+  // Clear the theme cache so the next user on this browser doesn't briefly
+  // see the previous user's theme before their own preference loads.
+  try { localStorage.removeItem(THEME_KEY); } catch {}
   location.reload();
 }
 

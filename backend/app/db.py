@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "8"
+SCHEMA_VERSION = "9"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,9 @@ SCHEMA_VERSION = "8"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v9 (2026-04-24, claude+mkolakowski): add `tags` table (per-user label with
+#     optional color) and `transaction_tags` many-to-many join. Tags are a
+#     lighter-weight alternative to splits for cross-cutting reporting.
 # v8 (2026-04-23, claude+mkolakowski): add `transfers` table (account-to-account
 #     money movements), `transactions.transfer_id` link column, and
 #     `category_budgets` table (per-category monthly spend caps).
@@ -393,6 +396,37 @@ class CategoryBudget(Base):
         self.amount_enc = encrypt_decimal(v)
 
 
+class Tag(Base):
+    """A user-owned label that can be attached to any number of transactions.
+
+    Deliberately lighter than Category: a transaction has zero-or-one Category
+    (the primary bucket) and zero-or-many Tags (cross-cutting labels like
+    "vacation" or "reimbursable"). Names aren't encrypted — we follow the
+    same pattern as Category here, because searchability is more valuable
+    than confidentiality for short labels that users explicitly share with
+    the filter UI.
+    """
+    __tablename__ = "tags"
+    id = Column(Integer, primary_key=True)
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(60), nullable=False)
+    color = Column(String(20), nullable=True)  # hex like '#58a6ff', optional
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class TransactionTag(Base):
+    """Many-to-many link between Transaction and Tag. Cascade delete from
+    either side so deleting a tag cleans up its links and deleting a
+    transaction doesn't leave orphan rows behind."""
+    __tablename__ = "transaction_tags"
+    transaction_id = Column(Integer,
+                            ForeignKey("transactions.id", ondelete="CASCADE"),
+                            primary_key=True)
+    tag_id = Column(Integer,
+                    ForeignKey("tags.id", ondelete="CASCADE"),
+                    primary_key=True)
+
+
 def init_db():
     """Create missing tables, then apply in-place column migrations.
 
@@ -423,6 +457,11 @@ def init_db():
         # Base.metadata.create_all above; we only need the FK column added
         # to the existing transactions table.)
         "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS transfer_id INTEGER REFERENCES transfers(id) ON DELETE CASCADE",
+        # v8 → v9: tags + transaction_tags
+        # (Both tables are created by Base.metadata.create_all above;
+        # this entry is a no-op on a fresh DB. It's here so that
+        # `ALTER`-style migrations remain possible if the schema evolves
+        # — e.g. adding a future `description` column to tags.)
     ]
     with engine.begin() as conn:
         for sql in migrations:

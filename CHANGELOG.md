@@ -14,19 +14,69 @@ Three independent version numbers are tracked:
 - **Schema version** (`SCHEMA_VERSION` in `backend/app/db.py`) — the database
   schema generation, bumped whenever a model or migration changes.
 
-When you bump any of these in source, add a matching line to this file under
-the appropriate version heading. Format for each entry:
+<!--
+=============================================================================
+*** AI ASSISTANT INSTRUCTIONS — READ BEFORE EDITING THIS FILE ***
+=============================================================================
 
-```
-- <area>: <one-line description> (<your name or handle>)
-```
+This changelog is updated AS FEATURES SHIP, not only at release time. The
+running `[Unreleased]` section at the top is the working set of changes
+that have landed on the default branch but haven't been tagged yet.
+
+WHEN YOU FINISH A FEATURE, BUG FIX, OR BEHAVIORAL CHANGE, YOU MUST:
+
+  1. Add a bullet under the appropriate subsection in `[Unreleased]`:
+       - `### Added`     — brand-new user-visible capabilities.
+       - `### Changed`   — behavioral or UX changes to existing features.
+       - `### Fixed`     — bug fixes.
+       - `### Database`  — schema/migration entries (paired with a
+                           SCHEMA_VERSION bump in db.py).
+       - `### Security`  — security-relevant changes.
+     Create the subsection if it doesn't already exist. Omit empty ones.
+
+  2. Every bullet must be a full sentence (or two) that describes the
+     change in user-facing terms — not "refactored X" but "X now does Y".
+     Include the specific endpoint, file, table, or flag name when it
+     helps a future reader (or a future AI) locate the change in code.
+
+  3. Update the `App version:` / `Web version:` / `Schema version:` header
+     line at the top of `[Unreleased]` to match whatever bumps went into
+     the matching source files. Those three version constants
+     (APP_VERSION, WEB_VERSION, SCHEMA_VERSION) are the source of truth;
+     this file just tracks them.
+
+  4. Do NOT rewrite already-released sections (below `[Unreleased]`).
+     Released versions are frozen history — only append to `[Unreleased]`.
+
+WHEN YOU CUT A RELEASE (tag a version):
+
+  5. Rename the `[Unreleased]` heading to `[X.Y.Z] — YYYY-MM-DD` with the
+     concrete dates and versions baked in.
+  6. Add a fresh, empty `## [Unreleased]` block above it with the current
+     version numbers.
+  7. Update the link-reference footer at the bottom of the file so the
+     GitHub compare/tag URLs point at the new release.
+
+WHY THIS MATTERS: a CHANGELOG that lags behind the code is worse than
+useless — it gives a false sense of history. Record the change in the
+same commit (or session) that introduces it.
+
+-->
 
 ## [Unreleased]
 
-App version: **1.7.1** · Web version: **1.7.3**
+App version: **1.8.0** · Web version: **1.8.0**
 
 ### Added
 
+- **Subscription audit.** New top-level Subscriptions page and
+  `GET /api/subscriptions` endpoint. Aggregates every active, non-expired,
+  negative-amount recurring transaction across all accounts the user can
+  see, normalizes the magnitude to monthly (monthly_day × 1, biweekly ×
+  26/12, weekly × 52/12) and yearly cost, and sorts descending by monthly
+  drain. Summary tiles show count · monthly · yearly; each row links back
+  to the Transactions page with that account preselected so the user can
+  edit or cancel the recurring row inline.
 - **Demo mode auto-reset.** When `DEMO_MODE` is on, a new background daemon
   runs once an hour and rebuilds the demo data, but only if something has
   actually been edited since the last seed. A SHA-256 fingerprint over all

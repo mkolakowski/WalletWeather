@@ -75,6 +75,7 @@ from pydantic import BaseModel, EmailStr, Field
 from .db import (
     init_db, get_db, User, Account, RecurringTransaction, Transaction, Category,
     AccountPermission, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
+    Tag, TransactionTag,
     SessionLocal, SCHEMA_VERSION,
 )
 from .forecast import build_forecast
@@ -523,9 +524,18 @@ class TransactionIn(BaseModel):
     recurring_id: int | None = None
     category_id: int | None = None
     notes: str | None = Field(default=None, max_length=256)
+    # Optional tag ids to attach to the transaction. None means "don't
+    # touch tags" on update; an empty list means "clear all tags". On
+    # create, None is treated as empty.
+    tag_ids: list[int] | None = None
 
 
 class CategoryIn(BaseModel):
+    name: str
+    color: str | None = None
+
+
+class TagIn(BaseModel):
     name: str
     color: str | None = None
 
@@ -603,6 +613,123 @@ def update_category(cat_id: int, payload: CategoryIn,
 def delete_category(cat_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
     cat = _own_category(db, user, cat_id)
     db.delete(cat)
+    db.commit()
+    return {"ok": True}
+
+
+# ---------- Tags (Tier-2 cross-cutting labels) ----------
+# A tag is a lightweight label a user attaches to any number of transactions.
+# Unlike Category, each transaction can carry many tags — useful for
+# cross-cutting reports like "vacation" or "reimbursable" that don't belong
+# in the primary category hierarchy.
+TAG_NAME_MAX = 60
+
+
+def _own_tag(db: Session, user: User, tag_id: int) -> Tag:
+    tag = db.get(Tag, tag_id)
+    if not tag or tag.owner_id != user.id:
+        raise HTTPException(404, "Tag not found")
+    return tag
+
+
+def _transaction_tag_ids(db: Session, transaction_id: int) -> list[int]:
+    """Return the sorted tag ids attached to a transaction."""
+    rows = db.query(TransactionTag.tag_id).filter_by(
+        transaction_id=transaction_id
+    ).all()
+    return sorted(r[0] for r in rows)
+
+
+def _apply_tags(db: Session, user: User, t: Transaction,
+                tag_ids: list[int] | None) -> None:
+    """Replace the tag set on a transaction.
+
+    None means "don't touch". An empty list means "clear all tags". Any
+    listed id must be owned by the current user (guards against users
+    attaching other users' tags). Callers should `db.commit()` after.
+    """
+    if tag_ids is None:
+        return
+    # Validate every id belongs to this user before we touch the join table.
+    validated: list[int] = []
+    for tid in tag_ids:
+        _own_tag(db, user, tid)
+        validated.append(tid)
+    db.query(TransactionTag).filter_by(transaction_id=t.id).delete(
+        synchronize_session=False
+    )
+    for tid in validated:
+        db.add(TransactionTag(transaction_id=t.id, tag_id=tid))
+
+
+def _tags_for_transactions(db: Session, txn_ids: list[int]) -> dict[int, list[dict]]:
+    """Bulk-load tag rows for a batch of transactions.
+
+    Returns `{transaction_id: [{id, name, color}, ...]}`. Used by the
+    list / search endpoints so we don't N+1 the tag lookup per row.
+    """
+    if not txn_ids:
+        return {}
+    rows = (db.query(TransactionTag.transaction_id, Tag.id, Tag.name, Tag.color)
+              .join(Tag, Tag.id == TransactionTag.tag_id)
+              .filter(TransactionTag.transaction_id.in_(txn_ids))
+              .order_by(Tag.name).all())
+    out: dict[int, list[dict]] = {}
+    for txn_id, tid, name, color in rows:
+        out.setdefault(txn_id, []).append({"id": tid, "name": name, "color": color})
+    return out
+
+
+@app.get("/api/tags")
+def list_tags(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    tags = (db.query(Tag).filter_by(owner_id=user.id)
+              .order_by(Tag.name).all())
+    return [{"id": t.id, "name": t.name, "color": t.color} for t in tags]
+
+
+@app.post("/api/tags")
+def create_tag(payload: TagIn, user: User = Depends(current_user),
+               db: Session = Depends(get_db)):
+    name = (payload.name or "").strip()
+    if not name:
+        raise HTTPException(400, "Name is required")
+    if len(name) > TAG_NAME_MAX:
+        raise HTTPException(400, f"Name must be <= {TAG_NAME_MAX} characters")
+    existing = db.query(Tag).filter_by(owner_id=user.id, name=name).first()
+    if existing:
+        raise HTTPException(409, "A tag with that name already exists")
+    tag = Tag(owner_id=user.id, name=name, color=payload.color)
+    db.add(tag)
+    db.commit()
+    db.refresh(tag)
+    return {"id": tag.id, "name": tag.name, "color": tag.color}
+
+
+@app.patch("/api/tags/{tag_id}")
+def update_tag(tag_id: int, payload: TagIn,
+               user: User = Depends(current_user), db: Session = Depends(get_db)):
+    tag = _own_tag(db, user, tag_id)
+    name = (payload.name or "").strip()
+    if not name:
+        raise HTTPException(400, "Name is required")
+    if len(name) > TAG_NAME_MAX:
+        raise HTTPException(400, f"Name must be <= {TAG_NAME_MAX} characters")
+    clash = (db.query(Tag)
+               .filter(Tag.owner_id == user.id, Tag.name == name, Tag.id != tag_id)
+               .first())
+    if clash:
+        raise HTTPException(409, "A tag with that name already exists")
+    tag.name = name
+    tag.color = payload.color
+    db.commit()
+    return {"ok": True, "id": tag.id, "name": tag.name, "color": tag.color}
+
+
+@app.delete("/api/tags/{tag_id}")
+def delete_tag(tag_id: int, user: User = Depends(current_user),
+               db: Session = Depends(get_db)):
+    tag = _own_tag(db, user, tag_id)
+    db.delete(tag)  # cascade drops rows in transaction_tags
     db.commit()
     return {"ok": True}
 
@@ -812,6 +939,8 @@ def delete_recurring(rec_id: int, user: User = Depends(current_user), db: Sessio
 @app.get("/api/accounts/{account_id}/transactions")
 def list_transactions(account_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
     acc = _account_with_perm(db, user, account_id, "read")
+    txn_ids = [t.id for t in acc.transactions]
+    tags_by_txn = _tags_for_transactions(db, txn_ids)
     return [
         {"id": t.id, "description": t.description, "amount": float(t.amount),
          "forecast_date": t.forecast_date.isoformat() if t.forecast_date else None,
@@ -820,7 +949,8 @@ def list_transactions(account_id: int, user: User = Depends(current_user), db: S
          "is_actual": t.is_actual, "recurring_id": t.recurring_id,
          "category_id": t.category_id,
          "category_name": t.category.name if t.category else None,
-         "notes": t.notes}
+         "notes": t.notes,
+         "tags": tags_by_txn.get(t.id, [])}
         for t in acc.transactions
     ]
 
@@ -845,6 +975,8 @@ def create_transaction(account_id: int, payload: TransactionIn,
     if payload.forecast_amount is not None:
         t.forecast_amount = Decimal(str(payload.forecast_amount))
     db.add(t)
+    db.flush()  # need t.id before attaching tags
+    _apply_tags(db, user, t, payload.tag_ids)
     db.commit()
     db.refresh(t)
     return {"id": t.id}
@@ -868,6 +1000,7 @@ def update_transaction(tid: int, payload: TransactionIn,
     t.notes = payload.notes
     if payload.forecast_amount is not None:
         t.forecast_amount = Decimal(str(payload.forecast_amount))
+    _apply_tags(db, user, t, payload.tag_ids)
     db.commit()
     return {"ok": True}
 
@@ -1586,6 +1719,7 @@ def budgets_progress(window: str = "month",
 def search_transactions(q: str | None = None,
                         account_id: int | None = None,
                         category_id: int | None = None,
+                        tag_id: int | None = None,
                         date_from: date | None = None,
                         date_to: date | None = None,
                         min_amount: float | None = None,
@@ -1614,6 +1748,13 @@ def search_transactions(q: str | None = None,
         base = base.filter(Transaction.account_id == account_id)
     if category_id is not None:
         base = base.filter(Transaction.category_id == category_id)
+    if tag_id is not None:
+        # Validate that the tag belongs to the caller before joining, so we
+        # don't leak "tag exists" info across users.
+        _own_tag(db, user, tag_id)
+        base = base.join(
+            TransactionTag, TransactionTag.transaction_id == Transaction.id
+        ).filter(TransactionTag.tag_id == tag_id)
     if date_from is not None:
         base = base.filter(
             (Transaction.actual_date >= date_from) | (Transaction.forecast_date >= date_from)
@@ -1668,6 +1809,12 @@ def search_transactions(q: str | None = None,
 
     total = len(out)
     page = out[max(0, offset): max(0, offset) + min(max(1, limit), 1000)]
+    # Attach tags to the paginated results only (avoid loading tags for
+    # rows the client will never see).
+    page_ids = [r["id"] for r in page]
+    tags_by_txn = _tags_for_transactions(db, page_ids)
+    for r in page:
+        r["tags"] = tags_by_txn.get(r["id"], [])
     return {"total": total, "results": page,
             "limit": limit, "offset": offset}
 
@@ -1962,6 +2109,87 @@ def net_worth(window: str = "month",
         "actual_end_total": round(actual_end_total, 2),
         "trend": total_trend,
         "accounts": per_account,
+    }
+
+
+# ---------- Subscription audit ----------
+# Normalization factors. Every active recurring transaction fires on one of
+# these cadences; multiplying the per-occurrence magnitude by the factor
+# gives the equivalent monthly spend.
+#   monthly_day:  1 occurrence per calendar month.
+#   biweekly:     26 occurrences per year → 26/12 per month.
+#   weekly:       52 occurrences per year → 52/12 per month.
+_MONTHLY_FACTOR = {
+    "monthly_day": 1.0,
+    "biweekly":    26.0 / 12.0,
+    "weekly":      52.0 / 12.0,
+}
+
+
+@app.get("/api/subscriptions")
+def list_subscriptions(user: User = Depends(current_user),
+                       db: Session = Depends(get_db)):
+    """Cross-account audit of every recurring outflow (i.e. subscription) the
+    user can see. Used by the Subscriptions page.
+
+    Inclusion rule: active, not end-dated before today, and amount is
+    strictly negative (positive recurring rows are paychecks / income, not
+    subscriptions). We normalize every row to a monthly magnitude using
+    `_MONTHLY_FACTOR` so cadences can be compared apples-to-apples, and sort
+    descending by monthly cost so the biggest drains bubble up.
+
+    No new tables — this is pure aggregation over `recurring_transactions`.
+    """
+    today = date.today()
+    accounts = _user_visible_accounts(db, user)
+    items = []
+    total_monthly = 0.0
+    total_yearly = 0.0
+    for acc in accounts:
+        for r in acc.recurring:
+            if not r.active:
+                continue
+            if r.end_date is not None and r.end_date < today:
+                continue
+            try:
+                amt = float(r.amount)
+            except Exception:
+                continue
+            if amt >= 0:
+                continue  # income, not a subscription
+            factor = _MONTHLY_FACTOR.get(r.frequency)
+            if factor is None:
+                continue  # unknown cadence — skip rather than mis-project
+            monthly = abs(amt) * factor
+            yearly = monthly * 12.0
+            total_monthly += monthly
+            total_yearly += yearly
+            items.append({
+                "recurring_id": r.id,
+                "description": r.description,
+                "amount": amt,  # signed, as stored
+                "frequency": r.frequency,
+                "day_of_month": r.day_of_month,
+                "anchor_date": r.anchor_date.isoformat() if r.anchor_date else None,
+                "end_date": r.end_date.isoformat() if r.end_date else None,
+                "account_id": acc.id,
+                "account_name": acc.name,
+                "category_id": r.category_id,
+                "category_name": r.category.name if r.category else None,
+                "category_color": r.category.color if r.category else None,
+                "notes": r.notes,
+                "monthly_cost": round(monthly, 2),
+                "yearly_cost": round(yearly, 2),
+            })
+
+    # Biggest drains first. Stable tie-break by description for deterministic
+    # rendering.
+    items.sort(key=lambda x: (-x["monthly_cost"], x["description"].lower()))
+    return {
+        "count": len(items),
+        "total_monthly": round(total_monthly, 2),
+        "total_yearly": round(total_yearly, 2),
+        "items": items,
     }
 
 

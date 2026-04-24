@@ -17,7 +17,7 @@ actual amount/date for that occurrence:
 from datetime import date, timedelta
 from decimal import Decimal
 from calendar import monthrange
-from .db import Account, RecurringTransaction, Transaction
+from .db import Account, RecurringTransaction, Transaction, Tag, TransactionTag
 
 
 def _occurrences(rec: RecurringTransaction, start: date, end: date):
@@ -53,6 +53,31 @@ def _occurrences(rec: RecurringTransaction, start: date, end: date):
             occ += timedelta(days=step)
 
 
+def _tags_for_account_transactions(db, txn_ids: list[int]) -> dict[int, list[dict]]:
+    """Bulk-load tag metadata for a list of transaction ids.
+
+    Mirrors main._tags_for_transactions but duplicated here to avoid a
+    circular import (main imports from forecast). Returns
+    {txn_id: [{id,name,color}, ...]}; absent entries mean "no tags".
+    """
+    if not txn_ids:
+        return {}
+    rows = (
+        db.query(TransactionTag.transaction_id, Tag.id, Tag.name, Tag.color)
+        .join(Tag, Tag.id == TransactionTag.tag_id)
+        .filter(TransactionTag.transaction_id.in_(txn_ids))
+        .all()
+    )
+    out: dict[int, list[dict]] = {}
+    for txn_id, tag_id, name, color in rows:
+        out.setdefault(txn_id, []).append(
+            {"id": tag_id, "name": name, "color": color}
+        )
+    for lst in out.values():
+        lst.sort(key=lambda x: x["name"].lower())
+    return out
+
+
 def build_forecast(db, account: Account, start: date, end: date):
     """Return rich forecast data with parallel forecast/actual balances."""
     txns = (
@@ -60,6 +85,9 @@ def build_forecast(db, account: Account, start: date, end: date):
         .filter(Transaction.account_id == account.id)
         .all()
     )
+    # Bulk-load tags for every transaction on this account — cheaper than
+    # per-row N+1, and the forecast loop already has the ids in hand.
+    tags_by_txn = _tags_for_account_transactions(db, [t.id for t in txns])
 
     # Opening balance: starting balance + every cleared txn before the window.
     # Convert to float up-front so the running balances below don't mix
@@ -116,6 +144,7 @@ def build_forecast(db, account: Account, start: date, end: date):
             "recurring_id": t.recurring_id,
             "transaction_id": t.id,
             "transfer_id": t.transfer_id,
+            "tags": tags_by_txn.get(t.id, []),
         })
 
     # Add recurring projections that don't already have a backing transaction
@@ -147,6 +176,9 @@ def build_forecast(db, account: Account, start: date, end: date):
                 "recurring_id": rec.id,
                 "transaction_id": None,
                 "transfer_id": None,
+                # Projected rows have no backing transaction yet, so no tags
+                # can be attached until the user saves the row first.
+                "tags": [],
             })
 
     # Sort by anchor date, then put already-cleared (has actual) rows after pending
@@ -181,6 +213,7 @@ def build_forecast(db, account: Account, start: date, end: date):
             "recurring_id": ev["recurring_id"],
             "transaction_id": ev["transaction_id"],
             "transfer_id": ev["transfer_id"],
+            "tags": ev.get("tags", []),
         })
 
     return {

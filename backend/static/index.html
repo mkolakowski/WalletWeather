@@ -464,6 +464,7 @@
       <button id="navNetworth" class="nav-btn" onclick="showPage('networth')">Net Worth</button>
       <button id="navAccounts" class="nav-btn" onclick="showPage('accounts')">Accounts</button>
       <button id="navTransactions" class="nav-btn" onclick="showPage('transactions')">Transactions</button>
+      <button id="navSubscriptions" class="nav-btn" onclick="showPage('subscriptions')">Subscriptions</button>
       <button id="navReports" class="nav-btn" onclick="showPage('reports')">Reports</button>
       <button id="navSettings" class="nav-btn" onclick="showPage('settings')">Settings</button>
       <button id="navAdmin" class="nav-btn hidden" onclick="showPage('admin')">Admin</button>
@@ -522,6 +523,35 @@
         <div id="networthChart" class="networth-chart-host"
              style="margin-top:14px"></div>
         <div id="networthAccounts" style="margin-top:14px"></div>
+      </div>
+    </div>
+
+    <div id="pageSubscriptions" class="hidden">
+      <div class="panel">
+        <h2>Subscriptions</h2>
+        <p style="color:var(--muted);font-size:13px;margin-top:0">
+          Every active recurring outflow across the accounts you can see,
+          normalized to a monthly cost so cadences line up. Add, edit, or
+          cancel a subscription from its account's <em>Recurring
+          transactions</em> panel on the
+          <a href="#" onclick="showPage('transactions');return false"
+             style="color:var(--accent)">Transactions</a> page.
+        </p>
+        <div class="summary" id="subsSummary" style="margin-top:10px"></div>
+        <div id="subsEmpty" class="hidden" style="color:var(--muted);font-size:13px;margin-top:12px">
+          No active subscriptions yet.
+        </div>
+        <div style="overflow-x:auto">
+          <table id="subsTable"><thead><tr>
+            <th>Description</th>
+            <th>Account</th>
+            <th>Category</th>
+            <th>Frequency</th>
+            <th class="num">Per charge</th>
+            <th class="num">Monthly</th>
+            <th class="num">Yearly</th>
+          </tr></thead><tbody></tbody></table>
+        </div>
       </div>
     </div>
 
@@ -598,6 +628,11 @@
               <option value="">All categories</option>
             </select>
           </div>
+          <div><label>Tag</label>
+            <select id="txnSearchTag" onchange="runTxnSearch()">
+              <option value="">All tags</option>
+            </select>
+          </div>
           <div><label>Kind</label>
             <select id="txnSearchKind" onchange="runTxnSearch()">
               <option value="">Any</option>
@@ -622,7 +657,7 @@
         <div id="txnSearchStatus" style="margin-top:10px;color:var(--muted);font-size:12px"></div>
         <div style="overflow-x:auto;margin-top:10px">
         <table id="txnSearchTable"><thead><tr>
-          <th>Date</th><th>Account</th><th>Description</th><th>Category</th>
+          <th>Date</th><th>Account</th><th>Description</th><th>Category</th><th>Tags</th>
           <th class="num">Amount</th><th>Status</th>
         </tr></thead><tbody></tbody></table>
         </div>
@@ -1096,6 +1131,21 @@
       </div>
 
       <div class="panel">
+        <h2>Tags</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Tags are lighter than categories &mdash; each transaction has one category, but can carry any number of tags
+          (like &ldquo;vacation&rdquo;, &ldquo;reimbursable&rdquo;, or &ldquo;business&rdquo;). Use them to slice spending
+          across categories without reshuffling your budget.
+        </p>
+        <div id="tagsList" style="margin-bottom:14px;color:var(--muted);font-size:13px">No tags yet.</div>
+        <div class="row">
+          <div><label>New tag name</label><input id="newTagName" placeholder="vacation" maxlength="60"></div>
+          <div><label>Color</label><input id="newTagColor" type="color" value="#9d6bff"></div>
+          <div><button onclick="createTag()">Add tag</button></div>
+        </div>
+      </div>
+
+      <div class="panel">
         <h2>Budgets</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           Set a monthly spending cap per category. Progress is computed against actual
@@ -1179,7 +1229,7 @@
 </div>
 
 <script>
-let me=null, accounts=[], currentAccountId=null, categories=[], recView='active', editingRecId=null;
+let me=null, accounts=[], currentAccountId=null, categories=[], tags=[], recView='active', editingRecId=null;
 
 const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
 
@@ -1373,6 +1423,7 @@ function showPage(name) {
   document.getElementById('pageNetworth').classList.toggle('hidden', name!=='networth');
   document.getElementById('pageAccounts').classList.toggle('hidden', name!=='accounts');
   document.getElementById('pageTransactions').classList.toggle('hidden', name!=='transactions');
+  document.getElementById('pageSubscriptions').classList.toggle('hidden', name!=='subscriptions');
   document.getElementById('pageImport').classList.toggle('hidden', name!=='import');
   document.getElementById('pageTransfer').classList.toggle('hidden', name!=='transfer');
   document.getElementById('pageReports').classList.toggle('hidden', name!=='reports');
@@ -1384,13 +1435,15 @@ function showPage(name) {
   document.getElementById('navAccounts').classList.toggle('active',
     name==='accounts' || name==='import' || name==='transfer');
   document.getElementById('navTransactions').classList.toggle('active', name==='transactions');
+  document.getElementById('navSubscriptions').classList.toggle('active', name==='subscriptions');
   document.getElementById('navReports').classList.toggle('active', name==='reports');
   document.getElementById('navAdmin').classList.toggle('active', name==='admin');
   document.getElementById('navSettings').classList.toggle('active', name==='settings');
-  if (name === 'settings') { loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); }
+  if (name === 'settings') { loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); }
   if (name === 'dashboard') loadDashboard();
   if (name === 'networth') loadNetworth();
   if (name === 'transactions') initTransactionsPage();
+  if (name === 'subscriptions') loadSubscriptions();
   if (name === 'import') initImportPage();
   if (name === 'transfer') initTransferPage();
   if (name === 'reports') initReportsPage();
@@ -2112,6 +2165,7 @@ async function init() {
   wireForecastSort();
   wireRecurringSort();
   await loadCategories();
+  await loadTags();
   await loadAccounts();
   showPage('dashboard');
 }
@@ -2273,6 +2327,144 @@ async function delCategory(id) {
     await loadRecurring();
     await loadForecast();
   }
+}
+
+// ---------- Tags ----------
+// Tags are cross-category labels. A transaction has exactly one category
+// but any number of tags. The backend enforces per-user uniqueness by name
+// and cascade-deletes tag links when either side is removed.
+async function loadTags() {
+  try {
+    tags = await api('/api/tags');
+  } catch (e) {
+    tags = [];
+  }
+  const list = document.getElementById('tagsList');
+  if (!list) return;
+  if (!tags.length) {
+    list.innerHTML = '<span style="color:var(--muted)">No tags yet. Add one below to start labelling transactions across categories.</span>';
+  } else {
+    list.innerHTML = tags.map(t =>
+      `<span class="tag-pill" style="${t.color?`background:${t.color}22;color:${t.color};border-color:${t.color}55`:''};margin-right:6px;padding:4px 10px">
+        ${escapeHtml(t.name)}
+        <a href="#" onclick="renameTag(${t.id});return false" style="color:inherit;margin-left:6px;text-decoration:none"
+           title="Rename">✎</a>
+        <a href="#" onclick="delTag(${t.id});return false" style="color:inherit;margin-left:4px;text-decoration:none"
+           title="Delete">×</a>
+      </span>`
+    ).join('');
+  }
+}
+
+async function createTag() {
+  const name = document.getElementById('newTagName').value.trim();
+  if (!name) return;
+  const color = document.getElementById('newTagColor').value;
+  try {
+    await api('/api/tags', {method:'POST', body: JSON.stringify({name, color})});
+  } catch (e) {
+    alert('Could not create tag: ' + e.message);
+    return;
+  }
+  document.getElementById('newTagName').value = '';
+  await loadTags();
+}
+
+async function renameTag(id) {
+  const t = (tags || []).find(x => x.id === id);
+  if (!t) return;
+  const next = prompt('Rename tag:', t.name);
+  if (!next || next.trim() === '' || next.trim() === t.name) return;
+  try {
+    await api('/api/tags/'+id, {method:'PATCH', body: JSON.stringify({name: next.trim(), color: t.color || null})});
+  } catch (e) {
+    alert('Could not rename: ' + e.message);
+    return;
+  }
+  await loadTags();
+  if (currentAccountId) await loadForecast();
+}
+
+async function delTag(id) {
+  if (!confirm('Delete this tag? It will be removed from every transaction that uses it. This cannot be undone.')) return;
+  try {
+    await api('/api/tags/'+id, {method:'DELETE'});
+  } catch (e) {
+    alert('Could not delete: ' + e.message);
+    return;
+  }
+  await loadTags();
+  if (currentAccountId) await loadForecast();
+}
+
+// Render a row of tag chips (read-only) — used on the forecast table and
+// transaction search results. `tagList` is the array shape returned by the
+// server: [{id, name, color}, ...].
+function renderTagChips(tagList) {
+  if (!tagList || !tagList.length) return '<span style="color:var(--muted)">—</span>';
+  return tagList.map(t => {
+    const style = t.color ? `background:${t.color}22;color:${t.color};border-color:${t.color}55` : '';
+    return `<span class="tag-pill" style="${style}" title="${escapeAttr(t.name)}">${escapeHtml(t.name)}</span>`;
+  }).join(' ');
+}
+
+// Render a multi-select tag picker for an inline-edit row. Each tag is a
+// clickable pill; the selected state is tracked in a hidden CSV input so
+// form code stays straightforward. `selectedIds` is an array of tag ids.
+function renderTagPicker(inputId, selectedIds) {
+  const selected = new Set((selectedIds || []).map(Number));
+  if (!tags || !tags.length) {
+    return `<span style="color:var(--muted);font-size:12px">No tags yet. Create some in Settings → Tags.</span>
+            <input type="hidden" id="${inputId}" value="">`;
+  }
+  const pills = tags.map(t => {
+    const on = selected.has(t.id);
+    const style = t.color
+      ? (on ? `background:${t.color};color:#fff;border-color:${t.color}`
+            : `background:${t.color}22;color:${t.color};border-color:${t.color}55`)
+      : '';
+    return `<span class="tag-pill tag-picker${on?' on':''}" data-tag-id="${t.id}"
+              style="${style};cursor:pointer;margin:2px 4px 2px 0"
+              onclick="_toggleTagPick(this, '${inputId}')">${escapeHtml(t.name)}</span>`;
+  }).join('');
+  const csv = Array.from(selected).join(',');
+  return `<div class="tag-picker-row">${pills}</div>
+          <input type="hidden" id="${inputId}" value="${csv}">`;
+}
+
+function _toggleTagPick(el, inputId) {
+  const id = Number(el.dataset.tagId);
+  if (!id) return;
+  const input = document.getElementById(inputId);
+  const cur = new Set((input.value || '').split(',').filter(Boolean).map(Number));
+  if (cur.has(id)) {
+    cur.delete(id);
+    el.classList.remove('on');
+  } else {
+    cur.add(id);
+    el.classList.add('on');
+  }
+  input.value = Array.from(cur).join(',');
+  // Re-paint the pill's fill state. The caller's color lookup is expensive
+  // to redo here, so fall back to class-driven styling via .tag-picker.on.
+  const t = (tags || []).find(x => x.id === id);
+  if (t && t.color) {
+    if (cur.has(id)) {
+      el.style.background = t.color;
+      el.style.color = '#fff';
+      el.style.borderColor = t.color;
+    } else {
+      el.style.background = t.color + '22';
+      el.style.color = t.color;
+      el.style.borderColor = t.color + '55';
+    }
+  }
+}
+
+// Read a tag-picker hidden input and return an integer array, or [] if blank.
+function readTagPick(inputId) {
+  const v = (document.getElementById(inputId) || {}).value || '';
+  return v.split(',').filter(Boolean).map(x => parseInt(x, 10)).filter(n => !Number.isNaN(n));
 }
 
 function switchRecView(view) {
@@ -2777,10 +2969,15 @@ function renderForecast() {
       ? '<td></td>'
       : `<td><button class="ghost" title="Edit row" onclick="startEditForecastRow('${rowKey}')">✎</button></td>`;
 
+    // Tag chips render inline below the description so adding them didn't
+    // require a whole new column (the table is already wide).
+    const tagBits = (r.tags && r.tags.length)
+      ? `<div class="row-tag-chips">${renderTagChips(r.tags)}</div>`
+      : '';
     tr.innerHTML = `
       <td>${r.forecast_date || '—'}</td>
       ${actDateCell}
-      <td>${escapeHtml(r.description)}</td>
+      <td>${escapeHtml(r.description)}${tagBits}</td>
       <td>${cat}</td>
       <td class="num ${r.forecast_amount>=0?'pos':'neg'}">${fAmt}</td>
       <td class="num">${fBal}</td>
@@ -3494,6 +3691,82 @@ function onNetworthWindowChange(w) {
   networthWindow = w;
   loadNetworth();
 }
+
+// ---------- Subscriptions (Tier-2 subscription audit) ----------
+// Renders a cross-account list of every active recurring outflow,
+// normalized to monthly and yearly cost. Pure read: edits flow through
+// the per-account Recurring-transactions panel on the Transactions page.
+function subsFrequencyLabel(item) {
+  if (item.frequency === 'monthly_day') {
+    return item.day_of_month ? `Monthly · day ${item.day_of_month}` : 'Monthly';
+  }
+  if (item.frequency === 'biweekly') {
+    return item.anchor_date ? `Biweekly · from ${item.anchor_date}` : 'Biweekly';
+  }
+  if (item.frequency === 'weekly') {
+    return item.anchor_date ? `Weekly · from ${item.anchor_date}` : 'Weekly';
+  }
+  return item.frequency || '—';
+}
+function subsCategoryCell(item) {
+  if (!item.category_name) return '<span style="color:var(--muted)">—</span>';
+  const color = item.category_color || 'var(--muted)';
+  const safe = (item.category_name + '').replace(/</g, '&lt;');
+  return `<span class="pill" style="background:${color}22;border:1px solid ${color};color:${color}">${safe}</span>`;
+}
+async function loadSubscriptions() {
+  const sum = document.getElementById('subsSummary');
+  const empty = document.getElementById('subsEmpty');
+  const tb = document.querySelector('#subsTable tbody');
+  const table = document.getElementById('subsTable');
+  sum.innerHTML = '<div class="tile"><span class="label">Loading…</span></div>';
+  tb.innerHTML = '';
+  try {
+    const r = await api('/api/subscriptions');
+    sum.innerHTML = `
+      <div class="tile"><span class="label">Active subscriptions</span>
+        <strong>${r.count}</strong></div>
+      <div class="tile"><span class="label">Monthly cost</span>
+        <strong>${fmt(r.total_monthly)}</strong></div>
+      <div class="tile"><span class="label">Yearly cost</span>
+        <strong>${fmt(r.total_yearly)}</strong></div>
+    `;
+    if (!r.items.length) {
+      empty.classList.remove('hidden');
+      table.classList.add('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+    table.classList.remove('hidden');
+    tb.innerHTML = r.items.map(it => {
+      const desc = (it.description + '').replace(/</g, '&lt;');
+      const acct = (it.account_name + '').replace(/</g, '&lt;');
+      // Clicking the account cell jumps to Transactions with that account
+      // preselected so the user can edit the recurring row directly.
+      const acctLink = `<a href="#" onclick="jumpToRecurring(${it.account_id});return false"
+                         style="color:var(--accent)">${acct}</a>`;
+      const perCharge = fmt(Math.abs(it.amount));
+      return `<tr>
+        <td>${desc}</td>
+        <td>${acctLink}</td>
+        <td>${subsCategoryCell(it)}</td>
+        <td>${subsFrequencyLabel(it)}</td>
+        <td class="num">${perCharge}</td>
+        <td class="num"><strong>${fmt(it.monthly_cost)}</strong></td>
+        <td class="num">${fmt(it.yearly_cost)}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    sum.innerHTML = `<div class="tile"><span class="label">Error</span>
+      <strong style="color:var(--bad)">Could not load subscriptions.</strong></div>`;
+  }
+}
+// Used by the Subscriptions table to hop over to the Transactions page with
+// the given account preselected in the managing-account picker.
+function jumpToRecurring(accountId) {
+  currentAccountId = accountId;
+  showPage('transactions');
+}
 function renderNetworthChart(points) {
   if (!points || !points.length) {
     return `<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No data in this window.</div>`;
@@ -3538,6 +3811,18 @@ function initTransactionsPage() {
       const o = document.createElement('option');
       o.value = c.id; o.textContent = c.name; catSel.appendChild(o);
     });
+  }
+  const tagSel = document.getElementById('txnSearchTag');
+  // Tags can be created/renamed from Settings, so repopulate every visit
+  // in case the user just added some. Preserve selection if still valid.
+  const prevTag = tagSel.value;
+  tagSel.innerHTML = '<option value="">All tags</option>';
+  (tags || []).forEach(t => {
+    const o = document.createElement('option');
+    o.value = t.id; o.textContent = t.name; tagSel.appendChild(o);
+  });
+  if (prevTag && (tags || []).some(t => String(t.id) === prevTag)) {
+    tagSel.value = prevTag;
   }
 
   // Managing-account picker. Drives the Account-actions row and the
@@ -3590,6 +3875,7 @@ function resetTxnSearch() {
   });
   document.getElementById('txnSearchAccount').value = '';
   document.getElementById('txnSearchCategory').value = '';
+  document.getElementById('txnSearchTag').value = '';
   document.getElementById('txnSearchKind').value = '';
   runTxnSearch();
 }
@@ -3597,6 +3883,7 @@ async function runTxnSearch() {
   const q = document.getElementById('txnSearchQ').value.trim();
   const acc = document.getElementById('txnSearchAccount').value;
   const cat = document.getElementById('txnSearchCategory').value;
+  const tag = document.getElementById('txnSearchTag').value;
   const kind = document.getElementById('txnSearchKind').value;
   const df = document.getElementById('txnSearchFrom').value;
   const dt = document.getElementById('txnSearchTo').value;
@@ -3606,6 +3893,7 @@ async function runTxnSearch() {
   if (q) params.set('q', q);
   if (acc) params.set('account_id', acc);
   if (cat) params.set('category_id', cat);
+  if (tag) params.set('tag_id', tag);
   if (kind) params.set('kind', kind);
   if (df) params.set('date_from', df);
   if (dt) params.set('date_to', dt);
@@ -3624,7 +3912,7 @@ async function runTxnSearch() {
   status.textContent = `${data.total} match${data.total===1?'':'es'}` + (data.total > data.results.length ? ` (showing first ${data.results.length})` : '');
   const tb = document.querySelector('#txnSearchTable tbody');
   if (!data.results.length) {
-    tb.innerHTML = `<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px">No matching transactions.</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:20px">No matching transactions.</td></tr>`;
     return;
   }
   tb.innerHTML = data.results.map(r => {
@@ -3637,6 +3925,7 @@ async function runTxnSearch() {
       <td>${escapeHtml(r.account_name||'')}</td>
       <td>${escapeHtml(r.description||'')}</td>
       <td>${escapeHtml(r.category_name||'—')}</td>
+      <td>${renderTagChips(r.tags)}</td>
       <td class="num ${r.amount>=0?'pos':'neg'}">${fmt(r.amount)}</td>
       <td>${status}</td>
     </tr>`;

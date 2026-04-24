@@ -23,7 +23,7 @@ the appropriate version heading. Format for each entry:
 
 ## [Unreleased]
 
-Web version: **1.7.1**
+Web version: **1.7.2**
 
 ### Changed
 
@@ -32,6 +32,13 @@ Web version: **1.7.1**
   page version has its own target-account selector, navigates back to the
   target account on commit, and can be reached from "Import CSV" on the
   Account detail page.
+- Transfer editor (new transfer + edit existing transfer) moved out of its
+  modal overlay into a dedicated Transfer page (`#pageTransfer`). Same
+  reasoning — overlay dismissal was unreliable. Reached from "Transfer
+  money" on the Account detail page and from "Edit" on the Recent transfers
+  list; the form now includes an inline Delete button while editing.
+- No modal overlays remain in the app. The unused `.modal-overlay` and
+  `.modal-card` CSS rules were deleted.
 
 ## [1.7.0] — 2026-04-23
 

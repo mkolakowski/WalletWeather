@@ -354,15 +354,8 @@
                                 color:var(--accent); font-weight:700; font-size:14px; }
 
   /* ---------- v1.7.0 Tier-1 components ---------- */
-  /* Modal overlay + card (used by Transfer + CSV Import). */
-  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.55);
-                   display:flex; align-items:flex-start; justify-content:center;
-                   z-index:1000; padding:60px 16px 16px; overflow-y:auto; }
-  .modal-card { background:var(--panel); border:1px solid var(--border);
-                border-radius:10px; padding:20px; width:100%; max-width:560px;
-                box-shadow:0 12px 40px rgba(0,0,0,0.45); }
-  .modal-card h2 { margin:0 0 8px; font-size:16px; color:var(--text);
-                   text-transform:none; letter-spacing:0; }
+  /* (Modal overlay CSS removed in 1.7.2 — Transfer and CSV Import are now
+     dedicated pages, not popups.) */
 
   /* Net worth chart host. */
   .networth-chart-host { background:var(--bg-deep); border:1px solid var(--border);
@@ -659,6 +652,42 @@
       </div>
     </div>
 
+    <div id="pageTransfer" class="hidden">
+      <div class="panel">
+        <h2 id="transferPageTitle">Transfer money</h2>
+        <p style="color:var(--muted);font-size:13px;margin:6px 0 12px">
+          Move money between two accounts you can edit. A paired posting is
+          created on each side so per-account balances update, but the dashboard
+          and reports exclude transfers from spending and income totals.
+        </p>
+        <input type="hidden" id="transferEditId" value="">
+        <div class="row" style="margin-top:8px">
+          <div><label>From account</label><select id="transferFrom"></select></div>
+          <div><label>To account</label><select id="transferTo"></select></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div><label>Amount</label><input id="transferAmount" type="number" step="0.01" min="0.01"></div>
+          <div><label>Date</label><input id="transferDate" type="date"></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div style="flex:2"><label>Description</label>
+            <input id="transferDesc" maxlength="120" placeholder="Transfer">
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div style="flex:2"><label>Notes (optional, max 256)</label>
+            <input id="transferNotes" maxlength="256">
+          </div>
+        </div>
+        <div id="transferPageError" class="auth-error hidden" style="margin-top:10px"></div>
+        <div class="row" style="margin-top:14px;justify-content:flex-end">
+          <div style="flex:0 0 auto"><button class="ghost" onclick="transferPageBack()">Back</button></div>
+          <div style="flex:0 0 auto"><button id="transferDeleteBtn" class="ghost danger hidden" onclick="deleteTransferFromPage()">Delete transfer</button></div>
+          <div style="flex:0 0 auto"><button onclick="submitTransfer()">Save transfer</button></div>
+        </div>
+      </div>
+    </div>
+
     <div id="pageAccounts" class="hidden">
     <div class="accounts-bar" id="accountsBar"></div>
 
@@ -668,7 +697,7 @@
       <div class="panel">
         <h2>Account actions</h2>
         <div class="row">
-          <div style="flex:0 0 auto"><button class="ghost" onclick="openTransferModal()">⇄ Transfer money</button></div>
+          <div style="flex:0 0 auto"><button class="ghost" onclick="openTransferPage()">⇄ Transfer money</button></div>
           <div style="flex:0 0 auto"><button class="ghost" onclick="openImportPage(currentAccountId)">⬆ Import CSV</button></div>
         </div>
       </div>
@@ -1140,37 +1169,6 @@
   </main>
 </div>
 
-<!-- Transfer modal -->
-<div id="transferModal" class="modal-overlay hidden" onclick="if(event.target===this)closeTransferModal()">
-  <div class="modal-card">
-    <h2 id="transferModalTitle">Transfer money</h2>
-    <input type="hidden" id="transferEditId" value="">
-    <div class="row" style="margin-top:8px">
-      <div><label>From account</label><select id="transferFrom"></select></div>
-      <div><label>To account</label><select id="transferTo"></select></div>
-    </div>
-    <div class="row" style="margin-top:8px">
-      <div><label>Amount</label><input id="transferAmount" type="number" step="0.01" min="0.01"></div>
-      <div><label>Date</label><input id="transferDate" type="date"></div>
-    </div>
-    <div class="row" style="margin-top:8px">
-      <div style="flex:2"><label>Description</label>
-        <input id="transferDesc" maxlength="120" placeholder="Transfer">
-      </div>
-    </div>
-    <div class="row" style="margin-top:8px">
-      <div style="flex:2"><label>Notes (optional, max 256)</label>
-        <input id="transferNotes" maxlength="256">
-      </div>
-    </div>
-    <div id="transferModalError" class="auth-error hidden" style="margin-top:10px"></div>
-    <div class="row" style="margin-top:14px;justify-content:flex-end">
-      <div style="flex:0 0 auto"><button class="ghost" onclick="closeTransferModal()">Cancel</button></div>
-      <div style="flex:0 0 auto"><button onclick="submitTransfer()">Save transfer</button></div>
-    </div>
-  </div>
-</div>
-
 <script>
 let me=null, accounts=[], currentAccountId=null, categories=[], recView='active', editingRecId=null;
 
@@ -1193,7 +1191,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.7.1";
+const WEB_VERSION = "1.7.2";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1204,6 +1202,9 @@ const WEB_VERSION = "1.7.1";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.7.2 (2026-04-23, claude+mkolakowski): move Transfer editor out of its
+//     modal overlay into a dedicated #pageTransfer page. No modals remain —
+//     .modal-overlay/.modal-card CSS was deleted alongside.
 // 1.7.1 (2026-04-23, claude+mkolakowski): move CSV importer out of modal
 //     overlay (which was failing to dismiss on some browsers) into a
 //     dedicated #pageImport page with its own target-account selector.
@@ -1360,13 +1361,15 @@ function showPage(name) {
   document.getElementById('pageAccounts').classList.toggle('hidden', name!=='accounts');
   document.getElementById('pageTransactions').classList.toggle('hidden', name!=='transactions');
   document.getElementById('pageImport').classList.toggle('hidden', name!=='import');
+  document.getElementById('pageTransfer').classList.toggle('hidden', name!=='transfer');
   document.getElementById('pageReports').classList.toggle('hidden', name!=='reports');
   document.getElementById('pageAdmin').classList.toggle('hidden', name!=='admin');
   document.getElementById('pageSettings').classList.toggle('hidden', name!=='settings');
   document.getElementById('navDashboard').classList.toggle('active', name==='dashboard');
   document.getElementById('navNetworth').classList.toggle('active', name==='networth');
-  // 'import' is reached from the Account page — keep the Accounts nav lit.
-  document.getElementById('navAccounts').classList.toggle('active', name==='accounts' || name==='import');
+  // 'import' + 'transfer' are reached from the Account page — keep Accounts lit.
+  document.getElementById('navAccounts').classList.toggle('active',
+    name==='accounts' || name==='import' || name==='transfer');
   document.getElementById('navTransactions').classList.toggle('active', name==='transactions');
   document.getElementById('navReports').classList.toggle('active', name==='reports');
   document.getElementById('navAdmin').classList.toggle('active', name==='admin');
@@ -1376,6 +1379,7 @@ function showPage(name) {
   if (name === 'networth') loadNetworth();
   if (name === 'transactions') initTransactionsPage();
   if (name === 'import') initImportPage();
+  if (name === 'transfer') initTransferPage();
   if (name === 'reports') initReportsPage();
   if (name === 'admin') loadAdminPage();
 }
@@ -3579,118 +3583,21 @@ async function runTxnSearch() {
   }).join('');
 }
 
+// ---------- Transfers list + page ----------
+// The transfer editor used to live in a modal overlay on the Accounts page,
+// same story as the CSV importer — overlay dismissal was flaky, so both were
+// promoted to dedicated pages (see initImportPage / initTransferPage).
+let _transfersCacheById = {};
+// What arguments the current visit to #pageTransfer was opened with.
+// { editId: number|null, preselectFromId: number|null }
+let _pendingTransferOpen = null;
+
 async function loadRecentTransfers() {
   const wrap = document.getElementById('recentTransfersWrap');
   let data;
   try {
     data = await api('/api/transfers?limit=20');
   } catch (e) {
-    wrap.innerHTML = `<div style="color:var(--bad)">Could not load: ${escapeHtml(e.message)}</div>`;
-    return;
-  }
-  if (!data.transfers.length) {
-    wrap.innerHTML = `<div style="color:var(--muted);font-size:13px">No transfers yet. Use the "Transfer money" button on the Accounts page.</div>`;
-    return;
-  }
-  wrap.innerHTML = `<div class="transfers-list">${data.transfers.map(t => `
-    <div class="transfer-item">
-      <div>${escapeHtml(t.transfer_date)}</div>
-      <div>${escapeHtml(t.from_account_name||'?')} <span class="arrow">→</span> ${escapeHtml(t.to_account_name||'?')}
-        <div style="color:var(--muted);font-size:12px">${escapeHtml(t.description)}</div>
-      </div>
-      <div class="amt">${fmt(t.amount)}</div>
-      <div><button class="ghost" onclick="openTransferModal(${t.id})">Edit</button></div>
-      <div><button class="ghost danger" onclick="deleteTransfer(${t.id})" title="Delete">✕</button></div>
-    </div>`).join('')}</div>`;
-}
-
-// ---------- Transfer modal ----------
-let _transfersCacheById = {};
-
-function openTransferModal(transferId) {
-  const modal = document.getElementById('transferModal');
-  const fromSel = document.getElementById('transferFrom');
-  const toSel = document.getElementById('transferTo');
-  fromSel.innerHTML = ''; toSel.innerHTML = '';
-  const editable = (accounts || []).filter(a => a.level === 'owner' || a.level === 'edit');
-  if (editable.length < 2) {
-    alert('You need at least two editable accounts to transfer money.');
-    return;
-  }
-  editable.forEach(a => {
-    fromSel.appendChild(new Option(a.name, a.id));
-    toSel.appendChild(new Option(a.name, a.id));
-  });
-  document.getElementById('transferEditId').value = transferId || '';
-  document.getElementById('transferModalError').classList.add('hidden');
-  if (transferId && _transfersCacheById[transferId]) {
-    const t = _transfersCacheById[transferId];
-    document.getElementById('transferModalTitle').textContent = 'Edit transfer';
-    fromSel.value = t.from_account_id;
-    toSel.value = t.to_account_id;
-    document.getElementById('transferAmount').value = t.amount;
-    document.getElementById('transferDate').value = t.transfer_date;
-    document.getElementById('transferDesc').value = t.description;
-    document.getElementById('transferNotes').value = t.notes || '';
-  } else {
-    document.getElementById('transferModalTitle').textContent = 'Transfer money';
-    fromSel.value = currentAccountId || editable[0].id;
-    toSel.value = (editable.find(a => a.id !== Number(fromSel.value)) || editable[1]).id;
-    document.getElementById('transferAmount').value = '';
-    document.getElementById('transferDate').value = new Date().toISOString().slice(0,10);
-    document.getElementById('transferDesc').value = 'Transfer';
-    document.getElementById('transferNotes').value = '';
-  }
-  modal.classList.remove('hidden');
-}
-function closeTransferModal() {
-  document.getElementById('transferModal').classList.add('hidden');
-}
-async function submitTransfer() {
-  const editId = document.getElementById('transferEditId').value;
-  const fromId = Number(document.getElementById('transferFrom').value);
-  const toId = Number(document.getElementById('transferTo').value);
-  const amount = parseFloat(document.getElementById('transferAmount').value);
-  const tdate = document.getElementById('transferDate').value;
-  const desc = document.getElementById('transferDesc').value || 'Transfer';
-  const notes = document.getElementById('transferNotes').value || null;
-  const err = document.getElementById('transferModalError');
-  err.classList.add('hidden');
-  if (fromId === toId) { err.textContent = 'From and To accounts must differ.'; err.classList.remove('hidden'); return; }
-  if (!(amount > 0)) { err.textContent = 'Amount must be positive.'; err.classList.remove('hidden'); return; }
-  if (!tdate) { err.textContent = 'Date is required.'; err.classList.remove('hidden'); return; }
-  const body = JSON.stringify({
-    from_account_id: fromId, to_account_id: toId, amount, transfer_date: tdate,
-    description: desc, notes
-  });
-  try {
-    const url = editId ? '/api/transfers/' + editId : '/api/transfers';
-    const method = editId ? 'PATCH' : 'POST';
-    await api(url, { method, body });
-    closeTransferModal();
-    if (currentAccountId) await selectAccount(currentAccountId);
-    if (!document.getElementById('pageTransactions').classList.contains('hidden')) loadRecentTransfers();
-  } catch (e) {
-    err.textContent = e.message; err.classList.remove('hidden');
-  }
-}
-async function deleteTransfer(id) {
-  if (!confirm('Delete this transfer? Both legs will be removed and balances adjusted.')) return;
-  try {
-    await api('/api/transfers/' + id, { method: 'DELETE' });
-    loadRecentTransfers();
-    if (currentAccountId) await selectAccount(currentAccountId);
-  } catch (e) {
-    alert('Delete failed: ' + e.message);
-  }
-}
-
-// Cache transfers by id when listing so the Edit button can prefill.
-const _origLoadRecentTransfers = loadRecentTransfers;
-loadRecentTransfers = async function() {
-  const wrap = document.getElementById('recentTransfersWrap');
-  let data;
-  try { data = await api('/api/transfers?limit=20'); } catch (e) {
     wrap.innerHTML = `<div style="color:var(--bad)">Could not load: ${escapeHtml(e.message)}</div>`;
     return;
   }
@@ -3707,9 +3614,137 @@ loadRecentTransfers = async function() {
         <div style="color:var(--muted);font-size:12px">${escapeHtml(t.description)}</div>
       </div>
       <div class="amt">${fmt(t.amount)}</div>
-      <div><button class="ghost" onclick="openTransferModal(${t.id})">Edit</button></div>
+      <div><button class="ghost" onclick="openTransferPage(${t.id})">Edit</button></div>
       <div><button class="ghost danger" onclick="deleteTransfer(${t.id})" title="Delete">✕</button></div>
     </div>`).join('')}</div>`;
+}
+
+function openTransferPage(transferId) {
+  _pendingTransferOpen = {
+    editId: transferId ? Number(transferId) : null,
+    preselectFromId: currentAccountId || null,
+  };
+  showPage('transfer');
+}
+
+function initTransferPage() {
+  const fromSel = document.getElementById('transferFrom');
+  const toSel = document.getElementById('transferTo');
+  const editIdInput = document.getElementById('transferEditId');
+  const err = document.getElementById('transferPageError');
+  const delBtn = document.getElementById('transferDeleteBtn');
+  if (!fromSel || !toSel) return;
+  err.classList.add('hidden');
+
+  // Populate account selectors from editable accounts only.
+  fromSel.innerHTML = ''; toSel.innerHTML = '';
+  const editable = (accounts || []).filter(a => a.level === 'owner' || a.level === 'edit');
+  if (editable.length < 2) {
+    err.textContent = 'You need at least two editable accounts to transfer money.';
+    err.classList.remove('hidden');
+    // Disable the form so submitTransfer can't run.
+    [fromSel, toSel].forEach(s => s.disabled = true);
+    delBtn.classList.add('hidden');
+    return;
+  }
+  [fromSel, toSel].forEach(s => s.disabled = false);
+  editable.forEach(a => {
+    fromSel.appendChild(new Option(a.name, a.id));
+    toSel.appendChild(new Option(a.name, a.id));
+  });
+
+  const opts = _pendingTransferOpen || { editId: null, preselectFromId: currentAccountId || null };
+  editIdInput.value = opts.editId || '';
+
+  if (opts.editId && _transfersCacheById[opts.editId]) {
+    const t = _transfersCacheById[opts.editId];
+    document.getElementById('transferPageTitle').textContent = 'Edit transfer';
+    fromSel.value = t.from_account_id;
+    toSel.value = t.to_account_id;
+    document.getElementById('transferAmount').value = t.amount;
+    document.getElementById('transferDate').value = t.transfer_date;
+    document.getElementById('transferDesc').value = t.description;
+    document.getElementById('transferNotes').value = t.notes || '';
+    delBtn.classList.remove('hidden');
+  } else {
+    document.getElementById('transferPageTitle').textContent = 'Transfer money';
+    const fromId = opts.preselectFromId || editable[0].id;
+    fromSel.value = String(fromId);
+    toSel.value = String((editable.find(a => a.id !== Number(fromSel.value)) || editable[1]).id);
+    document.getElementById('transferAmount').value = '';
+    document.getElementById('transferDate').value = new Date().toISOString().slice(0,10);
+    document.getElementById('transferDesc').value = 'Transfer';
+    document.getElementById('transferNotes').value = '';
+    delBtn.classList.add('hidden');
+  }
+  _pendingTransferOpen = null;
+}
+
+function transferPageBack() {
+  // Prefer going back to the account being operated on; otherwise go to the
+  // Transactions page (which also shows the recent transfers list).
+  if (currentAccountId) showPage('accounts');
+  else showPage('transactions');
+}
+
+async function submitTransfer() {
+  const editId = document.getElementById('transferEditId').value;
+  const fromId = Number(document.getElementById('transferFrom').value);
+  const toId = Number(document.getElementById('transferTo').value);
+  const amount = parseFloat(document.getElementById('transferAmount').value);
+  const tdate = document.getElementById('transferDate').value;
+  const desc = document.getElementById('transferDesc').value || 'Transfer';
+  const notes = document.getElementById('transferNotes').value || null;
+  const err = document.getElementById('transferPageError');
+  err.classList.add('hidden');
+  if (fromId === toId) { err.textContent = 'From and To accounts must differ.'; err.classList.remove('hidden'); return; }
+  if (!(amount > 0)) { err.textContent = 'Amount must be positive.'; err.classList.remove('hidden'); return; }
+  if (!tdate) { err.textContent = 'Date is required.'; err.classList.remove('hidden'); return; }
+  const body = JSON.stringify({
+    from_account_id: fromId, to_account_id: toId, amount, transfer_date: tdate,
+    description: desc, notes
+  });
+  try {
+    const url = editId ? '/api/transfers/' + editId : '/api/transfers';
+    const method = editId ? 'PATCH' : 'POST';
+    await api(url, { method, body });
+    // Navigate back to where the user came from and refresh data.
+    if (currentAccountId) {
+      showPage('accounts');
+      await selectAccount(currentAccountId);
+    } else {
+      showPage('transactions');
+    }
+    // Keep the Recent Transfers list fresh in case the Transactions page is
+    // visited next.
+    loadRecentTransfers();
+  } catch (e) {
+    err.textContent = e.message; err.classList.remove('hidden');
+  }
+}
+
+async function deleteTransferFromPage() {
+  const editId = document.getElementById('transferEditId').value;
+  if (!editId) return;
+  await deleteTransfer(Number(editId));
+}
+
+async function deleteTransfer(id) {
+  if (!confirm('Delete this transfer? Both legs will be removed and balances adjusted.')) return;
+  try {
+    await api('/api/transfers/' + id, { method: 'DELETE' });
+    loadRecentTransfers();
+    // If we're on the transfer page editing this one, bounce back.
+    const onTransferPage = !document.getElementById('pageTransfer').classList.contains('hidden');
+    if (onTransferPage) {
+      if (currentAccountId) { showPage('accounts'); await selectAccount(currentAccountId); }
+      else showPage('transactions');
+    } else if (currentAccountId) {
+      await selectAccount(currentAccountId);
+    }
+  } catch (e) {
+    alert('Delete failed: ' + e.message);
+  }
 };
 
 // ---------- CSV Import page ----------

@@ -5,6 +5,59 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
+# =============================================================================
+# APP VERSION (web / backend application version)
+# =============================================================================
+# Semver-style version string for the WalletWeather web app as a whole
+# (backend + bundled frontend SPA). Shipped to the frontend via
+# /api/auth/config so the UI can display it in the footer / About dialog.
+#
+# *** AI ASSISTANT INSTRUCTIONS — READ BEFORE EDITING ***
+# If you make a user-visible change to the app — a new feature, a bug fix,
+# a behavioral change, a UI overhaul, a security fix — YOU MUST:
+#   1. Bump APP_VERSION below (PATCH for fixes, MINOR for features,
+#      MAJOR for breaking changes).
+#   2. Add an entry to the APP CHANGELOG block below (see format there).
+#   3. If your change also changes the database shape, also bump
+#      SCHEMA_VERSION in backend/app/db.py per the instructions there.
+#   4. If your change touches the SPA (backend/static/index.html), also
+#      bump the WEB_VERSION constant in that file per the instructions
+#      at the top of it.
+# -----------------------------------------------------------------------------
+APP_VERSION = "1.7.0"
+
+# --- APP CHANGELOG ------------------------------------------------------------
+# Format for every new line (keep newest at TOP):
+#   # <version> (YYYY-MM-DD, <your name or handle>): <one-line summary>
+# Example:
+#   # 1.4.1 (2026-05-03, mkolakowski): fix forecast overflow on leap years
+#
+# When you bump APP_VERSION, add the matching line here. Do not rewrite
+# history — only append new entries. If multiple changes ship in one
+# version, use a short multi-line entry under a single version header.
+#
+# 1.7.0 (2026-04-23, claude+mkolakowski): Tier-1 roadmap features —
+#     account transfers (paired Transaction legs linked via transfer_id,
+#     excluded from spend/income aggregations), per-category monthly
+#     budgets with progress endpoint, transaction search/filter endpoint,
+#     CSV import (preview + commit with dedupe), and net worth endpoint
+#     summing daily balance trends across all visible accounts.
+# 1.6.0 (2026-04-23, claude+mkolakowski): dashboard charts — per-account
+#     spending-by-category donut, income/spending/net totals tile, and
+#     daily balance sparkline. New /api/dashboard/charts endpoint with
+#     selectable window (month / 30d / 90d). New users.chart_position
+#     preference for placement (above / below / inside cards).
+# 1.5.0 (2026-04-23, claude+mkolakowski): admin-customizable app title
+#     (AdminSetting-backed, shown in tab + header), default theme set to
+#     "system", theme localStorage removed to fix cross-user theme leak,
+#     theme picker grouped into Dark / Light rows.
+# 1.4.0 (2026-04-22, claude+mkolakowski): add 10 UI themes (light + 8 fun
+#     themes + system), server-side theme persistence per user, demo mode
+#     with pre-seeded admin + sample data, DEMO_MODE env var.
+# 1.3.x and earlier: pre-versioning — see git history.
+# -----------------------------------------------------------------------------
+
+
 import bcrypt
 from fastapi import FastAPI, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse, JSONResponse, FileResponse
@@ -15,7 +68,8 @@ from pydantic import BaseModel, EmailStr, Field
 
 from .db import (
     init_db, get_db, User, Account, RecurringTransaction, Transaction, Category,
-    AccountPermission, BackupSchedule, SessionLocal,
+    AccountPermission, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
+    SessionLocal, SCHEMA_VERSION,
 )
 from .forecast import build_forecast
 from .backup import export_user, import_user
@@ -223,8 +277,24 @@ class LoginIn(BaseModel):
     password: str
 
 
+# --- App title (admin-customizable) -----------------------------------------
+# The display name shown in the browser tab and in the UI header / login card.
+# Stored as an AdminSetting row so admins can rename the instance without
+# redeploying. Default is "WalletWeather".
+APP_TITLE_KEY = "app_title"
+APP_TITLE_DEFAULT = "WalletWeather"
+APP_TITLE_MAX_LEN = 80
+
+
+def get_app_title(db: Session) -> str:
+    row = db.get(AdminSetting, APP_TITLE_KEY)
+    if row and row.value:
+        return row.value
+    return APP_TITLE_DEFAULT
+
+
 @app.get("/api/auth/config")
-def auth_config():
+def auth_config(db: Session = Depends(get_db)):
     """Public endpoint so the frontend knows which login methods to show."""
     return {
         "google_enabled": GOOGLE_ENABLED,
@@ -232,6 +302,18 @@ def auth_config():
         "demo_mode": DEMO_MODE,
         "demo_email": DEMO_ADMIN_EMAIL if DEMO_MODE else None,
         "demo_password": DEMO_ADMIN_PASSWORD if DEMO_MODE else None,
+        "app_version": APP_VERSION,
+        "schema_version": SCHEMA_VERSION,
+        "app_title": get_app_title(db),
+    }
+
+
+@app.get("/api/version")
+def version_info():
+    """Version info for the About dialog / footer. Public, no auth required."""
+    return {
+        "app_version": APP_VERSION,
+        "schema_version": SCHEMA_VERSION,
     }
 
 
@@ -328,7 +410,8 @@ async def logout(request: Request):
 def me(user: User = Depends(current_user)):
     return {"id": user.id, "email": user.email, "name": user.name,
             "is_admin": is_admin(user),
-            "theme_preference": user.theme_preference}
+            "theme_preference": user.theme_preference,
+            "chart_position": user.chart_position}
 
 
 ALLOWED_THEMES = {
@@ -336,12 +419,14 @@ ALLOWED_THEMES = {
     "dracula", "solarized", "nord", "synthwave",
     "forest", "mint", "monokai", "sunset",
 }
+ALLOWED_CHART_POSITIONS = {"above", "below", "inside"}
 
 
 class PreferencesIn(BaseModel):
     # Only the fields we want users to be able to change live here.
     # None means "don't touch this field"; use explicit values to set.
     theme_preference: str | None = None
+    chart_position: str | None = None
 
 
 @app.patch("/api/me/preferences")
@@ -353,8 +438,16 @@ def update_preferences(payload: PreferencesIn,
         if payload.theme_preference not in ALLOWED_THEMES:
             raise HTTPException(400, f"theme_preference must be one of {sorted(ALLOWED_THEMES)}")
         user.theme_preference = payload.theme_preference
+    if payload.chart_position is not None:
+        if payload.chart_position not in ALLOWED_CHART_POSITIONS:
+            raise HTTPException(400, f"chart_position must be one of {sorted(ALLOWED_CHART_POSITIONS)}")
+        user.chart_position = payload.chart_position
     db.commit()
-    return {"ok": True, "theme_preference": user.theme_preference}
+    return {
+        "ok": True,
+        "theme_preference": user.theme_preference,
+        "chart_position": user.chart_position,
+    }
 
 
 # ---------- Schemas ----------
@@ -958,6 +1051,876 @@ def dashboard(user: User = Depends(current_user), db: Session = Depends(get_db))
     return {"cards": cards}
 
 
+ALLOWED_DASHBOARD_WINDOWS = {"month", "30d", "90d"}
+
+
+def _resolve_dashboard_window(window: str) -> tuple[date, date, str]:
+    """Convert a window string into (start, end, label)."""
+    today = date.today()
+    if window == "30d":
+        return today - timedelta(days=29), today, "Last 30 days"
+    if window == "90d":
+        return today - timedelta(days=89), today, "Last 90 days"
+    # default: current calendar month
+    start = date(today.year, today.month, 1)
+    if today.month == 12:
+        end = date(today.year, 12, 31)
+    else:
+        end = date(today.year, today.month + 1, 1) - timedelta(days=1)
+    return start, end, start.strftime("%B %Y")
+
+
+@app.get("/api/dashboard/charts")
+def dashboard_charts(window: str = "month",
+                     user: User = Depends(current_user),
+                     db: Session = Depends(get_db)):
+    """Per-account chart data: category spending breakdown, totals, balance trend.
+
+    Response shape (per account):
+      - totals:        income/spending/net, both actual & forecast
+      - categories:    list of {name, color, spending_actual, spending_forecast}
+                       where spending is positive (magnitude) for easier rendering
+      - balance_trend: daily points [{date, balance}] across the window, using
+                       actual_balance (which blends real actuals with forecast
+                       projections for days that haven't happened yet)
+    Pure spend is reported as a positive magnitude so the donut and bars don't
+    need to flip signs; income remains signed-positive for the totals tile.
+    """
+    if window not in ALLOWED_DASHBOARD_WINDOWS:
+        raise HTTPException(400, f"window must be one of {sorted(ALLOWED_DASHBOARD_WINDOWS)}")
+
+    start, end, label = _resolve_dashboard_window(window)
+
+    # Category color lookup is per user, not per account.
+    cat_colors: dict[str, str | None] = {}
+    for c in db.query(Category).filter_by(owner_id=user.id).all():
+        cat_colors[c.name] = c.color
+
+    UNCAT = "(uncategorized)"
+    accounts_out = []
+
+    for acc in _user_visible_accounts(db, user):
+        data = build_forecast(db, acc, start, end)
+        rows = data["rows"]
+
+        # --- Category spend buckets (magnitude, positive) ---------------------
+        buckets: dict[str, dict] = {}
+        f_income = 0.0
+        a_income = 0.0
+        f_spend = 0.0   # negative
+        a_spend = 0.0   # negative
+        for r in rows:
+            # Skip transfer legs — they're internal money movement, not spend
+            # or income, and counting them would double-book on a per-account
+            # donut and make the totals tile lie.
+            if r.get("transfer_id") is not None:
+                continue
+            cat = r.get("category") or UNCAT
+            f = r.get("forecast_amount")
+            a = r.get("actual_amount")
+            if f is not None:
+                if f > 0:
+                    f_income += f
+                elif f < 0:
+                    f_spend += f
+                    buckets.setdefault(cat, {"spending_actual": 0.0, "spending_forecast": 0.0})
+                    buckets[cat]["spending_forecast"] += -f
+            if a is not None:
+                if a > 0:
+                    a_income += a
+                elif a < 0:
+                    a_spend += a
+                    buckets.setdefault(cat, {"spending_actual": 0.0, "spending_forecast": 0.0})
+                    buckets[cat]["spending_actual"] += -a
+
+        # Sort categories by actual spending desc (falling back to forecast) and
+        # drop any that have zero in both columns.
+        cats = [
+            {"name": n, "color": cat_colors.get(n),
+             "spending_actual": round(b["spending_actual"], 2),
+             "spending_forecast": round(b["spending_forecast"], 2)}
+            for n, b in buckets.items()
+            if b["spending_actual"] > 0 or b["spending_forecast"] > 0
+        ]
+        cats.sort(key=lambda x: (x["spending_actual"], x["spending_forecast"]), reverse=True)
+
+        # --- Daily balance trend ---------------------------------------------
+        # Walk each day in the window, carrying the last-known actual_balance
+        # forward. We take the LAST row on each day (events are already sorted
+        # by anchor_date).
+        day_to_balance: dict[str, float] = {}
+        for r in rows:
+            d = r.get("actual_date") or r.get("forecast_date")
+            if d:
+                day_to_balance[d] = r["actual_balance"]
+
+        trend = []
+        running = data["opening_balance"]
+        d = start
+        while d <= end:
+            key = d.isoformat()
+            if key in day_to_balance:
+                running = day_to_balance[key]
+            trend.append({"date": key, "balance": round(running, 2)})
+            d += timedelta(days=1)
+
+        accounts_out.append({
+            "account_id": acc.id,
+            "account_name": acc.name,
+            "totals": {
+                "income_actual": round(a_income, 2),
+                "spending_actual": round(-a_spend, 2),     # magnitude
+                "net_actual": round(a_income + a_spend, 2),
+                "income_forecast": round(f_income, 2),
+                "spending_forecast": round(-f_spend, 2),   # magnitude
+                "net_forecast": round(f_income + f_spend, 2),
+            },
+            "categories": cats,
+            "balance_trend": trend,
+            "opening_balance": round(data["opening_balance"], 2),
+            "forecast_end": round(data["forecast_ending_balance"], 2),
+            "actual_end": round(data["actual_ending_balance"], 2),
+        })
+
+    return {
+        "window": window,
+        "label": label,
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+        "accounts": accounts_out,
+    }
+
+
+# ---------- Account transfers ----------
+# A transfer is a single user-facing record (Transfer row) that materializes
+# two paired Transaction legs sharing the same transfer_id. The legs run the
+# normal forecast/balance math; the transfer_id flag is what tells the
+# dashboard charts and reports endpoints to exclude them from spend/income
+# aggregations so internal money movement isn't double-counted.
+
+TRANSFER_DESC_DEFAULT = "Transfer"
+TRANSFER_DESC_MAX = 120
+
+
+class TransferIn(BaseModel):
+    from_account_id: int
+    to_account_id: int
+    amount: float = Field(..., gt=0)
+    transfer_date: date
+    description: str = Field(default=TRANSFER_DESC_DEFAULT, max_length=TRANSFER_DESC_MAX)
+    notes: str | None = Field(default=None, max_length=256)
+
+
+def _transfer_to_dict(db: Session, t: Transfer) -> dict:
+    """Shape a Transfer for the API. Adds account names + the two leg ids."""
+    legs = db.query(Transaction).filter(Transaction.transfer_id == t.id).all()
+    leg_ids = sorted([l.id for l in legs])
+    from_acc = db.get(Account, t.from_account_id)
+    to_acc = db.get(Account, t.to_account_id)
+    return {
+        "id": t.id,
+        "from_account_id": t.from_account_id,
+        "from_account_name": from_acc.name if from_acc else None,
+        "to_account_id": t.to_account_id,
+        "to_account_name": to_acc.name if to_acc else None,
+        "amount": float(t.amount),
+        "transfer_date": t.transfer_date.isoformat(),
+        "description": t.description,
+        "notes": t.notes,
+        "transaction_ids": leg_ids,
+        "created_at": t.created_at.isoformat() if t.created_at else None,
+    }
+
+
+def _create_transfer_legs(db: Session, transfer: Transfer):
+    """Insert the two Transaction rows backing a Transfer.
+
+    Caller is responsible for db.commit(). The legs are created as cleared
+    actuals on transfer_date so the user's balance reflects the move
+    immediately — transfers are records of something that already happened.
+    """
+    desc = transfer.description
+    notes = transfer.notes
+    amt = float(transfer.amount)
+    # Negative leg on from-account
+    out_t = Transaction(
+        account_id=transfer.from_account_id,
+        transfer_id=transfer.id,
+        actual_date=transfer.transfer_date,
+        forecast_date=transfer.transfer_date,
+        is_actual=True,
+    )
+    out_t.description = f"→ {desc}"
+    out_t.amount = Decimal(str(-amt))
+    out_t.notes = notes
+    db.add(out_t)
+    # Positive leg on to-account
+    in_t = Transaction(
+        account_id=transfer.to_account_id,
+        transfer_id=transfer.id,
+        actual_date=transfer.transfer_date,
+        forecast_date=transfer.transfer_date,
+        is_actual=True,
+    )
+    in_t.description = f"← {desc}"
+    in_t.amount = Decimal(str(amt))
+    in_t.notes = notes
+    db.add(in_t)
+
+
+def _delete_transfer_legs(db: Session, transfer_id: int):
+    """Remove all Transaction rows linked to a Transfer."""
+    db.query(Transaction).filter(Transaction.transfer_id == transfer_id).delete(
+        synchronize_session=False
+    )
+
+
+@app.get("/api/transfers")
+def list_transfers(limit: int = 50, offset: int = 0,
+                   user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """List the caller's transfers, newest first.
+
+    A transfer is visible to the user if they have at least 'read' on both
+    of its legs. We query by owner_id (the user who created it) and also
+    pull in transfers where the caller has access to either leg.
+    """
+    visible_ids = {a.id for a in _user_visible_accounts(db, user, include_archived=True)}
+    q = db.query(Transfer).filter(
+        (Transfer.owner_id == user.id) |
+        (Transfer.from_account_id.in_(visible_ids)) |
+        (Transfer.to_account_id.in_(visible_ids))
+    ).order_by(Transfer.transfer_date.desc(), Transfer.id.desc())
+    total = q.count()
+    rows = q.offset(max(0, offset)).limit(min(max(1, limit), 500)).all()
+    return {
+        "total": total,
+        "transfers": [_transfer_to_dict(db, t) for t in rows],
+    }
+
+
+@app.post("/api/transfers")
+def create_transfer(payload: TransferIn,
+                    user: User = Depends(current_user), db: Session = Depends(get_db)):
+    if payload.from_account_id == payload.to_account_id:
+        raise HTTPException(400, "from_account and to_account must differ")
+    # Caller must have edit on both accounts.
+    _account_with_perm(db, user, payload.from_account_id, "edit")
+    _account_with_perm(db, user, payload.to_account_id, "edit")
+    desc = (payload.description or TRANSFER_DESC_DEFAULT).strip() or TRANSFER_DESC_DEFAULT
+    transfer = Transfer(
+        owner_id=user.id,
+        from_account_id=payload.from_account_id,
+        to_account_id=payload.to_account_id,
+        transfer_date=payload.transfer_date,
+    )
+    transfer.description = desc
+    transfer.amount = Decimal(str(payload.amount))
+    transfer.notes = payload.notes
+    db.add(transfer)
+    db.flush()  # populate transfer.id without committing
+    _create_transfer_legs(db, transfer)
+    db.commit()
+    db.refresh(transfer)
+    return _transfer_to_dict(db, transfer)
+
+
+@app.patch("/api/transfers/{transfer_id}")
+def update_transfer(transfer_id: int, payload: TransferIn,
+                    user: User = Depends(current_user), db: Session = Depends(get_db)):
+    transfer = db.get(Transfer, transfer_id)
+    if not transfer:
+        raise HTTPException(404, "Transfer not found")
+    # Caller must have edit on both the OLD and NEW accounts so they can't
+    # silently move money to an account they don't control.
+    _account_with_perm(db, user, transfer.from_account_id, "edit")
+    _account_with_perm(db, user, transfer.to_account_id, "edit")
+    _account_with_perm(db, user, payload.from_account_id, "edit")
+    _account_with_perm(db, user, payload.to_account_id, "edit")
+    if payload.from_account_id == payload.to_account_id:
+        raise HTTPException(400, "from_account and to_account must differ")
+    transfer.from_account_id = payload.from_account_id
+    transfer.to_account_id = payload.to_account_id
+    transfer.transfer_date = payload.transfer_date
+    transfer.description = (payload.description or TRANSFER_DESC_DEFAULT).strip() or TRANSFER_DESC_DEFAULT
+    transfer.amount = Decimal(str(payload.amount))
+    transfer.notes = payload.notes
+    # Easiest correct approach: blow away + recreate the legs.
+    _delete_transfer_legs(db, transfer.id)
+    db.flush()
+    _create_transfer_legs(db, transfer)
+    db.commit()
+    return _transfer_to_dict(db, transfer)
+
+
+@app.delete("/api/transfers/{transfer_id}")
+def delete_transfer(transfer_id: int,
+                    user: User = Depends(current_user), db: Session = Depends(get_db)):
+    transfer = db.get(Transfer, transfer_id)
+    if not transfer:
+        raise HTTPException(404, "Transfer not found")
+    # Only an editor on either side can delete the transfer.
+    _account_with_perm(db, user, transfer.from_account_id, "edit")
+    db.delete(transfer)  # cascade removes the linked transaction legs
+    db.commit()
+    return {"ok": True}
+
+
+# ---------- Budgets per category ----------
+class BudgetIn(BaseModel):
+    category_id: int
+    amount: float = Field(..., ge=0)
+    period: str = Field(default="monthly")
+
+
+ALLOWED_BUDGET_PERIODS = {"monthly"}
+
+
+@app.get("/api/budgets")
+def list_budgets(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    rows = (
+        db.query(CategoryBudget)
+        .filter(CategoryBudget.owner_id == user.id)
+        .all()
+    )
+    out = []
+    for b in rows:
+        out.append({
+            "id": b.id,
+            "category_id": b.category_id,
+            "category_name": b.category.name if b.category else None,
+            "category_color": b.category.color if b.category else None,
+            "amount": float(b.amount),
+            "period": b.period,
+        })
+    out.sort(key=lambda x: (x["category_name"] or "").lower())
+    return out
+
+
+@app.post("/api/budgets")
+def upsert_budget(payload: BudgetIn,
+                  user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Set the budget for a category. Idempotent: re-posting overwrites."""
+    if payload.period not in ALLOWED_BUDGET_PERIODS:
+        raise HTTPException(400, f"period must be one of {sorted(ALLOWED_BUDGET_PERIODS)}")
+    _own_category(db, user, payload.category_id)
+    existing = (
+        db.query(CategoryBudget)
+        .filter(CategoryBudget.owner_id == user.id,
+                CategoryBudget.category_id == payload.category_id)
+        .first()
+    )
+    if existing:
+        existing.amount = Decimal(str(payload.amount))
+        existing.period = payload.period
+        b = existing
+    else:
+        b = CategoryBudget(
+            owner_id=user.id,
+            category_id=payload.category_id,
+            period=payload.period,
+        )
+        b.amount = Decimal(str(payload.amount))
+        db.add(b)
+    db.commit()
+    db.refresh(b)
+    return {"id": b.id, "category_id": b.category_id,
+            "amount": float(b.amount), "period": b.period}
+
+
+@app.delete("/api/budgets/{category_id}")
+def delete_budget(category_id: int,
+                  user: User = Depends(current_user), db: Session = Depends(get_db)):
+    existing = (
+        db.query(CategoryBudget)
+        .filter(CategoryBudget.owner_id == user.id,
+                CategoryBudget.category_id == category_id)
+        .first()
+    )
+    if not existing:
+        raise HTTPException(404, "No budget for that category")
+    db.delete(existing)
+    db.commit()
+    return {"ok": True}
+
+
+@app.get("/api/budgets/progress")
+def budgets_progress(window: str = "month",
+                     user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Per-category spend vs budget for the chosen window.
+
+    Spend is computed by summing absolute values of negative actual_amount
+    across every visible account's forecast rows in the window. Transfer legs
+    are excluded. Returns a row per budget plus a row per category that has
+    spend but no budget set (so users can see candidates to budget).
+    """
+    if window not in ALLOWED_DASHBOARD_WINDOWS:
+        raise HTTPException(400, f"window must be one of {sorted(ALLOWED_DASHBOARD_WINDOWS)}")
+    start, end, label = _resolve_dashboard_window(window)
+
+    spend_by_cat: dict[str, float] = {}
+    UNCAT = "(uncategorized)"
+    for acc in _user_visible_accounts(db, user):
+        data = build_forecast(db, acc, start, end)
+        for r in data["rows"]:
+            if r.get("transfer_id") is not None:
+                continue
+            a = r.get("actual_amount")
+            if a is None or a >= 0:
+                continue
+            cat = r.get("category") or UNCAT
+            spend_by_cat[cat] = spend_by_cat.get(cat, 0.0) + (-a)
+
+    # Budgets keyed by category name
+    budgets_by_cat: dict[str, dict] = {}
+    for b in db.query(CategoryBudget).filter_by(owner_id=user.id).all():
+        if not b.category:
+            continue
+        budgets_by_cat[b.category.name] = {
+            "category_id": b.category_id,
+            "category_color": b.category.color,
+            "amount": float(b.amount),
+        }
+
+    # Build progress rows: union of (budgeted categories) + (categories with spend)
+    out = []
+    seen = set()
+    for name, b in budgets_by_cat.items():
+        spend = round(spend_by_cat.get(name, 0.0), 2)
+        budget = b["amount"]
+        pct = round((spend / budget) * 100, 1) if budget > 0 else None
+        out.append({
+            "category_id": b["category_id"],
+            "category_name": name,
+            "category_color": b["category_color"],
+            "budget": budget,
+            "spend": spend,
+            "remaining": round(budget - spend, 2),
+            "pct": pct,
+            "over": spend > budget,
+            "has_budget": True,
+        })
+        seen.add(name)
+    for name, spend in spend_by_cat.items():
+        if name in seen:
+            continue
+        # Best-effort lookup so we can return a category_id when known
+        cat = (
+            db.query(Category)
+            .filter(Category.owner_id == user.id, Category.name == name)
+            .first()
+        )
+        out.append({
+            "category_id": cat.id if cat else None,
+            "category_name": name,
+            "category_color": cat.color if cat else None,
+            "budget": 0.0,
+            "spend": round(spend, 2),
+            "remaining": round(-spend, 2),
+            "pct": None,
+            "over": False,
+            "has_budget": False,
+        })
+    out.sort(key=lambda r: (-(r["spend"] or 0), r["category_name"].lower()))
+    total_budget = round(sum(b["amount"] for b in budgets_by_cat.values()), 2)
+    total_spend = round(sum(spend_by_cat.values()), 2)
+    return {
+        "window": window,
+        "label": label,
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+        "rows": out,
+        "totals": {
+            "budget": total_budget,
+            "spend": total_spend,
+            "remaining": round(total_budget - total_spend, 2),
+        },
+    }
+
+
+# ---------- Transaction search ----------
+@app.get("/api/transactions/search")
+def search_transactions(q: str | None = None,
+                        account_id: int | None = None,
+                        category_id: int | None = None,
+                        date_from: date | None = None,
+                        date_to: date | None = None,
+                        min_amount: float | None = None,
+                        max_amount: float | None = None,
+                        kind: str | None = None,    # 'income' | 'spending' | 'transfers' | None=any
+                        include_transfers: bool = True,
+                        limit: int = 100,
+                        offset: int = 0,
+                        user: User = Depends(current_user),
+                        db: Session = Depends(get_db)):
+    """Search the caller's transactions across all visible accounts.
+
+    Description and notes are encrypted at rest, so the text-search half of
+    this filter has to decrypt-and-compare in Python. The SQL filter narrows
+    on the cheap fields first (account, category, dates, transfer flag) so
+    the decrypt loop only runs on a small candidate set.
+    """
+    visible_ids = {a.id for a in _user_visible_accounts(db, user, include_archived=True)}
+    if not visible_ids:
+        return {"total": 0, "results": []}
+    if account_id is not None and account_id not in visible_ids:
+        raise HTTPException(404, "Account not found")
+
+    base = db.query(Transaction).filter(Transaction.account_id.in_(visible_ids))
+    if account_id is not None:
+        base = base.filter(Transaction.account_id == account_id)
+    if category_id is not None:
+        base = base.filter(Transaction.category_id == category_id)
+    if date_from is not None:
+        base = base.filter(
+            (Transaction.actual_date >= date_from) | (Transaction.forecast_date >= date_from)
+        )
+    if date_to is not None:
+        base = base.filter(
+            (Transaction.actual_date <= date_to) | (Transaction.forecast_date <= date_to)
+        )
+    if not include_transfers or kind == "income" or kind == "spending":
+        # Exclude transfer legs. (Switched on either flag.)
+        if kind != "transfers":
+            base = base.filter(Transaction.transfer_id.is_(None))
+    if kind == "transfers":
+        base = base.filter(Transaction.transfer_id.isnot(None))
+
+    candidates = base.order_by(Transaction.actual_date.desc().nullslast(),
+                               Transaction.forecast_date.desc().nullslast(),
+                               Transaction.id.desc()).all()
+
+    # Decrypt + apply text/amount filter
+    needle = (q or "").strip().lower() or None
+    out = []
+    acc_names = {a.id: a.name for a in _user_visible_accounts(db, user, include_archived=True)}
+    for t in candidates:
+        amt = float(t.amount)
+        if min_amount is not None and amt < min_amount:
+            continue
+        if max_amount is not None and amt > max_amount:
+            continue
+        if kind == "income" and amt <= 0:
+            continue
+        if kind == "spending" and amt >= 0:
+            continue
+        desc = t.description or ""
+        notes = t.notes or ""
+        if needle and needle not in desc.lower() and needle not in notes.lower():
+            continue
+        out.append({
+            "id": t.id,
+            "account_id": t.account_id,
+            "account_name": acc_names.get(t.account_id),
+            "description": desc,
+            "amount": amt,
+            "actual_date": t.actual_date.isoformat() if t.actual_date else None,
+            "forecast_date": t.forecast_date.isoformat() if t.forecast_date else None,
+            "is_actual": t.is_actual,
+            "category_id": t.category_id,
+            "category_name": t.category.name if t.category else None,
+            "transfer_id": t.transfer_id,
+            "notes": notes or None,
+        })
+
+    total = len(out)
+    page = out[max(0, offset): max(0, offset) + min(max(1, limit), 1000)]
+    return {"total": total, "results": page,
+            "limit": limit, "offset": offset}
+
+
+# ---------- CSV import ----------
+import csv
+import io as _csvio
+
+
+def _detect_columns(headers: list[str]) -> dict[str, int | None]:
+    """Heuristic auto-mapping for common bank CSV column names."""
+    mapping = {"date": None, "description": None, "amount": None,
+               "debit": None, "credit": None, "category": None, "notes": None}
+    lowered = [(i, (h or "").strip().lower()) for i, h in enumerate(headers)]
+    for i, h in lowered:
+        if mapping["date"] is None and h in ("date", "transaction date", "posted date", "post date"):
+            mapping["date"] = i
+        elif mapping["description"] is None and h in ("description", "details", "memo", "merchant", "name", "payee"):
+            mapping["description"] = i
+        elif mapping["amount"] is None and h in ("amount", "value", "transaction amount"):
+            mapping["amount"] = i
+        elif mapping["debit"] is None and h in ("debit", "withdrawal", "withdrawals", "outflow"):
+            mapping["debit"] = i
+        elif mapping["credit"] is None and h in ("credit", "deposit", "deposits", "inflow"):
+            mapping["credit"] = i
+        elif mapping["category"] is None and h in ("category",):
+            mapping["category"] = i
+        elif mapping["notes"] is None and h in ("notes", "note"):
+            mapping["notes"] = i
+    return mapping
+
+
+def _parse_csv_amount(raw: str | None) -> float | None:
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    # Strip currency symbols, thousands separators, parentheses-as-negative
+    neg = s.startswith("(") and s.endswith(")")
+    s = s.replace("(", "").replace(")", "")
+    s = s.replace("$", "").replace("£", "").replace("€", "").replace(",", "").strip()
+    try:
+        v = float(s)
+    except ValueError:
+        return None
+    return -v if neg else v
+
+
+def _parse_csv_date(raw: str | None) -> date | None:
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", "%d/%m/%Y", "%d/%m/%y",
+                "%Y/%m/%d", "%m-%d-%Y", "%d-%m-%Y", "%b %d, %Y", "%d %b %Y"):
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _parse_csv_rows(csv_text: str, has_header: bool, mapping: dict | None,
+                    sign_convention: str = "amount"):
+    """Yield dicts {date, description, amount, raw} from a CSV blob.
+
+    sign_convention:
+      - 'amount':            single signed column (negative = withdraw)
+      - 'amount_invert':     single signed column where positive = withdraw
+      - 'debit_credit':      two columns: debit (positive=withdraw), credit (positive=deposit)
+    """
+    reader = csv.reader(_csvio.StringIO(csv_text))
+    rows = list(reader)
+    if not rows:
+        return [], []
+    if has_header:
+        headers, body = rows[0], rows[1:]
+    else:
+        headers = [f"col_{i+1}" for i in range(len(rows[0]))]
+        body = rows
+    if mapping is None:
+        mapping = _detect_columns(headers)
+
+    out = []
+    skipped = []
+    for idx, row in enumerate(body):
+        def cell(key):
+            i = mapping.get(key)
+            if i is None or i >= len(row):
+                return None
+            return row[i]
+        d = _parse_csv_date(cell("date"))
+        desc = (cell("description") or "").strip() or "(no description)"
+        amt: float | None = None
+        if sign_convention == "debit_credit":
+            deb = _parse_csv_amount(cell("debit")) or 0.0
+            cred = _parse_csv_amount(cell("credit")) or 0.0
+            amt = (cred - deb) if (deb or cred) else None
+        else:
+            amt = _parse_csv_amount(cell("amount"))
+            if sign_convention == "amount_invert" and amt is not None:
+                amt = -amt
+        notes = cell("notes")
+        if notes:
+            notes = str(notes).strip() or None
+        if d is None or amt is None:
+            skipped.append({"row_index": idx, "row": row,
+                            "reason": "missing date or amount"})
+            continue
+        out.append({
+            "row_index": idx,
+            "date": d.isoformat(),
+            "description": desc,
+            "amount": amt,
+            "notes": notes,
+            "raw": row,
+        })
+    return out, skipped, headers, mapping
+
+
+class CSVPreviewIn(BaseModel):
+    csv_text: str
+    has_header: bool = True
+    mapping: dict | None = None
+    sign_convention: str = "amount"
+
+
+class CSVCommitIn(BaseModel):
+    csv_text: str
+    has_header: bool = True
+    mapping: dict
+    sign_convention: str = "amount"
+    default_category_id: int | None = None
+    skip_duplicates: bool = True
+
+
+def _existing_keys_for_account(db: Session, account_id: int) -> set[tuple]:
+    """Build a dedupe set of (date_iso, amount, description_lower) for an account.
+
+    Description is decrypted in-memory; for typical personal-finance volumes
+    this is fine — the alternative would be a hash column we'd have to backfill.
+    """
+    keys = set()
+    txns = db.query(Transaction).filter(Transaction.account_id == account_id).all()
+    for t in txns:
+        d = t.actual_date or t.forecast_date
+        if not d:
+            continue
+        try:
+            keys.add((d.isoformat(), round(float(t.amount), 2),
+                      (t.description or "").strip().lower()))
+        except Exception:
+            continue
+    return keys
+
+
+@app.post("/api/accounts/{account_id}/import/preview")
+def csv_import_preview(account_id: int, payload: CSVPreviewIn,
+                       user: User = Depends(current_user), db: Session = Depends(get_db)):
+    acc = _own_account(db, user, account_id)
+    if not (payload.csv_text or "").strip():
+        raise HTTPException(400, "csv_text is empty")
+    if payload.sign_convention not in ("amount", "amount_invert", "debit_credit"):
+        raise HTTPException(400, "Invalid sign_convention")
+    rows, skipped, headers, mapping = _parse_csv_rows(
+        payload.csv_text, payload.has_header, payload.mapping, payload.sign_convention)
+    existing = _existing_keys_for_account(db, acc.id)
+    dup_count = 0
+    for r in rows:
+        key = (r["date"], round(r["amount"], 2), r["description"].strip().lower())
+        r["duplicate"] = key in existing
+        if r["duplicate"]:
+            dup_count += 1
+    return {
+        "headers": headers,
+        "mapping": mapping,
+        "rows": rows[:200],   # cap preview
+        "row_count": len(rows),
+        "skipped": skipped[:50],
+        "skipped_count": len(skipped),
+        "duplicate_count": dup_count,
+        "sign_convention": payload.sign_convention,
+        "has_header": payload.has_header,
+    }
+
+
+@app.post("/api/accounts/{account_id}/import/commit")
+def csv_import_commit(account_id: int, payload: CSVCommitIn,
+                      user: User = Depends(current_user), db: Session = Depends(get_db)):
+    acc = _own_account(db, user, account_id)
+    if payload.default_category_id is not None:
+        _own_category(db, user, payload.default_category_id)
+    if payload.sign_convention not in ("amount", "amount_invert", "debit_credit"):
+        raise HTTPException(400, "Invalid sign_convention")
+    rows, _skipped, _headers, _mapping = _parse_csv_rows(
+        payload.csv_text, payload.has_header, payload.mapping, payload.sign_convention)
+    existing = _existing_keys_for_account(db, acc.id) if payload.skip_duplicates else set()
+    inserted = 0
+    duplicates = 0
+    for r in rows:
+        key = (r["date"], round(r["amount"], 2), r["description"].strip().lower())
+        if payload.skip_duplicates and key in existing:
+            duplicates += 1
+            continue
+        existing.add(key)  # protect against duplicates within the file too
+        d = _parse_csv_date(r["date"])
+        if not d:
+            continue
+        t = Transaction(
+            account_id=acc.id,
+            category_id=payload.default_category_id,
+            actual_date=d,
+            forecast_date=d,
+            is_actual=True,
+        )
+        t.description = r["description"]
+        t.amount = Decimal(str(r["amount"]))
+        if r.get("notes"):
+            t.notes = r["notes"]
+        db.add(t)
+        inserted += 1
+    db.commit()
+    return {"ok": True, "inserted": inserted, "duplicates_skipped": duplicates,
+            "total_rows": len(rows)}
+
+
+# ---------- Net worth ----------
+@app.get("/api/networth")
+def net_worth(window: str = "month",
+              user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Aggregated net worth across all visible accounts.
+
+    For each account, runs the same forecast walk used by /api/dashboard/charts
+    and sums per-day balances. Returns a single time series plus a snapshot of
+    today's actual (sum of opening + cleared activity) and end-of-window
+    forecast.
+    """
+    if window not in ALLOWED_DASHBOARD_WINDOWS:
+        raise HTTPException(400, f"window must be one of {sorted(ALLOWED_DASHBOARD_WINDOWS)}")
+    start, end, label = _resolve_dashboard_window(window)
+
+    accounts = _user_visible_accounts(db, user)
+    # Per-day totals, indexed by date string
+    totals_by_day: dict[str, float] = {}
+    per_account = []
+    opening_total = 0.0
+    forecast_end_total = 0.0
+    actual_end_total = 0.0
+    for acc in accounts:
+        data = build_forecast(db, acc, start, end)
+        opening_total += data["opening_balance"]
+        forecast_end_total += data["forecast_ending_balance"]
+        actual_end_total += data["actual_ending_balance"]
+        rows = data["rows"]
+        # Same daily-balance walk as dashboard_charts
+        day_to_balance: dict[str, float] = {}
+        for r in rows:
+            d = r.get("actual_date") or r.get("forecast_date")
+            if d:
+                day_to_balance[d] = r["actual_balance"]
+        running = data["opening_balance"]
+        d = start
+        per_account_trend = []
+        while d <= end:
+            key = d.isoformat()
+            if key in day_to_balance:
+                running = day_to_balance[key]
+            totals_by_day[key] = totals_by_day.get(key, 0.0) + running
+            per_account_trend.append({"date": key, "balance": round(running, 2)})
+            d += timedelta(days=1)
+        per_account.append({
+            "account_id": acc.id,
+            "account_name": acc.name,
+            "opening_balance": round(data["opening_balance"], 2),
+            "forecast_end": round(data["forecast_ending_balance"], 2),
+            "actual_end": round(data["actual_ending_balance"], 2),
+            "trend": per_account_trend,
+        })
+
+    # Sorted total trend
+    total_trend = [{"date": k, "balance": round(v, 2)}
+                   for k, v in sorted(totals_by_day.items())]
+    return {
+        "window": window,
+        "label": label,
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+        "opening_total": round(opening_total, 2),
+        "forecast_end_total": round(forecast_end_total, 2),
+        "actual_end_total": round(actual_end_total, 2),
+        "trend": total_trend,
+        "accounts": per_account,
+    }
+
+
 # ---------- Permissions ----------
 class PermissionIn(BaseModel):
     account_id: int
@@ -1140,6 +2103,10 @@ def report(start: date | None = None, end: date | None = None,
     for acc in visible:
         data = build_forecast(db, acc, start, end)
         for r in data["rows"]:
+            # Same exclusion rule as the dashboard charts: transfer legs are
+            # internal money movement, not real category spend or income.
+            if r.get("transfer_id") is not None:
+                continue
             cat = r.get("category") or UNCAT
             b = _bucket(cat)
             f = r.get("forecast_amount")
@@ -1204,6 +2171,42 @@ class AdminBackupConfigIn(BaseModel):
     frequency: str = "daily"  # 'daily' | 'weekly' | 'monthly'
     hour: int = 3
     retention_days: int = 30
+
+
+class AppTitleIn(BaseModel):
+    app_title: str = Field(..., min_length=1, max_length=APP_TITLE_MAX_LEN)
+
+
+@app.get("/api/admin/app-title")
+def admin_get_app_title(user: User = Depends(current_admin), db: Session = Depends(get_db)):
+    return {"app_title": get_app_title(db), "default": APP_TITLE_DEFAULT}
+
+
+@app.post("/api/admin/app-title")
+def admin_set_app_title(payload: AppTitleIn,
+                        user: User = Depends(current_admin),
+                        db: Session = Depends(get_db)):
+    """Set the instance display name shown in the browser tab and UI header."""
+    title = payload.app_title.strip()
+    if not title:
+        raise HTTPException(400, "Title cannot be empty")
+    row = db.get(AdminSetting, APP_TITLE_KEY)
+    if row:
+        row.value = title
+    else:
+        db.add(AdminSetting(key=APP_TITLE_KEY, value=title))
+    db.commit()
+    return {"app_title": title}
+
+
+@app.delete("/api/admin/app-title")
+def admin_reset_app_title(user: User = Depends(current_admin), db: Session = Depends(get_db)):
+    """Reset to the default ('WalletWeather')."""
+    row = db.get(AdminSetting, APP_TITLE_KEY)
+    if row:
+        db.delete(row)
+        db.commit()
+    return {"app_title": APP_TITLE_DEFAULT}
 
 
 @app.get("/api/admin/users")

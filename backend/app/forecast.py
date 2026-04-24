@@ -115,6 +115,7 @@ def build_forecast(db, account: Account, start: date, end: date):
             "is_actual_real": t.is_actual,
             "recurring_id": t.recurring_id,
             "transaction_id": t.id,
+            "transfer_id": t.transfer_id,
         })
 
     # Add recurring projections that don't already have a backing transaction
@@ -145,6 +146,7 @@ def build_forecast(db, account: Account, start: date, end: date):
                 "is_actual_real": False,
                 "recurring_id": rec.id,
                 "transaction_id": None,
+                "transfer_id": None,
             })
 
     # Sort by anchor date, then put already-cleared (has actual) rows after pending
@@ -178,6 +180,7 @@ def build_forecast(db, account: Account, start: date, end: date):
             "is_actual_real": ev["is_actual_real"],
             "recurring_id": ev["recurring_id"],
             "transaction_id": ev["transaction_id"],
+            "transfer_id": ev["transfer_id"],
         })
 
     return {

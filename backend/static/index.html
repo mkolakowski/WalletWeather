@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WalletWeather</title>
+<title data-app-title>WalletWeather</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="apple-touch-icon" href="/static/favicon.svg">
 <style>
@@ -248,7 +248,93 @@
               font-size:11px; background:var(--chip-bg); color:var(--muted); }
   .hidden { display:none; }
 
+  /* ---------- Dashboard charts ---------- */
+  .dash-window-bar { display:flex; align-items:center; gap:10px; margin:0 0 14px;
+                     flex-wrap:wrap; }
+  .dash-window-bar .label { color:var(--muted); font-size:13px; }
+  .dash-window-bar .seg { display:inline-flex; border:1px solid var(--border);
+                          border-radius:6px; overflow:hidden; }
+  .dash-window-bar .seg button { background:transparent; border:none;
+                                  color:var(--text); padding:6px 12px;
+                                  font-size:13px; cursor:pointer; }
+  .dash-window-bar .seg button:not(:last-child) {
+                          border-right:1px solid var(--border); }
+  .dash-window-bar .seg button.active { background:var(--accent);
+                                         color:var(--on-accent); }
+  .dash-window-bar .range { color:var(--muted); font-size:12px; margin-left:auto; }
+
+  /* One "chart block" = the triple of donut + totals + sparkline for one
+     account. Rendered inside each .dash-card when position="inside", or
+     stacked in its own panel when position="above" / "below". */
+  .chart-block { display:grid; gap:12px;
+                 grid-template-columns:minmax(160px, 1fr) minmax(180px, 1.4fr);
+                 grid-template-areas:
+                   "donut   totals"
+                   "spark   spark"; }
+  .chart-block .chart-donut-wrap { grid-area:donut; min-width:0; }
+  .chart-block .chart-totals     { grid-area:totals; min-width:0; }
+  .chart-block .chart-spark      { grid-area:spark; min-width:0; }
+  .chart-block.compact { grid-template-columns:1fr;
+                         grid-template-areas: "donut" "totals" "spark"; }
+  @media (max-width: 640px) {
+    .chart-block { grid-template-columns:1fr;
+                   grid-template-areas: "donut" "totals" "spark"; }
+  }
+
+  .chart-title { font-size:11px; letter-spacing:0.04em; text-transform:uppercase;
+                 color:var(--muted); margin:0 0 6px; font-weight:600; }
+  .chart-empty { color:var(--muted); font-size:12px; padding:8px 0; text-align:center; }
+
+  /* Donut: SVG + legend */
+  .chart-donut-wrap { display:flex; align-items:center; gap:10px; }
+  .chart-donut { width:90px; height:90px; flex:0 0 auto; }
+  .chart-donut .center-big { font-size:11px; font-weight:700; fill:var(--text); }
+  .chart-donut .center-sm { font-size:8px; fill:var(--muted); }
+  .donut-legend { display:flex; flex-direction:column; gap:3px; font-size:11px;
+                  min-width:0; flex:1; max-height:90px; overflow:hidden; }
+  .donut-legend .item { display:flex; align-items:center; gap:6px; min-width:0; }
+  .donut-legend .sw { width:8px; height:8px; border-radius:2px; flex:0 0 auto; }
+  .donut-legend .n { flex:1; overflow:hidden; text-overflow:ellipsis;
+                     white-space:nowrap; color:var(--text); }
+  .donut-legend .v { color:var(--muted); font-variant-numeric:tabular-nums;
+                     flex:0 0 auto; }
+
+  /* Totals tile */
+  .chart-totals .row-t { display:flex; justify-content:space-between;
+                          align-items:baseline; padding:3px 0;
+                          border-bottom:1px dashed var(--border); }
+  .chart-totals .row-t:last-child { border-bottom:none; }
+  .chart-totals .row-t .k { font-size:11px; color:var(--muted);
+                             text-transform:uppercase; letter-spacing:0.04em; }
+  .chart-totals .row-t .v { font-size:14px; font-weight:600;
+                             font-variant-numeric:tabular-nums;
+                             color:var(--text); }
+  .chart-totals .row-t .delta { font-size:10px; color:var(--muted);
+                                 margin-left:6px; font-variant-numeric:tabular-nums; }
+  .chart-totals .row-t.net .v.pos { color:var(--good); }
+  .chart-totals .row-t.net .v.neg { color:var(--bad); }
+
+  /* Sparkline */
+  .chart-spark svg { width:100%; height:42px; display:block; }
+  .chart-spark .spark-line  { fill:none; stroke:var(--accent); stroke-width:1.5;
+                               vector-effect:non-scaling-stroke; }
+  .chart-spark .spark-fill  { fill:var(--accent); opacity:0.12; }
+  .chart-spark .spark-meta  { display:flex; justify-content:space-between;
+                               font-size:10px; color:var(--muted); margin-top:2px; }
+
+  /* Position=above / below: charts rendered inside one shared panel with
+     sections keyed per account. */
+  .dash-charts-panel .chart-section { padding:12px 0;
+                                       border-top:1px dashed var(--border); }
+  .dash-charts-panel .chart-section:first-child { border-top:none; padding-top:0; }
+  .dash-charts-panel .chart-section h3 { margin:0 0 8px; font-size:14px; }
+
   /* ---------- Theme picker (Settings > Appearance) ---------- */
+  .theme-group { margin-top:14px; }
+  .theme-group:first-child { margin-top:0; }
+  .theme-group-label { font-size:12px; font-weight:600; letter-spacing:0.05em;
+                       text-transform:uppercase; color:var(--muted);
+                       margin:0 0 8px; }
   .theme-grid { display:grid; gap:10px;
                 grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); }
   .theme-card { position:relative; display:block; cursor:pointer;
@@ -266,30 +352,71 @@
   .theme-card .hint { font-size:11px; color:var(--muted); margin-top:2px; }
   .theme-card.selected::after { content:"✓"; position:absolute; top:6px; right:8px;
                                 color:var(--accent); font-weight:700; font-size:14px; }
+
+  /* ---------- v1.7.0 Tier-1 components ---------- */
+  /* Modal overlay + card (used by Transfer + CSV Import). */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.55);
+                   display:flex; align-items:flex-start; justify-content:center;
+                   z-index:1000; padding:60px 16px 16px; overflow-y:auto; }
+  .modal-card { background:var(--panel); border:1px solid var(--border);
+                border-radius:10px; padding:20px; width:100%; max-width:560px;
+                box-shadow:0 12px 40px rgba(0,0,0,0.45); }
+  .modal-card h2 { margin:0 0 8px; font-size:16px; color:var(--text);
+                   text-transform:none; letter-spacing:0; }
+
+  /* Net worth chart host. */
+  .networth-chart-host { background:var(--bg-deep); border:1px solid var(--border);
+                         border-radius:8px; padding:12px; }
+  .networth-chart-host svg { display:block; width:100%; height:auto; }
+
+  /* Budgets list rows. */
+  .budget-row { display:grid; grid-template-columns:14px 1fr 90px 120px 90px 80px;
+                gap:10px; align-items:center; padding:8px 0;
+                border-bottom:1px solid var(--border); font-size:13px; }
+  .budget-row:last-child { border-bottom:none; }
+  .budget-swatch { width:12px; height:12px; border-radius:3px; background:var(--border); }
+  .budget-bar { height:8px; background:var(--chip-bg); border-radius:4px; overflow:hidden; position:relative; }
+  .budget-bar-fill { height:100%; background:var(--accent); }
+  .budget-bar-fill.over { background:var(--bad); }
+  .budget-bar-fill.warn { background:var(--warn); }
+  .budget-amount-input { width:90px; }
+  .budget-pct { font-variant-numeric:tabular-nums; text-align:right; }
+
+  /* Search-results table tightening. */
+  #txnSearchTable td.num, #txnSearchTable th.num { text-align:right; font-variant-numeric:tabular-nums; }
+
+  /* CSV import preview table. */
+  .csv-preview { width:100%; border-collapse:collapse; font-size:12px; }
+  .csv-preview th, .csv-preview td { padding:5px 8px; border-bottom:1px solid var(--border); text-align:left; }
+  .csv-preview tr.duplicate { color:var(--muted); }
+  .csv-preview tr.duplicate td:last-child { color:var(--warn); }
+
+  /* Recent transfers list. */
+  .transfers-list { display:flex; flex-direction:column; gap:6px; }
+  .transfer-item { display:grid; grid-template-columns:90px 1fr auto auto auto;
+                   gap:10px; align-items:center; padding:8px 10px;
+                   background:var(--bg-deep); border:1px solid var(--border); border-radius:6px;
+                   font-size:13px; }
+  .transfer-item .arrow { color:var(--muted); }
+  .transfer-item .amt { font-variant-numeric:tabular-nums; font-weight:600; }
 </style>
 <script>
-  // Apply saved theme before first paint to avoid a flash of the wrong theme.
-  // Whitelist of supported keys must stay in sync with the THEMES list in the
-  // main script below.
+  // Pre-paint: default theme is "system" (follow OS). Once the user signs in,
+  // /api/me returns their saved preference and we re-apply it. We deliberately
+  // do NOT persist the theme in localStorage — that caused the previous user's
+  // theme to briefly render after another user signed in on the same browser.
   (function() {
-    var KEYS = ['dark','light','system','dracula','solarized','nord','synthwave',
-                'forest','mint','monokai','sunset'];
     try {
-      var saved = localStorage.getItem('ww-theme');
-      if (!saved || KEYS.indexOf(saved) === -1) saved = 'dark';
-      var effective = saved;
-      if (saved === 'system') {
-        effective = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
-      }
-      if (effective !== 'dark') document.documentElement.setAttribute('data-theme', effective);
-    } catch (e) { /* localStorage unavailable — stay on default (dark) */ }
+      var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      if (prefersLight) document.documentElement.setAttribute('data-theme', 'light');
+    } catch (e) { /* matchMedia unavailable — stay on default (dark) */ }
   })();
 </script>
 </head>
 <body>
 
 <div id="login" class="login hidden">
-  <h1>WalletWeather</h1>
+  <h1 data-app-title>WalletWeather</h1>
   <p>Track balances, forecast cashflow, compare planned vs actual.</p>
 
   <div class="auth-card">
@@ -338,10 +465,12 @@
 
 <div id="app" class="hidden">
   <header>
-    <h1>WalletWeather</h1>
+    <h1 data-app-title>WalletWeather</h1>
     <div>
       <button id="navDashboard" class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
+      <button id="navNetworth" class="nav-btn" onclick="showPage('networth')">Net Worth</button>
       <button id="navAccounts" class="nav-btn" onclick="showPage('accounts')">Accounts</button>
+      <button id="navTransactions" class="nav-btn" onclick="showPage('transactions')">Transactions</button>
       <button id="navReports" class="nav-btn" onclick="showPage('reports')">Reports</button>
       <button id="navSettings" class="nav-btn" onclick="showPage('settings')">Settings</button>
       <button id="navAdmin" class="nav-btn hidden" onclick="showPage('admin')">Admin</button>
@@ -354,8 +483,110 @@
     <div id="pageDashboard">
       <div class="panel">
         <h2>Dashboard</h2>
+        <div class="dash-window-bar">
+          <span class="label">Charts window</span>
+          <div class="seg" role="group" aria-label="Time window">
+            <button type="button" data-window="month" class="active"
+                    onclick="onDashboardWindowChange('month')">Month</button>
+            <button type="button" data-window="30d"
+                    onclick="onDashboardWindowChange('30d')">30 days</button>
+            <button type="button" data-window="90d"
+                    onclick="onDashboardWindowChange('90d')">90 days</button>
+          </div>
+          <span class="range" id="dashWindowRange"></span>
+        </div>
+
+        <!-- Charts panel shown when chart_position === 'above' -->
+        <div id="dashChartsAbove" class="panel dash-charts-panel hidden"
+             style="margin:0 0 14px;padding:14px"></div>
+
         <div id="dashboardGrid" class="dashboard-grid">
           <div style="color:var(--muted);grid-column:1/-1;text-align:center;padding:20px">Loading…</div>
+        </div>
+
+        <!-- Charts panel shown when chart_position === 'below' -->
+        <div id="dashChartsBelow" class="panel dash-charts-panel hidden"
+             style="margin:14px 0 0;padding:14px"></div>
+      </div>
+    </div>
+
+    <div id="pageNetworth" class="hidden">
+      <div class="panel">
+        <h2>Net worth</h2>
+        <div class="dash-window-bar">
+          <span class="label">Window</span>
+          <div class="seg" role="group" aria-label="Net worth window">
+            <button type="button" data-nw-window="month" class="active"
+                    onclick="onNetworthWindowChange('month')">Month</button>
+            <button type="button" data-nw-window="30d"
+                    onclick="onNetworthWindowChange('30d')">30 days</button>
+            <button type="button" data-nw-window="90d"
+                    onclick="onNetworthWindowChange('90d')">90 days</button>
+          </div>
+          <span class="range" id="networthRange"></span>
+        </div>
+        <div class="summary" id="networthSummary"></div>
+        <div id="networthChart" class="networth-chart-host"
+             style="margin-top:14px"></div>
+        <div id="networthAccounts" style="margin-top:14px"></div>
+      </div>
+    </div>
+
+    <div id="pageTransactions" class="hidden">
+      <div class="panel">
+        <h2>Search transactions</h2>
+        <div class="row">
+          <div style="flex:2"><label>Text</label>
+            <input id="txnSearchQ" placeholder="Search description or notes…"
+                   onkeydown="if(event.key==='Enter')runTxnSearch()">
+          </div>
+          <div><label>Account</label>
+            <select id="txnSearchAccount" onchange="runTxnSearch()">
+              <option value="">All accounts</option>
+            </select>
+          </div>
+          <div><label>Category</label>
+            <select id="txnSearchCategory" onchange="runTxnSearch()">
+              <option value="">All categories</option>
+            </select>
+          </div>
+          <div><label>Kind</label>
+            <select id="txnSearchKind" onchange="runTxnSearch()">
+              <option value="">Any</option>
+              <option value="spending">Spending only</option>
+              <option value="income">Income only</option>
+              <option value="transfers">Transfers only</option>
+            </select>
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div><label>From</label><input id="txnSearchFrom" type="date" onchange="runTxnSearch()"></div>
+          <div><label>To</label><input id="txnSearchTo" type="date" onchange="runTxnSearch()"></div>
+          <div><label>Min $</label><input id="txnSearchMin" type="number" step="0.01" placeholder="-9999"></div>
+          <div><label>Max $</label><input id="txnSearchMax" type="number" step="0.01" placeholder="9999"></div>
+          <div style="flex:0 0 auto"><label>&nbsp;</label>
+            <div style="display:flex;gap:6px">
+              <button onclick="runTxnSearch()">Search</button>
+              <button class="ghost" onclick="resetTxnSearch()">Reset</button>
+            </div>
+          </div>
+        </div>
+        <div id="txnSearchStatus" style="margin-top:10px;color:var(--muted);font-size:12px"></div>
+        <div style="overflow-x:auto;margin-top:10px">
+        <table id="txnSearchTable"><thead><tr>
+          <th>Date</th><th>Account</th><th>Description</th><th>Category</th>
+          <th class="num">Amount</th><th>Status</th>
+        </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Recent transfers</h2>
+        <p style="color:var(--muted);margin:0 0 10px;font-size:13px">
+          Account-to-account moves. Manage transfers from the Accounts page.
+        </p>
+        <div id="recentTransfersWrap">
+          <div style="color:var(--muted);font-size:13px">Loading…</div>
         </div>
       </div>
     </div>
@@ -365,6 +596,14 @@
 
     <div id="accountView" class="hidden">
       <div class="summary" id="summary"></div>
+
+      <div class="panel">
+        <h2>Account actions</h2>
+        <div class="row">
+          <div style="flex:0 0 auto"><button class="ghost" onclick="openTransferModal()">⇄ Transfer money</button></div>
+          <div style="flex:0 0 auto"><button class="ghost" onclick="openImportModal()">⬆ Import CSV</button></div>
+        </div>
+      </div>
 
       <div class="panel">
         <h2>Recurring transactions
@@ -608,6 +847,23 @@
 
     <div id="pageAdmin" class="hidden">
       <div class="panel">
+        <h2>Instance branding</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Rename the app. Shown in the browser tab, the login screen, and the header.
+          Leave blank and hit Reset to restore the default.
+        </p>
+        <div class="row">
+          <div style="flex:1">
+            <label>App title</label>
+            <input id="adminAppTitle" maxlength="80" placeholder="WalletWeather">
+          </div>
+          <div style="flex:0 0 auto"><button onclick="saveAppTitle()">Save</button></div>
+          <div style="flex:0 0 auto"><button class="ghost" onclick="resetAppTitle()">Reset</button></div>
+        </div>
+        <div id="adminAppTitleStatus" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
+      </div>
+
+      <div class="panel">
         <h2>User management</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           View and manage all registered users. Disable users to block login without deleting their data.
@@ -679,9 +935,30 @@
       <div class="panel">
         <h2>Appearance</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
-          Pick a look for WalletWeather. Your choice is saved to your account and follows you across browsers and devices.
+          Pick a look. Your choice is saved to your account on the server and follows you across browsers and devices.
         </p>
-        <div id="themePicker" class="theme-grid" onchange="onThemeChange(event)"></div>
+        <div id="themePicker" onchange="onThemeChange(event)"></div>
+
+        <h3 style="margin:20px 0 6px;font-size:14px">Dashboard charts placement</h3>
+        <p style="color:var(--muted);margin:0 0 10px;font-size:13px">
+          Choose where the per-account charts (spending donut, totals, and balance
+          sparkline) appear on the Dashboard.
+        </p>
+        <div id="chartPositionPicker" class="row" style="gap:8px"
+             onchange="onChartPositionChange(event)">
+          <label style="flex:0 0 auto;display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="radio" name="chartPosition" value="above">
+            <span>Above account cards</span>
+          </label>
+          <label style="flex:0 0 auto;display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="radio" name="chartPosition" value="below">
+            <span>Below account cards</span>
+          </label>
+          <label style="flex:0 0 auto;display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="radio" name="chartPosition" value="inside">
+            <span>Inside each card</span>
+          </label>
+        </div>
       </div>
 
       <div class="panel">
@@ -709,6 +986,29 @@
           <div><label>New category name</label><input id="newCatName" placeholder="Groceries"></div>
           <div><label>Color</label><input id="newCatColor" type="color" value="#58a6ff"></div>
           <div><button onclick="createCategory()">Add category</button></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Budgets</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Set a monthly spending cap per category. Progress is computed against actual
+          (cleared) spending in the chosen window. Transfers between your accounts are
+          excluded.
+        </p>
+        <div class="row" style="margin-bottom:10px">
+          <div style="flex:0 0 auto"><label>Window</label>
+            <select id="budgetWindow" onchange="loadBudgets()">
+              <option value="month" selected>This month</option>
+              <option value="30d">Last 30 days</option>
+              <option value="90d">Last 90 days</option>
+            </select>
+          </div>
+          <div style="flex:0 0 auto;align-self:end;color:var(--muted);font-size:12px"
+               id="budgetWindowRange"></div>
+        </div>
+        <div id="budgetsList">
+          <div style="color:var(--muted);font-size:13px">Loading…</div>
         </div>
       </div>
 
@@ -772,39 +1072,185 @@
   </main>
 </div>
 
+<!-- Transfer modal -->
+<div id="transferModal" class="modal-overlay hidden" onclick="if(event.target===this)closeTransferModal()">
+  <div class="modal-card">
+    <h2 id="transferModalTitle">Transfer money</h2>
+    <input type="hidden" id="transferEditId" value="">
+    <div class="row" style="margin-top:8px">
+      <div><label>From account</label><select id="transferFrom"></select></div>
+      <div><label>To account</label><select id="transferTo"></select></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div><label>Amount</label><input id="transferAmount" type="number" step="0.01" min="0.01"></div>
+      <div><label>Date</label><input id="transferDate" type="date"></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div style="flex:2"><label>Description</label>
+        <input id="transferDesc" maxlength="120" placeholder="Transfer">
+      </div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div style="flex:2"><label>Notes (optional, max 256)</label>
+        <input id="transferNotes" maxlength="256">
+      </div>
+    </div>
+    <div id="transferModalError" class="auth-error hidden" style="margin-top:10px"></div>
+    <div class="row" style="margin-top:14px;justify-content:flex-end">
+      <div style="flex:0 0 auto"><button class="ghost" onclick="closeTransferModal()">Cancel</button></div>
+      <div style="flex:0 0 auto"><button onclick="submitTransfer()">Save transfer</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- CSV import modal -->
+<div id="importModal" class="modal-overlay hidden" onclick="if(event.target===this)closeImportModal()">
+  <div class="modal-card" style="max-width:780px">
+    <h2 id="importModalTitle">Import transactions from CSV</h2>
+    <p style="color:var(--muted);font-size:13px;margin:6px 0 12px">
+      Paste your bank's CSV export (or upload a file). We'll auto-detect columns,
+      then preview the rows and let you skip duplicates before committing.
+    </p>
+    <div class="row">
+      <div style="flex:0 0 auto">
+        <label>File</label>
+        <input id="importCsvFile" type="file" accept=".csv,text/csv,text/plain" onchange="onImportCsvFile()">
+      </div>
+      <div style="flex:0 0 auto">
+        <label>Has header row?</label>
+        <select id="importHasHeader">
+          <option value="1" selected>Yes</option>
+          <option value="0">No</option>
+        </select>
+      </div>
+      <div style="flex:0 0 auto">
+        <label>Sign convention</label>
+        <select id="importSignConv">
+          <option value="amount" selected>Single signed amount column</option>
+          <option value="amount_invert">Single column (positive = withdraw)</option>
+          <option value="debit_credit">Separate debit + credit columns</option>
+        </select>
+      </div>
+      <div style="flex:0 0 auto">
+        <label>Default category</label>
+        <select id="importDefaultCat">
+          <option value="">— none —</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:8px">
+      <label>CSV text (paste here)</label>
+      <textarea id="importCsvText" rows="6" style="width:100%;font:12px monospace;background:var(--bg-deep);
+        color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px"
+        placeholder="date,description,amount&#10;2026-04-01,Coffee,-4.25"></textarea>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div style="flex:0 0 auto"><button class="ghost" onclick="runImportPreview()">Preview</button></div>
+      <div style="flex:0 0 auto;align-self:end;color:var(--muted);font-size:12px" id="importPreviewSummary"></div>
+    </div>
+    <div id="importPreviewWrap" style="margin-top:10px;max-height:280px;overflow:auto;border:1px solid var(--border);border-radius:6px"></div>
+    <div id="importModalError" class="auth-error hidden" style="margin-top:10px"></div>
+    <div class="row" style="margin-top:14px;align-items:center">
+      <div style="flex:0 0 auto;color:var(--muted);font-size:12px">
+        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+          <input id="importSkipDupes" type="checkbox" checked style="width:auto"> Skip duplicates
+        </label>
+      </div>
+      <div style="flex:1"></div>
+      <div style="flex:0 0 auto"><button class="ghost" onclick="closeImportModal()">Cancel</button></div>
+      <div style="flex:0 0 auto"><button id="importCommitBtn" onclick="runImportCommit()" disabled>Commit import</button></div>
+    </div>
+  </div>
+</div>
+
 <script>
 let me=null, accounts=[], currentAccountId=null, categories=[], recView='active', editingRecId=null;
 
 const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
 
+// ============================================================================
+// WEB VERSION (frontend SPA version)
+// ============================================================================
+// Semver-style version string for this single-page app. Intentionally
+// separate from APP_VERSION in backend/app/main.py so frontend-only tweaks
+// (copy, styling, JS-only bug fixes) can be tracked without touching backend.
+// Displayed in the footer as "WalletWeather vX.Y.Z (web vA.B.C)".
+//
+// *** AI ASSISTANT INSTRUCTIONS — READ BEFORE EDITING ***
+// If you make a user-visible change to this file (markup, CSS, or JS) —
+// new UI element, copy change, layout fix, JS behavior change — YOU MUST:
+//   1. Bump WEB_VERSION below (PATCH for fixes, MINOR for features,
+//      MAJOR for breaking/redesign changes).
+//   2. Add an entry to the WEB CHANGELOG block below (see format there).
+//   3. If the change also touches backend behavior, also bump APP_VERSION
+//      in backend/app/main.py per the instructions there.
+// ----------------------------------------------------------------------------
+const WEB_VERSION = "1.7.0";
+
+// --- WEB CHANGELOG ----------------------------------------------------------
+// Format for every new line (keep newest at TOP):
+//   // <version> (YYYY-MM-DD, <your name or handle>): <one-line summary>
+// Example:
+//   // 1.4.1 (2026-05-03, mkolakowski): fix forecast table scroll on iOS
+//
+// When you bump WEB_VERSION, add the matching line here. Do not rewrite
+// history — only append new entries.
+//
+// 1.7.0 (2026-04-23, claude+mkolakowski): Tier-1 features —
+//     two new top-level pages (Net Worth with aggregate sparkline,
+//     Transactions with global search + filters), plus account transfer
+//     CRUD + recent-transfer panel, per-category Budgets panel in
+//     Settings, and a CSV import wizard inside the Accounts page
+//     (preview with column auto-mapping, dedupe, then commit).
+// 1.6.0 (2026-04-23, claude+mkolakowski): dashboard charts — per-account
+//     spending-by-category donut, income/spending/net totals tile, and
+//     daily balance sparkline rendered as inline SVG. Window toggle at
+//     the top of the dashboard (Month / 30 days / 90 days). Placement
+//     preference in Settings (above cards / below cards / inside cards).
+// 1.5.0 (2026-04-23, claude+mkolakowski): admin-customizable app title
+//     (tab title + header + login use [data-app-title] placeholders fed
+//     from /api/auth/config + POST /api/admin/app-title); default theme
+//     changed to "system"; theme localStorage removed to fix cross-user
+//     leak on shared browsers; theme picker rendered as two rows
+//     (Dark / Light) with System in the Dark row.
+// 1.4.0 (2026-04-22, claude+mkolakowski): theme picker with 11 themes
+//     (dark/light/system + 8 fun themes), pre-paint no-flash theme loader,
+//     server-side theme persistence, demo credentials banner on login.
+// 1.3.x and earlier: pre-versioning — see git history.
+// ----------------------------------------------------------------------------
+
 // ---------- Theme ----------
 // Adding a new theme is one line here plus a :root[data-theme="<key>"] CSS
-// block above. The three `swatches` are the colors used in the preview card
-// (bg, panel, accent) — hardcoded so each card shows its own colors even
-// while another theme is active.
+// block above. Fields:
+//   key      - matches the data-theme attribute and ALLOWED_THEMES on server
+//   name     - display label
+//   hint     - optional subtitle shown under the name
+//   variant  - 'dark' | 'light' | 'auto' — controls which group the card
+//              is rendered in ('auto' is rendered with the dark group)
+//   swatches - [bg, panel, accent] preview colors, hardcoded so each card
+//              shows its own colors even while another theme is active
 const THEMES = [
-  { key: 'dark',      name: 'Dark',      hint: 'Default',          swatches: ['#0f1419', '#1a2027', '#58a6ff'] },
-  { key: 'light',     name: 'Light',     hint: '',                 swatches: ['#ffffff', '#f6f8fa', '#0969da'] },
-  { key: 'system',    name: 'System',    hint: 'Match OS',         swatches: ['#0f1419', '#ffffff', '#888888'] },
-  { key: 'dracula',   name: 'Dracula',   hint: 'Classic purple',   swatches: ['#282a36', '#343746', '#bd93f9'] },
-  { key: 'solarized', name: 'Solarized', hint: 'Warm cream',       swatches: ['#fdf6e3', '#eee8d5', '#268bd2'] },
-  { key: 'nord',      name: 'Nord',      hint: 'Arctic blue',      swatches: ['#2e3440', '#3b4252', '#88c0d0'] },
-  { key: 'synthwave', name: 'Synthwave', hint: 'Neon retro',       swatches: ['#2b213a', '#3a2c4a', '#ff6ac1'] },
-  { key: 'forest',    name: 'Forest',    hint: 'Deep green',        swatches: ['#1a2421', '#243330', '#5eb583'] },
-  { key: 'mint',      name: 'Mint',      hint: 'Fresh green',       swatches: ['#f3faf5', '#e1f2e5', '#2d9065'] },
-  { key: 'monokai',   name: 'Monokai',   hint: 'Classic orange',    swatches: ['#272822', '#34352f', '#fd971f'] },
-  { key: 'sunset',    name: 'Sunset',    hint: 'Warm amber',        swatches: ['#2a1e1a', '#3a2a25', '#ff7f3f'] },
+  // System / adaptive — rendered in the dark group at the top.
+  { key: 'system',    name: 'System',    hint: 'Match OS',         variant: 'auto',  swatches: ['#0f1419', '#ffffff', '#888888'] },
+  // Dark themes
+  { key: 'dark',      name: 'Dark',      hint: 'Default',          variant: 'dark',  swatches: ['#0f1419', '#1a2027', '#58a6ff'] },
+  { key: 'dracula',   name: 'Dracula',   hint: 'Classic purple',   variant: 'dark',  swatches: ['#282a36', '#343746', '#bd93f9'] },
+  { key: 'nord',      name: 'Nord',      hint: 'Arctic blue',      variant: 'dark',  swatches: ['#2e3440', '#3b4252', '#88c0d0'] },
+  { key: 'synthwave', name: 'Synthwave', hint: 'Neon retro',       variant: 'dark',  swatches: ['#2b213a', '#3a2c4a', '#ff6ac1'] },
+  { key: 'forest',    name: 'Forest',    hint: 'Deep green',       variant: 'dark',  swatches: ['#1a2421', '#243330', '#5eb583'] },
+  { key: 'monokai',   name: 'Monokai',   hint: 'Classic orange',   variant: 'dark',  swatches: ['#272822', '#34352f', '#fd971f'] },
+  { key: 'sunset',    name: 'Sunset',    hint: 'Warm amber',       variant: 'dark',  swatches: ['#2a1e1a', '#3a2a25', '#ff7f3f'] },
+  // Light themes
+  { key: 'light',     name: 'Light',     hint: '',                 variant: 'light', swatches: ['#ffffff', '#f6f8fa', '#0969da'] },
+  { key: 'solarized', name: 'Solarized', hint: 'Warm cream',       variant: 'light', swatches: ['#fdf6e3', '#eee8d5', '#268bd2'] },
+  { key: 'mint',      name: 'Mint',      hint: 'Fresh green',      variant: 'light', swatches: ['#f3faf5', '#e1f2e5', '#2d9065'] },
 ];
 const THEME_KEYS = new Set(THEMES.map(t => t.key));
-const THEME_KEY = 'ww-theme';
-const DEFAULT_THEME = 'dark';
+const DEFAULT_THEME = 'system';
+// Note: the theme is NOT cached in localStorage. It lives on the server under
+// the signed-in user's preferences. This prevents the previous user's theme
+// from briefly rendering after another user signs in on the same browser.
 
-function getStoredTheme() {
-  try {
-    const v = localStorage.getItem(THEME_KEY);
-    return v && THEME_KEYS.has(v) ? v : DEFAULT_THEME;
-  } catch { return DEFAULT_THEME; }
-}
 function resolveTheme(choice) {
   if (choice === 'system') {
     return (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
@@ -813,16 +1259,18 @@ function resolveTheme(choice) {
 }
 function applyTheme(choice) {
   const effective = resolveTheme(choice);
-  if (effective === DEFAULT_THEME) {
+  // 'dark' is the stylesheet default — omit data-theme so the unscoped :root
+  // block wins.
+  if (effective === 'dark') {
     document.documentElement.removeAttribute('data-theme');
   } else {
     document.documentElement.setAttribute('data-theme', effective);
   }
 }
 function renderThemePicker() {
-  const grid = document.getElementById('themePicker');
-  if (grid.dataset.rendered === '1') return;
-  grid.innerHTML = THEMES.map(t => `
+  const root = document.getElementById('themePicker');
+  if (root.dataset.rendered === '1') return;
+  const cardFor = t => `
     <label class="theme-card" data-theme-key="${t.key}">
       <input type="radio" name="themeChoice" value="${t.key}">
       <div class="preview" aria-hidden="true">
@@ -830,20 +1278,35 @@ function renderThemePicker() {
       </div>
       <div class="name">${t.name}</div>
       ${t.hint ? `<div class="hint">${t.hint}</div>` : ''}
-    </label>
-  `).join('');
-  grid.dataset.rendered = '1';
+    </label>`;
+  // Two rows: dark themes (system/auto lives with dark since 'dark' is the
+  // fallback), then light themes.
+  const dark  = THEMES.filter(t => t.variant === 'dark' || t.variant === 'auto');
+  const light = THEMES.filter(t => t.variant === 'light');
+  root.innerHTML = `
+    <div class="theme-group">
+      <div class="theme-group-label">Dark</div>
+      <div class="theme-grid">${dark.map(cardFor).join('')}</div>
+    </div>
+    <div class="theme-group">
+      <div class="theme-group-label">Light</div>
+      <div class="theme-grid">${light.map(cardFor).join('')}</div>
+    </div>`;
+  root.dataset.rendered = '1';
 }
 function markSelectedCard(choice) {
   document.querySelectorAll('.theme-card').forEach(c => {
     c.classList.toggle('selected', c.dataset.themeKey === choice);
   });
 }
+function currentThemeChoice() {
+  // Server is the sole source of truth. If the signed-in user hasn't picked
+  // a theme yet, fall back to DEFAULT_THEME ('system').
+  return (me && me.theme_preference) || DEFAULT_THEME;
+}
 function loadThemePicker() {
   renderThemePicker();
-  // Server is source of truth once signed in; fall back to the local cache
-  // (or default) if the user hasn't chosen yet.
-  const choice = (me && me.theme_preference) || getStoredTheme();
+  const choice = currentThemeChoice();
   const radio = document.querySelector(`#themePicker input[name="themeChoice"][value="${choice}"]`);
   if (radio) radio.checked = true;
   markSelectedCard(choice);
@@ -851,8 +1314,7 @@ function loadThemePicker() {
 async function onThemeChange(event) {
   const choice = event.target.value;
   if (!THEME_KEYS.has(choice)) return;
-  // Apply + update cache immediately (optimistic) so the UI responds fast.
-  try { localStorage.setItem(THEME_KEY, choice); } catch {}
+  // Apply immediately so the UI responds fast.
   applyTheme(choice);
   markSelectedCard(choice);
   // Persist to the server so it follows the user across browsers/devices.
@@ -863,13 +1325,13 @@ async function onThemeChange(event) {
       body: JSON.stringify({ theme_preference: choice }),
     });
     if (res.ok && me) me.theme_preference = choice;
-  } catch { /* network hiccup — cache still holds it until next login */ }
+  } catch { /* network hiccup — user can retry; we don't cache locally */ }
 }
-// Re-apply when system preference changes, if the user picked "system"
+// Re-apply when system preference changes, if the user picked "system".
 if (window.matchMedia) {
   try {
     window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
-      if (getStoredTheme() === 'system') applyTheme('system');
+      if (currentThemeChoice() === 'system') applyTheme('system');
     });
   } catch {}
 }
@@ -883,43 +1345,100 @@ async function api(path, opts={}) {
 
 function showPage(name) {
   document.getElementById('pageDashboard').classList.toggle('hidden', name!=='dashboard');
+  document.getElementById('pageNetworth').classList.toggle('hidden', name!=='networth');
   document.getElementById('pageAccounts').classList.toggle('hidden', name!=='accounts');
+  document.getElementById('pageTransactions').classList.toggle('hidden', name!=='transactions');
   document.getElementById('pageReports').classList.toggle('hidden', name!=='reports');
   document.getElementById('pageAdmin').classList.toggle('hidden', name!=='admin');
   document.getElementById('pageSettings').classList.toggle('hidden', name!=='settings');
   document.getElementById('navDashboard').classList.toggle('active', name==='dashboard');
+  document.getElementById('navNetworth').classList.toggle('active', name==='networth');
   document.getElementById('navAccounts').classList.toggle('active', name==='accounts');
+  document.getElementById('navTransactions').classList.toggle('active', name==='transactions');
   document.getElementById('navReports').classList.toggle('active', name==='reports');
   document.getElementById('navAdmin').classList.toggle('active', name==='admin');
   document.getElementById('navSettings').classList.toggle('active', name==='settings');
-  if (name === 'settings') { loadThemePicker(); loadCategories(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); }
+  if (name === 'settings') { loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); }
   if (name === 'dashboard') loadDashboard();
+  if (name === 'networth') loadNetworth();
+  if (name === 'transactions') initTransactionsPage();
   if (name === 'reports') initReportsPage();
   if (name === 'admin') loadAdminPage();
 }
 
+// ---------- Dashboard state ----------
+const ALLOWED_DASHBOARD_WINDOWS = ['month', '30d', '90d'];
+const ALLOWED_CHART_POSITIONS = ['above', 'below', 'inside'];
+const DEFAULT_DASHBOARD_WINDOW = 'month';
+const DEFAULT_CHART_POSITION = 'above';
+// Palette used when a category has no color set. Stays consistent across
+// renders by hashing the category name into this list.
+const DASH_PALETTE = [
+  '#58a6ff', '#3fb950', '#f85149', '#d29922', '#bd93f9',
+  '#ff6ac1', '#88c0d0', '#5eb583', '#fd971f', '#ff7f3f',
+];
+let dashboardWindow = DEFAULT_DASHBOARD_WINDOW;
+let dashboardCards = null;   // cached response from /api/dashboard (month-only)
+let dashboardCharts = null;  // cached response from /api/dashboard/charts
+
+function currentChartPosition() {
+  const p = me && me.chart_position;
+  return ALLOWED_CHART_POSITIONS.includes(p) ? p : DEFAULT_CHART_POSITION;
+}
+
 async function loadDashboard() {
   const grid = document.getElementById('dashboardGrid');
-  let data;
+  grid.innerHTML = `<div style="color:var(--muted);grid-column:1/-1;text-align:center;padding:20px">Loading…</div>`;
+  // Reflect saved window in the toggle before fetching.
+  syncWindowToggle();
   try {
-    data = await api('/api/dashboard');
+    // Month-only card summary and window-driven charts in parallel.
+    const [cards, charts] = await Promise.all([
+      api('/api/dashboard'),
+      api('/api/dashboard/charts?window=' + encodeURIComponent(dashboardWindow)),
+    ]);
+    dashboardCards = cards;
+    dashboardCharts = charts;
   } catch (e) {
     grid.innerHTML = `<div style="color:var(--bad);grid-column:1/-1;text-align:center;padding:20px">Could not load dashboard: ${escapeHtml(e.message)}</div>`;
     return;
   }
-  if (!data.cards.length) {
+  renderDashboard();
+}
+
+function renderDashboard() {
+  const grid = document.getElementById('dashboardGrid');
+  const above = document.getElementById('dashChartsAbove');
+  const below = document.getElementById('dashChartsBelow');
+  if (!dashboardCards || !dashboardCards.cards.length) {
     grid.innerHTML = `<div style="color:var(--muted);grid-column:1/-1;text-align:center;padding:20px">
       No accounts yet. Head to <a href="#" onclick="showPage('settings');return false" style="color:var(--accent)">Settings</a> to create one.
     </div>`;
+    above.classList.add('hidden'); below.classList.add('hidden');
     return;
   }
-  grid.innerHTML = data.cards.map(c => {
+  // Update the range label.
+  const rangeEl = document.getElementById('dashWindowRange');
+  if (dashboardCharts) {
+    rangeEl.textContent = `${dashboardCharts.label} · ${dashboardCharts.start} → ${dashboardCharts.end}`;
+  }
+
+  const pos = currentChartPosition();
+  const chartsByAccount = indexChartsByAccount(dashboardCharts);
+
+  // Render the cards with (optionally) inline chart blocks.
+  grid.innerHTML = dashboardCards.cards.map(c => {
     const fHigh = fmt(c.forecast_high);
     const fLow  = fmt(c.forecast_low);
     const aHigh = fmt(c.actual_high);
     const aLow  = fmt(c.actual_low);
     const fHighDate = c.forecast_high_date || '—';
     const fLowDate  = c.forecast_low_date  || '—';
+    const chartsInline = (pos === 'inside' && chartsByAccount[c.id])
+      ? `<div style="margin-top:14px;border-top:1px dashed var(--border);padding-top:10px">
+           ${renderChartBlock(chartsByAccount[c.id], true)}
+         </div>`
+      : '';
     return `
       <div class="dash-card">
         <h3 onclick="openAccountFromDashboard(${c.id})">${escapeHtml(c.name)}</h3>
@@ -948,8 +1467,224 @@ async function loadDashboard() {
             <div class="v ${c.actual_low>=0?'pos':'neg'}">${aLow}</div>
           </div>
         </div>
+        ${chartsInline}
       </div>`;
   }).join('');
+
+  // Render above/below panels.
+  const wideCharts = dashboardCharts && dashboardCharts.accounts.length
+    ? dashboardCharts.accounts.map(a => `
+        <div class="chart-section">
+          <h3>${escapeHtml(a.account_name)}</h3>
+          ${renderChartBlock(a, false)}
+        </div>`).join('')
+    : `<div class="chart-empty">No chart data for this window.</div>`;
+
+  above.innerHTML = wideCharts;
+  below.innerHTML = wideCharts;
+  above.classList.toggle('hidden', pos !== 'above');
+  below.classList.toggle('hidden', pos !== 'below');
+}
+
+function indexChartsByAccount(charts) {
+  const out = {};
+  if (!charts) return out;
+  for (const a of charts.accounts) out[a.account_id] = a;
+  return out;
+}
+
+function syncWindowToggle() {
+  document.querySelectorAll('.dash-window-bar .seg button').forEach(b => {
+    b.classList.toggle('active', b.dataset.window === dashboardWindow);
+  });
+}
+
+async function onDashboardWindowChange(w) {
+  if (!ALLOWED_DASHBOARD_WINDOWS.includes(w)) return;
+  if (w === dashboardWindow) return;
+  dashboardWindow = w;
+  syncWindowToggle();
+  try {
+    dashboardCharts = await api('/api/dashboard/charts?window=' + encodeURIComponent(w));
+  } catch (e) {
+    // Keep the existing render but surface the error in the range label.
+    document.getElementById('dashWindowRange').textContent = 'Error: ' + e.message;
+    return;
+  }
+  renderDashboard();
+}
+
+async function onChartPositionChange(event) {
+  const pos = event.target.value;
+  if (!ALLOWED_CHART_POSITIONS.includes(pos)) return;
+  if (me) me.chart_position = pos;
+  markChartPositionRadio(pos);
+  // Re-render the dashboard if it's the current view.
+  if (!document.getElementById('pageDashboard').classList.contains('hidden')) {
+    renderDashboard();
+  }
+  try {
+    await fetch('/api/me/preferences', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ chart_position: pos }),
+    });
+  } catch { /* network hiccup — server-side will catch up on next change */ }
+}
+
+function markChartPositionRadio(pos) {
+  const el = document.querySelector(`#chartPositionPicker input[value="${pos}"]`);
+  if (el) el.checked = true;
+}
+
+// ---------- SVG chart rendering ----------
+
+// Deterministic color from a string, using DASH_PALETTE.
+function paletteColor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+  return DASH_PALETTE[Math.abs(h) % DASH_PALETTE.length];
+}
+
+function renderChartBlock(acct, compact) {
+  if (!acct) return `<div class="chart-empty">No data.</div>`;
+  return `
+    <div class="chart-block ${compact ? 'compact' : ''}">
+      <div class="chart-donut-wrap">${renderDonut(acct.categories)}</div>
+      <div class="chart-totals">${renderTotals(acct.totals)}</div>
+      <div class="chart-spark">${renderSparkline(acct.balance_trend)}</div>
+    </div>`;
+}
+
+function renderDonut(categories) {
+  const total = (categories || []).reduce((s, c) => s + (c.spending_actual || 0), 0);
+  if (!categories || !categories.length || total <= 0) {
+    return `<div class="chart-empty" style="width:100%">
+      <div class="chart-title">Spending by category</div>
+      No spending in this window.
+    </div>`;
+  }
+  // Top 5 + "Other" rollup.
+  const TOP_N = 5;
+  const sorted = [...categories].sort((a, b) => b.spending_actual - a.spending_actual);
+  const top = sorted.slice(0, TOP_N);
+  const rest = sorted.slice(TOP_N);
+  const slices = top.map(c => ({
+    name: c.name, value: c.spending_actual,
+    color: c.color || paletteColor(c.name),
+  }));
+  if (rest.length) {
+    slices.push({
+      name: 'Other',
+      value: rest.reduce((s, c) => s + c.spending_actual, 0),
+      color: 'var(--muted)',
+    });
+  }
+
+  const cx = 50, cy = 50, r = 46, rIn = 28;
+  let a0 = -Math.PI / 2;
+  const paths = slices.map(s => {
+    const frac = s.value / total;
+    const a1 = a0 + frac * Math.PI * 2;
+    const d = donutArcPath(cx, cy, r, rIn, a0, a1);
+    a0 = a1;
+    return `<path d="${d}" fill="${s.color}"></path>`;
+  }).join('');
+
+  const legend = slices.map(s => `
+    <div class="item" title="${escapeHtml(s.name)}: ${fmt(s.value)}">
+      <span class="sw" style="background:${s.color}"></span>
+      <span class="n">${escapeHtml(s.name)}</span>
+      <span class="v">${fmt(s.value)}</span>
+    </div>`).join('');
+
+  return `
+    <div style="flex:0 0 auto">
+      <div class="chart-title">Spending by category</div>
+      <svg class="chart-donut" viewBox="0 0 100 100" aria-label="Spending by category">
+        ${paths}
+        <text class="center-big" x="50" y="50" text-anchor="middle"
+              dominant-baseline="central">${escapeHtml(fmt(total))}</text>
+        <text class="center-sm"  x="50" y="62" text-anchor="middle"
+              dominant-baseline="central">total spend</text>
+      </svg>
+    </div>
+    <div class="donut-legend">${legend}</div>`;
+}
+
+// Build an SVG path for a donut slice from angle a0 to a1 (radians, clockwise).
+// Handles the full-circle edge case by splitting into two 180° arcs.
+function donutArcPath(cx, cy, r, rIn, a0, a1) {
+  const full = (a1 - a0) >= Math.PI * 2 - 1e-6;
+  if (full) {
+    // Two halves make a full donut.
+    const half = donutArcPath(cx, cy, r, rIn, a0, a0 + Math.PI) +
+                 donutArcPath(cx, cy, r, rIn, a0 + Math.PI, a0 + Math.PI * 2);
+    return half;
+  }
+  const p0 = [cx + r * Math.cos(a0), cy + r * Math.sin(a0)];
+  const p1 = [cx + r * Math.cos(a1), cy + r * Math.sin(a1)];
+  const q0 = [cx + rIn * Math.cos(a1), cy + rIn * Math.sin(a1)];
+  const q1 = [cx + rIn * Math.cos(a0), cy + rIn * Math.sin(a0)];
+  const large = (a1 - a0) > Math.PI ? 1 : 0;
+  return `M${p0[0]} ${p0[1]} A${r} ${r} 0 ${large} 1 ${p1[0]} ${p1[1]} `
+       + `L${q0[0]} ${q0[1]} A${rIn} ${rIn} 0 ${large} 0 ${q1[0]} ${q1[1]} Z`;
+}
+
+function renderTotals(t) {
+  if (!t) return '';
+  const dIncome  = t.income_actual  - t.income_forecast;
+  const dSpend   = t.spending_actual - t.spending_forecast;
+  const dNet     = t.net_actual - t.net_forecast;
+  const deltaHtml = (delta, flipColor) => {
+    if (Math.abs(delta) < 0.005) return `<span class="delta">on plan</span>`;
+    const sign = delta > 0 ? '+' : '';
+    return `<span class="delta">${sign}${fmt(delta)} vs plan</span>`;
+  };
+  return `
+    <div class="chart-title">This window</div>
+    <div class="row-t">
+      <div class="k">Income</div>
+      <div><span class="v">${fmt(t.income_actual)}</span>${deltaHtml(dIncome)}</div>
+    </div>
+    <div class="row-t">
+      <div class="k">Spending</div>
+      <div><span class="v">${fmt(t.spending_actual)}</span>${deltaHtml(dSpend)}</div>
+    </div>
+    <div class="row-t net">
+      <div class="k">Net</div>
+      <div><span class="v ${t.net_actual>=0?'pos':'neg'}">${fmt(t.net_actual)}</span>${deltaHtml(dNet)}</div>
+    </div>`;
+}
+
+function renderSparkline(points) {
+  if (!points || points.length < 2) {
+    return `<div class="chart-title">Balance trend</div>
+            <div class="chart-empty">Not enough data.</div>`;
+  }
+  const W = 100, H = 30;
+  const ys = points.map(p => p.balance);
+  let ymin = Math.min(...ys), ymax = Math.max(...ys);
+  if (ymax === ymin) { ymax = ymin + 1; } // avoid divide-by-zero — draws flat line in middle
+  const n = points.length;
+  const coords = points.map((p, i) => {
+    const x = (i / (n - 1)) * W;
+    const y = H - ((p.balance - ymin) / (ymax - ymin)) * H;
+    return [x, y];
+  });
+  const linePath = coords.map(([x, y], i) => (i === 0 ? 'M' : 'L') + x.toFixed(2) + ',' + y.toFixed(2)).join(' ');
+  const fillPath = linePath + ` L${W},${H} L0,${H} Z`;
+  const first = points[0], last = points[points.length - 1];
+  return `
+    <div class="chart-title">Balance trend</div>
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Daily balance trend">
+      <path class="spark-fill" d="${fillPath}"></path>
+      <path class="spark-line" d="${linePath}"></path>
+    </svg>
+    <div class="spark-meta">
+      <span>${first.date} · ${fmt(first.balance)}</span>
+      <span>${last.date} · ${fmt(last.balance)}</span>
+    </div>`;
 }
 
 function openAccountFromDashboard(id) {
@@ -1289,10 +2024,23 @@ function showApp() {
   document.getElementById('app').classList.remove('hidden');
 }
 
+// The live app title (admin-customizable). Default until /api/auth/config
+// responds. All places that show the title use applyAppTitle() to keep
+// <title> and every [data-app-title] node in sync.
+let appTitle = 'WalletWeather';
+function applyAppTitle(t) {
+  appTitle = (t && t.trim()) || 'WalletWeather';
+  document.title = appTitle;
+  document.querySelectorAll('[data-app-title]').forEach(el => {
+    el.textContent = appTitle;
+  });
+}
+
 async function init() {
   // Always check auth config first so we know whether to show Google
   try {
     const cfg = await fetch('/api/auth/config').then(r=>r.json());
+    if (cfg.app_title) applyAppTitle(cfg.app_title);
     if (cfg.google_enabled) document.getElementById('googleWrap').classList.remove('hidden');
     if (!cfg.registration_enabled) document.getElementById('tabSignup').classList.add('hidden');
     if (cfg.demo_mode && cfg.demo_email && cfg.demo_password) {
@@ -1310,13 +2058,9 @@ async function init() {
   if (me.is_admin) {
     document.getElementById('navAdmin').classList.remove('hidden');
   }
-  // Server is the source of truth for theme. Apply the signed-in user's
-  // preference and refresh the localStorage cache so the next page load is
-  // flash-free. If the user has no preference set, leave the cache alone.
-  if (me.theme_preference) {
-    try { localStorage.setItem(THEME_KEY, me.theme_preference); } catch {}
-    applyTheme(me.theme_preference);
-  }
+  // Server is the sole source of truth for theme. Apply whatever preference
+  // the user has (or fall back to 'system' if they haven't set one).
+  applyTheme(me.theme_preference || DEFAULT_THEME);
   document.getElementById('newAccDate').valueAsDate = new Date();
   // Populate year dropdown (current - 2 .. current + 5) and default to current month/year
   const now = new Date();
@@ -2151,9 +2895,6 @@ function wireRecurringSort() {
 
 async function logout() {
   await fetch('/auth/logout', {method:'POST'});
-  // Clear the theme cache so the next user on this browser doesn't briefly
-  // see the previous user's theme before their own preference loads.
-  try { localStorage.removeItem(THEME_KEY); } catch {}
   location.reload();
 }
 
@@ -2358,10 +3099,58 @@ async function importBackup() {
 
 // ============ Admin page ============
 function loadAdminPage() {
+  loadAdminAppTitle();
   loadAdminUsers();
   loadAdminPermissions();
   loadAdminBackupConfig();
   loadAdminBackups();
+}
+
+async function loadAdminAppTitle() {
+  const input = document.getElementById('adminAppTitle');
+  const status = document.getElementById('adminAppTitleStatus');
+  try {
+    const data = await api('/api/admin/app-title');
+    input.value = data.app_title || '';
+    input.placeholder = data.default || 'WalletWeather';
+    status.textContent = '';
+  } catch (e) {
+    status.textContent = 'Failed to load: ' + e.message;
+  }
+}
+
+async function saveAppTitle() {
+  const input = document.getElementById('adminAppTitle');
+  const status = document.getElementById('adminAppTitleStatus');
+  const title = (input.value || '').trim();
+  if (!title) { status.textContent = 'Enter a title or click Reset.'; return; }
+  try {
+    const res = await fetch('/api/admin/app-title', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ app_title: title }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    applyAppTitle(data.app_title);
+    status.textContent = 'Saved.';
+  } catch (e) {
+    status.textContent = 'Save failed: ' + e.message;
+  }
+}
+
+async function resetAppTitle() {
+  const status = document.getElementById('adminAppTitleStatus');
+  try {
+    const res = await fetch('/api/admin/app-title', { method: 'DELETE' });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    applyAppTitle(data.app_title);
+    document.getElementById('adminAppTitle').value = '';
+    status.textContent = 'Reset to default.';
+  } catch (e) {
+    status.textContent = 'Reset failed: ' + e.message;
+  }
 }
 
 async function loadAdminUsers() {
@@ -2601,6 +3390,488 @@ async function restoreAdminBackup(filename) {
   } catch (e) {
     alert('Restore failed: ' + e.message);
   }
+}
+
+// ============================================================================
+// v1.7.0 — Tier-1 features: Transfers, Budgets, Search, CSV Import, Net Worth
+// ============================================================================
+
+// ---------- Net Worth page ----------
+let networthWindow = 'month';
+
+async function loadNetworth() {
+  const summary = document.getElementById('networthSummary');
+  const chart = document.getElementById('networthChart');
+  const accs = document.getElementById('networthAccounts');
+  summary.innerHTML = `<div class="stat" style="grid-column:1/-1;text-align:center;color:var(--muted)">Loading…</div>`;
+  chart.innerHTML = '';
+  accs.innerHTML = '';
+  document.querySelectorAll('[data-nw-window]').forEach(b => {
+    b.classList.toggle('active', b.dataset.nwWindow === networthWindow);
+  });
+  let data;
+  try {
+    data = await api('/api/networth?window=' + encodeURIComponent(networthWindow));
+  } catch (e) {
+    summary.innerHTML = `<div class="stat" style="grid-column:1/-1;color:var(--bad)">Could not load: ${escapeHtml(e.message)}</div>`;
+    return;
+  }
+  document.getElementById('networthRange').textContent = `${data.label} · ${data.start} → ${data.end}`;
+  const deltaActual = data.actual_end_total - data.opening_total;
+  const deltaForecast = data.forecast_end_total - data.opening_total;
+  summary.innerHTML = `
+    <div class="stat"><div class="l">Opening</div><div class="v">${fmt(data.opening_total)}</div></div>
+    <div class="stat"><div class="l">Actual end</div>
+      <div class="v ${data.actual_end_total>=0?'pos':'neg'}">${fmt(data.actual_end_total)}</div>
+      <div class="d">${deltaActual>=0?'+':''}${fmt(deltaActual)} vs opening</div></div>
+    <div class="stat"><div class="l">Forecast end</div>
+      <div class="v ${data.forecast_end_total>=0?'pos':'neg'}">${fmt(data.forecast_end_total)}</div>
+      <div class="d">${deltaForecast>=0?'+':''}${fmt(deltaForecast)} vs opening</div></div>
+    <div class="stat"><div class="l">Accounts</div><div class="v">${data.accounts.length}</div></div>
+  `;
+  chart.innerHTML = renderNetworthChart(data.trend);
+  // Per-account breakdown table
+  const rows = data.accounts.map(a => {
+    const d = a.actual_end - a.opening_balance;
+    return `<tr>
+      <td>${escapeHtml(a.account_name)}</td>
+      <td class="num">${fmt(a.opening_balance)}</td>
+      <td class="num ${a.actual_end>=0?'pos':'neg'}">${fmt(a.actual_end)}</td>
+      <td class="num ${a.forecast_end>=0?'pos':'neg'}">${fmt(a.forecast_end)}</td>
+      <td class="num ${d>=0?'pos':'neg'}">${d>=0?'+':''}${fmt(d)}</td>
+    </tr>`;
+  }).join('');
+  accs.innerHTML = `
+    <h3 style="margin:0 0 8px;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Per account</h3>
+    <div style="overflow-x:auto"><table>
+      <thead><tr>
+        <th>Account</th>
+        <th class="num">Opening</th>
+        <th class="num">Actual end</th>
+        <th class="num">Forecast end</th>
+        <th class="num">Δ</th>
+      </tr></thead><tbody>${rows || '<tr><td colspan="5" style="color:var(--muted)">No accounts.</td></tr>'}</tbody>
+    </table></div>`;
+}
+function onNetworthWindowChange(w) {
+  if (!ALLOWED_DASHBOARD_WINDOWS.includes(w)) return;
+  networthWindow = w;
+  loadNetworth();
+}
+function renderNetworthChart(points) {
+  if (!points || !points.length) {
+    return `<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No data in this window.</div>`;
+  }
+  const W = 1000, H = 240, P = 28;
+  const xs = (i) => P + (W - 2*P) * (i / Math.max(1, points.length - 1));
+  const vals = points.map(p => p.balance);
+  const min = Math.min(...vals, 0);
+  const max = Math.max(...vals, 0);
+  const span = Math.max(1, max - min);
+  const ys = (v) => H - P - (v - min) / span * (H - 2*P);
+  const linePath = points.map((p, i) => `${i===0?'M':'L'}${xs(i).toFixed(1)},${ys(p.balance).toFixed(1)}`).join(' ');
+  const areaPath = `${linePath} L${xs(points.length-1).toFixed(1)},${ys(min).toFixed(1)} L${xs(0).toFixed(1)},${ys(min).toFixed(1)} Z`;
+  // Y-axis labels (3 ticks)
+  const ticks = [min, (min+max)/2, max].map(v => {
+    const y = ys(v);
+    return `<line x1="${P}" x2="${W-P}" y1="${y}" y2="${y}" stroke="var(--border)" stroke-dasharray="2,4" />
+            <text x="${P-4}" y="${y+3}" text-anchor="end" font-size="10" fill="var(--muted)">${fmt(v)}</text>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    ${ticks}
+    <path d="${areaPath}" fill="var(--accent)" opacity="0.15" />
+    <path d="${linePath}" fill="none" stroke="var(--accent)" stroke-width="2" />
+    <text x="${P}" y="${H-6}" font-size="10" fill="var(--muted)">${escapeHtml(points[0].date)}</text>
+    <text x="${W-P}" y="${H-6}" text-anchor="end" font-size="10" fill="var(--muted)">${escapeHtml(points[points.length-1].date)}</text>
+  </svg>`;
+}
+
+// ---------- Transactions page (search + recent transfers) ----------
+function initTransactionsPage() {
+  // Populate account + category filters once.
+  const accSel = document.getElementById('txnSearchAccount');
+  if (accSel.options.length <= 1) {
+    accounts.forEach(a => {
+      const o = document.createElement('option');
+      o.value = a.id; o.textContent = a.name; accSel.appendChild(o);
+    });
+  }
+  const catSel = document.getElementById('txnSearchCategory');
+  if (catSel.options.length <= 1) {
+    (categories || []).forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.id; o.textContent = c.name; catSel.appendChild(o);
+    });
+  }
+  runTxnSearch();
+  loadRecentTransfers();
+}
+function resetTxnSearch() {
+  ['txnSearchQ','txnSearchFrom','txnSearchTo','txnSearchMin','txnSearchMax'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('txnSearchAccount').value = '';
+  document.getElementById('txnSearchCategory').value = '';
+  document.getElementById('txnSearchKind').value = '';
+  runTxnSearch();
+}
+async function runTxnSearch() {
+  const q = document.getElementById('txnSearchQ').value.trim();
+  const acc = document.getElementById('txnSearchAccount').value;
+  const cat = document.getElementById('txnSearchCategory').value;
+  const kind = document.getElementById('txnSearchKind').value;
+  const df = document.getElementById('txnSearchFrom').value;
+  const dt = document.getElementById('txnSearchTo').value;
+  const mn = document.getElementById('txnSearchMin').value;
+  const mx = document.getElementById('txnSearchMax').value;
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (acc) params.set('account_id', acc);
+  if (cat) params.set('category_id', cat);
+  if (kind) params.set('kind', kind);
+  if (df) params.set('date_from', df);
+  if (dt) params.set('date_to', dt);
+  if (mn !== '') params.set('min_amount', mn);
+  if (mx !== '') params.set('max_amount', mx);
+  params.set('limit', '500');
+  const status = document.getElementById('txnSearchStatus');
+  status.textContent = 'Searching…';
+  let data;
+  try {
+    data = await api('/api/transactions/search?' + params.toString());
+  } catch (e) {
+    status.textContent = 'Search failed: ' + e.message;
+    return;
+  }
+  status.textContent = `${data.total} match${data.total===1?'':'es'}` + (data.total > data.results.length ? ` (showing first ${data.results.length})` : '');
+  const tb = document.querySelector('#txnSearchTable tbody');
+  if (!data.results.length) {
+    tb.innerHTML = `<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px">No matching transactions.</td></tr>`;
+    return;
+  }
+  tb.innerHTML = data.results.map(r => {
+    const d = r.actual_date || r.forecast_date || '—';
+    const status = r.transfer_id != null ? '<span class="pill">Transfer</span>'
+                 : r.is_actual ? '<span class="pill actual">Cleared</span>'
+                              : '<span class="pill">Forecast</span>';
+    return `<tr>
+      <td>${escapeHtml(d)}</td>
+      <td>${escapeHtml(r.account_name||'')}</td>
+      <td>${escapeHtml(r.description||'')}</td>
+      <td>${escapeHtml(r.category_name||'—')}</td>
+      <td class="num ${r.amount>=0?'pos':'neg'}">${fmt(r.amount)}</td>
+      <td>${status}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function loadRecentTransfers() {
+  const wrap = document.getElementById('recentTransfersWrap');
+  let data;
+  try {
+    data = await api('/api/transfers?limit=20');
+  } catch (e) {
+    wrap.innerHTML = `<div style="color:var(--bad)">Could not load: ${escapeHtml(e.message)}</div>`;
+    return;
+  }
+  if (!data.transfers.length) {
+    wrap.innerHTML = `<div style="color:var(--muted);font-size:13px">No transfers yet. Use the "Transfer money" button on the Accounts page.</div>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="transfers-list">${data.transfers.map(t => `
+    <div class="transfer-item">
+      <div>${escapeHtml(t.transfer_date)}</div>
+      <div>${escapeHtml(t.from_account_name||'?')} <span class="arrow">→</span> ${escapeHtml(t.to_account_name||'?')}
+        <div style="color:var(--muted);font-size:12px">${escapeHtml(t.description)}</div>
+      </div>
+      <div class="amt">${fmt(t.amount)}</div>
+      <div><button class="ghost" onclick="openTransferModal(${t.id})">Edit</button></div>
+      <div><button class="ghost danger" onclick="deleteTransfer(${t.id})" title="Delete">✕</button></div>
+    </div>`).join('')}</div>`;
+}
+
+// ---------- Transfer modal ----------
+let _transfersCacheById = {};
+
+function openTransferModal(transferId) {
+  const modal = document.getElementById('transferModal');
+  const fromSel = document.getElementById('transferFrom');
+  const toSel = document.getElementById('transferTo');
+  fromSel.innerHTML = ''; toSel.innerHTML = '';
+  const editable = (accounts || []).filter(a => a.level === 'owner' || a.level === 'edit');
+  if (editable.length < 2) {
+    alert('You need at least two editable accounts to transfer money.');
+    return;
+  }
+  editable.forEach(a => {
+    fromSel.appendChild(new Option(a.name, a.id));
+    toSel.appendChild(new Option(a.name, a.id));
+  });
+  document.getElementById('transferEditId').value = transferId || '';
+  document.getElementById('transferModalError').classList.add('hidden');
+  if (transferId && _transfersCacheById[transferId]) {
+    const t = _transfersCacheById[transferId];
+    document.getElementById('transferModalTitle').textContent = 'Edit transfer';
+    fromSel.value = t.from_account_id;
+    toSel.value = t.to_account_id;
+    document.getElementById('transferAmount').value = t.amount;
+    document.getElementById('transferDate').value = t.transfer_date;
+    document.getElementById('transferDesc').value = t.description;
+    document.getElementById('transferNotes').value = t.notes || '';
+  } else {
+    document.getElementById('transferModalTitle').textContent = 'Transfer money';
+    fromSel.value = currentAccountId || editable[0].id;
+    toSel.value = (editable.find(a => a.id !== Number(fromSel.value)) || editable[1]).id;
+    document.getElementById('transferAmount').value = '';
+    document.getElementById('transferDate').value = new Date().toISOString().slice(0,10);
+    document.getElementById('transferDesc').value = 'Transfer';
+    document.getElementById('transferNotes').value = '';
+  }
+  modal.classList.remove('hidden');
+}
+function closeTransferModal() {
+  document.getElementById('transferModal').classList.add('hidden');
+}
+async function submitTransfer() {
+  const editId = document.getElementById('transferEditId').value;
+  const fromId = Number(document.getElementById('transferFrom').value);
+  const toId = Number(document.getElementById('transferTo').value);
+  const amount = parseFloat(document.getElementById('transferAmount').value);
+  const tdate = document.getElementById('transferDate').value;
+  const desc = document.getElementById('transferDesc').value || 'Transfer';
+  const notes = document.getElementById('transferNotes').value || null;
+  const err = document.getElementById('transferModalError');
+  err.classList.add('hidden');
+  if (fromId === toId) { err.textContent = 'From and To accounts must differ.'; err.classList.remove('hidden'); return; }
+  if (!(amount > 0)) { err.textContent = 'Amount must be positive.'; err.classList.remove('hidden'); return; }
+  if (!tdate) { err.textContent = 'Date is required.'; err.classList.remove('hidden'); return; }
+  const body = JSON.stringify({
+    from_account_id: fromId, to_account_id: toId, amount, transfer_date: tdate,
+    description: desc, notes
+  });
+  try {
+    const url = editId ? '/api/transfers/' + editId : '/api/transfers';
+    const method = editId ? 'PATCH' : 'POST';
+    await api(url, { method, body });
+    closeTransferModal();
+    if (currentAccountId) await selectAccount(currentAccountId);
+    if (!document.getElementById('pageTransactions').classList.contains('hidden')) loadRecentTransfers();
+  } catch (e) {
+    err.textContent = e.message; err.classList.remove('hidden');
+  }
+}
+async function deleteTransfer(id) {
+  if (!confirm('Delete this transfer? Both legs will be removed and balances adjusted.')) return;
+  try {
+    await api('/api/transfers/' + id, { method: 'DELETE' });
+    loadRecentTransfers();
+    if (currentAccountId) await selectAccount(currentAccountId);
+  } catch (e) {
+    alert('Delete failed: ' + e.message);
+  }
+}
+
+// Cache transfers by id when listing so the Edit button can prefill.
+const _origLoadRecentTransfers = loadRecentTransfers;
+loadRecentTransfers = async function() {
+  const wrap = document.getElementById('recentTransfersWrap');
+  let data;
+  try { data = await api('/api/transfers?limit=20'); } catch (e) {
+    wrap.innerHTML = `<div style="color:var(--bad)">Could not load: ${escapeHtml(e.message)}</div>`;
+    return;
+  }
+  _transfersCacheById = {};
+  data.transfers.forEach(t => { _transfersCacheById[t.id] = t; });
+  if (!data.transfers.length) {
+    wrap.innerHTML = `<div style="color:var(--muted);font-size:13px">No transfers yet. Use the "Transfer money" button on the Accounts page.</div>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="transfers-list">${data.transfers.map(t => `
+    <div class="transfer-item">
+      <div>${escapeHtml(t.transfer_date)}</div>
+      <div>${escapeHtml(t.from_account_name||'?')} <span class="arrow">→</span> ${escapeHtml(t.to_account_name||'?')}
+        <div style="color:var(--muted);font-size:12px">${escapeHtml(t.description)}</div>
+      </div>
+      <div class="amt">${fmt(t.amount)}</div>
+      <div><button class="ghost" onclick="openTransferModal(${t.id})">Edit</button></div>
+      <div><button class="ghost danger" onclick="deleteTransfer(${t.id})" title="Delete">✕</button></div>
+    </div>`).join('')}</div>`;
+};
+
+// ---------- CSV Import modal ----------
+let _importPreviewMapping = null;
+let _importPreviewSign = 'amount';
+let _importPreviewHasHeader = true;
+
+function openImportModal() {
+  if (!currentAccountId) { alert('Open an account first to import into it.'); return; }
+  const modal = document.getElementById('importModal');
+  document.getElementById('importModalTitle').textContent =
+    'Import transactions into ' + (accounts.find(a=>a.id===currentAccountId)?.name || 'account');
+  document.getElementById('importCsvText').value = '';
+  document.getElementById('importPreviewWrap').innerHTML = '';
+  document.getElementById('importPreviewSummary').textContent = '';
+  document.getElementById('importCommitBtn').disabled = true;
+  document.getElementById('importModalError').classList.add('hidden');
+  // Populate default category
+  const sel = document.getElementById('importDefaultCat');
+  sel.innerHTML = '<option value="">— none —</option>';
+  (categories || []).forEach(c => sel.appendChild(new Option(c.name, c.id)));
+  modal.classList.remove('hidden');
+}
+function closeImportModal() {
+  document.getElementById('importModal').classList.add('hidden');
+}
+async function onImportCsvFile() {
+  const file = document.getElementById('importCsvFile').files[0];
+  if (!file) return;
+  const text = await file.text();
+  document.getElementById('importCsvText').value = text;
+}
+async function runImportPreview() {
+  const csv_text = document.getElementById('importCsvText').value;
+  if (!csv_text.trim()) {
+    const err = document.getElementById('importModalError');
+    err.textContent = 'Paste CSV text or pick a file first.'; err.classList.remove('hidden'); return;
+  }
+  const has_header = document.getElementById('importHasHeader').value === '1';
+  const sign_convention = document.getElementById('importSignConv').value;
+  let data;
+  try {
+    data = await api('/api/accounts/' + currentAccountId + '/import/preview', {
+      method: 'POST',
+      body: JSON.stringify({ csv_text, has_header, sign_convention }),
+    });
+  } catch (e) {
+    const err = document.getElementById('importModalError');
+    err.textContent = 'Preview failed: ' + e.message; err.classList.remove('hidden'); return;
+  }
+  document.getElementById('importModalError').classList.add('hidden');
+  _importPreviewMapping = data.mapping;
+  _importPreviewSign = sign_convention;
+  _importPreviewHasHeader = has_header;
+  document.getElementById('importPreviewSummary').textContent =
+    `${data.row_count} row(s) parsed · ${data.duplicate_count} duplicate(s) · ${data.skipped_count} skipped`;
+  const rows = data.rows.map(r => `<tr class="${r.duplicate?'duplicate':''}">
+    <td>${escapeHtml(r.date)}</td>
+    <td>${escapeHtml(r.description)}</td>
+    <td class="num">${fmt(r.amount)}</td>
+    <td>${r.duplicate?'duplicate':''}</td>
+  </tr>`).join('');
+  document.getElementById('importPreviewWrap').innerHTML = `
+    <table class="csv-preview">
+      <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  document.getElementById('importCommitBtn').disabled = !(data.row_count > 0);
+}
+async function runImportCommit() {
+  const csv_text = document.getElementById('importCsvText').value;
+  const default_category_id = document.getElementById('importDefaultCat').value || null;
+  const skip_duplicates = document.getElementById('importSkipDupes').checked;
+  if (!_importPreviewMapping) { alert('Run Preview first.'); return; }
+  const body = JSON.stringify({
+    csv_text, has_header: _importPreviewHasHeader,
+    mapping: _importPreviewMapping,
+    sign_convention: _importPreviewSign,
+    default_category_id: default_category_id ? Number(default_category_id) : null,
+    skip_duplicates,
+  });
+  try {
+    const data = await api('/api/accounts/' + currentAccountId + '/import/commit', {
+      method: 'POST', body
+    });
+    alert(`Imported ${data.inserted} of ${data.total_rows} rows. Skipped duplicates: ${data.duplicates_skipped}.`);
+    closeImportModal();
+    if (currentAccountId) await selectAccount(currentAccountId);
+  } catch (e) {
+    const err = document.getElementById('importModalError');
+    err.textContent = 'Commit failed: ' + e.message; err.classList.remove('hidden');
+  }
+}
+
+// ---------- Budgets ----------
+async function loadBudgets() {
+  const wrap = document.getElementById('budgetsList');
+  if (!wrap) return;
+  wrap.innerHTML = '<div style="color:var(--muted);font-size:13px">Loading…</div>';
+  const win = document.getElementById('budgetWindow').value;
+  let data;
+  try {
+    data = await api('/api/budgets/progress?window=' + encodeURIComponent(win));
+  } catch (e) {
+    wrap.innerHTML = `<div style="color:var(--bad)">Could not load: ${escapeHtml(e.message)}</div>`;
+    return;
+  }
+  document.getElementById('budgetWindowRange').textContent = `${data.label} · ${data.start} → ${data.end}`;
+  if (!data.rows.length) {
+    wrap.innerHTML = `<div style="color:var(--muted);font-size:13px">No spending categories yet. Spend will show up here once you have actual postings.</div>`;
+    return;
+  }
+  // Header + rows
+  let html = `<div class="budget-row" style="font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border)">
+    <div></div><div>Category</div><div class="num" style="text-align:right">Spent</div><div>Progress</div><div class="num" style="text-align:right">Budget</div><div></div>
+  </div>`;
+  html += data.rows.map(r => {
+    const sw = r.category_color ? `style="background:${r.category_color}"` : '';
+    const pct = r.budget > 0 ? Math.min(100, (r.spend / r.budget) * 100) : 0;
+    let cls = '';
+    if (r.over) cls = 'over';
+    else if (pct >= 80) cls = 'warn';
+    const bar = r.has_budget
+      ? `<div class="budget-bar"><div class="budget-bar-fill ${cls}" style="width:${pct.toFixed(1)}%"></div></div>`
+      : `<div style="color:var(--muted);font-size:11px">No budget set</div>`;
+    const pctText = r.has_budget && r.budget > 0
+      ? `<div class="budget-pct ${r.over?'neg':''}">${(r.pct||0).toFixed(0)}%</div>`
+      : `<div class="budget-pct" style="color:var(--muted)">—</div>`;
+    const inputId = 'budget-input-' + (r.category_id || ('uncat-' + Math.random().toString(36).slice(2,8)));
+    const setBtn = r.category_id != null
+      ? `<input id="${inputId}" type="number" step="0.01" min="0" value="${r.has_budget?r.budget:''}" class="budget-amount-input" placeholder="0.00">
+         <div style="display:flex;gap:4px;margin-top:4px">
+           <button class="ghost" style="padding:3px 8px;font-size:11px"
+                   onclick="saveBudget(${r.category_id}, document.getElementById('${inputId}').value)">Save</button>
+           ${r.has_budget?`<button class="ghost danger" style="padding:3px 8px;font-size:11px"
+                   onclick="deleteBudget(${r.category_id})">Clear</button>`:''}
+         </div>`
+      : `<span style="color:var(--muted);font-size:11px">(uncategorized)</span>`;
+    return `<div class="budget-row">
+      <div class="budget-swatch" ${sw}></div>
+      <div>${escapeHtml(r.category_name)}</div>
+      <div class="num" style="text-align:right">${fmt(r.spend)}</div>
+      <div>${bar}</div>
+      <div class="num" style="text-align:right">${r.has_budget?fmt(r.budget):''}</div>
+      <div>${setBtn}</div>
+    </div>`;
+  }).join('');
+  // Totals row
+  html += `<div class="budget-row" style="font-weight:600;border-top:1px solid var(--border);margin-top:6px;padding-top:10px">
+    <div></div><div>Total</div>
+    <div class="num" style="text-align:right">${fmt(data.totals.spend)}</div>
+    <div></div>
+    <div class="num" style="text-align:right">${fmt(data.totals.budget)}</div>
+    <div class="num" style="text-align:right;color:${data.totals.remaining<0?'var(--bad)':'var(--muted)'}">
+      ${data.totals.remaining>=0?'+':''}${fmt(data.totals.remaining)}
+    </div>
+  </div>`;
+  wrap.innerHTML = html;
+}
+async function saveBudget(category_id, amount) {
+  const v = parseFloat(amount);
+  if (!isFinite(v) || v < 0) { alert('Enter a non-negative amount.'); return; }
+  try {
+    await api('/api/budgets', {
+      method: 'POST',
+      body: JSON.stringify({ category_id, amount: v, period: 'monthly' }),
+    });
+    loadBudgets();
+  } catch (e) { alert('Save failed: ' + e.message); }
+}
+async function deleteBudget(category_id) {
+  if (!confirm('Clear this budget?')) return;
+  try {
+    await api('/api/budgets/' + category_id, { method: 'DELETE' });
+    loadBudgets();
+  } catch (e) { alert('Delete failed: ' + e.message); }
 }
 
 init();

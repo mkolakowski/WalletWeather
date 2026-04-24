@@ -591,6 +591,74 @@
       </div>
     </div>
 
+    <div id="pageImport" class="hidden">
+      <div class="panel">
+        <h2 id="importPageTitle">Import transactions from CSV</h2>
+        <p style="color:var(--muted);font-size:13px;margin:6px 0 12px">
+          Upload a CSV from your bank (or paste text). We'll auto-detect columns,
+          preview the rows, and let you skip duplicates before committing.
+        </p>
+        <div class="row">
+          <div><label>Target account</label>
+            <select id="importTargetAccount"></select>
+          </div>
+          <div style="flex:0 0 auto">
+            <label>File</label>
+            <input id="importCsvFile" type="file" accept=".csv,text/csv,text/plain" onchange="onImportCsvFile()">
+          </div>
+          <div style="flex:0 0 auto">
+            <label>Has header row?</label>
+            <select id="importHasHeader">
+              <option value="1" selected>Yes</option>
+              <option value="0">No</option>
+            </select>
+          </div>
+          <div style="flex:0 0 auto">
+            <label>Sign convention</label>
+            <select id="importSignConv">
+              <option value="amount" selected>Single signed amount column</option>
+              <option value="amount_invert">Single column (positive = withdraw)</option>
+              <option value="debit_credit">Separate debit + credit columns</option>
+            </select>
+          </div>
+          <div style="flex:0 0 auto">
+            <label>Default category</label>
+            <select id="importDefaultCat">
+              <option value="">— none —</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:10px">
+          <label>CSV text (paste here)</label>
+          <textarea id="importCsvText" rows="8" style="width:100%;font:12px monospace;background:var(--bg-deep);
+            color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px"
+            placeholder="date,description,amount&#10;2026-04-01,Coffee,-4.25"></textarea>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div style="flex:0 0 auto"><button onclick="runImportPreview()">Preview</button></div>
+          <div style="flex:0 0 auto;align-self:end;color:var(--muted);font-size:12px" id="importPreviewSummary"></div>
+        </div>
+        <div id="importPageError" class="auth-error hidden" style="margin-top:10px"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Preview &amp; commit</h2>
+        <div id="importPreviewWrap" style="max-height:460px;overflow:auto;border:1px solid var(--border);border-radius:6px">
+          <div style="padding:14px;color:var(--muted);font-size:13px">Run Preview to see rows here.</div>
+        </div>
+        <div class="row" style="margin-top:14px;align-items:center">
+          <div style="flex:0 0 auto;color:var(--muted);font-size:12px">
+            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+              <input id="importSkipDupes" type="checkbox" checked style="width:auto"> Skip duplicates
+            </label>
+          </div>
+          <div style="flex:1"></div>
+          <div style="flex:0 0 auto"><button class="ghost" onclick="showPage('accounts')">Back to accounts</button></div>
+          <div style="flex:0 0 auto"><button id="importCommitBtn" onclick="runImportCommit()" disabled>Commit import</button></div>
+        </div>
+      </div>
+    </div>
+
     <div id="pageAccounts" class="hidden">
     <div class="accounts-bar" id="accountsBar"></div>
 
@@ -601,7 +669,7 @@
         <h2>Account actions</h2>
         <div class="row">
           <div style="flex:0 0 auto"><button class="ghost" onclick="openTransferModal()">⇄ Transfer money</button></div>
-          <div style="flex:0 0 auto"><button class="ghost" onclick="openImportModal()">⬆ Import CSV</button></div>
+          <div style="flex:0 0 auto"><button class="ghost" onclick="openImportPage(currentAccountId)">⬆ Import CSV</button></div>
         </div>
       </div>
 
@@ -1103,66 +1171,6 @@
   </div>
 </div>
 
-<!-- CSV import modal -->
-<div id="importModal" class="modal-overlay hidden" onclick="if(event.target===this)closeImportModal()">
-  <div class="modal-card" style="max-width:780px">
-    <h2 id="importModalTitle">Import transactions from CSV</h2>
-    <p style="color:var(--muted);font-size:13px;margin:6px 0 12px">
-      Paste your bank's CSV export (or upload a file). We'll auto-detect columns,
-      then preview the rows and let you skip duplicates before committing.
-    </p>
-    <div class="row">
-      <div style="flex:0 0 auto">
-        <label>File</label>
-        <input id="importCsvFile" type="file" accept=".csv,text/csv,text/plain" onchange="onImportCsvFile()">
-      </div>
-      <div style="flex:0 0 auto">
-        <label>Has header row?</label>
-        <select id="importHasHeader">
-          <option value="1" selected>Yes</option>
-          <option value="0">No</option>
-        </select>
-      </div>
-      <div style="flex:0 0 auto">
-        <label>Sign convention</label>
-        <select id="importSignConv">
-          <option value="amount" selected>Single signed amount column</option>
-          <option value="amount_invert">Single column (positive = withdraw)</option>
-          <option value="debit_credit">Separate debit + credit columns</option>
-        </select>
-      </div>
-      <div style="flex:0 0 auto">
-        <label>Default category</label>
-        <select id="importDefaultCat">
-          <option value="">— none —</option>
-        </select>
-      </div>
-    </div>
-    <div style="margin-top:8px">
-      <label>CSV text (paste here)</label>
-      <textarea id="importCsvText" rows="6" style="width:100%;font:12px monospace;background:var(--bg-deep);
-        color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px"
-        placeholder="date,description,amount&#10;2026-04-01,Coffee,-4.25"></textarea>
-    </div>
-    <div class="row" style="margin-top:8px">
-      <div style="flex:0 0 auto"><button class="ghost" onclick="runImportPreview()">Preview</button></div>
-      <div style="flex:0 0 auto;align-self:end;color:var(--muted);font-size:12px" id="importPreviewSummary"></div>
-    </div>
-    <div id="importPreviewWrap" style="margin-top:10px;max-height:280px;overflow:auto;border:1px solid var(--border);border-radius:6px"></div>
-    <div id="importModalError" class="auth-error hidden" style="margin-top:10px"></div>
-    <div class="row" style="margin-top:14px;align-items:center">
-      <div style="flex:0 0 auto;color:var(--muted);font-size:12px">
-        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
-          <input id="importSkipDupes" type="checkbox" checked style="width:auto"> Skip duplicates
-        </label>
-      </div>
-      <div style="flex:1"></div>
-      <div style="flex:0 0 auto"><button class="ghost" onclick="closeImportModal()">Cancel</button></div>
-      <div style="flex:0 0 auto"><button id="importCommitBtn" onclick="runImportCommit()" disabled>Commit import</button></div>
-    </div>
-  </div>
-</div>
-
 <script>
 let me=null, accounts=[], currentAccountId=null, categories=[], recView='active', editingRecId=null;
 
@@ -1185,7 +1193,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.7.0";
+const WEB_VERSION = "1.7.1";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1196,6 +1204,9 @@ const WEB_VERSION = "1.7.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.7.1 (2026-04-23, claude+mkolakowski): move CSV importer out of modal
+//     overlay (which was failing to dismiss on some browsers) into a
+//     dedicated #pageImport page with its own target-account selector.
 // 1.7.0 (2026-04-23, claude+mkolakowski): Tier-1 features —
 //     two new top-level pages (Net Worth with aggregate sparkline,
 //     Transactions with global search + filters), plus account transfer
@@ -1348,12 +1359,14 @@ function showPage(name) {
   document.getElementById('pageNetworth').classList.toggle('hidden', name!=='networth');
   document.getElementById('pageAccounts').classList.toggle('hidden', name!=='accounts');
   document.getElementById('pageTransactions').classList.toggle('hidden', name!=='transactions');
+  document.getElementById('pageImport').classList.toggle('hidden', name!=='import');
   document.getElementById('pageReports').classList.toggle('hidden', name!=='reports');
   document.getElementById('pageAdmin').classList.toggle('hidden', name!=='admin');
   document.getElementById('pageSettings').classList.toggle('hidden', name!=='settings');
   document.getElementById('navDashboard').classList.toggle('active', name==='dashboard');
   document.getElementById('navNetworth').classList.toggle('active', name==='networth');
-  document.getElementById('navAccounts').classList.toggle('active', name==='accounts');
+  // 'import' is reached from the Account page — keep the Accounts nav lit.
+  document.getElementById('navAccounts').classList.toggle('active', name==='accounts' || name==='import');
   document.getElementById('navTransactions').classList.toggle('active', name==='transactions');
   document.getElementById('navReports').classList.toggle('active', name==='reports');
   document.getElementById('navAdmin').classList.toggle('active', name==='admin');
@@ -1362,6 +1375,7 @@ function showPage(name) {
   if (name === 'dashboard') loadDashboard();
   if (name === 'networth') loadNetworth();
   if (name === 'transactions') initTransactionsPage();
+  if (name === 'import') initImportPage();
   if (name === 'reports') initReportsPage();
   if (name === 'admin') loadAdminPage();
 }
@@ -3698,55 +3712,100 @@ loadRecentTransfers = async function() {
     </div>`).join('')}</div>`;
 };
 
-// ---------- CSV Import modal ----------
+// ---------- CSV Import page ----------
+// The CSV importer used to live in a modal overlay on the Accounts page,
+// but overlay dismissal turned out to be flaky on some browsers, so it was
+// promoted to a dedicated page (#pageImport) reached from the Account detail
+// via openImportPage(). The page has its own target-account selector so it
+// also works if the user lands on it directly (e.g. deep link).
 let _importPreviewMapping = null;
 let _importPreviewSign = 'amount';
 let _importPreviewHasHeader = true;
+let _importAccountId = null; // independent of currentAccountId (Accounts page)
 
-function openImportModal() {
-  if (!currentAccountId) { alert('Open an account first to import into it.'); return; }
-  const modal = document.getElementById('importModal');
-  document.getElementById('importModalTitle').textContent =
-    'Import transactions into ' + (accounts.find(a=>a.id===currentAccountId)?.name || 'account');
-  document.getElementById('importCsvText').value = '';
-  document.getElementById('importPreviewWrap').innerHTML = '';
+function openImportPage(preselectAccountId) {
+  if (preselectAccountId != null) _importAccountId = Number(preselectAccountId);
+  showPage('import');
+}
+
+function updateImportTitle() {
+  const t = document.getElementById('importPageTitle');
+  if (!t) return;
+  const acct = accounts.find(a => a.id === _importAccountId);
+  t.textContent = acct ? ('Import transactions into ' + acct.name)
+                       : 'Import transactions from CSV';
+}
+
+function initImportPage() {
+  const sel = document.getElementById('importTargetAccount');
+  if (!sel) return;
+  // Populate target-account selector from the accounts the user can see.
+  sel.innerHTML = '';
+  if (!accounts.length) {
+    sel.appendChild(new Option('— no accounts available —', ''));
+    document.getElementById('importCommitBtn').disabled = true;
+    _importAccountId = null;
+  } else {
+    accounts.forEach(a => sel.appendChild(new Option(a.name, String(a.id))));
+    let chosen = _importAccountId != null ? _importAccountId
+               : (currentAccountId || accounts[0].id);
+    if (!accounts.some(a => a.id === chosen)) chosen = accounts[0].id;
+    sel.value = String(chosen);
+    _importAccountId = chosen;
+  }
+  sel.onchange = () => {
+    _importAccountId = Number(sel.value) || null;
+    updateImportTitle();
+  };
+  updateImportTitle();
+
+  // Populate default-category dropdown.
+  const catSel = document.getElementById('importDefaultCat');
+  if (catSel) {
+    catSel.innerHTML = '<option value="">— none —</option>';
+    (categories || []).forEach(c => catSel.appendChild(new Option(c.name, c.id)));
+  }
+
+  // Reset the form state on (re)entry so the page is a clean slate.
+  const csvText = document.getElementById('importCsvText');
+  if (csvText) csvText.value = '';
+  const fileInput = document.getElementById('importCsvFile');
+  if (fileInput) fileInput.value = '';
+  document.getElementById('importPreviewWrap').innerHTML =
+    '<div style="padding:14px;color:var(--muted);font-size:13px">Run Preview to see rows here.</div>';
   document.getElementById('importPreviewSummary').textContent = '';
   document.getElementById('importCommitBtn').disabled = true;
-  document.getElementById('importModalError').classList.add('hidden');
-  // Populate default category
-  const sel = document.getElementById('importDefaultCat');
-  sel.innerHTML = '<option value="">— none —</option>';
-  (categories || []).forEach(c => sel.appendChild(new Option(c.name, c.id)));
-  modal.classList.remove('hidden');
+  document.getElementById('importPageError').classList.add('hidden');
+  _importPreviewMapping = null;
 }
-function closeImportModal() {
-  document.getElementById('importModal').classList.add('hidden');
-}
+
 async function onImportCsvFile() {
   const file = document.getElementById('importCsvFile').files[0];
   if (!file) return;
   const text = await file.text();
   document.getElementById('importCsvText').value = text;
 }
+
 async function runImportPreview() {
+  if (!_importAccountId) { alert('Pick a target account first.'); return; }
   const csv_text = document.getElementById('importCsvText').value;
   if (!csv_text.trim()) {
-    const err = document.getElementById('importModalError');
+    const err = document.getElementById('importPageError');
     err.textContent = 'Paste CSV text or pick a file first.'; err.classList.remove('hidden'); return;
   }
   const has_header = document.getElementById('importHasHeader').value === '1';
   const sign_convention = document.getElementById('importSignConv').value;
   let data;
   try {
-    data = await api('/api/accounts/' + currentAccountId + '/import/preview', {
+    data = await api('/api/accounts/' + _importAccountId + '/import/preview', {
       method: 'POST',
       body: JSON.stringify({ csv_text, has_header, sign_convention }),
     });
   } catch (e) {
-    const err = document.getElementById('importModalError');
+    const err = document.getElementById('importPageError');
     err.textContent = 'Preview failed: ' + e.message; err.classList.remove('hidden'); return;
   }
-  document.getElementById('importModalError').classList.add('hidden');
+  document.getElementById('importPageError').classList.add('hidden');
   _importPreviewMapping = data.mapping;
   _importPreviewSign = sign_convention;
   _importPreviewHasHeader = has_header;
@@ -3765,7 +3824,9 @@ async function runImportPreview() {
     </table>`;
   document.getElementById('importCommitBtn').disabled = !(data.row_count > 0);
 }
+
 async function runImportCommit() {
+  if (!_importAccountId) { alert('Pick a target account first.'); return; }
   const csv_text = document.getElementById('importCsvText').value;
   const default_category_id = document.getElementById('importDefaultCat').value || null;
   const skip_duplicates = document.getElementById('importSkipDupes').checked;
@@ -3778,14 +3839,16 @@ async function runImportCommit() {
     skip_duplicates,
   });
   try {
-    const data = await api('/api/accounts/' + currentAccountId + '/import/commit', {
+    const data = await api('/api/accounts/' + _importAccountId + '/import/commit', {
       method: 'POST', body
     });
     alert(`Imported ${data.inserted} of ${data.total_rows} rows. Skipped duplicates: ${data.duplicates_skipped}.`);
-    closeImportModal();
-    if (currentAccountId) await selectAccount(currentAccountId);
+    // Navigate back to the account we imported into so the new rows are visible.
+    const acctId = _importAccountId;
+    showPage('accounts');
+    if (acctId) await selectAccount(acctId);
   } catch (e) {
-    const err = document.getElementById('importModalError');
+    const err = document.getElementById('importPageError');
     err.textContent = 'Commit failed: ' + e.message; err.classList.remove('hidden');
   }
 }

@@ -23,7 +23,15 @@ the appropriate version heading. Format for each entry:
 
 ## [Unreleased]
 
-_Nothing yet._
+Web version: **1.7.1**
+
+### Changed
+
+- CSV importer moved out of a modal overlay into a dedicated Import page
+  (`#pageImport`). The overlay was failing to dismiss on some browsers; the
+  page version has its own target-account selector, navigates back to the
+  target account on commit, and can be reached from "Import CSV" on the
+  Account detail page.
 
 ## [1.7.0] — 2026-04-23
 

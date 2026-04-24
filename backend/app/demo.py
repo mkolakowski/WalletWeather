@@ -16,6 +16,7 @@ the flag.
 """
 from __future__ import annotations
 
+import hashlib
 from datetime import date, timedelta
 from decimal import Decimal
 import bcrypt
@@ -23,7 +24,7 @@ from sqlalchemy.orm import Session
 
 from .db import (
     User, Account, RecurringTransaction, Transaction, Category,
-    AccountPermission, AdminSetting,
+    AccountPermission, AdminSetting, Transfer, CategoryBudget,
 )
 
 
@@ -33,8 +34,17 @@ DEMO_ADMIN_EMAIL = "admin" + DEMO_EMAIL_SUFFIX
 DEMO_ADMIN_PASSWORD = "demo1234"  # intentionally simple — see README
 DEMO_ADMIN_NAME = "Demo Admin"
 
+# App title override shown when DEMO_MODE is enabled. This takes priority over
+# any admin-customized app title so it's obvious the instance is in demo mode.
+DEMO_APP_TITLE = "WalletWeather Demo"
+
 # AdminSetting key that tracks whether demo data has been seeded.
 DEMO_SEEDED_KEY = "demo_seeded"
+
+# AdminSetting key that stores a hash of the demo data so the hourly reset
+# loop can detect whether anything has actually changed since the last seed.
+# If the hash matches the stored baseline, the reset is skipped.
+DEMO_FINGERPRINT_KEY = "demo_fingerprint"
 
 
 def _hash(pw: str) -> str:
@@ -61,6 +71,136 @@ def _set_flag(db: Session, seeded: bool) -> None:
         if row is not None:
             db.delete(row)
     db.commit()
+
+
+def _get_fingerprint(db: Session) -> str | None:
+    row = db.get(AdminSetting, DEMO_FINGERPRINT_KEY)
+    return row.value if row else None
+
+
+def _set_fingerprint(db: Session, value: str | None) -> None:
+    row = db.get(AdminSetting, DEMO_FINGERPRINT_KEY)
+    if value is None:
+        if row is not None:
+            db.delete(row)
+    else:
+        if row is None:
+            db.add(AdminSetting(key=DEMO_FINGERPRINT_KEY, value=value))
+        else:
+            row.value = value
+    db.commit()
+
+
+def _demo_user_ids(db: Session) -> list[int]:
+    """Return every user id whose email ends with the demo suffix."""
+    rows = db.query(User.id).filter(
+        User.email.like("%" + DEMO_EMAIL_SUFFIX)
+    ).all()
+    return sorted(r[0] for r in rows)
+
+
+def _compute_demo_fingerprint(db: Session) -> str:
+    """SHA256 hash over the logical content of all demo-owned data.
+
+    We hash decrypted property values (not the raw `*_enc` bytes) because Fernet
+    uses a fresh random IV on every write, so the ciphertext of otherwise-
+    identical content differs between seedings. Decrypted values are stable.
+
+    The hash covers:
+      - users (demo users themselves — email/name/theme/chart_position)
+      - accounts owned by demo users
+      - categories owned by demo users
+      - recurring transactions on demo-owned accounts
+      - transactions on demo-owned accounts
+      - transfers owned by demo users
+      - category budgets owned by demo users
+
+    Any insert, delete, or edit on any of these rows changes the hash. When the
+    hash doesn't match the post-seed baseline, the demo data has drifted and
+    the reset loop will rebuild it.
+    """
+    demo_ids = _demo_user_ids(db)
+    lines: list[str] = []
+    if not demo_ids:
+        return hashlib.sha256(b"").hexdigest()
+
+    # Users
+    users = db.query(User).filter(User.id.in_(demo_ids)).order_by(User.id).all()
+    for u in users:
+        lines.append(
+            f"U|{u.id}|{u.email}|{u.name or ''}|{u.theme_preference or ''}|"
+            f"{u.chart_position or ''}|{int(bool(u.disabled))}"
+        )
+
+    # Accounts
+    accounts = (db.query(Account)
+                  .filter(Account.owner_id.in_(demo_ids))
+                  .order_by(Account.id).all())
+    account_ids = [a.id for a in accounts]
+    for a in accounts:
+        lines.append(
+            f"A|{a.id}|{a.owner_id}|{a.name}|{a.starting_balance}|"
+            f"{a.starting_date.isoformat()}|{int(bool(a.archived))}"
+        )
+
+    # Categories
+    cats = (db.query(Category)
+              .filter(Category.owner_id.in_(demo_ids))
+              .order_by(Category.id).all())
+    for c in cats:
+        lines.append(f"C|{c.id}|{c.owner_id}|{c.name}|{c.color or ''}")
+
+    # Recurring transactions (scoped by account)
+    if account_ids:
+        recs = (db.query(RecurringTransaction)
+                  .filter(RecurringTransaction.account_id.in_(account_ids))
+                  .order_by(RecurringTransaction.id).all())
+        for r in recs:
+            anchor = r.anchor_date.isoformat() if r.anchor_date else ""
+            end = r.end_date.isoformat() if r.end_date else ""
+            lines.append(
+                f"R|{r.id}|{r.account_id}|{r.category_id or ''}|{r.description}|"
+                f"{r.amount}|{r.notes or ''}|{r.frequency}|{r.day_of_month or ''}|"
+                f"{anchor}|{end}|{int(bool(r.active))}"
+            )
+
+        # Transactions
+        txns = (db.query(Transaction)
+                  .filter(Transaction.account_id.in_(account_ids))
+                  .order_by(Transaction.id).all())
+        for t in txns:
+            fd = t.forecast_date.isoformat() if t.forecast_date else ""
+            ad = t.actual_date.isoformat() if t.actual_date else ""
+            fa = t.forecast_amount if t.forecast_amount is not None else ""
+            lines.append(
+                f"T|{t.id}|{t.account_id}|{t.recurring_id or ''}|"
+                f"{t.category_id or ''}|{t.transfer_id or ''}|{t.description}|"
+                f"{t.amount}|{fd}|{ad}|{fa}|{t.notes or ''}|"
+                f"{int(bool(t.is_actual))}"
+            )
+
+    # Transfers (owner-scoped)
+    transfers = (db.query(Transfer)
+                   .filter(Transfer.owner_id.in_(demo_ids))
+                   .order_by(Transfer.id).all())
+    for tr in transfers:
+        lines.append(
+            f"X|{tr.id}|{tr.owner_id}|{tr.from_account_id}|{tr.to_account_id}|"
+            f"{tr.transfer_date.isoformat()}|{tr.description}|{tr.amount}|"
+            f"{tr.notes or ''}"
+        )
+
+    # Category budgets (owner-scoped)
+    budgets = (db.query(CategoryBudget)
+                 .filter(CategoryBudget.owner_id.in_(demo_ids))
+                 .order_by(CategoryBudget.id).all())
+    for b in budgets:
+        lines.append(
+            f"B|{b.id}|{b.owner_id}|{b.category_id}|{b.period}|{b.amount}"
+        )
+
+    payload = "\n".join(lines).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 # --- Categories/recurring/transactions used for seed ---
@@ -194,6 +334,9 @@ def seed_demo_data(db: Session, seed_default_categories) -> None:
 
     db.commit()
     _set_flag(db, True)
+    # Stamp a fingerprint of the freshly-seeded data so the hourly reset loop
+    # has a baseline to compare against.
+    _set_fingerprint(db, _compute_demo_fingerprint(db))
 
 
 def wipe_demo_data(db: Session) -> int:
@@ -214,4 +357,34 @@ def wipe_demo_data(db: Session) -> int:
         n += 1
     db.commit()
     _set_flag(db, False)
+    _set_fingerprint(db, None)
     return n
+
+
+def reseed_demo_if_changed(db: Session, seed_default_categories) -> bool:
+    """Rebuild demo data iff it has drifted from the last-seeded baseline.
+
+    Called on a timer (hourly) by the background scheduler in main.py. If the
+    stored fingerprint matches the current one, nothing has been edited since
+    the last seed and we skip the reset — visitors who haven't touched the app
+    don't get surprised by a wipe. If they differ, we wipe everything owned by
+    demo users and re-seed from scratch.
+
+    Returns True if a reseed happened, False if the demo was untouched.
+    """
+    if not _get_flag(db):
+        # First-time boot: seed and bail. This also handles the case where the
+        # fingerprint row was lost (e.g. manual DB edit) — seed_demo_data is
+        # idempotent on the user row and will stamp a fresh fingerprint.
+        seed_demo_data(db, seed_default_categories)
+        return True
+
+    baseline = _get_fingerprint(db)
+    current = _compute_demo_fingerprint(db)
+    if baseline is not None and baseline == current:
+        return False
+
+    # Drifted — rebuild.
+    wipe_demo_data(db)
+    seed_demo_data(db, seed_default_categories)
+    return True

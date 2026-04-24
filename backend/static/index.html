@@ -527,6 +527,61 @@
 
     <div id="pageTransactions" class="hidden">
       <div class="panel">
+        <h2>Account actions</h2>
+        <div class="row" style="align-items:flex-end">
+          <div style="flex:1;max-width:320px">
+            <label>Managing account</label>
+            <select id="txnMgmtAccount" onchange="onTxnMgmtAccountChange()">
+              <option value="">— pick an account —</option>
+            </select>
+          </div>
+          <div style="flex:0 0 auto"><button class="ghost" onclick="openTransferPage()">⇄ Transfer money</button></div>
+          <div style="flex:0 0 auto"><button class="ghost" onclick="openImportPage(currentAccountId)">⬆ Import CSV</button></div>
+        </div>
+        <div id="txnMgmtNoAccount" class="hidden" style="color:var(--muted);font-size:13px;margin-top:10px">
+          Create an account first to manage recurring transactions and run transfers or CSV imports.
+        </div>
+      </div>
+
+      <div class="panel" id="txnRecurringPanel">
+        <h2>Recurring transactions
+          <span style="float:right;font-weight:normal">
+            <button id="recTabActive" class="tab small active" onclick="switchRecView('active')">Active</button>
+            <button id="recTabArchived" class="tab small" onclick="switchRecView('archived')">Archived</button>
+          </span>
+        </h2>
+        <div style="overflow-x:auto">
+        <table id="recurringTable"><thead><tr>
+          <th class="sortable" data-key="description">Description</th>
+          <th class="sortable" data-key="category_name">Category</th>
+          <th class="sortable num" data-key="amount">Amount</th>
+          <th class="sortable" data-key="frequency">Frequency</th>
+          <th class="sortable" data-key="when">When</th>
+          <th class="sortable" data-key="end_date">Ends</th>
+          <th>Notes</th>
+          <th></th>
+        </tr></thead><tbody></tbody></table>
+        </div>
+        <div id="recurringPagination" class="pagination hidden">
+          <div class="pagination-left">
+            <label>Per page</label>
+            <select id="recurringPageSize" onchange="onRecurringPageSizeChange()">
+              <option value="5" selected>5</option>
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+            <span id="recurringPageRange" class="pagination-range"></span>
+          </div>
+          <div class="pagination-right">
+            <button id="recurringPrevPage" class="ghost" onclick="changeRecurringPage(-1)">« Prev</button>
+            <span id="recurringPageLabel" class="pagination-label"></span>
+            <button id="recurringNextPage" class="ghost" onclick="changeRecurringPage(1)">Next »</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
         <h2>Search transactions</h2>
         <div class="row">
           <div style="flex:2"><label>Text</label>
@@ -693,52 +748,6 @@
 
     <div id="accountView" class="hidden">
       <div class="summary" id="summary"></div>
-
-      <div class="panel">
-        <h2>Account actions</h2>
-        <div class="row">
-          <div style="flex:0 0 auto"><button class="ghost" onclick="openTransferPage()">⇄ Transfer money</button></div>
-          <div style="flex:0 0 auto"><button class="ghost" onclick="openImportPage(currentAccountId)">⬆ Import CSV</button></div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2>Recurring transactions
-          <span style="float:right;font-weight:normal">
-            <button id="recTabActive" class="tab small active" onclick="switchRecView('active')">Active</button>
-            <button id="recTabArchived" class="tab small" onclick="switchRecView('archived')">Archived</button>
-          </span>
-        </h2>
-        <div style="overflow-x:auto">
-        <table id="recurringTable"><thead><tr>
-          <th class="sortable" data-key="description">Description</th>
-          <th class="sortable" data-key="category_name">Category</th>
-          <th class="sortable num" data-key="amount">Amount</th>
-          <th class="sortable" data-key="frequency">Frequency</th>
-          <th class="sortable" data-key="when">When</th>
-          <th class="sortable" data-key="end_date">Ends</th>
-          <th>Notes</th>
-          <th></th>
-        </tr></thead><tbody></tbody></table>
-        </div>
-        <div id="recurringPagination" class="pagination hidden">
-          <div class="pagination-left">
-            <label>Per page</label>
-            <select id="recurringPageSize" onchange="onRecurringPageSizeChange()">
-              <option value="5" selected>5</option>
-              <option value="10">10</option>
-              <option value="20">20</option>
-              <option value="50">50</option>
-            </select>
-            <span id="recurringPageRange" class="pagination-range"></span>
-          </div>
-          <div class="pagination-right">
-            <button id="recurringPrevPage" class="ghost" onclick="changeRecurringPage(-1)">« Prev</button>
-            <span id="recurringPageLabel" class="pagination-label"></span>
-            <button id="recurringNextPage" class="ghost" onclick="changeRecurringPage(1)">Next »</button>
-          </div>
-        </div>
-      </div>
 
       <div class="panel">
         <h2>Add transaction</h2>
@@ -1191,7 +1200,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.7.2";
+const WEB_VERSION = "1.7.3";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1202,6 +1211,10 @@ const WEB_VERSION = "1.7.2";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.7.3 (2026-04-23, claude+mkolakowski): move the Account actions panel
+//     (Transfer / Import buttons) and the Recurring transactions panel off
+//     the Accounts page into the Transactions page. Added a "Managing
+//     account" picker at the top of Transactions that drives both panels.
 // 1.7.2 (2026-04-23, claude+mkolakowski): move Transfer editor out of its
 //     modal overlay into a dedicated #pageTransfer page. No modals remain —
 //     .modal-overlay/.modal-card CSS was deleted alongside.
@@ -1382,6 +1395,11 @@ function showPage(name) {
   if (name === 'transfer') initTransferPage();
   if (name === 'reports') initReportsPage();
   if (name === 'admin') loadAdminPage();
+  // If the managing-account dropdown on the Transactions page was used to
+  // switch accounts, re-render the accountView so summary/forecast match.
+  if (name === 'accounts' && currentAccountId && accounts.some(a => a.id === currentAccountId)) {
+    selectAccount(currentAccountId);
+  }
 }
 
 // ---------- Dashboard state ----------
@@ -3521,8 +3539,50 @@ function initTransactionsPage() {
       o.value = c.id; o.textContent = c.name; catSel.appendChild(o);
     });
   }
+
+  // Managing-account picker. Drives the Account-actions row and the
+  // Recurring-transactions panel. It sets `currentAccountId` directly so
+  // callbacks that already key off that global (Transfer / Import / the
+  // Recurring CRUD) keep working unchanged.
+  const mgmt = document.getElementById('txnMgmtAccount');
+  const noAcc = document.getElementById('txnMgmtNoAccount');
+  const recPanel = document.getElementById('txnRecurringPanel');
+  // Always refresh — accounts list can change when new ones are created.
+  mgmt.innerHTML = '';
+  if (!accounts.length) {
+    mgmt.appendChild(new Option('— no accounts yet —', ''));
+    mgmt.disabled = true;
+    noAcc.classList.remove('hidden');
+    recPanel.classList.add('hidden');
+  } else {
+    mgmt.disabled = false;
+    noAcc.classList.add('hidden');
+    recPanel.classList.remove('hidden');
+    accounts.forEach(a => mgmt.appendChild(new Option(a.name, String(a.id))));
+    // Prefer the currently-selected account; otherwise pick the first one.
+    let chosen = currentAccountId;
+    if (!accounts.some(a => a.id === chosen)) chosen = accounts[0].id;
+    mgmt.value = String(chosen);
+    currentAccountId = chosen;
+    loadRecurring();
+  }
+
   runTxnSearch();
   loadRecentTransfers();
+}
+
+function onTxnMgmtAccountChange() {
+  const sel = document.getElementById('txnMgmtAccount');
+  const id = Number(sel.value) || null;
+  if (!id) return;
+  currentAccountId = id;
+  // Re-render the recurring list for the newly-selected account.
+  loadRecurring();
+  // Keep the accounts-bar highlight on the Accounts page in sync too, so
+  // when the user navigates back there, the right tab is active.
+  document.querySelectorAll('.account-tab').forEach((el, i) => {
+    el.classList.toggle('active', accounts[i] && accounts[i].id === id);
+  });
 }
 function resetTxnSearch() {
   ['txnSearchQ','txnSearchFrom','txnSearchTo','txnSearchMin','txnSearchMax'].forEach(id => {

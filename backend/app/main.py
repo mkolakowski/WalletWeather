@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.7.0"
+APP_VERSION = "1.7.1"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -36,6 +36,12 @@ APP_VERSION = "1.7.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.7.1 (2026-04-23, claude+mkolakowski): demo mode — show "WalletWeather Demo"
+#     as the app title whenever DEMO_MODE is on (overrides any admin-set
+#     title), and add an hourly background job that wipes+reseeds the demo
+#     data only if it's actually drifted from the post-seed fingerprint.
+#     Untouched demo instances skip the reset. DEMO_MODE default flipped
+#     from true to false so production installs boot empty.
 # 1.7.0 (2026-04-23, claude+mkolakowski): Tier-1 roadmap features —
 #     account transfers (paired Transaction legs linked via transfer_id,
 #     excluded from spend/income aggregations), per-category monthly
@@ -82,12 +88,20 @@ ADMIN_EMAILS = {e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").sp
 BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", "/data/backups"))
 
 # Demo mode: when on, the app boots with a pre-seeded admin user and sample
-# data. Default ON so first-time users can click around without signing up.
-# Set DEMO_MODE=false to turn the demo off and wipe its data on next start.
-DEMO_MODE = os.environ.get("DEMO_MODE", "true").lower() == "true"
+# data, the UI is branded "WalletWeather Demo", and a background daemon
+# wipes+reseeds the sample data hourly (only if it's been edited). Default
+# OFF so a fresh production install doesn't accidentally expose the demo
+# admin login. Set DEMO_MODE=true in .env to turn it on.
+DEMO_MODE = os.environ.get("DEMO_MODE", "false").lower() == "true"
 from .demo import (
-    DEMO_ADMIN_EMAIL, DEMO_ADMIN_PASSWORD, seed_demo_data, wipe_demo_data,
+    DEMO_ADMIN_EMAIL, DEMO_ADMIN_PASSWORD, DEMO_APP_TITLE,
+    seed_demo_data, wipe_demo_data, reseed_demo_if_changed,
 )
+
+# How often the demo-reset daemon checks whether the demo data has drifted.
+# The user requested "once an hour". Kept as a module constant so tests or
+# future operators can tune it without editing the loop body.
+DEMO_RESET_INTERVAL_SECONDS = 3600
 if DEMO_MODE:
     # Make the demo admin an actual admin without requiring the operator to
     # add them to ADMIN_EMAILS in .env.
@@ -143,6 +157,12 @@ def _startup():
     # Start the backup scheduler daemon thread
     t = threading.Thread(target=_backup_scheduler_loop, daemon=True)
     t.start()
+    # Demo-reset daemon: on an instance running in DEMO_MODE, check hourly
+    # whether the demo data has drifted from its post-seed fingerprint, and
+    # wipe + reseed only if something has been edited.
+    if DEMO_MODE:
+        dt = threading.Thread(target=_demo_reset_scheduler_loop, daemon=True)
+        dt.start()
 
 
 def _run_system_backup() -> str:
@@ -224,6 +244,26 @@ def _backup_scheduler_loop():
             db.close()
 
 
+def _demo_reset_scheduler_loop():
+    """Background daemon that resets demo data once an hour, but only if the
+    data has actually changed since the last seed.
+
+    Compares the current content fingerprint against the baseline stored when
+    the demo was last seeded. Match → skip (nobody touched anything, so
+    there's nothing to roll back). Mismatch → wipe + reseed.
+    """
+    from .db import SessionLocal
+    while True:
+        time.sleep(DEMO_RESET_INTERVAL_SECONDS)
+        db = SessionLocal()
+        try:
+            reseed_demo_if_changed(db, seed_default_categories)
+        except Exception:
+            pass  # never crash the daemon
+        finally:
+            db.close()
+
+
 # ---------- Password helpers ----------
 def hash_password(pw: str) -> str:
     return bcrypt.hashpw(pw.encode("utf-8"), bcrypt.gensalt(rounds=12)).decode("utf-8")
@@ -287,6 +327,10 @@ APP_TITLE_MAX_LEN = 80
 
 
 def get_app_title(db: Session) -> str:
+    # Demo mode forces a distinctive title so it's obvious the instance is
+    # ephemeral. This wins over any admin-customized value.
+    if DEMO_MODE:
+        return DEMO_APP_TITLE
     row = db.get(AdminSetting, APP_TITLE_KEY)
     if row and row.value:
         return row.value

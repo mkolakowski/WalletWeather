@@ -23,10 +23,33 @@ the appropriate version heading. Format for each entry:
 
 ## [Unreleased]
 
-Web version: **1.7.2**
+App version: **1.7.1** · Web version: **1.7.3**
+
+### Added
+
+- **Demo mode auto-reset.** When `DEMO_MODE` is on, a new background daemon
+  runs once an hour and rebuilds the demo data, but only if something has
+  actually been edited since the last seed. A SHA-256 fingerprint over all
+  demo-owned accounts, categories, recurring templates, transactions,
+  transfers, and budgets is stamped into the new `demo_fingerprint`
+  `AdminSetting` row at the end of each seed; the hourly check compares that
+  baseline against a freshly computed fingerprint and skips the reset when
+  they match. Visitors who just poke around without mutating anything no
+  longer get their session yanked out from under them.
+- New `reseed_demo_if_changed()` helper in `backend/app/demo.py`.
+- New `_demo_reset_scheduler_loop()` daemon thread in `backend/app/main.py`,
+  started from `_startup` only when `DEMO_MODE` is true.
 
 ### Changed
 
+- When `DEMO_MODE` is on, the app title is forced to **"WalletWeather Demo"**
+  in the browser tab, login card, and app header, regardless of any admin-
+  customized title. Non-demo instances are unaffected and still use the
+  admin-settable title.
+- `DEMO_MODE` now defaults to **off** (previously on). A fresh production
+  install boots empty instead of exposing the demo admin login. Set
+  `DEMO_MODE=true` in `.env` to opt in. `.env.example` and
+  `docker-compose.yml` defaults updated to match.
 - CSV importer moved out of a modal overlay into a dedicated Import page
   (`#pageImport`). The overlay was failing to dismiss on some browsers; the
   page version has its own target-account selector, navigates back to the
@@ -39,6 +62,13 @@ Web version: **1.7.2**
   list; the form now includes an inline Delete button while editing.
 - No modal overlays remain in the app. The unused `.modal-overlay` and
   `.modal-card` CSS rules were deleted.
+- **Account actions** panel (Transfer money + Import CSV buttons) and the
+  **Recurring transactions** panel moved from the Accounts page into the
+  Transactions page. A new "Managing account" picker at the top of
+  Transactions drives both panels; switching it updates the recurring list
+  and also keeps the Accounts-page tab highlight in sync so navigating back
+  to Accounts lands on the same account. Accounts → account detail now
+  focuses on summary, add-transaction, and forecast.
 
 ## [1.7.0] — 2026-04-23
 

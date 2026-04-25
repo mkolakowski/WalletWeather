@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.7.1"
+APP_VERSION = "1.12.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -36,6 +36,64 @@ APP_VERSION = "1.7.1"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.12.0 (2026-04-24, claude+mkolakowski): saved reports + dashboard
+#     pinning. Schema v11 adds `saved_reports` (per-user, JSON params,
+#     pinned flag, sort_order). New /api/report/run takes inline
+#     params for the live editor; /api/saved-reports CRUD persists
+#     them; /api/saved-reports/{id}/run resolves and executes;
+#     /api/report-templates returns built-in starting points. The
+#     existing /api/report endpoint is retained for back-compat.
+#     `_compute_report` is a unified helper supporting group_by =
+#     'category' | 'tag' | 'account', range_mode covering month /
+#     last_30d / last_90d / ytd / year / custom, multi-select account /
+#     category / tag filters, kind = any|income|spending, and
+#     include_transfers. Demo seed adds four sample reports with one
+#     pinned to the demo dashboard, and the demo fingerprint hashes
+#     saved_reports too so user edits trigger the hourly reset.
+# 1.11.0 (2026-04-24, claude+mkolakowski): tag deepening pass.
+#     Reports: /api/report now returns a `tags` array (forecast/actual
+#       totals per tag, double-counted across multi-tag rows by design).
+#     Bulk ops: new POST /api/transactions/bulk-tag accepting
+#       transaction_ids + add_tag_ids/remove_tag_ids; idempotent and
+#       enforces tag ownership + per-row edit permission.
+#     Auto-tag rules: schema v10 adds `tag_rules` (per-user
+#       description-substring match → optional category gate → target
+#       tag). New /api/tag-rules CRUD plus /api/tag-rules/backfill that
+#       replays every active rule across existing transactions. Rules
+#       fire automatically on transaction create, PATCH, and CSV import
+#       commit, and are additive (never remove existing tags).
+# 1.10.1 (2026-04-24, claude+mkolakowski): frontend-only polish — new
+#     pencil "Edit" button on the Dashboard that jumps to Settings and
+#     flashes the chart placement picker, and the default
+#     chart-placement value flipped from "above" to "inside" so new /
+#     unset users get the inside-each-card layout by default. No
+#     backend API change — `chart_position` is still per-user and
+#     server-persisted; this is just a client-side default fallback
+#     tweak. (APP_VERSION bumped alongside WEB_VERSION so the two keep
+#     moving together even when a release is frontend-only.)
+# 1.10.0 (2026-04-24, claude+mkolakowski): /api/accounts now returns a
+#     `current_balance` field (today-dated sum of starting balance +
+#     every cleared transaction). Backed by a new `_current_balance`
+#     helper that issues a single SQL scan instead of running the
+#     forecast walk, so the transfer page can refresh balances live as
+#     the user types an amount. No schema change.
+# 1.9.0 (2026-04-24, claude+mkolakowski): new Calendar page. Added
+#     /api/calendar endpoint aggregating forecasted + recorded events
+#     across every visible account for an arbitrary date window
+#     (capped at 366 days). Each event carries account, category +
+#     color, tags, amount sign, recurring/transfer linkage, and
+#     cleared/pending flag so the frontend can filter by Account,
+#     Category, Tag, Source (scheduled vs one-time), Kind (income /
+#     spending / transfer), and Status. Forecast rows now include tag
+#     metadata for both recorded transactions and projected
+#     occurrences (empty list for projections).
+# 1.8.0 (2026-04-24, claude+mkolakowski): Tier-2 roadmap — subscription audit
+#     page surfacing every active recurring outflow with normalized monthly
+#     and annual totals (/api/subscriptions), and cross-category transaction
+#     tags (schema v9 adds tags + transaction_tags). Tags are per-user
+#     labels with optional color, many-to-many with transactions, exposed on
+#     list/search/forecast rows and editable via an inline pill picker.
+#     Tag filter added to /api/transactions/search.
 # 1.7.1 (2026-04-23, claude+mkolakowski): demo mode — show "WalletWeather Demo"
 #     as the app title whenever DEMO_MODE is on (overrides any admin-set
 #     title), and add an hourly background job that wipes+reseeds the demo
@@ -75,7 +133,7 @@ from pydantic import BaseModel, EmailStr, Field
 from .db import (
     init_db, get_db, User, Account, RecurringTransaction, Transaction, Category,
     AccountPermission, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
-    Tag, TransactionTag,
+    Tag, TransactionTag, TagRule, SavedReport,
     SessionLocal, SCHEMA_VERSION,
 )
 from .forecast import build_forecast
@@ -734,6 +792,179 @@ def delete_tag(tag_id: int, user: User = Depends(current_user),
     return {"ok": True}
 
 
+# ---------- Tag rules (auto-apply tags on transaction save / import) ----------
+TAG_RULE_PATTERN_MIN = 2
+TAG_RULE_PATTERN_MAX = 120
+TAG_RULE_NAME_MAX = 80
+
+
+class TagRuleIn(BaseModel):
+    """Inbound shape for create/update of an auto-tagging rule.
+
+    `description_pattern` is matched as a case-insensitive substring
+    against `transactions.description`. We require at least 2 characters
+    so a degenerate single-letter rule doesn't tag the world.
+    """
+    name: str | None = Field(default=None, max_length=TAG_RULE_NAME_MAX)
+    description_pattern: str = Field(..., min_length=TAG_RULE_PATTERN_MIN,
+                                     max_length=TAG_RULE_PATTERN_MAX)
+    category_id: int | None = None
+    tag_id: int
+    active: bool = True
+
+
+def _own_rule(db: Session, user: User, rule_id: int) -> TagRule:
+    r = db.get(TagRule, rule_id)
+    if not r or r.owner_id != user.id:
+        raise HTTPException(404, "Rule not found")
+    return r
+
+
+def _apply_tag_rules(db: Session, user: User, t: Transaction) -> int:
+    """Run every active rule against a transaction, attach matching tag.
+
+    Returns the number of tags newly attached. Idempotent — if the tag
+    is already on the transaction the rule is a no-op for that pairing.
+    Caller is responsible for `db.commit()`.
+
+    Why we re-fetch rules each call instead of caching: rules change
+    rarely but transaction writes happen often, and the rules table is
+    small (typical user has <30 rules). A SQL scan beats stale cache
+    invalidation logic for a single-instance app.
+    """
+    if not t.description:
+        return 0
+    desc = t.description.lower()
+    rules = (db.query(TagRule)
+               .filter(TagRule.owner_id == user.id, TagRule.active == True)
+               .all())
+    if not rules:
+        return 0
+    # Pull existing tag links once so we can short-circuit duplicates.
+    existing = {
+        row[0] for row in db.query(TransactionTag.tag_id)
+                            .filter_by(transaction_id=t.id).all()
+    }
+    added = 0
+    for r in rules:
+        # Category gate (optional).
+        if r.category_id is not None and t.category_id != r.category_id:
+            continue
+        if r.description_pattern not in desc:
+            continue
+        if r.tag_id in existing:
+            continue
+        db.add(TransactionTag(transaction_id=t.id, tag_id=r.tag_id))
+        existing.add(r.tag_id)
+        added += 1
+    return added
+
+
+@app.get("/api/tag-rules")
+def list_tag_rules(user: User = Depends(current_user),
+                   db: Session = Depends(get_db)):
+    rules = (db.query(TagRule).filter_by(owner_id=user.id)
+               .order_by(TagRule.id.desc()).all())
+    # Resolve names for the picker UI in one extra query each. Tag and
+    # Category lookup is cheap (small tables, indexed by id).
+    out = []
+    for r in rules:
+        tag = db.get(Tag, r.tag_id)
+        cat = db.get(Category, r.category_id) if r.category_id else None
+        out.append({
+            "id": r.id,
+            "name": r.name,
+            "description_pattern": r.description_pattern,
+            "category_id": r.category_id,
+            "category_name": cat.name if cat else None,
+            "tag_id": r.tag_id,
+            "tag_name": tag.name if tag else None,
+            "tag_color": tag.color if tag else None,
+            "active": r.active,
+        })
+    return out
+
+
+@app.post("/api/tag-rules")
+def create_tag_rule(payload: TagRuleIn, user: User = Depends(current_user),
+                    db: Session = Depends(get_db)):
+    pattern = payload.description_pattern.strip().lower()
+    if len(pattern) < TAG_RULE_PATTERN_MIN:
+        raise HTTPException(400, "Pattern too short")
+    # Validate ownership of referenced tag and (optional) category.
+    _own_tag(db, user, payload.tag_id)
+    if payload.category_id is not None:
+        cat = db.get(Category, payload.category_id)
+        if not cat or cat.owner_id != user.id:
+            raise HTTPException(404, "Category not found")
+    rule = TagRule(
+        owner_id=user.id,
+        name=(payload.name or "").strip() or None,
+        description_pattern=pattern,
+        category_id=payload.category_id,
+        tag_id=payload.tag_id,
+        active=payload.active,
+    )
+    db.add(rule)
+    db.commit()
+    db.refresh(rule)
+    return {"id": rule.id}
+
+
+@app.patch("/api/tag-rules/{rule_id}")
+def update_tag_rule(rule_id: int, payload: TagRuleIn,
+                    user: User = Depends(current_user),
+                    db: Session = Depends(get_db)):
+    rule = _own_rule(db, user, rule_id)
+    pattern = payload.description_pattern.strip().lower()
+    if len(pattern) < TAG_RULE_PATTERN_MIN:
+        raise HTTPException(400, "Pattern too short")
+    _own_tag(db, user, payload.tag_id)
+    if payload.category_id is not None:
+        cat = db.get(Category, payload.category_id)
+        if not cat or cat.owner_id != user.id:
+            raise HTTPException(404, "Category not found")
+    rule.name = (payload.name or "").strip() or None
+    rule.description_pattern = pattern
+    rule.category_id = payload.category_id
+    rule.tag_id = payload.tag_id
+    rule.active = payload.active
+    db.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/tag-rules/{rule_id}")
+def delete_tag_rule(rule_id: int, user: User = Depends(current_user),
+                    db: Session = Depends(get_db)):
+    rule = _own_rule(db, user, rule_id)
+    db.delete(rule)
+    db.commit()
+    return {"ok": True}
+
+
+@app.post("/api/tag-rules/backfill")
+def backfill_tag_rules(user: User = Depends(current_user),
+                       db: Session = Depends(get_db)):
+    """Replay every active rule across every transaction the user owns.
+
+    Useful when adding a new rule retroactively. Walks each visible
+    account's transactions; rules are idempotent so running this twice
+    in a row is harmless (the second pass will report `tags_added=0`).
+    """
+    visible = _user_visible_accounts(db, user, include_archived=True)
+    visible_ids = [a.id for a in visible]
+    if not visible_ids:
+        return {"transactions_scanned": 0, "tags_added": 0}
+    txns = (db.query(Transaction)
+              .filter(Transaction.account_id.in_(visible_ids))
+              .all())
+    total_added = 0
+    for t in txns:
+        total_added += _apply_tag_rules(db, user, t)
+    db.commit()
+    return {"transactions_scanned": len(txns), "tags_added": total_added}
+
+
 # ---------- Accounts & Permissions ----------
 LEVEL_RANK = {"deny": 0, "read": 1, "edit": 2, "owner": 3}
 
@@ -797,6 +1028,30 @@ def _user_editable_accounts(db: Session, user: User, include_archived: bool = Fa
     return list(q.all())
 
 
+def _current_balance(db: Session, account: Account) -> float:
+    """Today-dated actual balance = starting balance + every cleared txn
+    whose effective date is on or before today.
+
+    "Cleared" = `is_actual` (the user has confirmed the money moved).
+    We intentionally do NOT pull through `build_forecast` here: this helper
+    is called from hot paths (the transfer selectors refresh it per
+    keystroke) and only needs to sum cleared rows, so a single SQL scan
+    is the right shape.
+    """
+    today = date.today()
+    total = float(account.starting_balance)
+    q = (
+        db.query(Transaction)
+        .filter(Transaction.account_id == account.id)
+        .filter(Transaction.is_actual == True)
+    )
+    for t in q.all():
+        ref = t.actual_date or t.forecast_date
+        if ref and ref <= today:
+            total += float(t.amount)
+    return total
+
+
 @app.get("/api/accounts")
 def list_accounts(include_archived: bool = False,
                   user: User = Depends(current_user), db: Session = Depends(get_db)):
@@ -806,6 +1061,10 @@ def list_accounts(include_archived: bool = False,
             "id": a.id, "name": a.name,
             "starting_balance": float(a.starting_balance),
             "starting_date": a.starting_date.isoformat(),
+            # Today-dated cleared balance. Surfaced so selectors (transfer
+            # page, account pickers) can show the user's actual available
+            # money without a second round-trip.
+            "current_balance": round(_current_balance(db, a), 2),
             "archived": a.archived,
             "level": _user_level(db, user, a.id),
         })
@@ -977,6 +1236,11 @@ def create_transaction(account_id: int, payload: TransactionIn,
     db.add(t)
     db.flush()  # need t.id before attaching tags
     _apply_tags(db, user, t, payload.tag_ids)
+    # Auto-tagging rules fire AFTER explicit tag_ids so that the user's
+    # explicit list is the floor, and rules can only add (never remove).
+    # If a rule and the explicit list both target the same tag, the
+    # idempotency check inside _apply_tag_rules avoids a duplicate row.
+    _apply_tag_rules(db, user, t)
     db.commit()
     db.refresh(t)
     return {"id": t.id}
@@ -1001,6 +1265,10 @@ def update_transaction(tid: int, payload: TransactionIn,
     if payload.forecast_amount is not None:
         t.forecast_amount = Decimal(str(payload.forecast_amount))
     _apply_tags(db, user, t, payload.tag_ids)
+    # Re-run auto-tagging on PATCH too: a description or category change
+    # can flip which rules match. Existing tag links are preserved
+    # (rules are additive).
+    _apply_tag_rules(db, user, t)
     db.commit()
     return {"ok": True}
 
@@ -1819,6 +2087,68 @@ def search_transactions(q: str | None = None,
             "limit": limit, "offset": offset}
 
 
+# ---------- Bulk tag operations ----------
+class BulkTagIn(BaseModel):
+    """Apply or remove tags across many transactions in one shot.
+
+    `add_tag_ids`    — tags to attach (idempotent; existing memberships left).
+    `remove_tag_ids` — tags to detach (idempotent; absent memberships left).
+    Both lists are optional but at least one must be non-empty. Tag
+    ownership and per-transaction edit permission are checked per row.
+    """
+    transaction_ids: list[int] = Field(..., min_length=1, max_length=1000)
+    add_tag_ids:     list[int] = Field(default_factory=list)
+    remove_tag_ids:  list[int] = Field(default_factory=list)
+
+
+@app.post("/api/transactions/bulk-tag")
+def bulk_tag_transactions(payload: BulkTagIn,
+                          user: User = Depends(current_user),
+                          db: Session = Depends(get_db)):
+    if not payload.add_tag_ids and not payload.remove_tag_ids:
+        raise HTTPException(400, "Provide add_tag_ids and/or remove_tag_ids")
+    # Validate tag ownership once up-front so a bad id fails the whole
+    # batch atomically (no half-applied state).
+    for tid in payload.add_tag_ids + payload.remove_tag_ids:
+        _own_tag(db, user, tid)
+    # Walk each transaction; require edit on its account. Skip silently
+    # if the user can read but not edit a row (matches the conservative
+    # behavior of single-row PATCH for shared accounts).
+    applied = 0
+    skipped = 0
+    for tid in payload.transaction_ids:
+        t = db.get(Transaction, tid)
+        if not t:
+            skipped += 1
+            continue
+        try:
+            _account_with_perm(db, user, t.account_id, "edit")
+        except HTTPException:
+            skipped += 1
+            continue
+        # Add: insert join rows that don't already exist. We query the
+        # existing set first so the operation is idempotent and we don't
+        # rely on a unique constraint (the schema currently has none —
+        # see db.py).
+        if payload.add_tag_ids:
+            existing = {
+                row[0] for row in db.query(TransactionTag.tag_id)
+                                    .filter_by(transaction_id=t.id).all()
+            }
+            for atag in payload.add_tag_ids:
+                if atag not in existing:
+                    db.add(TransactionTag(transaction_id=t.id, tag_id=atag))
+                    existing.add(atag)
+        if payload.remove_tag_ids:
+            (db.query(TransactionTag)
+               .filter(TransactionTag.transaction_id == t.id,
+                       TransactionTag.tag_id.in_(payload.remove_tag_ids))
+               .delete(synchronize_session=False))
+        applied += 1
+    db.commit()
+    return {"applied": applied, "skipped": skipped}
+
+
 # ---------- CSV import ----------
 import csv
 import io as _csvio
@@ -2037,6 +2367,10 @@ def csv_import_commit(account_id: int, payload: CSVCommitIn,
         if r.get("notes"):
             t.notes = r["notes"]
         db.add(t)
+        # Auto-tagging rules fire on every imported row. Need to flush
+        # so each new row has an id before we touch transaction_tags.
+        db.flush()
+        _apply_tag_rules(db, user, t)
         inserted += 1
     db.commit()
     return {"ok": True, "inserted": inserted, "duplicates_skipped": duplicates,
@@ -2193,6 +2527,91 @@ def list_subscriptions(user: User = Depends(current_user),
     }
 
 
+# ---------- Calendar ----------
+# Cross-account aggregation for the Calendar page. Pulls the same rich row
+# dataset `build_forecast` produces (so tag chips, category colors, and
+# recurring/transfer metadata travel with every event), then emits one
+# flat list scoped to the caller's window. The client decides how to slice
+# it (month grid vs day detail) and applies whatever filters the user has
+# toggled, which is cheaper than paginating here and avoids re-fetching
+# when the user flips a filter checkbox.
+#
+# Response shape:
+#   {
+#     "start": "YYYY-MM-DD", "end": "YYYY-MM-DD",
+#     "events": [ { ...event... }, ... ]
+#   }
+# Each event carries:
+#   date, account_id, account_name, description, amount,
+#   category_id, category_name, category_color,
+#   tags: [{id,name,color}, ...],
+#   recurring_id, transaction_id, transfer_id, is_actual_real, notes
+# The `date` used for placement on the grid is the forecast date when
+# present (so a delayed actual still appears in the month it was planned
+# for); otherwise actual_date; otherwise the row is skipped.
+@app.get("/api/calendar")
+def calendar_events(start: date, end: date,
+                    account_id: int | None = None,
+                    user: User = Depends(current_user),
+                    db: Session = Depends(get_db)):
+    if end < start:
+        raise HTTPException(400, "end must be on or after start")
+    # Cap the window at a year so a stray query doesn't chew through every
+    # account's forecast.
+    if (end - start).days > 366:
+        raise HTTPException(400, "window exceeds 366 days")
+
+    visible = _user_visible_accounts(db, user)
+    if account_id is not None:
+        visible = [a for a in visible if a.id == account_id]
+        if not visible:
+            raise HTTPException(404, "Account not found")
+
+    # Per-user category color lookup (forecast rows only carry name).
+    cat_meta: dict[str, dict] = {}
+    for c in db.query(Category).filter_by(owner_id=user.id).all():
+        cat_meta[c.name] = {"id": c.id, "color": c.color}
+
+    events: list[dict] = []
+    for acc in visible:
+        data = build_forecast(db, acc, start, end)
+        for r in data["rows"]:
+            d = r.get("forecast_date") or r.get("actual_date")
+            if not d:
+                continue
+            cat_name = r.get("category")
+            meta = cat_meta.get(cat_name) if cat_name else None
+            events.append({
+                "date": d,
+                "account_id": acc.id,
+                "account_name": acc.name,
+                "description": r.get("description") or "",
+                "amount": r.get("actual_amount")
+                          if r.get("actual_amount") is not None
+                          else r.get("forecast_amount"),
+                "forecast_amount": r.get("forecast_amount"),
+                "actual_amount": r.get("actual_amount"),
+                "category_id": meta["id"] if meta else None,
+                "category_name": cat_name,
+                "category_color": meta["color"] if meta else None,
+                "tags": r.get("tags") or [],
+                "recurring_id": r.get("recurring_id"),
+                "transaction_id": r.get("transaction_id"),
+                "transfer_id": r.get("transfer_id"),
+                "is_actual_real": r.get("is_actual_real", False),
+                "notes": r.get("notes"),
+            })
+
+    # Sort by date then by account name for a stable render — the UI does
+    # its own per-day sort, but a deterministic server order helps caching.
+    events.sort(key=lambda e: (e["date"], e["account_name"], e["description"].lower()))
+    return {
+        "start": start.isoformat(),
+        "end": end.isoformat(),
+        "events": events,
+    }
+
+
 # ---------- Permissions ----------
 class PermissionIn(BaseModel):
     account_id: int
@@ -2322,20 +2741,237 @@ def set_permission(payload: PermissionIn,
 
 
 # ---------- Reports ----------
+# Reports are user-defined views over forecast + actual amounts. The
+# frontend can drive a live editor (changing any param re-runs the query)
+# and can save the params as a SavedReport so the same view comes back
+# next session. Both paths flow through `_compute_report()` below.
+ALLOWED_GROUP_BY = {"category", "tag", "account"}
+ALLOWED_RANGE_MODES = {"month", "last_30d", "last_90d", "ytd", "year", "custom"}
+ALLOWED_REPORT_KINDS = {"any", "income", "spending"}
+ALLOWED_CHART_TYPES = {"table", "bar", "pie"}
+
+
+def _resolve_report_range(params: dict) -> tuple[date, date, str]:
+    """Translate a params dict's range_mode (+ optional year/month/start/end)
+    into a concrete (start, end, label) triple.
+
+    Defaults: range_mode='month', current month if year/month absent.
+    Falls back to "current month" on any unparseable input rather than
+    erroring — easier to debug a wrong-but-rendered chart than a stack
+    trace from a saved report someone wrote weeks ago.
+    """
+    today = date.today()
+    mode = params.get("range_mode") or "month"
+    if mode == "month":
+        y = int(params.get("year") or today.year)
+        m = int(params.get("month") or today.month)
+        start = date(y, m, 1)
+        end = (date(y, 12, 31) if m == 12
+               else date(y, m + 1, 1) - timedelta(days=1))
+        label = start.strftime("%B %Y")
+    elif mode == "last_30d":
+        end = today
+        start = today - timedelta(days=29)
+        label = "Last 30 days"
+    elif mode == "last_90d":
+        end = today
+        start = today - timedelta(days=89)
+        label = "Last 90 days"
+    elif mode == "ytd":
+        y = int(params.get("year") or today.year)
+        start = date(y, 1, 1)
+        end = date(y, 12, 31) if y < today.year else today
+        label = f"Year to date ({y})"
+    elif mode == "year":
+        y = int(params.get("year") or today.year)
+        start, end = date(y, 1, 1), date(y, 12, 31)
+        label = f"Full year ({y})"
+    elif mode == "custom":
+        try:
+            start = date.fromisoformat(params["start"])
+            end = date.fromisoformat(params["end"])
+            label = f"{start.isoformat()} → {end.isoformat()}"
+        except Exception:
+            start = date(today.year, today.month, 1)
+            end = (date(today.year, 12, 31) if today.month == 12
+                   else date(today.year, today.month + 1, 1) - timedelta(days=1))
+            label = "Current month (range fallback)"
+    else:
+        start = date(today.year, today.month, 1)
+        end = (date(today.year, 12, 31) if today.month == 12
+               else date(today.year, today.month + 1, 1) - timedelta(days=1))
+        label = "Current month"
+    return start, end, label
+
+
+def _compute_report(db: Session, user: User, params: dict) -> dict:
+    """Run a report.
+
+    `params` is the JSON-serializable dict that we both store on
+    SavedReport and accept inline from the live editor. Recognized keys:
+      group_by       — 'category' | 'tag' | 'account'  (default 'category')
+      range_mode     — see _resolve_report_range
+      year/month     — for 'month' / 'ytd' / 'year' modes
+      start/end      — ISO dates for 'custom' mode
+      account_ids    — restrict to these accounts (default: all visible)
+      category_ids   — keep only rows in these categories (default: all)
+      tag_ids        — keep only rows that carry at least one of these tags
+      kind           — 'any' | 'income' | 'spending' (sign filter)
+      include_transfers — bool, default false (transfers excluded)
+      chart_type     — passed through unchanged for the frontend's benefit
+
+    The return shape is intentionally generic so the frontend can render
+    one rollup pane regardless of the group_by axis: a `groups` array of
+    `{key, name, color, forecast_total, actual_total, ...}` rows plus a
+    summary `totals` block.
+    """
+    group_by = params.get("group_by") or "category"
+    if group_by not in ALLOWED_GROUP_BY:
+        group_by = "category"
+    kind = params.get("kind") or "any"
+    if kind not in ALLOWED_REPORT_KINDS:
+        kind = "any"
+    include_transfers = bool(params.get("include_transfers"))
+    start, end, range_label = _resolve_report_range(params)
+
+    # Account scoping. If the saved report was originally pinned to a set
+    # of accounts that the user has since lost access to (e.g. permission
+    # revoked), we silently shrink to the visible intersection rather
+    # than erroring — the user may still want partial data.
+    visible = _user_visible_accounts(db, user)
+    visible_ids = {a.id for a in visible}
+    requested_ids = params.get("account_ids") or []
+    if requested_ids:
+        visible = [a for a in visible if a.id in set(requested_ids) & visible_ids]
+
+    cat_id_filter = set(params.get("category_ids") or [])
+    tag_id_filter = set(params.get("tag_ids") or [])
+
+    # Pre-load category color/name for emit-time enrichment.
+    cat_meta_by_id: dict[int, dict] = {}
+    cat_id_by_name: dict[str, int | None] = {None: None}
+    for c in db.query(Category).filter_by(owner_id=user.id).all():
+        cat_meta_by_id[c.id] = {"name": c.name, "color": c.color}
+        cat_id_by_name[c.name] = c.id
+
+    # Buckets. Key shape depends on group_by:
+    #   category → category_id (or None for "(uncategorized)")
+    #   tag      → tag_id
+    #   account  → account_id
+    # Every bucket carries forecast/actual totals + counts so the
+    # frontend can render the same table layout for any axis.
+    buckets: dict = {}
+
+    def _bucket(key, name, color=None):
+        if key not in buckets:
+            buckets[key] = {
+                "key": key, "name": name, "color": color,
+                "forecast_total": 0.0, "actual_total": 0.0,
+                "forecast_count": 0, "actual_count": 0,
+            }
+        return buckets[key]
+
+    UNCAT_KEY = "__uncategorized__"
+
+    for acc in visible:
+        data = build_forecast(db, acc, start, end)
+        for r in data["rows"]:
+            if not include_transfers and r.get("transfer_id") is not None:
+                continue
+            f = r.get("forecast_amount")
+            a = r.get("actual_amount")
+            # Sign filter — applied to actual when present, otherwise forecast.
+            sign_ref = a if a is not None else f
+            if sign_ref is None:
+                continue
+            if kind == "income"   and sign_ref <= 0: continue
+            if kind == "spending" and sign_ref >= 0: continue
+            # Category filter
+            cat_name = r.get("category")
+            cat_id = cat_id_by_name.get(cat_name)
+            if cat_id_filter and cat_id not in cat_id_filter:
+                continue
+            # Tag filter (any-of semantics: row qualifies if it carries
+            # AT LEAST ONE selected tag; matches the Calendar's filter logic)
+            row_tags = r.get("tags") or []
+            row_tag_ids = {t["id"] for t in row_tags}
+            if tag_id_filter and not (row_tag_ids & tag_id_filter):
+                continue
+
+            # Now bucket according to group_by.
+            if group_by == "category":
+                if cat_id is None:
+                    bk = _bucket(UNCAT_KEY, "(uncategorized)", None)
+                else:
+                    meta = cat_meta_by_id.get(cat_id, {"name": cat_name, "color": None})
+                    bk = _bucket(cat_id, meta["name"], meta["color"])
+                if f is not None: bk["forecast_total"] += f; bk["forecast_count"] += 1
+                if a is not None: bk["actual_total"]   += a; bk["actual_count"]   += 1
+            elif group_by == "account":
+                bk = _bucket(acc.id, acc.name, None)
+                if f is not None: bk["forecast_total"] += f; bk["forecast_count"] += 1
+                if a is not None: bk["actual_total"]   += a; bk["actual_count"]   += 1
+            elif group_by == "tag":
+                # A multi-tagged row contributes to every tag bucket it
+                # belongs to (overlay semantics — same as the dedicated
+                # tag breakdown that shipped in 1.11.0).
+                if not row_tags:
+                    continue  # untagged rows are simply absent from a tag axis
+                for tmeta in row_tags:
+                    bk = _bucket(tmeta["id"], tmeta["name"], tmeta.get("color"))
+                    if f is not None: bk["forecast_total"] += f; bk["forecast_count"] += 1
+                    if a is not None: bk["actual_total"]   += a; bk["actual_count"]   += 1
+
+    # Sort: most-active first by absolute actual total, then by name.
+    groups_out = list(buckets.values())
+    for g in groups_out:
+        g["forecast_total"] = round(g["forecast_total"], 2)
+        g["actual_total"]   = round(g["actual_total"],   2)
+    groups_out.sort(key=lambda g: (-abs(g["actual_total"]), g["name"].lower()))
+
+    # Top-line totals (across the filtered, post-sign set).
+    f_income = sum(g["forecast_total"] for g in groups_out if g["forecast_total"] > 0)
+    a_income = sum(g["actual_total"]   for g in groups_out if g["actual_total"]   > 0)
+    f_spend  = sum(g["forecast_total"] for g in groups_out if g["forecast_total"] < 0)
+    a_spend  = sum(g["actual_total"]   for g in groups_out if g["actual_total"]   < 0)
+    # On the tag axis groups can double-count across multi-tagged rows,
+    # so the totals here are "sum of buckets" rather than a true
+    # transaction-level total. The frontend labels this clearly.
+    return {
+        "params": {
+            **params,
+            "group_by": group_by,
+            "range_mode": params.get("range_mode") or "month",
+            "kind": kind,
+            "include_transfers": include_transfers,
+            "chart_type": params.get("chart_type") or "table",
+        },
+        "start": start.isoformat(),
+        "end":   end.isoformat(),
+        "range_label": range_label,
+        "group_by":  group_by,
+        "accounts":  [{"id": a.id, "name": a.name} for a in visible],
+        "groups":    groups_out,
+        "totals": {
+            "forecast_income":   round(f_income, 2),
+            "actual_income":     round(a_income, 2),
+            "forecast_spending": round(f_spend,  2),
+            "actual_spending":   round(a_spend,  2),
+            "forecast_net":      round(f_income + f_spend, 2),
+            "actual_net":        round(a_income + a_spend, 2),
+        },
+    }
+
+
 @app.get("/api/report")
 def report(start: date | None = None, end: date | None = None,
            account_id: int | None = None,
            user: User = Depends(current_user), db: Session = Depends(get_db)):
-    """Category rollup of forecast and actual amounts across selected accounts.
+    """Legacy reports endpoint, preserved for backward compatibility.
 
-    - start/end: defaults to the current calendar month
-    - account_id: restrict to a single account; otherwise all visible accounts
-    - Each row in the response represents one category. Rows with no activity
-      in the period are omitted. Uncategorized transactions are bucketed under
-      the synthetic "(uncategorized)" name.
-    - Spending is negative, income is positive (matching the storage convention).
-    - The response is intentionally redundant (forecast and actual side-by-side)
-      so the frontend can render multiple cuts without re-computing.
+    Always returns both `categories` and `tags` blocks (not just `groups`)
+    because pre-1.12 frontend code expects those keys. The new flexible
+    surface lives at /api/report/run.
     """
     # Default to current calendar month
     if start is None or end is None:
@@ -2360,6 +2996,12 @@ def report(start: date | None = None, end: date | None = None,
     # once for actual (using the displayed/defaulted actual values).
     cat_buckets: dict[str, dict] = {}
     UNCAT = "(uncategorized)"
+    # Tag rollup. Keyed by tag_id so we can collide correctly across
+    # accounts, then enriched with name + color at emit time. Only rows
+    # that actually carry tags contribute — untagged rows are simply
+    # absent from the tag breakdown (they still count toward category
+    # totals and overall totals, just not "by tag").
+    tag_buckets: dict[int, dict] = {}
 
     def _bucket(name):
         if name not in cat_buckets:
@@ -2371,6 +3013,17 @@ def report(start: date | None = None, end: date | None = None,
                 "actual_count": 0,
             }
         return cat_buckets[name]
+
+    def _tag_bucket(tag_id: int):
+        if tag_id not in tag_buckets:
+            tag_buckets[tag_id] = {
+                "id": tag_id,
+                "forecast_total": 0.0,
+                "actual_total": 0.0,
+                "forecast_count": 0,
+                "actual_count": 0,
+            }
+        return tag_buckets[tag_id]
 
     for acc in visible:
         data = build_forecast(db, acc, start, end)
@@ -2389,6 +3042,18 @@ def report(start: date | None = None, end: date | None = None,
             if a is not None:
                 b["actual_total"] += a
                 b["actual_count"] += 1
+            # A transaction with N tags contributes the full amount to
+            # each tag bucket. This is the same semantics as "sum by
+            # tag" in every other finance app — tags are an overlay, so
+            # double-counting across tags is expected and correct.
+            for tmeta in (r.get("tags") or []):
+                tb = _tag_bucket(tmeta["id"])
+                if f is not None:
+                    tb["forecast_total"] += f
+                    tb["forecast_count"] += 1
+                if a is not None:
+                    tb["actual_total"] += a
+                    tb["actual_count"] += 1
 
     # Look up the actual category records for color info. Categories are per-
     # user, not per-account, so a single query covers everything.
@@ -2416,11 +3081,44 @@ def report(start: date | None = None, end: date | None = None,
     f_spend  = sum(c["forecast_total"] for c in categories_out if c["forecast_total"] < 0)
     a_spend  = sum(c["actual_total"]   for c in categories_out if c["actual_total"]   < 0)
 
+    # Tag rollup output — only emit rows that had any activity, and
+    # enrich with name/color from the tag table (single query for the
+    # whole user since tags are user-scoped).
+    tags_out = []
+    if tag_buckets:
+        tag_ids = list(tag_buckets.keys())
+        tag_meta = {
+            t.id: {"name": t.name, "color": t.color}
+            for t in db.query(Tag).filter(
+                Tag.owner_id == user.id, Tag.id.in_(tag_ids)
+            ).all()
+        }
+        for tid, b in tag_buckets.items():
+            if b["forecast_count"] == 0 and b["actual_count"] == 0:
+                continue
+            meta = tag_meta.get(tid)
+            if meta is None:
+                # Tag was deleted between aggregation and emit — skip.
+                continue
+            tags_out.append({
+                "id": tid,
+                "name": meta["name"],
+                "color": meta["color"],
+                "forecast_total": round(b["forecast_total"], 2),
+                "actual_total":   round(b["actual_total"],   2),
+                "forecast_count": b["forecast_count"],
+                "actual_count":   b["actual_count"],
+            })
+        # Sort by absolute actual total desc (biggest movers first), with
+        # name as tiebreaker so the order is stable across reloads.
+        tags_out.sort(key=lambda t: (-abs(t["actual_total"]), t["name"].lower()))
+
     return {
         "start": start.isoformat(),
         "end": end.isoformat(),
         "accounts": [{"id": a.id, "name": a.name} for a in visible],
         "categories": categories_out,
+        "tags": tags_out,
         "totals": {
             "forecast_income":   round(f_income, 2),
             "actual_income":     round(a_income, 2),
@@ -2430,6 +3128,237 @@ def report(start: date | None = None, end: date | None = None,
             "actual_net":        round(a_income + a_spend, 2),
         },
     }
+
+
+# ---------- New flexible reports surface ----------
+class ReportParamsIn(BaseModel):
+    """Inline report parameters. Accepted by /api/report/run for the
+    live editor on the Reports page (so the user can preview without
+    saving) and by SavedReport create/update.
+    """
+    group_by: str = "category"
+    range_mode: str = "month"
+    year: int | None = None
+    month: int | None = None
+    start: str | None = None  # ISO date (custom mode only)
+    end: str | None = None
+    account_ids: list[int] = Field(default_factory=list)
+    category_ids: list[int] = Field(default_factory=list)
+    tag_ids: list[int] = Field(default_factory=list)
+    kind: str = "any"
+    include_transfers: bool = False
+    chart_type: str = "table"
+
+
+def _validate_report_params(params: dict) -> None:
+    """Lightweight shape check. _compute_report defends against unknown
+    enum values by falling back, but we surface 400s on obvious typos
+    (group_by='catagory') so the user gets a clear error in the editor."""
+    gb = params.get("group_by") or "category"
+    if gb not in ALLOWED_GROUP_BY:
+        raise HTTPException(400, f"group_by must be one of {sorted(ALLOWED_GROUP_BY)}")
+    rm = params.get("range_mode") or "month"
+    if rm not in ALLOWED_RANGE_MODES:
+        raise HTTPException(400, f"range_mode must be one of {sorted(ALLOWED_RANGE_MODES)}")
+    k = params.get("kind") or "any"
+    if k not in ALLOWED_REPORT_KINDS:
+        raise HTTPException(400, f"kind must be one of {sorted(ALLOWED_REPORT_KINDS)}")
+    ct = params.get("chart_type") or "table"
+    if ct not in ALLOWED_CHART_TYPES:
+        raise HTTPException(400, f"chart_type must be one of {sorted(ALLOWED_CHART_TYPES)}")
+
+
+@app.post("/api/report/run")
+def run_report_inline(payload: ReportParamsIn,
+                      user: User = Depends(current_user),
+                      db: Session = Depends(get_db)):
+    """Run a report from inline params. Used by the live editor so users
+    can preview without saving."""
+    params = payload.model_dump()
+    _validate_report_params(params)
+    return _compute_report(db, user, params)
+
+
+# ---------- Saved reports ----------
+def _serialize_saved_report(r: SavedReport) -> dict:
+    try:
+        params = json.loads(r.params or "{}")
+    except Exception:
+        params = {}
+    return {
+        "id": r.id,
+        "name": r.name,
+        "params": params,
+        "pinned": bool(r.pinned),
+        "sort_order": r.sort_order,
+    }
+
+
+def _own_saved_report(db: Session, user: User, report_id: int) -> SavedReport:
+    r = db.get(SavedReport, report_id)
+    if not r or r.owner_id != user.id:
+        raise HTTPException(404, "Report not found")
+    return r
+
+
+class SavedReportIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+    params: dict
+    pinned: bool = False
+    sort_order: int = 0
+
+
+@app.get("/api/saved-reports")
+def list_saved_reports(user: User = Depends(current_user),
+                       db: Session = Depends(get_db)):
+    rows = (db.query(SavedReport)
+              .filter_by(owner_id=user.id)
+              .order_by(SavedReport.sort_order.asc(), SavedReport.id.asc())
+              .all())
+    return [_serialize_saved_report(r) for r in rows]
+
+
+@app.post("/api/saved-reports")
+def create_saved_report(payload: SavedReportIn,
+                        user: User = Depends(current_user),
+                        db: Session = Depends(get_db)):
+    _validate_report_params(payload.params)
+    r = SavedReport(
+        owner_id=user.id,
+        name=payload.name.strip(),
+        params=json.dumps(payload.params),
+        pinned=payload.pinned,
+        sort_order=payload.sort_order,
+    )
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return _serialize_saved_report(r)
+
+
+@app.patch("/api/saved-reports/{report_id}")
+def update_saved_report(report_id: int, payload: SavedReportIn,
+                        user: User = Depends(current_user),
+                        db: Session = Depends(get_db)):
+    r = _own_saved_report(db, user, report_id)
+    _validate_report_params(payload.params)
+    r.name = payload.name.strip()
+    r.params = json.dumps(payload.params)
+    r.pinned = payload.pinned
+    r.sort_order = payload.sort_order
+    db.commit()
+    return _serialize_saved_report(r)
+
+
+@app.delete("/api/saved-reports/{report_id}")
+def delete_saved_report(report_id: int,
+                        user: User = Depends(current_user),
+                        db: Session = Depends(get_db)):
+    r = _own_saved_report(db, user, report_id)
+    db.delete(r)
+    db.commit()
+    return {"ok": True}
+
+
+@app.post("/api/saved-reports/{report_id}/run")
+def run_saved_report(report_id: int,
+                     user: User = Depends(current_user),
+                     db: Session = Depends(get_db)):
+    r = _own_saved_report(db, user, report_id)
+    try:
+        params = json.loads(r.params or "{}")
+    except Exception:
+        params = {}
+    return _compute_report(db, user, params)
+
+
+# ---------- Report templates (built-in starting points) ----------
+# These are pure presets — the user clones one to instantiate a saved
+# report, then can edit any parameter freely. They're a constant list
+# rather than a DB table because they ship with the code: per-user
+# overrides aren't a feature, and shipping them as code means they get
+# reviewed alongside the rest of the release.
+_REPORT_TEMPLATES = [
+    {
+        "id": "monthly-spend-by-category",
+        "name": "Monthly spending by category",
+        "description": "What you spent this month, grouped by category.",
+        "params": {
+            "group_by": "category", "range_mode": "month",
+            "kind": "spending", "include_transfers": False,
+            "chart_type": "pie",
+        },
+    },
+    {
+        "id": "monthly-income-by-category",
+        "name": "Monthly income by category",
+        "description": "What came in this month, grouped by category.",
+        "params": {
+            "group_by": "category", "range_mode": "month",
+            "kind": "income", "include_transfers": False,
+            "chart_type": "table",
+        },
+    },
+    {
+        "id": "ytd-by-category",
+        "name": "Year-to-date by category",
+        "description": "Every dollar in or out this year, grouped by category.",
+        "params": {
+            "group_by": "category", "range_mode": "ytd",
+            "kind": "any", "include_transfers": False,
+            "chart_type": "bar",
+        },
+    },
+    {
+        "id": "last-30d-by-tag",
+        "name": "Last 30 days by tag",
+        "description": "Cross-cutting view of tagged spending and income across the last 30 days.",
+        "params": {
+            "group_by": "tag", "range_mode": "last_30d",
+            "kind": "any", "include_transfers": False,
+            "chart_type": "bar",
+        },
+    },
+    {
+        "id": "last-90d-spend-by-tag",
+        "name": "Last 90 days spending by tag",
+        "description": "Where tagged money went over the last quarter.",
+        "params": {
+            "group_by": "tag", "range_mode": "last_90d",
+            "kind": "spending", "include_transfers": False,
+            "chart_type": "pie",
+        },
+    },
+    {
+        "id": "monthly-spend-by-account",
+        "name": "Monthly spending by account",
+        "description": "Which account is doing the most damage this month.",
+        "params": {
+            "group_by": "account", "range_mode": "month",
+            "kind": "spending", "include_transfers": False,
+            "chart_type": "bar",
+        },
+    },
+    {
+        "id": "year-net-by-category",
+        "name": "Full year net by category",
+        "description": "Net (income + spending) per category over a full year — set the year on the report page.",
+        "params": {
+            "group_by": "category", "range_mode": "year",
+            "kind": "any", "include_transfers": False,
+            "chart_type": "table",
+        },
+    },
+]
+
+
+@app.get("/api/report-templates")
+def list_report_templates(user: User = Depends(current_user)):
+    """Built-in report starting points. The frontend uses these to seed
+    the New Report dialog; once instantiated, the user owns the params
+    blob and can edit any field freely.
+    """
+    return _REPORT_TEMPLATES
 
 
 # ---------- Admin ----------

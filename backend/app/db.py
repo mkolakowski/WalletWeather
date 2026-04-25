@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "9"
+SCHEMA_VERSION = "11"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,15 @@ SCHEMA_VERSION = "9"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v11 (2026-04-24, claude+mkolakowski): add `saved_reports` table —
+#     per-user named report with a JSON params blob (group_by, range,
+#     filters, chart type) and a `pinned` flag for dashboard placement.
+#     Stored as TEXT JSON rather than columns so the params shape can
+#     evolve without further migrations.
+# v10 (2026-04-24, claude+mkolakowski): add `tag_rules` table — per-user
+#     auto-tagging recipes (description substring + optional category
+#     filter → target tag). Applied on transaction create, on PATCH, and
+#     during CSV import; can also be backfilled across existing rows.
 # v9 (2026-04-24, claude+mkolakowski): add `tags` table (per-user label with
 #     optional color) and `transaction_tags` many-to-many join. Tags are a
 #     lighter-weight alternative to splits for cross-cutting reporting.
@@ -427,6 +436,60 @@ class TransactionTag(Base):
                     primary_key=True)
 
 
+class TagRule(Base):
+    """Auto-tagging rule. When a transaction's description contains
+    `description_pattern` (case-insensitive substring) and — if
+    `category_id` is set — its category matches, the rule's target tag
+    is attached automatically.
+
+    Why substring rather than regex: regex is footgun-y in a UI without
+    a sandbox; 90% of useful rules are "STARBUCKS" / "AMZN" / "Whole
+    Foods" — pure literals. We store the lowercased pattern so the
+    apply path can do `description.lower().contains(pattern)` without
+    re-folding case for every transaction every time.
+    """
+    __tablename__ = "tag_rules"
+    id = Column(Integer, primary_key=True)
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    # Optional human-readable label so the rules list is scannable. Falls
+    # back to the pattern itself when blank.
+    name = Column(String(80), nullable=True)
+    description_pattern = Column(String(120), nullable=False)  # already lowered
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"),
+                         nullable=True)
+    tag_id = Column(Integer, ForeignKey("tags.id", ondelete="CASCADE"),
+                    nullable=False)
+    active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SavedReport(Base):
+    """User-saved report definition.
+
+    The `params` column is JSON text (not a JSONB column) because the
+    only consumers are SQLAlchemy + a single-instance Postgres deployment;
+    the value is read whole, parsed in Python, and pushed back whole.
+    Schema-less storage means the params shape can grow (new chart
+    types, new group_by values, new filter dimensions) without further
+    SCHEMA_VERSION bumps.
+
+    Fields baked into columns rather than the JSON blob:
+      - `name` because we list/sort by it on the picker
+      - `pinned` because the dashboard pulls "all my pinned reports" via
+        a where clause and a JSON path query would be uglier
+      - `sort_order` so the pinned-on-dashboard order is user-controllable
+    """
+    __tablename__ = "saved_reports"
+    id = Column(Integer, primary_key=True)
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"),
+                      nullable=False)
+    name = Column(String(120), nullable=False)
+    params = Column(Text, nullable=False)  # JSON-encoded report definition
+    pinned = Column(Boolean, nullable=False, default=False)
+    sort_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 def init_db():
     """Create missing tables, then apply in-place column migrations.
 
@@ -462,6 +525,14 @@ def init_db():
         # this entry is a no-op on a fresh DB. It's here so that
         # `ALTER`-style migrations remain possible if the schema evolves
         # — e.g. adding a future `description` column to tags.)
+        # v9 → v10: tag_rules
+        # (Created by Base.metadata.create_all above. No ALTER needed
+        # for fresh databases; this comment marks the version boundary
+        # so future column tweaks can hang an `ADD COLUMN IF NOT EXISTS`
+        # underneath without renumbering.)
+        # v10 → v11: saved_reports
+        # (Created by Base.metadata.create_all above. Same idempotency
+        # story as v9 → v10 — boundary marker only.)
     ]
     with engine.begin() as conn:
         for sql in migrations:

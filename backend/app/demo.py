@@ -22,9 +22,11 @@ from decimal import Decimal
 import bcrypt
 from sqlalchemy.orm import Session
 
+import json
 from .db import (
     User, Account, RecurringTransaction, Transaction, Category,
     AccountPermission, AdminSetting, Transfer, CategoryBudget,
+    SavedReport,
 )
 
 
@@ -199,6 +201,18 @@ def _compute_demo_fingerprint(db: Session) -> str:
             f"B|{b.id}|{b.owner_id}|{b.category_id}|{b.period}|{b.amount}"
         )
 
+    # Saved reports (owner-scoped). Including these means a visitor who
+    # edits a pinned report on the demo dashboard will trigger an
+    # hourly reset, same as for any other demo data they touch.
+    reports = (db.query(SavedReport)
+                 .filter(SavedReport.owner_id.in_(demo_ids))
+                 .order_by(SavedReport.id).all())
+    for r in reports:
+        lines.append(
+            f"S|{r.id}|{r.owner_id}|{r.name}|{r.params or ''}|"
+            f"{int(bool(r.pinned))}|{r.sort_order}"
+        )
+
     payload = "\n".join(lines).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
 
@@ -287,6 +301,69 @@ def _create_transaction(db: Session, account: Account, description: str, amount:
     return t
 
 
+# Demo saved-report seeds. The first one is pinned to the dashboard so
+# visitors immediately see what a pinned report looks like; the rest are
+# unpinned starting points that show the breadth of the editor.
+_DEMO_SAVED_REPORTS = [
+    {
+        "name": "This month's spending",
+        "pinned": True,   # appears on the demo dashboard out of the box
+        "params": {
+            "group_by": "category", "range_mode": "month",
+            "kind": "spending", "include_transfers": False,
+            "chart_type": "bar",
+        },
+    },
+    {
+        "name": "Income year-to-date",
+        "pinned": False,
+        "params": {
+            "group_by": "category", "range_mode": "ytd",
+            "kind": "income", "include_transfers": False,
+            "chart_type": "table",
+        },
+    },
+    {
+        "name": "Last 90 days by tag",
+        "pinned": False,
+        "params": {
+            "group_by": "tag", "range_mode": "last_90d",
+            "kind": "any", "include_transfers": False,
+            "chart_type": "pie",
+        },
+    },
+    {
+        "name": "Spending by account this month",
+        "pinned": False,
+        "params": {
+            "group_by": "account", "range_mode": "month",
+            "kind": "spending", "include_transfers": False,
+            "chart_type": "bar",
+        },
+    },
+]
+
+
+def _seed_demo_saved_reports(db: Session, user: User) -> None:
+    """Insert the canned saved reports for the demo user.
+
+    Only runs when the user has zero saved reports — protects against
+    double-seeding if the demo gets re-seeded with this same user row.
+    """
+    existing = db.query(SavedReport).filter_by(owner_id=user.id).count()
+    if existing:
+        return
+    for i, spec in enumerate(_DEMO_SAVED_REPORTS):
+        db.add(SavedReport(
+            owner_id=user.id,
+            name=spec["name"],
+            params=json.dumps(spec["params"]),
+            pinned=spec.get("pinned", False),
+            sort_order=i,
+        ))
+    db.commit()
+
+
 def seed_demo_data(db: Session, seed_default_categories) -> None:
     """Create the demo admin user and sample data if not already present.
 
@@ -333,6 +410,12 @@ def seed_demo_data(db: Session, seed_default_categories) -> None:
         _create_transaction(db, acc, desc, amt, today - timedelta(days=days_ago), cat, notes)
 
     db.commit()
+    # Seed the canned reports last so the user already exists and the
+    # accounts/categories/tags they reference are available. (The
+    # report params don't actually reference specific account ids — they
+    # default to "all visible accounts" — so order isn't strictly
+    # required, but it keeps the seeding flow readable.)
+    _seed_demo_saved_reports(db, user)
     _set_flag(db, True)
     # Stamp a fingerprint of the freshly-seeded data so the hourly reset loop
     # has a baseline to compare against.

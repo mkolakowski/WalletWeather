@@ -65,10 +65,109 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.8.0** · Web version: **1.8.0**
+App version: **1.12.0** · Web version: **1.12.0** · Schema version: **11**
 
 ### Added
 
+- **Saved reports + live editor.** The Reports page is now driven by a
+  saved-reports model: a left rail lists the user's reports (with a 📌
+  badge on the ones pinned to the dashboard) and a Templates panel
+  underneath offers starting points. Clicking a template instantiates a
+  new report; every parameter on the editor — *Group by* (category /
+  tag / account), *Range* (month, last 30 days, last 90 days, YTD, full
+  year, custom), month / year, custom start/end, *Kind* (all / spending
+  / income), *Chart* (table / bar / pie), *Include transfers* toggle,
+  and multi-select Accounts / Categories / Tags filters — re-runs the
+  report live (debounced) so the result and chart update as the user
+  changes anything. Save / Save as / Delete / Pin-to-dashboard live in
+  the editor header.
+- **Pin reports to the dashboard.** Each saved report has a `pinned`
+  flag; pinned reports render below the account cards on the Dashboard
+  as compact panels with a top-5 bar chart and an *Edit ›* link that
+  jumps back to that report on the Reports page.
+- **Built-in report templates.** Seven starting points exposed via
+  `GET /api/report-templates`: monthly spending by category, monthly
+  income by category, year-to-date by category, last 30 days by tag,
+  last 90 days spending by tag, monthly spending by account, full-year
+  net by category. Templates are shipped as code (not a per-user table),
+  so they're versioned with the rest of the release.
+- **Reports API.** New `POST /api/report/run` runs an inline params blob
+  (used by the live editor). `GET /api/saved-reports` (+ POST/PATCH/DELETE)
+  manages user reports and `POST /api/saved-reports/{id}/run` resolves
+  and executes a saved report. The legacy `GET /api/report` is preserved
+  for back-compat. A new `_compute_report` helper backs all of them and
+  supports `group_by` ∈ {category, tag, account}, six range modes,
+  account / category / tag multi-select filters, kind sign filter, and a
+  configurable `include_transfers` toggle.
+- **New inline bar chart renderer.** Used by both the Reports editor
+  (when chart_type = "bar") and the dashboard pinned-report panels.
+- **Demo: sample reports + one pinned.** The demo seed now installs four
+  saved reports — *This month's spending* (pinned), *Income year-to-date*,
+  *Last 90 days by tag*, *Spending by account this month* — so the demo
+  dashboard shows a pinned report out of the box.
+- **Tag-based reports.** The Reports page now includes a *By tag* breakdown
+  (forecast vs actual, Δ, count) and a *Spending by tag* pie chart, mirroring
+  the existing category panels. Backed by a new `tags: [...]` array on
+  `GET /api/report` — every tagged transaction contributes its full
+  amount to each of its tags, so totals across tags can exceed totals
+  across categories (which is the point of tags as an overlay).
+- **Bulk tag operations in transaction search.** Search results gain a
+  per-row checkbox, a select-all checkbox in the header, and a bulk
+  action bar that appears once at least one row is selected. The bar
+  has a tag picker plus *Apply tag* / *Remove tag* / *Clear* buttons and
+  reports how many rows were affected after each action. Transfer-leg
+  rows are excluded from selection (they don't carry tags by design).
+  Backed by a new `POST /api/transactions/bulk-tag` taking
+  `{transaction_ids, add_tag_ids, remove_tag_ids}`; idempotent, validates
+  tag ownership, and skips rows the caller can't edit.
+- **Auto-tag rules.** A new *Auto-tag rules* panel in Settings lets the
+  user define `description contains X` rules (with an optional category
+  filter) that auto-attach a chosen tag whenever a matching transaction
+  is created, edited, or imported. A *Backfill existing transactions*
+  button replays every active rule across the user's whole history in
+  one shot — idempotent, so re-running is safe. Rules are additive (they
+  never remove tags). New `/api/tag-rules` (GET/POST/PATCH/DELETE) and
+  `/api/tag-rules/backfill`.
+- **Dashboard "Edit" shortcut.** Small pencil-icon button sits inline with
+  the **Dashboard** title. Clicking it switches to Settings, smooth-scrolls
+  the *Dashboard charts placement* section into view, focuses the current
+  selection, and briefly flashes the block so the control is impossible to
+  miss. Centralizing the edit flow in Settings means future dashboard-layout
+  knobs (widget toggles, card ordering) can drop into the same section
+  without another navigation path.
+- **Transfer page balance readouts.** The Transfer money page now shows the
+  current balance for both the From and the To account under their
+  respective selectors, and — when an amount has been entered — an
+  "after: $X" projection that updates live as the user types. If the
+  transfer would push the From balance negative the projected amount is
+  painted red as a warning. Balances come from a new `current_balance`
+  field on every `/api/accounts` row, computed as *starting balance + every
+  cleared transaction on or before today* (a lightweight SQL scan rather
+  than the full forecast walk, so the readouts refresh cheaply).
+- **Global footer with versions + GitHub link.** A persistent footer sits
+  below every screen (auth, app, and all SPA pages) displaying the app
+  title plus the three version numbers (`app vX.Y.Z`, `web vX.Y.Z`,
+  `schema vN`) as inline chips, and a **View on GitHub ↗** hyperlink to
+  the project repo. Values are populated from `/api/auth/config` on first
+  load so the footer is useful even before sign-in.
+- **Calendar.** New top-level Calendar page and `GET /api/calendar?start=…&end=…`
+  endpoint. The endpoint walks `build_forecast` for every account the user can
+  see and returns a flat list of dated events (forecasted or recorded), each
+  carrying the account, category name + color, tags, signed amount, forecast
+  vs actual amount, `recurring_id` / `transfer_id` / `transaction_id` linkage,
+  and an `is_actual_real` flag. The window is capped at 366 days. The
+  frontend renders a fixed 6×7 month grid (so the layout doesn't jump between
+  5- and 6-row months) with prev / next / today navigation and a summary line
+  showing event count + month net. Event pills are colored by category
+  (inline style from `category_color`) and marked by kind via a left border —
+  income (green), spending (red), transfer (dashed gray) — with pending rows
+  rendered italic/dim. A filter bar covers Account (sent as `account_id` to
+  the server so we fetch less), Category, Tag, Source (*Scheduled* =
+  `recurring_id != null`, *One-time* otherwise), Kind (income / spending /
+  transfer), and Status (cleared / pending); all non-account filters run
+  client-side against the cached event list for instant toggles. Clicking a
+  day reveals a detail panel with the full event table (account, description,
+  category, tags, amount, status) and a per-event **Go to account** jump.
 - **Subscription audit.** New top-level Subscriptions page and
   `GET /api/subscriptions` endpoint. Aggregates every active, non-expired,
   negative-amount recurring transaction across all accounts the user can
@@ -77,6 +176,24 @@ App version: **1.8.0** · Web version: **1.8.0**
   drain. Summary tiles show count · monthly · yearly; each row links back
   to the Transactions page with that account preselected so the user can
   edit or cancel the recurring row inline.
+- **Tags.** Lighter-weight cross-category labels — a transaction still
+  carries exactly one category, but can now wear any number of tags
+  (e.g. "vacation", "reimbursable", "business"). A new Settings → Tags
+  panel supports create / rename / delete with an optional color; names
+  are stored unencrypted (same as Category) so tag filters stay a SQL
+  JOIN instead of a decrypt loop. Forecast rows render tag chips under
+  the description, the forecast inline-edit row offers a clickable pill
+  multi-select picker, and the Transaction search form gets a Tag
+  dropdown filter plus a new Tags column in the results table. Tags are
+  exposed on `GET /api/tags` (`POST`/`PATCH`/`DELETE` for CRUD) and
+  returned as a `tags: [{id, name, color}, ...]` array on
+  `GET /api/accounts/{id}/forecast` rows, `GET /api/accounts/{id}/transactions`,
+  and `GET /api/transactions/search`. `/api/transactions/search` takes a
+  new `tag_id` filter that joins `transaction_tags` and scopes to the
+  caller's own tags. Transaction write endpoints
+  (`POST /api/accounts/{id}/transactions`,
+  `PATCH /api/transactions/{id}`) accept a `tag_ids: [int]` payload —
+  `None` means "leave tags alone", `[]` clears them, a list replaces.
 - **Demo mode auto-reset.** When `DEMO_MODE` is on, a new background daemon
   runs once an hour and rebuilds the demo data, but only if something has
   actually been edited since the last seed. A SHA-256 fingerprint over all
@@ -92,6 +209,13 @@ App version: **1.8.0** · Web version: **1.8.0**
 
 ### Changed
 
+- **Default dashboard chart placement is now "Inside each card"** (previously
+  "Above account cards"). Each account card becomes self-contained — its
+  spending donut, totals tile, and balance sparkline render inline — which
+  is the denser, more useful first-impression layout. Users who already
+  picked a placement are unaffected; only the fallback when
+  `users.chart_position` is null changes. Flip it on the Settings page (or
+  via the new pencil button on the Dashboard).
 - When `DEMO_MODE` is on, the app title is forced to **"WalletWeather Demo"**
   in the browser tab, login card, and app header, regardless of any admin-
   customized title. Non-demo instances are unaffected and still use the
@@ -119,6 +243,28 @@ App version: **1.8.0** · Web version: **1.8.0**
   and also keeps the Accounts-page tab highlight in sync so navigating back
   to Accounts lands on the same account. Accounts → account detail now
   focuses on summary, add-transaction, and forecast.
+
+### Database
+
+- Schema bumped to **v11**. New `saved_reports` table (`id`, `owner_id`,
+  `name VARCHAR(120)`, `params TEXT` storing JSON, `pinned BOOLEAN`,
+  `sort_order INTEGER`, `created_at`). The params blob is JSON text
+  rather than typed columns so the report shape can grow (new
+  group_by axes, new chart types) without further migrations. Created
+  by `Base.metadata.create_all`; no `ALTER` migration needed when
+  upgrading from v10.
+- Schema bumped to **v10**. New `tag_rules` table (`owner_id`, optional
+  human-friendly `name`, `description_pattern VARCHAR(120)` stored
+  lowercased so the apply path can do a single case-insensitive substring
+  check, optional `category_id`, required `tag_id`, `active`,
+  `created_at`). Created by `Base.metadata.create_all` — no `ALTER`
+  needed when upgrading from v9.
+- Schema bumped to **v9**. New `tags` table (per-user label; `owner_id`,
+  `name VARCHAR(60)`, optional `color`, `created_at`) and new
+  `transaction_tags` many-to-many join (`transaction_id` + `tag_id`
+  composite PK, both sides `ON DELETE CASCADE`). Both tables are created
+  by `Base.metadata.create_all`; no `ALTER` migration is needed for the
+  upgrade from v8.
 
 ## [1.7.0] — 2026-04-23
 

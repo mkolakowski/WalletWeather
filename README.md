@@ -68,22 +68,36 @@ All configuration is via environment variables in `.env`:
 | `ADMIN_EMAILS` | No | — | Comma-separated admin emails (enables Admin panel) |
 | `GOOGLE_CLIENT_ID` | No | — | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | No | — | Google OAuth client secret |
-| `DEMO_MODE` | No | `true` | Boot with a pre-seeded demo admin and sample data. Set to `false` to disable and wipe demo data on next start. |
+| `DEMO_MODE` | No | `false` | Set to `true` to boot with a pre-seeded demo admin, sample data, the "WalletWeather Demo" title, and an hourly auto-reset of edited demo data. |
 
 ## Demo mode
 
-By default, WalletWeather starts in **demo mode** with a pre-loaded admin
-user and a set of realistic sample accounts, recurring transactions, and
-actual postings so you can explore the app immediately.
+Demo mode is **off by default** — a fresh install boots empty so a
+production deployment doesn't accidentally expose the demo admin login.
+Flip it on by setting `DEMO_MODE=true` in your `.env` and restarting.
+When it's on, WalletWeather loads a pre-seeded admin user and a set of
+realistic sample accounts, recurring transactions, and actual postings
+so you can explore the app immediately.
 
 - **Demo admin:** `admin@demo.walletweather.local` / `demo1234`
+- **App title override:** the UI is branded **"WalletWeather Demo"** while
+  demo mode is on (browser tab, login card, and header), regardless of any
+  admin-customized app title. It's obvious at a glance that the instance
+  is ephemeral.
+- **Hourly auto-reset:** a background daemon checks once an hour whether
+  the demo data has been edited since the last seed. If something has
+  changed, the demo users and their data are wiped and re-seeded; if
+  nothing has changed, the reset is skipped. Content is fingerprinted via
+  SHA-256 over every demo-owned account, category, recurring template,
+  transaction, transfer, and budget.
 - **What's seeded:** three accounts (Checking, Savings, Credit Card), a
   paycheck / rent / bill / subscription schedule, and a few weeks of actual
   transactions.
-- **Turning it off:** set `DEMO_MODE=false` in your `.env` and restart the
-  container. On the next start the demo user and all data owned by any
-  `@demo.walletweather.local` address is deleted. Accounts you created for
-  yourself under real email addresses are never touched.
+- **Turning it off:** set `DEMO_MODE=false` in your `.env` (or just remove
+  the line) and restart the container. On the next start the demo user and
+  all data owned by any `@demo.walletweather.local` address is deleted.
+  Accounts you created for yourself under real email addresses are never
+  touched.
 - **Turning it back on later:** set `DEMO_MODE=true` and restart. The demo
   user and sample data will be re-seeded.
 

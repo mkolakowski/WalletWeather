@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WalletWeather</title>
+<title data-app-title>WalletWeather</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="apple-touch-icon" href="/static/favicon.svg">
 <style>
@@ -155,6 +155,55 @@
   .pie-legend .legend-row { display:flex; align-items:center; gap:8px;
                             padding:3px 0; }
   .pie-legend .swatch { width:12px; height:12px; border-radius:3px; flex-shrink:0; }
+
+  /* ---------- Reports v2 layout ---------- */
+  .reports-layout { display:grid; gap:14px;
+                    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); }
+  .reports-rail { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .reports-main { display:flex; flex-direction:column; gap:14px; min-width:0; }
+  @media (max-width: 900px) {
+    .reports-layout { grid-template-columns: 1fr; }
+  }
+  .report-rail-item { padding:8px 10px; border:1px solid var(--border);
+                      border-radius:6px; cursor:pointer; margin-bottom:6px;
+                      display:flex; align-items:center; gap:6px;
+                      background:var(--panel); }
+  .report-rail-item:hover { border-color:var(--accent); }
+  .report-rail-item.active { border-color:var(--accent);
+                             background:var(--chip-bg); }
+  .report-rail-item .name { flex:1; font-weight:500; }
+  .report-rail-item .pinmark { font-size:11px; color:var(--accent); }
+  .report-tpl-item { padding:8px 10px; border:1px solid var(--border);
+                     border-radius:6px; cursor:pointer; background:var(--panel); }
+  .report-tpl-item:hover { border-color:var(--accent); }
+  .report-tpl-item .tpl-name { font-weight:500; font-size:13px; }
+  .report-tpl-item .tpl-desc { color:var(--muted); font-size:11px;
+                                margin-top:2px; line-height:1.4; }
+
+  /* Inline bar chart used by Reports + Dashboard pinned reports. */
+  .bar-chart { display:flex; flex-direction:column; gap:4px; }
+  .bar-chart .bar-row { display:grid;
+                        grid-template-columns: minmax(80px, 28%) 1fr minmax(60px, auto);
+                        gap:8px; align-items:center; font-size:12px; }
+  .bar-chart .bar-track { background:var(--chip-bg); height:14px;
+                          border-radius:3px; position:relative; overflow:hidden; }
+  .bar-chart .bar-fill { position:absolute; top:0; bottom:0; left:0;
+                         border-radius:3px; }
+  .bar-chart .bar-amt { text-align:right; font-variant-numeric:tabular-nums; }
+
+  /* Pinned reports on the dashboard. */
+  .dash-pinned { display:grid; gap:14px;
+                 grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+                 margin-top:14px; }
+  .dash-pinned .panel { padding:12px 14px; }
+  .dash-pinned .pinned-head { display:flex; justify-content:space-between;
+                              align-items:center; gap:8px; margin-bottom:6px; }
+  .dash-pinned .pinned-head .name { font-weight:600; font-size:14px; }
+  .dash-pinned .pinned-head .range { font-size:11px; color:var(--muted); }
+  .dash-pinned .pinned-summary { display:flex; gap:14px; flex-wrap:wrap;
+                                 font-size:12px; color:var(--muted);
+                                 margin-bottom:8px; }
+  .dash-pinned .pinned-summary strong { color:var(--text); }
   .pie-legend .lname { flex:1; }
   .pie-legend .lval { color:var(--muted); font-variant-numeric:tabular-nums; }
   .pie-empty { color:var(--muted); font-size:13px; padding:10px; }
@@ -246,9 +295,199 @@
   .diff-zero { color:var(--muted); }
   .cat-pill { display:inline-block; padding:1px 8px; border-radius:10px;
               font-size:11px; background:var(--chip-bg); color:var(--muted); }
+  /* Tags: lighter-weight labels than categories, so they share the pill
+     shape but use a transparent border instead of a solid background.
+     Authoritative color comes from inline style (when the tag has one);
+     these rules only cover the neutral default and picker states. */
+  .tag-pill { display:inline-block; padding:1px 8px; border-radius:10px;
+              font-size:11px; background:var(--chip-bg); color:var(--muted);
+              border:1px solid var(--border); line-height:1.5; white-space:nowrap; }
+  .row-tag-chips { margin-top:3px; display:flex; flex-wrap:wrap; gap:3px; }
+  .tag-picker-row { display:flex; flex-wrap:wrap; gap:4px; margin-top:2px; }
+  .tag-pill.tag-picker { user-select:none; }
+  .tag-pill.tag-picker.on { font-weight:600; }
+
+  /* ---------- Calendar ---------- */
+  /* The calendar is a fixed 6×7 grid so the layout doesn't jump between
+     months with 5 vs 6 rendered rows. Event pills inherit their color
+     from the category (via inline style) so the user recognizes them at
+     a glance without a separate legend. */
+  .cal-header { display:flex; justify-content:space-between; align-items:center;
+                flex-wrap:wrap; gap:10px; }
+  .cal-nav { display:flex; align-items:center; gap:8px; }
+  .cal-nav .cal-title { font-weight:600; min-width:160px; text-align:center; }
+  .cal-summary { color:var(--muted); font-size:13px; }
+  .cal-filters { display:grid;
+                 grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));
+                 gap:8px; margin:10px 0; }
+  .cal-filters label { display:flex; flex-direction:column; gap:2px;
+                       font-size:12px; color:var(--muted); }
+  .cal-filters select { width:100%; }
+  .cal-weekdays { display:grid; grid-template-columns:repeat(7, 1fr);
+                  gap:4px; color:var(--muted); font-size:12px;
+                  text-align:center; padding:4px 0; }
+  .cal-grid { display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; }
+  .cal-cell { min-height:110px; border:1px solid var(--border);
+              border-radius:6px; padding:4px 6px; cursor:pointer;
+              background:var(--panel); display:flex; flex-direction:column;
+              overflow:hidden; }
+  .cal-cell:hover { border-color:var(--accent); }
+  .cal-cell.off-month { opacity:0.45; }
+  .cal-cell.today { border-color:var(--accent);
+                    box-shadow:0 0 0 1px var(--accent) inset; }
+  .cal-cell.selected { background:var(--chip-bg); }
+  .cal-cell-head { display:flex; justify-content:space-between;
+                   align-items:center; font-size:12px; margin-bottom:2px; }
+  .cal-cell-head .daynum { font-weight:600; }
+  .cal-cell-head .cal-net { font-size:11px; }
+  .cal-event { font-size:11px; padding:1px 5px; border-radius:4px;
+               margin-top:2px; border:1px solid var(--border);
+               overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+               background:var(--chip-bg); }
+  .cal-event.pending { opacity:0.65; font-style:italic; }
+  .cal-event.income { border-left:3px solid var(--good); }
+  .cal-event.spend  { border-left:3px solid var(--bad); }
+  .cal-event.transfer { border-left:3px dashed var(--muted); }
+  .cal-more { font-size:11px; color:var(--muted); margin-top:2px; }
+  .cal-detail-head { display:flex; justify-content:space-between;
+                     align-items:center; margin-bottom:8px; }
+  .cal-src-hint { color:var(--muted); font-size:11px; margin-left:4px;
+                  font-style:italic; }
+
+  /* ---------- Transfer page balance hints ---------- */
+  /* Small balance readout shown under each account selector on the
+     Transfer page. Updates live as the user changes From/To/Amount so
+     they can see the projected after-transfer balance before saving. */
+  .transfer-bal { font-size:12px; color:var(--muted); margin-top:4px;
+                  line-height:1.5; }
+  .transfer-bal .bal-now { color:var(--text); font-weight:500; }
+  .transfer-bal .bal-next { color:var(--muted); }
+  .transfer-bal .bal-warn { color:var(--bad); font-weight:500; }
+
+  /* ---------- Global footer ---------- */
+  /* Always-visible footer with app/web/schema versions + GitHub link.
+     Lives outside #login and #app so it renders on every screen. */
+  .app-footer { border-top:1px solid var(--border); background:var(--bg-deep);
+                color:var(--muted); font-size:12px;
+                padding:10px 18px; margin-top:24px;
+                display:flex; justify-content:space-between;
+                align-items:center; flex-wrap:wrap; gap:8px; }
+  .app-footer a { color:var(--accent); text-decoration:none; }
+  .app-footer a:hover { text-decoration:underline; }
+  .app-footer .footer-versions code { background:var(--chip-bg); color:var(--muted);
+                                      padding:1px 6px; border-radius:4px;
+                                      font-size:11px; margin:0 2px; }
   .hidden { display:none; }
 
+  /* ---------- Page title row + inline icon buttons ---------- */
+  /* Used to sit an "Edit" pencil (or similar affordance) flush with a
+     page heading. Keeps the h2 at its normal weight while letting small
+     controls flow inline without manual margin tweaks. */
+  .page-title-row { display:flex; align-items:center; gap:10px;
+                    flex-wrap:wrap; margin:0 0 10px; }
+  .icon-btn { display:inline-flex; align-items:center; gap:5px;
+              background:transparent; color:var(--muted);
+              border:1px solid var(--border); border-radius:6px;
+              padding:4px 10px; font-size:12px; cursor:pointer;
+              line-height:1; }
+  .icon-btn:hover { color:var(--text); border-color:var(--accent); }
+  .icon-btn svg { display:block; }
+  .icon-btn-label { font-size:12px; }
+  @keyframes ww-flash {
+    0%   { box-shadow:0 0 0 0 var(--accent); }
+    40%  { box-shadow:0 0 0 4px var(--accent); }
+    100% { box-shadow:0 0 0 0 transparent; }
+  }
+  .settings-flash { animation: ww-flash 1.4s ease-out 1;
+                    border-radius:8px; }
+
+  /* ---------- Dashboard charts ---------- */
+  .dash-window-bar { display:flex; align-items:center; gap:10px; margin:0 0 14px;
+                     flex-wrap:wrap; }
+  .dash-window-bar .label { color:var(--muted); font-size:13px; }
+  .dash-window-bar .seg { display:inline-flex; border:1px solid var(--border);
+                          border-radius:6px; overflow:hidden; }
+  .dash-window-bar .seg button { background:transparent; border:none;
+                                  color:var(--text); padding:6px 12px;
+                                  font-size:13px; cursor:pointer; }
+  .dash-window-bar .seg button:not(:last-child) {
+                          border-right:1px solid var(--border); }
+  .dash-window-bar .seg button.active { background:var(--accent);
+                                         color:var(--on-accent); }
+  .dash-window-bar .range { color:var(--muted); font-size:12px; margin-left:auto; }
+
+  /* One "chart block" = the triple of donut + totals + sparkline for one
+     account. Rendered inside each .dash-card when position="inside", or
+     stacked in its own panel when position="above" / "below". */
+  .chart-block { display:grid; gap:12px;
+                 grid-template-columns:minmax(160px, 1fr) minmax(180px, 1.4fr);
+                 grid-template-areas:
+                   "donut   totals"
+                   "spark   spark"; }
+  .chart-block .chart-donut-wrap { grid-area:donut; min-width:0; }
+  .chart-block .chart-totals     { grid-area:totals; min-width:0; }
+  .chart-block .chart-spark      { grid-area:spark; min-width:0; }
+  .chart-block.compact { grid-template-columns:1fr;
+                         grid-template-areas: "donut" "totals" "spark"; }
+  @media (max-width: 640px) {
+    .chart-block { grid-template-columns:1fr;
+                   grid-template-areas: "donut" "totals" "spark"; }
+  }
+
+  .chart-title { font-size:11px; letter-spacing:0.04em; text-transform:uppercase;
+                 color:var(--muted); margin:0 0 6px; font-weight:600; }
+  .chart-empty { color:var(--muted); font-size:12px; padding:8px 0; text-align:center; }
+
+  /* Donut: SVG + legend */
+  .chart-donut-wrap { display:flex; align-items:center; gap:10px; }
+  .chart-donut { width:90px; height:90px; flex:0 0 auto; }
+  .chart-donut .center-big { font-size:11px; font-weight:700; fill:var(--text); }
+  .chart-donut .center-sm { font-size:8px; fill:var(--muted); }
+  .donut-legend { display:flex; flex-direction:column; gap:3px; font-size:11px;
+                  min-width:0; flex:1; max-height:90px; overflow:hidden; }
+  .donut-legend .item { display:flex; align-items:center; gap:6px; min-width:0; }
+  .donut-legend .sw { width:8px; height:8px; border-radius:2px; flex:0 0 auto; }
+  .donut-legend .n { flex:1; overflow:hidden; text-overflow:ellipsis;
+                     white-space:nowrap; color:var(--text); }
+  .donut-legend .v { color:var(--muted); font-variant-numeric:tabular-nums;
+                     flex:0 0 auto; }
+
+  /* Totals tile */
+  .chart-totals .row-t { display:flex; justify-content:space-between;
+                          align-items:baseline; padding:3px 0;
+                          border-bottom:1px dashed var(--border); }
+  .chart-totals .row-t:last-child { border-bottom:none; }
+  .chart-totals .row-t .k { font-size:11px; color:var(--muted);
+                             text-transform:uppercase; letter-spacing:0.04em; }
+  .chart-totals .row-t .v { font-size:14px; font-weight:600;
+                             font-variant-numeric:tabular-nums;
+                             color:var(--text); }
+  .chart-totals .row-t .delta { font-size:10px; color:var(--muted);
+                                 margin-left:6px; font-variant-numeric:tabular-nums; }
+  .chart-totals .row-t.net .v.pos { color:var(--good); }
+  .chart-totals .row-t.net .v.neg { color:var(--bad); }
+
+  /* Sparkline */
+  .chart-spark svg { width:100%; height:42px; display:block; }
+  .chart-spark .spark-line  { fill:none; stroke:var(--accent); stroke-width:1.5;
+                               vector-effect:non-scaling-stroke; }
+  .chart-spark .spark-fill  { fill:var(--accent); opacity:0.12; }
+  .chart-spark .spark-meta  { display:flex; justify-content:space-between;
+                               font-size:10px; color:var(--muted); margin-top:2px; }
+
+  /* Position=above / below: charts rendered inside one shared panel with
+     sections keyed per account. */
+  .dash-charts-panel .chart-section { padding:12px 0;
+                                       border-top:1px dashed var(--border); }
+  .dash-charts-panel .chart-section:first-child { border-top:none; padding-top:0; }
+  .dash-charts-panel .chart-section h3 { margin:0 0 8px; font-size:14px; }
+
   /* ---------- Theme picker (Settings > Appearance) ---------- */
+  .theme-group { margin-top:14px; }
+  .theme-group:first-child { margin-top:0; }
+  .theme-group-label { font-size:12px; font-weight:600; letter-spacing:0.05em;
+                       text-transform:uppercase; color:var(--muted);
+                       margin:0 0 8px; }
   .theme-grid { display:grid; gap:10px;
                 grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); }
   .theme-card { position:relative; display:block; cursor:pointer;
@@ -266,30 +505,64 @@
   .theme-card .hint { font-size:11px; color:var(--muted); margin-top:2px; }
   .theme-card.selected::after { content:"✓"; position:absolute; top:6px; right:8px;
                                 color:var(--accent); font-weight:700; font-size:14px; }
+
+  /* ---------- v1.7.0 Tier-1 components ---------- */
+  /* (Modal overlay CSS removed in 1.7.2 — Transfer and CSV Import are now
+     dedicated pages, not popups.) */
+
+  /* Net worth chart host. */
+  .networth-chart-host { background:var(--bg-deep); border:1px solid var(--border);
+                         border-radius:8px; padding:12px; }
+  .networth-chart-host svg { display:block; width:100%; height:auto; }
+
+  /* Budgets list rows. */
+  .budget-row { display:grid; grid-template-columns:14px 1fr 90px 120px 90px 80px;
+                gap:10px; align-items:center; padding:8px 0;
+                border-bottom:1px solid var(--border); font-size:13px; }
+  .budget-row:last-child { border-bottom:none; }
+  .budget-swatch { width:12px; height:12px; border-radius:3px; background:var(--border); }
+  .budget-bar { height:8px; background:var(--chip-bg); border-radius:4px; overflow:hidden; position:relative; }
+  .budget-bar-fill { height:100%; background:var(--accent); }
+  .budget-bar-fill.over { background:var(--bad); }
+  .budget-bar-fill.warn { background:var(--warn); }
+  .budget-amount-input { width:90px; }
+  .budget-pct { font-variant-numeric:tabular-nums; text-align:right; }
+
+  /* Search-results table tightening. */
+  #txnSearchTable td.num, #txnSearchTable th.num { text-align:right; font-variant-numeric:tabular-nums; }
+
+  /* CSV import preview table. */
+  .csv-preview { width:100%; border-collapse:collapse; font-size:12px; }
+  .csv-preview th, .csv-preview td { padding:5px 8px; border-bottom:1px solid var(--border); text-align:left; }
+  .csv-preview tr.duplicate { color:var(--muted); }
+  .csv-preview tr.duplicate td:last-child { color:var(--warn); }
+
+  /* Recent transfers list. */
+  .transfers-list { display:flex; flex-direction:column; gap:6px; }
+  .transfer-item { display:grid; grid-template-columns:90px 1fr auto auto auto;
+                   gap:10px; align-items:center; padding:8px 10px;
+                   background:var(--bg-deep); border:1px solid var(--border); border-radius:6px;
+                   font-size:13px; }
+  .transfer-item .arrow { color:var(--muted); }
+  .transfer-item .amt { font-variant-numeric:tabular-nums; font-weight:600; }
 </style>
 <script>
-  // Apply saved theme before first paint to avoid a flash of the wrong theme.
-  // Whitelist of supported keys must stay in sync with the THEMES list in the
-  // main script below.
+  // Pre-paint: default theme is "system" (follow OS). Once the user signs in,
+  // /api/me returns their saved preference and we re-apply it. We deliberately
+  // do NOT persist the theme in localStorage — that caused the previous user's
+  // theme to briefly render after another user signed in on the same browser.
   (function() {
-    var KEYS = ['dark','light','system','dracula','solarized','nord','synthwave',
-                'forest','mint','monokai','sunset'];
     try {
-      var saved = localStorage.getItem('ww-theme');
-      if (!saved || KEYS.indexOf(saved) === -1) saved = 'dark';
-      var effective = saved;
-      if (saved === 'system') {
-        effective = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
-      }
-      if (effective !== 'dark') document.documentElement.setAttribute('data-theme', effective);
-    } catch (e) { /* localStorage unavailable — stay on default (dark) */ }
+      var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      if (prefersLight) document.documentElement.setAttribute('data-theme', 'light');
+    } catch (e) { /* matchMedia unavailable — stay on default (dark) */ }
   })();
 </script>
 </head>
 <body>
 
 <div id="login" class="login hidden">
-  <h1>WalletWeather</h1>
+  <h1 data-app-title>WalletWeather</h1>
   <p>Track balances, forecast cashflow, compare planned vs actual.</p>
 
   <div class="auth-card">
@@ -338,10 +611,14 @@
 
 <div id="app" class="hidden">
   <header>
-    <h1>WalletWeather</h1>
+    <h1 data-app-title>WalletWeather</h1>
     <div>
       <button id="navDashboard" class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
+      <button id="navNetworth" class="nav-btn" onclick="showPage('networth')">Net Worth</button>
       <button id="navAccounts" class="nav-btn" onclick="showPage('accounts')">Accounts</button>
+      <button id="navTransactions" class="nav-btn" onclick="showPage('transactions')">Transactions</button>
+      <button id="navSubscriptions" class="nav-btn" onclick="showPage('subscriptions')">Subscriptions</button>
+      <button id="navCalendar" class="nav-btn" onclick="showPage('calendar')">Calendar</button>
       <button id="navReports" class="nav-btn" onclick="showPage('reports')">Reports</button>
       <button id="navSettings" class="nav-btn" onclick="showPage('settings')">Settings</button>
       <button id="navAdmin" class="nav-btn hidden" onclick="showPage('admin')">Admin</button>
@@ -353,20 +630,219 @@
   <main>
     <div id="pageDashboard">
       <div class="panel">
-        <h2>Dashboard</h2>
+        <div class="page-title-row">
+          <h2 style="margin:0">Dashboard</h2>
+          <button type="button" class="icon-btn" id="dashEditBtn"
+                  onclick="editDashboardLayout()"
+                  title="Edit dashboard layout"
+                  aria-label="Edit dashboard layout">
+            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"
+                 fill="none" stroke="currentColor" stroke-width="1.6"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12.5 2.5a1.414 1.414 0 1 1 2 2L5 14l-3 1 1-3 9.5-9.5z"/>
+            </svg>
+            <span class="icon-btn-label">Edit</span>
+          </button>
+        </div>
+        <div class="dash-window-bar">
+          <span class="label">Charts window</span>
+          <div class="seg" role="group" aria-label="Time window">
+            <button type="button" data-window="month" class="active"
+                    onclick="onDashboardWindowChange('month')">Month</button>
+            <button type="button" data-window="30d"
+                    onclick="onDashboardWindowChange('30d')">30 days</button>
+            <button type="button" data-window="90d"
+                    onclick="onDashboardWindowChange('90d')">90 days</button>
+          </div>
+          <span class="range" id="dashWindowRange"></span>
+        </div>
+
+        <!-- Charts panel shown when chart_position === 'above' -->
+        <div id="dashChartsAbove" class="panel dash-charts-panel hidden"
+             style="margin:0 0 14px;padding:14px"></div>
+
         <div id="dashboardGrid" class="dashboard-grid">
           <div style="color:var(--muted);grid-column:1/-1;text-align:center;padding:20px">Loading…</div>
+        </div>
+
+        <!-- Charts panel shown when chart_position === 'below' -->
+        <div id="dashChartsBelow" class="panel dash-charts-panel hidden"
+             style="margin:14px 0 0;padding:14px"></div>
+
+        <!-- Pinned saved reports rendered as compact panels under the
+             account cards. Populated by loadPinnedReports() on dashboard
+             open and after any pin/unpin/save/delete on the Reports page. -->
+        <div id="dashPinnedReports" class="dash-pinned"></div>
+      </div>
+    </div>
+
+    <div id="pageNetworth" class="hidden">
+      <div class="panel">
+        <h2>Net worth</h2>
+        <div class="dash-window-bar">
+          <span class="label">Window</span>
+          <div class="seg" role="group" aria-label="Net worth window">
+            <button type="button" data-nw-window="month" class="active"
+                    onclick="onNetworthWindowChange('month')">Month</button>
+            <button type="button" data-nw-window="30d"
+                    onclick="onNetworthWindowChange('30d')">30 days</button>
+            <button type="button" data-nw-window="90d"
+                    onclick="onNetworthWindowChange('90d')">90 days</button>
+          </div>
+          <span class="range" id="networthRange"></span>
+        </div>
+        <div class="summary" id="networthSummary"></div>
+        <div id="networthChart" class="networth-chart-host"
+             style="margin-top:14px"></div>
+        <div id="networthAccounts" style="margin-top:14px"></div>
+      </div>
+    </div>
+
+    <div id="pageSubscriptions" class="hidden">
+      <div class="panel">
+        <h2>Subscriptions</h2>
+        <p style="color:var(--muted);font-size:13px;margin-top:0">
+          Every active recurring outflow across the accounts you can see,
+          normalized to a monthly cost so cadences line up. Add, edit, or
+          cancel a subscription from its account's <em>Recurring
+          transactions</em> panel on the
+          <a href="#" onclick="showPage('transactions');return false"
+             style="color:var(--accent)">Transactions</a> page.
+        </p>
+        <div class="summary" id="subsSummary" style="margin-top:10px"></div>
+        <div id="subsEmpty" class="hidden" style="color:var(--muted);font-size:13px;margin-top:12px">
+          No active subscriptions yet.
+        </div>
+        <div style="overflow-x:auto">
+          <table id="subsTable"><thead><tr>
+            <th>Description</th>
+            <th>Account</th>
+            <th>Category</th>
+            <th>Frequency</th>
+            <th class="num">Per charge</th>
+            <th class="num">Monthly</th>
+            <th class="num">Yearly</th>
+          </tr></thead><tbody></tbody></table>
         </div>
       </div>
     </div>
 
-    <div id="pageAccounts" class="hidden">
-    <div class="accounts-bar" id="accountsBar"></div>
-
-    <div id="accountView" class="hidden">
-      <div class="summary" id="summary"></div>
-
+    <div id="pageCalendar" class="hidden">
       <div class="panel">
+        <div class="cal-header">
+          <div class="cal-nav">
+            <button class="ghost" onclick="changeCalendarMonth(-1)" title="Previous month">« Prev</button>
+            <h2 id="calMonthLabel" style="margin:0;min-width:180px;text-align:center"></h2>
+            <button class="ghost" onclick="changeCalendarMonth(1)" title="Next month">Next »</button>
+            <button class="ghost" onclick="goToCalendarToday()" title="Jump to current month">Today</button>
+          </div>
+          <div class="cal-summary" id="calSummary" style="color:var(--muted);font-size:13px"></div>
+        </div>
+        <p style="color:var(--muted);font-size:13px;margin:6px 0 12px">
+          Every forecasted and cleared posting across the accounts you can see.
+          Pure recurring projections show dimmed until a real transaction backs them.
+          Click a day to see its events.
+        </p>
+
+        <div class="cal-filters">
+          <div>
+            <label>Account</label>
+            <select id="calFilterAccount" onchange="applyCalendarFilters()">
+              <option value="">All accounts</option>
+            </select>
+          </div>
+          <div>
+            <label>Category</label>
+            <select id="calFilterCategory" onchange="applyCalendarFilters()">
+              <option value="">All categories</option>
+              <option value="__none__">(uncategorized)</option>
+            </select>
+          </div>
+          <div>
+            <label>Tag</label>
+            <select id="calFilterTag" onchange="applyCalendarFilters()">
+              <option value="">All tags</option>
+              <option value="__none__">(untagged)</option>
+            </select>
+          </div>
+          <div>
+            <label>Source</label>
+            <select id="calFilterSource" onchange="applyCalendarFilters()">
+              <option value="">All</option>
+              <option value="scheduled">Scheduled (recurring)</option>
+              <option value="onetime">One-time</option>
+            </select>
+          </div>
+          <div>
+            <label>Kind</label>
+            <select id="calFilterKind" onchange="applyCalendarFilters()">
+              <option value="">Any</option>
+              <option value="spending">Spending</option>
+              <option value="income">Income</option>
+              <option value="transfers">Transfers</option>
+            </select>
+          </div>
+          <div>
+            <label>Status</label>
+            <select id="calFilterStatus" onchange="applyCalendarFilters()">
+              <option value="">Any</option>
+              <option value="cleared">Cleared</option>
+              <option value="pending">Pending / forecast</option>
+            </select>
+          </div>
+          <div style="align-self:end">
+            <button class="ghost" onclick="resetCalendarFilters()">Reset filters</button>
+          </div>
+        </div>
+
+        <div id="calLoadingBar" style="color:var(--muted);font-size:12px;margin:6px 0"></div>
+
+        <div class="cal-weekdays">
+          <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div>
+          <div>Thu</div><div>Fri</div><div>Sat</div>
+        </div>
+        <div id="calGrid" class="cal-grid"></div>
+
+        <div id="calDayDetail" class="panel hidden" style="margin-top:14px">
+          <div class="cal-detail-head">
+            <h3 id="calDayTitle" style="margin:0"></h3>
+            <button class="ghost" onclick="closeCalendarDay()" title="Close">✕</button>
+          </div>
+          <div id="calDayNet" style="color:var(--muted);font-size:13px;margin-top:2px"></div>
+          <div style="overflow-x:auto;margin-top:10px">
+            <table id="calDayTable"><thead><tr>
+              <th>Account</th>
+              <th>Description</th>
+              <th>Category</th>
+              <th>Tags</th>
+              <th class="num">Amount</th>
+              <th>Status</th>
+              <th></th>
+            </tr></thead><tbody></tbody></table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pageTransactions" class="hidden">
+      <div class="panel">
+        <h2>Account actions</h2>
+        <div class="row" style="align-items:flex-end">
+          <div style="flex:1;max-width:320px">
+            <label>Managing account</label>
+            <select id="txnMgmtAccount" onchange="onTxnMgmtAccountChange()">
+              <option value="">— pick an account —</option>
+            </select>
+          </div>
+          <div style="flex:0 0 auto"><button class="ghost" onclick="openTransferPage()">⇄ Transfer money</button></div>
+          <div style="flex:0 0 auto"><button class="ghost" onclick="openImportPage(currentAccountId)">⬆ Import CSV</button></div>
+        </div>
+        <div id="txnMgmtNoAccount" class="hidden" style="color:var(--muted);font-size:13px;margin-top:10px">
+          Create an account first to manage recurring transactions and run transfers or CSV imports.
+        </div>
+      </div>
+
+      <div class="panel" id="txnRecurringPanel">
         <h2>Recurring transactions
           <span style="float:right;font-weight:normal">
             <button id="recTabActive" class="tab small active" onclick="switchRecView('active')">Active</button>
@@ -403,6 +879,219 @@
           </div>
         </div>
       </div>
+
+      <div class="panel">
+        <h2>Search transactions</h2>
+        <div class="row">
+          <div style="flex:2"><label>Text</label>
+            <input id="txnSearchQ" placeholder="Search description or notes…"
+                   onkeydown="if(event.key==='Enter')runTxnSearch()">
+          </div>
+          <div><label>Account</label>
+            <select id="txnSearchAccount" onchange="runTxnSearch()">
+              <option value="">All accounts</option>
+            </select>
+          </div>
+          <div><label>Category</label>
+            <select id="txnSearchCategory" onchange="runTxnSearch()">
+              <option value="">All categories</option>
+            </select>
+          </div>
+          <div><label>Tag</label>
+            <select id="txnSearchTag" onchange="runTxnSearch()">
+              <option value="">All tags</option>
+            </select>
+          </div>
+          <div><label>Kind</label>
+            <select id="txnSearchKind" onchange="runTxnSearch()">
+              <option value="">Any</option>
+              <option value="spending">Spending only</option>
+              <option value="income">Income only</option>
+              <option value="transfers">Transfers only</option>
+            </select>
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div><label>From</label><input id="txnSearchFrom" type="date" onchange="runTxnSearch()"></div>
+          <div><label>To</label><input id="txnSearchTo" type="date" onchange="runTxnSearch()"></div>
+          <div><label>Min $</label><input id="txnSearchMin" type="number" step="0.01" placeholder="-9999"></div>
+          <div><label>Max $</label><input id="txnSearchMax" type="number" step="0.01" placeholder="9999"></div>
+          <div style="flex:0 0 auto"><label>&nbsp;</label>
+            <div style="display:flex;gap:6px">
+              <button onclick="runTxnSearch()">Search</button>
+              <button class="ghost" onclick="resetTxnSearch()">Reset</button>
+            </div>
+          </div>
+        </div>
+        <div id="txnSearchStatus" style="margin-top:10px;color:var(--muted);font-size:12px"></div>
+
+        <!-- Bulk action bar — appears once at least one row is checked.
+             Lets the user attach or remove a tag across every selected
+             row in one POST to /api/transactions/bulk-tag. -->
+        <div id="txnBulkBar" class="hidden" style="margin-top:10px">
+          <div class="row" style="gap:10px;align-items:end;flex-wrap:wrap;
+                                   padding:8px 10px;border:1px solid var(--accent);
+                                   border-radius:6px;background:var(--chip-bg)">
+            <div style="font-size:13px">
+              <strong id="txnBulkCount">0 selected</strong>
+            </div>
+            <div>
+              <label style="font-size:12px;color:var(--muted)">Tag</label>
+              <select id="txnBulkTag"></select>
+            </div>
+            <div style="flex:0 0 auto">
+              <button onclick="runBulkTag('add')">Apply tag</button>
+              <button class="ghost" onclick="runBulkTag('remove')">Remove tag</button>
+              <button class="ghost" onclick="clearTxnSelection()">Clear</button>
+            </div>
+            <div id="txnBulkStatus" style="font-size:12px;color:var(--muted)"></div>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto;margin-top:10px">
+        <table id="txnSearchTable"><thead><tr>
+          <th style="width:28px">
+            <input type="checkbox" id="txnSearchSelectAll"
+                   onclick="toggleAllTxnSelection(this.checked)"
+                   title="Select all visible">
+          </th>
+          <th>Date</th><th>Account</th><th>Description</th><th>Category</th><th>Tags</th>
+          <th class="num">Amount</th><th>Status</th>
+        </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Recent transfers</h2>
+        <p style="color:var(--muted);margin:0 0 10px;font-size:13px">
+          Account-to-account moves. Manage transfers from the Accounts page.
+        </p>
+        <div id="recentTransfersWrap">
+          <div style="color:var(--muted);font-size:13px">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pageImport" class="hidden">
+      <div class="panel">
+        <h2 id="importPageTitle">Import transactions from CSV</h2>
+        <p style="color:var(--muted);font-size:13px;margin:6px 0 12px">
+          Upload a CSV from your bank (or paste text). We'll auto-detect columns,
+          preview the rows, and let you skip duplicates before committing.
+        </p>
+        <div class="row">
+          <div><label>Target account</label>
+            <select id="importTargetAccount"></select>
+          </div>
+          <div style="flex:0 0 auto">
+            <label>File</label>
+            <input id="importCsvFile" type="file" accept=".csv,text/csv,text/plain" onchange="onImportCsvFile()">
+          </div>
+          <div style="flex:0 0 auto">
+            <label>Has header row?</label>
+            <select id="importHasHeader">
+              <option value="1" selected>Yes</option>
+              <option value="0">No</option>
+            </select>
+          </div>
+          <div style="flex:0 0 auto">
+            <label>Sign convention</label>
+            <select id="importSignConv">
+              <option value="amount" selected>Single signed amount column</option>
+              <option value="amount_invert">Single column (positive = withdraw)</option>
+              <option value="debit_credit">Separate debit + credit columns</option>
+            </select>
+          </div>
+          <div style="flex:0 0 auto">
+            <label>Default category</label>
+            <select id="importDefaultCat">
+              <option value="">— none —</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:10px">
+          <label>CSV text (paste here)</label>
+          <textarea id="importCsvText" rows="8" style="width:100%;font:12px monospace;background:var(--bg-deep);
+            color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px"
+            placeholder="date,description,amount&#10;2026-04-01,Coffee,-4.25"></textarea>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div style="flex:0 0 auto"><button onclick="runImportPreview()">Preview</button></div>
+          <div style="flex:0 0 auto;align-self:end;color:var(--muted);font-size:12px" id="importPreviewSummary"></div>
+        </div>
+        <div id="importPageError" class="auth-error hidden" style="margin-top:10px"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Preview &amp; commit</h2>
+        <div id="importPreviewWrap" style="max-height:460px;overflow:auto;border:1px solid var(--border);border-radius:6px">
+          <div style="padding:14px;color:var(--muted);font-size:13px">Run Preview to see rows here.</div>
+        </div>
+        <div class="row" style="margin-top:14px;align-items:center">
+          <div style="flex:0 0 auto;color:var(--muted);font-size:12px">
+            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+              <input id="importSkipDupes" type="checkbox" checked style="width:auto"> Skip duplicates
+            </label>
+          </div>
+          <div style="flex:1"></div>
+          <div style="flex:0 0 auto"><button class="ghost" onclick="showPage('accounts')">Back to accounts</button></div>
+          <div style="flex:0 0 auto"><button id="importCommitBtn" onclick="runImportCommit()" disabled>Commit import</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pageTransfer" class="hidden">
+      <div class="panel">
+        <h2 id="transferPageTitle">Transfer money</h2>
+        <p style="color:var(--muted);font-size:13px;margin:6px 0 12px">
+          Move money between two accounts you can edit. A paired posting is
+          created on each side so per-account balances update, but the dashboard
+          and reports exclude transfers from spending and income totals.
+        </p>
+        <input type="hidden" id="transferEditId" value="">
+        <div class="row" style="margin-top:8px">
+          <div>
+            <label>From account</label>
+            <select id="transferFrom" onchange="updateTransferBalances()"></select>
+            <div class="transfer-bal" id="transferFromBal"></div>
+          </div>
+          <div>
+            <label>To account</label>
+            <select id="transferTo" onchange="updateTransferBalances()"></select>
+            <div class="transfer-bal" id="transferToBal"></div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div>
+            <label>Amount</label>
+            <input id="transferAmount" type="number" step="0.01" min="0.01" oninput="updateTransferBalances()">
+          </div>
+          <div><label>Date</label><input id="transferDate" type="date"></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div style="flex:2"><label>Description</label>
+            <input id="transferDesc" maxlength="120" placeholder="Transfer">
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div style="flex:2"><label>Notes (optional, max 256)</label>
+            <input id="transferNotes" maxlength="256">
+          </div>
+        </div>
+        <div id="transferPageError" class="auth-error hidden" style="margin-top:10px"></div>
+        <div class="row" style="margin-top:14px;justify-content:flex-end">
+          <div style="flex:0 0 auto"><button class="ghost" onclick="transferPageBack()">Back</button></div>
+          <div style="flex:0 0 auto"><button id="transferDeleteBtn" class="ghost danger hidden" onclick="deleteTransferFromPage()">Delete transfer</button></div>
+          <div style="flex:0 0 auto"><button onclick="submitTransfer()">Save transfer</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="pageAccounts" class="hidden">
+    <div class="accounts-bar" id="accountsBar"></div>
+
+    <div id="accountView" class="hidden">
+      <div class="summary" id="summary"></div>
 
       <div class="panel">
         <h2>Add transaction</h2>
@@ -534,79 +1223,166 @@
     </div><!-- /pageAccounts -->
 
     <div id="pageReports" class="hidden">
-      <div class="panel">
-        <h2>Reports</h2>
-        <div class="row">
-          <div>
-            <label>Account</label>
-            <select id="reportAccount" onchange="loadReport()">
-              <option value="">All accounts</option>
-            </select>
-          </div>
-          <div>
-            <label>Range</label>
-            <select id="reportMode" onchange="onReportModeChange()">
-              <option value="month" selected>Month</option>
-              <option value="ytd">Year to date</option>
-              <option value="year">Full year</option>
-              <option value="custom">Custom range</option>
-            </select>
-          </div>
-          <div id="reportMonthWrap">
-            <label>Month</label>
-            <select id="reportMonthSel" onchange="loadReport()">
-              <option value="1">January</option><option value="2">February</option>
-              <option value="3">March</option><option value="4">April</option>
-              <option value="5">May</option><option value="6">June</option>
-              <option value="7">July</option><option value="8">August</option>
-              <option value="9">September</option><option value="10">October</option>
-              <option value="11">November</option><option value="12">December</option>
-            </select>
-          </div>
-          <div id="reportYearWrap">
-            <label>Year</label>
-            <select id="reportYearSel" onchange="loadReport()"></select>
-          </div>
-          <div id="reportCustomStart" class="hidden">
-            <label>Start</label>
-            <input id="reportStart" type="date" onchange="loadReport()">
-          </div>
-          <div id="reportCustomEnd" class="hidden">
-            <label>End</label>
-            <input id="reportEnd" type="date" onchange="loadReport()">
-          </div>
-          <div style="flex:0 0 auto">
-            <label>Export</label>
-            <div style="display:flex;gap:6px">
-              <button class="ghost" onclick="exportReport('csv')">CSV</button>
-              <button class="ghost" onclick="exportReport('json')">JSON</button>
+      <div class="reports-layout">
+        <!-- Left rail: list of saved reports + a "New" button. -->
+        <aside class="reports-rail">
+          <div class="panel" style="padding:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+              <strong>My reports</strong>
+              <button class="ghost" onclick="openNewReportPicker()" title="Start from a template">+ New</button>
+            </div>
+            <div id="reportRailList" style="margin-top:10px;font-size:13px">
+              <div style="color:var(--muted)">Loading…</div>
             </div>
           </div>
-        </div>
-      </div>
+          <div class="panel" style="padding:12px">
+            <strong style="font-size:13px">Templates</strong>
+            <p style="color:var(--muted);font-size:12px;margin:4px 0 8px">
+              Click a template to start a new report from it. You can edit any field afterward.
+            </p>
+            <div id="reportTemplatesList" style="display:flex;flex-direction:column;gap:6px">
+              <div style="color:var(--muted);font-size:12px">Loading…</div>
+            </div>
+          </div>
+        </aside>
 
-      <div class="summary" id="reportSummary"></div>
+        <!-- Right pane: live editor + results. -->
+        <section class="reports-main">
+          <div class="panel">
+            <div class="page-title-row">
+              <h2 id="reportEditorTitle" style="margin:0">New report</h2>
+              <span id="reportEditorDirty" class="cal-src-hint hidden">unsaved changes</span>
+              <div style="margin-left:auto;display:flex;gap:6px">
+                <input id="reportNameInput" maxlength="120" placeholder="Report name"
+                       style="min-width:220px" oninput="markReportDirty()">
+                <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">
+                  <input type="checkbox" id="reportPinInput" onchange="markReportDirty()">
+                  Pin to dashboard
+                </label>
+                <button onclick="saveCurrentReport()">Save</button>
+                <button class="ghost" onclick="saveCurrentReportAs()">Save as…</button>
+                <button class="ghost danger" id="reportDeleteBtn" onclick="deleteCurrentReport()">Delete</button>
+              </div>
+            </div>
 
-      <div class="panel">
-        <h2>By category</h2>
-        <div id="reportTableWrap" style="overflow-x:auto">
-          <div style="color:var(--muted);padding:8px">Loading…</div>
-        </div>
-      </div>
+            <div class="row" style="margin-top:6px">
+              <div>
+                <label>Group by</label>
+                <select id="reportGroupBy" onchange="onReportParamChange()">
+                  <option value="category">Category</option>
+                  <option value="tag">Tag</option>
+                  <option value="account">Account</option>
+                </select>
+              </div>
+              <div>
+                <label>Range</label>
+                <select id="reportRangeMode" onchange="onReportRangeModeChange()">
+                  <option value="month">Month</option>
+                  <option value="last_30d">Last 30 days</option>
+                  <option value="last_90d">Last 90 days</option>
+                  <option value="ytd">Year to date</option>
+                  <option value="year">Full year</option>
+                  <option value="custom">Custom range</option>
+                </select>
+              </div>
+              <div id="reportMonthWrap">
+                <label>Month</label>
+                <select id="reportMonthSel" onchange="onReportParamChange()">
+                  <option value="1">January</option><option value="2">February</option>
+                  <option value="3">March</option><option value="4">April</option>
+                  <option value="5">May</option><option value="6">June</option>
+                  <option value="7">July</option><option value="8">August</option>
+                  <option value="9">September</option><option value="10">October</option>
+                  <option value="11">November</option><option value="12">December</option>
+                </select>
+              </div>
+              <div id="reportYearWrap">
+                <label>Year</label>
+                <select id="reportYearSel" onchange="onReportParamChange()"></select>
+              </div>
+              <div id="reportCustomStart" class="hidden">
+                <label>Start</label>
+                <input id="reportStart" type="date" onchange="onReportParamChange()">
+              </div>
+              <div id="reportCustomEnd" class="hidden">
+                <label>End</label>
+                <input id="reportEnd" type="date" onchange="onReportParamChange()">
+              </div>
+              <div>
+                <label>Kind</label>
+                <select id="reportKind" onchange="onReportParamChange()">
+                  <option value="any">All</option>
+                  <option value="spending">Spending</option>
+                  <option value="income">Income</option>
+                </select>
+              </div>
+              <div>
+                <label>Chart</label>
+                <select id="reportChart" onchange="onReportParamChange()">
+                  <option value="table">Table only</option>
+                  <option value="bar">Bar</option>
+                  <option value="pie">Pie</option>
+                </select>
+              </div>
+              <div style="flex:0 0 auto;align-self:end">
+                <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">
+                  <input type="checkbox" id="reportIncludeTransfers" onchange="onReportParamChange()">
+                  Include transfers
+                </label>
+              </div>
+            </div>
 
-      <div class="report-charts">
-        <div class="panel">
-          <h2>Spending by category</h2>
-          <div id="reportPieSpending" class="pie-host"></div>
-        </div>
-        <div class="panel">
-          <h2>Income by category</h2>
-          <div id="reportPieIncome" class="pie-host"></div>
-        </div>
+            <div class="row" style="margin-top:8px">
+              <div style="flex:2">
+                <label>Accounts (none = all you can see)</label>
+                <select id="reportAccountIds" multiple size="3" onchange="onReportParamChange()"></select>
+              </div>
+              <div style="flex:2">
+                <label>Categories (none = all)</label>
+                <select id="reportCategoryIds" multiple size="3" onchange="onReportParamChange()"></select>
+              </div>
+              <div style="flex:2">
+                <label>Tags (any-of)</label>
+                <select id="reportTagIds" multiple size="3" onchange="onReportParamChange()"></select>
+              </div>
+            </div>
+          </div>
+
+          <div class="summary" id="reportSummary"></div>
+
+          <div class="panel">
+            <h2 id="reportGroupsHeading">Breakdown</h2>
+            <div id="reportGroupsBody">
+              <div style="color:var(--muted);padding:8px">Loading…</div>
+            </div>
+          </div>
+
+          <div class="panel" id="reportChartPanel">
+            <h2 id="reportChartHeading">Chart</h2>
+            <div id="reportChartBody" class="pie-host"></div>
+          </div>
+        </section>
       </div>
     </div>
 
     <div id="pageAdmin" class="hidden">
+      <div class="panel">
+        <h2>Instance branding</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Rename the app. Shown in the browser tab, the login screen, and the header.
+          Leave blank and hit Reset to restore the default.
+        </p>
+        <div class="row">
+          <div style="flex:1">
+            <label>App title</label>
+            <input id="adminAppTitle" maxlength="80" placeholder="WalletWeather">
+          </div>
+          <div style="flex:0 0 auto"><button onclick="saveAppTitle()">Save</button></div>
+          <div style="flex:0 0 auto"><button class="ghost" onclick="resetAppTitle()">Reset</button></div>
+        </div>
+        <div id="adminAppTitleStatus" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
+      </div>
+
       <div class="panel">
         <h2>User management</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
@@ -679,9 +1455,32 @@
       <div class="panel">
         <h2>Appearance</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
-          Pick a look for WalletWeather. Your choice is saved to your account and follows you across browsers and devices.
+          Pick a look. Your choice is saved to your account on the server and follows you across browsers and devices.
         </p>
-        <div id="themePicker" class="theme-grid" onchange="onThemeChange(event)"></div>
+        <div id="themePicker" onchange="onThemeChange(event)"></div>
+
+        <div id="dashLayoutSection" style="scroll-margin-top:16px;padding:8px;margin:16px -8px 0;border-radius:8px">
+        <h3 style="margin:12px 0 6px;font-size:14px">Dashboard charts placement</h3>
+        <p style="color:var(--muted);margin:0 0 10px;font-size:13px">
+          Choose where the per-account charts (spending donut, totals, and balance
+          sparkline) appear on the Dashboard. Default: <em>Inside each card</em>.
+        </p>
+        <div id="chartPositionPicker" class="row" style="gap:8px"
+             onchange="onChartPositionChange(event)">
+          <label style="flex:0 0 auto;display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="radio" name="chartPosition" value="above">
+            <span>Above account cards</span>
+          </label>
+          <label style="flex:0 0 auto;display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="radio" name="chartPosition" value="below">
+            <span>Below account cards</span>
+          </label>
+          <label style="flex:0 0 auto;display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="radio" name="chartPosition" value="inside">
+            <span>Inside each card</span>
+          </label>
+        </div>
+        </div><!-- /#dashLayoutSection -->
       </div>
 
       <div class="panel">
@@ -709,6 +1508,88 @@
           <div><label>New category name</label><input id="newCatName" placeholder="Groceries"></div>
           <div><label>Color</label><input id="newCatColor" type="color" value="#58a6ff"></div>
           <div><button onclick="createCategory()">Add category</button></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Tags</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Tags are lighter than categories &mdash; each transaction has one category, but can carry any number of tags
+          (like &ldquo;vacation&rdquo;, &ldquo;reimbursable&rdquo;, or &ldquo;business&rdquo;). Use them to slice spending
+          across categories without reshuffling your budget.
+        </p>
+        <div id="tagsList" style="margin-bottom:14px;color:var(--muted);font-size:13px">No tags yet.</div>
+        <div class="row">
+          <div><label>New tag name</label><input id="newTagName" placeholder="vacation" maxlength="60"></div>
+          <div><label>Color</label><input id="newTagColor" type="color" value="#9d6bff"></div>
+          <div><button onclick="createTag()">Add tag</button></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Auto-tag rules</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          When a transaction's description contains the pattern (case-insensitive
+          substring match), the chosen tag is auto-attached on save and on CSV
+          import. Add an optional category filter to scope the rule. Use
+          <strong>Backfill</strong> to apply every active rule to your existing
+          transactions retroactively.
+        </p>
+        <div id="tagRulesList" style="margin-bottom:14px;color:var(--muted);font-size:13px">
+          Loading…
+        </div>
+        <h3 style="margin:12px 0 6px;font-size:14px" id="tagRuleFormTitle">New rule</h3>
+        <input type="hidden" id="editTagRuleId" value="">
+        <div class="row">
+          <div><label>Label (optional)</label>
+            <input id="newTagRuleName" placeholder="Coffee runs" maxlength="80"></div>
+          <div style="flex:1.4"><label>Description contains</label>
+            <input id="newTagRulePattern" placeholder="STARBUCKS" maxlength="120"></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div><label>Only when category is</label>
+            <select id="newTagRuleCategory"><option value="">— any —</option></select></div>
+          <div><label>Apply tag</label>
+            <select id="newTagRuleTag"></select></div>
+          <div style="flex:0 0 auto;align-self:end">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+              <input id="newTagRuleActive" type="checkbox" checked>
+              <span>Active</span>
+            </label>
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <div style="flex:0 0 auto"><button onclick="saveTagRule()">Save rule</button></div>
+          <div style="flex:0 0 auto"><button class="ghost" onclick="resetTagRuleForm()">Reset</button></div>
+          <div style="flex:0 0 auto;margin-left:auto">
+            <button class="ghost" onclick="backfillTagRules()" id="tagRuleBackfillBtn">
+              Backfill existing transactions
+            </button>
+          </div>
+        </div>
+        <div id="tagRulesStatus" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Budgets</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Set a monthly spending cap per category. Progress is computed against actual
+          (cleared) spending in the chosen window. Transfers between your accounts are
+          excluded.
+        </p>
+        <div class="row" style="margin-bottom:10px">
+          <div style="flex:0 0 auto"><label>Window</label>
+            <select id="budgetWindow" onchange="loadBudgets()">
+              <option value="month" selected>This month</option>
+              <option value="30d">Last 30 days</option>
+              <option value="90d">Last 90 days</option>
+            </select>
+          </div>
+          <div style="flex:0 0 auto;align-self:end;color:var(--muted);font-size:12px"
+               id="budgetWindowRange"></div>
+        </div>
+        <div id="budgetsList">
+          <div style="color:var(--muted);font-size:13px">Loading…</div>
         </div>
       </div>
 
@@ -772,39 +1653,174 @@
   </main>
 </div>
 
+<!-- Global footer — sits outside #login and #app so it's visible on every
+     screen (including the auth screen). Values populated by applyVersionFooter
+     once /api/auth/config returns. -->
+<footer class="app-footer" id="appFooter">
+  <div class="footer-versions">
+    <span data-app-title>WalletWeather</span>
+    <code id="footerAppVer">app —</code>
+    <code id="footerWebVer">web —</code>
+    <code id="footerSchemaVer">schema —</code>
+  </div>
+  <div class="footer-links">
+    <a href="https://github.com/mkolakowski/WalletWeather" target="_blank" rel="noopener">
+      View on GitHub ↗
+    </a>
+  </div>
+</footer>
+
 <script>
-let me=null, accounts=[], currentAccountId=null, categories=[], recView='active', editingRecId=null;
+let me=null, accounts=[], currentAccountId=null, categories=[], tags=[], recView='active', editingRecId=null;
 
 const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
 
+// ============================================================================
+// WEB VERSION (frontend SPA version)
+// ============================================================================
+// Semver-style version string for this single-page app. Intentionally
+// separate from APP_VERSION in backend/app/main.py so frontend-only tweaks
+// (copy, styling, JS-only bug fixes) can be tracked without touching backend.
+// Displayed in the footer as "WalletWeather vX.Y.Z (web vA.B.C)".
+//
+// *** AI ASSISTANT INSTRUCTIONS — READ BEFORE EDITING ***
+// If you make a user-visible change to this file (markup, CSS, or JS) —
+// new UI element, copy change, layout fix, JS behavior change — YOU MUST:
+//   1. Bump WEB_VERSION below (PATCH for fixes, MINOR for features,
+//      MAJOR for breaking/redesign changes).
+//   2. Add an entry to the WEB CHANGELOG block below (see format there).
+//   3. If the change also touches backend behavior, also bump APP_VERSION
+//      in backend/app/main.py per the instructions there.
+// ----------------------------------------------------------------------------
+const WEB_VERSION = "1.12.0";
+
+// --- WEB CHANGELOG ----------------------------------------------------------
+// Format for every new line (keep newest at TOP):
+//   // <version> (YYYY-MM-DD, <your name or handle>): <one-line summary>
+// Example:
+//   // 1.4.1 (2026-05-03, mkolakowski): fix forecast table scroll on iOS
+//
+// When you bump WEB_VERSION, add the matching line here. Do not rewrite
+// history — only append new entries.
+//
+// 1.12.0 (2026-04-24, claude+mkolakowski): Reports v2. Reports page
+//     redesigned around saved reports + a live editor: a left rail
+//     lists the user's saved reports (with a 📌 badge for pinned ones)
+//     and a Templates panel; clicking a template instantiates a new
+//     report. Every editor field — group_by (category / tag /
+//     account), range mode (month / last 30d / last 90d / YTD / full
+//     year / custom), kind, chart type, include-transfers, plus
+//     account / category / tag multi-selects — re-runs the report
+//     live (debounced) and the result re-renders inline. Save / Save
+//     as / Delete / Pin to dashboard buttons in the editor header.
+//     New shared inline bar-chart renderer alongside the existing pie.
+//     Pinned saved reports render below the account cards on the
+//     Dashboard with a top-5 bar mini-chart and a quick "Edit ›" link.
+// 1.11.0 (2026-04-24, claude+mkolakowski): tag features deepened.
+//     Reports page gains a "By tag" table and a "Spending by tag" pie
+//     mirroring the existing category breakdowns. Transaction search
+//     gains row checkboxes, a header "select all", and a bulk action
+//     bar that calls the new /api/transactions/bulk-tag endpoint to
+//     attach or remove a tag across many rows in one shot. New Settings
+//     panel "Auto-tag rules" lets the user define description-substring
+//     rules (with an optional category gate) that auto-attach a tag on
+//     save and on CSV import; a Backfill button replays them against
+//     existing transactions.
+// 1.10.1 (2026-04-24, claude+mkolakowski): added a pencil "Edit" button
+//     to the Dashboard (inline with the "Dashboard" h2) that jumps to
+//     Settings, scrolls the chart-placement block into view, and flashes
+//     it briefly so users don't have to hunt. Also flipped the default
+//     chart position from "Above account cards" to "Inside each card"
+//     for new or unset users — the inside-each-card layout keeps cards
+//     self-contained and makes the first-impression dashboard denser.
+// 1.10.0 (2026-04-24, claude+mkolakowski): Transfer page now shows live
+//     balances for the From and To accounts under each selector, and an
+//     "after: $X" preview that updates as the user types an amount
+//     (flagged red when a transfer would push the From balance
+//     negative). Also added a persistent global footer (sits outside
+//     #login and #app so it renders on every screen including the
+//     auth page) with app / web / schema version chips and a
+//     hyperlink to the project's GitHub repo.
+// 1.9.0 (2026-04-24, claude+mkolakowski): new Calendar page. Month grid
+//     (fixed 6×7 layout) showing every forecasted/recorded event across
+//     all visible accounts, colored by category, with prev/next/today
+//     navigation. Filter bar covers Account, Category, Tag, Source
+//     (scheduled recurring vs one-off), Kind (income / spending /
+//     transfer), and Status (cleared / pending). Clicking a day opens
+//     a detail panel with the full per-event table (account, tags,
+//     amount, status, jump-to-account).
+// 1.8.0 (2026-04-24, claude+mkolakowski): Tier-2 frontend — new Subscriptions
+//     page listing every active recurring outflow sorted by monthly cost,
+//     with per-account deep-link. Tags UI: management panel in Settings
+//     (create / rename / delete), tag filter dropdown on the Transaction
+//     search form, Tags column in search results, inline tag chips on
+//     forecast rows, and a pill-style multi-select tag picker inside the
+//     forecast inline-edit row.
+// 1.7.3 (2026-04-23, claude+mkolakowski): move the Account actions panel
+//     (Transfer / Import buttons) and the Recurring transactions panel off
+//     the Accounts page into the Transactions page. Added a "Managing
+//     account" picker at the top of Transactions that drives both panels.
+// 1.7.2 (2026-04-23, claude+mkolakowski): move Transfer editor out of its
+//     modal overlay into a dedicated #pageTransfer page. No modals remain —
+//     .modal-overlay/.modal-card CSS was deleted alongside.
+// 1.7.1 (2026-04-23, claude+mkolakowski): move CSV importer out of modal
+//     overlay (which was failing to dismiss on some browsers) into a
+//     dedicated #pageImport page with its own target-account selector.
+// 1.7.0 (2026-04-23, claude+mkolakowski): Tier-1 features —
+//     two new top-level pages (Net Worth with aggregate sparkline,
+//     Transactions with global search + filters), plus account transfer
+//     CRUD + recent-transfer panel, per-category Budgets panel in
+//     Settings, and a CSV import wizard inside the Accounts page
+//     (preview with column auto-mapping, dedupe, then commit).
+// 1.6.0 (2026-04-23, claude+mkolakowski): dashboard charts — per-account
+//     spending-by-category donut, income/spending/net totals tile, and
+//     daily balance sparkline rendered as inline SVG. Window toggle at
+//     the top of the dashboard (Month / 30 days / 90 days). Placement
+//     preference in Settings (above cards / below cards / inside cards).
+// 1.5.0 (2026-04-23, claude+mkolakowski): admin-customizable app title
+//     (tab title + header + login use [data-app-title] placeholders fed
+//     from /api/auth/config + POST /api/admin/app-title); default theme
+//     changed to "system"; theme localStorage removed to fix cross-user
+//     leak on shared browsers; theme picker rendered as two rows
+//     (Dark / Light) with System in the Dark row.
+// 1.4.0 (2026-04-22, claude+mkolakowski): theme picker with 11 themes
+//     (dark/light/system + 8 fun themes), pre-paint no-flash theme loader,
+//     server-side theme persistence, demo credentials banner on login.
+// 1.3.x and earlier: pre-versioning — see git history.
+// ----------------------------------------------------------------------------
+
 // ---------- Theme ----------
 // Adding a new theme is one line here plus a :root[data-theme="<key>"] CSS
-// block above. The three `swatches` are the colors used in the preview card
-// (bg, panel, accent) — hardcoded so each card shows its own colors even
-// while another theme is active.
+// block above. Fields:
+//   key      - matches the data-theme attribute and ALLOWED_THEMES on server
+//   name     - display label
+//   hint     - optional subtitle shown under the name
+//   variant  - 'dark' | 'light' | 'auto' — controls which group the card
+//              is rendered in ('auto' is rendered with the dark group)
+//   swatches - [bg, panel, accent] preview colors, hardcoded so each card
+//              shows its own colors even while another theme is active
 const THEMES = [
-  { key: 'dark',      name: 'Dark',      hint: 'Default',          swatches: ['#0f1419', '#1a2027', '#58a6ff'] },
-  { key: 'light',     name: 'Light',     hint: '',                 swatches: ['#ffffff', '#f6f8fa', '#0969da'] },
-  { key: 'system',    name: 'System',    hint: 'Match OS',         swatches: ['#0f1419', '#ffffff', '#888888'] },
-  { key: 'dracula',   name: 'Dracula',   hint: 'Classic purple',   swatches: ['#282a36', '#343746', '#bd93f9'] },
-  { key: 'solarized', name: 'Solarized', hint: 'Warm cream',       swatches: ['#fdf6e3', '#eee8d5', '#268bd2'] },
-  { key: 'nord',      name: 'Nord',      hint: 'Arctic blue',      swatches: ['#2e3440', '#3b4252', '#88c0d0'] },
-  { key: 'synthwave', name: 'Synthwave', hint: 'Neon retro',       swatches: ['#2b213a', '#3a2c4a', '#ff6ac1'] },
-  { key: 'forest',    name: 'Forest',    hint: 'Deep green',        swatches: ['#1a2421', '#243330', '#5eb583'] },
-  { key: 'mint',      name: 'Mint',      hint: 'Fresh green',       swatches: ['#f3faf5', '#e1f2e5', '#2d9065'] },
-  { key: 'monokai',   name: 'Monokai',   hint: 'Classic orange',    swatches: ['#272822', '#34352f', '#fd971f'] },
-  { key: 'sunset',    name: 'Sunset',    hint: 'Warm amber',        swatches: ['#2a1e1a', '#3a2a25', '#ff7f3f'] },
+  // System / adaptive — rendered in the dark group at the top.
+  { key: 'system',    name: 'System',    hint: 'Match OS',         variant: 'auto',  swatches: ['#0f1419', '#ffffff', '#888888'] },
+  // Dark themes
+  { key: 'dark',      name: 'Dark',      hint: 'Default',          variant: 'dark',  swatches: ['#0f1419', '#1a2027', '#58a6ff'] },
+  { key: 'dracula',   name: 'Dracula',   hint: 'Classic purple',   variant: 'dark',  swatches: ['#282a36', '#343746', '#bd93f9'] },
+  { key: 'nord',      name: 'Nord',      hint: 'Arctic blue',      variant: 'dark',  swatches: ['#2e3440', '#3b4252', '#88c0d0'] },
+  { key: 'synthwave', name: 'Synthwave', hint: 'Neon retro',       variant: 'dark',  swatches: ['#2b213a', '#3a2c4a', '#ff6ac1'] },
+  { key: 'forest',    name: 'Forest',    hint: 'Deep green',       variant: 'dark',  swatches: ['#1a2421', '#243330', '#5eb583'] },
+  { key: 'monokai',   name: 'Monokai',   hint: 'Classic orange',   variant: 'dark',  swatches: ['#272822', '#34352f', '#fd971f'] },
+  { key: 'sunset',    name: 'Sunset',    hint: 'Warm amber',       variant: 'dark',  swatches: ['#2a1e1a', '#3a2a25', '#ff7f3f'] },
+  // Light themes
+  { key: 'light',     name: 'Light',     hint: '',                 variant: 'light', swatches: ['#ffffff', '#f6f8fa', '#0969da'] },
+  { key: 'solarized', name: 'Solarized', hint: 'Warm cream',       variant: 'light', swatches: ['#fdf6e3', '#eee8d5', '#268bd2'] },
+  { key: 'mint',      name: 'Mint',      hint: 'Fresh green',      variant: 'light', swatches: ['#f3faf5', '#e1f2e5', '#2d9065'] },
 ];
 const THEME_KEYS = new Set(THEMES.map(t => t.key));
-const THEME_KEY = 'ww-theme';
-const DEFAULT_THEME = 'dark';
+const DEFAULT_THEME = 'system';
+// Note: the theme is NOT cached in localStorage. It lives on the server under
+// the signed-in user's preferences. This prevents the previous user's theme
+// from briefly rendering after another user signs in on the same browser.
 
-function getStoredTheme() {
-  try {
-    const v = localStorage.getItem(THEME_KEY);
-    return v && THEME_KEYS.has(v) ? v : DEFAULT_THEME;
-  } catch { return DEFAULT_THEME; }
-}
 function resolveTheme(choice) {
   if (choice === 'system') {
     return (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
@@ -813,16 +1829,18 @@ function resolveTheme(choice) {
 }
 function applyTheme(choice) {
   const effective = resolveTheme(choice);
-  if (effective === DEFAULT_THEME) {
+  // 'dark' is the stylesheet default — omit data-theme so the unscoped :root
+  // block wins.
+  if (effective === 'dark') {
     document.documentElement.removeAttribute('data-theme');
   } else {
     document.documentElement.setAttribute('data-theme', effective);
   }
 }
 function renderThemePicker() {
-  const grid = document.getElementById('themePicker');
-  if (grid.dataset.rendered === '1') return;
-  grid.innerHTML = THEMES.map(t => `
+  const root = document.getElementById('themePicker');
+  if (root.dataset.rendered === '1') return;
+  const cardFor = t => `
     <label class="theme-card" data-theme-key="${t.key}">
       <input type="radio" name="themeChoice" value="${t.key}">
       <div class="preview" aria-hidden="true">
@@ -830,20 +1848,35 @@ function renderThemePicker() {
       </div>
       <div class="name">${t.name}</div>
       ${t.hint ? `<div class="hint">${t.hint}</div>` : ''}
-    </label>
-  `).join('');
-  grid.dataset.rendered = '1';
+    </label>`;
+  // Two rows: dark themes (system/auto lives with dark since 'dark' is the
+  // fallback), then light themes.
+  const dark  = THEMES.filter(t => t.variant === 'dark' || t.variant === 'auto');
+  const light = THEMES.filter(t => t.variant === 'light');
+  root.innerHTML = `
+    <div class="theme-group">
+      <div class="theme-group-label">Dark</div>
+      <div class="theme-grid">${dark.map(cardFor).join('')}</div>
+    </div>
+    <div class="theme-group">
+      <div class="theme-group-label">Light</div>
+      <div class="theme-grid">${light.map(cardFor).join('')}</div>
+    </div>`;
+  root.dataset.rendered = '1';
 }
 function markSelectedCard(choice) {
   document.querySelectorAll('.theme-card').forEach(c => {
     c.classList.toggle('selected', c.dataset.themeKey === choice);
   });
 }
+function currentThemeChoice() {
+  // Server is the sole source of truth. If the signed-in user hasn't picked
+  // a theme yet, fall back to DEFAULT_THEME ('system').
+  return (me && me.theme_preference) || DEFAULT_THEME;
+}
 function loadThemePicker() {
   renderThemePicker();
-  // Server is source of truth once signed in; fall back to the local cache
-  // (or default) if the user hasn't chosen yet.
-  const choice = (me && me.theme_preference) || getStoredTheme();
+  const choice = currentThemeChoice();
   const radio = document.querySelector(`#themePicker input[name="themeChoice"][value="${choice}"]`);
   if (radio) radio.checked = true;
   markSelectedCard(choice);
@@ -851,8 +1884,7 @@ function loadThemePicker() {
 async function onThemeChange(event) {
   const choice = event.target.value;
   if (!THEME_KEYS.has(choice)) return;
-  // Apply + update cache immediately (optimistic) so the UI responds fast.
-  try { localStorage.setItem(THEME_KEY, choice); } catch {}
+  // Apply immediately so the UI responds fast.
   applyTheme(choice);
   markSelectedCard(choice);
   // Persist to the server so it follows the user across browsers/devices.
@@ -863,13 +1895,13 @@ async function onThemeChange(event) {
       body: JSON.stringify({ theme_preference: choice }),
     });
     if (res.ok && me) me.theme_preference = choice;
-  } catch { /* network hiccup — cache still holds it until next login */ }
+  } catch { /* network hiccup — user can retry; we don't cache locally */ }
 }
-// Re-apply when system preference changes, if the user picked "system"
+// Re-apply when system preference changes, if the user picked "system".
 if (window.matchMedia) {
   try {
     window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
-      if (getStoredTheme() === 'system') applyTheme('system');
+      if (currentThemeChoice() === 'system') applyTheme('system');
     });
   } catch {}
 }
@@ -883,43 +1915,217 @@ async function api(path, opts={}) {
 
 function showPage(name) {
   document.getElementById('pageDashboard').classList.toggle('hidden', name!=='dashboard');
+  document.getElementById('pageNetworth').classList.toggle('hidden', name!=='networth');
   document.getElementById('pageAccounts').classList.toggle('hidden', name!=='accounts');
+  document.getElementById('pageTransactions').classList.toggle('hidden', name!=='transactions');
+  document.getElementById('pageSubscriptions').classList.toggle('hidden', name!=='subscriptions');
+  document.getElementById('pageCalendar').classList.toggle('hidden', name!=='calendar');
+  document.getElementById('pageImport').classList.toggle('hidden', name!=='import');
+  document.getElementById('pageTransfer').classList.toggle('hidden', name!=='transfer');
   document.getElementById('pageReports').classList.toggle('hidden', name!=='reports');
   document.getElementById('pageAdmin').classList.toggle('hidden', name!=='admin');
   document.getElementById('pageSettings').classList.toggle('hidden', name!=='settings');
   document.getElementById('navDashboard').classList.toggle('active', name==='dashboard');
-  document.getElementById('navAccounts').classList.toggle('active', name==='accounts');
+  document.getElementById('navNetworth').classList.toggle('active', name==='networth');
+  // 'import' + 'transfer' are reached from the Account page — keep Accounts lit.
+  document.getElementById('navAccounts').classList.toggle('active',
+    name==='accounts' || name==='import' || name==='transfer');
+  document.getElementById('navTransactions').classList.toggle('active', name==='transactions');
+  document.getElementById('navSubscriptions').classList.toggle('active', name==='subscriptions');
+  document.getElementById('navCalendar').classList.toggle('active', name==='calendar');
   document.getElementById('navReports').classList.toggle('active', name==='reports');
   document.getElementById('navAdmin').classList.toggle('active', name==='admin');
   document.getElementById('navSettings').classList.toggle('active', name==='settings');
-  if (name === 'settings') { loadThemePicker(); loadCategories(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); }
+  if (name === 'settings') { loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); }
   if (name === 'dashboard') loadDashboard();
+  if (name === 'networth') loadNetworth();
+  if (name === 'transactions') initTransactionsPage();
+  if (name === 'subscriptions') loadSubscriptions();
+  if (name === 'calendar') initCalendarPage();
+  if (name === 'import') initImportPage();
+  if (name === 'transfer') initTransferPage();
   if (name === 'reports') initReportsPage();
   if (name === 'admin') loadAdminPage();
+  // If the managing-account dropdown on the Transactions page was used to
+  // switch accounts, re-render the accountView so summary/forecast match.
+  if (name === 'accounts' && currentAccountId && accounts.some(a => a.id === currentAccountId)) {
+    selectAccount(currentAccountId);
+  }
+}
+
+// ---------- Dashboard state ----------
+const ALLOWED_DASHBOARD_WINDOWS = ['month', '30d', '90d'];
+const ALLOWED_CHART_POSITIONS = ['above', 'below', 'inside'];
+const DEFAULT_DASHBOARD_WINDOW = 'month';
+// Default layout when the user hasn't explicitly picked one. "inside"
+// nests the charts within each account card, which keeps the dashboard
+// compact and each card self-contained — generally the nicest first
+// impression, so it's the global default.
+const DEFAULT_CHART_POSITION = 'inside';
+// Palette used when a category has no color set. Stays consistent across
+// renders by hashing the category name into this list.
+const DASH_PALETTE = [
+  '#58a6ff', '#3fb950', '#f85149', '#d29922', '#bd93f9',
+  '#ff6ac1', '#88c0d0', '#5eb583', '#fd971f', '#ff7f3f',
+];
+let dashboardWindow = DEFAULT_DASHBOARD_WINDOW;
+let dashboardCards = null;   // cached response from /api/dashboard (month-only)
+let dashboardCharts = null;  // cached response from /api/dashboard/charts
+
+function currentChartPosition() {
+  const p = me && me.chart_position;
+  return ALLOWED_CHART_POSITIONS.includes(p) ? p : DEFAULT_CHART_POSITION;
+}
+
+// ---------- Dashboard: pinned saved reports ----------
+// Cache so the dashboard doesn't refetch the pinned list every render.
+// Invalidated whenever the user pins/unpins/saves/deletes on the
+// Reports page (see invalidateDashboardPinned).
+let pinnedReportsCache = null;
+
+function invalidateDashboardPinned() {
+  pinnedReportsCache = null;
+  // If the dashboard is currently visible, refresh in place.
+  if (!document.getElementById('pageDashboard').classList.contains('hidden')) {
+    loadPinnedReports();
+  }
+}
+
+async function loadPinnedReports() {
+  const host = document.getElementById('dashPinnedReports');
+  if (!host) return;
+  // Pull the saved-reports list, keep only the pinned ones, then run
+  // each in parallel.
+  let saved;
+  try {
+    saved = pinnedReportsCache || await api('/api/saved-reports');
+  } catch {
+    saved = [];
+  }
+  pinnedReportsCache = saved;
+  const pinned = saved.filter(r => r.pinned);
+  if (!pinned.length) {
+    host.innerHTML = '';
+    return;
+  }
+  host.innerHTML = pinned.map(r =>
+    `<div class="panel" id="pinnedRpt-${r.id}">
+      <div class="pinned-head">
+        <span class="name">${escapeHtml(r.name)}</span>
+        <a href="#" class="cal-src-hint" style="text-decoration:none"
+           onclick="openPinnedReport(${r.id});return false">Edit ›</a>
+      </div>
+      <div class="pinned-body" id="pinnedRptBody-${r.id}">
+        <div style="color:var(--muted);font-size:12px">Loading…</div>
+      </div>
+    </div>`
+  ).join('');
+  // Run each pinned report in parallel.
+  await Promise.all(pinned.map(async r => {
+    let data;
+    try {
+      data = await api(`/api/saved-reports/${r.id}/run`, { method: 'POST', body: '{}' });
+    } catch (e) {
+      const body = document.getElementById('pinnedRptBody-' + r.id);
+      if (body) body.innerHTML = `<div style="color:var(--bad);font-size:12px">Run failed: ${escapeHtml(e.message)}</div>`;
+      return;
+    }
+    renderPinnedReport(r.id, data);
+  }));
+}
+
+function renderPinnedReport(id, d) {
+  const body = document.getElementById('pinnedRptBody-' + id);
+  if (!body) return;
+  const t = d.totals;
+  const summary = `
+    <div class="pinned-summary">
+      <span><strong>Range:</strong> ${escapeHtml(d.range_label || `${d.start} → ${d.end}`)}</span>
+      <span><strong>Actual net:</strong> ${fmt(t.actual_net)}</span>
+      <span><strong>Items:</strong> ${(d.groups || []).reduce((s,g)=>s+(g.actual_count||0),0)}</span>
+    </div>`;
+  // Inline a compact chart: top-5 bar chart (always — bar reads better
+  // than pie at this size). Save users the trip to the Reports page
+  // for a quick glance.
+  const top = (d.groups || []).slice().sort((a,b)=>Math.abs(b.actual_total)-Math.abs(a.actual_total)).slice(0,5);
+  const chartHostId = 'pinnedRptChart-' + id;
+  body.innerHTML = `${summary}<div id="${chartHostId}"></div>`;
+  const slices = top.map(g => ({label: g.name, value: Math.abs(g.actual_total), color: g.color}))
+                    .filter(s => s.value > 0);
+  if (slices.length) renderBarChart(chartHostId, slices);
+  else document.getElementById(chartHostId).innerHTML = '<div style="color:var(--muted);font-size:12px">No data.</div>';
+}
+
+function openPinnedReport(id) {
+  // Switch to Reports page and select this report. Defer because
+  // initReportsPage runs async (it loads the saved list); so we need
+  // to wait for that before selecting.
+  showPage('reports');
+  const tries = (n) => {
+    if (n <= 0) return;
+    const r = (reportSaved || []).find(x => x.id === id);
+    if (r) selectSavedReport(id);
+    else setTimeout(() => tries(n - 1), 80);
+  };
+  setTimeout(() => tries(8), 80);
 }
 
 async function loadDashboard() {
   const grid = document.getElementById('dashboardGrid');
-  let data;
+  grid.innerHTML = `<div style="color:var(--muted);grid-column:1/-1;text-align:center;padding:20px">Loading…</div>`;
+  // Reflect saved window in the toggle before fetching.
+  syncWindowToggle();
   try {
-    data = await api('/api/dashboard');
+    // Month-only card summary and window-driven charts in parallel.
+    const [cards, charts] = await Promise.all([
+      api('/api/dashboard'),
+      api('/api/dashboard/charts?window=' + encodeURIComponent(dashboardWindow)),
+    ]);
+    dashboardCards = cards;
+    dashboardCharts = charts;
   } catch (e) {
     grid.innerHTML = `<div style="color:var(--bad);grid-column:1/-1;text-align:center;padding:20px">Could not load dashboard: ${escapeHtml(e.message)}</div>`;
     return;
   }
-  if (!data.cards.length) {
+  renderDashboard();
+  // Load pinned reports in the background — they don't block the main
+  // grid render.
+  loadPinnedReports();
+}
+
+function renderDashboard() {
+  const grid = document.getElementById('dashboardGrid');
+  const above = document.getElementById('dashChartsAbove');
+  const below = document.getElementById('dashChartsBelow');
+  if (!dashboardCards || !dashboardCards.cards.length) {
     grid.innerHTML = `<div style="color:var(--muted);grid-column:1/-1;text-align:center;padding:20px">
       No accounts yet. Head to <a href="#" onclick="showPage('settings');return false" style="color:var(--accent)">Settings</a> to create one.
     </div>`;
+    above.classList.add('hidden'); below.classList.add('hidden');
     return;
   }
-  grid.innerHTML = data.cards.map(c => {
+  // Update the range label.
+  const rangeEl = document.getElementById('dashWindowRange');
+  if (dashboardCharts) {
+    rangeEl.textContent = `${dashboardCharts.label} · ${dashboardCharts.start} → ${dashboardCharts.end}`;
+  }
+
+  const pos = currentChartPosition();
+  const chartsByAccount = indexChartsByAccount(dashboardCharts);
+
+  // Render the cards with (optionally) inline chart blocks.
+  grid.innerHTML = dashboardCards.cards.map(c => {
     const fHigh = fmt(c.forecast_high);
     const fLow  = fmt(c.forecast_low);
     const aHigh = fmt(c.actual_high);
     const aLow  = fmt(c.actual_low);
     const fHighDate = c.forecast_high_date || '—';
     const fLowDate  = c.forecast_low_date  || '—';
+    const chartsInline = (pos === 'inside' && chartsByAccount[c.id])
+      ? `<div style="margin-top:14px;border-top:1px dashed var(--border);padding-top:10px">
+           ${renderChartBlock(chartsByAccount[c.id], true)}
+         </div>`
+      : '';
     return `
       <div class="dash-card">
         <h3 onclick="openAccountFromDashboard(${c.id})">${escapeHtml(c.name)}</h3>
@@ -948,8 +2154,254 @@ async function loadDashboard() {
             <div class="v ${c.actual_low>=0?'pos':'neg'}">${aLow}</div>
           </div>
         </div>
+        ${chartsInline}
       </div>`;
   }).join('');
+
+  // Render above/below panels.
+  const wideCharts = dashboardCharts && dashboardCharts.accounts.length
+    ? dashboardCharts.accounts.map(a => `
+        <div class="chart-section">
+          <h3>${escapeHtml(a.account_name)}</h3>
+          ${renderChartBlock(a, false)}
+        </div>`).join('')
+    : `<div class="chart-empty">No chart data for this window.</div>`;
+
+  above.innerHTML = wideCharts;
+  below.innerHTML = wideCharts;
+  above.classList.toggle('hidden', pos !== 'above');
+  below.classList.toggle('hidden', pos !== 'below');
+}
+
+function indexChartsByAccount(charts) {
+  const out = {};
+  if (!charts) return out;
+  for (const a of charts.accounts) out[a.account_id] = a;
+  return out;
+}
+
+function syncWindowToggle() {
+  document.querySelectorAll('.dash-window-bar .seg button').forEach(b => {
+    b.classList.toggle('active', b.dataset.window === dashboardWindow);
+  });
+}
+
+async function onDashboardWindowChange(w) {
+  if (!ALLOWED_DASHBOARD_WINDOWS.includes(w)) return;
+  if (w === dashboardWindow) return;
+  dashboardWindow = w;
+  syncWindowToggle();
+  try {
+    dashboardCharts = await api('/api/dashboard/charts?window=' + encodeURIComponent(w));
+  } catch (e) {
+    // Keep the existing render but surface the error in the range label.
+    document.getElementById('dashWindowRange').textContent = 'Error: ' + e.message;
+    return;
+  }
+  renderDashboard();
+}
+
+// Hook used by the pencil "Edit" button on the Dashboard page. Jumps to
+// the Settings page, scrolls the chart-placement block into view, and
+// briefly flashes it so the user sees where the control lives. We
+// reuse the existing Settings panel rather than building a separate
+// dashboard-only control — there's exactly one thing to edit today, and
+// centralizing it means any future dashboard layout knob (widget toggles,
+// card ordering, etc.) drops into the same section without another
+// navigation flow.
+function editDashboardLayout() {
+  showPage('settings');
+  // Defer so showPage has finished flipping `hidden` classes before we
+  // try to measure/scroll.
+  setTimeout(() => {
+    const section = document.getElementById('dashLayoutSection');
+    if (!section) return;
+    try { section.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    catch { section.scrollIntoView(); }
+    section.classList.remove('settings-flash');
+    // Force a reflow so the animation restarts if the button is pressed
+    // twice in quick succession.
+    void section.offsetWidth;
+    section.classList.add('settings-flash');
+    // Put keyboard focus on the currently selected radio so the user can
+    // change it with arrow keys without reaching for the mouse.
+    const checked = section.querySelector('input[type=radio]:checked')
+                   || section.querySelector('input[type=radio]');
+    if (checked) checked.focus({ preventScroll: true });
+  }, 0);
+}
+
+async function onChartPositionChange(event) {
+  const pos = event.target.value;
+  if (!ALLOWED_CHART_POSITIONS.includes(pos)) return;
+  if (me) me.chart_position = pos;
+  markChartPositionRadio(pos);
+  // Re-render the dashboard if it's the current view.
+  if (!document.getElementById('pageDashboard').classList.contains('hidden')) {
+    renderDashboard();
+  }
+  try {
+    await fetch('/api/me/preferences', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ chart_position: pos }),
+    });
+  } catch { /* network hiccup — server-side will catch up on next change */ }
+}
+
+function markChartPositionRadio(pos) {
+  const el = document.querySelector(`#chartPositionPicker input[value="${pos}"]`);
+  if (el) el.checked = true;
+}
+
+// ---------- SVG chart rendering ----------
+
+// Deterministic color from a string, using DASH_PALETTE.
+function paletteColor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+  return DASH_PALETTE[Math.abs(h) % DASH_PALETTE.length];
+}
+
+function renderChartBlock(acct, compact) {
+  if (!acct) return `<div class="chart-empty">No data.</div>`;
+  return `
+    <div class="chart-block ${compact ? 'compact' : ''}">
+      <div class="chart-donut-wrap">${renderDonut(acct.categories)}</div>
+      <div class="chart-totals">${renderTotals(acct.totals)}</div>
+      <div class="chart-spark">${renderSparkline(acct.balance_trend)}</div>
+    </div>`;
+}
+
+function renderDonut(categories) {
+  const total = (categories || []).reduce((s, c) => s + (c.spending_actual || 0), 0);
+  if (!categories || !categories.length || total <= 0) {
+    return `<div class="chart-empty" style="width:100%">
+      <div class="chart-title">Spending by category</div>
+      No spending in this window.
+    </div>`;
+  }
+  // Top 5 + "Other" rollup.
+  const TOP_N = 5;
+  const sorted = [...categories].sort((a, b) => b.spending_actual - a.spending_actual);
+  const top = sorted.slice(0, TOP_N);
+  const rest = sorted.slice(TOP_N);
+  const slices = top.map(c => ({
+    name: c.name, value: c.spending_actual,
+    color: c.color || paletteColor(c.name),
+  }));
+  if (rest.length) {
+    slices.push({
+      name: 'Other',
+      value: rest.reduce((s, c) => s + c.spending_actual, 0),
+      color: 'var(--muted)',
+    });
+  }
+
+  const cx = 50, cy = 50, r = 46, rIn = 28;
+  let a0 = -Math.PI / 2;
+  const paths = slices.map(s => {
+    const frac = s.value / total;
+    const a1 = a0 + frac * Math.PI * 2;
+    const d = donutArcPath(cx, cy, r, rIn, a0, a1);
+    a0 = a1;
+    return `<path d="${d}" fill="${s.color}"></path>`;
+  }).join('');
+
+  const legend = slices.map(s => `
+    <div class="item" title="${escapeHtml(s.name)}: ${fmt(s.value)}">
+      <span class="sw" style="background:${s.color}"></span>
+      <span class="n">${escapeHtml(s.name)}</span>
+      <span class="v">${fmt(s.value)}</span>
+    </div>`).join('');
+
+  return `
+    <div style="flex:0 0 auto">
+      <div class="chart-title">Spending by category</div>
+      <svg class="chart-donut" viewBox="0 0 100 100" aria-label="Spending by category">
+        ${paths}
+        <text class="center-big" x="50" y="50" text-anchor="middle"
+              dominant-baseline="central">${escapeHtml(fmt(total))}</text>
+        <text class="center-sm"  x="50" y="62" text-anchor="middle"
+              dominant-baseline="central">total spend</text>
+      </svg>
+    </div>
+    <div class="donut-legend">${legend}</div>`;
+}
+
+// Build an SVG path for a donut slice from angle a0 to a1 (radians, clockwise).
+// Handles the full-circle edge case by splitting into two 180° arcs.
+function donutArcPath(cx, cy, r, rIn, a0, a1) {
+  const full = (a1 - a0) >= Math.PI * 2 - 1e-6;
+  if (full) {
+    // Two halves make a full donut.
+    const half = donutArcPath(cx, cy, r, rIn, a0, a0 + Math.PI) +
+                 donutArcPath(cx, cy, r, rIn, a0 + Math.PI, a0 + Math.PI * 2);
+    return half;
+  }
+  const p0 = [cx + r * Math.cos(a0), cy + r * Math.sin(a0)];
+  const p1 = [cx + r * Math.cos(a1), cy + r * Math.sin(a1)];
+  const q0 = [cx + rIn * Math.cos(a1), cy + rIn * Math.sin(a1)];
+  const q1 = [cx + rIn * Math.cos(a0), cy + rIn * Math.sin(a0)];
+  const large = (a1 - a0) > Math.PI ? 1 : 0;
+  return `M${p0[0]} ${p0[1]} A${r} ${r} 0 ${large} 1 ${p1[0]} ${p1[1]} `
+       + `L${q0[0]} ${q0[1]} A${rIn} ${rIn} 0 ${large} 0 ${q1[0]} ${q1[1]} Z`;
+}
+
+function renderTotals(t) {
+  if (!t) return '';
+  const dIncome  = t.income_actual  - t.income_forecast;
+  const dSpend   = t.spending_actual - t.spending_forecast;
+  const dNet     = t.net_actual - t.net_forecast;
+  const deltaHtml = (delta, flipColor) => {
+    if (Math.abs(delta) < 0.005) return `<span class="delta">on plan</span>`;
+    const sign = delta > 0 ? '+' : '';
+    return `<span class="delta">${sign}${fmt(delta)} vs plan</span>`;
+  };
+  return `
+    <div class="chart-title">This window</div>
+    <div class="row-t">
+      <div class="k">Income</div>
+      <div><span class="v">${fmt(t.income_actual)}</span>${deltaHtml(dIncome)}</div>
+    </div>
+    <div class="row-t">
+      <div class="k">Spending</div>
+      <div><span class="v">${fmt(t.spending_actual)}</span>${deltaHtml(dSpend)}</div>
+    </div>
+    <div class="row-t net">
+      <div class="k">Net</div>
+      <div><span class="v ${t.net_actual>=0?'pos':'neg'}">${fmt(t.net_actual)}</span>${deltaHtml(dNet)}</div>
+    </div>`;
+}
+
+function renderSparkline(points) {
+  if (!points || points.length < 2) {
+    return `<div class="chart-title">Balance trend</div>
+            <div class="chart-empty">Not enough data.</div>`;
+  }
+  const W = 100, H = 30;
+  const ys = points.map(p => p.balance);
+  let ymin = Math.min(...ys), ymax = Math.max(...ys);
+  if (ymax === ymin) { ymax = ymin + 1; } // avoid divide-by-zero — draws flat line in middle
+  const n = points.length;
+  const coords = points.map((p, i) => {
+    const x = (i / (n - 1)) * W;
+    const y = H - ((p.balance - ymin) / (ymax - ymin)) * H;
+    return [x, y];
+  });
+  const linePath = coords.map(([x, y], i) => (i === 0 ? 'M' : 'L') + x.toFixed(2) + ',' + y.toFixed(2)).join(' ');
+  const fillPath = linePath + ` L${W},${H} L0,${H} Z`;
+  const first = points[0], last = points[points.length - 1];
+  return `
+    <div class="chart-title">Balance trend</div>
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Daily balance trend">
+      <path class="spark-fill" d="${fillPath}"></path>
+      <path class="spark-line" d="${linePath}"></path>
+    </svg>
+    <div class="spark-meta">
+      <span>${first.date} · ${fmt(first.balance)}</span>
+      <span>${last.date} · ${fmt(last.balance)}</span>
+    </div>`;
 }
 
 function openAccountFromDashboard(id) {
@@ -957,12 +2409,36 @@ function openAccountFromDashboard(id) {
   selectAccount(id);
 }
 
-// ============ Reports page ============
-let reportData = null;
+// ============ Reports page (v2 — saved reports + live editor) ============
+// State model:
+//   reportSaved      — array of {id, name, params, pinned, sort_order} from server
+//   reportTemplates  — array of {id, name, description, params}
+//   reportCurrent    — {id|null, name, params, pinned} for the report being edited
+//   reportLastResult — last /api/report/run response (rendered below)
+//   reportDirty      — bool: editor diverges from server-saved version
+let reportSaved = [];
+let reportTemplates = [];
+let reportCurrent = null;
+let reportLastResult = null;
+let reportDirty = false;
 let reportInitialized = false;
+let reportRunDebounce = null;
 
-function initReportsPage() {
-  // Populate the year dropdown and account list once, then load.
+function _defaultReportParams() {
+  return {
+    group_by: 'category',
+    range_mode: 'month',
+    year: new Date().getFullYear(),
+    month: new Date().getMonth() + 1,
+    start: null, end: null,
+    account_ids: [], category_ids: [], tag_ids: [],
+    kind: 'any',
+    include_transfers: false,
+    chart_type: 'table',
+  };
+}
+
+async function initReportsPage() {
   if (!reportInitialized) {
     const yearSel = document.getElementById('reportYearSel');
     const now = new Date();
@@ -976,79 +2452,225 @@ function initReportsPage() {
     document.getElementById('reportMonthSel').value = String(now.getMonth() + 1);
     reportInitialized = true;
   }
-  // Refresh accounts dropdown each visit (might have changed)
-  api('/api/accounts').then(list => {
-    const sel = document.getElementById('reportAccount');
-    const current = sel.value;
-    sel.innerHTML = '<option value="">All accounts</option>' +
-      list.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
-    sel.value = current;
-    loadReport();
-  }).catch(e => {
-    document.getElementById('reportTableWrap').innerHTML =
-      `<div style="color:var(--bad)">Could not load accounts: ${escapeHtml(e.message)}</div>`;
-  });
+  // Load templates + saved list + accounts in parallel; populate the
+  // multi-select option lists from the global accounts/categories/tags
+  // caches that other pages already keep fresh.
+  let saved = [], templates = [];
+  try {
+    [saved, templates] = await Promise.all([
+      api('/api/saved-reports'),
+      api('/api/report-templates'),
+    ]);
+  } catch (e) {
+    document.getElementById('reportRailList').innerHTML =
+      `<div style="color:var(--bad)">Could not load: ${escapeHtml(e.message)}</div>`;
+    return;
+  }
+  reportSaved = saved;
+  reportTemplates = templates;
+  populateReportFilterOptions();
+  renderReportRail();
+  renderReportTemplates();
+  // Pick the first saved report if any, otherwise leave the editor on
+  // a fresh "new report" state.
+  if (reportSaved.length) {
+    selectSavedReport(reportSaved[0].id);
+  } else {
+    // No saved reports yet — start the user on the first template.
+    if (reportTemplates.length) {
+      instantiateTemplate(reportTemplates[0]);
+    } else {
+      reportCurrent = { id: null, name: 'Untitled report', pinned: false,
+                        params: _defaultReportParams() };
+      paintReportEditor();
+      runReportPreview();
+    }
+  }
 }
 
-function onReportModeChange() {
-  const mode = document.getElementById('reportMode').value;
+function populateReportFilterOptions() {
+  // Accounts dropdown
+  const accSel = document.getElementById('reportAccountIds');
+  accSel.innerHTML = (accounts || [])
+    .map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
+  // Categories dropdown
+  const catSel = document.getElementById('reportCategoryIds');
+  catSel.innerHTML = (categories || [])
+    .map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  // Tags dropdown
+  const tagSel = document.getElementById('reportTagIds');
+  tagSel.innerHTML = (tags || [])
+    .map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+}
+
+function renderReportRail() {
+  const list = document.getElementById('reportRailList');
+  if (!reportSaved.length) {
+    list.innerHTML = '<div style="color:var(--muted)">No saved reports yet. Pick a template below to start.</div>';
+    return;
+  }
+  list.innerHTML = reportSaved.map(r => `
+    <div class="report-rail-item ${reportCurrent && reportCurrent.id === r.id ? 'active' : ''}"
+         onclick="selectSavedReport(${r.id})">
+      <span class="name">${escapeHtml(r.name)}</span>
+      ${r.pinned ? '<span class="pinmark" title="Pinned to dashboard">📌</span>' : ''}
+    </div>
+  `).join('');
+}
+
+function renderReportTemplates() {
+  const list = document.getElementById('reportTemplatesList');
+  if (!reportTemplates.length) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:12px">No templates available.</div>';
+    return;
+  }
+  list.innerHTML = reportTemplates.map(t => `
+    <div class="report-tpl-item" onclick="instantiateTemplate(${escapeAttr(JSON.stringify(t))})">
+      <div class="tpl-name">${escapeHtml(t.name)}</div>
+      <div class="tpl-desc">${escapeHtml(t.description || '')}</div>
+    </div>
+  `).join('');
+}
+
+function instantiateTemplate(tpl) {
+  if (typeof tpl === 'string') { try { tpl = JSON.parse(tpl); } catch { return; } }
+  const params = Object.assign(_defaultReportParams(), tpl.params || {});
+  reportCurrent = { id: null, name: tpl.name, pinned: false, params };
+  reportDirty = true;
+  renderReportRail();
+  paintReportEditor();
+  runReportPreview();
+}
+
+function openNewReportPicker() {
+  // The Templates panel is always visible in the rail, so "+ New" just
+  // highlights it. Future: if we add custom user-saved templates, this
+  // could open a chooser dialog.
+  const rail = document.querySelector('.reports-rail');
+  if (rail) rail.scrollIntoView({behavior:'smooth', block:'start'});
+  // Start on a blank "Untitled report" if the user explicitly asked
+  // for new — gives a clean slate.
+  reportCurrent = { id: null, name: 'Untitled report', pinned: false,
+                    params: _defaultReportParams() };
+  reportDirty = true;
+  renderReportRail();
+  paintReportEditor();
+  runReportPreview();
+}
+
+function selectSavedReport(id) {
+  const r = reportSaved.find(x => x.id === id);
+  if (!r) return;
+  reportCurrent = {
+    id: r.id, name: r.name, pinned: !!r.pinned,
+    params: Object.assign(_defaultReportParams(), r.params || {}),
+  };
+  reportDirty = false;
+  renderReportRail();
+  paintReportEditor();
+  runReportPreview();
+}
+
+function paintReportEditor() {
+  if (!reportCurrent) return;
+  const p = reportCurrent.params;
+  document.getElementById('reportNameInput').value = reportCurrent.name || '';
+  document.getElementById('reportPinInput').checked = !!reportCurrent.pinned;
+  document.getElementById('reportEditorTitle').textContent =
+    reportCurrent.id ? 'Edit report' : 'New report';
+  document.getElementById('reportDeleteBtn').classList.toggle('hidden', !reportCurrent.id);
+  document.getElementById('reportGroupBy').value = p.group_by;
+  document.getElementById('reportRangeMode').value = p.range_mode;
+  if (p.month)  document.getElementById('reportMonthSel').value = String(p.month);
+  if (p.year)   document.getElementById('reportYearSel').value  = String(p.year);
+  document.getElementById('reportStart').value = p.start || '';
+  document.getElementById('reportEnd').value   = p.end   || '';
+  document.getElementById('reportKind').value  = p.kind;
+  document.getElementById('reportChart').value = p.chart_type;
+  document.getElementById('reportIncludeTransfers').checked = !!p.include_transfers;
+  // Multi-selects — set selectedness from params.
+  const setMulti = (id, ids) => {
+    const want = new Set((ids || []).map(Number));
+    [...document.getElementById(id).options].forEach(o => {
+      o.selected = want.has(Number(o.value));
+    });
+  };
+  setMulti('reportAccountIds',  p.account_ids);
+  setMulti('reportCategoryIds', p.category_ids);
+  setMulti('reportTagIds',      p.tag_ids);
+  onReportRangeModeChange(true);  // toggle the relevant range inputs
+  refreshReportDirtyMark();
+}
+
+function onReportRangeModeChange(silent) {
+  const mode = document.getElementById('reportRangeMode').value;
   document.getElementById('reportMonthWrap').classList.toggle('hidden', mode !== 'month');
   document.getElementById('reportYearWrap').classList.toggle('hidden',
     mode !== 'month' && mode !== 'ytd' && mode !== 'year');
   document.getElementById('reportCustomStart').classList.toggle('hidden', mode !== 'custom');
-  document.getElementById('reportCustomEnd').classList.toggle('hidden', mode !== 'custom');
-  loadReport();
+  document.getElementById('reportCustomEnd').classList.toggle('hidden',   mode !== 'custom');
+  if (!silent) onReportParamChange();
 }
 
-function _reportRange() {
-  // Returns [start, end] as ISO date strings based on the current mode.
-  const mode = document.getElementById('reportMode').value;
-  const pad = n => String(n).padStart(2, '0');
-  if (mode === 'month') {
-    const m = parseInt(document.getElementById('reportMonthSel').value);
-    const y = parseInt(document.getElementById('reportYearSel').value);
-    const lastDay = new Date(y, m, 0).getDate();
-    return [`${y}-${pad(m)}-01`, `${y}-${pad(m)}-${pad(lastDay)}`];
-  }
-  if (mode === 'ytd') {
-    const y = parseInt(document.getElementById('reportYearSel').value);
-    const today = new Date();
-    // YTD only makes sense for the current year — clamp to today
-    const isCurrent = y === today.getFullYear();
-    const endStr = isCurrent
-      ? `${y}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`
-      : `${y}-12-31`;
-    return [`${y}-01-01`, endStr];
-  }
-  if (mode === 'year') {
-    const y = parseInt(document.getElementById('reportYearSel').value);
-    return [`${y}-01-01`, `${y}-12-31`];
-  }
-  // custom
-  const s = document.getElementById('reportStart').value;
-  const e = document.getElementById('reportEnd').value;
-  return [s || null, e || null];
+function readEditorParams() {
+  // Read every editor control back into a params object. Saving and
+  // running both go through this so they're guaranteed to agree.
+  const getMulti = id =>
+    [...document.getElementById(id).selectedOptions].map(o => Number(o.value));
+  return {
+    group_by:   document.getElementById('reportGroupBy').value,
+    range_mode: document.getElementById('reportRangeMode').value,
+    year:  Number(document.getElementById('reportYearSel').value)  || null,
+    month: Number(document.getElementById('reportMonthSel').value) || null,
+    start: document.getElementById('reportStart').value || null,
+    end:   document.getElementById('reportEnd').value   || null,
+    kind:  document.getElementById('reportKind').value,
+    chart_type: document.getElementById('reportChart').value,
+    include_transfers: document.getElementById('reportIncludeTransfers').checked,
+    account_ids:  getMulti('reportAccountIds'),
+    category_ids: getMulti('reportCategoryIds'),
+    tag_ids:      getMulti('reportTagIds'),
+  };
 }
 
-async function loadReport() {
-  const [s, e] = _reportRange();
-  if (!s || !e) return;
-  const acctId = document.getElementById('reportAccount').value;
-  let url = `/api/report?start=${s}&end=${e}`;
-  if (acctId) url += `&account_id=${acctId}`;
+function markReportDirty() {
+  reportDirty = true;
+  refreshReportDirtyMark();
+}
+
+function refreshReportDirtyMark() {
+  document.getElementById('reportEditorDirty').classList.toggle('hidden', !reportDirty);
+}
+
+function onReportParamChange() {
+  if (!reportCurrent) return;
+  reportCurrent.params = readEditorParams();
+  reportCurrent.name = document.getElementById('reportNameInput').value || reportCurrent.name;
+  reportCurrent.pinned = document.getElementById('reportPinInput').checked;
+  markReportDirty();
+  // Debounce so multi-select Ctrl-click bursts only run once.
+  clearTimeout(reportRunDebounce);
+  reportRunDebounce = setTimeout(runReportPreview, 120);
+}
+
+async function runReportPreview() {
+  if (!reportCurrent) return;
+  const params = reportCurrent.params;
+  const body = document.getElementById('reportGroupsBody');
+  body.innerHTML = `<div style="color:var(--muted);padding:8px">Running…</div>`;
+  let data;
   try {
-    reportData = await api(url);
-  } catch (err) {
-    document.getElementById('reportTableWrap').innerHTML =
-      `<div style="color:var(--bad)">Could not load report: ${escapeHtml(err.message)}</div>`;
+    data = await api('/api/report/run', { method: 'POST', body: JSON.stringify(params) });
+  } catch (e) {
+    body.innerHTML = `<div style="color:var(--bad)">Run failed: ${escapeHtml(e.message)}</div>`;
     return;
   }
-  renderReport();
+  reportLastResult = data;
+  renderReportResult(data);
 }
 
-function renderReport() {
-  if (!reportData) return;
-  const d = reportData;
+function renderReportResult(d) {
+  // Top-line totals.
   const t = d.totals;
   const sum = document.getElementById('reportSummary');
   const netCls = (t.actual_net >= 0) ? 'pos' : 'neg';
@@ -1061,43 +2683,160 @@ function renderReport() {
     <div class="stat"><div class="l">Forecast net</div><div class="v ${fnetCls}">${fmt(t.forecast_net)}</div></div>
     <div class="stat"><div class="l">Actual net</div><div class="v ${netCls}">${fmt(t.actual_net)}</div></div>`;
 
-  // Category table
-  const wrap = document.getElementById('reportTableWrap');
-  if (!d.categories.length) {
-    wrap.innerHTML = '<div style="color:var(--muted);padding:8px">No activity in this range.</div>';
+  // Breakdown table.
+  const heading = document.getElementById('reportGroupsHeading');
+  heading.textContent = `By ${d.group_by} · ${d.range_label}`
+    + (d.group_by === 'tag' ? ' (tags overlay; rows can double-count)' : '');
+  const body = document.getElementById('reportGroupsBody');
+  if (!d.groups.length) {
+    body.innerHTML = '<div style="color:var(--muted);padding:8px">No activity matches the current filters.</div>';
   } else {
-    const rows = d.categories.map(c => {
-      const diff = c.actual_total - c.forecast_total;
+    const rows = d.groups.map(g => {
+      const diff = g.actual_total - g.forecast_total;
       const diffCls = Math.abs(diff) < 0.005 ? 'diff-zero' : (diff > 0 ? 'diff-pos' : 'diff-neg');
-      const swatch = c.color
-        ? `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${c.color};margin-right:6px;vertical-align:middle"></span>`
+      const swatch = g.color
+        ? `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${g.color};margin-right:6px;vertical-align:middle"></span>`
         : '';
       return `<tr>
-        <td>${swatch}${escapeHtml(c.name)}</td>
-        <td class="num">${fmt(c.forecast_total)}</td>
-        <td class="num">${fmt(c.actual_total)}</td>
+        <td>${swatch}${escapeHtml(g.name)}</td>
+        <td class="num">${fmt(g.forecast_total)}</td>
+        <td class="num">${fmt(g.actual_total)}</td>
         <td class="num ${diffCls}">${fmt(diff)}</td>
-        <td class="num" style="color:var(--muted)">${c.actual_count}</td>
+        <td class="num" style="color:var(--muted)">${g.actual_count}</td>
       </tr>`;
     }).join('');
-    wrap.innerHTML = `<table><thead><tr>
-      <th>Category</th>
-      <th class="num">Forecast</th>
-      <th class="num">Actual</th>
-      <th class="num">Δ</th>
-      <th class="num">Items</th>
-    </tr></thead><tbody>${rows}</tbody></table>`;
+    const headerLabel = d.group_by === 'tag' ? 'Tag'
+                      : d.group_by === 'account' ? 'Account'
+                      : 'Category';
+    body.innerHTML = `<div style="overflow-x:auto"><table>
+      <thead><tr>
+        <th>${headerLabel}</th>
+        <th class="num">Forecast</th>
+        <th class="num">Actual</th>
+        <th class="num">Δ</th>
+        <th class="num">Items</th>
+      </tr></thead><tbody>${rows}</tbody></table></div>`;
   }
+  // Chart.
+  renderReportChart(d, 'reportChartBody', 'reportChartHeading');
+}
 
-  // Pies — separate for spending (negative actuals) and income (positive)
-  const spending = d.categories
-    .filter(c => c.actual_total < 0)
-    .map(c => ({label: c.name, value: -c.actual_total, color: c.color}));
-  const income = d.categories
-    .filter(c => c.actual_total > 0)
-    .map(c => ({label: c.name, value: c.actual_total, color: c.color}));
-  renderPie('reportPieSpending', spending);
-  renderPie('reportPieIncome', income);
+function renderReportChart(d, hostId, headingId) {
+  const ct = (d.params && d.params.chart_type) || d.chart_type || 'table';
+  const heading = headingId ? document.getElementById(headingId) : null;
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  if (ct === 'table') {
+    if (heading) heading.textContent = 'Chart';
+    host.innerHTML = '<div style="color:var(--muted);padding:8px">Chart hidden — chart type set to "Table only".</div>';
+    return;
+  }
+  // For pie/bar, drop the rows to absolute magnitudes (most chart libs
+  // hate negative slices). When kind=any we still want the user to see
+  // a pie of magnitudes — distinct from a stacked-positive/negative
+  // breakdown — so we just take |actual_total|.
+  const slices = d.groups
+    .map(g => ({ label: g.name, value: Math.abs(g.actual_total), color: g.color }))
+    .filter(s => s.value > 0);
+  if (heading) heading.textContent = ct === 'pie' ? 'Pie' : 'Bar chart';
+  if (!slices.length) {
+    host.innerHTML = '<div style="color:var(--muted);padding:8px">No data to chart.</div>';
+    return;
+  }
+  if (ct === 'pie') {
+    renderPie(hostId, slices);
+  } else {
+    renderBarChart(hostId, slices);
+  }
+}
+
+function renderBarChart(hostId, slices) {
+  const host = document.getElementById(hostId);
+  if (!slices.length) { host.innerHTML = ''; return; }
+  const fallback = ['#58a6ff','#3fb950','#f0883e','#a371f7','#56d4dd','#ff7b72',
+                    '#e3b341','#db61a2','#7c6be6','#d29922','#2ea043','#8b949e'];
+  const sorted = slices.slice().sort((a,b)=>b.value-a.value);
+  const maxV = sorted[0].value;
+  host.innerHTML = `<div class="bar-chart">${sorted.map((s,i) => {
+    const color = s.color || fallback[i % fallback.length];
+    const pct = maxV > 0 ? (s.value / maxV * 100) : 0;
+    return `
+      <div class="bar-row">
+        <div title="${escapeAttr(s.label)}" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          <span class="swatch" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${color};margin-right:6px;vertical-align:middle"></span>
+          ${escapeHtml(s.label)}
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" style="background:${color};width:${pct.toFixed(1)}%"></div>
+        </div>
+        <div class="bar-amt">${fmt(s.value)}</div>
+      </div>`;
+  }).join('')}</div>`;
+}
+
+async function saveCurrentReport() {
+  if (!reportCurrent) return;
+  reportCurrent.params = readEditorParams();
+  reportCurrent.name = document.getElementById('reportNameInput').value.trim() || 'Untitled report';
+  reportCurrent.pinned = document.getElementById('reportPinInput').checked;
+  const body = {
+    name: reportCurrent.name, params: reportCurrent.params,
+    pinned: reportCurrent.pinned, sort_order: 0,
+  };
+  try {
+    if (reportCurrent.id) {
+      const r = await api('/api/saved-reports/' + reportCurrent.id, {
+        method: 'PATCH', body: JSON.stringify(body),
+      });
+      Object.assign(reportCurrent, { id: r.id });
+    } else {
+      const r = await api('/api/saved-reports', {
+        method: 'POST', body: JSON.stringify(body),
+      });
+      reportCurrent.id = r.id;
+    }
+  } catch (e) {
+    alert('Save failed: ' + e.message); return;
+  }
+  reportDirty = false;
+  // Reload list so a new report appears or the renamed one updates.
+  reportSaved = await api('/api/saved-reports');
+  renderReportRail();
+  paintReportEditor();
+  // If pinned changed, the dashboard cache is stale.
+  invalidateDashboardPinned();
+}
+
+async function saveCurrentReportAs() {
+  if (!reportCurrent) return;
+  // Force a new id by clearing it, then save. Fresh name suggested.
+  const oldName = (document.getElementById('reportNameInput').value || '').trim();
+  const proposed = prompt('Save as — name for the new report:', oldName ? oldName + ' (copy)' : 'New report');
+  if (!proposed) return;
+  document.getElementById('reportNameInput').value = proposed;
+  reportCurrent = { id: null, name: proposed,
+                    pinned: document.getElementById('reportPinInput').checked,
+                    params: readEditorParams() };
+  await saveCurrentReport();
+}
+
+async function deleteCurrentReport() {
+  if (!reportCurrent || !reportCurrent.id) return;
+  if (!confirm(`Delete the report "${reportCurrent.name}"?`)) return;
+  try {
+    await api('/api/saved-reports/' + reportCurrent.id, { method: 'DELETE' });
+  } catch (e) {
+    alert('Delete failed: ' + e.message); return;
+  }
+  reportSaved = reportSaved.filter(r => r.id !== reportCurrent.id);
+  reportCurrent = null;
+  renderReportRail();
+  if (reportSaved.length) {
+    selectSavedReport(reportSaved[0].id);
+  } else {
+    openNewReportPicker();
+  }
+  invalidateDashboardPinned();
 }
 
 function renderPie(elId, slices) {
@@ -1153,30 +2892,26 @@ function renderPie(elId, slices) {
 }
 
 function exportReport(format) {
-  if (!reportData) return;
-  const d = reportData;
+  // CSV / JSON export for the currently-rendered report (post-redesign).
+  const d = reportLastResult;
+  if (!d) return;
   const dateStamp = `${d.start}_to_${d.end}`;
   let blob, filename;
   if (format === 'csv') {
-    const rows = [
-      ['Category', 'Forecast', 'Actual', 'Difference', 'Item count'],
-    ];
-    d.categories.forEach(c => {
+    const headerLabel = d.group_by === 'tag' ? 'Tag'
+                      : d.group_by === 'account' ? 'Account' : 'Category';
+    const rows = [[headerLabel, 'Forecast', 'Actual', 'Difference', 'Item count']];
+    (d.groups || []).forEach(g => {
       rows.push([
-        c.name,
-        c.forecast_total.toFixed(2),
-        c.actual_total.toFixed(2),
-        (c.actual_total - c.forecast_total).toFixed(2),
-        c.actual_count,
+        g.name,
+        (g.forecast_total ?? 0).toFixed(2),
+        (g.actual_total   ?? 0).toFixed(2),
+        ((g.actual_total ?? 0) - (g.forecast_total ?? 0)).toFixed(2),
+        g.actual_count ?? 0,
       ]);
     });
     rows.push([]);
-    rows.push(['Forecast income',   d.totals.forecast_income.toFixed(2)]);
-    rows.push(['Actual income',     d.totals.actual_income.toFixed(2)]);
-    rows.push(['Forecast spending', d.totals.forecast_spending.toFixed(2)]);
-    rows.push(['Actual spending',   d.totals.actual_spending.toFixed(2)]);
-    rows.push(['Forecast net',      d.totals.forecast_net.toFixed(2)]);
-    rows.push(['Actual net',        d.totals.actual_net.toFixed(2)]);
+    Object.entries(d.totals).forEach(([k,v]) => rows.push([k, v.toFixed(2)]));
     const csv = rows.map(r => r.map(cell => {
       const s = String(cell ?? '');
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -1289,10 +3024,38 @@ function showApp() {
   document.getElementById('app').classList.remove('hidden');
 }
 
+// The live app title (admin-customizable). Default until /api/auth/config
+// responds. All places that show the title use applyAppTitle() to keep
+// <title> and every [data-app-title] node in sync.
+let appTitle = 'WalletWeather';
+function applyAppTitle(t) {
+  appTitle = (t && t.trim()) || 'WalletWeather';
+  document.title = appTitle;
+  document.querySelectorAll('[data-app-title]').forEach(el => {
+    el.textContent = appTitle;
+  });
+}
+
+// Paint the global footer's version chips as soon as the server tells us
+// which versions are live. Called from init() after the /api/auth/config
+// fetch; also harmless to re-run (it's pure DOM).
+function applyVersionFooter(cfg) {
+  const appVer = (cfg && cfg.app_version) || '—';
+  const schemaVer = (cfg && cfg.schema_version) || '—';
+  const el = id => document.getElementById(id);
+  if (el('footerAppVer')) el('footerAppVer').textContent = 'app v' + appVer;
+  if (el('footerWebVer')) el('footerWebVer').textContent = 'web v' + WEB_VERSION;
+  if (el('footerSchemaVer')) el('footerSchemaVer').textContent = 'schema v' + schemaVer;
+}
+
 async function init() {
+  // Paint the footer with what we know locally even if the network is slow,
+  // so the user never sees a "—" footer flash during first paint.
+  applyVersionFooter({ app_version: null, schema_version: null });
   // Always check auth config first so we know whether to show Google
   try {
     const cfg = await fetch('/api/auth/config').then(r=>r.json());
+    if (cfg.app_title) applyAppTitle(cfg.app_title);
     if (cfg.google_enabled) document.getElementById('googleWrap').classList.remove('hidden');
     if (!cfg.registration_enabled) document.getElementById('tabSignup').classList.add('hidden');
     if (cfg.demo_mode && cfg.demo_email && cfg.demo_password) {
@@ -1301,6 +3064,7 @@ async function init() {
       document.getElementById('demoPass').textContent = cfg.demo_password;
       document.getElementById('demoBanner').classList.remove('hidden');
     }
+    applyVersionFooter(cfg);
   } catch {}
   try { me = await api('/api/me'); }
   catch { showLogin(); return; }
@@ -1310,13 +3074,9 @@ async function init() {
   if (me.is_admin) {
     document.getElementById('navAdmin').classList.remove('hidden');
   }
-  // Server is the source of truth for theme. Apply the signed-in user's
-  // preference and refresh the localStorage cache so the next page load is
-  // flash-free. If the user has no preference set, leave the cache alone.
-  if (me.theme_preference) {
-    try { localStorage.setItem(THEME_KEY, me.theme_preference); } catch {}
-    applyTheme(me.theme_preference);
-  }
+  // Server is the sole source of truth for theme. Apply whatever preference
+  // the user has (or fall back to 'system' if they haven't set one).
+  applyTheme(me.theme_preference || DEFAULT_THEME);
   document.getElementById('newAccDate').valueAsDate = new Date();
   // Populate year dropdown (current - 2 .. current + 5) and default to current month/year
   const now = new Date();
@@ -1332,6 +3092,7 @@ async function init() {
   wireForecastSort();
   wireRecurringSort();
   await loadCategories();
+  await loadTags();
   await loadAccounts();
   showPage('dashboard');
 }
@@ -1493,6 +3254,314 @@ async function delCategory(id) {
     await loadRecurring();
     await loadForecast();
   }
+}
+
+// ---------- Tags ----------
+// Tags are cross-category labels. A transaction has exactly one category
+// but any number of tags. The backend enforces per-user uniqueness by name
+// and cascade-deletes tag links when either side is removed.
+async function loadTags() {
+  try {
+    tags = await api('/api/tags');
+  } catch (e) {
+    tags = [];
+  }
+  const list = document.getElementById('tagsList');
+  if (!list) return;
+  if (!tags.length) {
+    list.innerHTML = '<span style="color:var(--muted)">No tags yet. Add one below to start labelling transactions across categories.</span>';
+  } else {
+    list.innerHTML = tags.map(t =>
+      `<span class="tag-pill" style="${t.color?`background:${t.color}22;color:${t.color};border-color:${t.color}55`:''};margin-right:6px;padding:4px 10px">
+        ${escapeHtml(t.name)}
+        <a href="#" onclick="renameTag(${t.id});return false" style="color:inherit;margin-left:6px;text-decoration:none"
+           title="Rename">✎</a>
+        <a href="#" onclick="delTag(${t.id});return false" style="color:inherit;margin-left:4px;text-decoration:none"
+           title="Delete">×</a>
+      </span>`
+    ).join('');
+  }
+}
+
+async function createTag() {
+  const name = document.getElementById('newTagName').value.trim();
+  if (!name) return;
+  const color = document.getElementById('newTagColor').value;
+  try {
+    await api('/api/tags', {method:'POST', body: JSON.stringify({name, color})});
+  } catch (e) {
+    alert('Could not create tag: ' + e.message);
+    return;
+  }
+  document.getElementById('newTagName').value = '';
+  await loadTags();
+}
+
+async function renameTag(id) {
+  const t = (tags || []).find(x => x.id === id);
+  if (!t) return;
+  const next = prompt('Rename tag:', t.name);
+  if (!next || next.trim() === '' || next.trim() === t.name) return;
+  try {
+    await api('/api/tags/'+id, {method:'PATCH', body: JSON.stringify({name: next.trim(), color: t.color || null})});
+  } catch (e) {
+    alert('Could not rename: ' + e.message);
+    return;
+  }
+  await loadTags();
+  if (currentAccountId) await loadForecast();
+}
+
+async function delTag(id) {
+  if (!confirm('Delete this tag? It will be removed from every transaction that uses it. This cannot be undone.')) return;
+  try {
+    await api('/api/tags/'+id, {method:'DELETE'});
+  } catch (e) {
+    alert('Could not delete: ' + e.message);
+    return;
+  }
+  await loadTags();
+  if (currentAccountId) await loadForecast();
+}
+
+// ---------- Tag rules (auto-tagging on save / import) ----------
+// `tagRulesCache` holds the latest /api/tag-rules response so the row
+// click handlers don't need to refetch when the user clicks Edit.
+let tagRulesCache = [];
+
+async function loadTagRules() {
+  try {
+    tagRulesCache = await api('/api/tag-rules');
+  } catch (e) {
+    tagRulesCache = [];
+    document.getElementById('tagRulesList').innerHTML =
+      `<span style="color:var(--bad)">Could not load: ${escapeHtml(e.message)}</span>`;
+    return;
+  }
+  populateTagRuleForm();
+  renderTagRulesList();
+}
+
+function populateTagRuleForm() {
+  // Refresh the category + tag dropdowns from current state (categories
+  // and tags are already cached globally; we reload on every showPage so
+  // they're fresh).
+  const catSel = document.getElementById('newTagRuleCategory');
+  const tagSel = document.getElementById('newTagRuleTag');
+  if (!catSel || !tagSel) return;
+  const prevCat = catSel.value;
+  const prevTag = tagSel.value;
+  catSel.innerHTML = '<option value="">— any —</option>'
+    + (categories || []).map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  tagSel.innerHTML = (tags || []).length
+    ? (tags || []).map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('')
+    : '<option value="">(no tags yet — create one above)</option>';
+  if (prevCat) catSel.value = prevCat;
+  if (prevTag) tagSel.value = prevTag;
+}
+
+function renderTagRulesList() {
+  const list = document.getElementById('tagRulesList');
+  if (!list) return;
+  if (!tagRulesCache.length) {
+    list.innerHTML = '<span style="color:var(--muted)">No rules yet. Use the form below to add one.</span>';
+    return;
+  }
+  list.innerHTML = `<table style="width:100%;font-size:13px">
+    <thead><tr>
+      <th style="text-align:left">Pattern</th>
+      <th style="text-align:left">Category filter</th>
+      <th style="text-align:left">Applies tag</th>
+      <th style="text-align:center">Active</th>
+      <th style="text-align:right">Actions</th>
+    </tr></thead>
+    <tbody>${tagRulesCache.map(r => `
+      <tr>
+        <td>
+          ${r.name ? `<strong>${escapeHtml(r.name)}</strong><br>` : ''}
+          <code style="font-size:12px">${escapeHtml(r.description_pattern)}</code>
+        </td>
+        <td>${r.category_name ? escapeHtml(r.category_name) : '<span style="color:var(--muted)">— any —</span>'}</td>
+        <td>${r.tag_name
+          ? `<span class="tag-pill" style="${r.tag_color?`background:${r.tag_color}22;color:${r.tag_color};border-color:${r.tag_color}55`:''}">${escapeHtml(r.tag_name)}</span>`
+          : '<span style="color:var(--bad)">(missing tag)</span>'}</td>
+        <td style="text-align:center">${r.active ? 'Yes' : '<span style="color:var(--muted)">No</span>'}</td>
+        <td style="text-align:right">
+          <button class="ghost" onclick="editTagRule(${r.id})">Edit</button>
+          <button class="ghost" onclick="toggleTagRule(${r.id})">${r.active?'Disable':'Enable'}</button>
+          <button class="ghost danger" onclick="deleteTagRule(${r.id})" title="Delete">✕</button>
+        </td>
+      </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function resetTagRuleForm() {
+  document.getElementById('editTagRuleId').value = '';
+  document.getElementById('newTagRuleName').value = '';
+  document.getElementById('newTagRulePattern').value = '';
+  document.getElementById('newTagRuleCategory').value = '';
+  document.getElementById('newTagRuleActive').checked = true;
+  if (tags && tags.length) document.getElementById('newTagRuleTag').value = String(tags[0].id);
+  document.getElementById('tagRuleFormTitle').textContent = 'New rule';
+  document.getElementById('tagRulesStatus').textContent = '';
+}
+
+function editTagRule(id) {
+  const r = tagRulesCache.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('editTagRuleId').value = String(r.id);
+  document.getElementById('newTagRuleName').value = r.name || '';
+  document.getElementById('newTagRulePattern').value = r.description_pattern;
+  document.getElementById('newTagRuleCategory').value = r.category_id ? String(r.category_id) : '';
+  document.getElementById('newTagRuleTag').value = r.tag_id ? String(r.tag_id) : '';
+  document.getElementById('newTagRuleActive').checked = !!r.active;
+  document.getElementById('tagRuleFormTitle').textContent = 'Edit rule';
+  document.getElementById('tagRulesStatus').textContent = '';
+}
+
+async function saveTagRule() {
+  const editId = document.getElementById('editTagRuleId').value;
+  const pattern = document.getElementById('newTagRulePattern').value.trim();
+  const tagId = Number(document.getElementById('newTagRuleTag').value);
+  const catVal = document.getElementById('newTagRuleCategory').value;
+  const status = document.getElementById('tagRulesStatus');
+  if (pattern.length < 2) { status.textContent = 'Pattern must be at least 2 characters.'; return; }
+  if (!tagId) { status.textContent = 'Pick a tag to apply.'; return; }
+  const body = {
+    name: document.getElementById('newTagRuleName').value.trim() || null,
+    description_pattern: pattern,
+    category_id: catVal ? Number(catVal) : null,
+    tag_id: tagId,
+    active: document.getElementById('newTagRuleActive').checked,
+  };
+  try {
+    if (editId) {
+      await api('/api/tag-rules/' + editId, {method:'PATCH', body: JSON.stringify(body)});
+      status.textContent = 'Updated.';
+    } else {
+      await api('/api/tag-rules', {method:'POST', body: JSON.stringify(body)});
+      status.textContent = 'Created.';
+    }
+  } catch (e) {
+    status.textContent = 'Save failed: ' + e.message; return;
+  }
+  resetTagRuleForm();
+  await loadTagRules();
+}
+
+async function toggleTagRule(id) {
+  const r = tagRulesCache.find(x => x.id === id);
+  if (!r) return;
+  // PATCH requires the full rule shape — keep everything else the same,
+  // just flip `active`.
+  const body = {
+    name: r.name, description_pattern: r.description_pattern,
+    category_id: r.category_id, tag_id: r.tag_id, active: !r.active,
+  };
+  try {
+    await api('/api/tag-rules/' + id, {method:'PATCH', body: JSON.stringify(body)});
+  } catch (e) {
+    alert('Could not toggle: ' + e.message); return;
+  }
+  await loadTagRules();
+}
+
+async function deleteTagRule(id) {
+  if (!confirm('Delete this auto-tag rule? Existing tags on transactions are not removed.')) return;
+  try {
+    await api('/api/tag-rules/' + id, {method:'DELETE'});
+  } catch (e) {
+    alert('Could not delete: ' + e.message); return;
+  }
+  await loadTagRules();
+}
+
+async function backfillTagRules() {
+  const btn = document.getElementById('tagRuleBackfillBtn');
+  const status = document.getElementById('tagRulesStatus');
+  if (!confirm('Replay every active rule across all your existing transactions? Tags already attached are left alone.')) return;
+  btn.disabled = true;
+  status.textContent = 'Running…';
+  try {
+    const r = await api('/api/tag-rules/backfill', {method:'POST'});
+    status.textContent = `Scanned ${r.transactions_scanned} transactions, attached ${r.tags_added} tag${r.tags_added===1?'':'s'}.`;
+  } catch (e) {
+    status.textContent = 'Backfill failed: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+  // Refresh forecast on the active account so newly applied tags show up.
+  if (currentAccountId) loadForecast();
+}
+
+// Render a row of tag chips (read-only) — used on the forecast table and
+// transaction search results. `tagList` is the array shape returned by the
+// server: [{id, name, color}, ...].
+function renderTagChips(tagList) {
+  if (!tagList || !tagList.length) return '<span style="color:var(--muted)">—</span>';
+  return tagList.map(t => {
+    const style = t.color ? `background:${t.color}22;color:${t.color};border-color:${t.color}55` : '';
+    return `<span class="tag-pill" style="${style}" title="${escapeAttr(t.name)}">${escapeHtml(t.name)}</span>`;
+  }).join(' ');
+}
+
+// Render a multi-select tag picker for an inline-edit row. Each tag is a
+// clickable pill; the selected state is tracked in a hidden CSV input so
+// form code stays straightforward. `selectedIds` is an array of tag ids.
+function renderTagPicker(inputId, selectedIds) {
+  const selected = new Set((selectedIds || []).map(Number));
+  if (!tags || !tags.length) {
+    return `<span style="color:var(--muted);font-size:12px">No tags yet. Create some in Settings → Tags.</span>
+            <input type="hidden" id="${inputId}" value="">`;
+  }
+  const pills = tags.map(t => {
+    const on = selected.has(t.id);
+    const style = t.color
+      ? (on ? `background:${t.color};color:#fff;border-color:${t.color}`
+            : `background:${t.color}22;color:${t.color};border-color:${t.color}55`)
+      : '';
+    return `<span class="tag-pill tag-picker${on?' on':''}" data-tag-id="${t.id}"
+              style="${style};cursor:pointer;margin:2px 4px 2px 0"
+              onclick="_toggleTagPick(this, '${inputId}')">${escapeHtml(t.name)}</span>`;
+  }).join('');
+  const csv = Array.from(selected).join(',');
+  return `<div class="tag-picker-row">${pills}</div>
+          <input type="hidden" id="${inputId}" value="${csv}">`;
+}
+
+function _toggleTagPick(el, inputId) {
+  const id = Number(el.dataset.tagId);
+  if (!id) return;
+  const input = document.getElementById(inputId);
+  const cur = new Set((input.value || '').split(',').filter(Boolean).map(Number));
+  if (cur.has(id)) {
+    cur.delete(id);
+    el.classList.remove('on');
+  } else {
+    cur.add(id);
+    el.classList.add('on');
+  }
+  input.value = Array.from(cur).join(',');
+  // Re-paint the pill's fill state. The caller's color lookup is expensive
+  // to redo here, so fall back to class-driven styling via .tag-picker.on.
+  const t = (tags || []).find(x => x.id === id);
+  if (t && t.color) {
+    if (cur.has(id)) {
+      el.style.background = t.color;
+      el.style.color = '#fff';
+      el.style.borderColor = t.color;
+    } else {
+      el.style.background = t.color + '22';
+      el.style.color = t.color;
+      el.style.borderColor = t.color + '55';
+    }
+  }
+}
+
+// Read a tag-picker hidden input and return an integer array, or [] if blank.
+function readTagPick(inputId) {
+  const v = (document.getElementById(inputId) || {}).value || '';
+  return v.split(',').filter(Boolean).map(x => parseInt(x, 10)).filter(n => !Number.isNaN(n));
 }
 
 function switchRecView(view) {
@@ -1997,10 +4066,15 @@ function renderForecast() {
       ? '<td></td>'
       : `<td><button class="ghost" title="Edit row" onclick="startEditForecastRow('${rowKey}')">✎</button></td>`;
 
+    // Tag chips render inline below the description so adding them didn't
+    // require a whole new column (the table is already wide).
+    const tagBits = (r.tags && r.tags.length)
+      ? `<div class="row-tag-chips">${renderTagChips(r.tags)}</div>`
+      : '';
     tr.innerHTML = `
       <td>${r.forecast_date || '—'}</td>
       ${actDateCell}
-      <td>${escapeHtml(r.description)}</td>
+      <td>${escapeHtml(r.description)}${tagBits}</td>
       <td>${cat}</td>
       <td class="num ${r.forecast_amount>=0?'pos':'neg'}">${fAmt}</td>
       <td class="num">${fBal}</td>
@@ -2024,10 +4098,18 @@ function _renderForecastEditRow(r) {
     })).join('');
   const fAmtVal = r.forecast_amount != null ? r.forecast_amount : '';
   const aAmtVal = r.actual_amount != null ? r.actual_amount : '';
+  // Tag picker is stacked under the description input so the row width
+  // doesn't blow up. Only offered on real transactions — projections have
+  // no id yet, so saving a tag would have nowhere to persist it.
+  const selectedTagIds = (r.tags || []).map(t => t.id);
+  const tagBlock = r.transaction_id
+    ? `<div style="margin-top:6px"><label class="inline-label">Tags</label>
+         ${renderTagPicker('editFcTags', selectedTagIds)}</div>`
+    : `<input type="hidden" id="editFcTags" value="">`;
   return `
     <td><label class="inline-label">Forecast date</label><input type="date" class="inline-edit date" id="editFcFDate" value="${r.forecast_date||''}"></td>
     <td><label class="inline-label">Actual date</label><input type="date" class="inline-edit date" id="editFcADate" value="${r.actual_date||''}"></td>
-    <td><label class="inline-label">Description</label><input class="inline-edit" id="editFcDesc" value="${escapeAttr(r.description||'')}" style="width:100%"></td>
+    <td><label class="inline-label">Description</label><input class="inline-edit" id="editFcDesc" value="${escapeAttr(r.description||'')}" style="width:100%">${tagBlock}</td>
     <td><label class="inline-label">Category</label><select id="editFcCat" style="width:100%">${catOptions}</select></td>
     <td class="num" colspan="2"><label class="inline-label">Forecast amt</label><input type="number" step="0.01" class="inline-edit" id="editFcFAmt" value="${fAmtVal}" style="width:100%"></td>
     <td class="num" colspan="2"><label class="inline-label">Actual amt</label><input type="number" step="0.01" class="inline-edit" id="editFcAAmt" value="${aAmtVal}" style="width:100%"></td>
@@ -2082,6 +4164,10 @@ async function saveForecastRowEdit(rowKey) {
   const primaryAmt = aAmt != null ? aAmt : fAmt;
   const isActual = aAmt != null;
 
+  // Tags: only meaningful when a real transaction exists (hidden input is
+  // blank for pure projections, so readTagPick returns []).
+  const tagIds = readTagPick('editFcTags');
+
   const body = {
     description: desc,
     amount: primaryAmt,
@@ -2092,6 +4178,11 @@ async function saveForecastRowEdit(rowKey) {
     category_id: catId ? parseInt(catId) : null,
     recurring_id: row.recurring_id || null,
     notes: notes || null,
+    // The backend treats `None` as "leave tags alone" and `[]` as "clear
+    // them all"; always send an array on PATCH so the user can remove every
+    // tag in one save, but skip it on POST for a brand-new projection with
+    // no picker so we don't wipe anything unexpectedly.
+    tag_ids: row.transaction_id ? tagIds : (tagIds.length ? tagIds : undefined),
   };
 
   try {
@@ -2151,9 +4242,6 @@ function wireRecurringSort() {
 
 async function logout() {
   await fetch('/auth/logout', {method:'POST'});
-  // Clear the theme cache so the next user on this browser doesn't briefly
-  // see the previous user's theme before their own preference loads.
-  try { localStorage.removeItem(THEME_KEY); } catch {}
   location.reload();
 }
 
@@ -2358,10 +4446,58 @@ async function importBackup() {
 
 // ============ Admin page ============
 function loadAdminPage() {
+  loadAdminAppTitle();
   loadAdminUsers();
   loadAdminPermissions();
   loadAdminBackupConfig();
   loadAdminBackups();
+}
+
+async function loadAdminAppTitle() {
+  const input = document.getElementById('adminAppTitle');
+  const status = document.getElementById('adminAppTitleStatus');
+  try {
+    const data = await api('/api/admin/app-title');
+    input.value = data.app_title || '';
+    input.placeholder = data.default || 'WalletWeather';
+    status.textContent = '';
+  } catch (e) {
+    status.textContent = 'Failed to load: ' + e.message;
+  }
+}
+
+async function saveAppTitle() {
+  const input = document.getElementById('adminAppTitle');
+  const status = document.getElementById('adminAppTitleStatus');
+  const title = (input.value || '').trim();
+  if (!title) { status.textContent = 'Enter a title or click Reset.'; return; }
+  try {
+    const res = await fetch('/api/admin/app-title', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ app_title: title }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    applyAppTitle(data.app_title);
+    status.textContent = 'Saved.';
+  } catch (e) {
+    status.textContent = 'Save failed: ' + e.message;
+  }
+}
+
+async function resetAppTitle() {
+  const status = document.getElementById('adminAppTitleStatus');
+  try {
+    const res = await fetch('/api/admin/app-title', { method: 'DELETE' });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    applyAppTitle(data.app_title);
+    document.getElementById('adminAppTitle').value = '';
+    status.textContent = 'Reset to default.';
+  } catch (e) {
+    status.textContent = 'Reset failed: ' + e.message;
+  }
 }
 
 async function loadAdminUsers() {
@@ -2601,6 +4737,1223 @@ async function restoreAdminBackup(filename) {
   } catch (e) {
     alert('Restore failed: ' + e.message);
   }
+}
+
+// ============================================================================
+// v1.7.0 — Tier-1 features: Transfers, Budgets, Search, CSV Import, Net Worth
+// ============================================================================
+
+// ---------- Net Worth page ----------
+let networthWindow = 'month';
+
+async function loadNetworth() {
+  const summary = document.getElementById('networthSummary');
+  const chart = document.getElementById('networthChart');
+  const accs = document.getElementById('networthAccounts');
+  summary.innerHTML = `<div class="stat" style="grid-column:1/-1;text-align:center;color:var(--muted)">Loading…</div>`;
+  chart.innerHTML = '';
+  accs.innerHTML = '';
+  document.querySelectorAll('[data-nw-window]').forEach(b => {
+    b.classList.toggle('active', b.dataset.nwWindow === networthWindow);
+  });
+  let data;
+  try {
+    data = await api('/api/networth?window=' + encodeURIComponent(networthWindow));
+  } catch (e) {
+    summary.innerHTML = `<div class="stat" style="grid-column:1/-1;color:var(--bad)">Could not load: ${escapeHtml(e.message)}</div>`;
+    return;
+  }
+  document.getElementById('networthRange').textContent = `${data.label} · ${data.start} → ${data.end}`;
+  const deltaActual = data.actual_end_total - data.opening_total;
+  const deltaForecast = data.forecast_end_total - data.opening_total;
+  summary.innerHTML = `
+    <div class="stat"><div class="l">Opening</div><div class="v">${fmt(data.opening_total)}</div></div>
+    <div class="stat"><div class="l">Actual end</div>
+      <div class="v ${data.actual_end_total>=0?'pos':'neg'}">${fmt(data.actual_end_total)}</div>
+      <div class="d">${deltaActual>=0?'+':''}${fmt(deltaActual)} vs opening</div></div>
+    <div class="stat"><div class="l">Forecast end</div>
+      <div class="v ${data.forecast_end_total>=0?'pos':'neg'}">${fmt(data.forecast_end_total)}</div>
+      <div class="d">${deltaForecast>=0?'+':''}${fmt(deltaForecast)} vs opening</div></div>
+    <div class="stat"><div class="l">Accounts</div><div class="v">${data.accounts.length}</div></div>
+  `;
+  chart.innerHTML = renderNetworthChart(data.trend);
+  // Per-account breakdown table
+  const rows = data.accounts.map(a => {
+    const d = a.actual_end - a.opening_balance;
+    return `<tr>
+      <td>${escapeHtml(a.account_name)}</td>
+      <td class="num">${fmt(a.opening_balance)}</td>
+      <td class="num ${a.actual_end>=0?'pos':'neg'}">${fmt(a.actual_end)}</td>
+      <td class="num ${a.forecast_end>=0?'pos':'neg'}">${fmt(a.forecast_end)}</td>
+      <td class="num ${d>=0?'pos':'neg'}">${d>=0?'+':''}${fmt(d)}</td>
+    </tr>`;
+  }).join('');
+  accs.innerHTML = `
+    <h3 style="margin:0 0 8px;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Per account</h3>
+    <div style="overflow-x:auto"><table>
+      <thead><tr>
+        <th>Account</th>
+        <th class="num">Opening</th>
+        <th class="num">Actual end</th>
+        <th class="num">Forecast end</th>
+        <th class="num">Δ</th>
+      </tr></thead><tbody>${rows || '<tr><td colspan="5" style="color:var(--muted)">No accounts.</td></tr>'}</tbody>
+    </table></div>`;
+}
+function onNetworthWindowChange(w) {
+  if (!ALLOWED_DASHBOARD_WINDOWS.includes(w)) return;
+  networthWindow = w;
+  loadNetworth();
+}
+
+// ---------- Subscriptions (Tier-2 subscription audit) ----------
+// Renders a cross-account list of every active recurring outflow,
+// normalized to monthly and yearly cost. Pure read: edits flow through
+// the per-account Recurring-transactions panel on the Transactions page.
+function subsFrequencyLabel(item) {
+  if (item.frequency === 'monthly_day') {
+    return item.day_of_month ? `Monthly · day ${item.day_of_month}` : 'Monthly';
+  }
+  if (item.frequency === 'biweekly') {
+    return item.anchor_date ? `Biweekly · from ${item.anchor_date}` : 'Biweekly';
+  }
+  if (item.frequency === 'weekly') {
+    return item.anchor_date ? `Weekly · from ${item.anchor_date}` : 'Weekly';
+  }
+  return item.frequency || '—';
+}
+function subsCategoryCell(item) {
+  if (!item.category_name) return '<span style="color:var(--muted)">—</span>';
+  const color = item.category_color || 'var(--muted)';
+  const safe = (item.category_name + '').replace(/</g, '&lt;');
+  return `<span class="pill" style="background:${color}22;border:1px solid ${color};color:${color}">${safe}</span>`;
+}
+async function loadSubscriptions() {
+  const sum = document.getElementById('subsSummary');
+  const empty = document.getElementById('subsEmpty');
+  const tb = document.querySelector('#subsTable tbody');
+  const table = document.getElementById('subsTable');
+  sum.innerHTML = '<div class="tile"><span class="label">Loading…</span></div>';
+  tb.innerHTML = '';
+  try {
+    const r = await api('/api/subscriptions');
+    sum.innerHTML = `
+      <div class="tile"><span class="label">Active subscriptions</span>
+        <strong>${r.count}</strong></div>
+      <div class="tile"><span class="label">Monthly cost</span>
+        <strong>${fmt(r.total_monthly)}</strong></div>
+      <div class="tile"><span class="label">Yearly cost</span>
+        <strong>${fmt(r.total_yearly)}</strong></div>
+    `;
+    if (!r.items.length) {
+      empty.classList.remove('hidden');
+      table.classList.add('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+    table.classList.remove('hidden');
+    tb.innerHTML = r.items.map(it => {
+      const desc = (it.description + '').replace(/</g, '&lt;');
+      const acct = (it.account_name + '').replace(/</g, '&lt;');
+      // Clicking the account cell jumps to Transactions with that account
+      // preselected so the user can edit the recurring row directly.
+      const acctLink = `<a href="#" onclick="jumpToRecurring(${it.account_id});return false"
+                         style="color:var(--accent)">${acct}</a>`;
+      const perCharge = fmt(Math.abs(it.amount));
+      return `<tr>
+        <td>${desc}</td>
+        <td>${acctLink}</td>
+        <td>${subsCategoryCell(it)}</td>
+        <td>${subsFrequencyLabel(it)}</td>
+        <td class="num">${perCharge}</td>
+        <td class="num"><strong>${fmt(it.monthly_cost)}</strong></td>
+        <td class="num">${fmt(it.yearly_cost)}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    sum.innerHTML = `<div class="tile"><span class="label">Error</span>
+      <strong style="color:var(--bad)">Could not load subscriptions.</strong></div>`;
+  }
+}
+// Used by the Subscriptions table to hop over to the Transactions page with
+// the given account preselected in the managing-account picker.
+function jumpToRecurring(accountId) {
+  currentAccountId = accountId;
+  showPage('transactions');
+}
+
+// ---------- Calendar ----------
+// The Calendar page renders a month grid of every event the user can see
+// (from /api/calendar, which wraps build_forecast per-account). Filters run
+// client-side over the cached event list, so toggling a checkbox doesn't
+// hit the server — only changing the month does.
+let calendarState = {
+  year:  null,
+  month: null,             // 0-based (0=Jan) to match Date's convention
+  events: [],              // raw /api/calendar response for the displayed month
+  filters: {
+    account: '', category: '', tag: '',
+    source: '', kind: '', status: '',
+  },
+  selectedDate: null,      // 'YYYY-MM-DD' string if a day detail is open
+};
+
+function initCalendarPage() {
+  const t = new Date();
+  if (calendarState.year == null) {
+    calendarState.year = t.getFullYear();
+    calendarState.month = t.getMonth();
+  }
+  populateCalendarFilters();
+  loadCalendar();
+}
+
+function populateCalendarFilters() {
+  // Account dropdown — repopulate each visit since accounts can change.
+  const acc = document.getElementById('calFilterAccount');
+  const prevAcc = acc.value || calendarState.filters.account;
+  acc.innerHTML = '<option value="">All accounts</option>';
+  (accounts || []).forEach(a => {
+    const o = document.createElement('option');
+    o.value = a.id; o.textContent = a.name; acc.appendChild(o);
+  });
+  if (prevAcc && (accounts || []).some(a => String(a.id) === String(prevAcc))) {
+    acc.value = String(prevAcc);
+  }
+
+  const cat = document.getElementById('calFilterCategory');
+  const prevCat = cat.value || calendarState.filters.category;
+  cat.innerHTML = '<option value="">All categories</option><option value="__none__">(uncategorized)</option>';
+  (categories || []).forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.name; cat.appendChild(o);
+  });
+  if (prevCat) cat.value = prevCat;
+
+  const tagSel = document.getElementById('calFilterTag');
+  const prevTag = tagSel.value || calendarState.filters.tag;
+  tagSel.innerHTML = '<option value="">All tags</option><option value="__none__">(untagged)</option>';
+  (tags || []).forEach(t => {
+    const o = document.createElement('option');
+    o.value = t.id; o.textContent = t.name; tagSel.appendChild(o);
+  });
+  if (prevTag) tagSel.value = prevTag;
+}
+
+function _calMonthRange(year, month) {
+  // Returns [startISO, endISO] for a 0-based month index.
+  const start = new Date(year, month, 1);
+  // JS: day 0 of next month == last day of this month.
+  const end = new Date(year, month + 1, 0);
+  const pad = n => String(n).padStart(2, '0');
+  return [
+    `${start.getFullYear()}-${pad(start.getMonth()+1)}-${pad(start.getDate())}`,
+    `${end.getFullYear()}-${pad(end.getMonth()+1)}-${pad(end.getDate())}`,
+  ];
+}
+
+async function loadCalendar() {
+  const lbl = document.getElementById('calMonthLabel');
+  const loading = document.getElementById('calLoadingBar');
+  const d = new Date(calendarState.year, calendarState.month, 1);
+  lbl.textContent = d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const [start, end] = _calMonthRange(calendarState.year, calendarState.month);
+  loading.textContent = 'Loading…';
+  try {
+    const params = new URLSearchParams({ start, end });
+    // Server-side account filter keeps the payload smaller when one
+    // account is chosen; client-side filters still run on top for the
+    // rest of the controls.
+    if (calendarState.filters.account) {
+      params.set('account_id', calendarState.filters.account);
+    }
+    const data = await api('/api/calendar?' + params.toString());
+    calendarState.events = data.events || [];
+    loading.textContent = '';
+  } catch (e) {
+    loading.textContent = 'Could not load calendar: ' + e.message;
+    calendarState.events = [];
+  }
+  renderCalendar();
+}
+
+function changeCalendarMonth(delta) {
+  calendarState.month += delta;
+  if (calendarState.month < 0) {
+    calendarState.month = 11;
+    calendarState.year -= 1;
+  } else if (calendarState.month > 11) {
+    calendarState.month = 0;
+    calendarState.year += 1;
+  }
+  // Moving months invalidates an open day detail (the date won't be in
+  // the new month's grid anymore).
+  calendarState.selectedDate = null;
+  closeCalendarDay();
+  loadCalendar();
+}
+
+function goToCalendarToday() {
+  const t = new Date();
+  calendarState.year = t.getFullYear();
+  calendarState.month = t.getMonth();
+  calendarState.selectedDate = null;
+  closeCalendarDay();
+  loadCalendar();
+}
+
+function resetCalendarFilters() {
+  calendarState.filters = {
+    account: '', category: '', tag: '',
+    source: '', kind: '', status: '',
+  };
+  ['calFilterAccount','calFilterCategory','calFilterTag',
+   'calFilterSource','calFilterKind','calFilterStatus'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  // Account affects the server fetch; the others are client-only.
+  loadCalendar();
+}
+
+function applyCalendarFilters() {
+  const prevAccount = calendarState.filters.account;
+  calendarState.filters = {
+    account:  document.getElementById('calFilterAccount').value,
+    category: document.getElementById('calFilterCategory').value,
+    tag:      document.getElementById('calFilterTag').value,
+    source:   document.getElementById('calFilterSource').value,
+    kind:     document.getElementById('calFilterKind').value,
+    status:   document.getElementById('calFilterStatus').value,
+  };
+  // Account filter goes to the server; everything else is a re-render.
+  if (prevAccount !== calendarState.filters.account) {
+    loadCalendar();
+  } else {
+    renderCalendar();
+  }
+}
+
+// Apply every non-account filter locally. Keep this predicate pure so the
+// detail view and the grid summaries stay consistent.
+function _calendarEventMatches(ev) {
+  const f = calendarState.filters;
+  // Category
+  if (f.category === '__none__') {
+    if (ev.category_id != null) return false;
+  } else if (f.category) {
+    if (String(ev.category_id) !== String(f.category)) return false;
+  }
+  // Tag
+  if (f.tag === '__none__') {
+    if (ev.tags && ev.tags.length) return false;
+  } else if (f.tag) {
+    if (!(ev.tags || []).some(t => String(t.id) === String(f.tag))) return false;
+  }
+  // Source (scheduled vs one-time). A row with a recurring_id traces back
+  // to a template regardless of whether it's already been cleared; without
+  // one, it was entered ad-hoc.
+  if (f.source === 'scheduled') {
+    if (ev.recurring_id == null) return false;
+  } else if (f.source === 'onetime') {
+    if (ev.recurring_id != null) return false;
+  }
+  // Kind
+  const amt = ev.amount == null ? 0 : ev.amount;
+  if (f.kind === 'transfers') {
+    if (ev.transfer_id == null) return false;
+  } else if (f.kind === 'income') {
+    if (ev.transfer_id != null) return false;
+    if (amt <= 0) return false;
+  } else if (f.kind === 'spending') {
+    if (ev.transfer_id != null) return false;
+    if (amt >= 0) return false;
+  }
+  // Status
+  if (f.status === 'cleared') {
+    if (!ev.is_actual_real) return false;
+  } else if (f.status === 'pending') {
+    if (ev.is_actual_real) return false;
+  }
+  return true;
+}
+
+function renderCalendar() {
+  const grid = document.getElementById('calGrid');
+  const year = calendarState.year;
+  const month = calendarState.month;
+
+  // Events bucketed by YYYY-MM-DD, filtered once.
+  const byDay = {};
+  const filtered = (calendarState.events || []).filter(_calendarEventMatches);
+  filtered.forEach(ev => {
+    (byDay[ev.date] = byDay[ev.date] || []).push(ev);
+  });
+
+  // Month-level summary (above the grid): event count + net.
+  const monthNet = filtered.reduce((s, ev) => s + (ev.amount || 0), 0);
+  const incomeCount = filtered.filter(ev => ev.amount > 0 && ev.transfer_id == null).length;
+  const spendCount  = filtered.filter(ev => ev.amount < 0 && ev.transfer_id == null).length;
+  const transferCount = filtered.filter(ev => ev.transfer_id != null).length;
+  document.getElementById('calSummary').textContent =
+    `${filtered.length} event${filtered.length===1?'':'s'} · `
+    + `${incomeCount} income · ${spendCount} spending · ${transferCount} transfer`
+    + ` · net ${fmt(monthNet)}`;
+
+  // Build a 6-row grid starting on the Sunday of the first week.
+  const first = new Date(year, month, 1);
+  const leading = first.getDay(); // 0=Sun
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const todayISO = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+
+  const cells = [];
+  // 6 rows × 7 cols is enough to cover any month. We always render 42 cells
+  // so the grid height is constant regardless of which day-of-week the 1st
+  // falls on — less jittery than sometimes showing 5 rows, sometimes 6.
+  for (let i = 0; i < 42; i++) {
+    const dayNum = i - leading + 1;
+    let cellDate, inMonth;
+    if (dayNum < 1) {
+      const prev = new Date(year, month, 0); // last day of prev month
+      cellDate = new Date(prev.getFullYear(), prev.getMonth(), prev.getDate() + dayNum);
+      inMonth = false;
+    } else if (dayNum > daysInMonth) {
+      cellDate = new Date(year, month + 1, dayNum - daysInMonth);
+      inMonth = false;
+    } else {
+      cellDate = new Date(year, month, dayNum);
+      inMonth = true;
+    }
+    const iso = `${cellDate.getFullYear()}-${pad(cellDate.getMonth()+1)}-${pad(cellDate.getDate())}`;
+    const isToday = (iso === todayISO);
+    const isSelected = (iso === calendarState.selectedDate);
+    const cellEvents = byDay[iso] || [];
+
+    // Up to 3 events shown inline; the rest collapse into "+N more".
+    const shown = cellEvents.slice(0, 3);
+    const moreCount = cellEvents.length - shown.length;
+    const net = cellEvents.reduce((s, ev) => s + (ev.amount || 0), 0);
+
+    const pills = shown.map(ev => {
+      const colorSource = ev.category_color || null;
+      const cls = ev.transfer_id != null ? 'transfer'
+                : (ev.amount >= 0 ? 'income' : 'spend');
+      const style = colorSource
+        ? `background:${colorSource}22;color:${colorSource};border-color:${colorSource}55`
+        : '';
+      const dimCls = ev.is_actual_real ? '' : ' pending';
+      return `<div class="cal-event ${cls}${dimCls}" style="${style}" title="${escapeAttr(ev.account_name+' · '+ev.description+' · '+fmt(ev.amount))}">
+        <span class="amt">${fmt(ev.amount)}</span>
+        <span class="desc">${escapeHtml(ev.description)}</span>
+      </div>`;
+    }).join('');
+    const moreHtml = moreCount > 0
+      ? `<div class="cal-more">+${moreCount} more</div>`
+      : '';
+    const netHtml = cellEvents.length
+      ? `<div class="cal-net ${net>=0?'pos':'neg'}">${fmt(net)}</div>`
+      : '';
+
+    cells.push(`<div class="cal-cell${inMonth?'':' off-month'}${isToday?' today':''}${isSelected?' selected':''}"
+                     data-date="${iso}" onclick="openCalendarDay('${iso}')">
+      <div class="cal-cell-head">
+        <span class="daynum">${cellDate.getDate()}</span>
+        ${netHtml}
+      </div>
+      ${pills}
+      ${moreHtml}
+    </div>`);
+  }
+  grid.innerHTML = cells.join('');
+
+  // Repaint the detail panel if a day is selected — its event list might
+  // have changed as a result of the filter change.
+  if (calendarState.selectedDate) {
+    renderCalendarDay(calendarState.selectedDate);
+  }
+}
+
+function openCalendarDay(iso) {
+  calendarState.selectedDate = iso;
+  // Repaint grid so the selected cell shows the selected highlight.
+  renderCalendar();
+  renderCalendarDay(iso);
+  // Scroll the detail into view on small screens where it might be below
+  // the grid.
+  const detail = document.getElementById('calDayDetail');
+  detail.classList.remove('hidden');
+  detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeCalendarDay() {
+  calendarState.selectedDate = null;
+  const detail = document.getElementById('calDayDetail');
+  if (detail) detail.classList.add('hidden');
+}
+
+function renderCalendarDay(iso) {
+  const events = (calendarState.events || [])
+    .filter(ev => ev.date === iso)
+    .filter(_calendarEventMatches);
+  const title = document.getElementById('calDayTitle');
+  const net = document.getElementById('calDayNet');
+  const tb = document.querySelector('#calDayTable tbody');
+
+  const d = new Date(iso + 'T00:00:00');
+  title.textContent = d.toLocaleDateString(undefined,
+    { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  if (!events.length) {
+    net.textContent = 'No events match your filters on this day.';
+    tb.innerHTML = '';
+    return;
+  }
+  const total = events.reduce((s, ev) => s + (ev.amount || 0), 0);
+  net.textContent = `${events.length} event${events.length===1?'':'s'} · net ${fmt(total)}`;
+  tb.innerHTML = events.map(ev => {
+    const statusCell = ev.transfer_id != null ? '<span class="pill">Transfer</span>'
+      : (ev.is_actual_real ? '<span class="pill actual">Cleared</span>'
+                           : '<span class="pill">Forecast</span>');
+    const catCell = ev.category_name
+      ? `<span class="cat-pill" style="${ev.category_color?`background:${ev.category_color}22;color:${ev.category_color}`:''}">${escapeHtml(ev.category_name)}</span>`
+      : '<span style="color:var(--muted)">—</span>';
+    const srcHint = ev.recurring_id != null
+      ? ' <span class="cal-src-hint" title="From a recurring template">⟳</span>' : '';
+    const amtCls = ev.amount >= 0 ? 'pos' : 'neg';
+    const jumpBtn = ev.account_id
+      ? `<button class="ghost" title="Go to this account" onclick="jumpToAccountFromCal(${ev.account_id})">↗</button>`
+      : '';
+    return `<tr>
+      <td>${escapeHtml(ev.account_name || '')}</td>
+      <td>${escapeHtml(ev.description || '')}${srcHint}</td>
+      <td>${catCell}</td>
+      <td>${renderTagChips(ev.tags || [])}</td>
+      <td class="num ${amtCls}">${fmt(ev.amount)}</td>
+      <td>${statusCell}</td>
+      <td>${jumpBtn}</td>
+    </tr>`;
+  }).join('');
+}
+
+// Jump from a day-detail row to the owning account's detail page.
+function jumpToAccountFromCal(accountId) {
+  currentAccountId = accountId;
+  showPage('accounts');
+}
+
+function renderNetworthChart(points) {
+  if (!points || !points.length) {
+    return `<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No data in this window.</div>`;
+  }
+  const W = 1000, H = 240, P = 28;
+  const xs = (i) => P + (W - 2*P) * (i / Math.max(1, points.length - 1));
+  const vals = points.map(p => p.balance);
+  const min = Math.min(...vals, 0);
+  const max = Math.max(...vals, 0);
+  const span = Math.max(1, max - min);
+  const ys = (v) => H - P - (v - min) / span * (H - 2*P);
+  const linePath = points.map((p, i) => `${i===0?'M':'L'}${xs(i).toFixed(1)},${ys(p.balance).toFixed(1)}`).join(' ');
+  const areaPath = `${linePath} L${xs(points.length-1).toFixed(1)},${ys(min).toFixed(1)} L${xs(0).toFixed(1)},${ys(min).toFixed(1)} Z`;
+  // Y-axis labels (3 ticks)
+  const ticks = [min, (min+max)/2, max].map(v => {
+    const y = ys(v);
+    return `<line x1="${P}" x2="${W-P}" y1="${y}" y2="${y}" stroke="var(--border)" stroke-dasharray="2,4" />
+            <text x="${P-4}" y="${y+3}" text-anchor="end" font-size="10" fill="var(--muted)">${fmt(v)}</text>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    ${ticks}
+    <path d="${areaPath}" fill="var(--accent)" opacity="0.15" />
+    <path d="${linePath}" fill="none" stroke="var(--accent)" stroke-width="2" />
+    <text x="${P}" y="${H-6}" font-size="10" fill="var(--muted)">${escapeHtml(points[0].date)}</text>
+    <text x="${W-P}" y="${H-6}" text-anchor="end" font-size="10" fill="var(--muted)">${escapeHtml(points[points.length-1].date)}</text>
+  </svg>`;
+}
+
+// ---------- Transactions page (search + recent transfers) ----------
+function initTransactionsPage() {
+  // Populate account + category filters once.
+  const accSel = document.getElementById('txnSearchAccount');
+  if (accSel.options.length <= 1) {
+    accounts.forEach(a => {
+      const o = document.createElement('option');
+      o.value = a.id; o.textContent = a.name; accSel.appendChild(o);
+    });
+  }
+  const catSel = document.getElementById('txnSearchCategory');
+  if (catSel.options.length <= 1) {
+    (categories || []).forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.id; o.textContent = c.name; catSel.appendChild(o);
+    });
+  }
+  const tagSel = document.getElementById('txnSearchTag');
+  // Tags can be created/renamed from Settings, so repopulate every visit
+  // in case the user just added some. Preserve selection if still valid.
+  const prevTag = tagSel.value;
+  tagSel.innerHTML = '<option value="">All tags</option>';
+  (tags || []).forEach(t => {
+    const o = document.createElement('option');
+    o.value = t.id; o.textContent = t.name; tagSel.appendChild(o);
+  });
+  if (prevTag && (tags || []).some(t => String(t.id) === prevTag)) {
+    tagSel.value = prevTag;
+  }
+
+  // Managing-account picker. Drives the Account-actions row and the
+  // Recurring-transactions panel. It sets `currentAccountId` directly so
+  // callbacks that already key off that global (Transfer / Import / the
+  // Recurring CRUD) keep working unchanged.
+  const mgmt = document.getElementById('txnMgmtAccount');
+  const noAcc = document.getElementById('txnMgmtNoAccount');
+  const recPanel = document.getElementById('txnRecurringPanel');
+  // Always refresh — accounts list can change when new ones are created.
+  mgmt.innerHTML = '';
+  if (!accounts.length) {
+    mgmt.appendChild(new Option('— no accounts yet —', ''));
+    mgmt.disabled = true;
+    noAcc.classList.remove('hidden');
+    recPanel.classList.add('hidden');
+  } else {
+    mgmt.disabled = false;
+    noAcc.classList.add('hidden');
+    recPanel.classList.remove('hidden');
+    accounts.forEach(a => mgmt.appendChild(new Option(a.name, String(a.id))));
+    // Prefer the currently-selected account; otherwise pick the first one.
+    let chosen = currentAccountId;
+    if (!accounts.some(a => a.id === chosen)) chosen = accounts[0].id;
+    mgmt.value = String(chosen);
+    currentAccountId = chosen;
+    loadRecurring();
+  }
+
+  runTxnSearch();
+  loadRecentTransfers();
+}
+
+function onTxnMgmtAccountChange() {
+  const sel = document.getElementById('txnMgmtAccount');
+  const id = Number(sel.value) || null;
+  if (!id) return;
+  currentAccountId = id;
+  // Re-render the recurring list for the newly-selected account.
+  loadRecurring();
+  // Keep the accounts-bar highlight on the Accounts page in sync too, so
+  // when the user navigates back there, the right tab is active.
+  document.querySelectorAll('.account-tab').forEach((el, i) => {
+    el.classList.toggle('active', accounts[i] && accounts[i].id === id);
+  });
+}
+function resetTxnSearch() {
+  ['txnSearchQ','txnSearchFrom','txnSearchTo','txnSearchMin','txnSearchMax'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('txnSearchAccount').value = '';
+  document.getElementById('txnSearchCategory').value = '';
+  document.getElementById('txnSearchTag').value = '';
+  document.getElementById('txnSearchKind').value = '';
+  runTxnSearch();
+}
+async function runTxnSearch() {
+  const q = document.getElementById('txnSearchQ').value.trim();
+  const acc = document.getElementById('txnSearchAccount').value;
+  const cat = document.getElementById('txnSearchCategory').value;
+  const tag = document.getElementById('txnSearchTag').value;
+  const kind = document.getElementById('txnSearchKind').value;
+  const df = document.getElementById('txnSearchFrom').value;
+  const dt = document.getElementById('txnSearchTo').value;
+  const mn = document.getElementById('txnSearchMin').value;
+  const mx = document.getElementById('txnSearchMax').value;
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (acc) params.set('account_id', acc);
+  if (cat) params.set('category_id', cat);
+  if (tag) params.set('tag_id', tag);
+  if (kind) params.set('kind', kind);
+  if (df) params.set('date_from', df);
+  if (dt) params.set('date_to', dt);
+  if (mn !== '') params.set('min_amount', mn);
+  if (mx !== '') params.set('max_amount', mx);
+  params.set('limit', '500');
+  const status = document.getElementById('txnSearchStatus');
+  status.textContent = 'Searching…';
+  let data;
+  try {
+    data = await api('/api/transactions/search?' + params.toString());
+  } catch (e) {
+    status.textContent = 'Search failed: ' + e.message;
+    return;
+  }
+  status.textContent = `${data.total} match${data.total===1?'':'es'}` + (data.total > data.results.length ? ` (showing first ${data.results.length})` : '');
+  const tb = document.querySelector('#txnSearchTable tbody');
+  if (!data.results.length) {
+    tb.innerHTML = `<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:20px">No matching transactions.</td></tr>`;
+    _txnSearchLastResults = [];
+    refreshTxnBulkBar();
+    return;
+  }
+  // Cache the visible result ids so toggleAllTxnSelection / runBulkTag
+  // can operate without reading the DOM. Transfer legs are excluded
+  // from selection (no tags on transfer legs by design).
+  _txnSearchLastResults = data.results.map(r => ({
+    id: r.id, transfer: r.transfer_id != null
+  }));
+  tb.innerHTML = data.results.map(r => {
+    const d = r.actual_date || r.forecast_date || '—';
+    const status = r.transfer_id != null ? '<span class="pill">Transfer</span>'
+                 : r.is_actual ? '<span class="pill actual">Cleared</span>'
+                              : '<span class="pill">Forecast</span>';
+    // Disable the row checkbox for transfer legs — bulk-tag doesn't
+    // touch them server-side, so making them selectable would just be
+    // misleading.
+    const cbDisabled = r.transfer_id != null ? 'disabled' : '';
+    const cbChecked = _txnSearchSelected.has(r.id) ? 'checked' : '';
+    return `<tr data-txn-id="${r.id}">
+      <td><input type="checkbox" class="txn-row-cb" ${cbChecked} ${cbDisabled}
+                 onclick="onTxnRowCheck(${r.id}, this.checked)"></td>
+      <td>${escapeHtml(d)}</td>
+      <td>${escapeHtml(r.account_name||'')}</td>
+      <td>${escapeHtml(r.description||'')}</td>
+      <td>${escapeHtml(r.category_name||'—')}</td>
+      <td>${renderTagChips(r.tags)}</td>
+      <td class="num ${r.amount>=0?'pos':'neg'}">${fmt(r.amount)}</td>
+      <td>${status}</td>
+    </tr>`;
+  }).join('');
+  // Drop selections that are no longer visible (e.g. user changed filters
+  // and a previously-checked row vanished from the page).
+  const visibleIds = new Set(_txnSearchLastResults.map(r => r.id));
+  for (const id of [..._txnSearchSelected]) {
+    if (!visibleIds.has(id)) _txnSearchSelected.delete(id);
+  }
+  refreshTxnBulkBar();
+}
+
+// ---------- Transaction search: bulk tag selection ----------
+// Selection state lives in module-scope so it survives re-renders. The
+// checkbox column reads from `_txnSearchSelected`; the bulk action bar
+// is shown/hidden by `refreshTxnBulkBar` based on its size.
+const _txnSearchSelected = new Set();
+let _txnSearchLastResults = [];
+
+function onTxnRowCheck(id, checked) {
+  if (checked) _txnSearchSelected.add(id);
+  else         _txnSearchSelected.delete(id);
+  refreshTxnBulkBar();
+}
+
+function toggleAllTxnSelection(checked) {
+  // Only flips the checkboxes on currently-rendered, non-transfer rows.
+  for (const r of _txnSearchLastResults) {
+    if (r.transfer) continue;
+    if (checked) _txnSearchSelected.add(r.id);
+    else         _txnSearchSelected.delete(r.id);
+  }
+  // Repaint the in-DOM checkboxes without a full re-render.
+  document.querySelectorAll('#txnSearchTable tbody .txn-row-cb').forEach(cb => {
+    if (cb.disabled) return;
+    cb.checked = checked;
+  });
+  refreshTxnBulkBar();
+}
+
+function clearTxnSelection() {
+  _txnSearchSelected.clear();
+  document.querySelectorAll('#txnSearchTable tbody .txn-row-cb').forEach(cb => {
+    cb.checked = false;
+  });
+  const all = document.getElementById('txnSearchSelectAll');
+  if (all) all.checked = false;
+  refreshTxnBulkBar();
+}
+
+function refreshTxnBulkBar() {
+  const bar = document.getElementById('txnBulkBar');
+  const count = document.getElementById('txnBulkCount');
+  const tagSel = document.getElementById('txnBulkTag');
+  const allCb = document.getElementById('txnSearchSelectAll');
+  if (!bar) return;
+  const n = _txnSearchSelected.size;
+  if (n === 0) {
+    bar.classList.add('hidden');
+    if (allCb) { allCb.checked = false; allCb.indeterminate = false; }
+    return;
+  }
+  bar.classList.remove('hidden');
+  count.textContent = `${n} selected`;
+  // Lazily populate the tag dropdown the first time we open the bar (and
+  // refresh whenever the global tags list might have changed).
+  const want = (tags || []).map(t => t.id).join(',');
+  if (tagSel && tagSel.dataset.populated !== want) {
+    tagSel.innerHTML = (tags || []).length
+      ? (tags || []).map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('')
+      : `<option value="">(no tags yet — add one in Settings)</option>`;
+    tagSel.dataset.populated = want;
+  }
+  // "Select all" tri-state.
+  if (allCb) {
+    const visible = _txnSearchLastResults.filter(r => !r.transfer);
+    const allChecked = visible.length > 0 && visible.every(r => _txnSearchSelected.has(r.id));
+    const someChecked = visible.some(r => _txnSearchSelected.has(r.id));
+    allCb.checked = allChecked;
+    allCb.indeterminate = !allChecked && someChecked;
+  }
+}
+
+async function runBulkTag(action) {
+  const tagSel = document.getElementById('txnBulkTag');
+  const tagId = Number(tagSel.value);
+  const status = document.getElementById('txnBulkStatus');
+  if (!tagId) { status.textContent = 'Pick a tag first.'; return; }
+  if (_txnSearchSelected.size === 0) { status.textContent = 'No rows selected.'; return; }
+  status.textContent = action === 'add' ? 'Applying…' : 'Removing…';
+  const body = {
+    transaction_ids: [..._txnSearchSelected],
+    add_tag_ids:    action === 'add'    ? [tagId] : [],
+    remove_tag_ids: action === 'remove' ? [tagId] : [],
+  };
+  let resp;
+  try {
+    resp = await api('/api/transactions/bulk-tag', {
+      method: 'POST', body: JSON.stringify(body),
+    });
+  } catch (e) {
+    status.textContent = 'Failed: ' + e.message;
+    return;
+  }
+  status.textContent = `${action === 'add' ? 'Applied' : 'Removed'} on ${resp.applied}`
+                     + (resp.skipped ? ` (${resp.skipped} skipped)` : '');
+  // Refresh the search results so tag chips reflect the new state.
+  await runTxnSearch();
+}
+
+// ---------- Transfers list + page ----------
+// The transfer editor used to live in a modal overlay on the Accounts page,
+// same story as the CSV importer — overlay dismissal was flaky, so both were
+// promoted to dedicated pages (see initImportPage / initTransferPage).
+let _transfersCacheById = {};
+// What arguments the current visit to #pageTransfer was opened with.
+// { editId: number|null, preselectFromId: number|null }
+let _pendingTransferOpen = null;
+
+async function loadRecentTransfers() {
+  const wrap = document.getElementById('recentTransfersWrap');
+  let data;
+  try {
+    data = await api('/api/transfers?limit=20');
+  } catch (e) {
+    wrap.innerHTML = `<div style="color:var(--bad)">Could not load: ${escapeHtml(e.message)}</div>`;
+    return;
+  }
+  _transfersCacheById = {};
+  data.transfers.forEach(t => { _transfersCacheById[t.id] = t; });
+  if (!data.transfers.length) {
+    wrap.innerHTML = `<div style="color:var(--muted);font-size:13px">No transfers yet. Use the "Transfer money" button on the Accounts page.</div>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="transfers-list">${data.transfers.map(t => `
+    <div class="transfer-item">
+      <div>${escapeHtml(t.transfer_date)}</div>
+      <div>${escapeHtml(t.from_account_name||'?')} <span class="arrow">→</span> ${escapeHtml(t.to_account_name||'?')}
+        <div style="color:var(--muted);font-size:12px">${escapeHtml(t.description)}</div>
+      </div>
+      <div class="amt">${fmt(t.amount)}</div>
+      <div><button class="ghost" onclick="openTransferPage(${t.id})">Edit</button></div>
+      <div><button class="ghost danger" onclick="deleteTransfer(${t.id})" title="Delete">✕</button></div>
+    </div>`).join('')}</div>`;
+}
+
+function openTransferPage(transferId) {
+  _pendingTransferOpen = {
+    editId: transferId ? Number(transferId) : null,
+    preselectFromId: currentAccountId || null,
+  };
+  showPage('transfer');
+}
+
+function initTransferPage() {
+  const fromSel = document.getElementById('transferFrom');
+  const toSel = document.getElementById('transferTo');
+  const editIdInput = document.getElementById('transferEditId');
+  const err = document.getElementById('transferPageError');
+  const delBtn = document.getElementById('transferDeleteBtn');
+  if (!fromSel || !toSel) return;
+  err.classList.add('hidden');
+
+  // Populate account selectors from editable accounts only.
+  fromSel.innerHTML = ''; toSel.innerHTML = '';
+  const editable = (accounts || []).filter(a => a.level === 'owner' || a.level === 'edit');
+  if (editable.length < 2) {
+    err.textContent = 'You need at least two editable accounts to transfer money.';
+    err.classList.remove('hidden');
+    // Disable the form so submitTransfer can't run.
+    [fromSel, toSel].forEach(s => s.disabled = true);
+    delBtn.classList.add('hidden');
+    return;
+  }
+  [fromSel, toSel].forEach(s => s.disabled = false);
+  editable.forEach(a => {
+    fromSel.appendChild(new Option(a.name, a.id));
+    toSel.appendChild(new Option(a.name, a.id));
+  });
+
+  const opts = _pendingTransferOpen || { editId: null, preselectFromId: currentAccountId || null };
+  editIdInput.value = opts.editId || '';
+
+  if (opts.editId && _transfersCacheById[opts.editId]) {
+    const t = _transfersCacheById[opts.editId];
+    document.getElementById('transferPageTitle').textContent = 'Edit transfer';
+    fromSel.value = t.from_account_id;
+    toSel.value = t.to_account_id;
+    document.getElementById('transferAmount').value = t.amount;
+    document.getElementById('transferDate').value = t.transfer_date;
+    document.getElementById('transferDesc').value = t.description;
+    document.getElementById('transferNotes').value = t.notes || '';
+    delBtn.classList.remove('hidden');
+  } else {
+    document.getElementById('transferPageTitle').textContent = 'Transfer money';
+    const fromId = opts.preselectFromId || editable[0].id;
+    fromSel.value = String(fromId);
+    toSel.value = String((editable.find(a => a.id !== Number(fromSel.value)) || editable[1]).id);
+    document.getElementById('transferAmount').value = '';
+    document.getElementById('transferDate').value = new Date().toISOString().slice(0,10);
+    document.getElementById('transferDesc').value = 'Transfer';
+    document.getElementById('transferNotes').value = '';
+    delBtn.classList.add('hidden');
+  }
+  updateTransferBalances();
+  _pendingTransferOpen = null;
+}
+
+// Live balance readout under each account selector on the transfer page.
+// Updates whenever From, To, or Amount changes. Shows current balance and —
+// when an amount is entered — the projected after-transfer balance, with a
+// red flag on the From side if the transfer would push it negative.
+function updateTransferBalances() {
+  const fromSel = document.getElementById('transferFrom');
+  const toSel = document.getElementById('transferTo');
+  const amtInput = document.getElementById('transferAmount');
+  const fromBal = document.getElementById('transferFromBal');
+  const toBal = document.getElementById('transferToBal');
+  if (!fromSel || !toSel || !fromBal || !toBal) return;
+  const fromId = Number(fromSel.value);
+  const toId = Number(toSel.value);
+  const amt = parseFloat(amtInput.value);
+  const fromAcc = accounts.find(a => a.id === fromId);
+  const toAcc = accounts.find(a => a.id === toId);
+  const paintBal = (el, acc, delta) => {
+    if (!acc) { el.innerHTML = ''; return; }
+    const now = (typeof acc.current_balance === 'number') ? acc.current_balance : null;
+    if (now === null) {
+      el.innerHTML = `<span class="bal-now">Balance: —</span>`;
+      return;
+    }
+    let html = `<span class="bal-now">Balance: ${fmt(now)}</span>`;
+    if (delta !== 0 && Number.isFinite(delta)) {
+      const next = now + delta;
+      const warn = next < 0 ? ' bal-warn' : '';
+      html += ` <span class="bal-next${warn}">→ after: ${fmt(next)}</span>`;
+    }
+    el.innerHTML = html;
+  };
+  const hasAmt = Number.isFinite(amt) && amt > 0;
+  paintBal(fromBal, fromAcc, hasAmt ? -amt : 0);
+  paintBal(toBal,   toAcc,   hasAmt ?  amt : 0);
+}
+
+function transferPageBack() {
+  // Prefer going back to the account being operated on; otherwise go to the
+  // Transactions page (which also shows the recent transfers list).
+  if (currentAccountId) showPage('accounts');
+  else showPage('transactions');
+}
+
+async function submitTransfer() {
+  const editId = document.getElementById('transferEditId').value;
+  const fromId = Number(document.getElementById('transferFrom').value);
+  const toId = Number(document.getElementById('transferTo').value);
+  const amount = parseFloat(document.getElementById('transferAmount').value);
+  const tdate = document.getElementById('transferDate').value;
+  const desc = document.getElementById('transferDesc').value || 'Transfer';
+  const notes = document.getElementById('transferNotes').value || null;
+  const err = document.getElementById('transferPageError');
+  err.classList.add('hidden');
+  if (fromId === toId) { err.textContent = 'From and To accounts must differ.'; err.classList.remove('hidden'); return; }
+  if (!(amount > 0)) { err.textContent = 'Amount must be positive.'; err.classList.remove('hidden'); return; }
+  if (!tdate) { err.textContent = 'Date is required.'; err.classList.remove('hidden'); return; }
+  const body = JSON.stringify({
+    from_account_id: fromId, to_account_id: toId, amount, transfer_date: tdate,
+    description: desc, notes
+  });
+  try {
+    const url = editId ? '/api/transfers/' + editId : '/api/transfers';
+    const method = editId ? 'PATCH' : 'POST';
+    await api(url, { method, body });
+    // Refresh the accounts list so current_balance is up-to-date next
+    // time the transfer page is opened (both legs' balances just moved).
+    await loadAccounts();
+    // Navigate back to where the user came from and refresh data.
+    if (currentAccountId) {
+      showPage('accounts');
+      await selectAccount(currentAccountId);
+    } else {
+      showPage('transactions');
+    }
+    // Keep the Recent Transfers list fresh in case the Transactions page is
+    // visited next.
+    loadRecentTransfers();
+  } catch (e) {
+    err.textContent = e.message; err.classList.remove('hidden');
+  }
+}
+
+async function deleteTransferFromPage() {
+  const editId = document.getElementById('transferEditId').value;
+  if (!editId) return;
+  await deleteTransfer(Number(editId));
+}
+
+async function deleteTransfer(id) {
+  if (!confirm('Delete this transfer? Both legs will be removed and balances adjusted.')) return;
+  try {
+    await api('/api/transfers/' + id, { method: 'DELETE' });
+    loadRecentTransfers();
+    // If we're on the transfer page editing this one, bounce back.
+    const onTransferPage = !document.getElementById('pageTransfer').classList.contains('hidden');
+    if (onTransferPage) {
+      if (currentAccountId) { showPage('accounts'); await selectAccount(currentAccountId); }
+      else showPage('transactions');
+    } else if (currentAccountId) {
+      await selectAccount(currentAccountId);
+    }
+  } catch (e) {
+    alert('Delete failed: ' + e.message);
+  }
+};
+
+// ---------- CSV Import page ----------
+// The CSV importer used to live in a modal overlay on the Accounts page,
+// but overlay dismissal turned out to be flaky on some browsers, so it was
+// promoted to a dedicated page (#pageImport) reached from the Account detail
+// via openImportPage(). The page has its own target-account selector so it
+// also works if the user lands on it directly (e.g. deep link).
+let _importPreviewMapping = null;
+let _importPreviewSign = 'amount';
+let _importPreviewHasHeader = true;
+let _importAccountId = null; // independent of currentAccountId (Accounts page)
+
+function openImportPage(preselectAccountId) {
+  if (preselectAccountId != null) _importAccountId = Number(preselectAccountId);
+  showPage('import');
+}
+
+function updateImportTitle() {
+  const t = document.getElementById('importPageTitle');
+  if (!t) return;
+  const acct = accounts.find(a => a.id === _importAccountId);
+  t.textContent = acct ? ('Import transactions into ' + acct.name)
+                       : 'Import transactions from CSV';
+}
+
+function initImportPage() {
+  const sel = document.getElementById('importTargetAccount');
+  if (!sel) return;
+  // Populate target-account selector from the accounts the user can see.
+  sel.innerHTML = '';
+  if (!accounts.length) {
+    sel.appendChild(new Option('— no accounts available —', ''));
+    document.getElementById('importCommitBtn').disabled = true;
+    _importAccountId = null;
+  } else {
+    accounts.forEach(a => sel.appendChild(new Option(a.name, String(a.id))));
+    let chosen = _importAccountId != null ? _importAccountId
+               : (currentAccountId || accounts[0].id);
+    if (!accounts.some(a => a.id === chosen)) chosen = accounts[0].id;
+    sel.value = String(chosen);
+    _importAccountId = chosen;
+  }
+  sel.onchange = () => {
+    _importAccountId = Number(sel.value) || null;
+    updateImportTitle();
+  };
+  updateImportTitle();
+
+  // Populate default-category dropdown.
+  const catSel = document.getElementById('importDefaultCat');
+  if (catSel) {
+    catSel.innerHTML = '<option value="">— none —</option>';
+    (categories || []).forEach(c => catSel.appendChild(new Option(c.name, c.id)));
+  }
+
+  // Reset the form state on (re)entry so the page is a clean slate.
+  const csvText = document.getElementById('importCsvText');
+  if (csvText) csvText.value = '';
+  const fileInput = document.getElementById('importCsvFile');
+  if (fileInput) fileInput.value = '';
+  document.getElementById('importPreviewWrap').innerHTML =
+    '<div style="padding:14px;color:var(--muted);font-size:13px">Run Preview to see rows here.</div>';
+  document.getElementById('importPreviewSummary').textContent = '';
+  document.getElementById('importCommitBtn').disabled = true;
+  document.getElementById('importPageError').classList.add('hidden');
+  _importPreviewMapping = null;
+}
+
+async function onImportCsvFile() {
+  const file = document.getElementById('importCsvFile').files[0];
+  if (!file) return;
+  const text = await file.text();
+  document.getElementById('importCsvText').value = text;
+}
+
+async function runImportPreview() {
+  if (!_importAccountId) { alert('Pick a target account first.'); return; }
+  const csv_text = document.getElementById('importCsvText').value;
+  if (!csv_text.trim()) {
+    const err = document.getElementById('importPageError');
+    err.textContent = 'Paste CSV text or pick a file first.'; err.classList.remove('hidden'); return;
+  }
+  const has_header = document.getElementById('importHasHeader').value === '1';
+  const sign_convention = document.getElementById('importSignConv').value;
+  let data;
+  try {
+    data = await api('/api/accounts/' + _importAccountId + '/import/preview', {
+      method: 'POST',
+      body: JSON.stringify({ csv_text, has_header, sign_convention }),
+    });
+  } catch (e) {
+    const err = document.getElementById('importPageError');
+    err.textContent = 'Preview failed: ' + e.message; err.classList.remove('hidden'); return;
+  }
+  document.getElementById('importPageError').classList.add('hidden');
+  _importPreviewMapping = data.mapping;
+  _importPreviewSign = sign_convention;
+  _importPreviewHasHeader = has_header;
+  document.getElementById('importPreviewSummary').textContent =
+    `${data.row_count} row(s) parsed · ${data.duplicate_count} duplicate(s) · ${data.skipped_count} skipped`;
+  const rows = data.rows.map(r => `<tr class="${r.duplicate?'duplicate':''}">
+    <td>${escapeHtml(r.date)}</td>
+    <td>${escapeHtml(r.description)}</td>
+    <td class="num">${fmt(r.amount)}</td>
+    <td>${r.duplicate?'duplicate':''}</td>
+  </tr>`).join('');
+  document.getElementById('importPreviewWrap').innerHTML = `
+    <table class="csv-preview">
+      <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  document.getElementById('importCommitBtn').disabled = !(data.row_count > 0);
+}
+
+async function runImportCommit() {
+  if (!_importAccountId) { alert('Pick a target account first.'); return; }
+  const csv_text = document.getElementById('importCsvText').value;
+  const default_category_id = document.getElementById('importDefaultCat').value || null;
+  const skip_duplicates = document.getElementById('importSkipDupes').checked;
+  if (!_importPreviewMapping) { alert('Run Preview first.'); return; }
+  const body = JSON.stringify({
+    csv_text, has_header: _importPreviewHasHeader,
+    mapping: _importPreviewMapping,
+    sign_convention: _importPreviewSign,
+    default_category_id: default_category_id ? Number(default_category_id) : null,
+    skip_duplicates,
+  });
+  try {
+    const data = await api('/api/accounts/' + _importAccountId + '/import/commit', {
+      method: 'POST', body
+    });
+    alert(`Imported ${data.inserted} of ${data.total_rows} rows. Skipped duplicates: ${data.duplicates_skipped}.`);
+    // Navigate back to the account we imported into so the new rows are visible.
+    const acctId = _importAccountId;
+    showPage('accounts');
+    if (acctId) await selectAccount(acctId);
+  } catch (e) {
+    const err = document.getElementById('importPageError');
+    err.textContent = 'Commit failed: ' + e.message; err.classList.remove('hidden');
+  }
+}
+
+// ---------- Budgets ----------
+async function loadBudgets() {
+  const wrap = document.getElementById('budgetsList');
+  if (!wrap) return;
+  wrap.innerHTML = '<div style="color:var(--muted);font-size:13px">Loading…</div>';
+  const win = document.getElementById('budgetWindow').value;
+  let data;
+  try {
+    data = await api('/api/budgets/progress?window=' + encodeURIComponent(win));
+  } catch (e) {
+    wrap.innerHTML = `<div style="color:var(--bad)">Could not load: ${escapeHtml(e.message)}</div>`;
+    return;
+  }
+  document.getElementById('budgetWindowRange').textContent = `${data.label} · ${data.start} → ${data.end}`;
+  if (!data.rows.length) {
+    wrap.innerHTML = `<div style="color:var(--muted);font-size:13px">No spending categories yet. Spend will show up here once you have actual postings.</div>`;
+    return;
+  }
+  // Header + rows
+  let html = `<div class="budget-row" style="font-weight:600;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border)">
+    <div></div><div>Category</div><div class="num" style="text-align:right">Spent</div><div>Progress</div><div class="num" style="text-align:right">Budget</div><div></div>
+  </div>`;
+  html += data.rows.map(r => {
+    const sw = r.category_color ? `style="background:${r.category_color}"` : '';
+    const pct = r.budget > 0 ? Math.min(100, (r.spend / r.budget) * 100) : 0;
+    let cls = '';
+    if (r.over) cls = 'over';
+    else if (pct >= 80) cls = 'warn';
+    const bar = r.has_budget
+      ? `<div class="budget-bar"><div class="budget-bar-fill ${cls}" style="width:${pct.toFixed(1)}%"></div></div>`
+      : `<div style="color:var(--muted);font-size:11px">No budget set</div>`;
+    const pctText = r.has_budget && r.budget > 0
+      ? `<div class="budget-pct ${r.over?'neg':''}">${(r.pct||0).toFixed(0)}%</div>`
+      : `<div class="budget-pct" style="color:var(--muted)">—</div>`;
+    const inputId = 'budget-input-' + (r.category_id || ('uncat-' + Math.random().toString(36).slice(2,8)));
+    const setBtn = r.category_id != null
+      ? `<input id="${inputId}" type="number" step="0.01" min="0" value="${r.has_budget?r.budget:''}" class="budget-amount-input" placeholder="0.00">
+         <div style="display:flex;gap:4px;margin-top:4px">
+           <button class="ghost" style="padding:3px 8px;font-size:11px"
+                   onclick="saveBudget(${r.category_id}, document.getElementById('${inputId}').value)">Save</button>
+           ${r.has_budget?`<button class="ghost danger" style="padding:3px 8px;font-size:11px"
+                   onclick="deleteBudget(${r.category_id})">Clear</button>`:''}
+         </div>`
+      : `<span style="color:var(--muted);font-size:11px">(uncategorized)</span>`;
+    return `<div class="budget-row">
+      <div class="budget-swatch" ${sw}></div>
+      <div>${escapeHtml(r.category_name)}</div>
+      <div class="num" style="text-align:right">${fmt(r.spend)}</div>
+      <div>${bar}</div>
+      <div class="num" style="text-align:right">${r.has_budget?fmt(r.budget):''}</div>
+      <div>${setBtn}</div>
+    </div>`;
+  }).join('');
+  // Totals row
+  html += `<div class="budget-row" style="font-weight:600;border-top:1px solid var(--border);margin-top:6px;padding-top:10px">
+    <div></div><div>Total</div>
+    <div class="num" style="text-align:right">${fmt(data.totals.spend)}</div>
+    <div></div>
+    <div class="num" style="text-align:right">${fmt(data.totals.budget)}</div>
+    <div class="num" style="text-align:right;color:${data.totals.remaining<0?'var(--bad)':'var(--muted)'}">
+      ${data.totals.remaining>=0?'+':''}${fmt(data.totals.remaining)}
+    </div>
+  </div>`;
+  wrap.innerHTML = html;
+}
+async function saveBudget(category_id, amount) {
+  const v = parseFloat(amount);
+  if (!isFinite(v) || v < 0) { alert('Enter a non-negative amount.'); return; }
+  try {
+    await api('/api/budgets', {
+      method: 'POST',
+      body: JSON.stringify({ category_id, amount: v, period: 'monthly' }),
+    });
+    loadBudgets();
+  } catch (e) { alert('Save failed: ' + e.message); }
+}
+async function deleteBudget(category_id) {
+  if (!confirm('Clear this budget?')) return;
+  try {
+    await api('/api/budgets/' + category_id, { method: 'DELETE' });
+    loadBudgets();
+  } catch (e) { alert('Delete failed: ' + e.message); }
 }
 
 init();

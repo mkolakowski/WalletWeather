@@ -3,6 +3,62 @@ import os
 import base64
 from datetime import date, datetime
 from cryptography.fernet import Fernet
+
+# =============================================================================
+# SCHEMA VERSION
+# =============================================================================
+# Human-readable marker for the current database schema shape.
+#
+# *** AI ASSISTANT INSTRUCTIONS — READ BEFORE EDITING ***
+# If you modify the schema — i.e. you add/remove/alter a SQLAlchemy model
+# above, OR you add a new statement to the `migrations` list inside
+# init_db() — YOU MUST:
+#   1. Increment SCHEMA_VERSION below (bump the last number).
+#   2. Add a matching "# vN → vN+1:" comment above the new migration(s).
+#   3. Add an entry to the SCHEMA CHANGELOG block below (see format there).
+# Idempotency rule still applies: every migration must be safe to run on an
+# already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
+# `ON CONFLICT DO NOTHING`, etc).
+# -----------------------------------------------------------------------------
+SCHEMA_VERSION = "11"
+
+# --- SCHEMA CHANGELOG ---------------------------------------------------------
+# Format for every new line (keep newest at TOP):
+#   # vN (YYYY-MM-DD, <your name or handle>): <one-line summary of the change>
+# Example:
+#   # v7 (2026-05-01, mkolakowski): add `currency` column to accounts
+#
+# When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
+# history — only append new entries.
+#
+# v11 (2026-04-24, claude+mkolakowski): add `saved_reports` table —
+#     per-user named report with a JSON params blob (group_by, range,
+#     filters, chart type) and a `pinned` flag for dashboard placement.
+#     Stored as TEXT JSON rather than columns so the params shape can
+#     evolve without further migrations.
+# v10 (2026-04-24, claude+mkolakowski): add `tag_rules` table — per-user
+#     auto-tagging recipes (description substring + optional category
+#     filter → target tag). Applied on transaction create, on PATCH, and
+#     during CSV import; can also be backfilled across existing rows.
+# v9 (2026-04-24, claude+mkolakowski): add `tags` table (per-user label with
+#     optional color) and `transaction_tags` many-to-many join. Tags are a
+#     lighter-weight alternative to splits for cross-cutting reporting.
+# v8 (2026-04-23, claude+mkolakowski): add `transfers` table (account-to-account
+#     money movements), `transactions.transfer_id` link column, and
+#     `category_budgets` table (per-category monthly spend caps).
+# v7 (2026-04-23, claude+mkolakowski): add users.chart_position for the
+#     dashboard chart placement preference ('above'/'below'/'inside').
+# v6 (2026-04-22, claude+mkolakowski): add users.theme_preference for
+#     server-side UI theme persistence.
+# v5 (prior):  users.disabled flag for admin-disabled accounts.
+# v4 (prior):  accounts.archived flag for hiding accounts without deleting.
+# v3 (prior):  encrypted notes_enc on recurring_transactions and transactions.
+# v2 (prior):  end_date + category_id on recurring_transactions; category_id
+#              on transactions.
+# v1 (prior):  initial schema — users, accounts, transactions, recurring,
+#              categories, permissions, backup schedule.
+# -----------------------------------------------------------------------------
+
 from sqlalchemy import (
     create_engine, Column, Integer, String, Date, DateTime, Numeric,
     ForeignKey, Boolean, LargeBinary, Text
@@ -63,8 +119,14 @@ class User(Base):
     # bcrypt hash (which embeds its own per-user salt). Null for OAuth-only users.
     password_hash = Column(String(255), nullable=True)
     disabled = Column(Boolean, default=False, nullable=False)
-    # UI preference: 'dark' | 'light' | 'system'. NULL means unset → treat as dark.
+    # UI theme preference. One of: 'dark' | 'light' | 'system' | 'dracula' |
+    # 'solarized' | 'nord' | 'synthwave' | 'forest' | 'mint' | 'monokai' |
+    # 'sunset'. NULL means unset → frontend falls back to 'system' (which
+    # follows the OS preference).
     theme_preference = Column(String(20), nullable=True)
+    # Dashboard chart placement. One of: 'above' | 'below' | 'inside'.
+    # NULL means unset → frontend falls back to 'above'.
+    chart_position = Column(String(10), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     accounts = relationship("Account", back_populates="owner", cascade="all, delete-orphan")
@@ -217,6 +279,11 @@ class Transaction(Base):
     account_id = Column(Integer, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
     recurring_id = Column(Integer, ForeignKey("recurring_transactions.id", ondelete="SET NULL"), nullable=True)
     category_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
+    # When set, this transaction is one of the two legs of an account transfer.
+    # Both legs share the same transfer_id. Spending/income aggregations on
+    # the dashboard, reports, and budgets exclude rows where transfer_id is
+    # not None so transfers don't double-count as expense + income.
+    transfer_id = Column(Integer, ForeignKey("transfers.id", ondelete="CASCADE"), nullable=True)
     description_enc = Column(LargeBinary, nullable=False)
     amount_enc = Column(LargeBinary, nullable=False)  # signed
     forecast_date = Column(Date, nullable=True)  # what we expected
@@ -262,6 +329,167 @@ class Transaction(Base):
         self.notes_enc = encrypt_str(v) if v else None
 
 
+class Transfer(Base):
+    """A money movement between two accounts owned (or co-owned) by the user.
+
+    Each Transfer materializes two Transaction rows linked back via
+    transactions.transfer_id: one negative on from_account, one positive on
+    to_account. Both transactions share transfer_date as actual_date and are
+    is_actual=True so balances reflect the move immediately. Editing or
+    deleting the Transfer cascades to both legs.
+
+    The amount is stored as a positive magnitude; the sign is applied per-leg
+    when the linked transactions are created.
+    """
+    __tablename__ = "transfers"
+    id = Column(Integer, primary_key=True)
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    from_account_id = Column(Integer, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
+    to_account_id = Column(Integer, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
+    transfer_date = Column(Date, nullable=False)
+    description_enc = Column(LargeBinary, nullable=False)
+    amount_enc = Column(LargeBinary, nullable=False)  # positive magnitude
+    notes_enc = Column(LargeBinary, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    @property
+    def description(self) -> str:
+        return decrypt_str(self.description_enc)
+
+    @description.setter
+    def description(self, v: str):
+        self.description_enc = encrypt_str(v)
+
+    @property
+    def amount(self) -> Decimal:
+        return decrypt_decimal(self.amount_enc)
+
+    @amount.setter
+    def amount(self, v):
+        self.amount_enc = encrypt_decimal(v)
+
+    @property
+    def notes(self) -> str | None:
+        return decrypt_str(self.notes_enc) if self.notes_enc else None
+
+    @notes.setter
+    def notes(self, v: str | None):
+        self.notes_enc = encrypt_str(v) if v else None
+
+
+class CategoryBudget(Base):
+    """A per-category spending cap. Currently monthly only; the period field
+    is included for forward compatibility with weekly/quarterly/yearly later.
+
+    Amount is stored as a positive magnitude representing the maximum spend
+    (i.e. budget = $400 means "don't spend more than $400 in this category
+    this month"). Compared against the absolute value of negative postings.
+    """
+    __tablename__ = "category_budgets"
+    id = Column(Integer, primary_key=True)
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"),
+                         nullable=False, unique=True)
+    period = Column(String(20), nullable=False, default="monthly")
+    amount_enc = Column(LargeBinary, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    category = relationship("Category")
+
+    @property
+    def amount(self) -> Decimal:
+        return decrypt_decimal(self.amount_enc)
+
+    @amount.setter
+    def amount(self, v):
+        self.amount_enc = encrypt_decimal(v)
+
+
+class Tag(Base):
+    """A user-owned label that can be attached to any number of transactions.
+
+    Deliberately lighter than Category: a transaction has zero-or-one Category
+    (the primary bucket) and zero-or-many Tags (cross-cutting labels like
+    "vacation" or "reimbursable"). Names aren't encrypted — we follow the
+    same pattern as Category here, because searchability is more valuable
+    than confidentiality for short labels that users explicitly share with
+    the filter UI.
+    """
+    __tablename__ = "tags"
+    id = Column(Integer, primary_key=True)
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(60), nullable=False)
+    color = Column(String(20), nullable=True)  # hex like '#58a6ff', optional
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class TransactionTag(Base):
+    """Many-to-many link between Transaction and Tag. Cascade delete from
+    either side so deleting a tag cleans up its links and deleting a
+    transaction doesn't leave orphan rows behind."""
+    __tablename__ = "transaction_tags"
+    transaction_id = Column(Integer,
+                            ForeignKey("transactions.id", ondelete="CASCADE"),
+                            primary_key=True)
+    tag_id = Column(Integer,
+                    ForeignKey("tags.id", ondelete="CASCADE"),
+                    primary_key=True)
+
+
+class TagRule(Base):
+    """Auto-tagging rule. When a transaction's description contains
+    `description_pattern` (case-insensitive substring) and — if
+    `category_id` is set — its category matches, the rule's target tag
+    is attached automatically.
+
+    Why substring rather than regex: regex is footgun-y in a UI without
+    a sandbox; 90% of useful rules are "STARBUCKS" / "AMZN" / "Whole
+    Foods" — pure literals. We store the lowercased pattern so the
+    apply path can do `description.lower().contains(pattern)` without
+    re-folding case for every transaction every time.
+    """
+    __tablename__ = "tag_rules"
+    id = Column(Integer, primary_key=True)
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    # Optional human-readable label so the rules list is scannable. Falls
+    # back to the pattern itself when blank.
+    name = Column(String(80), nullable=True)
+    description_pattern = Column(String(120), nullable=False)  # already lowered
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"),
+                         nullable=True)
+    tag_id = Column(Integer, ForeignKey("tags.id", ondelete="CASCADE"),
+                    nullable=False)
+    active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SavedReport(Base):
+    """User-saved report definition.
+
+    The `params` column is JSON text (not a JSONB column) because the
+    only consumers are SQLAlchemy + a single-instance Postgres deployment;
+    the value is read whole, parsed in Python, and pushed back whole.
+    Schema-less storage means the params shape can grow (new chart
+    types, new group_by values, new filter dimensions) without further
+    SCHEMA_VERSION bumps.
+
+    Fields baked into columns rather than the JSON blob:
+      - `name` because we list/sort by it on the picker
+      - `pinned` because the dashboard pulls "all my pinned reports" via
+        a where clause and a JSON path query would be uglier
+      - `sort_order` so the pinned-on-dashboard order is user-controllable
+    """
+    __tablename__ = "saved_reports"
+    id = Column(Integer, primary_key=True)
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"),
+                      nullable=False)
+    name = Column(String(120), nullable=False)
+    params = Column(Text, nullable=False)  # JSON-encoded report definition
+    pinned = Column(Boolean, nullable=False, default=False)
+    sort_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 def init_db():
     """Create missing tables, then apply in-place column migrations.
 
@@ -285,6 +513,26 @@ def init_db():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS disabled BOOLEAN NOT NULL DEFAULT FALSE",
         # v5 → v6: per-user UI theme preference
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS theme_preference VARCHAR(20)",
+        # v6 → v7: per-user dashboard chart placement
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS chart_position VARCHAR(10)",
+        # v7 → v8: transfers + transactions.transfer_id + category_budgets
+        # (transfers and category_budgets tables themselves are created by
+        # Base.metadata.create_all above; we only need the FK column added
+        # to the existing transactions table.)
+        "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS transfer_id INTEGER REFERENCES transfers(id) ON DELETE CASCADE",
+        # v8 → v9: tags + transaction_tags
+        # (Both tables are created by Base.metadata.create_all above;
+        # this entry is a no-op on a fresh DB. It's here so that
+        # `ALTER`-style migrations remain possible if the schema evolves
+        # — e.g. adding a future `description` column to tags.)
+        # v9 → v10: tag_rules
+        # (Created by Base.metadata.create_all above. No ALTER needed
+        # for fresh databases; this comment marks the version boundary
+        # so future column tweaks can hang an `ADD COLUMN IF NOT EXISTS`
+        # underneath without renumbering.)
+        # v10 → v11: saved_reports
+        # (Created by Base.metadata.create_all above. Same idempotency
+        # story as v9 → v10 — boundary marker only.)
     ]
     with engine.begin() as conn:
         for sql in migrations:

@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.12.0"
+APP_VERSION = "1.13.1"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -35,6 +35,34 @@ APP_VERSION = "1.12.0"
 # When you bump APP_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
+#
+# 1.13.1 (2026-09-05, claude+mkolakowski): Account rename. PATCH
+#     /api/accounts/{id} accepts an optional `name`, restricted to the
+#     `owner` permission level (shared `edit` users can still
+#     archive/unarchive but not rename or delete — delete already
+#     required owner). 403 (not 404) on insufficient level since the
+#     caller already has edit access and knows the account exists.
+#
+# 1.13.0 (2026-09-04, claude+mkolakowski): CSV import gains Tags support
+#     and recurring-transaction import. `_detect_columns`/`_parse_csv_rows`
+#     now also read optional Tags (comma/semicolon-separated, matched
+#     case-insensitively against the user's existing tags — unmatched
+#     names are skipped rather than auto-created, same policy as
+#     Category) and Frequency/End Date columns; a row with a recognized
+#     Frequency (Monthly/Weekly/Biweekly) is imported as a
+#     RecurringTransaction template (row date -> anchor date or
+#     day-of-month) instead of a one-time Transaction, with its own
+#     duplicate check against existing recurring templates. New GET
+#     /api/accounts/{id}/import/template returns a starter CSV
+#     demonstrating every importable column.
+#
+# 1.12.1 (2026-09-04, claude+mkolakowski): CSV import fixes. A mapped
+#     "Category" column is now actually applied per-row (matched
+#     case-insensitively against the user's existing categories, falling
+#     back to the chosen default category when absent/unmatched) — it was
+#     previously auto-detected but silently discarded. Imported notes are
+#     now truncated to NOTES_MAX_LEN (256, shared with the manual
+#     transaction/recurring forms) instead of bypassing that cap entirely.
 #
 # 1.12.0 (2026-04-24, claude+mkolakowski): saved reports + dashboard
 #     pinning. Schema v11 adds `saved_reports` (per-user, JSON params,
@@ -123,7 +151,7 @@ APP_VERSION = "1.12.0"
 
 
 import bcrypt
-from fastapi import FastAPI, Depends, HTTPException, Request, status
+from fastapi import FastAPI, Depends, HTTPException, Request, status, Response
 from fastapi.responses import RedirectResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
@@ -554,6 +582,9 @@ def update_preferences(payload: PreferencesIn,
 
 
 # ---------- Schemas ----------
+NOTES_MAX_LEN = 256  # shared cap for transaction/recurring notes, incl. CSV import
+
+
 class AccountIn(BaseModel):
     name: str
     starting_balance: float
@@ -568,7 +599,7 @@ class RecurringIn(BaseModel):
     anchor_date: date | None = None
     end_date: date | None = None
     category_id: int | None = None
-    notes: str | None = Field(default=None, max_length=256)
+    notes: str | None = Field(default=None, max_length=NOTES_MAX_LEN)
     active: bool = True
 
 
@@ -581,7 +612,7 @@ class TransactionIn(BaseModel):
     is_actual: bool = False
     recurring_id: int | None = None
     category_id: int | None = None
-    notes: str | None = Field(default=None, max_length=256)
+    notes: str | None = Field(default=None, max_length=NOTES_MAX_LEN)
     # Optional tag ids to attach to the transaction. None means "don't
     # touch tags" on update; an empty list means "clear all tags". On
     # create, None is treated as empty.
@@ -1086,6 +1117,7 @@ def create_account(payload: AccountIn, user: User = Depends(current_user), db: S
 
 class AccountPatchIn(BaseModel):
     archived: bool | None = None
+    name: str | None = None
 
 
 @app.patch("/api/accounts/{account_id}")
@@ -1095,14 +1127,26 @@ def update_account(account_id: int, payload: AccountPatchIn,
     # visible-accounts filter (which excludes archived) by going straight
     # through _account_with_perm, which uses db.get() directly.
     acc = _account_with_perm(db, user, account_id, "edit")
+    if payload.name is not None:
+        # Renaming is restricted to the owner permission level — shared
+        # editors can log transactions but shouldn't be able to rename (or,
+        # via delete below) an account they don't own.
+        if LEVEL_RANK[_user_level(db, user, account_id)] < LEVEL_RANK["owner"]:
+            raise HTTPException(403, "Only the account owner can rename this account")
+        name = payload.name.strip()
+        if not name:
+            raise HTTPException(400, "Name is required")
+        acc.name = name
     if payload.archived is not None:
         acc.archived = payload.archived
     db.commit()
-    return {"ok": True, "archived": acc.archived}
+    return {"ok": True, "archived": acc.archived, "name": acc.name}
 
 
 @app.delete("/api/accounts/{account_id}")
 def delete_account(account_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    # Owner-only: deleting cascades to every transaction, recurring template,
+    # and permission grant on the account (see Account relationships in db.py).
     acc = _account_with_perm(db, user, account_id, "owner")
     db.delete(acc)
     db.commit()
@@ -2157,7 +2201,8 @@ import io as _csvio
 def _detect_columns(headers: list[str]) -> dict[str, int | None]:
     """Heuristic auto-mapping for common bank CSV column names."""
     mapping = {"date": None, "description": None, "amount": None,
-               "debit": None, "credit": None, "category": None, "notes": None}
+               "debit": None, "credit": None, "category": None, "notes": None,
+               "tags": None, "frequency": None, "end_date": None}
     lowered = [(i, (h or "").strip().lower()) for i, h in enumerate(headers)]
     for i, h in lowered:
         if mapping["date"] is None and h in ("date", "transaction date", "posted date", "post date"):
@@ -2172,9 +2217,33 @@ def _detect_columns(headers: list[str]) -> dict[str, int | None]:
             mapping["credit"] = i
         elif mapping["category"] is None and h in ("category",):
             mapping["category"] = i
+        elif mapping["tags"] is None and h in ("tags", "tag", "labels"):
+            mapping["tags"] = i
         elif mapping["notes"] is None and h in ("notes", "note"):
             mapping["notes"] = i
+        elif mapping["frequency"] is None and h in ("frequency", "recurring", "repeat", "recurrence"):
+            mapping["frequency"] = i
+        elif mapping["end_date"] is None and h in ("end date", "recurring end date", "until"):
+            mapping["end_date"] = i
     return mapping
+
+
+# Accepted values for the optional `frequency` CSV column. A row with a
+# recognized frequency becomes a recurring transaction template (using the
+# row's date as anchor date / day-of-month) instead of a one-time actual
+# transaction. Keys are matched case-insensitively.
+FREQUENCY_ALIASES = {
+    "monthly": "monthly_day", "monthly_day": "monthly_day", "month": "monthly_day",
+    "weekly": "weekly", "week": "weekly",
+    "biweekly": "biweekly", "bi-weekly": "biweekly", "bi weekly": "biweekly",
+    "fortnightly": "biweekly", "every 2 weeks": "biweekly", "every two weeks": "biweekly",
+}
+
+
+def _normalize_frequency(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    return FREQUENCY_ALIASES.get(str(raw).strip().lower())
 
 
 def _parse_csv_amount(raw: str | None) -> float | None:
@@ -2211,12 +2280,20 @@ def _parse_csv_date(raw: str | None) -> date | None:
 
 def _parse_csv_rows(csv_text: str, has_header: bool, mapping: dict | None,
                     sign_convention: str = "amount"):
-    """Yield dicts {date, description, amount, raw} from a CSV blob.
+    """Yield dicts describing each row from a CSV blob.
 
     sign_convention:
       - 'amount':            single signed column (negative = withdraw)
       - 'amount_invert':     single signed column where positive = withdraw
       - 'debit_credit':      two columns: debit (positive=withdraw), credit (positive=deposit)
+
+    A row with a recognized value in the optional `frequency` column (see
+    FREQUENCY_ALIASES) is flagged as a recurring transaction template rather
+    than a one-time actual transaction; the row's date becomes the anchor
+    date (weekly/biweekly) or day-of-month (monthly). An unrecognized,
+    non-empty frequency value skips the row rather than silently importing
+    it as one-time, so a typo doesn't quietly turn a bill into a single
+    transaction.
     """
     reader = csv.reader(_csvio.StringIO(csv_text))
     rows = list(reader)
@@ -2251,7 +2328,18 @@ def _parse_csv_rows(csv_text: str, has_header: bool, mapping: dict | None,
                 amt = -amt
         notes = cell("notes")
         if notes:
-            notes = str(notes).strip() or None
+            notes = str(notes).strip()[:NOTES_MAX_LEN] or None
+        category_name = (cell("category") or "").strip() or None
+        tags_raw = cell("tags")
+        tag_names = [p.strip() for p in re.split(r"[;,]", str(tags_raw)) if p.strip()] \
+            if tags_raw else []
+        freq_raw = (cell("frequency") or "").strip() or None
+        frequency = _normalize_frequency(freq_raw) if freq_raw else None
+        if freq_raw and frequency is None:
+            skipped.append({"row_index": idx, "row": row,
+                            "reason": f'unrecognized frequency "{freq_raw}"'})
+            continue
+        end_date = _parse_csv_date(cell("end_date"))
         if d is None or amt is None:
             skipped.append({"row_index": idx, "row": row,
                             "reason": "missing date or amount"})
@@ -2262,9 +2350,78 @@ def _parse_csv_rows(csv_text: str, has_header: bool, mapping: dict | None,
             "description": desc,
             "amount": amt,
             "notes": notes,
+            "category_name": category_name,
+            "tag_names": tag_names,
+            "frequency": frequency,
+            "end_date": end_date.isoformat() if end_date else None,
             "raw": row,
         })
     return out, skipped, headers, mapping
+
+
+def _category_lookup(db: Session, user: User) -> dict[str, int]:
+    """Case-insensitive category name -> id lookup for the current user."""
+    cats = db.query(Category).filter_by(owner_id=user.id).all()
+    return {c.name.strip().lower(): c.id for c in cats}
+
+
+def _resolve_row_category(row: dict, lookup: dict[str, int],
+                          default_category_id: int | None) -> int | None:
+    """CSV category column wins if it matches an existing category by name
+    (case-insensitive); unmapped/unmatched names fall back to the chosen
+    default category rather than silently dropping the row's category."""
+    name = row.get("category_name")
+    if name:
+        matched = lookup.get(name.strip().lower())
+        if matched is not None:
+            return matched
+    return default_category_id
+
+
+def _tag_lookup(db: Session, user: User) -> dict[str, int]:
+    """Case-insensitive tag name -> id lookup for the current user."""
+    tags = db.query(Tag).filter_by(owner_id=user.id).all()
+    return {t.name.strip().lower(): t.id for t in tags}
+
+
+def _resolve_row_tags(row: dict, lookup: dict[str, int]) -> tuple[list[int], list[str]]:
+    """Split the CSV tags cell on comma/semicolon and match each piece
+    against the user's existing tags by name (case-insensitive). Unmatched
+    names are returned separately rather than auto-created — same
+    conservative policy as category, so a typo doesn't spawn a stray tag."""
+    matched, unmatched = [], []
+    for name in row.get("tag_names") or []:
+        tid = lookup.get(name.strip().lower())
+        if tid is not None:
+            matched.append(tid)
+        else:
+            unmatched.append(name)
+    return matched, unmatched
+
+
+def _recurring_row_key(r: dict) -> tuple:
+    """Dedupe key for a recurring-template row, matching the shape stored
+    on RecurringTransaction once created (see _existing_recurring_keys)."""
+    d = date.fromisoformat(r["date"])
+    day_of_month = d.day if r["frequency"] == "monthly_day" else None
+    anchor_iso = None if r["frequency"] == "monthly_day" else d.isoformat()
+    return (r["frequency"], day_of_month, anchor_iso,
+            round(r["amount"], 2), r["description"].strip().lower())
+
+
+def _existing_recurring_keys(db: Session, account_id: int) -> set[tuple]:
+    """Dedupe set of (frequency, day_of_month, anchor_date_iso, amount,
+    description_lower) for existing recurring templates on this account."""
+    keys = set()
+    recs = db.query(RecurringTransaction).filter(RecurringTransaction.account_id == account_id).all()
+    for r in recs:
+        try:
+            keys.add((r.frequency, r.day_of_month,
+                      r.anchor_date.isoformat() if r.anchor_date else None,
+                      round(float(r.amount), 2), (r.description or "").strip().lower()))
+        except Exception:
+            continue
+    return keys
 
 
 class CSVPreviewIn(BaseModel):
@@ -2314,12 +2471,24 @@ def csv_import_preview(account_id: int, payload: CSVPreviewIn,
     rows, skipped, headers, mapping = _parse_csv_rows(
         payload.csv_text, payload.has_header, payload.mapping, payload.sign_convention)
     existing = _existing_keys_for_account(db, acc.id)
+    existing_recurring = _existing_recurring_keys(db, acc.id)
+    cat_lookup = _category_lookup(db, user)
+    tag_lookup = _tag_lookup(db, user)
     dup_count = 0
+    recurring_count = 0
     for r in rows:
-        key = (r["date"], round(r["amount"], 2), r["description"].strip().lower())
-        r["duplicate"] = key in existing
+        if r["frequency"]:
+            recurring_count += 1
+            r["duplicate"] = _recurring_row_key(r) in existing_recurring
+        else:
+            key = (r["date"], round(r["amount"], 2), r["description"].strip().lower())
+            r["duplicate"] = key in existing
         if r["duplicate"]:
             dup_count += 1
+        r["category_matched"] = bool(r.get("category_name")) and \
+            r["category_name"].strip().lower() in cat_lookup
+        _, unmatched_tags = _resolve_row_tags(r, tag_lookup)
+        r["tags_unmatched"] = unmatched_tags
     return {
         "headers": headers,
         "mapping": mapping,
@@ -2328,6 +2497,7 @@ def csv_import_preview(account_id: int, payload: CSVPreviewIn,
         "skipped": skipped[:50],
         "skipped_count": len(skipped),
         "duplicate_count": dup_count,
+        "recurring_count": recurring_count,
         "sign_convention": payload.sign_convention,
         "has_header": payload.has_header,
     }
@@ -2344,9 +2514,39 @@ def csv_import_commit(account_id: int, payload: CSVCommitIn,
     rows, _skipped, _headers, _mapping = _parse_csv_rows(
         payload.csv_text, payload.has_header, payload.mapping, payload.sign_convention)
     existing = _existing_keys_for_account(db, acc.id) if payload.skip_duplicates else set()
+    existing_recurring = _existing_recurring_keys(db, acc.id) if payload.skip_duplicates else set()
+    cat_lookup = _category_lookup(db, user)
+    tag_lookup = _tag_lookup(db, user)
     inserted = 0
+    recurring_created = 0
     duplicates = 0
     for r in rows:
+        category_id = _resolve_row_category(r, cat_lookup, payload.default_category_id)
+
+        if r["frequency"]:
+            rkey = _recurring_row_key(r)
+            if payload.skip_duplicates and rkey in existing_recurring:
+                duplicates += 1
+                continue
+            existing_recurring.add(rkey)  # protect against duplicates within the file too
+            d = date.fromisoformat(r["date"])
+            rec = RecurringTransaction(
+                account_id=acc.id,
+                category_id=category_id,
+                frequency=r["frequency"],
+                day_of_month=d.day if r["frequency"] == "monthly_day" else None,
+                anchor_date=None if r["frequency"] == "monthly_day" else d,
+                end_date=date.fromisoformat(r["end_date"]) if r["end_date"] else None,
+                active=True,
+            )
+            rec.description = r["description"]
+            rec.amount = Decimal(str(r["amount"]))
+            if r.get("notes"):
+                rec.notes = r["notes"]
+            db.add(rec)
+            recurring_created += 1
+            continue
+
         key = (r["date"], round(r["amount"], 2), r["description"].strip().lower())
         if payload.skip_duplicates and key in existing:
             duplicates += 1
@@ -2357,7 +2557,7 @@ def csv_import_commit(account_id: int, payload: CSVCommitIn,
             continue
         t = Transaction(
             account_id=acc.id,
-            category_id=payload.default_category_id,
+            category_id=category_id,
             actual_date=d,
             forecast_date=d,
             is_actual=True,
@@ -2367,14 +2567,40 @@ def csv_import_commit(account_id: int, payload: CSVCommitIn,
         if r.get("notes"):
             t.notes = r["notes"]
         db.add(t)
-        # Auto-tagging rules fire on every imported row. Need to flush
-        # so each new row has an id before we touch transaction_tags.
+        # Explicit CSV tags first, then auto-tag rules (same ordering as the
+        # manual create endpoint). Need to flush so the row has an id before
+        # we touch transaction_tags.
         db.flush()
+        tag_ids, _unmatched = _resolve_row_tags(r, tag_lookup)
+        if tag_ids:
+            _apply_tags(db, user, t, tag_ids)
         _apply_tag_rules(db, user, t)
         inserted += 1
     db.commit()
-    return {"ok": True, "inserted": inserted, "duplicates_skipped": duplicates,
-            "total_rows": len(rows)}
+    return {"ok": True, "inserted": inserted, "recurring_created": recurring_created,
+            "duplicates_skipped": duplicates, "total_rows": len(rows)}
+
+
+@app.get("/api/accounts/{account_id}/import/template")
+def csv_import_template(account_id: int, user: User = Depends(current_user),
+                        db: Session = Depends(get_db)):
+    """Downloadable starter CSV covering every importable column — Category,
+    Tags, and the recurring Frequency/End Date pair — with worked examples
+    of a one-time expense, one-time income, and a recurring bill."""
+    _own_account(db, user, account_id)
+    cats = db.query(Category).filter_by(owner_id=user.id).order_by(Category.name).limit(2).all()
+    tags = db.query(Tag).filter_by(owner_id=user.id).order_by(Tag.name).limit(1).all()
+    cat1 = cats[0].name if cats else "Groceries"
+    cat2 = cats[1].name if len(cats) > 1 else "Subscriptions"
+    tag1 = tags[0].name if tags else "reimbursable"
+    buf = _csvio.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["Date", "Description", "Amount", "Category", "Tags", "Notes", "Frequency", "End Date"])
+    w.writerow(["2026-09-01", "Whole Foods Market", "-84.23", cat1, "", "", "", ""])
+    w.writerow(["2026-09-01", "Paycheck", "2500.00", "Income", "", "", "", ""])
+    w.writerow(["2026-09-01", "Netflix", "-15.99", cat2, tag1, "Streaming subscription", "Monthly", ""])
+    return Response(content=buf.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": 'attachment; filename="walletweather-import-template.csv"'})
 
 
 # ---------- Net worth ----------

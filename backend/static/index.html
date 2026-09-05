@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark light">
 <title data-app-title>WalletWeather</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="apple-touch-icon" href="/static/favicon.svg">
@@ -10,52 +11,52 @@
   :root { --bg:#0f1419; --panel:#1a2027; --border:#2a323c; --text:#e6edf3; --muted:#8b949e;
           --accent:#58a6ff; --good:#3fb950; --bad:#f85149; --warn:#d29922;
           --bg-deep:#0d1117; --chip-bg:#21262d; --good-bg:#0d2818; --field-bg:#161b22;
-          --bad-bg:rgba(248,81,73,0.1); --on-accent:#fff; }
+          --bad-bg:rgba(248,81,73,0.1); --on-accent:#fff; color-scheme:dark; }
   :root[data-theme="light"] {
           --bg:#ffffff; --panel:#f6f8fa; --border:#d0d7de; --text:#1f2328; --muted:#656d76;
           --accent:#0969da; --good:#1a7f37; --bad:#cf222e; --warn:#9a6700;
           --bg-deep:#eaeef2; --chip-bg:#eaeef2; --good-bg:#dafbe1; --field-bg:#ffffff;
-          --bad-bg:rgba(207,34,46,0.08); --on-accent:#ffffff; }
+          --bad-bg:rgba(207,34,46,0.08); --on-accent:#ffffff; color-scheme:light; }
   :root[data-theme="dracula"] {
           --bg:#282a36; --panel:#343746; --border:#44475a; --text:#f8f8f2; --muted:#6272a4;
           --accent:#bd93f9; --good:#50fa7b; --bad:#ff5555; --warn:#f1fa8c;
           --bg-deep:#21222c; --chip-bg:#44475a; --good-bg:#1e3b2a; --field-bg:#21222c;
-          --bad-bg:rgba(255,85,85,0.12); --on-accent:#282a36; }
+          --bad-bg:rgba(255,85,85,0.12); --on-accent:#282a36; color-scheme:dark; }
   :root[data-theme="solarized"] {
           --bg:#fdf6e3; --panel:#eee8d5; --border:#cbc4a8; --text:#073642; --muted:#657b83;
           --accent:#268bd2; --good:#859900; --bad:#dc322f; --warn:#b58900;
           --bg-deep:#f5ead0; --chip-bg:#eee8d5; --good-bg:#e4eecb; --field-bg:#fdf6e3;
-          --bad-bg:rgba(220,50,47,0.08); --on-accent:#fdf6e3; }
+          --bad-bg:rgba(220,50,47,0.08); --on-accent:#fdf6e3; color-scheme:light; }
   :root[data-theme="nord"] {
           --bg:#2e3440; --panel:#3b4252; --border:#434c5e; --text:#eceff4; --muted:#81a1c1;
           --accent:#88c0d0; --good:#a3be8c; --bad:#bf616a; --warn:#ebcb8b;
           --bg-deep:#292e39; --chip-bg:#434c5e; --good-bg:#2e3d2e; --field-bg:#292e39;
-          --bad-bg:rgba(191,97,106,0.12); --on-accent:#2e3440; }
+          --bad-bg:rgba(191,97,106,0.12); --on-accent:#2e3440; color-scheme:dark; }
   :root[data-theme="synthwave"] {
           --bg:#2b213a; --panel:#3a2c4a; --border:#55456b; --text:#f9f2e7; --muted:#b8aebc;
           --accent:#ff6ac1; --good:#00f5d4; --bad:#ff3864; --warn:#fede1b;
           --bg-deep:#1e1530; --chip-bg:#3a2c4a; --good-bg:#0f4a45; --field-bg:#1e1530;
-          --bad-bg:rgba(255,56,100,0.14); --on-accent:#1e1530; }
+          --bad-bg:rgba(255,56,100,0.14); --on-accent:#1e1530; color-scheme:dark; }
   :root[data-theme="forest"] {
           --bg:#1a2421; --panel:#243330; --border:#3a5048; --text:#e4ebe3; --muted:#8fa598;
           --accent:#5eb583; --good:#9bd680; --bad:#e57373; --warn:#f0c674;
           --bg-deep:#151e1b; --chip-bg:#2d413c; --good-bg:#1e3a28; --field-bg:#151e1b;
-          --bad-bg:rgba(229,115,115,0.12); --on-accent:#1a2421; }
+          --bad-bg:rgba(229,115,115,0.12); --on-accent:#1a2421; color-scheme:dark; }
   :root[data-theme="mint"] {
           --bg:#f3faf5; --panel:#e1f2e5; --border:#b8d9bf; --text:#15372a; --muted:#557d67;
           --accent:#2d9065; --good:#1e7a4c; --bad:#c23030; --warn:#b88312;
           --bg-deep:#e7f4ea; --chip-bg:#d3e9d8; --good-bg:#cde8d2; --field-bg:#ffffff;
-          --bad-bg:rgba(194,48,48,0.08); --on-accent:#ffffff; }
+          --bad-bg:rgba(194,48,48,0.08); --on-accent:#ffffff; color-scheme:light; }
   :root[data-theme="monokai"] {
           --bg:#272822; --panel:#34352f; --border:#49483e; --text:#f8f8f2; --muted:#75715e;
           --accent:#fd971f; --good:#a6e22e; --bad:#f92672; --warn:#e6db74;
           --bg-deep:#1e1f1a; --chip-bg:#49483e; --good-bg:#2e3d24; --field-bg:#1e1f1a;
-          --bad-bg:rgba(249,38,114,0.12); --on-accent:#272822; }
+          --bad-bg:rgba(249,38,114,0.12); --on-accent:#272822; color-scheme:dark; }
   :root[data-theme="sunset"] {
           --bg:#2a1e1a; --panel:#3a2a25; --border:#5a3e35; --text:#fce8d8; --muted:#a68876;
           --accent:#ff7f3f; --good:#80c26e; --bad:#ef4f56; --warn:#ffb84a;
           --bg-deep:#1f1613; --chip-bg:#4a342d; --good-bg:#2c3d25; --field-bg:#1f1613;
-          --bad-bg:rgba(239,79,86,0.12); --on-accent:#1f1613; }
+          --bad-bg:rgba(239,79,86,0.12); --on-accent:#1f1613; color-scheme:dark; }
   * { box-sizing:border-box; }
   body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
          background:var(--bg); color:var(--text); }
@@ -977,7 +978,11 @@
         <h2 id="importPageTitle">Import transactions from CSV</h2>
         <p style="color:var(--muted);font-size:13px;margin:6px 0 12px">
           Upload a CSV from your bank (or paste text). We'll auto-detect columns,
-          preview the rows, and let you skip duplicates before committing.
+          preview the rows, and let you skip duplicates before committing. Optional
+          Category, Tags, and Frequency columns are supported — a row with a
+          Frequency value (Monthly / Weekly / Biweekly) is imported as a recurring
+          template instead of a one-time transaction. Not sure of the format?
+          <a href="#" onclick="downloadImportTemplate();return false">Download a starter template</a>.
         </p>
         <div class="row">
           <div><label>Target account</label>
@@ -986,6 +991,9 @@
           <div style="flex:0 0 auto">
             <label>File</label>
             <input id="importCsvFile" type="file" accept=".csv,text/csv,text/plain" onchange="onImportCsvFile()">
+          </div>
+          <div style="flex:0 0 auto;align-self:end">
+            <button class="ghost" onclick="downloadImportTemplate()">Download template</button>
           </div>
           <div style="flex:0 0 auto">
             <label>Has header row?</label>
@@ -1004,7 +1012,7 @@
           </div>
           <div style="flex:0 0 auto">
             <label>Default category</label>
-            <select id="importDefaultCat">
+            <select id="importDefaultCat" title="Used when a row has no Category column, or its value doesn't match an existing category">
               <option value="">— none —</option>
             </select>
           </div>
@@ -1013,7 +1021,7 @@
           <label>CSV text (paste here)</label>
           <textarea id="importCsvText" rows="8" style="width:100%;font:12px monospace;background:var(--bg-deep);
             color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px"
-            placeholder="date,description,amount&#10;2026-04-01,Coffee,-4.25"></textarea>
+            placeholder="date,description,amount,category,tags,notes,frequency,end_date&#10;2026-04-01,Coffee,-4.25,Dining,,,,&#10;2026-04-01,Netflix,-15.99,Subscriptions,streaming,,Monthly,"></textarea>
         </div>
         <div class="row" style="margin-top:8px">
           <div style="flex:0 0 auto"><button onclick="runImportPreview()">Preview</button></div>
@@ -1692,7 +1700,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.12.0";
+const WEB_VERSION = "1.13.1";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1702,6 +1710,37 @@ const WEB_VERSION = "1.12.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.13.1 (2026-09-05, claude+mkolakowski): Settings > Manage accounts
+//     gets Rename and Delete buttons, shown only when the account's
+//     access level is "owner" — shared "edit" users still see
+//     Archive/Unarchive but not Rename/Delete. Rename uses the same
+//     prompt() pattern as tag rename; delete confirms with a clear
+//     warning that it removes every transaction/recurring/transfer tied
+//     to the account.
+//
+// 1.13.0 (2026-09-04, claude+mkolakowski): Import page gets a "Download
+//     template" button (GET .../import/template) and Tags + Recurs
+//     columns in the preview table — unmatched tags show a struck "✕"
+//     warning (tags aren't auto-created), and rows with a Frequency
+//     value show a "↻ Monthly/Weekly/Biweekly" badge to make clear
+//     they'll land as a recurring template rather than a one-time
+//     transaction. Preview summary and the post-commit alert both now
+//     report the recurring count alongside the transaction count.
+//
+// 1.12.2 (2026-09-04, claude+mkolakowski): CSV import preview now shows
+//     the resolved Category per row (or "(unmatched)" with a tooltip
+//     when the CSV's category text doesn't match an existing category
+//     name), and the Default category field is labeled as the fallback
+//     rather than a blanket override. Pairs with the backend fix that
+//     makes the mapped Category column actually apply on commit.
+//
+// 1.12.1 (2026-09-03, claude+mkolakowski): Set the CSS `color-scheme`
+//     property on :root per theme (dark for the dark-family themes,
+//     light for light/solarized/mint) plus a `<meta name="color-scheme"
+//     content="dark light">` tag, so the browser knows the page already
+//     renders in a matching light/dark palette and native/extension
+//     auto-dark-mode doesn't try to re-invert it.
 //
 // 1.12.0 (2026-04-24, claude+mkolakowski): Reports v2. Reports page
 //     redesigned around saved reports + a live editor: a left rail
@@ -4272,16 +4311,26 @@ async function loadManageAccounts() {
   });
   const rows = list.map(a => {
     const canEdit = a.level === 'owner' || a.level === 'edit';
+    const isOwner = a.level === 'owner';
     const archivedBadge = a.archived ? ' <span class="ro-badge">archived</span>' : '';
-    const actionBtn = canEdit
-      ? (a.archived
-          ? `<button class="ghost" onclick="setAccountArchived(${a.id}, false)">Unarchive</button>`
-          : `<button class="ghost" onclick="setAccountArchived(${a.id}, true)">Archive</button>`)
-      : '<span style="color:var(--muted);font-size:12px">Read only</span>';
+    let actions = '';
+    if (canEdit) {
+      actions += a.archived
+        ? `<button class="ghost" onclick="setAccountArchived(${a.id}, false)">Unarchive</button>`
+        : `<button class="ghost" onclick="setAccountArchived(${a.id}, true)">Archive</button>`;
+    }
+    // Rename/Delete are owner-only — shared editors can log transactions
+    // but shouldn't be able to rename or remove an account they don't own.
+    if (isOwner) {
+      actions += ` <button class="ghost" onclick="renameAccount(${a.id})">Rename</button>
+                   <button class="ghost" onclick="deleteAccountUI(${a.id})">Delete</button>`;
+    } else if (!canEdit) {
+      actions = '<span style="color:var(--muted);font-size:12px">Read only</span>';
+    }
     return `<tr>
       <td>${escapeHtml(a.name)}${archivedBadge}</td>
       <td style="color:var(--muted);font-size:12px">${escapeHtml(a.level)}</td>
-      <td style="text-align:right">${actionBtn}</td>
+      <td style="text-align:right">${actions}</td>
     </tr>`;
   }).join('');
   wrap.innerHTML = `<table style="width:100%"><thead><tr>
@@ -4312,6 +4361,44 @@ async function setAccountArchived(id, archived) {
   if (archived && currentAccountId === id) {
     currentAccountId = null;
   }
+  await loadAccounts();
+}
+
+async function renameAccount(id) {
+  const list = await api('/api/accounts?include_archived=true');
+  const a = (list || []).find(x => x.id === id);
+  if (!a) return;
+  const next = prompt('Rename account:', a.name);
+  if (!next || next.trim() === '' || next.trim() === a.name) return;
+  try {
+    await api('/api/accounts/' + id, {
+      method: 'PATCH',
+      body: JSON.stringify({name: next.trim()}),
+    });
+  } catch (e) {
+    alert('Could not rename account: ' + e.message);
+    return;
+  }
+  await loadManageAccounts();
+  await loadExportAccounts();
+  await loadAccounts();
+}
+
+async function deleteAccountUI(id) {
+  const list = await api('/api/accounts?include_archived=true');
+  const a = (list || []).find(x => x.id === id);
+  const name = a ? a.name : 'this account';
+  if (!confirm(`Delete "${name}"? This permanently removes the account and every transaction, ` +
+               'recurring template, and transfer tied to it. This cannot be undone.')) return;
+  try {
+    await api('/api/accounts/' + id, { method: 'DELETE' });
+  } catch (e) {
+    alert('Could not delete account: ' + e.message);
+    return;
+  }
+  if (currentAccountId === id) currentAccountId = null;
+  await loadManageAccounts();
+  await loadExportAccounts();
   await loadAccounts();
 }
 
@@ -5798,6 +5885,11 @@ function initImportPage() {
   _importPreviewMapping = null;
 }
 
+function downloadImportTemplate() {
+  if (!_importAccountId) { alert('Pick a target account first.'); return; }
+  window.location.href = '/api/accounts/' + _importAccountId + '/import/template';
+}
+
 async function onImportCsvFile() {
   const file = document.getElementById('importCsvFile').files[0];
   if (!file) return;
@@ -5829,16 +5921,40 @@ async function runImportPreview() {
   _importPreviewSign = sign_convention;
   _importPreviewHasHeader = has_header;
   document.getElementById('importPreviewSummary').textContent =
-    `${data.row_count} row(s) parsed · ${data.duplicate_count} duplicate(s) · ${data.skipped_count} skipped`;
-  const rows = data.rows.map(r => `<tr class="${r.duplicate?'duplicate':''}">
+    `${data.row_count} row(s) parsed · ${data.recurring_count||0} recurring · ` +
+    `${data.duplicate_count} duplicate(s) · ${data.skipped_count} skipped`;
+  const FREQ_LABEL = { monthly_day: 'Monthly', weekly: 'Weekly', biweekly: 'Biweekly' };
+  const rows = data.rows.map(r => {
+    let catCell = '<span style="color:var(--muted)">—</span>';
+    if (r.category_name) {
+      catCell = r.category_matched
+        ? escapeHtml(r.category_name)
+        : `${escapeHtml(r.category_name)} <span style="color:var(--warn)" title="No category named &quot;${escapeHtml(r.category_name)}&quot; — will use the default category below instead">(unmatched)</span>`;
+    }
+    let tagsCell = '<span style="color:var(--muted)">—</span>';
+    if (r.tag_names && r.tag_names.length) {
+      const unmatched = new Set((r.tags_unmatched || []).map(x => x.toLowerCase()));
+      tagsCell = r.tag_names.map(name => unmatched.has(name.toLowerCase())
+        ? `<span style="color:var(--warn)" title="No tag named &quot;${escapeHtml(name)}&quot; — tags aren't auto-created, so this one will be skipped">${escapeHtml(name)} ✕</span>`
+        : escapeHtml(name)
+      ).join(', ');
+    }
+    const freqCell = r.frequency
+      ? `<span style="color:var(--accent)" title="Imported as a recurring template, not a one-time transaction">↻ ${FREQ_LABEL[r.frequency] || r.frequency}</span>`
+      : '<span style="color:var(--muted)">—</span>';
+    return `<tr class="${r.duplicate?'duplicate':''}">
     <td>${escapeHtml(r.date)}</td>
     <td>${escapeHtml(r.description)}</td>
     <td class="num">${fmt(r.amount)}</td>
+    <td>${catCell}</td>
+    <td>${tagsCell}</td>
+    <td>${freqCell}</td>
     <td>${r.duplicate?'duplicate':''}</td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
   document.getElementById('importPreviewWrap').innerHTML = `
     <table class="csv-preview">
-      <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th><th></th></tr></thead>
+      <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th><th>Category</th><th>Tags</th><th>Recurs</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
   document.getElementById('importCommitBtn').disabled = !(data.row_count > 0);
@@ -5861,7 +5977,8 @@ async function runImportCommit() {
     const data = await api('/api/accounts/' + _importAccountId + '/import/commit', {
       method: 'POST', body
     });
-    alert(`Imported ${data.inserted} of ${data.total_rows} rows. Skipped duplicates: ${data.duplicates_skipped}.`);
+    alert(`Imported ${data.inserted} transaction(s) and ${data.recurring_created||0} recurring template(s) ` +
+          `out of ${data.total_rows} rows. Skipped duplicates: ${data.duplicates_skipped}.`);
     // Navigate back to the account we imported into so the new rows are visible.
     const acctId = _importAccountId;
     showPage('accounts');

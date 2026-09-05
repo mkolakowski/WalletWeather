@@ -65,6 +65,71 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
+App version: **1.13.1** · Web version: **1.13.1** · Schema version: **11**
+
+## [1.13.1] — 2026-09-05
+
+App version: **1.13.1** · Web version: **1.13.1** · Schema version: **11**
+
+### Added
+
+- **Browser-native color-scheme signal.** Every theme now sets CSS
+  `color-scheme` on `:root` (`dark` for Dark/Dracula/Nord/Synthwave/
+  Forest/Monokai/Sunset, `light` for Light/Solarized/Mint), plus a
+  `<meta name="color-scheme" content="dark light">` tag, so the browser
+  and any dark-mode browser extension can tell the page already renders
+  in a matching palette instead of trying to re-invert it.
+- **CSV import: Category column.** A mapped `Category` column is now
+  applied per row — matched case-insensitively against the user's
+  existing categories, falling back to the chosen default category when
+  the column is absent or the value doesn't match anything. Previously
+  the column was auto-detected but silently discarded.
+- **CSV import: Tags column.** A new optional `Tags` column
+  (comma/semicolon-separated) is matched case-insensitively against the
+  user's existing tags and applied to each imported transaction before
+  auto-tag rules run. Unmatched names are skipped rather than
+  auto-created, the same conservative policy as Category.
+- **CSV import: recurring transactions.** A new optional `Frequency`
+  column (`Monthly` / `Weekly` / `Biweekly`, plus common aliases) marks a
+  row as a recurring transaction template instead of a one-time
+  transaction — the row's date becomes the anchor date (weekly/biweekly)
+  or day-of-month (monthly). An optional `End Date` column sets when the
+  recurrence stops. An unrecognized, non-empty Frequency value skips the
+  row rather than silently importing it as one-time. Recurring rows get
+  their own duplicate check against existing templates on the account.
+- **CSV import: downloadable template.** New
+  `GET /api/accounts/{id}/import/template` returns a starter CSV
+  (populated with the user's real category/tag names where available)
+  demonstrating a one-time expense, one-time income, and a recurring
+  bill. A "Download template" button/link was added to the Import page.
+- **Account rename.** `PATCH /api/accounts/{id}` now accepts an optional
+  `name`, restricted to the `owner` permission level (403 for `edit`-level
+  users — they can still archive/unarchive). Settings → Manage accounts
+  gains Rename and Delete buttons, shown only for accounts where the
+  caller's level is `owner`; account delete already required `owner` and
+  is otherwise unchanged.
+
+### Changed
+
+- CSV import preview table gains Category, Tags, and Recurs columns —
+  an unmatched category or tag is flagged with a warning tooltip, and a
+  recurring row shows a "↻ Monthly/Weekly/Biweekly" badge. The preview
+  summary and the post-commit alert both now report the recurring count
+  alongside the transaction count.
+- `docker-compose.yml`'s `web` service defaults back to **Option A**
+  (`build: ./backend`) instead of pulling the published
+  `ghcr.io/mkolakowski/walletweather:latest` image, matching the file's
+  own documented default for development/cloned-repo use.
+
+### Fixed
+
+- CSV-imported transaction notes are now truncated to `NOTES_MAX_LEN`
+  (256 characters, extracted as a shared constant used by both
+  `TransactionIn` and `RecurringIn`) instead of bypassing the length cap
+  that manual create/edit has always enforced.
+
+## [1.12.0] — 2026-05-02
+
 App version: **1.12.0** · Web version: **1.12.0** · Schema version: **11**
 
 ### Added
@@ -431,7 +496,9 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.13.1...HEAD
+[1.13.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.13.1
+[1.12.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.12.0
 [1.7.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.7.0
 [1.6.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.6.0
 [1.5.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.5.0

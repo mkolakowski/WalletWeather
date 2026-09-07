@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.13.1"
+APP_VERSION = "1.14.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -35,6 +35,39 @@ APP_VERSION = "1.13.1"
 # When you bump APP_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
+#
+# 1.14.0 (2026-09-07, claude+mkolakowski): CSV import supports *past*
+#     recurring transactions, not just future ones. BEHAVIOR CHANGE: a row
+#     with a recognized `Frequency` value now always creates a real actual
+#     Transaction (like a one-time row) in addition to being linked via
+#     recurring_id to a RecurringTransaction template — previously it
+#     created ONLY the template and no transaction. Rows sharing the same
+#     Frequency + Description (or the same optional new `Recurring Group`
+#     column, for series whose description text drifts) are clustered into
+#     one series per import; the template is seeded from the group's
+#     most-recent row (anchor/day-of-month, baseline amount/category/notes)
+#     while each row keeps its own actual amount, so forecast-vs-actual
+#     still reflects price drift across the series. Importing more months
+#     of the same bill in a later CSV reuses the existing template
+#     (matched by frequency + the template's stored description) instead
+#     of creating a duplicate. New helpers `_recurring_group_key`,
+#     `_recurring_template_identity`, `_resolve_recurring_groups` (shared
+#     by preview and commit so they can't disagree on grouping); removed
+#     the now-obsolete `_recurring_row_key`/`_existing_recurring_keys`
+#     (recurring rows dedupe through the same actual-transaction key as
+#     everything else now). Commit response gains `recurring_linked`
+#     (rows attached to a template) alongside `recurring_created` (new
+#     templates only, now a subset metric rather than a row count).
+#
+# 1.13.2 (2026-09-05, claude+mkolakowski): Fix GET
+#     /api/transactions/search (the Transactions tab) building its scope
+#     of visible accounts with include_archived=True — archived accounts'
+#     transactions kept appearing in the unfiltered "all accounts" search
+#     view even though the account picker itself already hides archived
+#     accounts. Now defaults to non-archived only, matching the Dashboard
+#     and Accounts page. `/api/transfers`' Recent-transfers list still
+#     includes archived-account legs intentionally (a transfer already
+#     happened and still explains the other leg's balance history).
 #
 # 1.13.1 (2026-09-05, claude+mkolakowski): Account rename. PATCH
 #     /api/accounts/{id} accepts an optional `name`, restricted to the
@@ -2042,14 +2075,16 @@ def search_transactions(q: str | None = None,
                         offset: int = 0,
                         user: User = Depends(current_user),
                         db: Session = Depends(get_db)):
-    """Search the caller's transactions across all visible accounts.
+    """Search the caller's transactions across all visible, non-archived
+    accounts (same "browsing" scope as the Dashboard and Accounts page —
+    archived accounts are hidden by default, not just from their own tab).
 
     Description and notes are encrypted at rest, so the text-search half of
     this filter has to decrypt-and-compare in Python. The SQL filter narrows
     on the cheap fields first (account, category, dates, transfer flag) so
     the decrypt loop only runs on a small candidate set.
     """
-    visible_ids = {a.id for a in _user_visible_accounts(db, user, include_archived=True)}
+    visible_ids = {a.id for a in _user_visible_accounts(db, user)}
     if not visible_ids:
         return {"total": 0, "results": []}
     if account_id is not None and account_id not in visible_ids:
@@ -2089,7 +2124,7 @@ def search_transactions(q: str | None = None,
     # Decrypt + apply text/amount filter
     needle = (q or "").strip().lower() or None
     out = []
-    acc_names = {a.id: a.name for a in _user_visible_accounts(db, user, include_archived=True)}
+    acc_names = {a.id: a.name for a in _user_visible_accounts(db, user)}
     for t in candidates:
         amt = float(t.amount)
         if min_amount is not None and amt < min_amount:
@@ -2202,7 +2237,7 @@ def _detect_columns(headers: list[str]) -> dict[str, int | None]:
     """Heuristic auto-mapping for common bank CSV column names."""
     mapping = {"date": None, "description": None, "amount": None,
                "debit": None, "credit": None, "category": None, "notes": None,
-               "tags": None, "frequency": None, "end_date": None}
+               "tags": None, "frequency": None, "end_date": None, "recurring_group": None}
     lowered = [(i, (h or "").strip().lower()) for i, h in enumerate(headers)]
     for i, h in lowered:
         if mapping["date"] is None and h in ("date", "transaction date", "posted date", "post date"):
@@ -2225,6 +2260,8 @@ def _detect_columns(headers: list[str]) -> dict[str, int | None]:
             mapping["frequency"] = i
         elif mapping["end_date"] is None and h in ("end date", "recurring end date", "until"):
             mapping["end_date"] = i
+        elif mapping["recurring_group"] is None and h in ("recurring group", "group"):
+            mapping["recurring_group"] = i
     return mapping
 
 
@@ -2288,12 +2325,14 @@ def _parse_csv_rows(csv_text: str, has_header: bool, mapping: dict | None,
       - 'debit_credit':      two columns: debit (positive=withdraw), credit (positive=deposit)
 
     A row with a recognized value in the optional `frequency` column (see
-    FREQUENCY_ALIASES) is flagged as a recurring transaction template rather
-    than a one-time actual transaction; the row's date becomes the anchor
-    date (weekly/biweekly) or day-of-month (monthly). An unrecognized,
-    non-empty frequency value skips the row rather than silently importing
-    it as one-time, so a typo doesn't quietly turn a bill into a single
-    transaction.
+    FREQUENCY_ALIASES) is imported as an actual transaction *and* linked to a
+    recurring transaction template — rows sharing the same frequency and
+    description (or the same optional `recurring_group` override, for series
+    whose description text drifts) are treated as past occurrences of one
+    series; see _recurring_group_key / _recurring_template_identity. An
+    unrecognized, non-empty frequency value skips the row rather than
+    silently importing it as one-time, so a typo doesn't quietly drop a bill
+    out of its series.
     """
     reader = csv.reader(_csvio.StringIO(csv_text))
     rows = list(reader)
@@ -2340,6 +2379,7 @@ def _parse_csv_rows(csv_text: str, has_header: bool, mapping: dict | None,
                             "reason": f'unrecognized frequency "{freq_raw}"'})
             continue
         end_date = _parse_csv_date(cell("end_date"))
+        recurring_group = (cell("recurring_group") or "").strip() or None
         if d is None or amt is None:
             skipped.append({"row_index": idx, "row": row,
                             "reason": "missing date or amount"})
@@ -2354,6 +2394,7 @@ def _parse_csv_rows(csv_text: str, has_header: bool, mapping: dict | None,
             "tag_names": tag_names,
             "frequency": frequency,
             "end_date": end_date.isoformat() if end_date else None,
+            "recurring_group": recurring_group,
             "raw": row,
         })
     return out, skipped, headers, mapping
@@ -2399,29 +2440,56 @@ def _resolve_row_tags(row: dict, lookup: dict[str, int]) -> tuple[list[int], lis
     return matched, unmatched
 
 
-def _recurring_row_key(r: dict) -> tuple:
-    """Dedupe key for a recurring-template row, matching the shape stored
-    on RecurringTransaction once created (see _existing_recurring_keys)."""
-    d = date.fromisoformat(r["date"])
-    day_of_month = d.day if r["frequency"] == "monthly_day" else None
-    anchor_iso = None if r["frequency"] == "monthly_day" else d.isoformat()
-    return (r["frequency"], day_of_month, anchor_iso,
-            round(r["amount"], 2), r["description"].strip().lower())
+def _recurring_group_key(r: dict) -> str:
+    """Key used to cluster rows within a single import into one recurring
+    series. The optional `recurring_group` column overrides the default of
+    grouping by description (case-insensitive) — useful when a bill's
+    description text drifts between statements (e.g. an embedded date) but
+    the user still wants every occurrence linked to one template."""
+    label = r.get("recurring_group") or r["description"]
+    return label.strip().lower()
 
 
-def _existing_recurring_keys(db: Session, account_id: int) -> set[tuple]:
-    """Dedupe set of (frequency, day_of_month, anchor_date_iso, amount,
-    description_lower) for existing recurring templates on this account."""
-    keys = set()
+def _recurring_template_identity(db: Session, account_id: int) -> dict[tuple, RecurringTransaction]:
+    """(frequency, description_lower) -> existing RecurringTransaction on
+    this account. Used to reuse a template across separate import runs
+    (e.g. importing more months of the same bill later) instead of creating
+    a duplicate template every time. Keyed on the template's own stored
+    description, since that's all that's persisted — a `recurring_group`
+    label used to create the template isn't itself stored anywhere."""
+    out: dict[tuple, RecurringTransaction] = {}
     recs = db.query(RecurringTransaction).filter(RecurringTransaction.account_id == account_id).all()
     for r in recs:
-        try:
-            keys.add((r.frequency, r.day_of_month,
-                      r.anchor_date.isoformat() if r.anchor_date else None,
-                      round(float(r.amount), 2), (r.description or "").strip().lower()))
-        except Exception:
-            continue
-    return keys
+        out.setdefault((r.frequency, (r.description or "").strip().lower()), r)
+    return out
+
+
+def _resolve_recurring_groups(rows: list[dict],
+                              existing_templates: dict[tuple, RecurringTransaction]) -> dict[tuple, dict]:
+    """For every (frequency, _recurring_group_key) among Frequency-flagged
+    rows, decide whether it attaches to an existing RecurringTransaction or
+    needs a new one. Identity is checked against the group's most-recent row
+    (its date seeds the new template's anchor/day-of-month, and its amount/
+    category/notes seed the template's baseline — recent rows best reflect
+    the "current" state of a series whose amount may have drifted).
+
+    Shared by preview and commit so the two can't disagree about grouping.
+    Returns {(frequency, group_key): {"status": "existing"|"new",
+                                       "template": RecurringTransaction|None,
+                                       "seed_row": dict}}.
+    """
+    groups: dict[tuple, list[dict]] = {}
+    for r in rows:
+        if r["frequency"]:
+            groups.setdefault((r["frequency"], _recurring_group_key(r)), []).append(r)
+    resolved = {}
+    for gkey, group_rows in groups.items():
+        seed = max(group_rows, key=lambda x: x["date"])
+        identity_key = (gkey[0], seed["description"].strip().lower())
+        tmpl = existing_templates.get(identity_key)
+        resolved[gkey] = {"status": "existing" if tmpl else "new",
+                          "template": tmpl, "seed_row": seed}
+    return resolved
 
 
 class CSVPreviewIn(BaseModel):
@@ -2471,24 +2539,27 @@ def csv_import_preview(account_id: int, payload: CSVPreviewIn,
     rows, skipped, headers, mapping = _parse_csv_rows(
         payload.csv_text, payload.has_header, payload.mapping, payload.sign_convention)
     existing = _existing_keys_for_account(db, acc.id)
-    existing_recurring = _existing_recurring_keys(db, acc.id)
+    existing_templates = _recurring_template_identity(db, acc.id)
+    recurring_groups = _resolve_recurring_groups(rows, existing_templates)
     cat_lookup = _category_lookup(db, user)
     tag_lookup = _tag_lookup(db, user)
     dup_count = 0
     recurring_count = 0
     for r in rows:
-        if r["frequency"]:
-            recurring_count += 1
-            r["duplicate"] = _recurring_row_key(r) in existing_recurring
-        else:
-            key = (r["date"], round(r["amount"], 2), r["description"].strip().lower())
-            r["duplicate"] = key in existing
+        key = (r["date"], round(r["amount"], 2), r["description"].strip().lower())
+        r["duplicate"] = key in existing
         if r["duplicate"]:
             dup_count += 1
         r["category_matched"] = bool(r.get("category_name")) and \
             r["category_name"].strip().lower() in cat_lookup
         _, unmatched_tags = _resolve_row_tags(r, tag_lookup)
         r["tags_unmatched"] = unmatched_tags
+        if r["frequency"]:
+            recurring_count += 1
+            gkey = (r["frequency"], _recurring_group_key(r))
+            r["recurring_template"] = recurring_groups[gkey]["status"]
+        else:
+            r["recurring_template"] = None
     return {
         "headers": headers,
         "mapping": mapping,
@@ -2514,38 +2585,54 @@ def csv_import_commit(account_id: int, payload: CSVCommitIn,
     rows, _skipped, _headers, _mapping = _parse_csv_rows(
         payload.csv_text, payload.has_header, payload.mapping, payload.sign_convention)
     existing = _existing_keys_for_account(db, acc.id) if payload.skip_duplicates else set()
-    existing_recurring = _existing_recurring_keys(db, acc.id) if payload.skip_duplicates else set()
+    existing_templates = _recurring_template_identity(db, acc.id)
+    recurring_groups = _resolve_recurring_groups(rows, existing_templates)
+    new_templates: dict[tuple, RecurringTransaction] = {}
     cat_lookup = _category_lookup(db, user)
     tag_lookup = _tag_lookup(db, user)
     inserted = 0
     recurring_created = 0
+    recurring_linked = 0
     duplicates = 0
     for r in rows:
         category_id = _resolve_row_category(r, cat_lookup, payload.default_category_id)
 
+        recurring_id = None
         if r["frequency"]:
-            rkey = _recurring_row_key(r)
-            if payload.skip_duplicates and rkey in existing_recurring:
-                duplicates += 1
-                continue
-            existing_recurring.add(rkey)  # protect against duplicates within the file too
-            d = date.fromisoformat(r["date"])
-            rec = RecurringTransaction(
-                account_id=acc.id,
-                category_id=category_id,
-                frequency=r["frequency"],
-                day_of_month=d.day if r["frequency"] == "monthly_day" else None,
-                anchor_date=None if r["frequency"] == "monthly_day" else d,
-                end_date=date.fromisoformat(r["end_date"]) if r["end_date"] else None,
-                active=True,
-            )
-            rec.description = r["description"]
-            rec.amount = Decimal(str(r["amount"]))
-            if r.get("notes"):
-                rec.notes = r["notes"]
-            db.add(rec)
-            recurring_created += 1
-            continue
+            gkey = (r["frequency"], _recurring_group_key(r))
+            info = recurring_groups[gkey]
+            if info["status"] == "existing":
+                tmpl = info["template"]
+            else:
+                tmpl = new_templates.get(gkey)
+                if tmpl is None:
+                    # Seed the new template from the group's most-recent row —
+                    # its date sets the anchor/day-of-month and its amount/
+                    # category/notes become the template's forward-looking
+                    # baseline (individual historical rows below keep their
+                    # own actual amount, so forecast-vs-actual still reflects
+                    # any price drift across the series).
+                    seed = info["seed_row"]
+                    seed_category_id = _resolve_row_category(seed, cat_lookup, payload.default_category_id)
+                    sd = date.fromisoformat(seed["date"])
+                    tmpl = RecurringTransaction(
+                        account_id=acc.id,
+                        category_id=seed_category_id,
+                        frequency=seed["frequency"],
+                        day_of_month=sd.day if seed["frequency"] == "monthly_day" else None,
+                        anchor_date=None if seed["frequency"] == "monthly_day" else sd,
+                        end_date=date.fromisoformat(seed["end_date"]) if seed["end_date"] else None,
+                        active=True,
+                    )
+                    tmpl.description = seed["description"]
+                    tmpl.amount = Decimal(str(seed["amount"]))
+                    if seed.get("notes"):
+                        tmpl.notes = seed["notes"]
+                    db.add(tmpl)
+                    db.flush()  # populate tmpl.id for the Transaction rows below
+                    new_templates[gkey] = tmpl
+                    recurring_created += 1
+            recurring_id = tmpl.id
 
         key = (r["date"], round(r["amount"], 2), r["description"].strip().lower())
         if payload.skip_duplicates and key in existing:
@@ -2558,6 +2645,7 @@ def csv_import_commit(account_id: int, payload: CSVCommitIn,
         t = Transaction(
             account_id=acc.id,
             category_id=category_id,
+            recurring_id=recurring_id,
             actual_date=d,
             forecast_date=d,
             is_actual=True,
@@ -2576,17 +2664,22 @@ def csv_import_commit(account_id: int, payload: CSVCommitIn,
             _apply_tags(db, user, t, tag_ids)
         _apply_tag_rules(db, user, t)
         inserted += 1
+        if recurring_id is not None:
+            recurring_linked += 1
     db.commit()
     return {"ok": True, "inserted": inserted, "recurring_created": recurring_created,
-            "duplicates_skipped": duplicates, "total_rows": len(rows)}
+            "recurring_linked": recurring_linked, "duplicates_skipped": duplicates,
+            "total_rows": len(rows)}
 
 
 @app.get("/api/accounts/{account_id}/import/template")
 def csv_import_template(account_id: int, user: User = Depends(current_user),
                         db: Session = Depends(get_db)):
     """Downloadable starter CSV covering every importable column — Category,
-    Tags, and the recurring Frequency/End Date pair — with worked examples
-    of a one-time expense, one-time income, and a recurring bill."""
+    Tags, Frequency/End Date, and Recurring Group — with worked examples of
+    a one-time expense, one-time income, a past-recurring bill (three
+    monthly Netflix charges that link to one recurring template), and a
+    Recurring Group override for a series whose description text drifts."""
     _own_account(db, user, account_id)
     cats = db.query(Category).filter_by(owner_id=user.id).order_by(Category.name).limit(2).all()
     tags = db.query(Tag).filter_by(owner_id=user.id).order_by(Tag.name).limit(1).all()
@@ -2595,10 +2688,22 @@ def csv_import_template(account_id: int, user: User = Depends(current_user),
     tag1 = tags[0].name if tags else "reimbursable"
     buf = _csvio.StringIO()
     w = csv.writer(buf)
-    w.writerow(["Date", "Description", "Amount", "Category", "Tags", "Notes", "Frequency", "End Date"])
-    w.writerow(["2026-09-01", "Whole Foods Market", "-84.23", cat1, "", "", "", ""])
-    w.writerow(["2026-09-01", "Paycheck", "2500.00", "Income", "", "", "", ""])
-    w.writerow(["2026-09-01", "Netflix", "-15.99", cat2, tag1, "Streaming subscription", "Monthly", ""])
+    w.writerow(["Date", "Description", "Amount", "Category", "Tags", "Notes",
+                "Frequency", "End Date", "Recurring Group"])
+    w.writerow(["2026-07-01", "Whole Foods Market", "-84.23", cat1, "", "", "", "", ""])
+    w.writerow(["2026-09-01", "Paycheck", "2500.00", "Income", "", "", "", "", ""])
+    # Same description + Frequency on every row = one series. All three import
+    # as real actual transactions; they're linked to a single recurring
+    # template (seeded from the most recent row) instead of three unrelated
+    # one-off charges.
+    w.writerow(["2026-07-01", "Netflix", "-15.99", cat2, tag1, "Streaming subscription", "Monthly", "", ""])
+    w.writerow(["2026-08-01", "Netflix", "-15.99", cat2, tag1, "", "Monthly", "", ""])
+    w.writerow(["2026-09-01", "Netflix", "-15.99", cat2, tag1, "", "Monthly", "", ""])
+    # Recurring Group overrides description-based grouping — use it when a
+    # bill's description text isn't identical every month (e.g. an embedded
+    # statement date) but should still link to one template.
+    w.writerow(["2026-08-05", "GYM MEMBERSHIP AUG", "-39.00", "", "", "", "Monthly", "", "gym"])
+    w.writerow(["2026-09-05", "GYM MEMBERSHIP SEP", "-39.00", "", "", "", "Monthly", "", "gym"])
     return Response(content=buf.getvalue(), media_type="text/csv",
                     headers={"Content-Disposition": 'attachment; filename="walletweather-import-template.csv"'})
 

@@ -979,9 +979,14 @@
         <p style="color:var(--muted);font-size:13px;margin:6px 0 12px">
           Upload a CSV from your bank (or paste text). We'll auto-detect columns,
           preview the rows, and let you skip duplicates before committing. Optional
-          Category, Tags, and Frequency columns are supported — a row with a
-          Frequency value (Monthly / Weekly / Biweekly) is imported as a recurring
-          template instead of a one-time transaction. Not sure of the format?
+          Category and Tags columns are supported. A row with a Frequency value
+          (Monthly / Weekly / Biweekly) is recorded as a real transaction <em>and</em>
+          linked to a recurring template — give every past occurrence of a bill the
+          same Frequency + Description (or the same optional Recurring Group value,
+          if the description text varies month to month) and they'll all link to one
+          template instead of importing as unrelated one-off charges. Importing more
+          months of the same bill later reuses that template automatically. Not sure
+          of the format?
           <a href="#" onclick="downloadImportTemplate();return false">Download a starter template</a>.
         </p>
         <div class="row">
@@ -1021,7 +1026,7 @@
           <label>CSV text (paste here)</label>
           <textarea id="importCsvText" rows="8" style="width:100%;font:12px monospace;background:var(--bg-deep);
             color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px"
-            placeholder="date,description,amount,category,tags,notes,frequency,end_date&#10;2026-04-01,Coffee,-4.25,Dining,,,,&#10;2026-04-01,Netflix,-15.99,Subscriptions,streaming,,Monthly,"></textarea>
+            placeholder="date,description,amount,category,tags,notes,frequency,end_date,recurring_group&#10;2026-04-01,Coffee,-4.25,Dining,,,,,&#10;2026-07-01,Netflix,-15.99,Subscriptions,streaming,,Monthly,,&#10;2026-08-01,Netflix,-15.99,Subscriptions,streaming,,Monthly,,"></textarea>
         </div>
         <div class="row" style="margin-top:8px">
           <div style="flex:0 0 auto"><button onclick="runImportPreview()">Preview</button></div>
@@ -1700,7 +1705,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.13.1";
+const WEB_VERSION = "1.14.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1710,6 +1715,15 @@ const WEB_VERSION = "1.13.1";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.14.0 (2026-09-07, claude+mkolakowski): Import page explains the new
+//     past-recurring-transaction linking (same Frequency + Description,
+//     or a new optional Recurring Group column, clusters rows into one
+//     series) and links a template that now demonstrates it. Preview
+//     table's Recurs badge shows "(new)" vs "(existing)" per row so it's
+//     clear whether a fresh template will be created or an existing one
+//     reused. Post-commit alert reports transactions linked to a
+//     template separately from newly-created templates.
 //
 // 1.13.1 (2026-09-05, claude+mkolakowski): Settings > Manage accounts
 //     gets Rename and Delete buttons, shown only when the account's
@@ -5939,9 +5953,16 @@ async function runImportPreview() {
         : escapeHtml(name)
       ).join(', ');
     }
-    const freqCell = r.frequency
-      ? `<span style="color:var(--accent)" title="Imported as a recurring template, not a one-time transaction">↻ ${FREQ_LABEL[r.frequency] || r.frequency}</span>`
-      : '<span style="color:var(--muted)">—</span>';
+    let freqCell = '<span style="color:var(--muted)">—</span>';
+    if (r.frequency) {
+      const label = FREQ_LABEL[r.frequency] || r.frequency;
+      const isNew = r.recurring_template === 'new';
+      const title = isNew
+        ? `Recorded as an actual transaction and linked to a new "${label}" recurring template`
+        : `Recorded as an actual transaction and linked to your existing "${label}" recurring template`;
+      freqCell = `<span style="color:var(--accent)" title="${title}">↻ ${label} ` +
+        `<span style="color:var(--muted);font-size:11px">(${isNew ? 'new' : 'existing'})</span></span>`;
+    }
     return `<tr class="${r.duplicate?'duplicate':''}">
     <td>${escapeHtml(r.date)}</td>
     <td>${escapeHtml(r.description)}</td>
@@ -5977,8 +5998,11 @@ async function runImportCommit() {
     const data = await api('/api/accounts/' + _importAccountId + '/import/commit', {
       method: 'POST', body
     });
-    alert(`Imported ${data.inserted} transaction(s) and ${data.recurring_created||0} recurring template(s) ` +
-          `out of ${data.total_rows} rows. Skipped duplicates: ${data.duplicates_skipped}.`);
+    const recurringNote = data.recurring_linked
+      ? ` (${data.recurring_linked} linked to recurring templates — ${data.recurring_created||0} newly created)`
+      : '';
+    alert(`Imported ${data.inserted} transaction(s)${recurringNote} out of ${data.total_rows} rows. ` +
+          `Skipped duplicates: ${data.duplicates_skipped}.`);
     // Navigate back to the account we imported into so the new rows are visible.
     const acctId = _importAccountId;
     showPage('accounts');

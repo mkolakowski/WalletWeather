@@ -65,7 +65,50 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.13.1** · Web version: **1.13.1** · Schema version: **11**
+App version: **1.14.0** · Web version: **1.14.0** · Schema version: **11**
+
+## [1.14.0] — 2026-09-07
+
+App version: **1.14.0** · Web version: **1.14.0** · Schema version: **11**
+
+### Added
+
+- **CSV import: past recurring transactions.** A row with a recognized
+  `Frequency` value is now always recorded as a real actual transaction
+  *and* linked (`recurring_id`) to a `RecurringTransaction` template —
+  previously it created only the template, with no transaction. Rows
+  sharing the same Frequency + Description (or the same optional new
+  `Recurring Group` column, for a bill whose description text drifts
+  between statements) are clustered into one series per import; the
+  template is seeded from the group's most-recent row while every row
+  keeps its own actual amount, so forecast-vs-actual still reflects price
+  drift over the series (e.g. a subscription price increase). Importing
+  more months of the same bill in a later CSV reuses the existing
+  template (matched by frequency + its stored description) instead of
+  creating a duplicate. The Import page's preview table now shows a
+  "(new)" vs "(existing)" badge per recurring row, and the downloadable
+  template demonstrates both a multi-month series and the Recurring
+  Group override.
+
+### Changed
+
+- **CSV import `Frequency` column behavior.** See "past recurring
+  transactions" above — a Frequency-flagged row is no longer
+  template-only. The commit response's `recurring_created` now counts
+  new templates only; a new `recurring_linked` field counts transactions
+  attached to a template (new or reused).
+
+### Fixed
+
+- **Archived accounts' transactions leaking into the Transactions tab.**
+  `GET /api/transactions/search` built its scope of visible accounts with
+  `include_archived=True`, so an archived account's transactions kept
+  showing up in the unfiltered "all accounts" search view even though the
+  account picker itself already hides archived accounts. Now defaults to
+  non-archived accounts only, matching the Dashboard and Accounts page.
+  `/api/transfers`' Recent-transfers list intentionally still includes
+  archived-account legs — a transfer already happened and still explains
+  the other leg's balance history.
 
 ## [1.13.1] — 2026-09-05
 
@@ -496,7 +539,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.13.1...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.14.0...HEAD
+[1.14.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.14.0
 [1.13.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.13.1
 [1.12.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.12.0
 [1.7.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.7.0

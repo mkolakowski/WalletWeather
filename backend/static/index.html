@@ -72,6 +72,7 @@
            border-radius:6px; cursor:pointer; font-size:13px; font-weight:500; }
   button:hover { filter:brightness(1.1); }
   button.ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
+  button.ghost.active { background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
   button.danger { background:var(--bad); }
   input, select { background:var(--bg-deep); border:1px solid var(--border); color:var(--text);
                   padding:7px 10px; border-radius:6px; font:inherit; }
@@ -334,9 +335,12 @@
               overflow:hidden; }
   .cal-cell:hover { border-color:var(--accent); }
   .cal-cell.off-month { opacity:0.45; }
+  .cal-cell.past { opacity:0.35; }
   .cal-cell.today { border-color:var(--accent);
                     box-shadow:0 0 0 1px var(--accent) inset; }
   .cal-cell.selected { background:var(--chip-bg); }
+  .cal-balance { font-size:11px; font-weight:600; color:var(--accent);
+                 text-align:right; margin-bottom:2px; font-variant-numeric:tabular-nums; }
   .cal-cell-head { display:flex; justify-content:space-between;
                    align-items:center; font-size:12px; margin-bottom:2px; }
   .cal-cell-head .daynum { font-weight:600; }
@@ -616,8 +620,7 @@
     <div>
       <button id="navDashboard" class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
       <button id="navNetworth" class="nav-btn" onclick="showPage('networth')">Net Worth</button>
-      <button id="navAccounts" class="nav-btn" onclick="showPage('accounts')">Accounts</button>
-      <button id="navTransactions" class="nav-btn" onclick="showPage('transactions')">Transactions</button>
+      <button id="navAccounts" class="nav-btn" onclick="showPage('accounts')">Forecast</button>
       <button id="navSubscriptions" class="nav-btn" onclick="showPage('subscriptions')">Subscriptions</button>
       <button id="navCalendar" class="nav-btn" onclick="showPage('calendar')">Calendar</button>
       <button id="navReports" class="nav-btn" onclick="showPage('reports')">Reports</button>
@@ -657,6 +660,10 @@
           </div>
           <span class="range" id="dashWindowRange"></span>
         </div>
+
+        <!-- Forward-looking "rest of this month" summary, aggregated across
+             every visible account. Populated by renderDashboard(). -->
+        <div id="dashUpcoming" class="panel" style="margin:0 0 14px;padding:12px 14px"></div>
 
         <!-- Charts panel shown when chart_position === 'above' -->
         <div id="dashChartsAbove" class="panel dash-charts-panel hidden"
@@ -707,8 +714,8 @@
           normalized to a monthly cost so cadences line up. Add, edit, or
           cancel a subscription from its account's <em>Recurring
           transactions</em> panel on the
-          <a href="#" onclick="showPage('transactions');return false"
-             style="color:var(--accent)">Transactions</a> page.
+          <a href="#" onclick="showPage('accounts');return false"
+             style="color:var(--accent)">Forecast</a> page.
         </p>
         <div class="summary" id="subsSummary" style="margin-top:10px"></div>
         <div id="subsEmpty" class="hidden" style="color:var(--muted);font-size:13px;margin-top:12px">
@@ -736,13 +743,16 @@
             <h2 id="calMonthLabel" style="margin:0;min-width:180px;text-align:center"></h2>
             <button class="ghost" onclick="changeCalendarMonth(1)" title="Next month">Next »</button>
             <button class="ghost" onclick="goToCalendarToday()" title="Jump to current month">Today</button>
+            <button class="ghost" id="calFutureToggle" onclick="toggleCalendarFutureView()"
+                    title="Dim everything before today so the rest of the month stands out">Future view</button>
           </div>
           <div class="cal-summary" id="calSummary" style="color:var(--muted);font-size:13px"></div>
         </div>
         <p style="color:var(--muted);font-size:13px;margin:6px 0 12px">
           Every forecasted and cleared posting across the accounts you can see.
           Pure recurring projections show dimmed until a real transaction backs them.
-          Click a day to see its events.
+          Click a day to see its events. "Future view" dims everything before
+          today so what's still coming up this month stands out.
         </p>
 
         <div class="cal-filters">
@@ -809,7 +819,7 @@
             <h3 id="calDayTitle" style="margin:0"></h3>
             <button class="ghost" onclick="closeCalendarDay()" title="Close">✕</button>
           </div>
-          <div id="calDayNet" style="color:var(--muted);font-size:13px;margin-top:2px"></div>
+          <div id="calDayBalance" style="color:var(--text);font-size:13px;font-weight:600;margin-top:2px"></div>
           <div style="overflow-x:auto;margin-top:10px">
             <table id="calDayTable"><thead><tr>
               <th>Account</th>
@@ -821,154 +831,7 @@
               <th></th>
             </tr></thead><tbody></tbody></table>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <div id="pageTransactions" class="hidden">
-      <div class="panel">
-        <h2>Account actions</h2>
-        <div class="row" style="align-items:flex-end">
-          <div style="flex:1;max-width:320px">
-            <label>Managing account</label>
-            <select id="txnMgmtAccount" onchange="onTxnMgmtAccountChange()">
-              <option value="">— pick an account —</option>
-            </select>
-          </div>
-          <div style="flex:0 0 auto"><button class="ghost" onclick="openTransferPage()">⇄ Transfer money</button></div>
-          <div style="flex:0 0 auto"><button class="ghost" onclick="openImportPage(currentAccountId)">⬆ Import CSV</button></div>
-        </div>
-        <div id="txnMgmtNoAccount" class="hidden" style="color:var(--muted);font-size:13px;margin-top:10px">
-          Create an account first to manage recurring transactions and run transfers or CSV imports.
-        </div>
-      </div>
-
-      <div class="panel" id="txnRecurringPanel">
-        <h2>Recurring transactions
-          <span style="float:right;font-weight:normal">
-            <button id="recTabActive" class="tab small active" onclick="switchRecView('active')">Active</button>
-            <button id="recTabArchived" class="tab small" onclick="switchRecView('archived')">Archived</button>
-          </span>
-        </h2>
-        <div style="overflow-x:auto">
-        <table id="recurringTable"><thead><tr>
-          <th class="sortable" data-key="description">Description</th>
-          <th class="sortable" data-key="category_name">Category</th>
-          <th class="sortable num" data-key="amount">Amount</th>
-          <th class="sortable" data-key="frequency">Frequency</th>
-          <th class="sortable" data-key="when">When</th>
-          <th class="sortable" data-key="end_date">Ends</th>
-          <th>Notes</th>
-          <th></th>
-        </tr></thead><tbody></tbody></table>
-        </div>
-        <div id="recurringPagination" class="pagination hidden">
-          <div class="pagination-left">
-            <label>Per page</label>
-            <select id="recurringPageSize" onchange="onRecurringPageSizeChange()">
-              <option value="5" selected>5</option>
-              <option value="10">10</option>
-              <option value="20">20</option>
-              <option value="50">50</option>
-            </select>
-            <span id="recurringPageRange" class="pagination-range"></span>
-          </div>
-          <div class="pagination-right">
-            <button id="recurringPrevPage" class="ghost" onclick="changeRecurringPage(-1)">« Prev</button>
-            <span id="recurringPageLabel" class="pagination-label"></span>
-            <button id="recurringNextPage" class="ghost" onclick="changeRecurringPage(1)">Next »</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2>Search transactions</h2>
-        <div class="row">
-          <div style="flex:2"><label>Text</label>
-            <input id="txnSearchQ" placeholder="Search description or notes…"
-                   onkeydown="if(event.key==='Enter')runTxnSearch()">
-          </div>
-          <div><label>Account</label>
-            <select id="txnSearchAccount" onchange="runTxnSearch()">
-              <option value="">All accounts</option>
-            </select>
-          </div>
-          <div><label>Category</label>
-            <select id="txnSearchCategory" onchange="runTxnSearch()">
-              <option value="">All categories</option>
-            </select>
-          </div>
-          <div><label>Tag</label>
-            <select id="txnSearchTag" onchange="runTxnSearch()">
-              <option value="">All tags</option>
-            </select>
-          </div>
-          <div><label>Kind</label>
-            <select id="txnSearchKind" onchange="runTxnSearch()">
-              <option value="">Any</option>
-              <option value="spending">Spending only</option>
-              <option value="income">Income only</option>
-              <option value="transfers">Transfers only</option>
-            </select>
-          </div>
-        </div>
-        <div class="row" style="margin-top:8px">
-          <div><label>From</label><input id="txnSearchFrom" type="date" onchange="runTxnSearch()"></div>
-          <div><label>To</label><input id="txnSearchTo" type="date" onchange="runTxnSearch()"></div>
-          <div><label>Min $</label><input id="txnSearchMin" type="number" step="0.01" placeholder="-9999"></div>
-          <div><label>Max $</label><input id="txnSearchMax" type="number" step="0.01" placeholder="9999"></div>
-          <div style="flex:0 0 auto"><label>&nbsp;</label>
-            <div style="display:flex;gap:6px">
-              <button onclick="runTxnSearch()">Search</button>
-              <button class="ghost" onclick="resetTxnSearch()">Reset</button>
-            </div>
-          </div>
-        </div>
-        <div id="txnSearchStatus" style="margin-top:10px;color:var(--muted);font-size:12px"></div>
-
-        <!-- Bulk action bar — appears once at least one row is checked.
-             Lets the user attach or remove a tag across every selected
-             row in one POST to /api/transactions/bulk-tag. -->
-        <div id="txnBulkBar" class="hidden" style="margin-top:10px">
-          <div class="row" style="gap:10px;align-items:end;flex-wrap:wrap;
-                                   padding:8px 10px;border:1px solid var(--accent);
-                                   border-radius:6px;background:var(--chip-bg)">
-            <div style="font-size:13px">
-              <strong id="txnBulkCount">0 selected</strong>
-            </div>
-            <div>
-              <label style="font-size:12px;color:var(--muted)">Tag</label>
-              <select id="txnBulkTag"></select>
-            </div>
-            <div style="flex:0 0 auto">
-              <button onclick="runBulkTag('add')">Apply tag</button>
-              <button class="ghost" onclick="runBulkTag('remove')">Remove tag</button>
-              <button class="ghost" onclick="clearTxnSelection()">Clear</button>
-            </div>
-            <div id="txnBulkStatus" style="font-size:12px;color:var(--muted)"></div>
-          </div>
-        </div>
-
-        <div style="overflow-x:auto;margin-top:10px">
-        <table id="txnSearchTable"><thead><tr>
-          <th style="width:28px">
-            <input type="checkbox" id="txnSearchSelectAll"
-                   onclick="toggleAllTxnSelection(this.checked)"
-                   title="Select all visible">
-          </th>
-          <th>Date</th><th>Account</th><th>Description</th><th>Category</th><th>Tags</th>
-          <th class="num">Amount</th><th>Status</th>
-        </tr></thead><tbody></tbody></table>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2>Recent transfers</h2>
-        <p style="color:var(--muted);margin:0 0 10px;font-size:13px">
-          Account-to-account moves. Manage transfers from the Accounts page.
-        </p>
-        <div id="recentTransfersWrap">
-          <div style="color:var(--muted);font-size:13px">Loading…</div>
+          <div id="calDayNet" style="color:var(--muted);font-size:13px;margin-top:10px"></div>
         </div>
       </div>
     </div>
@@ -1103,9 +966,70 @@
     <div id="pageAccounts" class="hidden">
     <div class="accounts-bar" id="accountsBar"></div>
 
+    <div id="accountsNoAccount" class="hidden panel" style="color:var(--muted);font-size:13px">
+      Create an account first to add transactions, run transfers, or import a CSV — see Settings → Accounts.
+    </div>
+
     <div id="accountView" class="hidden">
+      <div class="panel">
+        <h2>Account actions</h2>
+        <div class="row">
+          <div style="flex:0 0 auto"><button class="ghost" onclick="openTransferPage()">⇄ Transfer money</button></div>
+          <div style="flex:0 0 auto"><button class="ghost" onclick="openImportPage(currentAccountId)">⬆ Import CSV</button></div>
+        </div>
+      </div>
+
+      <div class="panel" id="txnRecurringPanel">
+        <h2>Recurring transactions
+          <span style="float:right;font-weight:normal">
+            <button id="recTabActive" class="tab small active" onclick="switchRecView('active')">Active</button>
+            <button id="recTabArchived" class="tab small" onclick="switchRecView('archived')">Archived</button>
+          </span>
+        </h2>
+        <div class="summary" id="recSummary" style="margin:10px 0"></div>
+        <div style="overflow-x:auto">
+        <table id="recurringTable"><thead><tr>
+          <th class="sortable" data-key="description">Description</th>
+          <th class="sortable" data-key="category_name">Category</th>
+          <th class="sortable num" data-key="amount">Amount</th>
+          <th class="sortable num" data-key="monthly_cost">Monthly</th>
+          <th class="sortable num" data-key="yearly_cost">Yearly</th>
+          <th class="sortable" data-key="when">Frequency</th>
+          <th class="sortable" data-key="end_date">Ends</th>
+          <th>Notes</th>
+          <th></th>
+        </tr></thead><tbody></tbody></table>
+        </div>
+        <div id="recurringPagination" class="pagination hidden">
+          <div class="pagination-left">
+            <label>Per page</label>
+            <select id="recurringPageSize" onchange="onRecurringPageSizeChange()">
+              <option value="5" selected>5</option>
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+            <span id="recurringPageRange" class="pagination-range"></span>
+          </div>
+          <div class="pagination-right">
+            <button id="recurringPrevPage" class="ghost" onclick="changeRecurringPage(-1)">« Prev</button>
+            <span id="recurringPageLabel" class="pagination-label"></span>
+            <button id="recurringNextPage" class="ghost" onclick="changeRecurringPage(1)">Next »</button>
+          </div>
+        </div>
+      </div>
+
       <div class="summary" id="summary"></div>
 
+      <div class="row" style="margin:18px 0 4px;align-items:center">
+        <h2 style="margin:0;flex:1">Transactions</h2>
+        <div>
+          <button id="acctSubviewForecast" class="tab small active" onclick="setAccountsSubview('forecast')">This account</button>
+          <button id="acctSubviewSearch" class="tab small" onclick="setAccountsSubview('search')">Search all accounts</button>
+        </div>
+      </div>
+
+      <div id="subviewForecast">
       <div class="panel">
         <h2>Add transaction</h2>
         <div id="addForm">
@@ -1169,6 +1093,7 @@
             <label>View</label>
             <select id="forecastMode" onchange="onForecastModeChange()">
               <option value="month" selected>Month</option>
+              <option value="restofmonth">Rest of this month</option>
               <option value="duration">Duration</option>
             </select>
           </div>
@@ -1197,7 +1122,17 @@
               <option value="365">1 year</option>
             </select>
           </div>
+          <div style="flex:1"></div>
+          <div style="flex:0 0 auto;align-self:end">
+            <button class="ghost" id="forecastSpreadsheetBtn" onclick="toggleForecastSpreadsheetMode()"
+                    title="Edit every visible row directly in the table, like a spreadsheet">Spreadsheet mode</button>
+          </div>
         </div>
+        <p id="forecastSpreadsheetHint" class="hidden" style="color:var(--muted);font-size:12px;margin:-6px 0 10px">
+          Click any cell to edit. Tab/Shift+Tab move across a row, ↑/↓/Enter move up and down a
+          column. Paste a multi-line block into a cell to fill that column downward. Each row saves
+          shortly after you leave it; balances refresh a moment after things go quiet.
+        </p>
         <div style="overflow-x:auto">
         <table id="forecastTable"><thead><tr>
           <th class="sortable" data-key="forecast_date">Forecast date</th>
@@ -1205,10 +1140,10 @@
           <th class="sortable" data-key="description">Description</th>
           <th class="sortable" data-key="category">Category</th>
           <th class="sortable num" data-key="forecast_amount">Forecast amt</th>
-          <th class="sortable num" data-key="forecast_balance">Forecast bal</th>
           <th class="sortable num" data-key="actual_amount">Actual amt</th>
-          <th class="sortable num" data-key="actual_balance">Actual bal</th>
           <th class="sortable num" data-key="diff_amount">Δ Amt</th>
+          <th class="sortable num" data-key="forecast_balance">Forecast bal</th>
+          <th class="sortable num" data-key="actual_balance">Actual bal</th>
           <th class="sortable num" data-key="diff_balance">Δ Bal</th>
           <th>Notes</th>
           <th></th>
@@ -1232,6 +1167,100 @@
           </div>
         </div>
       </div>
+      </div><!-- /subviewForecast -->
+
+      <div id="subviewSearch" class="hidden">
+      <div class="panel">
+        <h2>Search transactions</h2>
+        <div class="row">
+          <div style="flex:2"><label>Text</label>
+            <input id="txnSearchQ" placeholder="Search description or notes…"
+                   onkeydown="if(event.key==='Enter')runTxnSearch()">
+          </div>
+          <div><label>Account</label>
+            <select id="txnSearchAccount" onchange="runTxnSearch()">
+              <option value="">All accounts</option>
+            </select>
+          </div>
+          <div><label>Category</label>
+            <select id="txnSearchCategory" onchange="runTxnSearch()">
+              <option value="">All categories</option>
+            </select>
+          </div>
+          <div><label>Tag</label>
+            <select id="txnSearchTag" onchange="runTxnSearch()">
+              <option value="">All tags</option>
+            </select>
+          </div>
+          <div><label>Kind</label>
+            <select id="txnSearchKind" onchange="runTxnSearch()">
+              <option value="">Any</option>
+              <option value="spending">Spending only</option>
+              <option value="income">Income only</option>
+              <option value="transfers">Transfers only</option>
+            </select>
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div><label>From</label><input id="txnSearchFrom" type="date" onchange="runTxnSearch()"></div>
+          <div><label>To</label><input id="txnSearchTo" type="date" onchange="runTxnSearch()"></div>
+          <div><label>Min $</label><input id="txnSearchMin" type="number" step="0.01" placeholder="-9999"></div>
+          <div><label>Max $</label><input id="txnSearchMax" type="number" step="0.01" placeholder="9999"></div>
+          <div style="flex:0 0 auto"><label>&nbsp;</label>
+            <div style="display:flex;gap:6px">
+              <button onclick="runTxnSearch()">Search</button>
+              <button class="ghost" onclick="resetTxnSearch()">Reset</button>
+            </div>
+          </div>
+        </div>
+        <div id="txnSearchStatus" style="margin-top:10px;color:var(--muted);font-size:12px"></div>
+
+        <!-- Bulk action bar — appears once at least one row is checked.
+             Lets the user attach or remove a tag across every selected
+             row in one POST to /api/transactions/bulk-tag. -->
+        <div id="txnBulkBar" class="hidden" style="margin-top:10px">
+          <div class="row" style="gap:10px;align-items:end;flex-wrap:wrap;
+                                   padding:8px 10px;border:1px solid var(--accent);
+                                   border-radius:6px;background:var(--chip-bg)">
+            <div style="font-size:13px">
+              <strong id="txnBulkCount">0 selected</strong>
+            </div>
+            <div>
+              <label style="font-size:12px;color:var(--muted)">Tag</label>
+              <select id="txnBulkTag"></select>
+            </div>
+            <div style="flex:0 0 auto">
+              <button onclick="runBulkTag('add')">Apply tag</button>
+              <button class="ghost" onclick="runBulkTag('remove')">Remove tag</button>
+              <button class="ghost" onclick="clearTxnSelection()">Clear</button>
+            </div>
+            <div id="txnBulkStatus" style="font-size:12px;color:var(--muted)"></div>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto;margin-top:10px">
+        <table id="txnSearchTable"><thead><tr>
+          <th style="width:28px">
+            <input type="checkbox" id="txnSearchSelectAll"
+                   onclick="toggleAllTxnSelection(this.checked)"
+                   title="Select all visible">
+          </th>
+          <th>Date</th><th>Account</th><th>Description</th><th>Category</th><th>Tags</th>
+          <th class="num">Amount</th><th>Status</th><th></th>
+        </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Recent transfers</h2>
+        <p style="color:var(--muted);margin:0 0 10px;font-size:13px">
+          Account-to-account moves. Use the "Transfer money" button above to create one.
+        </p>
+        <div id="recentTransfersWrap">
+          <div style="color:var(--muted);font-size:13px">Loading…</div>
+        </div>
+      </div>
+      </div><!-- /subviewSearch -->
     </div>
     </div><!-- /pageAccounts -->
 
@@ -1500,7 +1529,7 @@
         <h2>Accounts</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           Create a new bank account to track, or archive an existing one to hide it from the
-          Dashboard and Accounts page without losing its data.
+          Dashboard and Forecast page without losing its data.
         </p>
         <div class="row">
           <div><label>Name</label><input id="newAccName" placeholder="Checking"></div>
@@ -1705,7 +1734,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.14.0";
+const WEB_VERSION = "1.19.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1715,6 +1744,114 @@ const WEB_VERSION = "1.14.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.19.0 (2026-09-07, claude+mkolakowski): Two changes. (1) Recurring
+//     transactions' separate Frequency + When columns merged into one
+//     "Frequency" column using Subscriptions' combined format ("Monthly
+//     · day 5", "Biweekly · from 2026-08-30") via the same
+//     subsFrequencyLabel() — dropped the short-lived recFrequencyLabel()
+//     from the last release. Table is 9 columns now (was 10); the edit
+//     row's frequency <select> and its day/anchor input are stacked in
+//     one cell to match. (2) Nav tabs now update the URL hash
+//     (#dashboard, #calendar, etc.) via history.pushState, so a refresh
+//     or the browser's back/forward buttons land back on the same tab.
+//     New HASH_ROUTABLE_PAGES whitelist + _pageFromHash() (falls back to
+//     Dashboard for an empty/invalid/unauthorized-admin hash) + a
+//     popstate listener. 'import'/'transfer' are deliberately excluded —
+//     they're contextual sub-flows off the Forecast page that lean on
+//     state a cold reload won't have, not independent tabs. Verified
+//     with a jsdom harness driving the real showPage()/_pageFromHash()
+//     and renderRecurring(), not just eyeballed.
+//
+// 1.18.0 (2026-09-07, claude+mkolakowski): Recurring transactions panel
+//     (Forecast page) adopts the Subscriptions page's design, scoped to
+//     the selected account instead of cross-account: new summary tiles
+//     (active subscription count / monthly cost / yearly cost, hidden in
+//     the Archived view) above the table via new renderRecSummary(), and
+//     new sortable Monthly/Yearly columns. Income rows and unrecognized
+//     cadences show "—" in those columns and don't count toward the
+//     tiles. Frequency now renders as "Monthly"/"Biweekly"/"Weekly" via
+//     new recFrequencyLabel() instead of the raw stored value — unlike
+//     Subscriptions' subsFrequencyLabel(), it doesn't fold in the day/
+//     anchor date since that's already the separate "When" column here.
+//     The edit row's Monthly/Yearly cells are static (labeled
+//     "Recalculates after you save") rather than recomputed live as
+//     amount/frequency change. Subscriptions page itself is unchanged.
+//
+// 1.17.1 (2026-09-07, claude+mkolakowski): Fix Spreadsheet mode
+//     rendering zero editable rows. _renderForecastGridRow's `input()`
+//     helper passed forecast_amount/actual_amount straight into
+//     escapeAttr(), which does `(s||'').replace(...)` — for any non-zero
+//     numeric value that's a TypeError (numbers have no .replace), which
+//     aborted renderForecast() partway through the very first row and
+//     left the table empty. Wrapped the value in String() before
+//     escaping. Found via a jsdom harness that evals the real script and
+//     drives renderForecast() directly — same fix needed nowhere else,
+//     every other escapeAttr() call site already passes strings.
+//
+// 1.17.0 (2026-09-07, claude+mkolakowski): Merged the Transactions page
+//     into the Forecast page — the "Transactions" nav tab is gone.
+//     Account actions (Transfer money / Import CSV) and Recurring
+//     transactions now sit above a "This account" / "Search all
+//     accounts" toggle: "This account" is the existing per-account
+//     forecast table, "Search all accounts" is the cross-account
+//     filtered search table (with inline edit + bulk-tag) that used to
+//     live on its own page, and Recent transfers sits below it. Deleted
+//     the redundant "Managing account" picker — everything now drives
+//     off the same accounts-bar tabs / currentAccountId that the
+//     forecast table already used (selectAccount() already called
+//     loadRecurring(), so the Recurring panel needed zero JS changes to
+//     relocate). initTransactionsPage() replaced by initAccountsExtras()
+//     (search filters + recent transfers only, called on every visit to
+//     the Forecast page); new setAccountsSubview() drives the toggle.
+//     Every `showPage('transactions')` call site (Subscriptions page
+//     link, Transfer page back/save/delete navigation) now points at
+//     'accounts' instead.
+//
+// 1.16.2 (2026-09-07, claude+mkolakowski): Forecast table column order
+//     changed to group by kind instead of interleaving forecast/actual:
+//     Forecast amt, Actual amt, Δ Amt, Forecast bal, Actual bal, Δ Bal
+//     (was Forecast amt, Forecast bal, Actual amt, Actual bal, Δ Amt,
+//     Δ Bal). Updated in all three row renderers — the read-only
+//     display row, the single-row editor, and the spreadsheet-mode grid
+//     row — plus the header's sortable columns.
+//
+// 1.16.1 (2026-09-07, claude+mkolakowski): Renamed the "Accounts" nav
+//     tab to "Forecast" (it shows a selected account's forecast table,
+//     not account management — that's still Settings > Accounts).
+//     Updated the handful of "Accounts page" cross-references to match;
+//     two of those turned out to already be stale (pointing at the
+//     Accounts page for the Transfer money button, which actually lives
+//     on the Transactions page) — fixed to just point at the button.
+//
+// 1.16.0 (2026-09-07, claude+mkolakowski): Three forward-looking views:
+//     a "Rest of this month" option on the Forecast page's View selector,
+//     a "Rest of this month" summary widget on the Dashboard (upcoming
+//     item count/net/projected balance, links into the Forecast page),
+//     and a "Future view" toggle on the Calendar that dims every day
+//     before today. Plus a spreadsheet-style bulk editor: "Spreadsheet
+//     mode" on the Forecast page makes every visible row always-editable
+//     (date/description/category/forecast+actual amount/notes) — Tab/
+//     Shift+Tab move across a row natively, ↑/↓/Enter move up and down a
+//     column, and pasting a multi-line block into a cell fills that
+//     column downward. Each row saves ~500ms after you leave it; the
+//     whole-table balance refresh is debounced separately (1.2s after
+//     the last save) so editing one row never wipes an in-progress edit
+//     on another (important for multi-row paste). Tags aren't editable
+//     in the grid — no room for a picker at that density — use the
+//     single-row editor or bulk-tag for that.
+//
+// 1.15.0 (2026-09-07, claude+mkolakowski): Calendar day cells show the
+//     selected account's running balance at the top (single-account
+//     filter only), and the day-detail panel now shows that balance at
+//     the top with the in/out/net summary moved below the transaction
+//     table (previously above it) and split into separate in/out
+//     figures instead of just net. Transactions tab search results are
+//     now editable inline — an ✎ button per row (hidden for transfer
+//     legs, which stay Transfer-page-only) opens the same
+//     forecast/actual dual-date, dual-amount, category, tag-picker, and
+//     notes edit row already used on the Account/Forecast page, saving
+//     via PATCH /api/transactions/{id} and offering Delete.
 //
 // 1.14.0 (2026-09-07, claude+mkolakowski): Import page explains the new
 //     past-recurring-transaction linking (same Frequency + Description,
@@ -1966,11 +2103,35 @@ async function api(path, opts={}) {
   return res.json();
 }
 
-function showPage(name) {
+// Top-level nav tabs get their own URL hash so a refresh (or the browser's
+// back/forward buttons) lands back on the same tab. 'import'/'transfer' are
+// contextual sub-flows off the Forecast page (they lean on state like
+// currentAccountId that a cold reload won't have), not independent tabs, so
+// they're deliberately left out of the hash — navigating into/out of them
+// doesn't touch the URL.
+const HASH_ROUTABLE_PAGES = ['dashboard', 'networth', 'accounts', 'subscriptions',
+                             'calendar', 'reports', 'admin', 'settings'];
+
+function _pageFromHash() {
+  const name = (location.hash || '').replace(/^#/, '');
+  if (!HASH_ROUTABLE_PAGES.includes(name)) return 'dashboard';
+  if (name === 'admin' && !(me && me.is_admin)) return 'dashboard';
+  return name;
+}
+
+window.addEventListener('popstate', () => {
+  showPage(_pageFromHash(), { fromPopState: true });
+});
+
+function showPage(name, opts) {
+  opts = opts || {};
+  if (HASH_ROUTABLE_PAGES.includes(name) && !opts.fromPopState
+      && location.hash.replace(/^#/, '') !== name) {
+    history.pushState({ page: name }, '', '#' + name);
+  }
   document.getElementById('pageDashboard').classList.toggle('hidden', name!=='dashboard');
   document.getElementById('pageNetworth').classList.toggle('hidden', name!=='networth');
   document.getElementById('pageAccounts').classList.toggle('hidden', name!=='accounts');
-  document.getElementById('pageTransactions').classList.toggle('hidden', name!=='transactions');
   document.getElementById('pageSubscriptions').classList.toggle('hidden', name!=='subscriptions');
   document.getElementById('pageCalendar').classList.toggle('hidden', name!=='calendar');
   document.getElementById('pageImport').classList.toggle('hidden', name!=='import');
@@ -1980,10 +2141,9 @@ function showPage(name) {
   document.getElementById('pageSettings').classList.toggle('hidden', name!=='settings');
   document.getElementById('navDashboard').classList.toggle('active', name==='dashboard');
   document.getElementById('navNetworth').classList.toggle('active', name==='networth');
-  // 'import' + 'transfer' are reached from the Account page — keep Accounts lit.
+  // 'import' + 'transfer' are reached from the Forecast page — keep it lit.
   document.getElementById('navAccounts').classList.toggle('active',
     name==='accounts' || name==='import' || name==='transfer');
-  document.getElementById('navTransactions').classList.toggle('active', name==='transactions');
   document.getElementById('navSubscriptions').classList.toggle('active', name==='subscriptions');
   document.getElementById('navCalendar').classList.toggle('active', name==='calendar');
   document.getElementById('navReports').classList.toggle('active', name==='reports');
@@ -1992,17 +2152,20 @@ function showPage(name) {
   if (name === 'settings') { loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); }
   if (name === 'dashboard') loadDashboard();
   if (name === 'networth') loadNetworth();
-  if (name === 'transactions') initTransactionsPage();
   if (name === 'subscriptions') loadSubscriptions();
   if (name === 'calendar') initCalendarPage();
   if (name === 'import') initImportPage();
   if (name === 'transfer') initTransferPage();
   if (name === 'reports') initReportsPage();
   if (name === 'admin') loadAdminPage();
-  // If the managing-account dropdown on the Transactions page was used to
-  // switch accounts, re-render the accountView so summary/forecast match.
-  if (name === 'accounts' && currentAccountId && accounts.some(a => a.id === currentAccountId)) {
-    selectAccount(currentAccountId);
+  if (name === 'accounts') {
+    // If a caller (e.g. jumping from Subscriptions or the Dashboard's
+    // "rest of this month" widget) preselected an account, re-render
+    // accountView so the summary/forecast/recurring panels match it.
+    if (currentAccountId && accounts.some(a => a.id === currentAccountId)) {
+      selectAccount(currentAccountId);
+    }
+    initAccountsExtras();
   }
 }
 
@@ -2146,10 +2309,54 @@ async function loadDashboard() {
   loadPinnedReports();
 }
 
+function renderDashboardUpcoming() {
+  const wrap = document.getElementById('dashUpcoming');
+  if (!wrap) return;
+  const cards = (dashboardCards && dashboardCards.cards) || [];
+  if (!cards.length) { wrap.innerHTML = ''; return; }
+  const count = cards.reduce((s, c) => s + (c.upcoming_count || 0), 0);
+  const net = cards.reduce((s, c) => s + (c.upcoming_net || 0), 0);
+  const projected = cards.reduce((s, c) => s + (c.forecast_end || 0), 0);
+  const today = new Date();
+  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const label = monthEnd.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
+  if (!count) {
+    wrap.innerHTML = `<div style="color:var(--muted);font-size:13px">
+      Nothing left pending before ${escapeHtml(label)} — you're all caught up for the rest of the month.
+    </div>`;
+    return;
+  }
+  wrap.innerHTML = `
+    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Rest of this month</div>
+        <div style="font-size:14px;margin-top:2px">
+          <b>${count}</b> upcoming item${count===1?'':'s'} before ${escapeHtml(label)} ·
+          net <b class="${net>=0?'pos':'neg'}">${fmt(net)}</b> ·
+          projected balance <b>${fmt(projected)}</b>
+        </div>
+      </div>
+      <div style="flex:1"></div>
+      <button class="ghost" onclick="viewUpcomingDetails()">View details ›</button>
+    </div>`;
+}
+
+function viewUpcomingDetails() {
+  // Jump to the Forecast page and switch its table to the same
+  // "Rest of this month" range this widget is summarizing.
+  showPage('accounts');
+  const modeSel = document.getElementById('forecastMode');
+  if (modeSel) {
+    modeSel.value = 'restofmonth';
+    onForecastModeChange();
+  }
+}
+
 function renderDashboard() {
   const grid = document.getElementById('dashboardGrid');
   const above = document.getElementById('dashChartsAbove');
   const below = document.getElementById('dashChartsBelow');
+  renderDashboardUpcoming();
   if (!dashboardCards || !dashboardCards.cards.length) {
     grid.innerHTML = `<div style="color:var(--muted);grid-column:1/-1;text-align:center;padding:20px">
       No accounts yet. Head to <a href="#" onclick="showPage('settings');return false" style="color:var(--accent)">Settings</a> to create one.
@@ -3147,7 +3354,11 @@ async function init() {
   await loadCategories();
   await loadTags();
   await loadAccounts();
-  showPage('dashboard');
+  // Restore whichever tab was in the URL (e.g. after a refresh), falling
+  // back to the Dashboard. Use fromPopState so this initial paint doesn't
+  // push a redundant duplicate history entry on top of the page the
+  // browser already navigated to.
+  showPage(_pageFromHash(), { fromPopState: true });
 }
 
 function switchTab(which) {
@@ -3222,6 +3433,7 @@ async function loadAccounts() {
     el.onclick = () => selectAccount(a.id);
     bar.appendChild(el);
   });
+  document.getElementById('accountsNoAccount').classList.toggle('hidden', accounts.length > 0);
   if (accounts.length && !currentAccountId) selectAccount(accounts[0].id);
   else if (!accounts.length) document.getElementById('accountView').classList.add('hidden');
 }
@@ -3638,13 +3850,35 @@ async function loadRecurring() {
   renderRecurring();
 }
 
+// Subscriptions-style summary tiles (same design as the cross-account
+// Subscriptions page, scoped to just this account) — active subscription
+// count, monthly cost, and yearly cost. Rows with no monthly_cost (income,
+// or an unrecognized cadence) don't count toward these totals. Hidden in
+// the Archived view since "current monthly cost" doesn't apply there.
+function renderRecSummary(list, archived) {
+  const sum = document.getElementById('recSummary');
+  if (!sum) return;
+  if (archived) { sum.innerHTML = ''; return; }
+  const subs = list.filter(r => r.monthly_cost != null);
+  const totalMonthly = subs.reduce((s, r) => s + r.monthly_cost, 0);
+  const totalYearly = subs.reduce((s, r) => s + r.yearly_cost, 0);
+  sum.innerHTML = `
+    <div class="tile"><span class="label">Active subscriptions</span>
+      <strong>${subs.length}</strong></div>
+    <div class="tile"><span class="label">Monthly cost</span>
+      <strong>${fmt(totalMonthly)}</strong></div>
+    <div class="tile"><span class="label">Yearly cost</span>
+      <strong>${fmt(totalYearly)}</strong></div>`;
+}
+
 function renderRecurring() {
   const unsorted = recurringData;
   const archived = recView === 'archived';
   const tbody = document.querySelector('#recurringTable tbody');
   tbody.innerHTML = '';
+  renderRecSummary(unsorted, archived);
   if (!unsorted.length) {
-    tbody.innerHTML = `<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:16px">
+    tbody.innerHTML = `<tr><td colspan="9" style="color:var(--muted);text-align:center;padding:16px">
       ${archived ? 'No expired recurring transactions.' : 'No active recurring transactions yet.'}
     </td></tr>`;
     document.getElementById('recurringPagination').classList.add('hidden');
@@ -3712,7 +3946,6 @@ function renderRecurring() {
     if (editingRecId === r.id) {
       tr.innerHTML = renderEditRow(r);
     } else {
-      const when = r.frequency==='monthly_day' ? `Day ${r.day_of_month}` : `from ${r.anchor_date}`;
       const ends = r.end_date || '—';
       const cat = r.category_name
         ? `<span class="cat-pill">${escapeHtml(r.category_name)}</span>`
@@ -3727,7 +3960,9 @@ function renderRecurring() {
       tr.innerHTML = `<td>${escapeHtml(r.description)}</td>
         <td>${cat}</td>
         <td class="${r.amount>=0?'pos':'neg'}">${fmt(r.amount)}</td>
-        <td>${r.frequency}</td><td>${when}</td><td>${ends}</td>
+        <td class="num">${r.monthly_cost!=null?fmt(r.monthly_cost):'—'}</td>
+        <td class="num">${r.yearly_cost!=null?fmt(r.yearly_cost):'—'}</td>
+        <td>${subsFrequencyLabel(r)}</td><td>${ends}</td>
         <td>${notesCell}</td>
         ${actionsCell}`;
     }
@@ -3760,8 +3995,10 @@ function renderEditRow(r) {
     <td><input id="editDesc_${r.id}" value="${escapeAttr(r.description)}" style="width:100%"></td>
     <td><select id="editCat_${r.id}" style="width:100%">${catOptions}</select></td>
     <td><input id="editAmt_${r.id}" type="number" step="0.01" value="${r.amount}" style="width:100%"></td>
-    <td><select id="editFreq_${r.id}" onchange="reloadEditRow(${r.id})" style="width:100%">${freqOptions}</select></td>
-    <td>${whenField}</td>
+    <td class="num" style="color:var(--muted)" title="Recalculates after you save">${r.monthly_cost!=null?fmt(r.monthly_cost):'—'}</td>
+    <td class="num" style="color:var(--muted)" title="Recalculates after you save">${r.yearly_cost!=null?fmt(r.yearly_cost):'—'}</td>
+    <td><select id="editFreq_${r.id}" onchange="reloadEditRow(${r.id})" style="width:100%">${freqOptions}</select>
+      <div style="margin-top:4px">${whenField}</div></td>
     <td><input id="editEnd_${r.id}" type="date" value="${r.end_date||''}" style="width:100%"></td>
     <td><input id="editNotes_${r.id}" maxlength="256" value="${escapeAttr(r.notes||'')}" style="width:100%"></td>
     <td style="white-space:nowrap">
@@ -3954,6 +4191,12 @@ let editingForecastRowKey = null;   // unique row id for inline-edit mode
 let forecastPage = 0;               // 0-based page index
 let forecastPageSize = 10;          // 10 | 25 | 50 | 100
 
+// --- Forecast "spreadsheet mode": always-editable grid, Excel-style ---
+let forecastSpreadsheetMode = false;
+let _gridListenersAttached = false;
+const _gridSaveTimers = {};         // rowKey -> setTimeout id, debounces per-row saves
+let _gridRefreshTimer = null;       // single debounce for the whole-table balance refresh
+
 function _forecastRowKey(r) {
   // A unique identifier for a forecast row. Real transactions use their id;
   // pure projections use recurring_id + forecast_date since no id exists.
@@ -3964,6 +4207,7 @@ function _forecastRowKey(r) {
 function onForecastModeChange() {
   const mode = document.getElementById('forecastMode').value;
   document.getElementById('forecastMonthWrap').classList.toggle('hidden', mode !== 'month');
+  document.getElementById('forecastYearWrap').classList.toggle('hidden', mode !== 'month');
   document.getElementById('forecastDurationWrap').classList.toggle('hidden', mode !== 'duration');
   loadForecast();
 }
@@ -3982,6 +4226,15 @@ async function loadForecast() {
   let url = `/api/accounts/${currentAccountId}/forecast`;
   if (mode === 'month') {
     const [s, e] = _monthRangeFromSelects();
+    url += `?start=${s}&end=${e}`;
+  } else if (mode === 'restofmonth') {
+    // Today through the last day of the current calendar month — the
+    // forward-looking "what's coming up before month end" view.
+    const t = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const s = `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`;
+    const lastDay = new Date(t.getFullYear(), t.getMonth()+1, 0).getDate();
+    const e = `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(lastDay)}`;
     url += `?start=${s}&end=${e}`;
   } else {
     const days = document.getElementById('forecastDays').value;
@@ -4086,9 +4339,18 @@ function renderForecast() {
     document.getElementById('forecastNextPage').disabled = forecastPage >= totalPages - 1;
   }
 
+  document.getElementById('forecastSpreadsheetBtn').classList.toggle('hidden', ro);
+  document.getElementById('forecastSpreadsheetHint').classList.toggle('hidden', !forecastSpreadsheetMode || ro);
+  if (forecastSpreadsheetMode && !ro) _ensureGridListeners();
+
   pageRows.forEach((r, idx) => {
     const tr = document.createElement('tr');
     const rowKey = _forecastRowKey(r);
+    if (forecastSpreadsheetMode && !ro) {
+      tr.innerHTML = _renderForecastGridRow(r, idx);
+      tbody.appendChild(tr);
+      return;
+    }
     if (editingForecastRowKey === rowKey && !ro) {
       tr.innerHTML = _renderForecastEditRow(r);
       tbody.appendChild(tr);
@@ -4130,10 +4392,10 @@ function renderForecast() {
       <td>${escapeHtml(r.description)}${tagBits}</td>
       <td>${cat}</td>
       <td class="num ${r.forecast_amount>=0?'pos':'neg'}">${fAmt}</td>
-      <td class="num">${fBal}</td>
       ${actAmtCell}
-      <td class="num">${aBal}</td>
       <td class="num ${dAmtCls}">${dAmt}</td>
+      <td class="num">${fBal}</td>
+      <td class="num">${aBal}</td>
       <td class="num ${dBalCls}">${dBal}</td>
       ${notesCell}
       ${actionsCell}`;
@@ -4164,9 +4426,10 @@ function _renderForecastEditRow(r) {
     <td><label class="inline-label">Actual date</label><input type="date" class="inline-edit date" id="editFcADate" value="${r.actual_date||''}"></td>
     <td><label class="inline-label">Description</label><input class="inline-edit" id="editFcDesc" value="${escapeAttr(r.description||'')}" style="width:100%">${tagBlock}</td>
     <td><label class="inline-label">Category</label><select id="editFcCat" style="width:100%">${catOptions}</select></td>
-    <td class="num" colspan="2"><label class="inline-label">Forecast amt</label><input type="number" step="0.01" class="inline-edit" id="editFcFAmt" value="${fAmtVal}" style="width:100%"></td>
-    <td class="num" colspan="2"><label class="inline-label">Actual amt</label><input type="number" step="0.01" class="inline-edit" id="editFcAAmt" value="${aAmtVal}" style="width:100%"></td>
-    <td colspan="3"><label class="inline-label">Notes</label><input class="inline-edit" id="editFcNotes" maxlength="256" placeholder="e.g. paid early" value="${escapeAttr(r.notes||'')}" style="width:100%"></td>
+    <td class="num"><label class="inline-label">Forecast amt</label><input type="number" step="0.01" class="inline-edit" id="editFcFAmt" value="${fAmtVal}" style="width:100%"></td>
+    <td class="num"><label class="inline-label">Actual amt</label><input type="number" step="0.01" class="inline-edit" id="editFcAAmt" value="${aAmtVal}" style="width:100%"></td>
+    <td class="num" colspan="4" style="color:var(--muted);font-size:11px">Δ / balances recompute on save</td>
+    <td><label class="inline-label">Notes</label><input class="inline-edit" id="editFcNotes" maxlength="256" placeholder="e.g. paid early" value="${escapeAttr(r.notes||'')}" style="width:100%"></td>
     <td style="white-space:nowrap;vertical-align:bottom">
       <button title="Save" onclick="saveForecastRowEdit('${rowKey}')">✓</button>
       <button class="ghost" title="Cancel" onclick="cancelEditForecastRow()">✕</button>
@@ -4258,6 +4521,184 @@ async function saveForecastRowEdit(rowKey) {
   }
   editingForecastRowKey = null;
   await loadForecast();
+}
+
+// --- Forecast "spreadsheet mode" ---------------------------------------
+// Every row is always editable, like a spreadsheet, instead of toggling one
+// row at a time via _renderForecastEditRow. Column indices (data-c) below
+// only cover the 7 editable fields — read-only computed columns (balances,
+// deltas) aren't part of the nav/paste grid.
+//   0 forecast date  1 actual date  2 description  3 category
+//   4 forecast amt   5 actual amt   6 notes
+//
+// Saves are per-row and debounced (500ms after the user leaves a row), and
+// deliberately do NOT reload the table immediately — reloading rebuilds
+// every input from server data, which would blow away any other row the
+// user is still mid-edit on (e.g. while filling a pasted column downward).
+// Instead a single global timer reloads once things go quiet (1200ms after
+// the last successful save), picking up freshly computed balances then.
+function toggleForecastSpreadsheetMode() {
+  forecastSpreadsheetMode = !forecastSpreadsheetMode;
+  editingForecastRowKey = null; // the two edit modes are mutually exclusive
+  document.getElementById('forecastSpreadsheetBtn').classList.toggle('active', forecastSpreadsheetMode);
+  renderForecast();
+}
+
+function _renderForecastGridRow(r, rowIdx) {
+  const rowKey = _forecastRowKey(r);
+  const catOptions = ['<option value="">— none —</option>']
+    .concat(categories.map(c =>
+      `<option value="${c.id}"${c.name===r.category?' selected':''}>${escapeHtml(c.name)}</option>`
+    )).join('');
+  const fBal = r.forecast_balance != null ? fmt(r.forecast_balance) : '—';
+  const aBal = r.actual_balance != null ? fmt(r.actual_balance) : '—';
+  const dAmt = r.diff_amount != null ? fmt(r.diff_amount) : '—';
+  const dBal = r.diff_balance != null ? fmt(r.diff_balance) : '—';
+  const dAmtCls = r.diff_amount == null ? 'diff-zero' : (r.diff_amount > 0 ? 'diff-pos' : (r.diff_amount < 0 ? 'diff-neg' : 'diff-zero'));
+  const dBalCls = r.diff_balance == null ? 'diff-zero' : (r.diff_balance > 0 ? 'diff-pos' : (r.diff_balance < 0 ? 'diff-neg' : 'diff-zero'));
+  const tagBits = (r.tags && r.tags.length)
+    ? `<div class="row-tag-chips">${renderTagChips(r.tags)}</div>` : '';
+  const delBtn = r.transaction_id
+    ? `<button class="ghost" title="Delete" onclick="deleteForecastRow(${r.transaction_id})">🗑</button>` : '';
+  const input = (field, c, extra) =>
+    `<td data-r="${rowIdx}" data-c="${c}"><input class="inline-edit grid-cell${extra&&extra.cls?(' '+extra.cls):''}"
+        type="${extra&&extra.type||'text'}"${extra&&extra.step?` step="${extra.step}"`:''}
+        data-row-key="${escapeAttr(rowKey)}" data-field="${field}"
+        value="${escapeAttr(extra&&extra.raw!=null?String(extra.raw):'')}"></td>`;
+  return `
+    ${input('fdate', 0, {type:'date', cls:'date', raw:r.forecast_date||''})}
+    ${input('adate', 1, {type:'date', cls:'date', raw:r.actual_date||''})}
+    <td data-r="${rowIdx}" data-c="2"><input class="inline-edit grid-cell" type="text"
+        data-row-key="${escapeAttr(rowKey)}" data-field="desc"
+        value="${escapeAttr(r.description||'')}">${tagBits}</td>
+    <td data-r="${rowIdx}" data-c="3"><select class="inline-edit grid-cell"
+        data-row-key="${escapeAttr(rowKey)}" data-field="cat">${catOptions}</select></td>
+    ${input('famt', 4, {type:'number', step:'0.01', raw:r.forecast_amount!=null?r.forecast_amount:''})}
+    ${input('aamt', 5, {type:'number', step:'0.01', raw:r.actual_amount!=null?r.actual_amount:''})}
+    <td class="num ${dAmtCls}">${dAmt}</td>
+    <td class="num">${fBal}</td>
+    <td class="num">${aBal}</td>
+    <td class="num ${dBalCls}">${dBal}</td>
+    ${input('notes', 6, {raw:r.notes||''})}
+    <td>${delBtn}</td>`;
+}
+
+function _ensureGridListeners() {
+  if (_gridListenersAttached) return;
+  _gridListenersAttached = true;
+  const tbody = document.querySelector('#forecastTable tbody');
+  tbody.addEventListener('focusout', (e) => {
+    const el = e.target;
+    if (!el.classList || !el.classList.contains('grid-cell')) return;
+    _scheduleGridRowSave(el.dataset.rowKey);
+  });
+  tbody.addEventListener('keydown', (e) => {
+    const el = e.target;
+    if (!el.classList || !el.classList.contains('grid-cell')) return;
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Enter') {
+      e.preventDefault();
+      _gridMove(el, e.key === 'ArrowUp' ? -1 : 1);
+    }
+  });
+  tbody.addEventListener('paste', (e) => {
+    const el = e.target;
+    if (!el.classList || !el.classList.contains('grid-cell')) return;
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    if (!text || !text.includes('\n')) return; // single value: native paste is fine
+    e.preventDefault();
+    _gridPasteFill(el, text);
+  });
+}
+
+function _gridMove(el, delta) {
+  const td = el.closest('td');
+  if (!td) return;
+  const r = parseInt(td.dataset.r), c = parseInt(td.dataset.c);
+  const targetTd = document.querySelector(`#forecastTable tbody td[data-r="${r + delta}"][data-c="${c}"]`);
+  const target = targetTd && targetTd.querySelector('.grid-cell');
+  if (target) { target.focus(); if (target.select) target.select(); }
+}
+
+function _gridPasteFill(el, text) {
+  const td = el.closest('td');
+  if (!td) return;
+  const startR = parseInt(td.dataset.r), c = parseInt(td.dataset.c);
+  const lines = text.replace(/\r/g, '').split('\n').filter((line, i, arr) => !(i === arr.length - 1 && line === ''));
+  const rowKeysTouched = new Set();
+  lines.forEach((line, i) => {
+    const cellTd = document.querySelector(`#forecastTable tbody td[data-r="${startR + i}"][data-c="${c}"]`);
+    const cellEl = cellTd && cellTd.querySelector('.grid-cell');
+    if (!cellEl) return;
+    cellEl.value = line.trim();
+    rowKeysTouched.add(cellEl.dataset.rowKey);
+  });
+  rowKeysTouched.forEach(rk => _scheduleGridRowSave(rk));
+}
+
+function _scheduleGridRowSave(rowKey) {
+  clearTimeout(_gridSaveTimers[rowKey]);
+  _gridSaveTimers[rowKey] = setTimeout(() => _saveGridRow(rowKey), 500);
+}
+
+function _readGridRowValues(rowKey) {
+  const sel = (field) => document.querySelector(`.grid-cell[data-row-key="${rowKey}"][data-field="${field}"]`);
+  const fdateEl = sel('fdate'), adateEl = sel('adate'), descEl = sel('desc'),
+        catEl = sel('cat'), famtEl = sel('famt'), aamtEl = sel('aamt'), notesEl = sel('notes');
+  return {
+    fdate: fdateEl ? (fdateEl.value || null) : null,
+    adate: adateEl ? (adateEl.value || null) : null,
+    desc:  descEl  ? descEl.value.trim() : '',
+    cat:   catEl   ? (catEl.value || null) : null,
+    famt:  famtEl  ? (famtEl.value !== '' ? parseFloat(famtEl.value) : null) : null,
+    aamt:  aamtEl  ? (aamtEl.value !== '' ? parseFloat(aamtEl.value) : null) : null,
+    notes: notesEl ? notesEl.value.trim() : '',
+  };
+}
+
+async function _saveGridRow(rowKey) {
+  const row = (forecastData && forecastData.rows || []).find(r => _forecastRowKey(r) === rowKey);
+  if (!row) return;
+  const v = _readGridRowValues(rowKey);
+  // Silently skip invalid states rather than alert()ing on every blur —
+  // the user is mid-edit, not submitting a form. They'll notice on the
+  // next refresh if a row never picked up their change.
+  if (!v.desc || (v.famt == null && v.aamt == null)) return;
+
+  const primaryAmt = v.aamt != null ? v.aamt : v.famt;
+  const isActual = v.aamt != null;
+  const body = {
+    description: v.desc,
+    amount: primaryAmt,
+    forecast_date: v.fdate,
+    actual_date: v.adate,
+    forecast_amount: v.famt,
+    is_actual: isActual,
+    category_id: v.cat ? parseInt(v.cat) : null,
+    recurring_id: row.recurring_id || null,
+    notes: v.notes || null,
+    // Tags aren't part of the grid (no room for a picker at this density) —
+    // omitting tag_ids entirely means "leave alone" on PATCH, and a
+    // brand-new projection has no tags to touch anyway.
+  };
+  try {
+    if (row.transaction_id) {
+      await api('/api/transactions/' + row.transaction_id, { method: 'PATCH', body: JSON.stringify(body) });
+    } else {
+      const res = await api(`/api/accounts/${currentAccountId}/transactions`, { method: 'POST', body: JSON.stringify(body) });
+      // A real transaction now backs this row — remember its id so a second
+      // edit before the next refresh updates it instead of creating a dupe.
+      row.transaction_id = res.id;
+    }
+  } catch (e) {
+    console.error('Grid row save failed:', e);
+    return;
+  }
+  _scheduleGridRefresh();
+}
+
+function _scheduleGridRefresh() {
+  clearTimeout(_gridRefreshTimer);
+  _gridRefreshTimer = setTimeout(() => { if (forecastSpreadsheetMode) loadForecast(); }, 1200);
 }
 
 // Wire up sort handlers (called once after init)
@@ -4354,8 +4795,8 @@ async function loadManageAccounts() {
 
 async function setAccountArchived(id, archived) {
   const msg = archived
-    ? 'Archive this account? It will be hidden from the Dashboard and Accounts page but its data is preserved.'
-    : 'Unarchive this account? It will reappear on the Dashboard and Accounts page.';
+    ? 'Archive this account? It will be hidden from the Dashboard and Forecast page but its data is preserved.'
+    : 'Unarchive this account? It will reappear on the Dashboard and Forecast page.';
   if (!confirm(msg)) return;
   try {
     await api('/api/accounts/' + id, {
@@ -4976,11 +5417,11 @@ async function loadSubscriptions() {
       <strong style="color:var(--bad)">Could not load subscriptions.</strong></div>`;
   }
 }
-// Used by the Subscriptions table to hop over to the Transactions page with
-// the given account preselected in the managing-account picker.
+// Used by the Subscriptions table to hop over to the Forecast page with the
+// given account preselected, so its Recurring-transactions panel is right there.
 function jumpToRecurring(accountId) {
   currentAccountId = accountId;
-  showPage('transactions');
+  showPage('accounts');
 }
 
 // ---------- Calendar ----------
@@ -4992,12 +5433,20 @@ let calendarState = {
   year:  null,
   month: null,             // 0-based (0=Jan) to match Date's convention
   events: [],              // raw /api/calendar response for the displayed month
+  dailyBalances: null,     // {dateISO: balance}, only set when one account is selected
+  futureOnly: false,       // "Future view" toggle — dims cells before today
   filters: {
     account: '', category: '', tag: '',
     source: '', kind: '', status: '',
   },
   selectedDate: null,      // 'YYYY-MM-DD' string if a day detail is open
 };
+
+function toggleCalendarFutureView() {
+  calendarState.futureOnly = !calendarState.futureOnly;
+  document.getElementById('calFutureToggle').classList.toggle('active', calendarState.futureOnly);
+  renderCalendar();
+}
 
 function initCalendarPage() {
   const t = new Date();
@@ -5070,10 +5519,12 @@ async function loadCalendar() {
     }
     const data = await api('/api/calendar?' + params.toString());
     calendarState.events = data.events || [];
+    calendarState.dailyBalances = data.daily_balances || null;
     loading.textContent = '';
   } catch (e) {
     loading.textContent = 'Could not load calendar: ' + e.message;
     calendarState.events = [];
+    calendarState.dailyBalances = null;
   }
   renderCalendar();
 }
@@ -5255,9 +5706,16 @@ function renderCalendar() {
     const netHtml = cellEvents.length
       ? `<div class="cal-net ${net>=0?'pos':'neg'}">${fmt(net)}</div>`
       : '';
+    // Only meaningful with a single account selected (calFilterAccount) —
+    // "All accounts" has no one balance to show, so dailyBalances is null.
+    const balHtml = (calendarState.dailyBalances && calendarState.dailyBalances[iso] != null)
+      ? `<div class="cal-balance">${fmt(calendarState.dailyBalances[iso])}</div>`
+      : '';
 
-    cells.push(`<div class="cal-cell${inMonth?'':' off-month'}${isToday?' today':''}${isSelected?' selected':''}"
+    const isPast = calendarState.futureOnly && iso < todayISO;
+    cells.push(`<div class="cal-cell${inMonth?'':' off-month'}${isToday?' today':''}${isSelected?' selected':''}${isPast?' past':''}"
                      data-date="${iso}" onclick="openCalendarDay('${iso}')">
+      ${balHtml}
       <div class="cal-cell-head">
         <span class="daynum">${cellDate.getDate()}</span>
         ${netHtml}
@@ -5298,6 +5756,7 @@ function renderCalendarDay(iso) {
     .filter(ev => ev.date === iso)
     .filter(_calendarEventMatches);
   const title = document.getElementById('calDayTitle');
+  const balanceEl = document.getElementById('calDayBalance');
   const net = document.getElementById('calDayNet');
   const tb = document.querySelector('#calDayTable tbody');
 
@@ -5305,13 +5764,21 @@ function renderCalendarDay(iso) {
   title.textContent = d.toLocaleDateString(undefined,
     { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
+  // Balance of the account being viewed, as of this date. Only meaningful
+  // with a single account selected — dailyBalances is null under "All
+  // accounts" (no one number to show).
+  const bal = calendarState.dailyBalances ? calendarState.dailyBalances[iso] : null;
+  balanceEl.textContent = bal != null ? `Balance: ${fmt(bal)}` : '';
+
   if (!events.length) {
     net.textContent = 'No events match your filters on this day.';
     tb.innerHTML = '';
     return;
   }
-  const total = events.reduce((s, ev) => s + (ev.amount || 0), 0);
-  net.textContent = `${events.length} event${events.length===1?'':'s'} · net ${fmt(total)}`;
+  const totalIn = events.reduce((s, ev) => (ev.amount > 0 ? s + ev.amount : s), 0);
+  const totalOut = events.reduce((s, ev) => (ev.amount < 0 ? s + ev.amount : s), 0);
+  net.textContent = `${events.length} event${events.length===1?'':'s'} · `
+    + `in ${fmt(totalIn)} · out ${fmt(totalOut)} · net ${fmt(totalIn + totalOut)}`;
   tb.innerHTML = events.map(ev => {
     const statusCell = ev.transfer_id != null ? '<span class="pill">Transfer</span>'
       : (ev.is_actual_real ? '<span class="pill actual">Cleared</span>'
@@ -5372,8 +5839,12 @@ function renderNetworthChart(points) {
 }
 
 // ---------- Transactions page (search + recent transfers) ----------
-function initTransactionsPage() {
-  // Populate account + category filters once.
+// Populates the "Search all accounts" filters and the "Recent transfers"
+// panel on every visit to the Forecast page. Account selection itself
+// (and therefore the Account-actions / Recurring-transactions panels) is
+// driven entirely by the accounts-bar tabs via selectAccount() — there's
+// no separate picker here anymore.
+function initAccountsExtras() {
   const accSel = document.getElementById('txnSearchAccount');
   if (accSel.options.length <= 1) {
     accounts.forEach(a => {
@@ -5401,50 +5872,22 @@ function initTransactionsPage() {
     tagSel.value = prevTag;
   }
 
-  // Managing-account picker. Drives the Account-actions row and the
-  // Recurring-transactions panel. It sets `currentAccountId` directly so
-  // callbacks that already key off that global (Transfer / Import / the
-  // Recurring CRUD) keep working unchanged.
-  const mgmt = document.getElementById('txnMgmtAccount');
-  const noAcc = document.getElementById('txnMgmtNoAccount');
-  const recPanel = document.getElementById('txnRecurringPanel');
-  // Always refresh — accounts list can change when new ones are created.
-  mgmt.innerHTML = '';
-  if (!accounts.length) {
-    mgmt.appendChild(new Option('— no accounts yet —', ''));
-    mgmt.disabled = true;
-    noAcc.classList.remove('hidden');
-    recPanel.classList.add('hidden');
-  } else {
-    mgmt.disabled = false;
-    noAcc.classList.add('hidden');
-    recPanel.classList.remove('hidden');
-    accounts.forEach(a => mgmt.appendChild(new Option(a.name, String(a.id))));
-    // Prefer the currently-selected account; otherwise pick the first one.
-    let chosen = currentAccountId;
-    if (!accounts.some(a => a.id === chosen)) chosen = accounts[0].id;
-    mgmt.value = String(chosen);
-    currentAccountId = chosen;
-    loadRecurring();
-  }
-
   runTxnSearch();
   loadRecentTransfers();
 }
 
-function onTxnMgmtAccountChange() {
-  const sel = document.getElementById('txnMgmtAccount');
-  const id = Number(sel.value) || null;
-  if (!id) return;
-  currentAccountId = id;
-  // Re-render the recurring list for the newly-selected account.
-  loadRecurring();
-  // Keep the accounts-bar highlight on the Accounts page in sync too, so
-  // when the user navigates back there, the right tab is active.
-  document.querySelectorAll('.account-tab').forEach((el, i) => {
-    el.classList.toggle('active', accounts[i] && accounts[i].id === id);
-  });
+// Toggles between the two Transactions sub-views on the Forecast page —
+// "This account" (the per-account forecast table) and "Search all
+// accounts" (the cross-account filtered search table).
+let accountsSubview = 'forecast';
+function setAccountsSubview(v) {
+  accountsSubview = v;
+  document.getElementById('subviewForecast').classList.toggle('hidden', v !== 'forecast');
+  document.getElementById('subviewSearch').classList.toggle('hidden', v !== 'search');
+  document.getElementById('acctSubviewForecast').classList.toggle('active', v === 'forecast');
+  document.getElementById('acctSubviewSearch').classList.toggle('active', v === 'search');
 }
+
 function resetTxnSearch() {
   ['txnSearchQ','txnSearchFrom','txnSearchTo','txnSearchMin','txnSearchMax'].forEach(id => {
     document.getElementById(id).value = '';
@@ -5487,8 +5930,9 @@ async function runTxnSearch() {
   }
   status.textContent = `${data.total} match${data.total===1?'':'es'}` + (data.total > data.results.length ? ` (showing first ${data.results.length})` : '');
   const tb = document.querySelector('#txnSearchTable tbody');
+  _txnSearchRowsById = new Map(data.results.map(r => [r.id, r]));
   if (!data.results.length) {
-    tb.innerHTML = `<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:20px">No matching transactions.</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="9" style="color:var(--muted);text-align:center;padding:20px">No matching transactions.</td></tr>`;
     _txnSearchLastResults = [];
     refreshTxnBulkBar();
     return;
@@ -5500,6 +5944,7 @@ async function runTxnSearch() {
     id: r.id, transfer: r.transfer_id != null
   }));
   tb.innerHTML = data.results.map(r => {
+    if (editingTxnSearchRowId === r.id) return _renderTxnSearchEditRow(r);
     const d = r.actual_date || r.forecast_date || '—';
     const status = r.transfer_id != null ? '<span class="pill">Transfer</span>'
                  : r.is_actual ? '<span class="pill actual">Cleared</span>'
@@ -5509,6 +5954,11 @@ async function runTxnSearch() {
     // misleading.
     const cbDisabled = r.transfer_id != null ? 'disabled' : '';
     const cbChecked = _txnSearchSelected.has(r.id) ? 'checked' : '';
+    // Transfer legs are edited from the Transfer page (both legs move
+    // together), not inline here.
+    const editBtn = r.transfer_id != null
+      ? '<span style="color:var(--muted);font-size:11px">via Transfer</span>'
+      : `<button class="ghost" title="Edit" onclick="startEditTxnRow(${r.id})">✎</button>`;
     return `<tr data-txn-id="${r.id}">
       <td><input type="checkbox" class="txn-row-cb" ${cbChecked} ${cbDisabled}
                  onclick="onTxnRowCheck(${r.id}, this.checked)"></td>
@@ -5519,6 +5969,7 @@ async function runTxnSearch() {
       <td>${renderTagChips(r.tags)}</td>
       <td class="num ${r.amount>=0?'pos':'neg'}">${fmt(r.amount)}</td>
       <td>${status}</td>
+      <td style="white-space:nowrap">${editBtn}</td>
     </tr>`;
   }).join('');
   // Drop selections that are no longer visible (e.g. user changed filters
@@ -5528,6 +5979,117 @@ async function runTxnSearch() {
     if (!visibleIds.has(id)) _txnSearchSelected.delete(id);
   }
   refreshTxnBulkBar();
+}
+
+// ---------- Transaction search: inline row editing ----------
+// Mirrors the Forecast table's inline-edit pattern (_renderForecastEditRow /
+// saveForecastRowEdit), adapted to search rows — which always have a real
+// transaction id, so there's no "materialize a projection" branch to handle.
+let editingTxnSearchRowId = null;
+let _txnSearchRowsById = new Map();
+
+function _renderTxnSearchEditRow(r) {
+  // 9 <td>s, one per header column (checkbox, Date, Account, Description,
+  // Category, Tags, Amount, Status, Actions) — no colspans, since the
+  // columns already line up with what needs editing.
+  const catOptions = ['<option value="">— none —</option>']
+    .concat(categories.map(c =>
+      `<option value="${c.id}"${c.id===r.category_id?' selected':''}>${escapeHtml(c.name)}</option>`
+    )).join('');
+  const fAmtVal = r.forecast_amount != null ? r.forecast_amount : '';
+  const aAmtVal = r.amount != null ? r.amount : '';
+  const selectedTagIds = (r.tags || []).map(t => t.id);
+  return `<tr data-txn-id="${r.id}">
+    <td></td>
+    <td>
+      <label class="inline-label">Forecast date</label><input type="date" class="inline-edit date" id="editTxnFDate" value="${r.forecast_date||''}">
+      <label class="inline-label">Actual date</label><input type="date" class="inline-edit date" id="editTxnADate" value="${r.actual_date||''}">
+    </td>
+    <td style="color:var(--muted);font-size:12px">${escapeHtml(r.account_name||'')}</td>
+    <td><label class="inline-label">Description</label><input class="inline-edit" id="editTxnDesc" value="${escapeAttr(r.description||'')}" style="width:100%">
+      <div style="margin-top:6px"><label class="inline-label">Notes</label><input class="inline-edit" id="editTxnNotes" maxlength="256" value="${escapeAttr(r.notes||'')}" style="width:100%"></div>
+    </td>
+    <td><label class="inline-label">Category</label><select id="editTxnCat" style="width:100%">${catOptions}</select></td>
+    <td>${renderTagPicker('editTxnTags', selectedTagIds)}</td>
+    <td class="num">
+      <label class="inline-label">Forecast amt</label><input type="number" step="0.01" class="inline-edit" id="editTxnFAmt" value="${fAmtVal}" style="width:100%">
+      <label class="inline-label">Actual amt</label><input type="number" step="0.01" class="inline-edit" id="editTxnAAmt" value="${aAmtVal}" style="width:100%">
+    </td>
+    <td></td>
+    <td style="white-space:nowrap;vertical-align:bottom">
+      <button title="Save" onclick="saveTxnRowEdit(${r.id})">✓</button>
+      <button class="ghost" title="Cancel" onclick="cancelEditTxnRow()">✕</button>
+      <button class="danger" title="Delete" onclick="deleteTxnRow(${r.id})">🗑</button>
+    </td>
+  </tr>`;
+}
+
+function startEditTxnRow(id) {
+  editingTxnSearchRowId = id;
+  const row = _txnSearchRowsById.get(id);
+  const tb = document.querySelector('#txnSearchTable tbody');
+  if (row && tb) {
+    const tr = tb.querySelector(`tr[data-txn-id="${id}"]`);
+    if (tr) tr.outerHTML = _renderTxnSearchEditRow(row);
+  }
+}
+
+function cancelEditTxnRow() {
+  editingTxnSearchRowId = null;
+  runTxnSearch();
+}
+
+async function deleteTxnRow(id) {
+  if (!confirm('Delete this transaction? This cannot be undone.')) return;
+  try {
+    await api('/api/transactions/' + id, { method: 'DELETE' });
+  } catch (e) {
+    alert('Could not delete: ' + e.message);
+    return;
+  }
+  editingTxnSearchRowId = null;
+  await runTxnSearch();
+}
+
+async function saveTxnRowEdit(id) {
+  const row = _txnSearchRowsById.get(id);
+  if (!row) return;
+  const fDate = document.getElementById('editTxnFDate').value || null;
+  const aDate = document.getElementById('editTxnADate').value || null;
+  const desc  = document.getElementById('editTxnDesc').value.trim();
+  const notes = document.getElementById('editTxnNotes').value.trim();
+  const catId = document.getElementById('editTxnCat').value || null;
+  const fAmtRaw = document.getElementById('editTxnFAmt').value;
+  const aAmtRaw = document.getElementById('editTxnAAmt').value;
+  const fAmt = fAmtRaw !== '' ? parseFloat(fAmtRaw) : null;
+  const aAmt = aAmtRaw !== '' ? parseFloat(aAmtRaw) : null;
+
+  if (!desc) { alert('Description cannot be empty.'); return; }
+  if (aAmt == null && fAmt == null) { alert('At least one amount is required.'); return; }
+
+  const primaryAmt = aAmt != null ? aAmt : fAmt;
+  const isActual = aAmt != null;
+  const tagIds = readTagPick('editTxnTags');
+
+  const body = {
+    description: desc,
+    amount: primaryAmt,
+    forecast_date: fDate,
+    actual_date: aDate,
+    forecast_amount: fAmt,
+    is_actual: isActual,
+    category_id: catId ? parseInt(catId) : null,
+    notes: notes || null,
+    tag_ids: tagIds,
+  };
+  try {
+    await api('/api/transactions/' + id, { method: 'PATCH', body: JSON.stringify(body) });
+  } catch (e) {
+    alert('Could not save row: ' + e.message);
+    return;
+  }
+  editingTxnSearchRowId = null;
+  await runTxnSearch();
 }
 
 // ---------- Transaction search: bulk tag selection ----------
@@ -5649,7 +6211,7 @@ async function loadRecentTransfers() {
   _transfersCacheById = {};
   data.transfers.forEach(t => { _transfersCacheById[t.id] = t; });
   if (!data.transfers.length) {
-    wrap.innerHTML = `<div style="color:var(--muted);font-size:13px">No transfers yet. Use the "Transfer money" button on the Accounts page.</div>`;
+    wrap.innerHTML = `<div style="color:var(--muted);font-size:13px">No transfers yet. Use the "Transfer money" button above.</div>`;
     return;
   }
   wrap.innerHTML = `<div class="transfers-list">${data.transfers.map(t => `
@@ -5763,10 +6325,7 @@ function updateTransferBalances() {
 }
 
 function transferPageBack() {
-  // Prefer going back to the account being operated on; otherwise go to the
-  // Transactions page (which also shows the recent transfers list).
-  if (currentAccountId) showPage('accounts');
-  else showPage('transactions');
+  showPage('accounts');
 }
 
 async function submitTransfer() {
@@ -5793,16 +6352,9 @@ async function submitTransfer() {
     // Refresh the accounts list so current_balance is up-to-date next
     // time the transfer page is opened (both legs' balances just moved).
     await loadAccounts();
-    // Navigate back to where the user came from and refresh data.
-    if (currentAccountId) {
-      showPage('accounts');
-      await selectAccount(currentAccountId);
-    } else {
-      showPage('transactions');
-    }
-    // Keep the Recent Transfers list fresh in case the Transactions page is
-    // visited next.
-    loadRecentTransfers();
+    // Navigate back to the Forecast page — showPage() re-selects
+    // currentAccountId and refreshes Recent Transfers on its own.
+    showPage('accounts');
   } catch (e) {
     err.textContent = e.message; err.classList.remove('hidden');
   }
@@ -5822,8 +6374,7 @@ async function deleteTransfer(id) {
     // If we're on the transfer page editing this one, bounce back.
     const onTransferPage = !document.getElementById('pageTransfer').classList.contains('hidden');
     if (onTransferPage) {
-      if (currentAccountId) { showPage('accounts'); await selectAccount(currentAccountId); }
-      else showPage('transactions');
+      showPage('accounts');
     } else if (currentAccountId) {
       await selectAccount(currentAccountId);
     }
@@ -5841,7 +6392,7 @@ async function deleteTransfer(id) {
 let _importPreviewMapping = null;
 let _importPreviewSign = 'amount';
 let _importPreviewHasHeader = true;
-let _importAccountId = null; // independent of currentAccountId (Accounts page)
+let _importAccountId = null; // independent of currentAccountId (Forecast page)
 
 function openImportPage(preselectAccountId) {
   if (preselectAccountId != null) _importAccountId = Number(preselectAccountId);

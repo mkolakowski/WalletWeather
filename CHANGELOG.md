@@ -65,7 +65,102 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.14.0** · Web version: **1.14.0** · Schema version: **11**
+App version: **1.16.1** · Web version: **1.19.0** · Schema version: **11**
+
+## [1.19.0] — 2026-09-07
+
+App version: **1.16.1** · Web version: **1.19.0** · Schema version: **11**
+
+### Added
+
+- **Nav tabs update the URL hash** (`#dashboard`, `#calendar`, etc.) as
+  you navigate, so a page refresh or the browser's back/forward buttons
+  land back on the same tab. `import`/`transfer` are deliberately
+  excluded — they're contextual sub-flows off the Forecast page that
+  lean on state a cold reload won't have, not independent tabs.
+- **Three forward-looking "rest of this month" views.** A new "Rest of
+  this month" option on the Forecast page's View selector (today through
+  month end). A new Dashboard summary widget showing the count/net of
+  not-yet-cleared items before month end and the projected end-of-month
+  balance across every visible account, with a link into the Forecast
+  page's new range. A "Future view" toggle on the Calendar that dims
+  every day cell before today so what's still coming up stands out.
+  `GET /api/dashboard` cards gain `upcoming_count`/`upcoming_net` to back
+  the widget.
+- **Forecast page: spreadsheet-style bulk editing.** "Spreadsheet mode"
+  makes every visible row always-editable — date/description/category/
+  forecast+actual amount/notes — instead of toggling one row at a time.
+  Tab/Shift+Tab move across a row natively; ↑/↓/Enter move up and down a
+  column; pasting a multi-line block into a cell fills that column
+  downward across the following rows. Each row saves ~500ms after you
+  leave it via the existing PATCH/POST transaction endpoints; the
+  whole-table balance refresh is debounced separately (1.2s after the
+  last save) so editing one row never wipes an in-progress edit on
+  another mid-paste. Tags aren't editable at this density — use the
+  single-row editor or bulk-tag instead.
+- **Calendar: running account balance.** `GET /api/calendar` gains a
+  `daily_balances` map (single-account mode only — "All accounts" has no
+  one balance to show). Calendar day cells show the selected account's
+  balance at the top, and the day-detail panel shows it at the top too,
+  with the in/out/net summary moved below the transaction table (was
+  above it) and split into separate **in** and **out** totals instead of
+  just net.
+- **Transactions tab: inline editing.** Search results are no longer
+  read-only — an ✎ button per row (hidden for transfer legs, which are
+  still edited from the Transfer page) opens the same forecast/actual
+  dual-date, dual-amount, category, tag-picker, and notes edit row
+  already used on the Account/Forecast page, saving via
+  `PATCH /api/transactions/{id}` with a Delete option alongside it.
+  `GET /api/transactions/search` rows gain `forecast_amount` and
+  `recurring_id` to support this.
+
+### Changed
+
+- **Recurring transactions' Frequency + When columns merged into one**
+  "Frequency" column, using the same combined format Subscriptions
+  already shows ("Monthly · day 5", "Biweekly · from 2026-08-30").
+  Table is 9 columns now instead of 10.
+- **Recurring transactions panel adopts the Subscriptions page's design**,
+  scoped per-account instead of cross-account: new summary tiles (active
+  subscription count / monthly cost / yearly cost, hidden in the
+  Archived view) and sortable Monthly/Yearly columns, normalized the same
+  way Subscriptions already does. Income rows and unrecognized cadences
+  show "—" and don't count toward the tiles. Frequency now shows as
+  "Monthly"/"Biweekly"/"Weekly" instead of the raw stored value.
+  `GET /api/accounts/{id}/recurring` rows gain `monthly_cost`/
+  `yearly_cost`; the normalization factor is now defined once and shared
+  with `/api/subscriptions`, which is itself unchanged.
+- **Transactions page merged into the Forecast page.** The "Transactions"
+  nav tab is gone. Account actions (Transfer money / Import CSV) and
+  Recurring transactions now sit above a "This account" / "Search all
+  accounts" toggle on the Forecast page: "This account" is the existing
+  per-account forecast table, "Search all accounts" is the cross-account
+  filtered search table (inline edit + bulk-tag) that used to be its own
+  page, and Recent transfers sits below it. The redundant "Managing
+  account" picker is gone too — everything now drives off the same
+  accounts-bar tabs the forecast table already used.
+- **Forecast table column order** now groups by kind instead of
+  interleaving forecast/actual: Forecast amt, Actual amt, Δ Amt,
+  Forecast bal, Actual bal, Δ Bal (was Forecast amt, Forecast bal,
+  Actual amt, Actual bal, Δ Amt, Δ Bal). Updated in the display row, the
+  single-row editor, and the spreadsheet-mode grid row alike.
+- **"Accounts" nav tab renamed to "Forecast".** It shows a selected
+  account's forecast table, not account management — that's still
+  Settings → Accounts. Updated cross-references to match; two turned out
+  to already be stale (pointing at "the Accounts page" for the Transfer
+  money button, which actually lives on the Transactions page) and are
+  now fixed to just point at the button itself.
+
+### Fixed
+
+- **Spreadsheet mode rendered zero editable rows.** Its cell-rendering
+  helper passed `forecast_amount`/`actual_amount` straight into
+  `escapeAttr()`, which assumes a string — a non-zero numeric value threw
+  a `TypeError` (numbers have no `.replace`), aborting the render on the
+  very first row and leaving the whole table empty. Fixed by stringifying
+  the value first. Found with a jsdom harness that evaluates the real
+  script and drives `renderForecast()` directly, rather than guessing
+  from the bug report alone.
 
 ## [1.14.0] — 2026-09-07
 
@@ -539,7 +634,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.14.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.19.0...HEAD
+[1.19.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.19.0
 [1.14.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.14.0
 [1.13.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.13.1
 [1.12.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.12.0

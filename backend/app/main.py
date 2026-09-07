@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.14.0"
+APP_VERSION = "1.16.1"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -35,6 +35,40 @@ APP_VERSION = "1.14.0"
 # When you bump APP_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
+#
+# 1.16.1 (2026-09-07, claude+mkolakowski): GET /api/accounts/{id}/recurring
+#     rows gain monthly_cost/yearly_cost (same normalization
+#     _MONTHLY_FACTOR already used by /api/subscriptions, now defined
+#     once and shared) — null for income rows or unrecognized cadences.
+#     Backs the Recurring Transactions panel's new Subscriptions-style
+#     summary tiles and Monthly/Yearly columns (see WEB_VERSION 1.18.0).
+#
+# 1.16.0 (2026-09-07, claude+mkolakowski): Three forward-looking views
+#     plus a spreadsheet-style bulk editor. (1) GET
+#     /api/accounts/{id}/forecast already supported explicit start/end,
+#     so the new "Rest of this month" Forecast-page range just calls it
+#     with today->month-end, no backend change. (2) GET /api/dashboard
+#     cards gain `upcoming_count`/`upcoming_net` (not-yet-cleared rows
+#     from today through month end) backing a new dashboard summary
+#     widget. (3) Calendar's "Future view" toggle is purely client-side
+#     (dims past day cells) — no backend change. (4) Forecast table
+#     "Spreadsheet mode": every row becomes always-editable, saved via
+#     the existing PATCH/POST /api/transactions endpoints — no new
+#     backend surface, just more frequent, per-row calls to what
+#     saveForecastRowEdit already used.
+#
+# 1.15.0 (2026-09-07, claude+mkolakowski): Calendar shows a running
+#     account balance and inline transaction editing lands on the
+#     Transactions tab. GET /api/calendar gains `daily_balances`
+#     ({date: balance}), computed only in single-account mode (the same
+#     carry-forward walk as dashboard_charts/net_worth) — "All accounts"
+#     has no one balance to show, so it's null there. GET
+#     /api/transactions/search rows gain `forecast_amount` and
+#     `recurring_id` so the search table can offer the same
+#     forecast/actual dual-amount inline edit as the Forecast table,
+#     PATCHing the existing /api/transactions/{id} endpoint (no backend
+#     write-path changes needed — search rows always have a real id, so
+#     there's no "materialize a projection" case to handle).
 #
 # 1.14.0 (2026-09-07, claude+mkolakowski): CSV import supports *past*
 #     recurring transactions, not just future ones. BEHAVIOR CHANGE: a row
@@ -1187,6 +1221,16 @@ def delete_account(account_id: int, user: User = Depends(current_user), db: Sess
 
 
 # ---------- Recurring ----------
+# Shared with /api/subscriptions below — normalizes a recurring row's
+# per-charge amount to a monthly magnitude so cadences (weekly/biweekly/
+# monthly) can be compared apples-to-apples.
+_MONTHLY_FACTOR = {
+    "monthly_day": 1.0,
+    "biweekly":    26.0 / 12.0,
+    "weekly":      52.0 / 12.0,
+}
+
+
 @app.get("/api/accounts/{account_id}/recurring")
 def list_recurring(account_id: int, archived: bool = False,
                    user: User = Depends(current_user), db: Session = Depends(get_db)):
@@ -1197,10 +1241,16 @@ def list_recurring(account_id: int, archived: bool = False,
         is_expired = r.end_date is not None and r.end_date < today
         if archived != is_expired:
             continue
+        amt = float(r.amount)
+        # Monthly/yearly cost only makes sense for expenses (subscriptions,
+        # bills) on a recognized cadence — recurring income (paychecks) and
+        # rows with no monthly factor just leave these null.
+        factor = _MONTHLY_FACTOR.get(r.frequency)
+        monthly_cost = abs(amt) * factor if (amt < 0 and factor is not None) else None
         out.append({
             "id": r.id,
             "description": r.description,
-            "amount": float(r.amount),
+            "amount": amt,
             "frequency": r.frequency,
             "day_of_month": r.day_of_month,
             "anchor_date": r.anchor_date.isoformat() if r.anchor_date else None,
@@ -1210,6 +1260,8 @@ def list_recurring(account_id: int, archived: bool = False,
             "notes": r.notes,
             "active": r.active,
             "expired": is_expired,
+            "monthly_cost": round(monthly_cost, 2) if monthly_cost is not None else None,
+            "yearly_cost": round(monthly_cost * 12, 2) if monthly_cost is not None else None,
         })
     return out
 
@@ -1511,11 +1563,28 @@ def dashboard(user: User = Depends(current_user), db: Session = Depends(get_db))
         end = date(today.year, 12, 31)
     else:
         end = date(today.year, today.month + 1, 1) - timedelta(days=1)
+    today_iso = today.isoformat()
+
+    def _upcoming(rows: list[dict]) -> tuple[int, float]:
+        """Count and net amount of not-yet-cleared rows from today through
+        month end — the "what's still coming up" figure for the rest-of-
+        month dashboard widget."""
+        count = 0
+        net = 0.0
+        for r in rows:
+            if r["is_actual_real"]:
+                continue
+            ref = r["forecast_date"] or r["actual_date"]
+            if ref and ref >= today_iso:
+                count += 1
+                net += r["forecast_amount"] or 0.0
+        return count, net
 
     cards = []
     for acc in _user_visible_accounts(db, user):
         data = build_forecast(db, acc, start, end)
         rows = data["rows"]
+        upcoming_count, upcoming_net = _upcoming(rows)
 
         # Defaults: if there are no rows in this month, treat the opening
         # balance as the only "value" we know about for high/low purposes.
@@ -1534,6 +1603,8 @@ def dashboard(user: User = Depends(current_user), db: Session = Depends(get_db))
                 "actual_high": data["opening_balance"],
                 "actual_low": data["opening_balance"],
                 "row_count": 0,
+                "upcoming_count": upcoming_count,
+                "upcoming_net": round(upcoming_net, 2),
             })
             continue
 
@@ -1568,6 +1639,8 @@ def dashboard(user: User = Depends(current_user), db: Session = Depends(get_db))
             "actual_high": a_high,
             "actual_low": a_low,
             "row_count": len(rows),
+            "upcoming_count": upcoming_count,
+            "upcoming_net": round(upcoming_net, 2),
         })
 
     return {"cards": cards}
@@ -2145,11 +2218,13 @@ def search_transactions(q: str | None = None,
             "account_name": acc_names.get(t.account_id),
             "description": desc,
             "amount": amt,
+            "forecast_amount": float(t.forecast_amount) if t.forecast_amount is not None else None,
             "actual_date": t.actual_date.isoformat() if t.actual_date else None,
             "forecast_date": t.forecast_date.isoformat() if t.forecast_date else None,
             "is_actual": t.is_actual,
             "category_id": t.category_id,
             "category_name": t.category.name if t.category else None,
+            "recurring_id": t.recurring_id,
             "transfer_id": t.transfer_id,
             "notes": notes or None,
         })
@@ -2778,19 +2853,8 @@ def net_worth(window: str = "month",
 
 
 # ---------- Subscription audit ----------
-# Normalization factors. Every active recurring transaction fires on one of
-# these cadences; multiplying the per-occurrence magnitude by the factor
-# gives the equivalent monthly spend.
-#   monthly_day:  1 occurrence per calendar month.
-#   biweekly:     26 occurrences per year → 26/12 per month.
-#   weekly:       52 occurrences per year → 52/12 per month.
-_MONTHLY_FACTOR = {
-    "monthly_day": 1.0,
-    "biweekly":    26.0 / 12.0,
-    "weekly":      52.0 / 12.0,
-}
-
-
+# _MONTHLY_FACTOR is defined above, next to /api/accounts/{id}/recurring,
+# which also uses it (to surface monthly_cost/yearly_cost per row).
 @app.get("/api/subscriptions")
 def list_subscriptions(user: User = Depends(current_user),
                        db: Session = Depends(get_db)):
@@ -2904,8 +2968,28 @@ def calendar_events(start: date, end: date,
         cat_meta[c.name] = {"id": c.id, "color": c.color}
 
     events: list[dict] = []
+    # Running balance per day, only computed in single-account mode ("the
+    # account being viewed") — there's no one meaningful balance to show
+    # across multiple accounts. Same carry-forward walk as dashboard_charts/
+    # net_worth: take the last row's actual_balance on each day, carrying it
+    # forward across days with no events.
+    daily_balances: dict[str, float] | None = {} if account_id is not None else None
     for acc in visible:
         data = build_forecast(db, acc, start, end)
+        if daily_balances is not None:
+            day_to_balance: dict[str, float] = {}
+            for r in data["rows"]:
+                d_key = r.get("actual_date") or r.get("forecast_date")
+                if d_key:
+                    day_to_balance[d_key] = r["actual_balance"]
+            running = data["opening_balance"]
+            day = start
+            while day <= end:
+                key = day.isoformat()
+                if key in day_to_balance:
+                    running = day_to_balance[key]
+                daily_balances[key] = round(running, 2)
+                day += timedelta(days=1)
         for r in data["rows"]:
             d = r.get("forecast_date") or r.get("actual_date")
             if not d:
@@ -2940,6 +3024,7 @@ def calendar_events(start: date, end: date,
         "start": start.isoformat(),
         "end": end.isoformat(),
         "events": events,
+        "daily_balances": daily_balances,
     }
 
 

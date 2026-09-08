@@ -83,6 +83,8 @@
   th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); }
   th { color:var(--muted); font-weight:500; font-size:11px; text-transform:uppercase; }
   tr.forecast { color:var(--muted); }
+  #forecastTable th, #forecastTable td { border-right:1px solid var(--border); }
+  #forecastTable th:last-child, #forecastTable td:last-child { border-right:none; }
   tr.actual { color:var(--text); }
   .pos { color:var(--good); }
   .neg { color:var(--bad); }
@@ -1135,9 +1137,9 @@
         </p>
         <div style="overflow-x:auto">
         <table id="forecastTable"><thead><tr>
+          <th class="sortable" data-key="description">Description</th>
           <th class="sortable" data-key="forecast_date">Forecast date</th>
           <th class="sortable" data-key="actual_date">Actual date</th>
-          <th class="sortable" data-key="description">Description</th>
           <th class="sortable" data-key="category">Category</th>
           <th class="sortable num" data-key="forecast_amount">Forecast amt</th>
           <th class="sortable num" data-key="actual_amount">Actual amt</th>
@@ -1734,7 +1736,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.19.0";
+const WEB_VERSION = "1.20.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1744,6 +1746,25 @@ const WEB_VERSION = "1.19.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.20.0 (2026-09-08, claude+mkolakowski): Forecast table: Description
+//     is now the first column (was 3rd, after Forecast/Actual date).
+//     Category pill uses the category's real color — new
+//     categoryColorByName() looks it up client-side against the already-
+//     loaded `categories` list, since forecast rows only ever carried
+//     the category name, not id/color (same reason the edit row's
+//     category <select> already had to match by name). Added vertical
+//     separators between columns (#forecastTable th/td get a right
+//     border). Applied consistently across the read-only row, the
+//     single-row editor, and the spreadsheet-mode grid row.
+//
+// 1.19.1 (2026-09-07, claude+mkolakowski): Forecast tab's URL hash is
+//     now #forecast instead of #accounts — the internal page name
+//     ('accounts', predating the nav rename) is untouched, but the URL
+//     now matches what the tab is actually called. New
+//     PAGE_HASH_ALIASES map + showPage()'s pushState uses the alias;
+//     _pageFromHash() accepts both #forecast and the old #accounts (live
+//     for one release) so no link/bookmark from that window breaks.
 //
 // 1.19.0 (2026-09-07, claude+mkolakowski): Two changes. (1) Recurring
 //     transactions' separate Frequency + When columns merged into one
@@ -2112,9 +2133,25 @@ async function api(path, opts={}) {
 const HASH_ROUTABLE_PAGES = ['dashboard', 'networth', 'accounts', 'subscriptions',
                              'calendar', 'reports', 'admin', 'settings'];
 
+// The internal page name is 'accounts' (predates the Forecast rename, and
+// renaming it would mean touching every showPage('accounts') call site and
+// the pageAccounts/navAccounts ids for no real benefit) but the URL should
+// read #forecast to match what the tab is actually called now.
+const PAGE_HASH_ALIASES = { accounts: 'forecast' };
+// Both the old internal-name hash (#accounts, briefly live before this
+// alias existed) and the new one (#forecast) resolve — only the alias is
+// ever written going forward, via showPage()'s pushState below.
+const HASH_TO_PAGE = Object.fromEntries(
+  HASH_ROUTABLE_PAGES.flatMap(p => {
+    const alias = PAGE_HASH_ALIASES[p];
+    return alias ? [[p, p], [alias, p]] : [[p, p]];
+  })
+);
+
 function _pageFromHash() {
-  const name = (location.hash || '').replace(/^#/, '');
-  if (!HASH_ROUTABLE_PAGES.includes(name)) return 'dashboard';
+  const slug = (location.hash || '').replace(/^#/, '');
+  const name = HASH_TO_PAGE[slug];
+  if (!name) return 'dashboard';
   if (name === 'admin' && !(me && me.is_admin)) return 'dashboard';
   return name;
 }
@@ -2125,9 +2162,11 @@ window.addEventListener('popstate', () => {
 
 function showPage(name, opts) {
   opts = opts || {};
-  if (HASH_ROUTABLE_PAGES.includes(name) && !opts.fromPopState
-      && location.hash.replace(/^#/, '') !== name) {
-    history.pushState({ page: name }, '', '#' + name);
+  if (HASH_ROUTABLE_PAGES.includes(name) && !opts.fromPopState) {
+    const hashSlug = PAGE_HASH_ALIASES[name] || name;
+    if (location.hash.replace(/^#/, '') !== hashSlug) {
+      history.pushState({ page: name }, '', '#' + hashSlug);
+    }
   }
   document.getElementById('pageDashboard').classList.toggle('hidden', name!=='dashboard');
   document.getElementById('pageNetworth').classList.toggle('hidden', name!=='networth');
@@ -4256,6 +4295,16 @@ function changeForecastPage(delta) {
   renderForecast();
 }
 
+// Forecast rows only carry the category NAME (not id/color — see the
+// "match by name" comment in _renderForecastEditRow), so look the color up
+// client-side against the already-loaded `categories` list instead of
+// requiring a backend change.
+function categoryColorByName(name) {
+  if (!name) return null;
+  const c = (categories || []).find(x => x.name === name);
+  return c ? c.color : null;
+}
+
 function renderForecast() {
   if (!forecastData) return;
   const data = forecastData;
@@ -4356,8 +4405,9 @@ function renderForecast() {
       tbody.appendChild(tr);
       return;
     }
+    const catColor = categoryColorByName(r.category);
     const cat = r.category
-      ? `<span class="cat-pill">${escapeHtml(r.category)}</span>`
+      ? `<span class="cat-pill" style="${catColor?`background:${catColor}22;color:${catColor}`:''}">${escapeHtml(r.category)}</span>`
       : '<span style="color:var(--muted)">—</span>';
     const fAmt = r.forecast_amount != null ? fmt(r.forecast_amount) : '—';
     const fBal = r.forecast_balance != null ? fmt(r.forecast_balance) : '—';
@@ -4387,9 +4437,9 @@ function renderForecast() {
       ? `<div class="row-tag-chips">${renderTagChips(r.tags)}</div>`
       : '';
     tr.innerHTML = `
+      <td>${escapeHtml(r.description)}${tagBits}</td>
       <td>${r.forecast_date || '—'}</td>
       ${actDateCell}
-      <td>${escapeHtml(r.description)}${tagBits}</td>
       <td>${cat}</td>
       <td class="num ${r.forecast_amount>=0?'pos':'neg'}">${fAmt}</td>
       ${actAmtCell}
@@ -4422,9 +4472,9 @@ function _renderForecastEditRow(r) {
          ${renderTagPicker('editFcTags', selectedTagIds)}</div>`
     : `<input type="hidden" id="editFcTags" value="">`;
   return `
+    <td><label class="inline-label">Description</label><input class="inline-edit" id="editFcDesc" value="${escapeAttr(r.description||'')}" style="width:100%">${tagBlock}</td>
     <td><label class="inline-label">Forecast date</label><input type="date" class="inline-edit date" id="editFcFDate" value="${r.forecast_date||''}"></td>
     <td><label class="inline-label">Actual date</label><input type="date" class="inline-edit date" id="editFcADate" value="${r.actual_date||''}"></td>
-    <td><label class="inline-label">Description</label><input class="inline-edit" id="editFcDesc" value="${escapeAttr(r.description||'')}" style="width:100%">${tagBlock}</td>
     <td><label class="inline-label">Category</label><select id="editFcCat" style="width:100%">${catOptions}</select></td>
     <td class="num"><label class="inline-label">Forecast amt</label><input type="number" step="0.01" class="inline-edit" id="editFcFAmt" value="${fAmtVal}" style="width:100%"></td>
     <td class="num"><label class="inline-label">Actual amt</label><input type="number" step="0.01" class="inline-edit" id="editFcAAmt" value="${aAmtVal}" style="width:100%"></td>
@@ -4566,11 +4616,11 @@ function _renderForecastGridRow(r, rowIdx) {
         data-row-key="${escapeAttr(rowKey)}" data-field="${field}"
         value="${escapeAttr(extra&&extra.raw!=null?String(extra.raw):'')}"></td>`;
   return `
-    ${input('fdate', 0, {type:'date', cls:'date', raw:r.forecast_date||''})}
-    ${input('adate', 1, {type:'date', cls:'date', raw:r.actual_date||''})}
     <td data-r="${rowIdx}" data-c="2"><input class="inline-edit grid-cell" type="text"
         data-row-key="${escapeAttr(rowKey)}" data-field="desc"
         value="${escapeAttr(r.description||'')}">${tagBits}</td>
+    ${input('fdate', 0, {type:'date', cls:'date', raw:r.forecast_date||''})}
+    ${input('adate', 1, {type:'date', cls:'date', raw:r.actual_date||''})}
     <td data-r="${rowIdx}" data-c="3"><select class="inline-edit grid-cell"
         data-row-key="${escapeAttr(rowKey)}" data-field="cat">${catOptions}</select></td>
     ${input('famt', 4, {type:'number', step:'0.01', raw:r.forecast_amount!=null?r.forecast_amount:''})}

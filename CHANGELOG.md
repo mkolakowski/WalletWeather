@@ -65,7 +65,24 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.16.1** · Web version: **1.19.0** · Schema version: **11**
+App version: **1.16.1** · Web version: **1.20.0** · Schema version: **11**
+
+## [1.20.0] — 2026-09-08
+
+App version: **1.16.1** · Web version: **1.20.0** · Schema version: **11**
+
+### Changed
+
+- **Forecast table redesign.** Description is now the first column
+  (was 3rd, after Forecast/Actual date). The Category pill uses the
+  category's real color instead of a plain gray pill. Added vertical
+  separators between columns. Applied across the read-only row, the
+  single-row editor, and the spreadsheet-mode grid row alike.
+- **Forecast tab's URL hash is now `#forecast`** instead of `#accounts`
+  — the internal page name (`accounts`, predating the nav rename) is
+  untouched, but the URL now matches what the tab is actually called.
+  The old `#accounts` hash (live for one release) still resolves
+  correctly so no existing link/bookmark breaks.
 
 ## [1.19.0] — 2026-09-07
 
@@ -634,7 +651,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.19.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.20.0...HEAD
+[1.20.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.20.0
 [1.19.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.19.0
 [1.14.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.14.0
 [1.13.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.13.1

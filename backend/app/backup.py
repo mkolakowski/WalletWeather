@@ -8,7 +8,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from sqlalchemy.orm import Session
 
-from .db import User, Account, RecurringTransaction, Transaction, Category, AccountPermission
+from .db import User, Account, RecurringTransaction, RecurringSkip, Transaction, Category, AccountPermission
 
 BACKUP_VERSION = 3
 
@@ -43,6 +43,12 @@ def export_user(db: Session, user: User, accounts: list | None = None) -> dict:
                     "active": r.active,
                     "category_name": r.category.name if r.category else None,
                     "notes": r.notes,
+                    # Occurrences deleted from the forecast. Older backups
+                    # lack this key; restore treats that as "none".
+                    "skipped_dates": sorted(
+                        d.isoformat() for (d,) in
+                        db.query(RecurringSkip.skip_date).filter_by(recurring_id=r.id)
+                    ),
                 }
                 for r in acc.recurring
             ],
@@ -165,6 +171,8 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
             rec.amount = Decimal(str(r_data.get("amount", 0)))
             db.add(rec)
             db.flush()
+            for sd in {_parse_date(x) for x in r_data.get("skipped_dates") or []} - {None}:
+                db.add(RecurringSkip(recurring_id=rec.id, skip_date=sd))
             rec_by_desc[rec.description] = rec
             counts["recurring"] += 1
 

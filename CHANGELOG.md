@@ -65,9 +65,20 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.18.1** · Web version: **1.23.0** · Schema version: **11**
+App version: **1.19.0** · Web version: **1.24.0** · Schema version: **12**
 
 ### Added
+
+- **Delete recurring occurrences from the forecast.** Every forecast row
+  now has a 🗑 button next to ✎ (it used to be reachable only inside the
+  row editor, and only for saved transactions). On a projected recurring
+  row it removes just that date — the recurring transaction keeps all
+  its other dates — via new `POST /api/recurring/{id}/skip`. Deleted
+  dates can be brought back with the "N deleted dates · Restore" link in
+  the recurring transaction's edit row (new
+  `DELETE /api/recurring/{id}/skips`). `GET /api/accounts/{id}/recurring`
+  rows gain `skipped_count`, and backups export/restore each template's
+  `skipped_dates`.
 
 - **Set the start date on every monthly recurring transaction at once.**
   The Recurring Transactions panel (Active view, editable accounts) has
@@ -97,8 +108,19 @@ App version: **1.18.1** · Web version: **1.23.0** · Schema version: **11**
   column, so no migration is needed. Monthly rows with a start date
   display as "Monthly · day N · from YYYY-MM-DD".
 
+### Changed
+
+- **Weekly and biweekly recurring transactions now start on their
+  anchor date** (labeled "Start date" in the UI). Previously the
+  schedule also ran backwards from the anchor, so a biweekly deposit
+  showed up on dates before the start date you gave it. The anchor still
+  sets the every-1/2-week cadence.
+
 ### Fixed
 
+- Deleting a saved transaction that belonged to a recurring transaction
+  no longer has the recurring projection reappear on that same date; the
+  date is recorded as skipped (restorable from the edit row).
 - The monthly start date was hard to find in the Recurring Transactions
   edit row: it was an unlabeled date box under the day-of-month input.
   The edit row now labels "Day of month", "Start date (optional)" and
@@ -111,6 +133,12 @@ App version: **1.18.1** · Web version: **1.23.0** · Schema version: **11**
 - Editing a weekly/biweekly recurring transaction and clearing its
   anchor date now shows the same "needs an anchor date" message as the
   add form instead of failing the save.
+
+### Database
+
+- Schema v12: new `recurring_skips` table (`recurring_id`, `skip_date`,
+  unique together, cascades with its template). Created automatically on
+  startup by `init_db()`; no manual migration needed.
 
 ## [1.20.0] — 2026-09-08
 

@@ -1031,7 +1031,7 @@
             </div>
             <div style="flex:0 0 auto">
               <label style="font-size:12px;color:var(--muted)"
-                     title="Start date for monthly rows; cadence anchor for weekly/biweekly rows">Start / anchor date</label>
+                     title="No occurrences are projected before this date">Start date</label>
               <input id="recBulkAnchor" type="date">
               <label style="font-size:12px;display:inline-flex;align-items:center;gap:4px;margin:2px 0 0"
                      title="Clears the start date on monthly rows (weekly/biweekly keep their anchor)">
@@ -1803,7 +1803,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.23.0";
+const WEB_VERSION = "1.24.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1813,6 +1813,17 @@ const WEB_VERSION = "1.23.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.24.0 (2026-10-08, claude+mkolakowski): Delete recurring occurrences.
+//     Forecast rows (read-only, single-row editor, spreadsheet grid) get a
+//     🗑 via new _forecastDeleteBtn(): saved transactions delete as before
+//     (deleteForecastRow, now warning when it belonged to a recurring
+//     transaction); projected recurring rows call new
+//     skipForecastOccurrence() -> POST /api/recurring/{id}/skip. The
+//     recurring edit row shows "N deleted dates · Restore" (new
+//     restoreRecurringSkips()). Weekly/biweekly "Anchor date" is now
+//     labeled "Start date" everywhere (add form, edit row, bulk bar) since
+//     nothing is projected before it any more.
 //
 // 1.23.0 (2026-10-08, claude+mkolakowski): Monthly start date is now
 //     discoverable and settable for all monthly rows at once. (1) New
@@ -4269,7 +4280,7 @@ async function runRecBulkUpdate() {
   if (document.getElementById('recBulkAnchorClear').checked) {
     body.anchor_date = null; changes.push('clear start date (monthly rows)');
   } else if (anchorVal) {
-    body.anchor_date = anchorVal; changes.push(`start/anchor date → ${anchorVal}`);
+    body.anchor_date = anchorVal; changes.push(`start date → ${anchorVal}`);
   }
   const endVal = document.getElementById('recBulkEnd').value;
   if (document.getElementById('recBulkEndClear').checked) {
@@ -4338,13 +4349,17 @@ function renderEditRow(r) {
   const freqOptions = Object.entries({monthly_day:'Monthly', biweekly:'Biweekly', weekly:'Weekly'})
     .map(([f, label]) => `<option value="${f}"${f===r.frequency?' selected':''}>${label}</option>`).join('');
   // Monthly: day-of-month plus an optional start (anchor) date. Weekly/
-  // biweekly: the anchor date alone sets the cadence.
+  // biweekly: the required start (anchor) date sets the cadence.
   const cap = t => `<span style="display:block;font-size:11px;color:var(--muted);margin:2px 0 1px">${t}</span>`;
   const anchorInput = `<input id="editAnchor_${r.id}" type="date" value="${r.anchor_date||''}" style="width:100%"`;
   const whenField = r.frequency === 'monthly_day'
     ? `${cap('Day of month')}<input id="editDay_${r.id}" type="number" min="1" max="31" value="${r.day_of_month||1}" style="width:100%">
        ${cap('Start date (optional)')}${anchorInput} title="No occurrences are projected before this date">`
-    : `${cap('Anchor date')}${anchorInput}>`;
+    : `${cap('Start date')}${anchorInput} title="First occurrence; repeats every week/two weeks from here">`;
+  const skipNote = r.skipped_count
+    ? `<div style="margin-top:4px;font-size:11px;color:var(--muted)">${r.skipped_count} deleted date${r.skipped_count===1?'':'s'} ·
+         <a href="#" onclick="restoreRecurringSkips(${r.id});return false">Restore</a></div>`
+    : '';
   return `
     <td><input id="editDesc_${r.id}" value="${escapeAttr(r.description)}" style="width:100%"></td>
     <td><select id="editCat_${r.id}" style="width:100%">${catOptions}</select></td>
@@ -4352,7 +4367,7 @@ function renderEditRow(r) {
     <td class="num" style="color:var(--muted)" title="Recalculates after you save">${r.monthly_cost!=null?fmt(r.monthly_cost):'—'}</td>
     <td class="num" style="color:var(--muted)" title="Recalculates after you save">${r.yearly_cost!=null?fmt(r.yearly_cost):'—'}</td>
     <td><select id="editFreq_${r.id}" onchange="reloadEditRow(${r.id})" style="width:100%">${freqOptions}</select>
-      <div style="margin-top:4px">${whenField}</div></td>
+      <div style="margin-top:4px">${whenField}</div>${skipNote}</td>
     <td><input id="editEnd_${r.id}" type="date" value="${r.end_date||''}" style="width:100%"></td>
     <td><input id="editNotes_${r.id}" maxlength="256" value="${escapeAttr(r.notes||'')}" style="width:100%"></td>
     <td style="white-space:nowrap">
@@ -4409,7 +4424,7 @@ async function saveRecurring(id) {
     return;
   }
   if (freq !== 'monthly_day' && !body.anchor_date) {
-    alert('Weekly and biweekly recurring transactions need an anchor date.');
+    alert('Weekly and biweekly recurring transactions need a start date.');
     return;
   }
   await api('/api/recurring/'+id, {method:'PATCH', body: JSON.stringify(body)});
@@ -4437,10 +4452,10 @@ function toggleAddWhenFields() {
   // The date input is shown for every cadence: an optional start date for
   // monthly, the required cadence anchor for weekly/biweekly.
   const anchorLabel = document.getElementById('addAnchorLabel');
-  anchorLabel.textContent = f==='monthly_day' ? 'Start date (optional)' : 'Anchor date';
+  anchorLabel.textContent = f==='monthly_day' ? 'Start date (optional)' : 'Start date';
   anchorLabel.title = f==='monthly_day'
     ? 'Optional. No occurrences are projected before this date.'
-    : 'Occurrences repeat every week/two weeks from this date.';
+    : 'First occurrence. Repeats every week/two weeks from this date; nothing is projected before it.';
 }
 
 function toggleAddForm(show) {
@@ -4499,7 +4514,7 @@ async function submitAddForm() {
       notes: notesVal || null,
     };
     if (f !== 'monthly_day' && !body.anchor_date) {
-      alert('Weekly and biweekly recurring transactions need an anchor date.');
+      alert('Weekly and biweekly recurring transactions need a start date.');
       return;
     }
     try {
@@ -4755,7 +4770,8 @@ function renderForecast() {
     const actAmtCell  = `<td class="num${defaultedCls}">${actAmtVal != null ? fmt(actAmtVal) : '—'}</td>`;
     const actionsCell = ro
       ? '<td></td>'
-      : `<td><button class="ghost" title="Edit row" onclick="startEditForecastRow('${rowKey}')">✎</button></td>`;
+      : `<td style="white-space:nowrap"><button class="ghost" title="Edit row" onclick="startEditForecastRow('${rowKey}')">✎</button>
+           ${_forecastDeleteBtn(r, 'ghost')}</td>`;
 
     // Tag chips render inline below the description so adding them didn't
     // require a whole new column (the table is already wide).
@@ -4809,7 +4825,7 @@ function _renderForecastEditRow(r) {
     <td style="white-space:nowrap;vertical-align:bottom">
       <button title="Save" onclick="saveForecastRowEdit('${rowKey}')">✓</button>
       <button class="ghost" title="Cancel" onclick="cancelEditForecastRow()">✕</button>
-      ${r.transaction_id ? `<button class="danger" title="Delete" onclick="deleteForecastRow(${r.transaction_id})">🗑</button>` : ''}
+      ${_forecastDeleteBtn(r, 'danger')}
     </td>`;
 }
 
@@ -4823,8 +4839,24 @@ function cancelEditForecastRow() {
   renderForecast();
 }
 
-async function deleteForecastRow(tid) {
-  if (!confirm('Delete this transaction? This cannot be undone.')) return;
+// Delete button for a forecast row. Real transactions are deleted outright;
+// a projected recurring occurrence (no transaction yet) is skipped for that
+// one date, leaving the template and its other dates alone.
+function _forecastDeleteBtn(r, cls) {
+  if (r.transaction_id) {
+    return `<button class="${cls}" title="Delete" onclick="deleteForecastRow(${r.transaction_id}, ${r.recurring_id ? 'true' : 'false'})">🗑</button>`;
+  }
+  if (r.recurring_id && r.forecast_date) {
+    return `<button class="${cls}" title="Delete this occurrence" onclick="skipForecastOccurrence(${r.recurring_id}, '${r.forecast_date}')">🗑</button>`;
+  }
+  return '';
+}
+
+async function deleteForecastRow(tid, fromRecurring) {
+  const msg = fromRecurring
+    ? "Delete this transaction? This cannot be undone. Its recurring transaction stays, but this date won't be projected again (restore it from the recurring transaction's edit row)."
+    : 'Delete this transaction? This cannot be undone.';
+  if (!confirm(msg)) return;
   try {
     await api('/api/transactions/' + tid, { method: 'DELETE' });
   } catch (e) {
@@ -4833,6 +4865,30 @@ async function deleteForecastRow(tid) {
   }
   editingForecastRowKey = null;
   await loadForecast();
+  if (fromRecurring) await loadRecurring();
+}
+
+async function skipForecastOccurrence(recId, dateStr) {
+  if (!confirm(`Delete this occurrence on ${dateStr}? The recurring transaction keeps its other dates — only this one is removed. You can restore deleted dates from the recurring transaction's edit row.`)) return;
+  try {
+    await api(`/api/recurring/${recId}/skip`, { method: 'POST', body: JSON.stringify({ skip_date: dateStr }) });
+  } catch (e) {
+    alert('Could not delete: ' + e.message);
+    return;
+  }
+  editingForecastRowKey = null;
+  await Promise.all([loadForecast(), loadRecurring()]);
+}
+
+async function restoreRecurringSkips(recId) {
+  if (!confirm('Restore every deleted date for this recurring transaction? They will be projected in the forecast again.')) return;
+  try {
+    await api(`/api/recurring/${recId}/skips`, { method: 'DELETE' });
+  } catch (e) {
+    alert('Could not restore: ' + e.message);
+    return;
+  }
+  await Promise.all([loadForecast(), loadRecurring()]);
 }
 
 async function saveForecastRowEdit(rowKey) {
@@ -4934,8 +4990,7 @@ function _renderForecastGridRow(r, rowIdx) {
   const dBalCls = r.diff_balance == null ? 'diff-zero' : (r.diff_balance > 0 ? 'diff-pos' : (r.diff_balance < 0 ? 'diff-neg' : 'diff-zero'));
   const tagBits = (r.tags && r.tags.length)
     ? `<div class="row-tag-chips">${renderTagChips(r.tags)}</div>` : '';
-  const delBtn = r.transaction_id
-    ? `<button class="ghost" title="Delete" onclick="deleteForecastRow(${r.transaction_id})">🗑</button>` : '';
+  const delBtn = _forecastDeleteBtn(r, 'ghost');
   const input = (field, c, extra) =>
     `<td data-r="${rowIdx}" data-c="${c}"><input class="inline-edit grid-cell${extra&&extra.cls?(' '+extra.cls):''}"
         type="${extra&&extra.type||'text'}"${extra&&extra.step?` step="${extra.step}"`:''}

@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.18.1"
+APP_VERSION = "1.19.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -35,6 +35,18 @@ APP_VERSION = "1.18.1"
 # When you bump APP_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
+#
+# 1.19.0 (2026-10-08, claude+mkolakowski): Deleting recurring
+#     occurrences. New POST /api/recurring/{id}/skip records a
+#     RecurringSkip (schema v12) so build_forecast stops projecting that
+#     date; DELETE /api/recurring/{id}/skips restores them all;
+#     list_recurring rows gain skipped_count. DELETE /api/transactions/{id}
+#     on a recurring-backed row now also records a skip for its
+#     forecast_date so the projection doesn't immediately reappear.
+#     forecast._occurrences: weekly/biweekly no longer project before
+#     anchor_date (it is now the first occurrence, not just the phase).
+#     Backups carry each template's skipped_dates (optional key, so
+#     BACKUP_VERSION stays 3).
 #
 # 1.18.1 (2026-10-08, claude+mkolakowski): GET / serves index.html with
 #     Cache-Control: no-cache so a new deploy's SPA is picked up on the
@@ -242,13 +254,14 @@ from fastapi import FastAPI, Depends, HTTPException, Request, status, Response
 from fastapi.responses import RedirectResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr, Field
 
 from .db import (
     init_db, get_db, User, Account, RecurringTransaction, Transaction, Category,
     AccountPermission, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
-    Tag, TransactionTag, TagRule, SavedReport,
+    Tag, TransactionTag, TagRule, SavedReport, RecurringSkip,
     SessionLocal, SCHEMA_VERSION,
 )
 from .forecast import build_forecast
@@ -1256,6 +1269,12 @@ def list_recurring(account_id: int, archived: bool = False,
                    user: User = Depends(current_user), db: Session = Depends(get_db)):
     acc = _account_with_perm(db, user, account_id, "read")
     today = date.today()
+    skip_counts = dict(
+        db.query(RecurringSkip.recurring_id, func.count(RecurringSkip.id))
+        .filter(RecurringSkip.recurring_id.in_([r.id for r in acc.recurring] or [0]))
+        .group_by(RecurringSkip.recurring_id)
+        .all()
+    )
     out = []
     for r in acc.recurring:
         is_expired = r.end_date is not None and r.end_date < today
@@ -1282,6 +1301,7 @@ def list_recurring(account_id: int, archived: bool = False,
             "expired": is_expired,
             "monthly_cost": round(monthly_cost, 2) if monthly_cost is not None else None,
             "yearly_cost": round(monthly_cost * 12, 2) if monthly_cost is not None else None,
+            "skipped_count": skip_counts.get(r.id, 0),
         })
     return out
 
@@ -1341,6 +1361,50 @@ def delete_recurring(rec_id: int, user: User = Depends(current_user), db: Sessio
     db.delete(rec)
     db.commit()
     return {"ok": True}
+
+
+# ---------- Recurring: skipped (deleted) occurrences ----------
+class RecurringSkipIn(BaseModel):
+    skip_date: date
+
+
+def _add_skip(db: Session, recurring_id: int, skip_date: date) -> None:
+    """Record that one occurrence was deleted. Idempotent."""
+    exists = (db.query(RecurringSkip.id)
+                .filter_by(recurring_id=recurring_id, skip_date=skip_date)
+                .first())
+    if not exists:
+        db.add(RecurringSkip(recurring_id=recurring_id, skip_date=skip_date))
+
+
+@app.post("/api/recurring/{rec_id}/skip")
+def skip_recurring_occurrence(rec_id: int, payload: RecurringSkipIn,
+                              user: User = Depends(current_user),
+                              db: Session = Depends(get_db)):
+    """Delete a single projected occurrence without touching the template."""
+    rec = db.get(RecurringTransaction, rec_id)
+    if not rec:
+        raise HTTPException(404)
+    _account_with_perm(db, user, rec.account_id, "edit")
+    _add_skip(db, rec.id, payload.skip_date)
+    db.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/recurring/{rec_id}/skips")
+def restore_recurring_occurrences(rec_id: int,
+                                  user: User = Depends(current_user),
+                                  db: Session = Depends(get_db)):
+    """Bring back every occurrence previously deleted from this template."""
+    rec = db.get(RecurringTransaction, rec_id)
+    if not rec:
+        raise HTTPException(404)
+    _account_with_perm(db, user, rec.account_id, "edit")
+    restored = (db.query(RecurringSkip)
+                  .filter(RecurringSkip.recurring_id == rec.id)
+                  .delete(synchronize_session=False))
+    db.commit()
+    return {"restored": restored}
 
 
 # ---------- Recurring: bulk operations ----------
@@ -1523,6 +1587,11 @@ def delete_transaction(tid: int, user: User = Depends(current_user), db: Session
     if not t:
         raise HTTPException(404)
     _account_with_perm(db, user, t.account_id, "edit")
+    # A transaction backing a recurring occurrence would otherwise be
+    # replaced by the template's projection for that same date on the next
+    # forecast, so the delete would look like it didn't happen. Skip it.
+    if t.recurring_id and t.forecast_date:
+        _add_skip(db, t.recurring_id, t.forecast_date)
     db.delete(t)
     db.commit()
     return {"ok": True}

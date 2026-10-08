@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.17.0"
+APP_VERSION = "1.18.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -35,6 +35,16 @@ APP_VERSION = "1.17.0"
 # When you bump APP_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
+#
+# 1.18.0 (2026-10-08, claude+mkolakowski): Bulk recurring edits. New
+#     POST /api/recurring/bulk-update applies only the keys present in
+#     the body (category_id, amount_abs, day_of_month, anchor_date,
+#     end_date; explicit null clears category/end date, and the start
+#     date on monthly templates only) across up to 1000 templates.
+#     amount_abs keeps each template's sign; day_of_month only touches
+#     monthly templates. New POST /api/recurring/bulk-delete. Both skip
+#     (and count) rows that are missing or on accounts the user can't
+#     edit, same as /api/transactions/bulk-tag (see WEB_VERSION 1.22.0).
 #
 # 1.17.0 (2026-10-08, claude+mkolakowski): Monthly recurring templates
 #     now honor anchor_date as an optional start date — forecast.
@@ -1327,6 +1337,101 @@ def delete_recurring(rec_id: int, user: User = Depends(current_user), db: Sessio
     db.delete(rec)
     db.commit()
     return {"ok": True}
+
+
+# ---------- Recurring: bulk operations ----------
+class RecurringBulkUpdateIn(BaseModel):
+    """Change the same fields across many recurring templates at once.
+
+    Only keys actually present in the request body are applied (checked
+    via `model_fields_set`), so an omitted key means "leave unchanged"
+    while an explicit null clears the field where that makes sense:
+
+    `category_id`  — set, or null to clear.
+    `amount_abs`   — new magnitude; each template keeps its own sign so
+                     expenses stay expenses and income stays income.
+    `day_of_month` — monthly templates only; other cadences are untouched.
+    `anchor_date`  — start date for monthly, cadence anchor for weekly/
+                     biweekly. Null clears it on monthly templates only
+                     (weekly/biweekly can't run without one).
+    `end_date`     — set, or null to clear (runs forever).
+    """
+    recurring_ids: list[int] = Field(..., min_length=1, max_length=1000)
+    category_id:  int | None = None
+    amount_abs:   float | None = Field(default=None, ge=0)
+    day_of_month: int | None = Field(default=None, ge=1, le=31)
+    anchor_date:  date | None = None
+    end_date:     date | None = None
+
+
+class RecurringBulkDeleteIn(BaseModel):
+    recurring_ids: list[int] = Field(..., min_length=1, max_length=1000)
+
+
+def _editable_recurring(db: Session, user: User, ids: list[int]):
+    """Yield templates the user may edit; count the rest as skipped.
+
+    Mirrors bulk-tag: rows that are missing or on an account the user can
+    only read are skipped rather than failing the whole batch.
+    """
+    found, skipped = [], 0
+    for rid in ids:
+        rec = db.get(RecurringTransaction, rid)
+        if not rec:
+            skipped += 1
+            continue
+        try:
+            _account_with_perm(db, user, rec.account_id, "edit")
+        except HTTPException:
+            skipped += 1
+            continue
+        found.append(rec)
+    return found, skipped
+
+
+@app.post("/api/recurring/bulk-update")
+def bulk_update_recurring(payload: RecurringBulkUpdateIn,
+                          user: User = Depends(current_user),
+                          db: Session = Depends(get_db)):
+    fields = payload.model_fields_set - {"recurring_ids"}
+    # amount_abs/day_of_month have no meaningful "clear", so an explicit
+    # null for them is the same as leaving them out.
+    if payload.amount_abs is None:
+        fields.discard("amount_abs")
+    if payload.day_of_month is None:
+        fields.discard("day_of_month")
+    if not fields:
+        raise HTTPException(400, "No fields to update")
+    # Validate category ownership once so a bad id fails the batch atomically.
+    if "category_id" in fields and payload.category_id is not None:
+        _own_category(db, user, payload.category_id)
+    recs, skipped = _editable_recurring(db, user, payload.recurring_ids)
+    for rec in recs:
+        if "category_id" in fields:
+            rec.category_id = payload.category_id
+        if "amount_abs" in fields:
+            mag = Decimal(str(payload.amount_abs))
+            rec.amount = -mag if rec.amount < 0 else mag
+        if "day_of_month" in fields and rec.frequency == "monthly_day":
+            rec.day_of_month = payload.day_of_month
+        if "anchor_date" in fields:
+            if payload.anchor_date is not None or rec.frequency == "monthly_day":
+                rec.anchor_date = payload.anchor_date
+        if "end_date" in fields:
+            rec.end_date = payload.end_date
+    db.commit()
+    return {"updated": len(recs), "skipped": skipped}
+
+
+@app.post("/api/recurring/bulk-delete")
+def bulk_delete_recurring(payload: RecurringBulkDeleteIn,
+                          user: User = Depends(current_user),
+                          db: Session = Depends(get_db)):
+    recs, skipped = _editable_recurring(db, user, payload.recurring_ids)
+    for rec in recs:
+        db.delete(rec)
+    db.commit()
+    return {"deleted": len(recs), "skipped": skipped}
 
 
 # ---------- Transactions ----------

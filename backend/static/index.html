@@ -989,8 +989,58 @@
           </span>
         </h2>
         <div class="summary" id="recSummary" style="margin:10px 0"></div>
+        <!-- Bulk edit bar — appears once at least one row is checked.
+             Blank fields are left unchanged; Apply sends only the filled
+             ones to POST /api/recurring/bulk-update. -->
+        <div id="recBulkBar" class="hidden" style="margin-bottom:10px">
+          <div class="row" style="gap:10px;align-items:end;flex-wrap:wrap;
+                                   padding:8px 10px;border:1px solid var(--accent);
+                                   border-radius:6px;background:var(--chip-bg)">
+            <div style="flex:0 0 auto;font-size:13px">
+              <strong id="recBulkCount">0 selected</strong>
+            </div>
+            <div style="flex:0 0 auto">
+              <label style="font-size:12px;color:var(--muted)">Category</label>
+              <select id="recBulkCat"></select>
+            </div>
+            <div style="flex:0 0 110px">
+              <label style="font-size:12px;color:var(--muted)"
+                     title="Each row keeps its own sign — expenses stay expenses, income stays income">Amount</label>
+              <input id="recBulkAmt" type="number" step="0.01" min="0" placeholder="no change">
+            </div>
+            <div style="flex:0 0 110px">
+              <label style="font-size:12px;color:var(--muted)" title="Applies to monthly rows only">Day of month</label>
+              <input id="recBulkDay" type="number" min="1" max="31" placeholder="no change">
+            </div>
+            <div style="flex:0 0 auto">
+              <label style="font-size:12px;color:var(--muted)"
+                     title="Start date for monthly rows; cadence anchor for weekly/biweekly rows">Start / anchor date</label>
+              <input id="recBulkAnchor" type="date">
+              <label style="font-size:12px;display:inline-flex;align-items:center;gap:4px;margin:2px 0 0"
+                     title="Clears the start date on monthly rows (weekly/biweekly keep their anchor)">
+                <input id="recBulkAnchorClear" type="checkbox" style="width:auto;margin:0"> clear (monthly)</label>
+            </div>
+            <div style="flex:0 0 auto">
+              <label style="font-size:12px;color:var(--muted)">End date</label>
+              <input id="recBulkEnd" type="date">
+              <label style="font-size:12px;display:inline-flex;align-items:center;gap:4px;margin:2px 0 0">
+                <input id="recBulkEndClear" type="checkbox" style="width:auto;margin:0"> clear</label>
+            </div>
+            <div style="flex:0 0 auto">
+              <button onclick="runRecBulkUpdate()">Apply</button>
+              <button class="danger" onclick="runRecBulkDelete()">Delete selected</button>
+              <button class="ghost" onclick="clearRecSelection()">Clear</button>
+            </div>
+            <div id="recBulkStatus" style="flex:1 1 100%;font-size:12px;color:var(--muted)"></div>
+          </div>
+        </div>
         <div style="overflow-x:auto">
         <table id="recurringTable"><thead><tr>
+          <th style="width:28px" id="recSelectAllTh">
+            <input type="checkbox" id="recSelectAll"
+                   onclick="toggleAllRecSelection(this.checked)"
+                   title="Select all on this page">
+          </th>
           <th class="sortable" data-key="description">Description</th>
           <th class="sortable" data-key="category_name">Category</th>
           <th class="sortable num" data-key="amount">Amount</th>
@@ -1736,7 +1786,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.21.0";
+const WEB_VERSION = "1.22.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1746,6 +1796,21 @@ const WEB_VERSION = "1.21.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.22.0 (2026-10-08, claude+mkolakowski): Bulk editing for recurring
+//     transactions. The Recurring Transactions table gains a checkbox
+//     column (hidden on read-only accounts) and a header "select all on
+//     this page" with tri-state. Checking any row shows a bulk bar
+//     (#recBulkBar) to set category (or clear it), amount (magnitude —
+//     each row keeps its sign), day of month (monthly rows only), start/
+//     anchor date (or clear it on monthly rows), and end date (or clear
+//     it) across every selected row via POST /api/recurring/bulk-update;
+//     blank fields are left unchanged and a confirm dialog lists exactly
+//     what will change. "Delete selected" calls POST
+//     /api/recurring/bulk-delete. Selection (_recSelected) survives
+//     pagination/sorting and is pruned on reload to rows still in view.
+//     Table is 10 columns now (was 9); new recCheckboxCell() keeps the
+//     single-row edit row aligned too.
 //
 // 1.21.0 (2026-10-08, claude+mkolakowski): Monthly recurring
 //     transactions get an optional anchor (start) date. The add form's
@@ -3896,6 +3961,10 @@ async function loadRecurring() {
   const archived = recView === 'archived';
   recurringData = await api(`/api/accounts/${currentAccountId}/recurring?archived=${archived}`);
   recurringPage = 0;
+  // Drop selections that aren't in this list anymore (deleted, or the
+  // account / Active-Archived view changed underneath them).
+  const present = new Set(recurringData.map(r => r.id));
+  for (const id of [..._recSelected]) if (!present.has(id)) _recSelected.delete(id);
   renderRecurring();
 }
 
@@ -3927,10 +3996,12 @@ function renderRecurring() {
   tbody.innerHTML = '';
   renderRecSummary(unsorted, archived);
   if (!unsorted.length) {
-    tbody.innerHTML = `<tr><td colspan="9" style="color:var(--muted);text-align:center;padding:16px">
+    tbody.innerHTML = `<tr><td colspan="10" style="color:var(--muted);text-align:center;padding:16px">
       ${archived ? 'No expired recurring transactions.' : 'No active recurring transactions yet.'}
     </td></tr>`;
     document.getElementById('recurringPagination').classList.add('hidden');
+    _recPageIds = [];
+    refreshRecBulkBar();
     return;
   }
 
@@ -3975,6 +4046,9 @@ function renderRecurring() {
   const startIdx = recurringPage * recurringPageSize;
   const endIdx = Math.min(startIdx + recurringPageSize, total);
   const pageRows = list.slice(startIdx, endIdx);
+  const ro = isCurrentAccountReadOnly();
+  _recPageIds = ro ? [] : pageRows.map(r => r.id);
+  document.getElementById('recSelectAll').classList.toggle('hidden', ro);
 
   // Update pagination UI (hide entirely if everything fits on the smallest page)
   const paginationBar = document.getElementById('recurringPagination');
@@ -3992,8 +4066,9 @@ function renderRecurring() {
 
   pageRows.forEach(r => {
     const tr = document.createElement('tr');
+    const cbCell = recCheckboxCell(r, ro);
     if (editingRecId === r.id) {
-      tr.innerHTML = renderEditRow(r);
+      tr.innerHTML = cbCell + renderEditRow(r);
     } else {
       const ends = r.end_date || '—';
       const cat = r.category_name
@@ -4006,7 +4081,7 @@ function renderRecurring() {
         <td style="white-space:nowrap">
           <button class="ghost" onclick="startEditRecurring(${r.id})" title="Edit">✎</button>
         </td>`;
-      tr.innerHTML = `<td>${escapeHtml(r.description)}</td>
+      tr.innerHTML = `${cbCell}<td>${escapeHtml(r.description)}</td>
         <td>${cat}</td>
         <td class="${r.amount>=0?'pos':'neg'}">${fmt(r.amount)}</td>
         <td class="num">${r.monthly_cost!=null?fmt(r.monthly_cost):'—'}</td>
@@ -4017,6 +4092,159 @@ function renderRecurring() {
     }
     tbody.appendChild(tr);
   });
+  refreshRecBulkBar();
+}
+
+// ---------- Recurring: bulk edit selection ----------
+// Same shape as the transaction-search bulk-tag selection: a module-scope
+// Set survives re-renders and pagination; the bar shows while it's non-empty.
+const _recSelected = new Set();
+let _recPageIds = [];              // ids of the rows rendered on this page
+
+function recCheckboxCell(r, ro) {
+  if (ro) return '<td></td>';
+  return `<td><input type="checkbox" class="rec-row-cb" ${_recSelected.has(r.id) ? 'checked' : ''}
+    onchange="onRecRowCheck(${r.id}, this.checked)" style="width:auto;margin:0"></td>`;
+}
+
+function onRecRowCheck(id, checked) {
+  if (checked) _recSelected.add(id);
+  else         _recSelected.delete(id);
+  refreshRecBulkBar();
+}
+
+function toggleAllRecSelection(checked) {
+  for (const id of _recPageIds) {
+    if (checked) _recSelected.add(id);
+    else         _recSelected.delete(id);
+  }
+  document.querySelectorAll('#recurringTable tbody .rec-row-cb').forEach(cb => { cb.checked = checked; });
+  refreshRecBulkBar();
+}
+
+function clearRecSelection() {
+  _recSelected.clear();
+  document.querySelectorAll('#recurringTable tbody .rec-row-cb').forEach(cb => { cb.checked = false; });
+  refreshRecBulkBar();
+}
+
+function resetRecBulkFields() {
+  ['recBulkAmt','recBulkDay','recBulkAnchor','recBulkEnd'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('recBulkAnchorClear').checked = false;
+  document.getElementById('recBulkEndClear').checked = false;
+  document.getElementById('recBulkCat').value = '';
+}
+
+function refreshRecBulkBar() {
+  const bar = document.getElementById('recBulkBar');
+  const allCb = document.getElementById('recSelectAll');
+  if (!bar) return;
+  const n = _recSelected.size;
+  if (allCb) {
+    const allChecked = _recPageIds.length > 0 && _recPageIds.every(id => _recSelected.has(id));
+    allCb.checked = allChecked;
+    allCb.indeterminate = !allChecked && _recPageIds.some(id => _recSelected.has(id));
+  }
+  if (n === 0 || isCurrentAccountReadOnly()) {
+    bar.classList.add('hidden');
+    document.getElementById('recBulkStatus').textContent = '';
+    return;
+  }
+  bar.classList.remove('hidden');
+  document.getElementById('recBulkCount').textContent = `${n} selected`;
+  // Rebuild the category list whenever the global categories change,
+  // keeping the user's current pick.
+  const catSel = document.getElementById('recBulkCat');
+  const want = categories.map(c => `${c.id}:${c.name}`).join(',');
+  if (catSel.dataset.populated !== want) {
+    const keep = catSel.value;
+    catSel.innerHTML = '<option value="">(no change)</option><option value="none">— none —</option>'
+      + categories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    catSel.value = keep;
+    catSel.dataset.populated = want;
+  }
+}
+
+async function runRecBulkUpdate() {
+  const status = document.getElementById('recBulkStatus');
+  if (_recSelected.size === 0) { status.textContent = 'No rows selected.'; return; }
+  const body = { recurring_ids: [..._recSelected] };
+  const changes = [];
+  const catVal = document.getElementById('recBulkCat').value;
+  if (catVal === 'none') { body.category_id = null; changes.push('clear category'); }
+  else if (catVal) {
+    body.category_id = parseInt(catVal, 10);
+    const c = categories.find(x => x.id === body.category_id);
+    changes.push(`category → ${c ? c.name : catVal}`);
+  }
+  const amtRaw = document.getElementById('recBulkAmt').value;
+  if (amtRaw !== '') {
+    const amt = Math.abs(parseFloat(amtRaw));
+    if (isNaN(amt)) { status.textContent = 'Amount must be a number.'; return; }
+    body.amount_abs = amt;
+    changes.push(`amount → ${fmt(amt)} (sign kept)`);
+  }
+  const dayRaw = document.getElementById('recBulkDay').value;
+  if (dayRaw !== '') {
+    const day = parseInt(dayRaw, 10);
+    if (!(day >= 1 && day <= 31)) { status.textContent = 'Day of month must be 1–31.'; return; }
+    body.day_of_month = day;
+    changes.push(`day of month → ${day} (monthly rows)`);
+  }
+  const anchorVal = document.getElementById('recBulkAnchor').value;
+  if (document.getElementById('recBulkAnchorClear').checked) {
+    body.anchor_date = null; changes.push('clear start date (monthly rows)');
+  } else if (anchorVal) {
+    body.anchor_date = anchorVal; changes.push(`start/anchor date → ${anchorVal}`);
+  }
+  const endVal = document.getElementById('recBulkEnd').value;
+  if (document.getElementById('recBulkEndClear').checked) {
+    body.end_date = null; changes.push('clear end date');
+  } else if (endVal) {
+    body.end_date = endVal; changes.push(`end date → ${endVal}`);
+  }
+  if (!changes.length) { status.textContent = 'Fill in at least one field to change.'; return; }
+  const n = _recSelected.size;
+  if (!confirm(`Update ${n} recurring transaction${n===1?'':'s'}?\n\n• ${changes.join('\n• ')}`)) return;
+  status.textContent = 'Applying…';
+  let resp;
+  try {
+    resp = await api('/api/recurring/bulk-update', {method:'POST', body: JSON.stringify(body)});
+  } catch (e) {
+    status.textContent = 'Failed: ' + e.message;
+    return;
+  }
+  resetRecBulkFields();
+  editingRecId = null;
+  // Rows whose new end date is in the past move to Archived, so the
+  // selection is pruned by loadRecurring rather than cleared here.
+  await loadRecurring();
+  await loadForecast();
+  status.textContent = `Updated ${resp.updated}` + (resp.skipped ? ` (${resp.skipped} skipped)` : '');
+}
+
+async function runRecBulkDelete() {
+  const status = document.getElementById('recBulkStatus');
+  const n = _recSelected.size;
+  if (n === 0) { status.textContent = 'No rows selected.'; return; }
+  if (!confirm(`Delete ${n} recurring transaction template${n===1?'':'s'}? Past actuals already logged against them will remain, but no new occurrences will be projected.`)) return;
+  status.textContent = 'Deleting…';
+  let resp;
+  try {
+    resp = await api('/api/recurring/bulk-delete', {
+      method:'POST', body: JSON.stringify({ recurring_ids: [..._recSelected] }),
+    });
+  } catch (e) {
+    status.textContent = 'Failed: ' + e.message;
+    return;
+  }
+  _recSelected.clear();
+  editingRecId = null;
+  await loadRecurring();
+  await loadForecast();
+  status.textContent = `Deleted ${resp.deleted}` + (resp.skipped ? ` (${resp.skipped} skipped)` : '');
 }
 
 function onRecurringPageSizeChange() {
@@ -4086,7 +4314,7 @@ async function reloadEditRow(id) {
   r.notes = document.getElementById(`editNotes_${id}`).value;
   r.anchor_date = document.getElementById(`editAnchor_${id}`).value || null;
   const row = document.querySelector(`#recurringTable tbody`).querySelector(`button[onclick="saveRecurring(${id})"]`).closest('tr');
-  row.innerHTML = renderEditRow(r);
+  row.innerHTML = recCheckboxCell(r, isCurrentAccountReadOnly()) + renderEditRow(r);
 }
 
 async function saveRecurring(id) {

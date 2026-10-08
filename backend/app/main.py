@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.19.0"
+APP_VERSION = "1.19.1"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -35,6 +35,14 @@ APP_VERSION = "1.19.0"
 # When you bump APP_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
+#
+# 1.19.1 (2026-10-08, claude+mkolakowski): Report income/spending totals
+#     (GET /api/report and POST /api/report/run, incl. saved reports) are
+#     now summed per row by sign instead of from the bucket nets. Income
+#     that shared a bucket with spending (e.g. uncategorized paychecks and
+#     bills) used to be cancelled out, so forecast income came back
+#     understated or $0 and "spending" became the net. Each transaction
+#     now counts once in the totals, including on the tag axis.
 #
 # 1.19.0 (2026-10-08, claude+mkolakowski): Deleting recurring
 #     occurrences. New POST /api/recurring/{id}/skip records a
@@ -3473,6 +3481,18 @@ def _compute_report(db: Session, user: User, params: dict) -> dict:
 
     UNCAT_KEY = "__uncategorized__"
 
+    # Top-line totals are accumulated per row by sign, NOT derived from the
+    # buckets: a bucket nets income against spending (e.g. paychecks and
+    # bills that are both uncategorized), so summing "positive buckets"
+    # understates income and can report none at all.
+    tot = {"f_income": 0.0, "a_income": 0.0, "f_spend": 0.0, "a_spend": 0.0}
+
+    def _add_totals(f, a):
+        if f is not None:
+            tot["f_income" if f > 0 else "f_spend"] += f
+        if a is not None:
+            tot["a_income" if a > 0 else "a_spend"] += a
+
     for acc in visible:
         data = build_forecast(db, acc, start, end)
         for r in data["rows"]:
@@ -3497,6 +3517,10 @@ def _compute_report(db: Session, user: User, params: dict) -> dict:
             row_tag_ids = {t["id"] for t in row_tags}
             if tag_id_filter and not (row_tag_ids & tag_id_filter):
                 continue
+            # Untagged rows are absent from a tag axis (and its totals).
+            if group_by == "tag" and not row_tags:
+                continue
+            _add_totals(f, a)
 
             # Now bucket according to group_by.
             if group_by == "category":
@@ -3515,8 +3539,6 @@ def _compute_report(db: Session, user: User, params: dict) -> dict:
                 # A multi-tagged row contributes to every tag bucket it
                 # belongs to (overlay semantics — same as the dedicated
                 # tag breakdown that shipped in 1.11.0).
-                if not row_tags:
-                    continue  # untagged rows are simply absent from a tag axis
                 for tmeta in row_tags:
                     bk = _bucket(tmeta["id"], tmeta["name"], tmeta.get("color"))
                     if f is not None: bk["forecast_total"] += f; bk["forecast_count"] += 1
@@ -3529,14 +3551,10 @@ def _compute_report(db: Session, user: User, params: dict) -> dict:
         g["actual_total"]   = round(g["actual_total"],   2)
     groups_out.sort(key=lambda g: (-abs(g["actual_total"]), g["name"].lower()))
 
-    # Top-line totals (across the filtered, post-sign set).
-    f_income = sum(g["forecast_total"] for g in groups_out if g["forecast_total"] > 0)
-    a_income = sum(g["actual_total"]   for g in groups_out if g["actual_total"]   > 0)
-    f_spend  = sum(g["forecast_total"] for g in groups_out if g["forecast_total"] < 0)
-    a_spend  = sum(g["actual_total"]   for g in groups_out if g["actual_total"]   < 0)
-    # On the tag axis groups can double-count across multi-tagged rows,
-    # so the totals here are "sum of buckets" rather than a true
-    # transaction-level total. The frontend labels this clearly.
+    # Top-line totals (across the filtered rows, each counted once — even on
+    # the tag axis, where a multi-tagged row appears in several groups).
+    f_income, a_income = tot["f_income"], tot["a_income"]
+    f_spend,  a_spend  = tot["f_spend"],  tot["a_spend"]
     return {
         "params": {
             **params,
@@ -3602,6 +3620,9 @@ def report(start: date | None = None, end: date | None = None,
     # absent from the tag breakdown (they still count toward category
     # totals and overall totals, just not "by tag").
     tag_buckets: dict[int, dict] = {}
+    # Per-row income/spending totals (see _compute_report: summing bucket
+    # nets would cancel income against same-category spending).
+    tot = {"f_income": 0.0, "a_income": 0.0, "f_spend": 0.0, "a_spend": 0.0}
 
     def _bucket(name):
         if name not in cat_buckets:
@@ -3639,9 +3660,11 @@ def report(start: date | None = None, end: date | None = None,
             if f is not None:
                 b["forecast_total"] += f
                 b["forecast_count"] += 1
+                tot["f_income" if f > 0 else "f_spend"] += f
             if a is not None:
                 b["actual_total"] += a
                 b["actual_count"] += 1
+                tot["a_income" if a > 0 else "a_spend"] += a
             # A transaction with N tags contributes the full amount to
             # each tag bucket. This is the same semantics as "sum by
             # tag" in every other finance app — tags are an overlay, so
@@ -3675,11 +3698,9 @@ def report(start: date | None = None, end: date | None = None,
             "actual_count": b["actual_count"],
         })
 
-    # Top-line totals (income = positive sums, spending = negative sums)
-    f_income = sum(c["forecast_total"] for c in categories_out if c["forecast_total"] > 0)
-    a_income = sum(c["actual_total"]   for c in categories_out if c["actual_total"]   > 0)
-    f_spend  = sum(c["forecast_total"] for c in categories_out if c["forecast_total"] < 0)
-    a_spend  = sum(c["actual_total"]   for c in categories_out if c["actual_total"]   < 0)
+    # Top-line totals (income = positive rows, spending = negative rows)
+    f_income, a_income = tot["f_income"], tot["a_income"]
+    f_spend,  a_spend  = tot["f_spend"],  tot["a_spend"]
 
     # Tag rollup output — only emit rows that had any activity, and
     # enrich with name/color from the tag table (single query for the

@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.19.0** · Web version: **1.24.0** · Schema version: **12**
+App version: **1.19.1** · Web version: **1.24.1** · Schema version: **12**
 
 ### Added
 
@@ -118,6 +118,19 @@ App version: **1.19.0** · Web version: **1.24.0** · Schema version: **12**
 
 ### Fixed
 
+- **Reports understated (or hid) forecast income.** The Income/Spending
+  totals on the Reports page — and the legacy `GET /api/report` — were
+  computed by adding up whichever category/tag/account buckets had a
+  positive net, so paychecks that shared a bucket with bills (typically
+  "(uncategorized)") were cancelled out: two bi-weekly payrolls could
+  show as a fraction of their real total, or as $0 income with the net
+  reported as "spending". Totals are now summed per transaction by sign,
+  matching the Dashboard, and each transaction counts once even on the
+  tag axis (`_compute_report()` and `report()` in `backend/app/main.py`).
+- **Reports tiles no longer show a misleading $0.00 income.** When a
+  report's Kind filter is Spending (the template the page opens on) or
+  Income, the excluded side's tiles now show "—" with "Excluded by Kind"
+  instead of $0.00.
 - Deleting a saved transaction that belonged to a recurring transaction
   no longer has the recurring projection reappear on that same date; the
   date is recorded as skipped (restorable from the edit row).

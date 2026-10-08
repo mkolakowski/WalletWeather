@@ -1803,7 +1803,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.24.0";
+const WEB_VERSION = "1.24.1";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1813,6 +1813,13 @@ const WEB_VERSION = "1.24.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.24.1 (2026-10-08, claude+mkolakowski): Reports summary tiles no
+//     longer show a misleading $0.00 for the side a Kind filter removes.
+//     With Kind = Spending (the default template the page opens on) the
+//     Income tiles show "—" + "Excluded by Kind: Spending" (and vice versa
+//     for Income) in renderReportResult(). Pairs with the backend totals
+//     fix in APP_VERSION 1.19.1.
 //
 // 1.24.0 (2026-10-08, claude+mkolakowski): Delete recurring occurrences.
 //     Forecast rows (read-only, single-row editor, spreadsheet grid) get a
@@ -3088,11 +3095,21 @@ function renderReportResult(d) {
   const sum = document.getElementById('reportSummary');
   const netCls = (t.actual_net >= 0) ? 'pos' : 'neg';
   const fnetCls = (t.forecast_net >= 0) ? 'pos' : 'neg';
+  // A Kind filter of Spending/Income removes the other side before it is
+  // counted, so its tiles would read $0.00 as if that money didn't exist.
+  // Show "—" and say why instead.
+  const kind = (d.params && d.params.kind) || 'any';
+  const tile = (label, val, cls, hiddenBy) => hiddenBy
+    ? `<div class="stat"><div class="l">${label}</div><div class="v" style="color:var(--muted)">—</div>
+         <div class="d">Excluded by Kind: ${hiddenBy}</div></div>`
+    : `<div class="stat"><div class="l">${label}</div><div class="v ${cls}">${fmt(val)}</div></div>`;
+  const noIncome = kind === 'spending' ? 'Spending' : '';
+  const noSpend  = kind === 'income'   ? 'Income'   : '';
   sum.innerHTML = `
-    <div class="stat"><div class="l">Forecast income</div><div class="v pos">${fmt(t.forecast_income)}</div></div>
-    <div class="stat"><div class="l">Actual income</div><div class="v pos">${fmt(t.actual_income)}</div></div>
-    <div class="stat"><div class="l">Forecast spending</div><div class="v neg">${fmt(t.forecast_spending)}</div></div>
-    <div class="stat"><div class="l">Actual spending</div><div class="v neg">${fmt(t.actual_spending)}</div></div>
+    ${tile('Forecast income',   t.forecast_income,   'pos', noIncome)}
+    ${tile('Actual income',     t.actual_income,     'pos', noIncome)}
+    ${tile('Forecast spending', t.forecast_spending, 'neg', noSpend)}
+    ${tile('Actual spending',   t.actual_spending,   'neg', noSpend)}
     <div class="stat"><div class="l">Forecast net</div><div class="v ${fnetCls}">${fmt(t.forecast_net)}</div></div>
     <div class="stat"><div class="l">Actual net</div><div class="v ${netCls}">${fmt(t.actual_net)}</div></div>`;
 

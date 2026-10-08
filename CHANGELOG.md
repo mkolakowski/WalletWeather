@@ -65,9 +65,16 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.18.0** · Web version: **1.22.0** · Schema version: **11**
+App version: **1.18.1** · Web version: **1.23.0** · Schema version: **11**
 
 ### Added
+
+- **Set the start date on every monthly recurring transaction at once.**
+  The Recurring Transactions panel (Active view, editable accounts) has
+  a new "Start date for all N monthly recurring" control with "Apply to
+  all monthly" and "Clear from all monthly" buttons. It goes through
+  `POST /api/recurring/bulk-update` and leaves weekly/biweekly rows
+  alone.
 
 - **Bulk editing for recurring transactions.** The Recurring
   Transactions table on the Forecast page now has row checkboxes and a
@@ -92,6 +99,15 @@ App version: **1.18.0** · Web version: **1.22.0** · Schema version: **11**
 
 ### Fixed
 
+- The monthly start date was hard to find in the Recurring Transactions
+  edit row: it was an unlabeled date box under the day-of-month input.
+  The edit row now labels "Day of month", "Start date (optional)" and
+  "Anchor date", and the frequency dropdown shows "Monthly / Biweekly /
+  Weekly" instead of the raw `monthly_day` value.
+- `GET /` now serves `index.html` with `Cache-Control: no-cache`, so
+  browsers revalidate (a cheap 304 via the ETag) and pick up a newly
+  deployed version on the next load instead of reusing a stale cached
+  copy.
 - Editing a weekly/biweekly recurring transaction and clearing its
   anchor date now shows the same "needs an anchor date" message as the
   add form instead of failing the save.

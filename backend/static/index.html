@@ -989,6 +989,23 @@
           </span>
         </h2>
         <div class="summary" id="recSummary" style="margin:10px 0"></div>
+        <!-- One-step start date for every monthly template on this account.
+             Shown by renderRecurring() only in the Active view, when the
+             account is editable and has at least one monthly row. -->
+        <div id="recMonthlyAnchorBar" class="hidden" style="margin-bottom:10px">
+          <div class="row" style="gap:10px;align-items:end;flex-wrap:wrap">
+            <div style="flex:0 0 auto">
+              <label id="recMonthlyAnchorLabel"
+                     title="No occurrences are projected before this date">Start date for all monthly recurring</label>
+              <input id="recMonthlyAnchor" type="date">
+            </div>
+            <div style="flex:0 0 auto">
+              <button onclick="applyMonthlyAnchorToAll(false)">Apply to all monthly</button>
+              <button class="ghost" onclick="applyMonthlyAnchorToAll(true)">Clear from all monthly</button>
+            </div>
+            <div id="recMonthlyAnchorStatus" style="flex:1 1 auto;font-size:12px;color:var(--muted)"></div>
+          </div>
+        </div>
         <!-- Bulk edit bar — appears once at least one row is checked.
              Blank fields are left unchanged; Apply sends only the filled
              ones to POST /api/recurring/bulk-update. -->
@@ -1786,7 +1803,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.22.0";
+const WEB_VERSION = "1.23.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1796,6 +1813,17 @@ const WEB_VERSION = "1.22.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.23.0 (2026-10-08, claude+mkolakowski): Monthly start date is now
+//     discoverable and settable for all monthly rows at once. (1) New
+//     #recMonthlyAnchorBar above the Recurring table ("Start date for all
+//     N monthly recurring" + Apply/Clear buttons), rendered by new
+//     renderMonthlyAnchorBar() in the Active view on editable accounts
+//     with any monthly rows; applyMonthlyAnchorToAll() posts every
+//     monthly id to /api/recurring/bulk-update. (2) The edit row labels
+//     its Day of month / Start date (optional) / Anchor date inputs, and
+//     the frequency <select> shows Monthly/Biweekly/Weekly instead of the
+//     raw stored values.
 //
 // 1.22.0 (2026-10-08, claude+mkolakowski): Bulk editing for recurring
 //     transactions. The Recurring Transactions table gains a checkbox
@@ -3995,6 +4023,7 @@ function renderRecurring() {
   const tbody = document.querySelector('#recurringTable tbody');
   tbody.innerHTML = '';
   renderRecSummary(unsorted, archived);
+  renderMonthlyAnchorBar(unsorted, archived);
   if (!unsorted.length) {
     tbody.innerHTML = `<tr><td colspan="10" style="color:var(--muted);text-align:center;padding:16px">
       ${archived ? 'No expired recurring transactions.' : 'No active recurring transactions yet.'}
@@ -4093,6 +4122,49 @@ function renderRecurring() {
     tbody.appendChild(tr);
   });
   refreshRecBulkBar();
+}
+
+// ---------- Recurring: start date for every monthly template ----------
+function _monthlyRecIds() {
+  return recurringData.filter(r => r.frequency === 'monthly_day').map(r => r.id);
+}
+
+function renderMonthlyAnchorBar(list, archived) {
+  const bar = document.getElementById('recMonthlyAnchorBar');
+  if (!bar) return;
+  const n = list.filter(r => r.frequency === 'monthly_day').length;
+  const show = !archived && n > 0 && !isCurrentAccountReadOnly();
+  bar.classList.toggle('hidden', !show);
+  if (show) {
+    document.getElementById('recMonthlyAnchorLabel').textContent =
+      `Start date for all ${n} monthly recurring`;
+  }
+}
+
+async function applyMonthlyAnchorToAll(clear) {
+  const status = document.getElementById('recMonthlyAnchorStatus');
+  const ids = _monthlyRecIds();
+  if (!ids.length) { status.textContent = 'No monthly recurring transactions.'; return; }
+  const val = document.getElementById('recMonthlyAnchor').value;
+  if (!clear && !val) { status.textContent = 'Pick a start date first.'; return; }
+  const what = clear ? 'Clear the start date from' : `Set the start date to ${val} on`;
+  if (!confirm(`${what} all ${ids.length} monthly recurring transaction${ids.length===1?'':'s'}?`)) return;
+  status.textContent = 'Applying…';
+  let resp;
+  try {
+    resp = await api('/api/recurring/bulk-update', {
+      method: 'POST',
+      body: JSON.stringify({ recurring_ids: ids, anchor_date: clear ? null : val }),
+    });
+  } catch (e) {
+    status.textContent = 'Failed: ' + e.message;
+    return;
+  }
+  editingRecId = null;
+  await loadRecurring();
+  await loadForecast();
+  document.getElementById('recMonthlyAnchorStatus').textContent =
+    `${clear ? 'Cleared on' : 'Set on'} ${resp.updated}` + (resp.skipped ? ` (${resp.skipped} skipped)` : '');
 }
 
 // ---------- Recurring: bulk edit selection ----------
@@ -4263,15 +4335,16 @@ function renderEditRow(r) {
     .concat(categories.map(c =>
       `<option value="${c.id}"${c.id===r.category_id?' selected':''}>${escapeHtml(c.name)}</option>`
     )).join('');
-  const freqOptions = ['monthly_day','biweekly','weekly']
-    .map(f => `<option value="${f}"${f===r.frequency?' selected':''}>${f}</option>`).join('');
+  const freqOptions = Object.entries({monthly_day:'Monthly', biweekly:'Biweekly', weekly:'Weekly'})
+    .map(([f, label]) => `<option value="${f}"${f===r.frequency?' selected':''}>${label}</option>`).join('');
   // Monthly: day-of-month plus an optional start (anchor) date. Weekly/
   // biweekly: the anchor date alone sets the cadence.
+  const cap = t => `<span style="display:block;font-size:11px;color:var(--muted);margin:2px 0 1px">${t}</span>`;
   const anchorInput = `<input id="editAnchor_${r.id}" type="date" value="${r.anchor_date||''}" style="width:100%"`;
   const whenField = r.frequency === 'monthly_day'
-    ? `<input id="editDay_${r.id}" type="number" min="1" max="31" value="${r.day_of_month||1}" style="width:100%" title="Day of month">
-       <div style="margin-top:4px">${anchorInput} title="Start date (optional) — no occurrences before this date"></div>`
-    : `${anchorInput} title="Anchor date">`;
+    ? `${cap('Day of month')}<input id="editDay_${r.id}" type="number" min="1" max="31" value="${r.day_of_month||1}" style="width:100%">
+       ${cap('Start date (optional)')}${anchorInput} title="No occurrences are projected before this date">`
+    : `${cap('Anchor date')}${anchorInput}>`;
   return `
     <td><input id="editDesc_${r.id}" value="${escapeAttr(r.description)}" style="width:100%"></td>
     <td><select id="editCat_${r.id}" style="width:100%">${catOptions}</select></td>

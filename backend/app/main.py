@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.18.0"
+APP_VERSION = "1.18.1"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -35,6 +35,10 @@ APP_VERSION = "1.18.0"
 # When you bump APP_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
+#
+# 1.18.1 (2026-10-08, claude+mkolakowski): GET / serves index.html with
+#     Cache-Control: no-cache so a new deploy's SPA is picked up on the
+#     next load (revalidated via ETag) rather than a stale cached copy.
 #
 # 1.18.0 (2026-10-08, claude+mkolakowski): Bulk recurring edits. New
 #     POST /api/recurring/bulk-update applies only the keys present in
@@ -4179,4 +4183,8 @@ if STATIC_DIR.exists():
 
     @app.get("/")
     def index():
-        return FileResponse(STATIC_DIR / "index.html")
+        # no-cache = "revalidate every time" (the ETag makes that a cheap
+        # 304), so a freshly deployed SPA shows up on the next load instead
+        # of the browser heuristically reusing a stale copy.
+        return FileResponse(STATIC_DIR / "index.html",
+                            headers={"Cache-Control": "no-cache"})

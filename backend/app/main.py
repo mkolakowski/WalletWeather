@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.16.1"
+APP_VERSION = "1.17.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -35,6 +35,12 @@ APP_VERSION = "1.16.1"
 # When you bump APP_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
+#
+# 1.17.0 (2026-10-08, claude+mkolakowski): Monthly recurring templates
+#     now honor anchor_date as an optional start date — forecast.
+#     _occurrences() emits no monthly_day occurrence before it (NULL keeps
+#     the old "always ran" behavior). No schema change: the column already
+#     existed and was only used by weekly/biweekly.
 #
 # 1.16.1 (2026-09-07, claude+mkolakowski): GET /api/accounts/{id}/recurring
 #     rows gain monthly_cost/yearly_cost (same normalization

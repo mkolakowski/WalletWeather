@@ -1077,7 +1077,7 @@
                 </select>
               </div>
               <div id="addDayWrap"><label>Day of month</label><input id="addDay" type="number" min="1" max="31" value="1" disabled></div>
-              <div id="addAnchorWrap" class="hidden"><label>Anchor date</label><input id="addAnchor" type="date" disabled></div>
+              <div id="addAnchorWrap"><label id="addAnchorLabel" title="Optional. No occurrences are projected before this date.">Start date (optional)</label><input id="addAnchor" type="date" disabled></div>
               <div style="flex:2"><label>End date (optional)</label><input id="addEnd" type="date" disabled></div>
             </div>
             <div class="row" style="margin-top:14px">
@@ -1736,7 +1736,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.20.0";
+const WEB_VERSION = "1.21.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1746,6 +1746,16 @@ const WEB_VERSION = "1.20.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.21.0 (2026-10-08, claude+mkolakowski): Monthly recurring
+//     transactions get an optional anchor (start) date. The add form's
+//     date input now shows for every cadence — labeled "Start date
+//     (optional)" for monthly, "Anchor date" for weekly/biweekly — and
+//     the edit row stacks it under the day-of-month input for monthly.
+//     anchor_date is now sent for all frequencies (empty -> null), and
+//     the edit row now enforces the weekly/biweekly anchor requirement
+//     the add form already had. subsFrequencyLabel() appends
+//     "· from <date>" to monthly rows that have a start date.
 //
 // 1.20.0 (2026-09-08, claude+mkolakowski): Forecast table: Description
 //     is now the first column (was 3rd, after Forecast/Actual date).
@@ -4027,9 +4037,13 @@ function renderEditRow(r) {
     )).join('');
   const freqOptions = ['monthly_day','biweekly','weekly']
     .map(f => `<option value="${f}"${f===r.frequency?' selected':''}>${f}</option>`).join('');
+  // Monthly: day-of-month plus an optional start (anchor) date. Weekly/
+  // biweekly: the anchor date alone sets the cadence.
+  const anchorInput = `<input id="editAnchor_${r.id}" type="date" value="${r.anchor_date||''}" style="width:100%"`;
   const whenField = r.frequency === 'monthly_day'
-    ? `<input id="editDay_${r.id}" type="number" min="1" max="31" value="${r.day_of_month||1}" style="width:100%">`
-    : `<input id="editAnchor_${r.id}" type="date" value="${r.anchor_date||''}" style="width:100%">`;
+    ? `<input id="editDay_${r.id}" type="number" min="1" max="31" value="${r.day_of_month||1}" style="width:100%" title="Day of month">
+       <div style="margin-top:4px">${anchorInput} title="Start date (optional) — no occurrences before this date"></div>`
+    : `${anchorInput} title="Anchor date">`;
   return `
     <td><input id="editDesc_${r.id}" value="${escapeAttr(r.description)}" style="width:100%"></td>
     <td><select id="editCat_${r.id}" style="width:100%">${catOptions}</select></td>
@@ -4070,6 +4084,7 @@ async function reloadEditRow(id) {
   r.description = document.getElementById(`editDesc_${id}`).value;
   r.amount = parseFloat(document.getElementById(`editAmt_${id}`).value) || r.amount;
   r.notes = document.getElementById(`editNotes_${id}`).value;
+  r.anchor_date = document.getElementById(`editAnchor_${id}`).value || null;
   const row = document.querySelector(`#recurringTable tbody`).querySelector(`button[onclick="saveRecurring(${id})"]`).closest('tr');
   row.innerHTML = renderEditRow(r);
 }
@@ -4082,7 +4097,7 @@ async function saveRecurring(id) {
     amount: parseFloat(document.getElementById(`editAmt_${id}`).value),
     frequency: freq,
     day_of_month: freq==='monthly_day' ? parseInt(document.getElementById(`editDay_${id}`).value) : null,
-    anchor_date: freq!=='monthly_day' ? document.getElementById(`editAnchor_${id}`).value : null,
+    anchor_date: document.getElementById(`editAnchor_${id}`).value || null,
     end_date: document.getElementById(`editEnd_${id}`).value || null,
     category_id: catVal ? parseInt(catVal) : null,
     notes: document.getElementById(`editNotes_${id}`).value.trim() || null,
@@ -4090,6 +4105,10 @@ async function saveRecurring(id) {
   };
   if (!body.description || isNaN(body.amount)) {
     alert('Description and amount are required.');
+    return;
+  }
+  if (freq !== 'monthly_day' && !body.anchor_date) {
+    alert('Weekly and biweekly recurring transactions need an anchor date.');
     return;
   }
   await api('/api/recurring/'+id, {method:'PATCH', body: JSON.stringify(body)});
@@ -4114,7 +4133,13 @@ async function delRecurring(id) {
 function toggleAddWhenFields() {
   const f = document.getElementById('addFreq').value;
   document.getElementById('addDayWrap').classList.toggle('hidden', f!=='monthly_day');
-  document.getElementById('addAnchorWrap').classList.toggle('hidden', f==='monthly_day');
+  // The date input is shown for every cadence: an optional start date for
+  // monthly, the required cadence anchor for weekly/biweekly.
+  const anchorLabel = document.getElementById('addAnchorLabel');
+  anchorLabel.textContent = f==='monthly_day' ? 'Start date (optional)' : 'Anchor date';
+  anchorLabel.title = f==='monthly_day'
+    ? 'Optional. No occurrences are projected before this date.'
+    : 'Occurrences repeat every week/two weeks from this date.';
 }
 
 function toggleAddForm(show) {
@@ -4167,7 +4192,7 @@ async function submitAddForm() {
       amount: signedAmt,
       frequency: f,
       day_of_month: f==='monthly_day' ? parseInt(document.getElementById('addDay').value) : null,
-      anchor_date: f!=='monthly_day' ? document.getElementById('addAnchor').value : null,
+      anchor_date: document.getElementById('addAnchor').value || null,
       end_date: endVal || null,
       category_id: catVal ? parseInt(catVal) : null,
       notes: notesVal || null,
@@ -5404,7 +5429,8 @@ function onNetworthWindowChange(w) {
 // the per-account Recurring-transactions panel on the Transactions page.
 function subsFrequencyLabel(item) {
   if (item.frequency === 'monthly_day') {
-    return item.day_of_month ? `Monthly · day ${item.day_of_month}` : 'Monthly';
+    const base = item.day_of_month ? `Monthly · day ${item.day_of_month}` : 'Monthly';
+    return item.anchor_date ? `${base} · from ${item.anchor_date}` : base;
   }
   if (item.frequency === 'biweekly') {
     return item.anchor_date ? `Biweekly · from ${item.anchor_date}` : 'Biweekly';

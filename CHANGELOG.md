@@ -65,7 +65,25 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.16.1** · Web version: **1.20.0** · Schema version: **11**
+App version: **1.17.0** · Web version: **1.21.0** · Schema version: **11**
+
+### Added
+
+- **Anchor (start) date for monthly recurring transactions.** Monthly
+  templates can now carry an optional start date — set it in the
+  "Start date (optional)" field on the add form, or under the
+  day-of-month input in the Recurring Transactions edit row. No
+  occurrences are projected before that date (`_occurrences()` in
+  `backend/app/forecast.py`); leaving it blank keeps the previous
+  behavior. Reuses the existing `recurring_transactions.anchor_date`
+  column, so no migration is needed. Monthly rows with a start date
+  display as "Monthly · day N · from YYYY-MM-DD".
+
+### Fixed
+
+- Editing a weekly/biweekly recurring transaction and clearing its
+  anchor date now shows the same "needs an anchor date" message as the
+  add form instead of failing the save.
 
 ## [1.20.0] — 2026-09-08
 

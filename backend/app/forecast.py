@@ -17,7 +17,7 @@ actual amount/date for that occurrence:
 from datetime import date, timedelta
 from decimal import Decimal
 from calendar import monthrange
-from .db import Account, RecurringTransaction, Transaction, Tag, TransactionTag
+from .db import Account, RecurringTransaction, RecurringSkip, Transaction, Tag, TransactionTag
 
 
 def _occurrences(rec: RecurringTransaction, start: date, end: date):
@@ -49,12 +49,12 @@ def _occurrences(rec: RecurringTransaction, start: date, end: date):
             else:
                 d = date(d.year, d.month + 1, 1)
     elif rec.frequency in ("weekly", "biweekly") and rec.anchor_date:
+        # The anchor is both the cadence phase and the first occurrence:
+        # nothing is projected before it.
         step = 7 if rec.frequency == "weekly" else 14
         occ = rec.anchor_date
-        while occ > start:
-            occ -= timedelta(days=step)
-        while occ < start:
-            occ += timedelta(days=step)
+        if occ < start:
+            occ += timedelta(days=step * -(-(start - occ).days // step))
         while occ <= effective_end:
             yield occ, amount, desc
             occ += timedelta(days=step)
@@ -163,11 +163,21 @@ def build_forecast(db, account: Account, start: date, end: date):
         )
         .all()
     )
+    # Occurrences the user deleted from the forecast (see RecurringSkip).
+    skipped = set()
+    if recs:
+        skipped = set(
+            db.query(RecurringSkip.recurring_id, RecurringSkip.skip_date)
+            .filter(RecurringSkip.recurring_id.in_([r.id for r in recs]),
+                    RecurringSkip.skip_date >= start,
+                    RecurringSkip.skip_date <= end)
+            .all()
+        )
     for rec in recs:
         rec_cat = rec.category.name if rec.category else None
         rec_notes = rec.notes
         for occ_date, amount, desc in _occurrences(rec, start, end):
-            if (rec.id, occ_date) in txn_by_rec_date:
+            if (rec.id, occ_date) in txn_by_rec_date or (rec.id, occ_date) in skipped:
                 continue
             amt_float = float(amount)
             events.append({

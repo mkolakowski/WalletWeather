@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "11"
+SCHEMA_VERSION = "12"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,10 @@ SCHEMA_VERSION = "11"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v12 (2026-10-08, claude+mkolakowski): add `recurring_skips` table —
+#     (recurring_id, skip_date) pairs marking single occurrences of a
+#     recurring template that were deleted, so the forecast stops
+#     projecting them without touching the template itself.
 # v11 (2026-04-24, claude+mkolakowski): add `saved_reports` table —
 #     per-user named report with a JSON params blob (group_by, range,
 #     filters, chart type) and a `pinned` flag for dashboard placement.
@@ -61,7 +65,7 @@ SCHEMA_VERSION = "11"
 
 from sqlalchemy import (
     create_engine, Column, Integer, String, Date, DateTime, Numeric,
-    ForeignKey, Boolean, LargeBinary, Text
+    ForeignKey, Boolean, LargeBinary, Text, UniqueConstraint
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from decimal import Decimal
@@ -492,6 +496,24 @@ class SavedReport(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class RecurringSkip(Base):
+    """One deleted occurrence of a recurring template.
+
+    The forecast never projects `recurring_id` on `skip_date`. Rows go away
+    with their template via the DB-level ON DELETE CASCADE (no ORM
+    relationship, so a plain db.delete(template) doesn't try to null them).
+    """
+    __tablename__ = "recurring_skips"
+    __table_args__ = (UniqueConstraint("recurring_id", "skip_date",
+                                       name="uq_recurring_skip"),)
+    id = Column(Integer, primary_key=True)
+    recurring_id = Column(Integer, ForeignKey("recurring_transactions.id",
+                                              ondelete="CASCADE"),
+                          nullable=False, index=True)
+    skip_date = Column(Date, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 def init_db():
     """Create missing tables, then apply in-place column migrations.
 
@@ -535,6 +557,8 @@ def init_db():
         # v10 → v11: saved_reports
         # (Created by Base.metadata.create_all above. Same idempotency
         # story as v9 → v10 — boundary marker only.)
+        # v11 → v12: recurring_skips
+        # (Created by Base.metadata.create_all above — boundary marker only.)
     ]
     with engine.begin() as conn:
         for sql in migrations:

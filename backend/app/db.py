@@ -229,6 +229,8 @@ class RecurringTransaction(Base):
     amount_enc = Column(LargeBinary, nullable=False)  # signed: negative=withdraw
     notes_enc = Column(LargeBinary, nullable=True)
     # Schedule: 'monthly_day' (day_of_month), 'biweekly' (anchor_date), 'weekly' (anchor_date)
+    # For 'monthly_day', anchor_date is optional and acts as a start date —
+    # no occurrences are projected before it.
     frequency = Column(String(20), nullable=False)
     day_of_month = Column(Integer, nullable=True)
     anchor_date = Column(Date, nullable=True)

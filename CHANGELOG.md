@@ -65,7 +65,36 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.16.1** · Web version: **1.20.0** · Schema version: **11**
+App version: **1.18.0** · Web version: **1.22.0** · Schema version: **11**
+
+### Added
+
+- **Bulk editing for recurring transactions.** The Recurring
+  Transactions table on the Forecast page now has row checkboxes and a
+  "select all on this page" box. Selecting rows opens a bulk bar to
+  change category (or clear it), amount (each row keeps its sign, so
+  expenses stay expenses), day of month (monthly rows only), start/anchor
+  date, or end date across all of them at once. Blank fields are left
+  unchanged, and a confirmation lists exactly what will change. "Delete
+  selected" removes the templates in one go. Backed by new
+  `POST /api/recurring/bulk-update` and `POST /api/recurring/bulk-delete`
+  endpoints, which skip rows on accounts you can only view.
+
+- **Anchor (start) date for monthly recurring transactions.** Monthly
+  templates can now carry an optional start date — set it in the
+  "Start date (optional)" field on the add form, or under the
+  day-of-month input in the Recurring Transactions edit row. No
+  occurrences are projected before that date (`_occurrences()` in
+  `backend/app/forecast.py`); leaving it blank keeps the previous
+  behavior. Reuses the existing `recurring_transactions.anchor_date`
+  column, so no migration is needed. Monthly rows with a start date
+  display as "Monthly · day N · from YYYY-MM-DD".
+
+### Fixed
+
+- Editing a weekly/biweekly recurring transaction and clearing its
+  anchor date now shows the same "needs an anchor date" message as the
+  add form instead of failing the save.
 
 ## [1.20.0] — 2026-09-08
 

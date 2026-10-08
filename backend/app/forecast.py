@@ -31,11 +31,18 @@ def _occurrences(rec: RecurringTransaction, start: date, end: date):
         return
 
     if rec.frequency == "monthly_day" and rec.day_of_month:
-        d = date(start.year, start.month, 1)
+        # For monthly templates anchor_date is optional and acts as a start
+        # date: no occurrence is emitted before it. NULL means "always ran".
+        effective_start = start
+        if rec.anchor_date is not None and rec.anchor_date > effective_start:
+            effective_start = rec.anchor_date
+        if effective_end < effective_start:
+            return
+        d = date(effective_start.year, effective_start.month, 1)
         while d <= effective_end:
             day = min(rec.day_of_month, monthrange(d.year, d.month)[1])
             occ = date(d.year, d.month, day)
-            if start <= occ <= effective_end:
+            if effective_start <= occ <= effective_end:
                 yield occ, amount, desc
             if d.month == 12:
                 d = date(d.year + 1, 1, 1)

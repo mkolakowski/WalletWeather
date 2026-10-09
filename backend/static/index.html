@@ -1803,7 +1803,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.25.0";
+const WEB_VERSION = "1.25.1";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1813,6 +1813,14 @@ const WEB_VERSION = "1.25.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.25.1 (2026-10-09, claude+mkolakowski): Recurring edit panel: Save /
+//     Cancel / Delete are now stacked vertically in a column on the far
+//     right of the editor (renderEditRow()), top-aligned with the first
+//     row of inputs, instead of a horizontal button row at the bottom.
+//     The "N deleted dates · Restore" note stays under the fields. On
+//     narrow screens the column wraps below the fields, still stacked and
+//     right-aligned.
 //
 // 1.25.0 (2026-10-09, claude+mkolakowski): Streamlined the Recurring
 //     transactions single-row editor. renderEditRow() is now one labelled
@@ -4381,6 +4389,8 @@ function renderEditRow(r) {
       <!-- The table scrolls sideways on narrow screens; pin the form to the
            visible width so every field stays on screen. No effect on desktop. -->
       <div style="position:sticky;left:0;max-width:calc(100vw - 72px)">
+      <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
+      <div style="flex:1 1 560px;min-width:0">
       <div class="row">
         <div class="span-full" style="flex:3 1 240px"><label>Description</label>
           <input id="editDesc_${id}" value="${escapeAttr(r.description)}" style="width:100%"></div>
@@ -4406,13 +4416,17 @@ function renderEditRow(r) {
         <div class="span-full" style="flex:3 1 220px"><label>Notes</label>
           <input id="editNotes_${id}" maxlength="256" value="${escapeAttr(r.notes||'')}" style="width:100%"></div>
       </div>
-      <div class="row" style="margin-top:10px;align-items:center">
-        <div style="flex:0 0 auto;min-width:0">
-          <button onclick="saveRecurring(${id})">Save</button>
-          <button class="ghost" onclick="cancelEditRecurring()">Cancel</button>
-          <button class="danger" onclick="delRecurring(${id})" title="Delete this recurring transaction">🗑 Delete</button>
-        </div>
-        <div style="flex:1 1 auto;min-width:0">${skipNote}</div>
+      ${skipNote ? `<div style="margin-top:10px">${skipNote}</div>` : ''}
+      </div>
+      <!-- Actions: stacked in a column on the far right. padding-top matches
+           the field labels' height so Save lines up with the first inputs;
+           margin-left:auto keeps the column on the right if it wraps below
+           the fields on a narrow screen. -->
+      <div style="flex:0 0 112px;margin-left:auto;padding-top:20px;display:flex;flex-direction:column;gap:8px">
+        <button style="width:100%" onclick="saveRecurring(${id})">Save</button>
+        <button class="ghost" style="width:100%" onclick="cancelEditRecurring()">Cancel</button>
+        <button class="danger" style="width:100%" onclick="delRecurring(${id})" title="Delete this recurring transaction">🗑 Delete</button>
+      </div>
       </div>
       </div>
     </td>`;

@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.19.0** · Web version: **1.24.0** · Schema version: **12**
+App version: **1.19.0** · Web version: **1.25.0** · Schema version: **12**
 
 ### Added
 
@@ -110,6 +110,17 @@ App version: **1.19.0** · Web version: **1.24.0** · Schema version: **12**
 
 ### Changed
 
+- **Streamlined the Recurring transactions edit row.** Editing a row now
+  opens one labelled form panel — Description, Category, Type
+  (Withdraw/Deposit) and Amount on the first line; Frequency, Day of
+  month, Start date, Ends and Notes on the second; Save / Cancel /
+  Delete below — instead of a control squeezed into every table column.
+  The amount is a plain positive number with a Withdraw/Deposit choice
+  (like the add form) rather than a signed value such as `-1650`. Enter
+  saves, Escape cancels, and the description is focused when the editor
+  opens. The greyed-out Monthly/Yearly cells in the editor are gone, and
+  the panel fits phone screens without scrolling sideways.
+
 - **Weekly and biweekly recurring transactions now start on their
   anchor date** (labeled "Start date" in the UI). Previously the
   schedule also ran backwards from the anchor, so a biweekly deposit
@@ -117,6 +128,14 @@ App version: **1.19.0** · Web version: **1.24.0** · Schema version: **12**
   sets the every-1/2-week cadence.
 
 ### Fixed
+
+- **Changing the Frequency while editing a recurring transaction no
+  longer discards your other edits.** The editor used to re-fetch and
+  rebuild the row, resetting any unsaved category, end date and day of
+  month; now only the Day of month field and date label update.
+- Saving a recurring transaction now checks that Day of month is 1–31 and
+  shows "Could not save: …" if the server rejects the change, instead of
+  doing nothing.
 
 - Deleting a saved transaction that belonged to a recurring transaction
   no longer has the recurring projection reappear on that same date; the

@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.19.0** · Web version: **1.25.0** · Schema version: **12**
+App version: **1.19.0** · Web version: **1.25.1** · Schema version: **12**
 
 ### Added
 
@@ -110,6 +110,11 @@ App version: **1.19.0** · Web version: **1.25.0** · Schema version: **12**
 
 ### Changed
 
+- **Recurring edit row: Save, Cancel and Delete now stack in a column on
+  the far right of the editor**, lined up with the first row of inputs,
+  instead of sitting in a horizontal row along the bottom. The "N deleted
+  dates · Restore" link stays under the fields, and on a phone the column
+  drops below the fields (still stacked, right-aligned).
 - **Streamlined the Recurring transactions edit row.** Editing a row now
   opens one labelled form panel — Description, Category, Type
   (Withdraw/Deposit) and Amount on the first line; Frequency, Day of

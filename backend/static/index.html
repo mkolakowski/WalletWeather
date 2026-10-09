@@ -1803,7 +1803,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.24.0";
+const WEB_VERSION = "1.25.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1813,6 +1813,23 @@ const WEB_VERSION = "1.24.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.25.0 (2026-10-09, claude+mkolakowski): Streamlined the Recurring
+//     transactions single-row editor. renderEditRow() is now one labelled
+//     form panel spanning the row (Description / Category / Type / Amount,
+//     then Frequency / Day of month / Start date / Ends / Notes, then
+//     Save / Cancel / Delete) instead of a control crammed into every
+//     column. Amount is a positive number with a Withdraw/Deposit Type like
+//     the add form. Dropped the greyed-out Monthly/Yearly cells. Enter
+//     saves, Escape cancels, and the description is focused on open
+//     (onRecEditKey). Changing Frequency now toggles Day of month / the
+//     date label locally via onEditFreqChange() — reloadEditRow(), which
+//     re-fetched and re-rendered the row and thereby reset any unsaved
+//     category, end date and day-of-month edits, is removed.
+//     saveRecurring() validates day of month and alerts on a failed save
+//     instead of failing silently. The panel is pinned to the visible
+//     width (position:sticky) so it fits phone screens instead of
+//     scrolling sideways with the table.
 //
 // 1.24.0 (2026-10-08, claude+mkolakowski): Delete recurring occurrences.
 //     Forecast rows (read-only, single-row editor, spreadsheet grid) get a
@@ -4342,39 +4359,74 @@ function changeRecurringPage(delta) {
 }
 
 function renderEditRow(r) {
+  // One form panel across the whole row (the caller adds the select
+  // checkbox cell in front of it) instead of a control crammed into every
+  // column. Same fields and ids as before, plus a Withdraw/Deposit type so
+  // the amount is a plain positive number like on the add form.
+  const id = r.id;
   const catOptions = ['<option value="">— none —</option>']
     .concat(categories.map(c =>
       `<option value="${c.id}"${c.id===r.category_id?' selected':''}>${escapeHtml(c.name)}</option>`
     )).join('');
   const freqOptions = Object.entries({monthly_day:'Monthly', biweekly:'Biweekly', weekly:'Weekly'})
     .map(([f, label]) => `<option value="${f}"${f===r.frequency?' selected':''}>${label}</option>`).join('');
-  // Monthly: day-of-month plus an optional start (anchor) date. Weekly/
-  // biweekly: the required start (anchor) date sets the cadence.
-  const cap = t => `<span style="display:block;font-size:11px;color:var(--muted);margin:2px 0 1px">${t}</span>`;
-  const anchorInput = `<input id="editAnchor_${r.id}" type="date" value="${r.anchor_date||''}" style="width:100%"`;
-  const whenField = r.frequency === 'monthly_day'
-    ? `${cap('Day of month')}<input id="editDay_${r.id}" type="number" min="1" max="31" value="${r.day_of_month||1}" style="width:100%">
-       ${cap('Start date (optional)')}${anchorInput} title="No occurrences are projected before this date">`
-    : `${cap('Start date')}${anchorInput} title="First occurrence; repeats every week/two weeks from here">`;
+  const isMonthly = r.frequency === 'monthly_day';
+  const isWithdraw = Number(r.amount) < 0;
   const skipNote = r.skipped_count
-    ? `<div style="margin-top:4px;font-size:11px;color:var(--muted)">${r.skipped_count} deleted date${r.skipped_count===1?'':'s'} ·
-         <a href="#" onclick="restoreRecurringSkips(${r.id});return false">Restore</a></div>`
+    ? `<span style="font-size:12px;color:var(--muted)">${r.skipped_count} deleted date${r.skipped_count===1?'':'s'} ·
+         <a href="#" onclick="restoreRecurringSkips(${id});return false">Restore</a></span>`
     : '';
   return `
-    <td><input id="editDesc_${r.id}" value="${escapeAttr(r.description)}" style="width:100%"></td>
-    <td><select id="editCat_${r.id}" style="width:100%">${catOptions}</select></td>
-    <td><input id="editAmt_${r.id}" type="number" step="0.01" value="${r.amount}" style="width:100%"></td>
-    <td class="num" style="color:var(--muted)" title="Recalculates after you save">${r.monthly_cost!=null?fmt(r.monthly_cost):'—'}</td>
-    <td class="num" style="color:var(--muted)" title="Recalculates after you save">${r.yearly_cost!=null?fmt(r.yearly_cost):'—'}</td>
-    <td><select id="editFreq_${r.id}" onchange="reloadEditRow(${r.id})" style="width:100%">${freqOptions}</select>
-      <div style="margin-top:4px">${whenField}</div>${skipNote}</td>
-    <td><input id="editEnd_${r.id}" type="date" value="${r.end_date||''}" style="width:100%"></td>
-    <td><input id="editNotes_${r.id}" maxlength="256" value="${escapeAttr(r.notes||'')}" style="width:100%"></td>
-    <td style="white-space:nowrap">
-      <button onclick="saveRecurring(${r.id})" title="Save">✓</button>
-      <button class="ghost" onclick="cancelEditRecurring()" title="Cancel">✕</button>
-      <button class="danger" onclick="delRecurring(${r.id})" title="Delete">🗑</button>
+    <td colspan="9" style="background:var(--chip-bg)" onkeydown="onRecEditKey(event, ${id})">
+      <!-- The table scrolls sideways on narrow screens; pin the form to the
+           visible width so every field stays on screen. No effect on desktop. -->
+      <div style="position:sticky;left:0;max-width:calc(100vw - 72px)">
+      <div class="row">
+        <div class="span-full" style="flex:3 1 240px"><label>Description</label>
+          <input id="editDesc_${id}" value="${escapeAttr(r.description)}" style="width:100%"></div>
+        <div style="flex:1 1 150px"><label>Category</label>
+          <select id="editCat_${id}" style="width:100%">${catOptions}</select></div>
+        <div style="flex:0 1 130px;min-width:110px"><label>Type</label>
+          <select id="editType_${id}" style="width:100%">
+            <option value="withdraw"${isWithdraw?' selected':''}>Withdraw</option>
+            <option value="deposit"${isWithdraw?'':' selected'}>Deposit</option>
+          </select></div>
+        <div style="flex:0 1 140px;min-width:120px"><label>Amount</label>
+          <input id="editAmt_${id}" type="number" step="0.01" min="0" value="${Math.abs(Number(r.amount))}" style="width:100%"></div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div style="flex:0 1 140px;min-width:120px"><label>Frequency</label>
+          <select id="editFreq_${id}" onchange="onEditFreqChange(${id})" style="width:100%">${freqOptions}</select></div>
+        <div id="editDayWrap_${id}" class="${isMonthly?'':'hidden'}" style="flex:0 1 110px;min-width:90px"><label>Day of month</label>
+          <input id="editDay_${id}" type="number" min="1" max="31" value="${r.day_of_month||1}" style="width:100%"></div>
+        <div style="flex:0 1 170px;min-width:150px"><label id="editAnchorLabel_${id}">${isMonthly ? 'Start date (optional)' : 'Start date'}</label>
+          <input id="editAnchor_${id}" type="date" value="${r.anchor_date||''}" style="width:100%"></div>
+        <div style="flex:0 1 170px;min-width:150px"><label>Ends (optional)</label>
+          <input id="editEnd_${id}" type="date" value="${r.end_date||''}" style="width:100%"></div>
+        <div class="span-full" style="flex:3 1 220px"><label>Notes</label>
+          <input id="editNotes_${id}" maxlength="256" value="${escapeAttr(r.notes||'')}" style="width:100%"></div>
+      </div>
+      <div class="row" style="margin-top:10px;align-items:center">
+        <div style="flex:0 0 auto;min-width:0">
+          <button onclick="saveRecurring(${id})">Save</button>
+          <button class="ghost" onclick="cancelEditRecurring()">Cancel</button>
+          <button class="danger" onclick="delRecurring(${id})" title="Delete this recurring transaction">🗑 Delete</button>
+        </div>
+        <div style="flex:1 1 auto;min-width:0">${skipNote}</div>
+      </div>
+      </div>
     </td>`;
+}
+
+// Enter saves and Escape cancels from any field in the edit panel. Enter is
+// left alone on <select>s (it opens/commits the dropdown) and on buttons and
+// links, which already treat it as a click.
+function onRecEditKey(ev, id) {
+  if (ev.key === 'Escape') { ev.preventDefault(); cancelEditRecurring(); return; }
+  if (ev.key === 'Enter' && ev.target.tagName === 'INPUT') {
+    ev.preventDefault();
+    saveRecurring(id);
+  }
 }
 
 function escapeAttr(s){return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
@@ -4382,6 +4434,8 @@ function escapeAttr(s){return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'
 function startEditRecurring(id) {
   editingRecId = id;
   renderRecurring();
+  const d = document.getElementById(`editDesc_${id}`);
+  if (d) { d.focus(); d.select(); }
 }
 
 function cancelEditRecurring() {
@@ -4389,30 +4443,27 @@ function cancelEditRecurring() {
   renderRecurring();
 }
 
-async function reloadEditRow(id) {
-  // User changed frequency; we need to swap the "when" input type.
-  // Easiest: just pull fresh data, overwrite the frequency with the current select value,
-  // and re-render the row. Since we don't save yet, the new frequency is just the edit state.
-  const list = await api(`/api/accounts/${currentAccountId}/recurring?archived=${recView==='archived'}`);
-  const r = list.find(x => x.id === id);
-  if (!r) return;
-  r.frequency = document.getElementById(`editFreq_${id}`).value;
-  r.description = document.getElementById(`editDesc_${id}`).value;
-  r.amount = parseFloat(document.getElementById(`editAmt_${id}`).value) || r.amount;
-  r.notes = document.getElementById(`editNotes_${id}`).value;
-  r.anchor_date = document.getElementById(`editAnchor_${id}`).value || null;
-  const row = document.querySelector(`#recurringTable tbody`).querySelector(`button[onclick="saveRecurring(${id})"]`).closest('tr');
-  row.innerHTML = recCheckboxCell(r, isCurrentAccountReadOnly()) + renderEditRow(r);
+// Frequency changed in the edit panel: show/hide Day of month and relabel
+// the date field in place. Nothing is re-rendered or re-fetched, so
+// whatever else was typed into the panel is kept.
+function onEditFreqChange(id) {
+  const monthly = document.getElementById(`editFreq_${id}`).value === 'monthly_day';
+  document.getElementById(`editDayWrap_${id}`).classList.toggle('hidden', !monthly);
+  document.getElementById(`editAnchorLabel_${id}`).textContent =
+    monthly ? 'Start date (optional)' : 'Start date';
 }
 
 async function saveRecurring(id) {
   const freq = document.getElementById(`editFreq_${id}`).value;
   const catVal = document.getElementById(`editCat_${id}`).value;
+  const rawAmt = parseFloat(document.getElementById(`editAmt_${id}`).value);
+  const withdraw = document.getElementById(`editType_${id}`).value === 'withdraw';
+  const day = parseInt(document.getElementById(`editDay_${id}`).value, 10);
   const body = {
     description: document.getElementById(`editDesc_${id}`).value.trim(),
-    amount: parseFloat(document.getElementById(`editAmt_${id}`).value),
+    amount: isNaN(rawAmt) ? NaN : (withdraw ? -Math.abs(rawAmt) : Math.abs(rawAmt)),
     frequency: freq,
-    day_of_month: freq==='monthly_day' ? parseInt(document.getElementById(`editDay_${id}`).value) : null,
+    day_of_month: freq==='monthly_day' ? day : null,
     anchor_date: document.getElementById(`editAnchor_${id}`).value || null,
     end_date: document.getElementById(`editEnd_${id}`).value || null,
     category_id: catVal ? parseInt(catVal) : null,
@@ -4423,11 +4474,20 @@ async function saveRecurring(id) {
     alert('Description and amount are required.');
     return;
   }
+  if (freq === 'monthly_day' && !(day >= 1 && day <= 31)) {
+    alert('Day of month must be between 1 and 31.');
+    return;
+  }
   if (freq !== 'monthly_day' && !body.anchor_date) {
     alert('Weekly and biweekly recurring transactions need a start date.');
     return;
   }
-  await api('/api/recurring/'+id, {method:'PATCH', body: JSON.stringify(body)});
+  try {
+    await api('/api/recurring/'+id, {method:'PATCH', body: JSON.stringify(body)});
+  } catch (e) {
+    alert('Could not save: ' + e.message);
+    return;
+  }
   editingRecId = null;
   await loadRecurring();
   await loadForecast();

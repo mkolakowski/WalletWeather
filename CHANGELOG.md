@@ -65,9 +65,19 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.19.0** · Web version: **1.26.0** · Schema version: **12**
+App version: **1.20.0** · Web version: **1.27.0** · Schema version: **12**
 
 ### Added
+
+- **Current balance on the Forecast page.** The account's current balance
+  (starting balance plus every cleared transaction dated today or earlier —
+  the same figure `GET /api/accounts` already returned) now appears in
+  three places: a "Current balance" stat at the start of the Forecast
+  summary, a "Balance" figure in the Today bar, and next to each account's
+  name in the account tabs. It is independent of the month/range being
+  viewed. `GET /api/accounts/{id}/forecast` gains a `current_balance` field
+  so it is fresh on every load; the active tab updates whenever the forecast
+  reloads.
 
 - **"Today" bar in the Forecast table.** A highlighted bar now sits between
   the rows at today's date, with a label ("Today · day 14 of 31" in Month

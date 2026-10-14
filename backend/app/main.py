@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.19.0"
+APP_VERSION = "1.20.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -35,6 +35,12 @@ APP_VERSION = "1.19.0"
 # When you bump APP_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
+#
+# 1.20.0 (2026-10-14, claude+mkolakowski): GET
+#     /api/accounts/{id}/forecast now also returns current_balance (the
+#     same today-dated cleared balance as GET /api/accounts, via
+#     _current_balance) so the Forecast page can show it fresh on every
+#     load.
 #
 # 1.19.0 (2026-10-08, claude+mkolakowski): Deleting recurring
 #     occurrences. New POST /api/recurring/{id}/skip records a
@@ -1684,7 +1690,11 @@ def forecast(account_id: int, days: int = 90,
         today = date.today()
         start = today
         end = today + timedelta(days=days)
-    return build_forecast(db, acc, start, end)
+    data = build_forecast(db, acc, start, end)
+    # Today-dated cleared balance, independent of the requested window, so
+    # the UI can show "where the account is right now" next to the forecast.
+    data["current_balance"] = round(_current_balance(db, acc), 2)
+    return data
 
 
 # ---------- Backup: export / import ----------

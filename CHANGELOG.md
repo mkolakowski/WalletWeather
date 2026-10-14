@@ -65,9 +65,17 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.19.0** · Web version: **1.25.1** · Schema version: **12**
+App version: **1.19.0** · Web version: **1.26.0** · Schema version: **12**
 
 ### Added
+
+- **"Today" bar in the Forecast table.** A highlighted bar now sits between
+  the rows at today's date, with a label ("Today · day 14 of 31" in Month
+  view), a progress fill and a percentage so you can see at a glance how far
+  through the month the forecast is. It shows only when sorted by Forecast
+  date (either direction) and today falls inside the displayed window; with
+  pagination it appears on the page where the boundary lands. Frontend only
+  (`_todayMarkerRow()` in `backend/static/index.html`).
 
 - **Delete recurring occurrences from the forecast.** Every forecast row
   now has a 🗑 button next to ✎ (it used to be reachable only inside the

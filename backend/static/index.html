@@ -86,6 +86,15 @@
   #forecastTable th, #forecastTable td { border-right:1px solid var(--border); }
   #forecastTable th:last-child, #forecastTable td:last-child { border-right:none; }
   tr.actual { color:var(--text); }
+  /* "You are here" bar the forecast table inserts between rows at today's date. */
+  #forecastTable tr.today-marker td { padding:0; border-right:none; border-bottom:none; background:var(--bg-deep); }
+  .today-bar { position:relative; display:flex; align-items:center; gap:10px; padding:4px 10px;
+               border-top:2px solid var(--accent); border-bottom:2px solid var(--accent);
+               font-size:11px; font-weight:600; color:var(--accent);
+               text-transform:uppercase; letter-spacing:.05em; }
+  .today-bar .today-track { flex:1; height:4px; border-radius:2px; background:var(--border); overflow:hidden; }
+  .today-bar .today-fill { height:100%; background:var(--accent); }
+  .today-bar .today-pct { color:var(--muted); font-weight:500; }
   .pos { color:var(--good); }
   .neg { color:var(--bad); }
   .pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px;
@@ -1803,7 +1812,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.25.1";
+const WEB_VERSION = "1.26.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1813,6 +1822,14 @@ const WEB_VERSION = "1.25.1";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.26.0 (2026-10-14, claude+mkolakowski): Forecast table gets a "Today"
+//     bar between rows (_todayMarkerRow()) showing where in the loaded
+//     window — usually the month — today falls: a label ("Today · day 14
+//     of 31"), a progress fill and a percentage. Shown only when sorted by
+//     Forecast date and today is inside the window; on paginated lists it
+//     appears on the page holding the boundary. loadForecast() now records
+//     forecastRange so the bar can compute its position.
 //
 // 1.25.1 (2026-10-09, claude+mkolakowski): Recurring edit panel: Save /
 //     Cancel / Delete are now stacked vertically in a column on the far
@@ -4666,6 +4683,36 @@ function onForecastModeChange() {
   loadForecast();
 }
 
+let forecastRange = null;           // {start, end} (YYYY-MM-DD) of the loaded window
+
+function _isoDate(d) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+// Bar inserted between forecast rows at today's date, with a fill showing how
+// far through the loaded window (usually a month) today sits.
+function _todayMarkerRow(mode, range) {
+  const day = ms => Math.round(ms / 86400000);
+  const parse = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  const now = new Date();
+  const todayMs = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const total = day(parse(range.end) - parse(range.start)) + 1;
+  const elapsed = day(todayMs - parse(range.start)) + 1;
+  const pct = Math.max(0, Math.min(100, Math.round(elapsed / total * 100)));
+  const label = mode === 'month'
+    ? `Today · day ${elapsed} of ${total}`
+    : `Today · ${_isoDate(now)}`;
+  const tr = document.createElement('tr');
+  tr.className = 'today-marker';
+  tr.innerHTML = `<td colspan="12"><div class="today-bar" title="${_isoDate(now)}">
+      <span>${label}</span>
+      <span class="today-track"><span class="today-fill" style="display:block;width:${pct}%"></span></span>
+      <span class="today-pct">${pct}%</span>
+    </div></td>`;
+  return tr;
+}
+
 function _monthRangeFromSelects() {
   const m = parseInt(document.getElementById('forecastMonthSel').value);
   const y = parseInt(document.getElementById('forecastYearSel').value);
@@ -4693,6 +4740,14 @@ async function loadForecast() {
   } else {
     const days = document.getElementById('forecastDays').value;
     url += `?days=${days}`;
+  }
+  const qs = new URLSearchParams(url.split('?')[1]);
+  if (qs.get('start')) {
+    forecastRange = { start: qs.get('start'), end: qs.get('end') };
+  } else {
+    const t = new Date(), e = new Date();
+    e.setDate(e.getDate() + parseInt(qs.get('days')));
+    forecastRange = { start: _isoDate(t), end: _isoDate(e) };
   }
   forecastData = await api(url);
   forecastPage = 0;  // reset to first page when the dataset changes
@@ -4807,7 +4862,27 @@ function renderForecast() {
   document.getElementById('forecastSpreadsheetHint').classList.toggle('hidden', !forecastSpreadsheetMode || ro);
   if (forecastSpreadsheetMode && !ro) _ensureGridListeners();
 
+  // Where "today" falls in the date-sorted list: the index of the first row
+  // that is after today (ascending) / on-or-before today (descending). Only
+  // meaningful when sorted by forecast date and today is inside the window.
+  let markerIdx = -1;
+  const todayStr = _isoDate(new Date());
+  if (sortKey === 'forecast_date' && forecastRange
+      && todayStr >= forecastRange.start && todayStr <= forecastRange.end) {
+    const dated = rows.filter(r => r.forecast_date != null).length;
+    markerIdx = rows.findIndex(r => r.forecast_date != null &&
+      (sortDir === 'asc' ? r.forecast_date > todayStr : r.forecast_date <= todayStr));
+    if (markerIdx < 0) markerIdx = dated;
+  }
+  // A boundary between pages shows at the bottom of the earlier page only.
+  const markerOnPage = markerIdx >= 0 && markerIdx >= startIdx && markerIdx <= endIdx &&
+    !(markerIdx === startIdx && startIdx > 0);
+  const markerMode = document.getElementById('forecastMode').value;
+
   pageRows.forEach((r, idx) => {
+    if (markerOnPage && startIdx + idx === markerIdx) {
+      tbody.appendChild(_todayMarkerRow(markerMode, forecastRange));
+    }
     const tr = document.createElement('tr');
     const rowKey = _forecastRowKey(r);
     if (forecastSpreadsheetMode && !ro) {
@@ -4867,6 +4942,10 @@ function renderForecast() {
       ${actionsCell}`;
     tbody.appendChild(tr);
   });
+  // Today is after every row on this page (or the list is empty).
+  if (markerOnPage && markerIdx === endIdx) {
+    tbody.appendChild(_todayMarkerRow(markerMode, forecastRange));
+  }
 }
 
 function _renderForecastEditRow(r) {

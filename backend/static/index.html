@@ -102,6 +102,15 @@
   #forecastTable tr:not(.fc-editing) > :nth-child(3),
   #forecastTable tr:not(.fc-editing) > :nth-child(6),
   #forecastTable tr:not(.fc-editing) > :nth-child(9) { padding-left:2px; }
+  /* Read view only (not spreadsheet mode): a "/" after the first cell of each
+     pair, and no actions column (edit/delete live in spreadsheet mode). */
+  #forecastTable:not(.sheet-mode) tr:not(.fc-editing) > td:is(:nth-child(2), :nth-child(5), :nth-child(8))::after {
+    content:"/"; color:var(--muted); margin-left:6px; }
+  #forecastTable:not(.sheet-mode) thead th:last-child,
+  #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker) > td:last-child { display:none; }
+  #forecastTable:not(.sheet-mode) tr:not(.today-marker):not(.fc-editing) > :nth-child(11) { border-right:none; }
+  /* Spreadsheet button gets a clearly visible outline (accent fill when on). */
+  #forecastSpreadsheetBtn:not(.active) { border:1px solid var(--muted); }
   /* The balance pair is plain text (no input boxes), so keep a little air. */
   #forecastTable tr:not(.fc-editing) > :nth-child(8) { padding-right:6px; }
   #forecastTable tr:not(.fc-editing) > :nth-child(9) { padding-left:6px; }
@@ -1867,7 +1876,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.40.0";
+const WEB_VERSION = "1.41.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1877,6 +1886,14 @@ const WEB_VERSION = "1.40.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.41.0 (2026-10-15, claude+mkolakowski): (1) Forecast read view puts a "/"
+//     after the first cell of each grouped pair (date, amt, bal); not shown in
+//     spreadsheet mode (table gets .sheet-mode there). (2) The read view no
+//     longer has the edit (✎) and delete (🗑) buttons — the actions column is
+//     hidden outside spreadsheet mode, where editing/deleting live; the
+//     single-row editor (startEditForecastRow) now has no entry point.
+//     (3) The Spreadsheet mode button gets a visible muted border.
 //
 // 1.40.0 (2026-10-15, claude+mkolakowski): Forecast table (normal and
 //     spreadsheet mode) groups its paired columns: Forecast/Actual date,
@@ -5126,6 +5143,7 @@ function renderForecast() {
   }
 
   document.getElementById('forecastSpreadsheetBtn').classList.toggle('hidden', ro);
+  document.getElementById('forecastTable').classList.toggle('sheet-mode', forecastSpreadsheetMode && !ro);
   document.getElementById('forecastSpreadsheetHint').classList.toggle('hidden', !forecastSpreadsheetMode || ro);
   if (forecastSpreadsheetMode && !ro) _ensureGridListeners();
 
@@ -5190,10 +5208,9 @@ function renderForecast() {
       : `<td class="notes-col muted">—</td>`;
     const actDateCell = `<td class="${defaultedCls}">${actDateVal || '—'}</td>`;
     const actAmtCell  = `<td class="num${defaultedCls}">${actAmtVal != null ? fmt(actAmtVal) : '—'}</td>`;
-    const actionsCell = ro
-      ? '<td></td>'
-      : `<td style="white-space:nowrap"><button class="ghost" title="Edit row" onclick="startEditForecastRow('${rowKey}')">✎</button>
-           ${_forecastDeleteBtn(r, 'ghost')}</td>`;
+    // Normal (read) view has no row buttons — editing and deleting happen in
+    // Spreadsheet mode. The empty cell keeps the column count; CSS hides it.
+    const actionsCell = '<td></td>';
 
     // Tag chips render inline below the description so adding them didn't
     // require a whole new column (the table is already wide).

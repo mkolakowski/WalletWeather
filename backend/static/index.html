@@ -324,7 +324,12 @@
   /* Spreadsheet mode: roomier description + category boxes, amounts right-aligned. */
   #forecastTable .grid-desc { width:100%; min-width:260px; }
   #forecastTable select.grid-cat { width:150px; }
-  #forecastTable .grid-amt { width:110px; text-align:right; }
+  #forecastTable .grid-amt { width:110px; text-align:right; padding-right:3px;
+                             -moz-appearance:textfield; appearance:textfield; }
+  /* Drop the number-input spinner so it stops reserving space and the digits
+     sit flush against the right edge of the box (arrow keys move rows here). */
+  #forecastTable .grid-amt::-webkit-outer-spin-button,
+  #forecastTable .grid-amt::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
   .inline-edit.defaulted { color:var(--muted); border-color:transparent; background:transparent; }
   .inline-edit.defaulted:hover, .inline-edit.defaulted:focus { color:var(--text); border-color:var(--border); background:var(--bg-deep); }
   .notes-icon { display:inline-block; margin-left:6px; cursor:pointer; font-size:11px;
@@ -1845,7 +1850,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.38.0";
+const WEB_VERSION = "1.39.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1855,6 +1860,11 @@ const WEB_VERSION = "1.38.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.39.0 (2026-10-15, claude+mkolakowski): Spreadsheet mode amounts: the
+//     Forecast amt / Actual amt digits now sit flush against the right edge of
+//     their boxes — the number-input spinner (which reserved ~14px) is hidden
+//     and the right padding trimmed (.grid-amt).
 //
 // 1.38.0 (2026-10-15, claude+mkolakowski): Forecast spreadsheet mode layout:
 //     the Forecast amt and Actual amt boxes sit at the right side of their

@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.21.0** · Web version: **1.30.0** · Schema version: **13**
+App version: **1.22.0** · Web version: **1.31.0** · Schema version: **13**
 
 ### Added
 
@@ -143,6 +143,9 @@ App version: **1.21.0** · Web version: **1.30.0** · Schema version: **13**
 
 ### Changed
 
+- **Forecast table cells are packed closer together** (tighter cell padding
+  and smaller row buttons), so more rows fit on screen.
+
 - **"+ Add transaction" moved into the Account actions bar.** On the
   Forecast page the button now sits first in Account actions (next to
   Transfer money / Import CSV), and the separate "Add transaction" bar is
@@ -183,6 +186,17 @@ App version: **1.21.0** · Web version: **1.30.0** · Schema version: **13**
   sets the every-1/2-week cadence.
 
 ### Fixed
+
+- **Current balance and the Today-bar balance now match the Forecast table's
+  Actual bal column.** They used to sum only transactions marked cleared,
+  while the Actual bal column also counts rows dated up to that point that
+  haven't been marked actual yet (shown muted, at their forecast amount), so a
+  single past-due uncleared row made the figures disagree by its amount. Both
+  now use the same calculation (`forecast.actual_balance_as_of`: starting
+  balance + cleared transactions before the 1st of the month, then every row
+  from the 1st through today). This also changes `current_balance` on
+  `GET /api/accounts` (account tabs, transfer page). Tooltips now say it matches the
+  Actual bal column.
 
 - **Changing the Frequency while editing a recurring transaction no
   longer discards your other edits.** The editor used to re-fetch and

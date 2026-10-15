@@ -85,8 +85,12 @@ def _tags_for_account_transactions(db, txn_ids: list[int]) -> dict[int, list[dic
     return out
 
 
-def build_forecast(db, account: Account, start: date, end: date):
-    """Return rich forecast data with parallel forecast/actual balances."""
+def build_forecast(db, account: Account, start: date, end: date, with_tags: bool = True):
+    """Return rich forecast data with parallel forecast/actual balances.
+
+    with_tags=False skips the per-transaction tag lookup for callers that only
+    need balances (e.g. actual_balance_as_of).
+    """
     txns = (
         db.query(Transaction)
         .filter(Transaction.account_id == account.id)
@@ -94,7 +98,8 @@ def build_forecast(db, account: Account, start: date, end: date):
     )
     # Bulk-load tags for every transaction on this account — cheaper than
     # per-row N+1, and the forecast loop already has the ids in hand.
-    tags_by_txn = _tags_for_account_transactions(db, [t.id for t in txns])
+    tags_by_txn = (_tags_for_account_transactions(db, [t.id for t in txns])
+                   if with_tags else {})
 
     # Opening balance: starting balance + every cleared txn before the window.
     # Convert to float up-front so the running balances below don't mix
@@ -239,3 +244,17 @@ def build_forecast(db, account: Account, start: date, end: date):
         "actual_ending_balance": abal,
         "rows": rows,
     }
+
+
+def actual_balance_as_of(db, account: Account, as_of: date) -> float:
+    """Actual balance as of `as_of`, computed exactly like the forecast
+    table's "Actual bal" column for a month view containing that date:
+    starting balance + cleared transactions before the 1st of the month, then
+    every row from the 1st through `as_of` (cleared rows at their real amount,
+    not-yet-cleared rows at their forecast amount).
+
+    This is what the Forecast page's "Current balance" and Today-bar balance
+    show, so they agree with the Actual bal column at the same point.
+    """
+    data = build_forecast(db, account, as_of.replace(day=1), as_of, with_tags=False)
+    return round(data["actual_ending_balance"], 2)

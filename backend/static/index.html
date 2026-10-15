@@ -88,6 +88,23 @@
   #forecastTable th, #forecastTable td { border-right:1px solid var(--border); padding:4px 6px; }
   #forecastTable td button { padding:3px 8px; }
   #forecastTable th:last-child, #forecastTable td:last-child { border-right:none; }
+  /* Paired columns — Forecast/Actual date (2,3), amt (5,6), bal (8,9) — are
+     grouped: they hug their content instead of stretching with the table
+     (the slack goes to Description/Category/Notes), the divider between the
+     two is dropped, and the padding that faces each other is trimmed. The
+     single-row editor merges cells 7–10 into one, so it's excluded. */
+  #forecastTable thead th:nth-child(2), #forecastTable thead th:nth-child(3),
+  #forecastTable thead th:nth-child(5), #forecastTable thead th:nth-child(6),
+  #forecastTable thead th:nth-child(8), #forecastTable thead th:nth-child(9) { width:1%; white-space:nowrap; }
+  #forecastTable tr:not(.fc-editing) > :nth-child(2),
+  #forecastTable tr:not(.fc-editing) > :nth-child(5),
+  #forecastTable tr:not(.fc-editing) > :nth-child(8) { border-right:none; padding-right:2px; }
+  #forecastTable tr:not(.fc-editing) > :nth-child(3),
+  #forecastTable tr:not(.fc-editing) > :nth-child(6),
+  #forecastTable tr:not(.fc-editing) > :nth-child(9) { padding-left:2px; }
+  /* The balance pair is plain text (no input boxes), so keep a little air. */
+  #forecastTable tr:not(.fc-editing) > :nth-child(8) { padding-right:6px; }
+  #forecastTable tr:not(.fc-editing) > :nth-child(9) { padding-left:6px; }
   tr.actual { color:var(--text); }
   /* "You are here" bar the forecast table inserts between rows at today's date. */
   #forecastTable tr.today-marker td { padding:0; border-right:none; border-bottom:none; background:var(--bg-deep); }
@@ -1850,7 +1867,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.39.0";
+const WEB_VERSION = "1.40.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1860,6 +1877,13 @@ const WEB_VERSION = "1.39.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.40.0 (2026-10-15, claude+mkolakowski): Forecast table (normal and
+//     spreadsheet mode) groups its paired columns: Forecast/Actual date,
+//     Forecast/Actual amt and Forecast/Actual bal now hug their content
+//     (header width:1%), lose the divider between the two and have less
+//     padding between them. The single-row editor row gets .fc-editing so the
+//     nth-child rules skip it (its Δ/balance cells are merged).
 //
 // 1.39.0 (2026-10-15, claude+mkolakowski): Spreadsheet mode amounts: the
 //     Forecast amt / Actual amt digits now sit flush against the right edge of
@@ -5140,6 +5164,7 @@ function renderForecast() {
     }
     if (editingForecastRowKey === rowKey && !ro) {
       tr.innerHTML = _renderForecastEditRow(r);
+      tr.classList.add('fc-editing');   // its merged cells break the paired-column CSS
       tbody.appendChild(tr);
       return;
     }

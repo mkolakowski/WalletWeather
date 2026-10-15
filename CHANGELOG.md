@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.0** · Web version: **1.39.0** · Schema version: **13**
+App version: **1.22.0** · Web version: **1.40.0** · Schema version: **13**
 
 ### Added
 
@@ -155,6 +155,12 @@ App version: **1.22.0** · Web version: **1.39.0** · Schema version: **13**
   display as "Monthly · day N · from YYYY-MM-DD".
 
 ### Changed
+
+- **Paired Forecast table columns are grouped closer together.** Forecast date
+  / Actual date, Forecast amt / Actual amt and Forecast bal / Actual bal now
+  sit next to each other with no divider and less padding between them, and
+  they shrink to fit their contents (extra width goes to Description, Category
+  and Notes). Applies in normal and spreadsheet mode.
 
 - **Spreadsheet mode amounts are flush right.** The numbers in the Forecast amt
   and Actual amt boxes now sit against the right edge of the box: the

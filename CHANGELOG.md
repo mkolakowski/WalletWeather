@@ -65,9 +65,33 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.19.0** · Web version: **1.26.0** · Schema version: **12**
+App version: **1.21.0** · Web version: **1.28.0** · Schema version: **13**
 
 ### Added
+
+- **Week dividers in the Forecast table.** When the table is sorted by
+  Forecast date (either direction), a "Week of Oct 11" bar is drawn between
+  rows that fall in different Sunday-to-Saturday weeks (the same week layout
+  as the Calendar page). Frontend only (`_weekDividerRow()` in
+  `backend/static/index.html`).
+
+- **Setting: Recurring transactions panel above or below the forecast.**
+  Settings → Appearance → "Forecast page layout" lets each user swap where
+  the Recurring transactions panel sits on the Forecast page relative to the
+  forecast table (default: above, as before). The choice is stored per user
+  on the server (`users.recurring_position`), returned by `GET /api/me`, and
+  saved through `PATCH /api/me/preferences` (400 for any value other than
+  `above`/`below`), so it follows the user across browsers.
+
+- **Current balance on the Forecast page.** The account's current balance
+  (starting balance plus every cleared transaction dated today or earlier —
+  the same figure `GET /api/accounts` already returned) now appears in
+  three places: a "Current balance" stat at the start of the Forecast
+  summary, a "Balance" figure in the Today bar, and next to each account's
+  name in the account tabs. It is independent of the month/range being
+  viewed. `GET /api/accounts/{id}/forecast` gains a `current_balance` field
+  so it is fresh on every load; the active tab updates whenever the forecast
+  reloads.
 
 - **"Today" bar in the Forecast table.** A highlighted bar now sits between
   the rows at today's date, with a label ("Today · day 14 of 31" in Month
@@ -167,6 +191,11 @@ App version: **1.19.0** · Web version: **1.26.0** · Schema version: **12**
   add form instead of failing the save.
 
 ### Database
+
+- Schema v13: new nullable `users.recurring_position` column (`'above'` |
+  `'below'`) backing the Forecast page layout setting. Added automatically
+  on startup by `init_db()` (`ADD COLUMN IF NOT EXISTS`); NULL means
+  `'above'`, so existing users see no change.
 
 - Schema v12: new `recurring_skips` table (`recurring_id`, `skip_date`,
   unique together, cascades with its template). Created automatically on

@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.19.0"
+APP_VERSION = "1.21.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -35,6 +35,17 @@ APP_VERSION = "1.19.0"
 # When you bump APP_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
+#
+# 1.21.0 (2026-10-15, claude+mkolakowski): New per-user Forecast page
+#     layout preference. users.recurring_position (schema v13) is
+#     'above' | 'below' (NULL = above) and is returned by GET /api/me and
+#     accepted/returned by PATCH /api/me/preferences (400 on other values).
+#
+# 1.20.0 (2026-10-14, claude+mkolakowski): GET
+#     /api/accounts/{id}/forecast now also returns current_balance (the
+#     same today-dated cleared balance as GET /api/accounts, via
+#     _current_balance) so the Forecast page can show it fresh on every
+#     load.
 #
 # 1.19.0 (2026-10-08, claude+mkolakowski): Deleting recurring
 #     occurrences. New POST /api/recurring/{id}/skip records a
@@ -642,7 +653,8 @@ def me(user: User = Depends(current_user)):
     return {"id": user.id, "email": user.email, "name": user.name,
             "is_admin": is_admin(user),
             "theme_preference": user.theme_preference,
-            "chart_position": user.chart_position}
+            "chart_position": user.chart_position,
+            "recurring_position": user.recurring_position}
 
 
 ALLOWED_THEMES = {
@@ -651,6 +663,7 @@ ALLOWED_THEMES = {
     "forest", "mint", "monokai", "sunset",
 }
 ALLOWED_CHART_POSITIONS = {"above", "below", "inside"}
+ALLOWED_RECURRING_POSITIONS = {"above", "below"}
 
 
 class PreferencesIn(BaseModel):
@@ -658,6 +671,7 @@ class PreferencesIn(BaseModel):
     # None means "don't touch this field"; use explicit values to set.
     theme_preference: str | None = None
     chart_position: str | None = None
+    recurring_position: str | None = None
 
 
 @app.patch("/api/me/preferences")
@@ -673,11 +687,16 @@ def update_preferences(payload: PreferencesIn,
         if payload.chart_position not in ALLOWED_CHART_POSITIONS:
             raise HTTPException(400, f"chart_position must be one of {sorted(ALLOWED_CHART_POSITIONS)}")
         user.chart_position = payload.chart_position
+    if payload.recurring_position is not None:
+        if payload.recurring_position not in ALLOWED_RECURRING_POSITIONS:
+            raise HTTPException(400, f"recurring_position must be one of {sorted(ALLOWED_RECURRING_POSITIONS)}")
+        user.recurring_position = payload.recurring_position
     db.commit()
     return {
         "ok": True,
         "theme_preference": user.theme_preference,
         "chart_position": user.chart_position,
+        "recurring_position": user.recurring_position,
     }
 
 
@@ -1684,7 +1703,11 @@ def forecast(account_id: int, days: int = 90,
         today = date.today()
         start = today
         end = today + timedelta(days=days)
-    return build_forecast(db, acc, start, end)
+    data = build_forecast(db, acc, start, end)
+    # Today-dated cleared balance, independent of the requested window, so
+    # the UI can show "where the account is right now" next to the forecast.
+    data["current_balance"] = round(_current_balance(db, acc), 2)
+    return data
 
 
 # ---------- Backup: export / import ----------

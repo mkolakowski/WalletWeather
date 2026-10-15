@@ -65,9 +65,14 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.0** · Web version: **1.36.0** · Schema version: **13**
+App version: **1.22.0** · Web version: **1.37.0** · Schema version: **13**
 
 ### Added
+
+- **"Current month" button on the Forecast page.** Next to the Year dropdown
+  (Month view), one click jumps the Month/Year selectors back to the current
+  month and reloads the forecast. It's disabled while the selectors already
+  show the current month. Frontend only.
 
 - **Outgoing / incoming cards in the Forecast summary.** "Forecast out / in"
   and "Actual out / in" show how much leaves and enters the account over the

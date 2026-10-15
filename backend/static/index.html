@@ -130,12 +130,12 @@
      faint tint on light ones. */
   #forecastTable tr.week-even td { background:color-mix(in srgb, var(--text) 5%, transparent); }
   /* Forecast controls row: View/Month/Year on the left (label beside each
-     dropdown), Spreadsheet mode centred, pagination pinned right. The side
-     groups share the free space equally so the button sits mid-row. */
+     dropdown), Spreadsheet mode centred in the space between the groups,
+     pagination pinned right. */
   .fc-controls { display:flex; align-items:center; gap:12px 16px; flex-wrap:wrap; margin-bottom:14px; }
-  .fc-left, .fc-right { flex:1 1 320px; display:flex; align-items:center; gap:10px 14px; flex-wrap:wrap; }
+  .fc-left, .fc-right { flex:0 1 auto; display:flex; align-items:center; gap:10px 14px; flex-wrap:wrap; }
   .fc-right { justify-content:flex-end; }
-  .fc-center { flex:0 0 auto; }
+  .fc-center { flex:1 1 auto; display:flex; justify-content:center; }
   .ctl { display:flex; align-items:center; gap:6px; }
   .ctl label { margin:0; }
   .ctl.hidden { display:none; }
@@ -1212,6 +1212,8 @@
             <div class="ctl" id="forecastYearWrap">
               <label>Year</label>
               <select id="forecastYearSel" onchange="loadForecast()"></select>
+              <button class="ghost" id="forecastCurrentMonthBtn" onclick="goToCurrentMonth()"
+                      title="Jump to the current month">Current month</button>
             </div>
             <div class="ctl hidden" id="forecastDurationWrap">
               <label>Range</label>
@@ -1839,7 +1841,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.36.0";
+const WEB_VERSION = "1.37.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1849,6 +1851,12 @@ const WEB_VERSION = "1.36.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.37.0 (2026-10-15, claude+mkolakowski): "Current month" button beside the
+//     Year dropdown on the Forecast page (goToCurrentMonth()): sets the
+//     Month/Year selectors to today's month and reloads; disabled while they
+//     already show it (_updateCurrentMonthBtn()). Month view only, like the
+//     selectors it sits with.
 //
 // 1.36.0 (2026-10-15, claude+mkolakowski): Two new cards in the Forecast
 //     summary, "Forecast out / in" and "Actual out / in": outgoing and
@@ -4880,7 +4888,24 @@ function _monthRangeFromSelects() {
   return [`${y}-${pad(m)}-01`, `${y}-${pad(m)}-${pad(lastDay)}`];
 }
 
+// Jump the Month/Year selectors to today's month and reload.
+function goToCurrentMonth() {
+  const now = new Date();
+  document.getElementById('forecastMonthSel').value = String(now.getMonth() + 1);
+  document.getElementById('forecastYearSel').value = String(now.getFullYear());
+  loadForecast();
+}
+
+// Disable the Current month button while the selectors already show it.
+function _updateCurrentMonthBtn() {
+  const now = new Date();
+  document.getElementById('forecastCurrentMonthBtn').disabled =
+    document.getElementById('forecastMonthSel').value === String(now.getMonth() + 1) &&
+    document.getElementById('forecastYearSel').value === String(now.getFullYear());
+}
+
 async function loadForecast() {
+  _updateCurrentMonthBtn();
   if (!currentAccountId) return;
   const mode = document.getElementById('forecastMode').value;
   let url = `/api/accounts/${currentAccountId}/forecast`;

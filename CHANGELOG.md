@@ -65,23 +65,24 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.21.0** · Web version: **1.28.0** · Schema version: **13**
+App version: **1.20.0** · Web version: **1.29.0** · Schema version: **12**
 
 ### Added
 
-- **Week dividers in the Forecast table.** When the table is sorted by
-  Forecast date (either direction), a "Week of Oct 11" bar is drawn between
-  rows that fall in different Sunday-to-Saturday weeks (the same week layout
-  as the Calendar page). Frontend only (`_weekDividerRow()` in
-  `backend/static/index.html`).
+- **Recurring transactions now live at the top of the Subscriptions page.**
+  The panel (add/edit/pause/delete, bulk edit, Active/Archived) moved from
+  the Forecast page to above the Subscriptions table, with an Account
+  selector at its top because the panel is per-account. The selector shares
+  the selected account with the Forecast page's account tabs, and clicking an
+  account name in the Subscriptions table now switches the panel to that
+  account instead of jumping to the Forecast page.
 
-- **Setting: Recurring transactions panel above or below the forecast.**
-  Settings → Appearance → "Forecast page layout" lets each user swap where
-  the Recurring transactions panel sits on the Forecast page relative to the
-  forecast table (default: above, as before). The choice is stored per user
-  on the server (`users.recurring_position`), returned by `GET /api/me`, and
-  saved through `PATCH /api/me/preferences` (400 for any value other than
-  `above`/`below`), so it follows the user across browsers.
+- **Even weeks of the month are shaded in the Forecast table.** Rows in the
+  2nd, 4th and 6th Sunday-to-Saturday week of their month get a slightly
+  lighter cell shade (a faint overlay, so it also reads as a subtle tint on
+  light themes), giving a quiet separator between weeks. It applies whenever
+  the table is sorted by Forecast date or Actual date
+  (`_weekOfMonth()` in `backend/static/index.html`).
 
 - **Current balance on the Forecast page.** The account's current balance
   (starting balance plus every cleared transaction dated today or earlier —
@@ -97,7 +98,7 @@ App version: **1.21.0** · Web version: **1.28.0** · Schema version: **13**
   the rows at today's date, with a label ("Today · day 14 of 31" in Month
   view), a progress fill and a percentage so you can see at a glance how far
   through the month the forecast is. It shows only when sorted by Forecast
-  date (either direction) and today falls inside the displayed window; with
+  or Actual date (either direction) and today falls inside the displayed window; with
   pagination it appears on the page where the boundary lands. Frontend only
   (`_todayMarkerRow()` in `backend/static/index.html`).
 
@@ -141,6 +142,10 @@ App version: **1.21.0** · Web version: **1.28.0** · Schema version: **13**
   display as "Monthly · day N · from YYYY-MM-DD".
 
 ### Changed
+
+- **The Forecast table now sorts by Actual date by default** (it used to
+  sort by Forecast date). The Today bar works when sorted by either date
+  column.
 
 - **Recurring edit row: Save, Cancel and Delete now stack in a column on
   the far right of the editor**, lined up with the first row of inputs,
@@ -191,11 +196,6 @@ App version: **1.21.0** · Web version: **1.28.0** · Schema version: **13**
   add form instead of failing the save.
 
 ### Database
-
-- Schema v13: new nullable `users.recurring_position` column (`'above'` |
-  `'below'`) backing the Forecast page layout setting. Added automatically
-  on startup by `init_db()` (`ADD COLUMN IF NOT EXISTS`); NULL means
-  `'above'`, so existing users see no change.
 
 - Schema v12: new `recurring_skips` table (`recurring_id`, `skip_date`,
   unique together, cascades with its template). Created automatically on

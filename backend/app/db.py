@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "13"
+SCHEMA_VERSION = "12"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,9 +31,6 @@ SCHEMA_VERSION = "13"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
-# v13 (2026-10-15, claude+mkolakowski): add users.recurring_position for
-#     the Forecast page layout preference ('above'/'below' — where the
-#     Recurring transactions panel sits relative to the forecast table).
 # v12 (2026-10-08, claude+mkolakowski): add `recurring_skips` table —
 #     (recurring_id, skip_date) pairs marking single occurrences of a
 #     recurring template that were deleted, so the forecast stops
@@ -134,10 +131,6 @@ class User(Base):
     # Dashboard chart placement. One of: 'above' | 'below' | 'inside'.
     # NULL means unset → frontend falls back to 'above'.
     chart_position = Column(String(10), nullable=True)
-    # Forecast page layout: where the Recurring transactions panel sits
-    # relative to the forecast table. One of: 'above' | 'below'.
-    # NULL means unset → frontend falls back to 'above'.
-    recurring_position = Column(String(10), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     accounts = relationship("Account", back_populates="owner", cascade="all, delete-orphan")
@@ -566,8 +559,6 @@ def init_db():
         # story as v9 → v10 — boundary marker only.)
         # v11 → v12: recurring_skips
         # (Created by Base.metadata.create_all above — boundary marker only.)
-        # v12 → v13: per-user Forecast page layout (recurring panel position)
-        "ALTER TABLE users ADD COLUMN IF NOT EXISTS recurring_position VARCHAR(10)",
     ]
     with engine.begin() as conn:
         for sql in migrations:

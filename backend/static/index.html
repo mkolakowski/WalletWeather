@@ -121,16 +121,11 @@
   .account-tab { padding:8px 14px; border-radius:6px; background:var(--panel);
                  border:1px solid var(--border); cursor:pointer; }
   .account-tab.active { border-color:var(--accent); color:var(--accent); }
-  /* Divider the forecast table inserts between calendar weeks (Sun–Sat). */
-  #forecastTable tr.week-divider td { padding:0; border-right:none; border-bottom:none; }
-  .week-sep { padding:3px 10px; border-top:2px solid var(--muted); background:var(--bg-deep);
-              font-size:11px; font-weight:600; color:var(--muted);
-              text-transform:uppercase; letter-spacing:.05em; }
-  /* Settings → "Recurring transactions panel" = below: flex column so the
-     recurring panel can be ordered after the forecast. :not(.hidden) keeps
-     the display:none of .hidden winning when no account is selected. */
-  #accountView.recurring-last:not(.hidden) { display:flex; flex-direction:column; }
-  #accountView.recurring-last > #txnRecurringPanel { order:1; }
+  /* Even weeks of the month (2nd, 4th, 6th Sun–Sat week) get a slightly
+     lighter cell shade in the forecast table, as a quiet week separator.
+     An overlay of the text color reads "lighter" on dark themes and as a
+     faint tint on light ones. */
+  #forecastTable tr.week-even td { background:color-mix(in srgb, var(--text) 5%, transparent); }
   .account-tab .tab-bal { margin-left:8px; font-size:12px; color:var(--muted); }
   .today-bar .today-bal { color:var(--text); text-transform:none; letter-spacing:0; }
   .summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
@@ -730,15 +725,128 @@
     </div>
 
     <div id="pageSubscriptions" class="hidden">
+      <div id="recurringHost">
+      <div class="panel" id="txnRecurringPanel">
+        <h2>Recurring transactions
+          <span style="float:right;font-weight:normal">
+            <button id="recTabActive" class="tab small active" onclick="switchRecView('active')">Active</button>
+            <button id="recTabArchived" class="tab small" onclick="switchRecView('archived')">Archived</button>
+          </span>
+        </h2>
+        <div id="recAccountRow" class="row" style="margin:10px 0">
+          <div style="flex:0 0 auto;min-width:220px">
+            <label>Account</label>
+            <select id="recAccountSel" onchange="onRecAccountChange()"></select>
+          </div>
+        </div>
+        <div class="summary" id="recSummary" style="margin:10px 0"></div>
+        <!-- One-step start date for every monthly template on this account.
+             Shown by renderRecurring() only in the Active view, when the
+             account is editable and has at least one monthly row. -->
+        <div id="recMonthlyAnchorBar" class="hidden" style="margin-bottom:10px">
+          <div class="row" style="gap:10px;align-items:end;flex-wrap:wrap">
+            <div style="flex:0 0 auto">
+              <label id="recMonthlyAnchorLabel"
+                     title="No occurrences are projected before this date">Start date for all monthly recurring</label>
+              <input id="recMonthlyAnchor" type="date">
+            </div>
+            <div style="flex:0 0 auto">
+              <button onclick="applyMonthlyAnchorToAll(false)">Apply to all monthly</button>
+              <button class="ghost" onclick="applyMonthlyAnchorToAll(true)">Clear from all monthly</button>
+            </div>
+            <div id="recMonthlyAnchorStatus" style="flex:1 1 auto;font-size:12px;color:var(--muted)"></div>
+          </div>
+        </div>
+        <!-- Bulk edit bar — appears once at least one row is checked.
+             Blank fields are left unchanged; Apply sends only the filled
+             ones to POST /api/recurring/bulk-update. -->
+        <div id="recBulkBar" class="hidden" style="margin-bottom:10px">
+          <div class="row" style="gap:10px;align-items:end;flex-wrap:wrap;
+                                   padding:8px 10px;border:1px solid var(--accent);
+                                   border-radius:6px;background:var(--chip-bg)">
+            <div style="flex:0 0 auto;font-size:13px">
+              <strong id="recBulkCount">0 selected</strong>
+            </div>
+            <div style="flex:0 0 auto">
+              <label style="font-size:12px;color:var(--muted)">Category</label>
+              <select id="recBulkCat"></select>
+            </div>
+            <div style="flex:0 0 110px">
+              <label style="font-size:12px;color:var(--muted)"
+                     title="Each row keeps its own sign — expenses stay expenses, income stays income">Amount</label>
+              <input id="recBulkAmt" type="number" step="0.01" min="0" placeholder="no change">
+            </div>
+            <div style="flex:0 0 110px">
+              <label style="font-size:12px;color:var(--muted)" title="Applies to monthly rows only">Day of month</label>
+              <input id="recBulkDay" type="number" min="1" max="31" placeholder="no change">
+            </div>
+            <div style="flex:0 0 auto">
+              <label style="font-size:12px;color:var(--muted)"
+                     title="No occurrences are projected before this date">Start date</label>
+              <input id="recBulkAnchor" type="date">
+              <label style="font-size:12px;display:inline-flex;align-items:center;gap:4px;margin:2px 0 0"
+                     title="Clears the start date on monthly rows (weekly/biweekly keep their anchor)">
+                <input id="recBulkAnchorClear" type="checkbox" style="width:auto;margin:0"> clear (monthly)</label>
+            </div>
+            <div style="flex:0 0 auto">
+              <label style="font-size:12px;color:var(--muted)">End date</label>
+              <input id="recBulkEnd" type="date">
+              <label style="font-size:12px;display:inline-flex;align-items:center;gap:4px;margin:2px 0 0">
+                <input id="recBulkEndClear" type="checkbox" style="width:auto;margin:0"> clear</label>
+            </div>
+            <div style="flex:0 0 auto">
+              <button onclick="runRecBulkUpdate()">Apply</button>
+              <button class="danger" onclick="runRecBulkDelete()">Delete selected</button>
+              <button class="ghost" onclick="clearRecSelection()">Clear</button>
+            </div>
+            <div id="recBulkStatus" style="flex:1 1 100%;font-size:12px;color:var(--muted)"></div>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+        <table id="recurringTable"><thead><tr>
+          <th style="width:28px" id="recSelectAllTh">
+            <input type="checkbox" id="recSelectAll"
+                   onclick="toggleAllRecSelection(this.checked)"
+                   title="Select all on this page">
+          </th>
+          <th class="sortable" data-key="description">Description</th>
+          <th class="sortable" data-key="category_name">Category</th>
+          <th class="sortable num" data-key="amount">Amount</th>
+          <th class="sortable num" data-key="monthly_cost">Monthly</th>
+          <th class="sortable num" data-key="yearly_cost">Yearly</th>
+          <th class="sortable" data-key="when">Frequency</th>
+          <th class="sortable" data-key="end_date">Ends</th>
+          <th>Notes</th>
+          <th></th>
+        </tr></thead><tbody></tbody></table>
+        </div>
+        <div id="recurringPagination" class="pagination hidden">
+          <div class="pagination-left">
+            <label>Per page</label>
+            <select id="recurringPageSize" onchange="onRecurringPageSizeChange()">
+              <option value="5" selected>5</option>
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+            <span id="recurringPageRange" class="pagination-range"></span>
+          </div>
+          <div class="pagination-right">
+            <button id="recurringPrevPage" class="ghost" onclick="changeRecurringPage(-1)">« Prev</button>
+            <span id="recurringPageLabel" class="pagination-label"></span>
+            <button id="recurringNextPage" class="ghost" onclick="changeRecurringPage(1)">Next »</button>
+          </div>
+        </div>
+      </div>
+      </div>
+
       <div class="panel">
         <h2>Subscriptions</h2>
         <p style="color:var(--muted);font-size:13px;margin-top:0">
           Every active recurring outflow across the accounts you can see,
           normalized to a monthly cost so cadences line up. Add, edit, or
-          cancel a subscription from its account's <em>Recurring
-          transactions</em> panel on the
-          <a href="#" onclick="showPage('accounts');return false"
-             style="color:var(--accent)">Forecast</a> page.
+          cancel a subscription in the <em>Recurring transactions</em>
+          panel above.
         </p>
         <div class="summary" id="subsSummary" style="margin-top:10px"></div>
         <div id="subsEmpty" class="hidden" style="color:var(--muted);font-size:13px;margin-top:12px">
@@ -999,113 +1107,6 @@
         <div class="row">
           <div style="flex:0 0 auto"><button class="ghost" onclick="openTransferPage()">⇄ Transfer money</button></div>
           <div style="flex:0 0 auto"><button class="ghost" onclick="openImportPage(currentAccountId)">⬆ Import CSV</button></div>
-        </div>
-      </div>
-
-      <div class="panel" id="txnRecurringPanel">
-        <h2>Recurring transactions
-          <span style="float:right;font-weight:normal">
-            <button id="recTabActive" class="tab small active" onclick="switchRecView('active')">Active</button>
-            <button id="recTabArchived" class="tab small" onclick="switchRecView('archived')">Archived</button>
-          </span>
-        </h2>
-        <div class="summary" id="recSummary" style="margin:10px 0"></div>
-        <!-- One-step start date for every monthly template on this account.
-             Shown by renderRecurring() only in the Active view, when the
-             account is editable and has at least one monthly row. -->
-        <div id="recMonthlyAnchorBar" class="hidden" style="margin-bottom:10px">
-          <div class="row" style="gap:10px;align-items:end;flex-wrap:wrap">
-            <div style="flex:0 0 auto">
-              <label id="recMonthlyAnchorLabel"
-                     title="No occurrences are projected before this date">Start date for all monthly recurring</label>
-              <input id="recMonthlyAnchor" type="date">
-            </div>
-            <div style="flex:0 0 auto">
-              <button onclick="applyMonthlyAnchorToAll(false)">Apply to all monthly</button>
-              <button class="ghost" onclick="applyMonthlyAnchorToAll(true)">Clear from all monthly</button>
-            </div>
-            <div id="recMonthlyAnchorStatus" style="flex:1 1 auto;font-size:12px;color:var(--muted)"></div>
-          </div>
-        </div>
-        <!-- Bulk edit bar — appears once at least one row is checked.
-             Blank fields are left unchanged; Apply sends only the filled
-             ones to POST /api/recurring/bulk-update. -->
-        <div id="recBulkBar" class="hidden" style="margin-bottom:10px">
-          <div class="row" style="gap:10px;align-items:end;flex-wrap:wrap;
-                                   padding:8px 10px;border:1px solid var(--accent);
-                                   border-radius:6px;background:var(--chip-bg)">
-            <div style="flex:0 0 auto;font-size:13px">
-              <strong id="recBulkCount">0 selected</strong>
-            </div>
-            <div style="flex:0 0 auto">
-              <label style="font-size:12px;color:var(--muted)">Category</label>
-              <select id="recBulkCat"></select>
-            </div>
-            <div style="flex:0 0 110px">
-              <label style="font-size:12px;color:var(--muted)"
-                     title="Each row keeps its own sign — expenses stay expenses, income stays income">Amount</label>
-              <input id="recBulkAmt" type="number" step="0.01" min="0" placeholder="no change">
-            </div>
-            <div style="flex:0 0 110px">
-              <label style="font-size:12px;color:var(--muted)" title="Applies to monthly rows only">Day of month</label>
-              <input id="recBulkDay" type="number" min="1" max="31" placeholder="no change">
-            </div>
-            <div style="flex:0 0 auto">
-              <label style="font-size:12px;color:var(--muted)"
-                     title="No occurrences are projected before this date">Start date</label>
-              <input id="recBulkAnchor" type="date">
-              <label style="font-size:12px;display:inline-flex;align-items:center;gap:4px;margin:2px 0 0"
-                     title="Clears the start date on monthly rows (weekly/biweekly keep their anchor)">
-                <input id="recBulkAnchorClear" type="checkbox" style="width:auto;margin:0"> clear (monthly)</label>
-            </div>
-            <div style="flex:0 0 auto">
-              <label style="font-size:12px;color:var(--muted)">End date</label>
-              <input id="recBulkEnd" type="date">
-              <label style="font-size:12px;display:inline-flex;align-items:center;gap:4px;margin:2px 0 0">
-                <input id="recBulkEndClear" type="checkbox" style="width:auto;margin:0"> clear</label>
-            </div>
-            <div style="flex:0 0 auto">
-              <button onclick="runRecBulkUpdate()">Apply</button>
-              <button class="danger" onclick="runRecBulkDelete()">Delete selected</button>
-              <button class="ghost" onclick="clearRecSelection()">Clear</button>
-            </div>
-            <div id="recBulkStatus" style="flex:1 1 100%;font-size:12px;color:var(--muted)"></div>
-          </div>
-        </div>
-        <div style="overflow-x:auto">
-        <table id="recurringTable"><thead><tr>
-          <th style="width:28px" id="recSelectAllTh">
-            <input type="checkbox" id="recSelectAll"
-                   onclick="toggleAllRecSelection(this.checked)"
-                   title="Select all on this page">
-          </th>
-          <th class="sortable" data-key="description">Description</th>
-          <th class="sortable" data-key="category_name">Category</th>
-          <th class="sortable num" data-key="amount">Amount</th>
-          <th class="sortable num" data-key="monthly_cost">Monthly</th>
-          <th class="sortable num" data-key="yearly_cost">Yearly</th>
-          <th class="sortable" data-key="when">Frequency</th>
-          <th class="sortable" data-key="end_date">Ends</th>
-          <th>Notes</th>
-          <th></th>
-        </tr></thead><tbody></tbody></table>
-        </div>
-        <div id="recurringPagination" class="pagination hidden">
-          <div class="pagination-left">
-            <label>Per page</label>
-            <select id="recurringPageSize" onchange="onRecurringPageSizeChange()">
-              <option value="5" selected>5</option>
-              <option value="10">10</option>
-              <option value="20">20</option>
-              <option value="50">50</option>
-            </select>
-            <span id="recurringPageRange" class="pagination-range"></span>
-          </div>
-          <div class="pagination-right">
-            <button id="recurringPrevPage" class="ghost" onclick="changeRecurringPage(-1)">« Prev</button>
-            <span id="recurringPageLabel" class="pagination-label"></span>
-            <button id="recurringNextPage" class="ghost" onclick="changeRecurringPage(1)">Next »</button>
-          </div>
         </div>
       </div>
 
@@ -1613,23 +1614,6 @@
           </label>
         </div>
         </div><!-- /#dashLayoutSection -->
-
-        <h3 style="margin:16px 0 6px;font-size:14px">Forecast page layout</h3>
-        <p style="color:var(--muted);margin:0 0 10px;font-size:13px">
-          Choose whether the Recurring transactions panel sits above or below the
-          forecast table on the Forecast page. Default: <em>Above the forecast</em>.
-        </p>
-        <div id="recurringPositionPicker" class="row" style="gap:8px"
-             onchange="onRecurringPositionChange(event)">
-          <label style="flex:0 0 auto;display:flex;align-items:center;gap:6px;cursor:pointer">
-            <input type="radio" name="recurringPosition" value="above">
-            <span>Recurring above the forecast</span>
-          </label>
-          <label style="flex:0 0 auto;display:flex;align-items:center;gap:6px;cursor:pointer">
-            <input type="radio" name="recurringPosition" value="below">
-            <span>Recurring below the forecast</span>
-          </label>
-        </div>
       </div>
 
       <div class="panel">
@@ -1841,7 +1825,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.28.0";
+const WEB_VERSION = "1.29.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1851,6 +1835,17 @@ const WEB_VERSION = "1.28.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.29.0 (2026-10-15, claude+mkolakowski): (1) Removed the week divider
+//     rows and the Settings "Forecast page layout" option from 1.28.0
+//     (unreleased); no server preference or schema v13 ships.
+//     (2) Forecast rows in even weeks of the month (2nd/4th/6th, Sun–Sat)
+//     get a lighter shade (tr.week-even, _weekOfMonth()). (3) Default sort
+//     is now Actual date; the Today bar and shading work for either date
+//     sort. (4) The Recurring transactions panel moved from the Forecast
+//     page to the top of the Subscriptions page, with an account selector
+//     (#recAccountSel) sharing currentAccountId with the Forecast tabs;
+//     jumpToRecurring() now switches that selector instead of changing page.
 //
 // 1.28.0 (2026-10-15, claude+mkolakowski): (1) Week dividers in the
 //     forecast table (_weekDividerRow()): a "Week of Oct 11" bar between
@@ -2390,10 +2385,15 @@ function showPage(name, opts) {
   document.getElementById('navReports').classList.toggle('active', name==='reports');
   document.getElementById('navAdmin').classList.toggle('active', name==='admin');
   document.getElementById('navSettings').classList.toggle('active', name==='settings');
-  if (name === 'settings') { loadThemePicker(); markChartPositionRadio(currentChartPosition()); markRecurringPositionRadio(currentRecurringPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); }
+  if (name === 'settings') { loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); }
   if (name === 'dashboard') loadDashboard();
   if (name === 'networth') loadNetworth();
-  if (name === 'subscriptions') loadSubscriptions();
+  if (name === 'subscriptions') {
+    loadSubscriptions();
+    // Recurring panel (top of this page) follows the shared selected account.
+    if (currentAccountId && accounts.some(a => a.id === currentAccountId)) selectAccount(currentAccountId);
+    else if (accounts.length) selectAccount(accounts[0].id);
+  }
   if (name === 'calendar') initCalendarPage();
   if (name === 'import') initImportPage();
   if (name === 'transfer') initTransferPage();
@@ -2432,40 +2432,6 @@ let dashboardCharts = null;  // cached response from /api/dashboard/charts
 function currentChartPosition() {
   const p = me && me.chart_position;
   return ALLOWED_CHART_POSITIONS.includes(p) ? p : DEFAULT_CHART_POSITION;
-}
-
-// Forecast page layout: where the Recurring transactions panel sits
-// relative to the forecast table. Stored per-user on the server.
-const ALLOWED_RECURRING_POSITIONS = ['above', 'below'];
-const DEFAULT_RECURRING_POSITION = 'above';
-
-function currentRecurringPosition() {
-  const p = me && me.recurring_position;
-  return ALLOWED_RECURRING_POSITIONS.includes(p) ? p : DEFAULT_RECURRING_POSITION;
-}
-
-function applyRecurringPosition() {
-  document.getElementById('accountView')
-    .classList.toggle('recurring-last', currentRecurringPosition() === 'below');
-}
-
-function markRecurringPositionRadio(pos) {
-  const el = document.querySelector(`#recurringPositionPicker input[value="${pos}"]`);
-  if (el) el.checked = true;
-}
-
-async function onRecurringPositionChange(event) {
-  const pos = event.target.value;
-  if (!ALLOWED_RECURRING_POSITIONS.includes(pos)) return;
-  if (me) me.recurring_position = pos;
-  applyRecurringPosition();
-  try {
-    await fetch('/api/me/preferences', {
-      method: 'PATCH',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ recurring_position: pos }),
-    });
-  } catch { /* network hiccup — server-side will catch up on next change */ }
 }
 
 // ---------- Dashboard: pinned saved reports ----------
@@ -3612,7 +3578,6 @@ async function init() {
   // Server is the sole source of truth for theme. Apply whatever preference
   // the user has (or fall back to 'system' if they haven't set one).
   applyTheme(me.theme_preference || DEFAULT_THEME);
-  applyRecurringPosition();
   document.getElementById('newAccDate').valueAsDate = new Date();
   // Populate year dropdown (current - 2 .. current + 5) and default to current month/year
   const now = new Date();
@@ -3708,6 +3673,7 @@ async function loadAccounts() {
     bar.appendChild(el);
   });
   document.getElementById('accountsNoAccount').classList.toggle('hidden', accounts.length > 0);
+  syncRecAccountSelect();
   if (accounts.length && !currentAccountId) selectAccount(accounts[0].id);
   else if (!accounts.length) document.getElementById('accountView').classList.add('hidden');
 }
@@ -3729,6 +3695,23 @@ function _updateAccountTabBalance(accountId, balance) {
   accounts[i].current_balance = balance;
   const tab = document.querySelectorAll('.account-tab')[i];
   if (tab) tab.innerHTML = _accountTabHtml(accounts[i]);
+}
+
+// The Recurring transactions panel lives on the Subscriptions page but is
+// scoped to one account (currentAccountId, shared with the Forecast page's
+// account tabs). This selector picks which account's templates it shows.
+function syncRecAccountSelect() {
+  const sel = document.getElementById('recAccountSel');
+  if (!sel) return;
+  sel.innerHTML = accounts.map(a =>
+    `<option value="${a.id}">${escapeHtml(a.name)}${a.level === 'read' ? ' (read only)' : ''}</option>`).join('');
+  if (currentAccountId && accounts.some(a => a.id === currentAccountId)) sel.value = String(currentAccountId);
+  document.getElementById('txnRecurringPanel').classList.toggle('hidden', !accounts.length);
+}
+
+function onRecAccountChange() {
+  const id = parseInt(document.getElementById('recAccountSel').value);
+  if (id) selectAccount(id);
 }
 
 function currentAccountLevel() {
@@ -3756,6 +3739,8 @@ async function selectAccount(id) {
   document.querySelectorAll('.account-tab').forEach((el,i)=>{
     el.classList.toggle('active', accounts[i].id===id);
   });
+  const recSel = document.getElementById('recAccountSel');
+  if (recSel) recSel.value = String(id);
   document.getElementById('accountView').classList.remove('hidden');
   // Hide the add transaction toggle entirely on read-only accounts
   const ro = isCurrentAccountReadOnly();
@@ -4754,7 +4739,7 @@ async function submitAddForm() {
 
 // --- Forecast state ---
 let forecastData = null;            // last loaded payload
-let sortKey = 'forecast_date';
+let sortKey = 'actual_date';
 let sortDir = 'asc';                // 'asc' | 'desc'
 let editingForecastRowKey = null;   // unique row id for inline-edit mode
 let forecastPage = 0;               // 0-based page index
@@ -4814,25 +4799,13 @@ function _todayMarkerRow(mode, range, currentBalance) {
   return tr;
 }
 
-// Sunday that starts the calendar week containing an ISO date (matches the
-// Calendar page's Sun–Sat layout). Returned as an ISO date string.
-function _weekStartIso(iso) {
+// Week of the month (1-based, Sun–Sat weeks as on the Calendar page) that an
+// ISO date falls in. Even weeks (2, 4, 6) get a lighter shade in the forecast
+// table as a quiet separator between weeks.
+function _weekOfMonth(iso) {
   const [y, m, d] = iso.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  dt.setDate(dt.getDate() - dt.getDay());
-  return _isoDate(dt);
-}
-
-// Divider row inserted between two calendar weeks in the forecast table,
-// labelled with the week it introduces.
-function _weekDividerRow(iso) {
-  const [y, m, d] = _weekStartIso(iso).split('-').map(Number);
-  const label = new Date(y, m - 1, d)
-    .toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const tr = document.createElement('tr');
-  tr.className = 'week-divider';
-  tr.innerHTML = `<td colspan="12"><div class="week-sep">Week of ${label}</div></td>`;
-  return tr;
+  const firstDow = new Date(y, m - 1, 1).getDay();
+  return Math.floor((d - 1 + firstDow) / 7) + 1;
 }
 
 function _monthRangeFromSelects() {
@@ -4988,16 +4961,20 @@ function renderForecast() {
   document.getElementById('forecastSpreadsheetHint').classList.toggle('hidden', !forecastSpreadsheetMode || ro);
   if (forecastSpreadsheetMode && !ro) _ensureGridListeners();
 
+  // Date column the table is sorted by, if any. The Today bar and the
+  // even-week shading only make sense when rows are in date order.
+  const dateKey = (sortKey === 'forecast_date' || sortKey === 'actual_date') ? sortKey : null;
+
   // Where "today" falls in the date-sorted list: the index of the first row
   // that is after today (ascending) / on-or-before today (descending). Only
-  // meaningful when sorted by forecast date and today is inside the window.
+  // meaningful when sorted by a date and today is inside the window.
   let markerIdx = -1;
   const todayStr = _isoDate(new Date());
-  if (sortKey === 'forecast_date' && forecastRange
+  if (dateKey && forecastRange
       && todayStr >= forecastRange.start && todayStr <= forecastRange.end) {
-    const dated = rows.filter(r => r.forecast_date != null).length;
-    markerIdx = rows.findIndex(r => r.forecast_date != null &&
-      (sortDir === 'asc' ? r.forecast_date > todayStr : r.forecast_date <= todayStr));
+    const dated = rows.filter(r => r[dateKey] != null).length;
+    markerIdx = rows.findIndex(r => r[dateKey] != null &&
+      (sortDir === 'asc' ? r[dateKey] > todayStr : r[dateKey] <= todayStr));
     if (markerIdx < 0) markerIdx = dated;
   }
   // A boundary between pages shows at the bottom of the earlier page only.
@@ -5006,26 +4983,11 @@ function renderForecast() {
   const markerMode = document.getElementById('forecastMode').value;
 
   pageRows.forEach((r, idx) => {
-    // Week divider: only when sorted by forecast date, between two dated
-    // rows that fall in different calendar weeks. Not drawn at the very top
-    // of a page (there's no row above it on screen to separate from).
-    const prev = idx > 0 ? pageRows[idx - 1] : null;
-    const weekBreak = sortKey === 'forecast_date' && prev &&
-      prev.forecast_date && r.forecast_date &&
-      _weekStartIso(prev.forecast_date) !== _weekStartIso(r.forecast_date);
-    const markerHere = markerOnPage && startIdx + idx === markerIdx;
-    // When the Today bar and a week divider land on the same boundary, the
-    // bar goes on the side of the divider whose week contains today.
-    const markerFirst = weekBreak && markerHere &&
-      _weekStartIso(todayStr) === _weekStartIso(prev.forecast_date);
-    if (markerHere && markerFirst) {
-      tbody.appendChild(_todayMarkerRow(markerMode, forecastRange, data.current_balance));
-    }
-    if (weekBreak) tbody.appendChild(_weekDividerRow(r.forecast_date));
-    if (markerHere && !markerFirst) {
+    if (markerOnPage && startIdx + idx === markerIdx) {
       tbody.appendChild(_todayMarkerRow(markerMode, forecastRange, data.current_balance));
     }
     const tr = document.createElement('tr');
+    if (dateKey && r[dateKey] && _weekOfMonth(r[dateKey]) % 2 === 0) tr.className = 'week-even';
     const rowKey = _forecastRowKey(r);
     if (forecastSpreadsheetMode && !ro) {
       tr.innerHTML = _renderForecastGridRow(r, idx);
@@ -6144,11 +6106,11 @@ async function loadSubscriptions() {
       <strong style="color:var(--bad)">Could not load subscriptions.</strong></div>`;
   }
 }
-// Used by the Subscriptions table to hop over to the Forecast page with the
-// given account preselected, so its Recurring-transactions panel is right there.
+// Used by the Subscriptions table: switch the Recurring transactions panel
+// (top of this page) to the given account and scroll up to it.
 function jumpToRecurring(accountId) {
-  currentAccountId = accountId;
-  showPage('accounts');
+  selectAccount(accountId);
+  document.getElementById('txnRecurringPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ---------- Calendar ----------

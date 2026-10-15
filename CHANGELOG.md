@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.0** · Web version: **1.31.0** · Schema version: **13**
+App version: **1.22.0** · Web version: **1.32.0** · Schema version: **13**
 
 ### Added
 
@@ -142,6 +142,16 @@ App version: **1.22.0** · Web version: **1.31.0** · Schema version: **13**
   display as "Monthly · day N · from YYYY-MM-DD".
 
 ### Changed
+
+- **Forecast page declutter.** Removed the "Transactions" heading, the
+  "This account / Search all accounts" toggle and the "Forecast" panel title.
+  The cross-account search view (`#subviewSearch`) still exists in
+  `backend/static/index.html` but no longer has an entry point.
+- **The Forecast table's rows-per-page now defaults to "Auto (fit window)".**
+  It shows as many rows as fit between the top of the table and the bottom of
+  the browser window (using the measured row height, and re-fitting when the
+  window is resized, with a minimum of 5). The selector also gains an "All"
+  option alongside 10 / 25 / 50 / 100.
 
 - **Forecast table cells are packed closer together** (tighter cell padding
   and smaller row buttons), so more rows fit on screen.

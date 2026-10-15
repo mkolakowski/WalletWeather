@@ -1114,14 +1114,6 @@
 
       <div class="summary" id="summary"></div>
 
-      <div class="row" style="margin:18px 0 4px;align-items:center">
-        <h2 style="margin:0;flex:1">Transactions</h2>
-        <div>
-          <button id="acctSubviewForecast" class="tab small active" onclick="setAccountsSubview('forecast')">This account</button>
-          <button id="acctSubviewSearch" class="tab small" onclick="setAccountsSubview('search')">Search all accounts</button>
-        </div>
-      </div>
-
       <div id="subviewForecast">
       <div class="panel hidden" id="addFormPanel">
         <h2>Add transaction</h2>
@@ -1179,7 +1171,6 @@
       </div>
 
       <div class="panel">
-        <h2>Forecast</h2>
         <div class="row" style="margin-bottom:14px">
           <div>
             <label>View</label>
@@ -1245,10 +1236,12 @@
           <div class="pagination-left">
             <label>Per page</label>
             <select id="forecastPageSize" onchange="onForecastPageSizeChange()">
+              <option value="auto" selected>Auto (fit window)</option>
               <option value="10">10</option>
-              <option value="25" selected>25</option>
+              <option value="25">25</option>
               <option value="50">50</option>
               <option value="100">100</option>
+              <option value="all">All</option>
             </select>
             <span id="forecastPageRange" class="pagination-range"></span>
           </div>
@@ -1826,7 +1819,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.31.0";
+const WEB_VERSION = "1.32.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1836,6 +1829,15 @@ const WEB_VERSION = "1.31.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.32.0 (2026-10-15, claude+mkolakowski): Removed the "Transactions"
+//     heading, the "This account / Search all accounts" toggle and the
+//     "Forecast" panel title from the Forecast page. The forecast table's
+//     page size now defaults to "Auto (fit window)": it shows as many rows as
+//     fit between the table's top and the bottom of the window (measured row
+//     height, re-fit on resize); the selector also gains "All".
+//     NOTE: with the toggle gone, #subviewSearch (cross-account search) has
+//     no entry point; its markup and setAccountsSubview() are left in place.
 //
 // 1.31.0 (2026-10-15, claude+mkolakowski): Forecast table cells are
 //     packed closer together (4px/6px padding, smaller row buttons).
@@ -4758,7 +4760,9 @@ let sortKey = 'actual_date';
 let sortDir = 'asc';                // 'asc' | 'desc'
 let editingForecastRowKey = null;   // unique row id for inline-edit mode
 let forecastPage = 0;               // 0-based page index
-let forecastPageSize = 25;          // 10 | 25 | 50 | 100
+let forecastPageMode = 'auto';      // 'auto' (fit window) | '10' | '25' | '50' | '100' | 'all'
+let _forecastRowH = 0;              // measured body-row height, for auto sizing
+let _forecastAutoRefit = false;     // guards the one re-render after measuring
 
 // --- Forecast "spreadsheet mode": always-editable grid, Excel-style ---
 let forecastSpreadsheetMode = false;
@@ -4866,7 +4870,7 @@ async function loadForecast() {
 }
 
 function onForecastPageSizeChange() {
-  forecastPageSize = parseInt(document.getElementById('forecastPageSize').value);
+  forecastPageMode = document.getElementById('forecastPageSize').value;
   forecastPage = 0;
   renderForecast();
 }
@@ -4884,6 +4888,20 @@ function categoryColorByName(name) {
   if (!name) return null;
   const c = (categories || []).find(x => x.name === name);
   return c ? c.color : null;
+}
+
+// Rows per page for the current mode. 'auto' fills the window: it takes the
+// room between the top of the table and the bottom of the viewport (minus the
+// header row and the pagination bar) and divides by the measured row height.
+function _effectivePageSize(totalRows) {
+  if (forecastPageMode === 'all') return Math.max(1, totalRows);
+  if (forecastPageMode !== 'auto') return parseInt(forecastPageMode);
+  const tbl = document.getElementById('forecastTable');
+  const top = tbl.getBoundingClientRect().top + window.scrollY;
+  const head = tbl.tHead ? tbl.tHead.offsetHeight : 40;
+  const rowH = _forecastRowH || 34;
+  const room = window.innerHeight - top - head - 135;  // ≈ pagination bar + panel padding + footer
+  return Math.max(5, Math.floor(room / rowH));
 }
 
 function renderForecast() {
@@ -4951,16 +4969,18 @@ function renderForecast() {
 
   // Paginate
   const totalRows = rows.length;
-  const totalPages = Math.max(1, Math.ceil(totalRows / forecastPageSize));
+  const pageSize = _effectivePageSize(totalRows);
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
   if (forecastPage >= totalPages) forecastPage = totalPages - 1;
   if (forecastPage < 0) forecastPage = 0;
-  const startIdx = forecastPage * forecastPageSize;
-  const endIdx = Math.min(startIdx + forecastPageSize, totalRows);
+  const startIdx = forecastPage * pageSize;
+  const endIdx = Math.min(startIdx + pageSize, totalRows);
   const pageRows = rows.slice(startIdx, endIdx);
 
-  // Update pagination UI (hide entirely if the smallest page size would fit everything)
+  // Update pagination UI (hide entirely if everything fits on one page and the
+  // list is short enough that the size selector isn't worth showing)
   const paginationBar = document.getElementById('forecastPagination');
-  if (totalRows <= 10) {
+  if (totalRows <= 10 && totalRows <= pageSize) {
     paginationBar.classList.add('hidden');
   } else {
     paginationBar.classList.remove('hidden');
@@ -5065,7 +5085,32 @@ function renderForecast() {
   if (markerOnPage && markerIdx === endIdx) {
     tbody.appendChild(_todayMarkerRow(markerMode, forecastRange, data.current_balance));
   }
+
+  // Auto mode: measure the real row height once, and if it changes the page
+  // size by a row or more, render again so the table fills the window.
+  if (forecastPageMode === 'auto' && !_forecastAutoRefit) {
+    const dataRows = [...tbody.querySelectorAll('tr:not(.today-marker)')];
+    if (dataRows.length) {
+      const h = dataRows.reduce((sum, tr) => sum + tr.offsetHeight, 0) / dataRows.length;
+      if (h > 0 && Math.abs(h - (_forecastRowH || 34)) >= 1) {
+        _forecastRowH = h;
+        _forecastAutoRefit = true;
+        renderForecast();
+        _forecastAutoRefit = false;
+      }
+    }
+  }
 }
+
+// Re-fit the table to the window when it's resized (auto mode only).
+let _forecastResizeTimer = null;
+window.addEventListener('resize', () => {
+  if (forecastPageMode !== 'auto') return;
+  clearTimeout(_forecastResizeTimer);
+  _forecastResizeTimer = setTimeout(() => {
+    if (forecastData && !document.getElementById('pageAccounts').classList.contains('hidden')) renderForecast();
+  }, 150);
+});
 
 function _renderForecastEditRow(r) {
   const rowKey = _forecastRowKey(r);

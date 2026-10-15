@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.0** · Web version: **1.34.0** · Schema version: **13**
+App version: **1.22.0** · Web version: **1.35.0** · Schema version: **13**
 
 ### Added
 
@@ -142,6 +142,14 @@ App version: **1.22.0** · Web version: **1.34.0** · Schema version: **13**
   display as "Monthly · day N · from YYYY-MM-DD".
 
 ### Changed
+
+- **Forecast controls row rearranged.** View / Month / Year now sit close
+  together on the left with each label beside its dropdown (instead of above
+  it), "Spreadsheet mode" is centred in the row, and the pagination controls
+  (Per page, range, Prev/Next) are pinned to the far right. The row wraps on
+  narrow screens.
+- **The Current balance card in the Forecast summary is highlighted** with an
+  accent outline and soft glow.
 
 - **The Forecast page is now nearly full-width.** It drops the 1380px content
   cap and uses 40px side gutters (about a finger width from the screen edge)

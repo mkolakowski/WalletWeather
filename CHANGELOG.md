@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.0** · Web version: **1.40.0** · Schema version: **13**
+App version: **1.22.0** · Web version: **1.41.0** · Schema version: **13**
 
 ### Added
 
@@ -155,6 +155,15 @@ App version: **1.22.0** · Web version: **1.40.0** · Schema version: **13**
   display as "Monthly · day N · from YYYY-MM-DD".
 
 ### Changed
+
+- **Forecast table read view: "/" separators, no row buttons.** A "/" now sits
+  between the grouped Forecast/Actual columns (date, amount, balance) in the
+  normal view (not in spreadsheet mode). The edit (✎) and delete (🗑) buttons
+  were removed from the normal view and its actions column is hidden — rows are
+  edited and deleted in Spreadsheet mode, which keeps its delete button. The
+  one-row editor (`startEditForecastRow`) is left in the code but no longer has
+  an entry point.
+- **The Spreadsheet mode button has a visible border.**
 
 - **Paired Forecast table columns are grouped closer together.** Forecast date
   / Actual date, Forecast amt / Actual amt and Forecast bal / Actual bal now

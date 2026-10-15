@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.0** · Web version: **1.32.0** · Schema version: **13**
+App version: **1.22.0** · Web version: **1.33.0** · Schema version: **13**
 
 ### Added
 
@@ -142,6 +142,11 @@ App version: **1.22.0** · Web version: **1.32.0** · Schema version: **13**
   display as "Monthly · day N · from YYYY-MM-DD".
 
 ### Changed
+
+- **Forecast pagination moved to the top of the table.** The "Per page"
+  selector, the "1–18 of 60" range and the Prev / Page / Next controls now sit
+  in the same row as View / Month / Year / Spreadsheet mode instead of below
+  the table, so the table can use that space for more rows in Auto mode.
 
 - **Forecast page declutter.** Removed the "Transactions" heading, the
   "This account / Search all accounts" toggle and the "Forecast" panel title.

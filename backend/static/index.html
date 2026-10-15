@@ -1206,6 +1206,25 @@
             </select>
           </div>
           <div style="flex:1"></div>
+          <div id="forecastPagination" class="pagination hidden" style="flex:0 0 auto;align-self:end;margin-top:0;gap:16px">
+            <div class="pagination-left">
+              <label>Per page</label>
+              <select id="forecastPageSize" onchange="onForecastPageSizeChange()">
+                <option value="auto" selected>Auto (fit window)</option>
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+                <option value="all">All</option>
+              </select>
+              <span id="forecastPageRange" class="pagination-range"></span>
+            </div>
+            <div class="pagination-right">
+              <button id="forecastPrevPage" class="ghost" onclick="changeForecastPage(-1)">« Prev</button>
+              <span id="forecastPageLabel" class="pagination-label"></span>
+              <button id="forecastNextPage" class="ghost" onclick="changeForecastPage(1)">Next »</button>
+            </div>
+          </div>
           <div style="flex:0 0 auto;align-self:end">
             <button class="ghost" id="forecastSpreadsheetBtn" onclick="toggleForecastSpreadsheetMode()"
                     title="Edit every visible row directly in the table, like a spreadsheet">Spreadsheet mode</button>
@@ -1231,25 +1250,6 @@
           <th>Notes</th>
           <th></th>
         </tr></thead><tbody></tbody></table>
-        </div>
-        <div id="forecastPagination" class="pagination hidden">
-          <div class="pagination-left">
-            <label>Per page</label>
-            <select id="forecastPageSize" onchange="onForecastPageSizeChange()">
-              <option value="auto" selected>Auto (fit window)</option>
-              <option value="10">10</option>
-              <option value="25">25</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-              <option value="all">All</option>
-            </select>
-            <span id="forecastPageRange" class="pagination-range"></span>
-          </div>
-          <div class="pagination-right">
-            <button id="forecastPrevPage" class="ghost" onclick="changeForecastPage(-1)">« Prev</button>
-            <span id="forecastPageLabel" class="pagination-label"></span>
-            <button id="forecastNextPage" class="ghost" onclick="changeForecastPage(1)">Next »</button>
-          </div>
         </div>
       </div>
       </div><!-- /subviewForecast -->
@@ -1819,7 +1819,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.32.0";
+const WEB_VERSION = "1.33.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1829,6 +1829,12 @@ const WEB_VERSION = "1.32.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.33.0 (2026-10-15, claude+mkolakowski): The forecast table's "Per page"
+//     selector, row range and Prev/Next controls (#forecastPagination)
+//     moved from below the table into the controls row above it, inline with
+//     View / Month / Year / Spreadsheet mode. Auto page size no longer
+//     reserves room below the table for the bar.
 //
 // 1.32.0 (2026-10-15, claude+mkolakowski): Removed the "Transactions"
 //     heading, the "This account / Search all accounts" toggle and the
@@ -4900,7 +4906,7 @@ function _effectivePageSize(totalRows) {
   const top = tbl.getBoundingClientRect().top + window.scrollY;
   const head = tbl.tHead ? tbl.tHead.offsetHeight : 40;
   const rowH = _forecastRowH || 34;
-  const room = window.innerHeight - top - head - 135;  // ≈ pagination bar + panel padding + footer
+  const room = window.innerHeight - top - head - 90;   // ≈ panel padding + footer
   return Math.max(5, Math.floor(room / rowH));
 }
 

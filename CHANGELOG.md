@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.0** · Web version: **1.37.0** · Schema version: **13**
+App version: **1.22.0** · Web version: **1.38.0** · Schema version: **13**
 
 ### Added
 
@@ -155,6 +155,12 @@ App version: **1.22.0** · Web version: **1.37.0** · Schema version: **13**
   display as "Monthly · day N · from YYYY-MM-DD".
 
 ### Changed
+
+- **Spreadsheet mode layout.** In the Forecast table's spreadsheet mode, the
+  Forecast amt and Actual amt boxes now sit at the right side of their columns
+  with right-aligned numbers, the Category dropdown is wider (150px instead of
+  90px), and the Description box is much wider (fills its column, at least
+  260px instead of 90px).
 
 - **Forecast controls row rearranged.** View / Month / Year now sit close
   together on the left with each label beside its dropdown (instead of above

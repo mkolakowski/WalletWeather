@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.0** · Web version: **1.38.0** · Schema version: **13**
+App version: **1.22.0** · Web version: **1.39.0** · Schema version: **13**
 
 ### Added
 
@@ -155,6 +155,11 @@ App version: **1.22.0** · Web version: **1.38.0** · Schema version: **13**
   display as "Monthly · day N · from YYYY-MM-DD".
 
 ### Changed
+
+- **Spreadsheet mode amounts are flush right.** The numbers in the Forecast amt
+  and Actual amt boxes now sit against the right edge of the box: the
+  number-input spinner that reserved space there is hidden (↑/↓ already move
+  between rows) and the right padding is smaller.
 
 - **Spreadsheet mode layout.** In the Forecast table's spreadsheet mode, the
   Forecast amt and Actual amt boxes now sit at the right side of their columns

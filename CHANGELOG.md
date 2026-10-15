@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.20.0** · Web version: **1.29.0** · Schema version: **12**
+App version: **1.21.0** · Web version: **1.29.0** · Schema version: **13**
 
 ### Added
 
@@ -143,6 +143,12 @@ App version: **1.20.0** · Web version: **1.29.0** · Schema version: **12**
 
 ### Changed
 
+- **The "Forecast page layout" setting and the week divider rows are gone.**
+  The Recurring transactions panel no longer lives on the Forecast page, so
+  Settings → Appearance no longer offers the above/below option, and the
+  "Week of …" divider rows were replaced by the even-week shading described
+  above.
+
 - **The Forecast table now sorts by Actual date by default** (it used to
   sort by Forecast date). The Today bar works when sorted by either date
   column.
@@ -196,6 +202,14 @@ App version: **1.20.0** · Web version: **1.29.0** · Schema version: **12**
   add form instead of failing the save.
 
 ### Database
+
+- Schema v13: new nullable `users.recurring_position` column (`'above'` |
+  `'below'`), added automatically on startup by `init_db()`
+  (`ADD COLUMN IF NOT EXISTS`). It backed a short-lived "Forecast page
+  layout" setting; the Recurring transactions panel has since moved to the
+  Subscriptions page, so the UI no longer reads or writes it. The column and
+  the `recurring_position` field on `GET /api/me` / `PATCH /api/me/preferences`
+  are kept (harmless, NULL for everyone) rather than dropped.
 
 - Schema v12: new `recurring_skips` table (`recurring_id`, `skip_date`,
   unique together, cascades with its template). Created automatically on

@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.21.0"
+APP_VERSION = "1.22.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -35,6 +35,14 @@ APP_VERSION = "1.21.0"
 # When you bump APP_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
+#
+# 1.22.0 (2026-10-15, claude+mkolakowski): current_balance (GET
+#     /api/accounts and GET /api/accounts/{id}/forecast) is now the actual
+#     balance as of today computed by forecast.actual_balance_as_of — the
+#     same calculation as the forecast table's "Actual bal" column — instead
+#     of a cleared-only sum. Past-dated rows not yet marked cleared now count
+#     at their forecast amount, so the figure matches the table at today's row.
+#     build_forecast gains with_tags=False to skip tag lookups for this.
 #
 # 1.21.0 (2026-10-15, claude+mkolakowski): New per-user Forecast page
 #     layout preference. users.recurring_position (schema v13) is
@@ -275,7 +283,7 @@ from .db import (
     Tag, TransactionTag, TagRule, SavedReport, RecurringSkip,
     SessionLocal, SCHEMA_VERSION,
 )
-from .forecast import build_forecast
+from .forecast import build_forecast, actual_balance_as_of
 from .backup import export_user, import_user
 
 SECRET_KEY = os.environ["SESSION_SECRET"]
@@ -1179,27 +1187,14 @@ def _user_editable_accounts(db: Session, user: User, include_archived: bool = Fa
 
 
 def _current_balance(db: Session, account: Account) -> float:
-    """Today-dated actual balance = starting balance + every cleared txn
-    whose effective date is on or before today.
+    """Today's actual balance — the same number the Forecast table's "Actual
+    bal" column shows at today's row (see forecast.actual_balance_as_of).
 
-    "Cleared" = `is_actual` (the user has confirmed the money moved).
-    We intentionally do NOT pull through `build_forecast` here: this helper
-    is called from hot paths (the transfer selectors refresh it per
-    keystroke) and only needs to sum cleared rows, so a single SQL scan
-    is the right shape.
+    Rows dated on or before today that haven't been marked cleared still count
+    (at their forecast amount), exactly as the table treats them, so this
+    figure and the table never disagree.
     """
-    today = date.today()
-    total = float(account.starting_balance)
-    q = (
-        db.query(Transaction)
-        .filter(Transaction.account_id == account.id)
-        .filter(Transaction.is_actual == True)
-    )
-    for t in q.all():
-        ref = t.actual_date or t.forecast_date
-        if ref and ref <= today:
-            total += float(t.amount)
-    return total
+    return actual_balance_as_of(db, account, date.today())
 
 
 @app.get("/api/accounts")

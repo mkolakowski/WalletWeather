@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.0** · Web version: **1.33.0** · Schema version: **13**
+App version: **1.22.0** · Web version: **1.34.0** · Schema version: **13**
 
 ### Added
 
@@ -142,6 +142,11 @@ App version: **1.22.0** · Web version: **1.33.0** · Schema version: **13**
   display as "Monthly · day N · from YYYY-MM-DD".
 
 ### Changed
+
+- **The Forecast page is now nearly full-width.** It drops the 1380px content
+  cap and uses 40px side gutters (about a finger width from the screen edge)
+  so the table can use wide screens. Other pages keep their current width, and
+  phones keep their existing narrow padding.
 
 - **Forecast pagination moved to the top of the table.** The "Per page"
   selector, the "1–18 of 60" range and the Prev / Page / Next controls now sit

@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.21.0** · Web version: **1.29.0** · Schema version: **13**
+App version: **1.21.0** · Web version: **1.30.0** · Schema version: **13**
 
 ### Added
 
@@ -142,6 +142,13 @@ App version: **1.21.0** · Web version: **1.29.0** · Schema version: **13**
   display as "Monthly · day N · from YYYY-MM-DD".
 
 ### Changed
+
+- **"+ Add transaction" moved into the Account actions bar.** On the
+  Forecast page the button now sits first in Account actions (next to
+  Transfer money / Import CSV), and the separate "Add transaction" bar is
+  gone; clicking the button opens the add form in its own panel, which
+  closes on Save/Cancel.
+- **The Forecast table shows 25 rows per page by default** (was 10).
 
 - **The "Forecast page layout" setting and the week divider rows are gone.**
   The Recurring transactions panel no longer lives on the Forecast page, so

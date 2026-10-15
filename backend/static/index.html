@@ -149,6 +149,9 @@
   .stat .d { font-size:11px; color:var(--muted); margin-top:2px; font-variant-numeric:tabular-nums; }
   /* Current balance card: accent outline + soft glow so it stands out. */
   .stat.current { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 0 14px color-mix(in srgb, var(--accent) 35%, transparent); }
+  .stat .io { display:flex; justify-content:space-between; align-items:baseline; gap:8px;
+              font-size:16px; font-weight:600; margin-top:3px; font-variant-numeric:tabular-nums; }
+  .stat .io-l { font-size:11px; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
   .stat .v.pos { color:var(--good); }
   .stat .v.neg { color:var(--bad); }
   .recurring-fields { transition:opacity 0.15s; }
@@ -1836,7 +1839,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.35.0";
+const WEB_VERSION = "1.36.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1846,6 +1849,12 @@ const WEB_VERSION = "1.35.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.36.0 (2026-10-15, claude+mkolakowski): Two new cards in the Forecast
+//     summary, "Forecast out / in" and "Actual out / in": outgoing and
+//     incoming totals (plus net) over the whole loaded window — the month in
+//     Month view. Sums every row (transfers included) so Opening + in − out
+//     equals the matching End card. Frontend only (renderForecast()).
 //
 // 1.35.0 (2026-10-15, claude+mkolakowski): (1) The Current balance stat in
 //     the Forecast summary gets an accent outline + glow (.stat.current).
@@ -4969,9 +4978,28 @@ function renderForecast() {
   const curBal = typeof data.current_balance === 'number'
     ? `<div class="stat current"><div class="l">Current balance</div><div class="v ${data.current_balance<0?'neg':''}">${fmt(data.current_balance)}</div><div class="d" title="Matches the Actual bal column at today">as of today</div></div>`
     : '';
+  // Outgoing / incoming over the whole loaded window (every row, so
+  // Opening + incoming − outgoing = the matching End balance). Actual uses the
+  // row's actual amount, falling back to its forecast amount like Actual bal.
+  let fOut = 0, fIn = 0, aOut = 0, aIn = 0;
+  data.rows.forEach(r => {
+    const f = r.forecast_amount != null ? r.forecast_amount : 0;
+    const a = r.actual_amount != null ? r.actual_amount : f;
+    if (f < 0) fOut -= f; else fIn += f;
+    if (a < 0) aOut -= a; else aIn += a;
+  });
+  const inOutCard = (title, out, inc) => {
+    const net = inc - out;
+    return `<div class="stat"><div class="l">${title}</div>
+      <div class="io"><span class="io-l">Out</span><span class="neg">${fmt(out)}</span></div>
+      <div class="io"><span class="io-l">In</span><span class="pos">${fmt(inc)}</span></div>
+      <div class="d" title="Incoming minus outgoing">net ${net > 0 ? '+' : ''}${fmt(net)}</div></div>`;
+  };
   sum.innerHTML = `${curBal}
     <div class="stat"><div class="l">Opening balance</div><div class="v">${fmt(data.opening_balance)}</div></div>
+    ${inOutCard('Forecast out / in', fOut, fIn)}
     <div class="stat"><div class="l">Forecast end</div><div class="v">${fmt(data.forecast_ending_balance)}</div></div>
+    ${inOutCard('Actual out / in', aOut, aIn)}
     <div class="stat"><div class="l">Actual end</div><div class="v">${fmt(data.actual_ending_balance)}</div></div>
     <div class="stat"><div class="l">Δ Actual − Forecast</div><div class="v ${deltaCls}">${deltaSign}${fmt(deltaEnd)}</div></div>
     <div class="stat"><div class="l">Highest point</div><div class="v">${fmt(maxBal)}</div><div class="d">${hiDateLabel}</div></div>

@@ -65,9 +65,17 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.0** · Web version: **1.35.0** · Schema version: **13**
+App version: **1.22.0** · Web version: **1.36.0** · Schema version: **13**
 
 ### Added
+
+- **Outgoing / incoming cards in the Forecast summary.** "Forecast out / in"
+  and "Actual out / in" show how much leaves and enters the account over the
+  displayed window (the month in Month view), with the net underneath. They
+  total every row in the window — transfers included — so Opening balance +
+  incoming − outgoing equals the matching Forecast end / Actual end card.
+  Actual uses each row's actual amount (falling back to its forecast amount,
+  as the Actual bal column does). Frontend only.
 
 - **Recurring transactions now live at the top of the Subscriptions page.**
   The panel (add/edit/pause/delete, bulk edit, Active/Archived) moved from

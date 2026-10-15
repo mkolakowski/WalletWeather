@@ -1105,6 +1105,7 @@
       <div class="panel">
         <h2>Account actions</h2>
         <div class="row">
+          <div style="flex:0 0 auto"><button id="addToggle" onclick="toggleAddForm(true)">+ Add transaction</button></div>
           <div style="flex:0 0 auto"><button class="ghost" onclick="openTransferPage()">⇄ Transfer money</button></div>
           <div style="flex:0 0 auto"><button class="ghost" onclick="openImportPage(currentAccountId)">⬆ Import CSV</button></div>
         </div>
@@ -1121,11 +1122,10 @@
       </div>
 
       <div id="subviewForecast">
-      <div class="panel">
+      <div class="panel hidden" id="addFormPanel">
         <h2>Add transaction</h2>
         <div id="addForm">
-          <button id="addToggle" onclick="toggleAddForm(true)">+ Add transaction</button>
-          <div id="addFormInner" class="hidden" style="margin-top:10px">
+          <div id="addFormInner">
             <div class="row">
               <div><label>Description</label><input id="addDesc"></div>
               <div><label>Type</label>
@@ -1244,8 +1244,8 @@
           <div class="pagination-left">
             <label>Per page</label>
             <select id="forecastPageSize" onchange="onForecastPageSizeChange()">
-              <option value="10" selected>10</option>
-              <option value="25">25</option>
+              <option value="10">10</option>
+              <option value="25" selected>25</option>
               <option value="50">50</option>
               <option value="100">100</option>
             </select>
@@ -1825,7 +1825,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.29.0";
+const WEB_VERSION = "1.30.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1835,6 +1835,13 @@ const WEB_VERSION = "1.29.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.30.0 (2026-10-15, claude+mkolakowski): The "+ Add transaction" button
+//     moved into the Forecast page's Account actions bar (first button)
+//     and the standalone "Add transaction" bar is gone — clicking the
+//     button now reveals the add form in its own panel (#addFormPanel),
+//     hidden again on Save/Cancel or account switch. The Forecast table
+//     now defaults to 25 rows per page (was 10).
 //
 // 1.29.0 (2026-10-15, claude+mkolakowski): (1) Removed the week divider
 //     rows and the Settings "Forecast page layout" option from 1.28.0
@@ -3745,7 +3752,7 @@ async function selectAccount(id) {
   // Hide the add transaction toggle entirely on read-only accounts
   const ro = isCurrentAccountReadOnly();
   document.getElementById('addToggle').classList.toggle('hidden', ro);
-  document.getElementById('addFormInner').classList.add('hidden');
+  document.getElementById('addFormPanel').classList.add('hidden');
   await loadCategories();
   await Promise.all([loadRecurring(), loadForecast()]);
 }
@@ -4633,8 +4640,9 @@ function toggleAddWhenFields() {
 }
 
 function toggleAddForm(show) {
-  document.getElementById('addFormInner').classList.toggle('hidden', !show);
-  document.getElementById('addToggle').classList.toggle('hidden', show);
+  // The form lives in its own panel that only exists on screen while open;
+  // the "+ Add transaction" button sits in the Account actions bar.
+  document.getElementById('addFormPanel').classList.toggle('hidden', !show);
   if (show) {
     // Default the date to today if empty
     if (!document.getElementById('addDate').value) {
@@ -4743,7 +4751,7 @@ let sortKey = 'actual_date';
 let sortDir = 'asc';                // 'asc' | 'desc'
 let editingForecastRowKey = null;   // unique row id for inline-edit mode
 let forecastPage = 0;               // 0-based page index
-let forecastPageSize = 10;          // 10 | 25 | 50 | 100
+let forecastPageSize = 25;          // 10 | 25 | 50 | 100
 
 // --- Forecast "spreadsheet mode": always-editable grid, Excel-style ---
 let forecastSpreadsheetMode = false;

@@ -65,9 +65,18 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.0** · Web version: **1.41.0** · Schema version: **13**
+App version: **1.22.0** · Web version: **1.42.0** · Schema version: **13**
 
 ### Added
+
+- **Double-click a Forecast line to edit it.** In the read view, double-clicking
+  a row turns that one line into the same compact inline inputs spreadsheet mode
+  uses (plus the tag picker for saved transactions), highlighted. A ✓ Save
+  button sits next to the 🗑 delete button (and a ✕ cancel): Save, or Enter,
+  writes the line and closes it out; Esc or ✕ discards the changes. Saving
+  warns about an empty description / missing amount or a server error instead
+  of failing silently. This replaces the old ✎ editor, whose button was removed
+  from the read view.
 
 - **"Current month" button on the Forecast page.** Next to the Year dropdown
   (Month view), one click jumps the Month/Year selectors back to the current

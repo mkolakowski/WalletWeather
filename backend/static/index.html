@@ -104,11 +104,13 @@
   #forecastTable tr:not(.fc-editing) > :nth-child(9) { padding-left:2px; }
   /* Read view only (not spreadsheet mode): a "/" after the first cell of each
      pair, and no actions column (edit/delete live in spreadsheet mode). */
-  #forecastTable:not(.sheet-mode) tr:not(.fc-editing) > td:is(:nth-child(2), :nth-child(5), :nth-child(8))::after {
+  #forecastTable:not(.sheet-mode) tr:not(.fc-editing):not(.row-editing) > td:is(:nth-child(2), :nth-child(5), :nth-child(8))::after {
     content:"/"; color:var(--muted); margin-left:6px; }
-  #forecastTable:not(.sheet-mode) thead th:last-child,
-  #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker) > td:last-child { display:none; }
-  #forecastTable:not(.sheet-mode) tr:not(.today-marker):not(.fc-editing) > :nth-child(11) { border-right:none; }
+  #forecastTable:not(.sheet-mode):not(.has-editing) thead th:last-child,
+  #forecastTable:not(.sheet-mode):not(.has-editing) tbody tr:not(.today-marker) > td:last-child { display:none; }
+  #forecastTable:not(.sheet-mode):not(.has-editing) tr:not(.today-marker):not(.fc-editing) > :nth-child(11) { border-right:none; }
+  /* The double-clicked line stands out while it's being edited. */
+  #forecastTable tr.row-editing td { background:color-mix(in srgb, var(--accent) 10%, transparent); }
   /* Spreadsheet button gets a clearly visible outline (accent fill when on). */
   #forecastSpreadsheetBtn:not(.active) { border:1px solid var(--muted); }
   /* The balance pair is plain text (no input boxes), so keep a little air. */
@@ -1876,7 +1878,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.41.0";
+const WEB_VERSION = "1.42.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1886,6 +1888,15 @@ const WEB_VERSION = "1.41.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.42.0 (2026-10-16, claude+mkolakowski): Double-click a line in the Forecast
+//     read view to edit just that line (wireForecastRowEditing()): it turns
+//     into the same inline inputs as spreadsheet mode (plus a tag picker for
+//     saved transactions), tinted, with ✓ Save next to 🗑 Delete and ✕ Cancel.
+//     ✓/Enter saves via _saveGridRow(rowKey,{strict:true}) (alerts on invalid
+//     input or server errors), closes the line and reloads; Esc/✕ cancels. The
+//     actions column is shown only while a line is being edited (.has-editing).
+//     The old stacked single-row editor (_renderForecastEditRow) is no longer used.
 //
 // 1.41.0 (2026-10-15, claude+mkolakowski): (1) Forecast read view puts a "/"
 //     after the first cell of each grouped pair (date, amt, bal); not shown in
@@ -3721,6 +3732,7 @@ async function init() {
   }
   document.getElementById('forecastMonthSel').value = String(now.getMonth() + 1);
   wireForecastSort();
+  wireForecastRowEditing();
   wireRecurringSort();
   await loadCategories();
   await loadTags();
@@ -5168,6 +5180,7 @@ function renderForecast() {
     !(markerIdx === startIdx && startIdx > 0);
   const markerMode = document.getElementById('forecastMode').value;
 
+  let editingShown = false;
   pageRows.forEach((r, idx) => {
     if (markerOnPage && startIdx + idx === markerIdx) {
       tbody.appendChild(_todayMarkerRow(markerMode, forecastRange, data.current_balance));
@@ -5175,14 +5188,17 @@ function renderForecast() {
     const tr = document.createElement('tr');
     if (dateKey && r[dateKey] && _weekOfMonth(r[dateKey]) % 2 === 0) tr.className = 'week-even';
     const rowKey = _forecastRowKey(r);
+    tr.dataset.rowKey = rowKey;       // lets the double-click handler find the row
     if (forecastSpreadsheetMode && !ro) {
       tr.innerHTML = _renderForecastGridRow(r, idx);
       tbody.appendChild(tr);
       return;
     }
     if (editingForecastRowKey === rowKey && !ro) {
-      tr.innerHTML = _renderForecastEditRow(r);
-      tr.classList.add('fc-editing');   // its merged cells break the paired-column CSS
+      // Double-clicked line: same inline inputs as spreadsheet mode, one row only.
+      tr.innerHTML = _renderForecastGridRow(r, idx, { editing: true });
+      tr.classList.add('row-editing');
+      editingShown = true;
       tbody.appendChild(tr);
       return;
     }
@@ -5235,6 +5251,14 @@ function renderForecast() {
   // Today is after every row on this page (or the list is empty).
   if (markerOnPage && markerIdx === endIdx) {
     tbody.appendChild(_todayMarkerRow(markerMode, forecastRange, data.current_balance));
+  }
+
+  // Show the actions column while a line is being edited, and focus it once.
+  document.getElementById('forecastTable').classList.toggle('has-editing', editingShown);
+  if (editingShown && _focusEditRow) {
+    _focusEditRow = false;
+    const d = tbody.querySelector('tr.row-editing .grid-desc');
+    if (d) { d.focus(); d.select(); }
   }
 
   // Auto mode: measure the real row height once, and if it changes the page
@@ -5297,9 +5321,42 @@ function _renderForecastEditRow(r) {
     </td>`;
 }
 
+let _focusEditRow = false;          // focus the description box on the next render
+
 function startEditForecastRow(rowKey) {
   editingForecastRowKey = rowKey;
+  _focusEditRow = true;
   renderForecast();
+}
+
+// Save the double-clicked line, close its editor and reload balances.
+async function saveEditedForecastRow(rowKey) {
+  const ok = await _saveGridRow(rowKey, { strict: true });
+  if (!ok) return;                  // validation / server error already alerted
+  editingForecastRowKey = null;
+  await loadForecast();
+}
+
+// Double-click a line (read view) to edit it; Enter saves, Esc cancels.
+function wireForecastRowEditing() {
+  const tbody = document.querySelector('#forecastTable tbody');
+  tbody.addEventListener('dblclick', (e) => {
+    if (forecastSpreadsheetMode || isCurrentAccountReadOnly()) return;
+    if (e.target.closest('button, input, select, textarea, a, label')) return;
+    const tr = e.target.closest('tr');
+    if (!tr || !tr.dataset.rowKey || tr.classList.contains('row-editing')) return;
+    if (window.getSelection) window.getSelection().removeAllRanges();   // drop the word the dblclick selected
+    startEditForecastRow(tr.dataset.rowKey);
+  });
+  tbody.addEventListener('keydown', (e) => {
+    const tr = e.target.closest && e.target.closest('tr.row-editing');
+    if (!tr) return;
+    if (e.key === 'Escape') { e.preventDefault(); cancelEditForecastRow(); }
+    else if (e.key === 'Enter' && e.target.matches('input.grid-cell, select.grid-cell')) {
+      e.preventDefault();
+      saveEditedForecastRow(tr.dataset.rowKey);
+    }
+  });
 }
 
 function cancelEditForecastRow() {
@@ -5444,7 +5501,8 @@ function toggleForecastSpreadsheetMode() {
   renderForecast();
 }
 
-function _renderForecastGridRow(r, rowIdx) {
+function _renderForecastGridRow(r, rowIdx, opts) {
+  const editing = !!(opts && opts.editing);
   const rowKey = _forecastRowKey(r);
   const catOptions = ['<option value="">— none —</option>']
     .concat(categories.map(c =>
@@ -5456,9 +5514,17 @@ function _renderForecastGridRow(r, rowIdx) {
   const dBal = r.diff_balance != null ? fmt(r.diff_balance) : '—';
   const dAmtCls = r.diff_amount == null ? 'diff-zero' : (r.diff_amount > 0 ? 'diff-pos' : (r.diff_amount < 0 ? 'diff-neg' : 'diff-zero'));
   const dBalCls = r.diff_balance == null ? 'diff-zero' : (r.diff_balance > 0 ? 'diff-pos' : (r.diff_balance < 0 ? 'diff-neg' : 'diff-zero'));
-  const tagBits = (r.tags && r.tags.length)
-    ? `<div class="row-tag-chips">${renderTagChips(r.tags)}</div>` : '';
+  // Single-line edit (double-click) also offers the tag picker, but only for
+  // saved transactions — a projection has nothing to attach tags to yet.
+  const tagBits = (editing && r.transaction_id)
+    ? `<div style="margin-top:6px"><label class="inline-label">Tags</label>${renderTagPicker('editFcTags', (r.tags || []).map(t => t.id))}</div>`
+    : ((r.tags && r.tags.length) ? `<div class="row-tag-chips">${renderTagChips(r.tags)}</div>` : '');
   const delBtn = _forecastDeleteBtn(r, 'ghost');
+  const actionsTd = editing
+    ? `<td style="white-space:nowrap"><button title="Save and close this line (Enter)" onclick="saveEditedForecastRow('${escapeAttr(rowKey)}')">✓</button>
+         ${delBtn}
+         <button class="ghost" title="Cancel (Esc)" onclick="cancelEditForecastRow()">✕</button></td>`
+    : `<td>${delBtn}</td>`;
   const input = (field, c, extra) =>
     `<td${extra&&extra.tdCls?` class="${extra.tdCls}"`:''} data-r="${rowIdx}" data-c="${c}"><input class="inline-edit grid-cell${extra&&extra.cls?(' '+extra.cls):''}"
         type="${extra&&extra.type||'text'}"${extra&&extra.step?` step="${extra.step}"`:''}
@@ -5479,7 +5545,7 @@ function _renderForecastGridRow(r, rowIdx) {
     <td class="num">${aBal}</td>
     <td class="num ${dBalCls}">${dBal}</td>
     ${input('notes', 6, {raw:r.notes||''})}
-    <td>${delBtn}</td>`;
+    ${actionsTd}`;
 }
 
 function _ensureGridListeners() {
@@ -5554,14 +5620,19 @@ function _readGridRowValues(rowKey) {
   };
 }
 
-async function _saveGridRow(rowKey) {
+// Returns true when the row was saved. Autosave (spreadsheet mode) ignores the
+// result; an explicit Save (opts.strict) alerts about problems instead of
+// failing silently and leaves the refresh to the caller.
+async function _saveGridRow(rowKey, opts) {
+  const strict = !!(opts && opts.strict);
   const row = (forecastData && forecastData.rows || []).find(r => _forecastRowKey(r) === rowKey);
-  if (!row) return;
+  if (!row) return false;
   const v = _readGridRowValues(rowKey);
-  // Silently skip invalid states rather than alert()ing on every blur —
-  // the user is mid-edit, not submitting a form. They'll notice on the
+  // Autosave silently skips invalid states rather than alert()ing on every
+  // blur — the user is mid-edit, not submitting a form. They'll notice on the
   // next refresh if a row never picked up their change.
-  if (!v.desc || (v.famt == null && v.aamt == null)) return;
+  if (!v.desc) { if (strict) alert('Description cannot be empty.'); return false; }
+  if (v.famt == null && v.aamt == null) { if (strict) alert('At least one amount is required.'); return false; }
 
   const primaryAmt = v.aamt != null ? v.aamt : v.famt;
   const isActual = v.aamt != null;
@@ -5575,10 +5646,17 @@ async function _saveGridRow(rowKey) {
     category_id: v.cat ? parseInt(v.cat) : null,
     recurring_id: row.recurring_id || null,
     notes: v.notes || null,
-    // Tags aren't part of the grid (no room for a picker at this density) —
-    // omitting tag_ids entirely means "leave alone" on PATCH, and a
-    // brand-new projection has no tags to touch anyway.
+    // Spreadsheet-mode autosave has no tag picker (no room at this density) —
+    // omitting tag_ids entirely means "leave alone" on PATCH, and a brand-new
+    // projection has no tags to touch anyway.
   };
+  // The double-clicked line shows a tag picker (saved transactions only):
+  // PATCH always gets an array so every tag can be cleared in one save.
+  if (strict && document.getElementById('editFcTags')) {
+    const ids = readTagPick('editFcTags');
+    if (row.transaction_id) body.tag_ids = ids;
+    else if (ids.length) body.tag_ids = ids;
+  }
   try {
     if (row.transaction_id) {
       await api('/api/transactions/' + row.transaction_id, { method: 'PATCH', body: JSON.stringify(body) });
@@ -5590,9 +5668,11 @@ async function _saveGridRow(rowKey) {
     }
   } catch (e) {
     console.error('Grid row save failed:', e);
-    return;
+    if (strict) alert('Could not save row: ' + e.message);
+    return false;
   }
-  _scheduleGridRefresh();
+  if (!strict) _scheduleGridRefresh();
+  return true;
 }
 
 function _scheduleGridRefresh() {

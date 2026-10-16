@@ -65,9 +65,14 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.0** · Web version: **1.42.0** · Schema version: **13**
+App version: **1.22.0** · Web version: **1.43.0** · Schema version: **13**
 
 ### Added
+
+- **Previous / next month buttons on the Forecast page.** ‹ and › buttons sit
+  around the Month and Year dropdowns (Month view) and step the forecast one
+  month back or forward, rolling over the year at December/January (and adding
+  that year to the Year dropdown if needed). Frontend only.
 
 - **Double-click a Forecast line to edit it.** In the read view, double-clicking
   a row turns that one line into the same compact inline inputs spreadsheet mode

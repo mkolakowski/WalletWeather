@@ -361,6 +361,103 @@
   #forecastTable .grid-amt::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
   .inline-edit.defaulted { color:var(--muted); border-color:transparent; background:transparent; }
   .inline-edit.defaulted:hover, .inline-edit.defaulted:focus { color:var(--text); border-color:var(--border); background:var(--bg-deep); }
+
+  /* ---------- Forecast page on phones (≤768px) ----------
+     The 12-column table doesn't fit a phone, so outside spreadsheet mode each
+     line becomes a card: description + Forecast/Actual amt on top, the date
+     pair under it, then category + balance pair, any non-zero Δ and notes.
+     Tapping a card opens it as a stacked form (see wireForecastRowEditing()).
+     Spreadsheet mode keeps the horizontally scrolling grid. Must stay in sync
+     with _isPhoneLayout(). */
+  @media (max-width: 768px) {
+    .accounts-bar { flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px; }
+    .account-tab { flex:0 0 auto; white-space:nowrap; }
+    #accountView > .panel:first-child h2 { display:none; }
+    #accountView > .panel:first-child .row { align-items:stretch; }
+    #accountView > .panel:first-child button { height:100%; padding:8px 6px; font-size:12px; }
+
+    #summary { gap:6px; }
+    #summary .stat { padding:8px 10px; }
+    #summary .stat .v { font-size:16px; margin-top:2px; }
+    #summary .stat .io { font-size:14px; margin-top:1px; }
+
+    /* Controls: View + Current month on one line, Prev / Month / Year / Next
+       on the next. The Month/Year wrappers dissolve into the grid and their
+       labels go (the dropdowns speak for themselves). */
+    .fc-controls { flex-direction:column; align-items:stretch; gap:10px; }
+    .fc-left { display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; gap:8px 6px; }
+    .fc-left > .ctl:first-child { grid-column:1 / 3; }
+    .fc-left:has(#forecastYearWrap.hidden) > .ctl:first-child { grid-column:1 / -1; }
+    .fc-left > * { min-width:0; }
+    .fc-left > .ctl:first-child select, #forecastDurationWrap select { flex:1 1 0; width:0; }
+    .fc-left button { padding:6px 8px; white-space:nowrap; }
+    .fc-left select { padding:7px 4px 7px 6px; }
+    #forecastMonthWrap:not(.hidden), #forecastYearWrap:not(.hidden) { display:contents; }
+    #forecastMonthWrap label, #forecastYearWrap label { display:none; }
+    #forecastCurrentMonthBtn { grid-column:3 / 5; grid-row:1; }
+    #forecastPrevMonthBtn { grid-column:1; grid-row:2; }
+    #forecastMonthSel { grid-column:2; grid-row:2; width:100%; }
+    #forecastYearSel { grid-column:3; grid-row:2; }
+    #forecastNextMonthBtn { grid-column:4; grid-row:2; }
+    #forecastDurationWrap { grid-column:1 / -1; }
+    .fc-controls select { font-size:16px; }   /* <16px makes iOS zoom in on focus */
+    .fc-right { justify-content:stretch; }
+    #forecastPagination { flex:1; min-width:0; gap:8px !important; }
+    #forecastPagination .pagination-left { flex:1 1 100%; min-width:0; white-space:nowrap; }
+    #forecastPagination .pagination-left select { flex:1 1 0; width:0; }
+    #forecastPagination .pagination-right { flex:1 1 100%; justify-content:space-between; }
+
+    /* Read view: one card per line. */
+    #forecastTable:not(.sheet-mode), #forecastTable:not(.sheet-mode) tbody { display:block; }
+    #forecastTable:not(.sheet-mode) thead { display:none; }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker) {
+      display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; row-gap:2px;
+      padding:8px 4px; border-bottom:1px solid var(--border); font-size:13px; }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker) > td {
+      border:none; padding:0; background:none; }
+    #forecastTable:not(.sheet-mode) tbody tr.week-even { background:color-mix(in srgb, var(--text) 5%, transparent); }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(1) { grid-column:1 / 3; grid-row:1; font-weight:600; padding-right:10px; }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(5) { grid-column:3; grid-row:1; }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(6) { grid-column:4; grid-row:1; padding-left:4px; }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(2) { grid-column:1; grid-row:2; }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(3) { grid-column:2; grid-row:2; padding-left:4px; }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(8) { grid-column:3; grid-row:3; }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(9) { grid-column:4; grid-row:3; padding-left:4px; }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :is(:nth-child(2), :nth-child(3), :nth-child(8), :nth-child(9)) { font-size:12px; color:var(--muted); }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :not(:nth-child(1), :nth-child(4), :nth-child(11)) { white-space:nowrap; }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(8)::before { content:"Bal "; }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(4) { grid-column:1 / 3; grid-row:3; }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(7) { grid-column:3; grid-row:4; font-size:12px; }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(7)::before { content:"Δ amt "; color:var(--muted); }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(10) { grid-column:4; grid-row:4; font-size:12px; padding-left:8px; }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(10)::before { content:"Δ bal "; color:var(--muted); }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > td.diff-zero { display:none; }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(11) { grid-column:1 / -1; grid-row:5; max-width:none; font-size:12px; color:var(--muted); }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(11).muted { display:none; }
+    #forecastTable:not(.sheet-mode) tr.today-marker,
+    #forecastTable:not(.sheet-mode) tr.today-marker td { display:block; }
+    .today-bar { flex-wrap:wrap; gap:4px 10px; }
+    .today-bar .today-track { flex:1 1 60px; }
+
+    /* The tapped line, as a stacked form. */
+    #forecastTable:not(.sheet-mode) tbody tr.row-editing {
+      grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px;
+      padding:10px 8px; background:color-mix(in srgb, var(--accent) 10%, transparent); }
+    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :is(:nth-child(1), :nth-child(4), :nth-child(11), :nth-child(12)) { grid-column:1 / -1; }
+    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :is(:nth-child(7), :nth-child(8), :nth-child(9), :nth-child(10)) { display:none; }
+    #forecastTable:not(.sheet-mode) tbody tr.row-editing > td::before { display:block; font-size:10px; color:var(--muted); text-transform:uppercase;
+                     letter-spacing:.04em; margin-bottom:3px; font-weight:500; text-align:left; }
+    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :nth-child(1)::before { content:"Description"; }
+    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :nth-child(2)::before { content:"Forecast date"; }
+    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :nth-child(3)::before { content:"Actual date"; }
+    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :nth-child(4)::before { content:"Category"; }
+    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :nth-child(5)::before { content:"Forecast amt"; }
+    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :nth-child(6)::before { content:"Actual amt"; }
+    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :nth-child(11)::before { content:"Notes"; }
+    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :nth-child(12) { display:flex; justify-content:flex-end; gap:8px; }
+    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :nth-child(12) button { padding:10px 18px; font-size:15px; }
+    #forecastTable:not(.sheet-mode) tbody tr.row-editing .inline-edit { width:100%; min-width:0; font-size:16px; padding:7px 8px; }
+  }
   .notes-icon { display:inline-block; margin-left:6px; cursor:pointer; font-size:11px;
                 opacity:0.85; user-select:none; }
   .notes-icon:hover { opacity:1; }
@@ -1883,7 +1980,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.44.0";
+const WEB_VERSION = "1.45.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1893,6 +1990,16 @@ const WEB_VERSION = "1.44.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.45.0 (2026-10-16, claude+mkolakowski): Forecast page phone layout
+//     (≤768px, _isPhoneLayout()): read-view lines become cards (description +
+//     Forecast/Actual amt, date pair, category + balance pair, non-zero Δ,
+//     notes); a single tap opens a line as a stacked form (no auto-focus, so
+//     the keyboard stays down); "Auto" page size shows every row; controls
+//     sit in two rows (View + Current month, Prev/Month/Year/Next); summary
+//     cards are tighter; account tabs scroll sideways; 16px selects/inputs
+//     stop iOS zooming in. Spreadsheet mode keeps the scrolling grid. Also:
+//     the pagination Prev/Next group hides when there's only one page.
 //
 // 1.44.0 (2026-10-16, claude+mkolakowski): The Forecast month-step buttons
 //     now read "Prev" and "Next" instead of ‹ and › (tooltips still say
@@ -5065,11 +5172,21 @@ function categoryColorByName(name) {
   return c ? c.color : null;
 }
 
+// True when the Forecast page uses its phone layout (cards instead of table
+// rows). Must match the "Forecast page on phones" @media query in the CSS.
+function _isPhoneLayout() {
+  return window.matchMedia('(max-width: 768px)').matches;
+}
+
 // Rows per page for the current mode. 'auto' fills the window: it takes the
 // room between the top of the table and the bottom of the viewport (minus the
 // header row and the pagination bar) and divides by the measured row height.
+// On a phone the summary alone fills the screen, so 'auto' shows every row
+// and the page just scrolls.
 function _effectivePageSize(totalRows) {
-  if (forecastPageMode === 'all') return Math.max(1, totalRows);
+  if (forecastPageMode === 'all' || (forecastPageMode === 'auto' && _isPhoneLayout())) {
+    return Math.max(1, totalRows);
+  }
   if (forecastPageMode !== 'auto') return parseInt(forecastPageMode);
   const tbl = document.getElementById('forecastTable');
   const top = tbl.getBoundingClientRect().top + window.scrollY;
@@ -5184,6 +5301,7 @@ function renderForecast() {
       `Page ${forecastPage + 1} of ${totalPages}`;
     document.getElementById('forecastPrevPage').disabled = forecastPage === 0;
     document.getElementById('forecastNextPage').disabled = forecastPage >= totalPages - 1;
+    paginationBar.querySelector('.pagination-right').classList.toggle('hidden', totalPages <= 1);
   }
 
   document.getElementById('forecastSpreadsheetBtn').classList.toggle('hidden', ro);
@@ -5357,7 +5475,7 @@ let _focusEditRow = false;          // focus the description box on the next ren
 
 function startEditForecastRow(rowKey) {
   editingForecastRowKey = rowKey;
-  _focusEditRow = true;
+  _focusEditRow = !_isPhoneLayout();  // on a phone, don't pop the keyboard up on open
   renderForecast();
 }
 
@@ -5369,17 +5487,20 @@ async function saveEditedForecastRow(rowKey) {
   await loadForecast();
 }
 
-// Double-click a line (read view) to edit it; Enter saves, Esc cancels.
+// Double-click a line (read view) to edit it — or tap it once on a phone,
+// where double-tap is unreliable; Enter saves, Esc cancels.
 function wireForecastRowEditing() {
   const tbody = document.querySelector('#forecastTable tbody');
-  tbody.addEventListener('dblclick', (e) => {
+  const open = (e) => {
     if (forecastSpreadsheetMode || isCurrentAccountReadOnly()) return;
     if (e.target.closest('button, input, select, textarea, a, label')) return;
     const tr = e.target.closest('tr');
     if (!tr || !tr.dataset.rowKey || tr.classList.contains('row-editing')) return;
     if (window.getSelection) window.getSelection().removeAllRanges();   // drop the word the dblclick selected
     startEditForecastRow(tr.dataset.rowKey);
-  });
+  };
+  tbody.addEventListener('dblclick', open);
+  tbody.addEventListener('click', (e) => { if (_isPhoneLayout()) open(e); });
   tbody.addEventListener('keydown', (e) => {
     const tr = e.target.closest && e.target.closest('tr.row-editing');
     if (!tr) return;

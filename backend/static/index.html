@@ -167,7 +167,7 @@
   .ctl { display:flex; align-items:center; gap:6px; }
   .ctl label { margin:0; }
   .ctl.hidden { display:none; }
-  .month-nav { padding:3px 11px; font-size:16px; line-height:1.2; }
+  .month-nav { padding:6px 10px; font-size:13px; }
   .account-tab .tab-bal { margin-left:8px; font-size:12px; color:var(--muted); }
   .today-bar .today-bal { color:var(--text); text-transform:none; letter-spacing:0; }
   .summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
@@ -1238,7 +1238,7 @@
             </div>
             <div class="ctl" id="forecastMonthWrap">
               <button class="ghost month-nav" id="forecastPrevMonthBtn" onclick="shiftForecastMonth(-1)"
-                      title="Previous month" aria-label="Previous month">‹</button>
+                      title="Previous month" aria-label="Previous month">Prev</button>
               <label>Month</label>
               <select id="forecastMonthSel" onchange="loadForecast()">
                 <option value="1">January</option><option value="2">February</option>
@@ -1253,7 +1253,7 @@
               <label>Year</label>
               <select id="forecastYearSel" onchange="loadForecast()"></select>
               <button class="ghost month-nav" id="forecastNextMonthBtn" onclick="shiftForecastMonth(1)"
-                      title="Next month" aria-label="Next month">›</button>
+                      title="Next month" aria-label="Next month">Next</button>
               <button class="ghost" id="forecastCurrentMonthBtn" onclick="goToCurrentMonth()"
                       title="Jump to the current month">Current month</button>
             </div>
@@ -1883,7 +1883,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.43.0";
+const WEB_VERSION = "1.44.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1893,6 +1893,10 @@ const WEB_VERSION = "1.43.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.44.0 (2026-10-16, claude+mkolakowski): The Forecast month-step buttons
+//     now read "Prev" and "Next" instead of ‹ and › (tooltips still say
+//     "Previous month" / "Next month").
 //
 // 1.43.0 (2026-10-16, claude+mkolakowski): Previous / next month buttons (‹ ›)
 //     in the Forecast controls row, around the Month and Year dropdowns

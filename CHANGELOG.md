@@ -65,9 +65,18 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.0** · Web version: **1.45.0** · Schema version: **13**
+App version: **1.22.0** · Web version: **1.46.0** · Schema version: **13**
 
 ### Added
+
+- **Sort buttons and a stacked spreadsheet mode on the phone Forecast page.**
+  The phone layout hides the table header, so a row of sort buttons (Date,
+  Name, Category, Amount, Balance) now sits above the lines; tap one to sort
+  by it and tap it again to flip the direction, just like the column headers
+  on desktop. Spreadsheet mode on a phone now shows every line as the same
+  stacked form as tap / double-tap editing (labelled boxes, two per row, plus
+  the line's forecast and actual balance) instead of a grid you had to scroll
+  sideways. Desktop is unchanged. Frontend only.
 
 - **Phone-friendly Forecast page.** On screens 768px wide or narrower, each
   forecast line is a card (description and Forecast / Actual amount on top,

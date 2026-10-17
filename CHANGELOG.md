@@ -65,9 +65,21 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.0** · Web version: **1.44.0** · Schema version: **13**
+App version: **1.22.0** · Web version: **1.45.0** · Schema version: **13**
 
 ### Added
+
+- **Phone-friendly Forecast page.** On screens 768px wide or narrower, each
+  forecast line is a card (description and Forecast / Actual amount on top,
+  the date pair under it, then category with the balance pair, any non-zero Δ
+  and notes) instead of a 12-column table that had to be scrolled sideways.
+  Tapping a card opens it as a stacked edit form with large ✓ / 🗑 / ✕
+  buttons. The View / Month / Year controls fit in two rows, the summary
+  cards are tighter, account tabs scroll sideways, "Auto (fit window)" shows
+  every row (the page scrolls), and dropdowns/inputs use 16px text so iOS
+  doesn't zoom in on them. Spreadsheet mode keeps its scrolling grid. The
+  pagination Prev / Next buttons now hide when there is only one page.
+  Frontend only.
 
 - **Previous / next month buttons on the Forecast page.** "Prev" and "Next" buttons sit
   around the Month and Year dropdowns (Month view) and step the forecast one

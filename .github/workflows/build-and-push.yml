@@ -23,6 +23,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # The web client's version (WEB_VERSION in backend/static/index.html),
+      # used as an image tag so every build is pullable by that version.
+      - name: Read web client version
+        id: webver
+        run: |
+          version=$(sed -n 's/^const WEB_VERSION = "\([^"]*\)";.*/\1/p' backend/static/index.html)
+          if [ -z "$version" ]; then
+            echo "::error file=backend/static/index.html::WEB_VERSION not found"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -33,6 +45,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,format=short
+            type=raw,value=${{ steps.webver.outputs.version }}
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Set up Buildx

@@ -76,7 +76,10 @@ App version: **1.22.0** · Web version: **1.46.0** · Schema version: **13**
   on desktop. Spreadsheet mode on a phone now shows every line as the same
   stacked form as tap / double-tap editing (labelled boxes, two per row, plus
   the line's forecast and actual balance) instead of a grid you had to scroll
-  sideways. Desktop is unchanged. Frontend only.
+  sideways. On a phone, tapping an open line (anywhere but its boxes and
+  buttons) closes it again if nothing in it was changed; with unsaved changes
+  it stays open. The Forecast 🗑 delete buttons now have a red outline (on
+  desktop too). Frontend only.
 
 - **Phone-friendly Forecast page.** On screens 768px wide or narrower, each
   forecast line is a card (description and Forecast / Actual amount on top,

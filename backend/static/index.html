@@ -111,6 +111,8 @@
   #forecastTable:not(.sheet-mode):not(.has-editing) tr:not(.today-marker):not(.fc-editing) > :nth-child(11) { border-right:none; }
   /* The double-clicked line stands out while it's being edited. */
   #forecastTable tr.row-editing td { background:color-mix(in srgb, var(--accent) 10%, transparent); }
+  /* Forecast 🗑 buttons (line editor, spreadsheet rows) get a red outline. */
+  #forecastTable button.del-btn { border:1px solid var(--bad); }
   /* Spreadsheet button gets a clearly visible outline (accent fill when on). */
   #forecastSpreadsheetBtn:not(.active) { border:1px solid var(--muted); }
   /* The balance pair is plain text (no input boxes), so keep a little air. */
@@ -2031,7 +2033,10 @@ const WEB_VERSION = "1.46.0";
 //     Spreadsheet mode on a phone shows every line as the same stacked form
 //     as tap/double-tap edit (labelled boxes, two per row, plus the read-only
 //     balance pair) instead of the sideways-scrolling grid, with a shorter
-//     phone hint. Desktop unchanged.
+//     phone hint. (3) Tapping the open line's own surface (not a field or
+//     button) closes it when nothing changed (_forecastEditValues() vs the
+//     snapshot taken at render; the double-tap that opened it is ignored).
+//     (4) Forecast 🗑 buttons (.del-btn) get a red outline, desktop too.
 //
 // 1.45.0 (2026-10-16, claude+mkolakowski): Forecast page phone layout
 //     (≤768px, _isPhoneLayout()): read-view lines become cards (description +
@@ -5449,6 +5454,7 @@ function renderForecast() {
 
   // Show the actions column while a line is being edited, and focus it once.
   document.getElementById('forecastTable').classList.toggle('has-editing', editingShown);
+  _editRowSnapshot = editingShown ? _forecastEditValues(tbody.querySelector('tr.row-editing')) : null;
   if (editingShown && _focusEditRow) {
     _focusEditRow = false;
     const d = tbody.querySelector('tr.row-editing .grid-desc');
@@ -5516,9 +5522,18 @@ function _renderForecastEditRow(r) {
 }
 
 let _focusEditRow = false;          // focus the description box on the next render
+let _editRowSnapshot = null;        // the open line's field values as rendered
+let _editOpenedAt = 0;              // when the line was opened (ms), see the tap-to-close rule
+
+// Every field value in an editor row (tags included — they live in a hidden
+// input), joined so two snapshots can be compared for unsaved changes.
+function _forecastEditValues(tr) {
+  return [...tr.querySelectorAll('input, select')].map(el => el.value).join('\u0001');
+}
 
 function startEditForecastRow(rowKey) {
   editingForecastRowKey = rowKey;
+  _editOpenedAt = Date.now();
   _focusEditRow = !_isPhoneLayout();  // on a phone, don't pop the keyboard up on open
   renderForecast();
 }
@@ -5543,8 +5558,26 @@ function wireForecastRowEditing() {
     if (window.getSelection) window.getSelection().removeAllRanges();   // drop the word the dblclick selected
     startEditForecastRow(tr.dataset.rowKey);
   };
-  tbody.addEventListener('dblclick', open);
-  tbody.addEventListener('click', (e) => { if (_isPhoneLayout()) open(e); });
+  tbody.addEventListener('dblclick', (e) => {
+    // On a phone the first tap already opened the line; just drop the text
+    // the double-tap selected.
+    if (Date.now() - _editOpenedAt < 600 && window.getSelection) window.getSelection().removeAllRanges();
+    open(e);
+  });
+  tbody.addEventListener('click', (e) => {
+    if (!_isPhoneLayout()) return;
+    // Tapping the open line itself (not one of its fields or buttons) closes
+    // it — but only when nothing in it has changed, so edits aren't lost. The
+    // second tap of the double-tap that opened it doesn't count.
+    const editing = e.target.closest('tr.row-editing');
+    if (editing) {
+      if (e.target.closest('button, input, select, textarea, a, label, .tag-picker')) return;
+      if (Date.now() - _editOpenedAt < 600) return;
+      if (_forecastEditValues(editing) === _editRowSnapshot) cancelEditForecastRow();
+      return;
+    }
+    open(e);
+  });
   tbody.addEventListener('keydown', (e) => {
     const tr = e.target.closest && e.target.closest('tr.row-editing');
     if (!tr) return;
@@ -5566,10 +5599,10 @@ function cancelEditForecastRow() {
 // one date, leaving the template and its other dates alone.
 function _forecastDeleteBtn(r, cls) {
   if (r.transaction_id) {
-    return `<button class="${cls}" title="Delete" onclick="deleteForecastRow(${r.transaction_id}, ${r.recurring_id ? 'true' : 'false'})">🗑</button>`;
+    return `<button class="${cls} del-btn" title="Delete" onclick="deleteForecastRow(${r.transaction_id}, ${r.recurring_id ? 'true' : 'false'})">🗑</button>`;
   }
   if (r.recurring_id && r.forecast_date) {
-    return `<button class="${cls}" title="Delete this occurrence" onclick="skipForecastOccurrence(${r.recurring_id}, '${r.forecast_date}')">🗑</button>`;
+    return `<button class="${cls} del-btn" title="Delete this occurrence" onclick="skipForecastOccurrence(${r.recurring_id}, '${r.forecast_date}')">🗑</button>`;
   }
   return '';
 }

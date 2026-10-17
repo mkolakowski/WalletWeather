@@ -183,6 +183,13 @@ App version: **1.22.0** · Web version: **1.45.0** · Schema version: **13**
 
 ### Changed
 
+- **GHCR images are tagged with the web client version.** The "Build and push
+  to GHCR" workflow (`.github/workflows/build-and-push.yml`) reads
+  `WEB_VERSION` from `backend/static/index.html` and adds it as an image tag
+  (e.g. `ghcr.io/mkolakowski/walletweather:1.45.0`) on every build, next to the
+  existing branch, semver, sha and `latest` tags. The build fails if
+  `WEB_VERSION` can't be found.
+
 - **Forecast table read view: "/" separators, no row buttons.** A "/" now sits
   between the grouped Forecast/Actual columns (date, amount, balance) in the
   normal view (not in spreadsheet mode). The edit (✎) and delete (🗑) buttons

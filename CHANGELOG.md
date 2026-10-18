@@ -320,6 +320,14 @@ App version: **1.22.1** · Web version: **1.46.1** · Schema version: **13**
   Today bar count lines by actual date so they still equal Actual bal at
   today. Forecast bal and the ending balances are unchanged.
 
+- **Lines that clear in a different month show up in the month they cleared.**
+  A cleared transaction is now listed in (and counted toward) the month of its
+  actual date, not its planned date. Before, a line planned for Sep 29 that
+  cleared Oct 2 was listed in September but left out of October's opening
+  balance, so October's balances missed it, and a line that cleared early
+  (planned Nov 2, cleared Oct 30) was counted twice in November.
+  Not-yet-cleared lines still appear in their planned month.
+
 - **Current balance and the Today-bar balance now match the Forecast table's
   Actual bal column.** They used to sum only transactions marked cleared,
   while the Actual bal column also counts rows dated up to that point that

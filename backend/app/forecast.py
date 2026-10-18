@@ -126,9 +126,14 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
             txn_by_rec_date[(t.recurring_id, t.forecast_date)] = t
 
         # Decide which date this transaction is "anchored at" for the window check.
-        # We always anchor on forecast_date if present (so a delayed actual still
-        # appears in the month it was planned for); otherwise use actual_date.
-        anchor = t.forecast_date or t.actual_date
+        # A cleared transaction belongs to the window holding its actual date —
+        # the same rule the opening balance above uses, so a line that cleared
+        # in a different month than planned is counted once, in the month it
+        # really cleared. Anything not cleared yet anchors on its planned date.
+        if t.is_actual and t.actual_date:
+            anchor = t.actual_date
+        else:
+            anchor = t.forecast_date or t.actual_date
         if not anchor or not (start <= anchor <= end):
             continue
 
@@ -207,9 +212,11 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
                 "tags": [],
             })
 
-    # Sort by anchor date, then put already-cleared (has actual) rows after pending
-    # ones on the same day so the running balance reads naturally.
-    events.sort(key=lambda e: (e["anchor_date"], 0 if e["actual_amount"] is None else 1))
+    # Sort by planned date (the anchor only decides which window a row falls
+    # in), then put already-cleared (has actual) rows after pending ones on
+    # the same day so the running balance reads naturally.
+    events.sort(key=lambda e: (e["forecast_date"] or e["anchor_date"].isoformat(),
+                               0 if e["actual_amount"] is None else 1))
 
     # Forecast running balance: in the order above (planned date).
     fbals = []

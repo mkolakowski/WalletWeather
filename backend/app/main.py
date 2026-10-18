@@ -44,6 +44,11 @@ APP_VERSION = "1.22.1"
 #     lines by actual date too, so it still equals Actual bal at today's
 #     position (a line planned before today but due to clear later no longer
 #     counts yet). forecast_balance and the ending balances are unchanged.
+#     Cleared transactions now land in the window of their actual date rather
+#     than their planned date (matching the opening-balance rule), so a line
+#     that cleared in another month than planned shows in, and counts toward,
+#     the month it cleared: no longer missing from both months (late) or
+#     counted twice in the next month (early).
 #
 # 1.22.0 (2026-10-15, claude+mkolakowski): current_balance (GET
 #     /api/accounts and GET /api/accounts/{id}/forecast) is now the actual

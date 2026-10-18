@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.0** · Web version: **1.46.0** · Schema version: **13**
+App version: **1.22.0** · Web version: **1.46.1** · Schema version: **13**
 
 ### Added
 
@@ -194,6 +194,15 @@ App version: **1.22.0** · Web version: **1.46.0** · Schema version: **13**
   display as "Monthly · day N · from YYYY-MM-DD".
 
 ### Changed
+
+- **Outlined ✕ in the Forecast line editor.** The ✕ (cancel) button next to
+  ✓ and 🗑 now has a clearly visible outline, like the red one on 🗑.
+  Frontend only.
+
+- **GitHub Actions bumped to their Node 24 majors.** The GHCR workflow now uses
+  `actions/checkout@v7`, `docker/login-action@v4`, `docker/metadata-action@v6`,
+  `docker/setup-buildx-action@v4` and `docker/build-push-action@v7`, which
+  clears the "Node.js 20 is deprecated" warning on every build.
 
 - **GHCR images are tagged with the web client version.** The "Build and push
   to GHCR" workflow (`.github/workflows/build-and-push.yml`) reads

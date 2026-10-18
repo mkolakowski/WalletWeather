@@ -111,6 +111,8 @@
   #forecastTable:not(.sheet-mode):not(.has-editing) tr:not(.today-marker):not(.fc-editing) > :nth-child(11) { border-right:none; }
   /* The double-clicked line stands out while it's being edited. */
   #forecastTable tr.row-editing td { background:color-mix(in srgb, var(--accent) 10%, transparent); }
+  /* Forecast 🗑 buttons (line editor, spreadsheet rows) get a red outline. */
+  #forecastTable button.del-btn { border:1px solid var(--bad); }
   /* Spreadsheet button gets a clearly visible outline (accent fill when on). */
   #forecastSpreadsheetBtn:not(.active) { border:1px solid var(--muted); }
   /* The balance pair is plain text (no input boxes), so keep a little air. */
@@ -361,14 +363,20 @@
   #forecastTable .grid-amt::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
   .inline-edit.defaulted { color:var(--muted); border-color:transparent; background:transparent; }
   .inline-edit.defaulted:hover, .inline-edit.defaulted:focus { color:var(--text); border-color:var(--border); background:var(--bg-deep); }
+  /* Phone-only sort buttons (the phone layout hides the table header). */
+  .fc-sort { display:none; }
+  .fc-sort button.sort-asc::after { content:" ▲"; font-size:9px; }
+  .fc-sort button.sort-desc::after { content:" ▼"; font-size:9px; }
+  #forecastSpreadsheetHint .hint-phone { display:none; }
 
   /* ---------- Forecast page on phones (≤768px) ----------
      The 12-column table doesn't fit a phone, so outside spreadsheet mode each
      line becomes a card: description + Forecast/Actual amt on top, the date
      pair under it, then category + balance pair, any non-zero Δ and notes.
-     Tapping a card opens it as a stacked form (see wireForecastRowEditing()).
-     Spreadsheet mode keeps the horizontally scrolling grid. Must stay in sync
-     with _isPhoneLayout(). */
+     Tapping a card opens it as a stacked form (see wireForecastRowEditing()),
+     and spreadsheet mode shows every line as that same form. The table header
+     is hidden, so a row of sort buttons (#forecastSortBar) stands in for it.
+     Must stay in sync with _isPhoneLayout(). */
   @media (max-width: 768px) {
     .accounts-bar { flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px; }
     .account-tab { flex:0 0 auto; white-space:nowrap; }
@@ -407,15 +415,28 @@
     #forecastPagination .pagination-left select { flex:1 1 0; width:0; }
     #forecastPagination .pagination-right { flex:1 1 100%; justify-content:space-between; }
 
-    /* Read view: one card per line. */
-    #forecastTable:not(.sheet-mode), #forecastTable:not(.sheet-mode) tbody { display:block; }
-    #forecastTable:not(.sheet-mode) thead { display:none; }
-    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker) {
+    .fc-sort { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:0 0 10px; }
+    .fc-sort-l { font-size:12px; color:var(--muted); margin-right:2px; }
+    .fc-sort button { padding:6px 7px; font-size:12px; white-space:nowrap; }
+    #forecastSpreadsheetHint .hint-desktop { display:none; }
+    #forecastSpreadsheetHint .hint-phone { display:inline; }
+
+    /* One card per line, in both modes. Each rule names both modes rather
+       than plain #forecastTable so it out-ranks the desktop column rules. */
+    #forecastTable:not(.sheet-mode), #forecastTable:not(.sheet-mode) tbody,
+    #forecastTable.sheet-mode, #forecastTable.sheet-mode tbody { display:block; }
+    #forecastTable:not(.sheet-mode) thead, #forecastTable.sheet-mode thead { display:none; }
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker),
+    #forecastTable.sheet-mode tbody tr:not(.today-marker) {
       display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; row-gap:2px;
       padding:8px 4px; border-bottom:1px solid var(--border); font-size:13px; }
-    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker) > td {
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker) > td,
+    #forecastTable.sheet-mode tbody tr:not(.today-marker) > td {
       border:none; padding:0; background:none; }
-    #forecastTable:not(.sheet-mode) tbody tr.week-even { background:color-mix(in srgb, var(--text) 5%, transparent); }
+    #forecastTable:not(.sheet-mode) tbody tr.week-even,
+    #forecastTable.sheet-mode tbody tr.week-even { background:color-mix(in srgb, var(--text) 5%, transparent); }
+
+    /* Read view card. */
     #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(1) { grid-column:1 / 3; grid-row:1; font-weight:600; padding-right:10px; }
     #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(5) { grid-column:3; grid-row:1; }
     #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(6) { grid-column:4; grid-row:1; padding-left:4px; }
@@ -434,29 +455,33 @@
     #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > td.diff-zero { display:none; }
     #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(11) { grid-column:1 / -1; grid-row:5; max-width:none; font-size:12px; color:var(--muted); }
     #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(11).muted { display:none; }
-    #forecastTable:not(.sheet-mode) tr.today-marker,
-    #forecastTable:not(.sheet-mode) tr.today-marker td { display:block; }
+    #forecastTable tr.today-marker, #forecastTable tr.today-marker td { display:block; }
     .today-bar { flex-wrap:wrap; gap:4px 10px; }
     .today-bar .today-track { flex:1 1 60px; }
 
-    /* The tapped line, as a stacked form. */
-    #forecastTable:not(.sheet-mode) tbody tr.row-editing {
-      grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px;
-      padding:10px 8px; background:color-mix(in srgb, var(--accent) 10%, transparent); }
-    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :is(:nth-child(1), :nth-child(4), :nth-child(11), :nth-child(12)) { grid-column:1 / -1; }
-    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :is(:nth-child(7), :nth-child(8), :nth-child(9), :nth-child(10)) { display:none; }
-    #forecastTable:not(.sheet-mode) tbody tr.row-editing > td::before { display:block; font-size:10px; color:var(--muted); text-transform:uppercase;
+    /* The tapped line, and every line in spreadsheet mode, as a stacked form. */
+    :is(#forecastTable:not(.sheet-mode) tbody tr.row-editing, #forecastTable.sheet-mode tbody tr:not(.today-marker)) {
+      grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; padding:10px 8px; }
+    #forecastTable:not(.sheet-mode) tbody tr.row-editing { background:color-mix(in srgb, var(--accent) 10%, transparent); }
+    :is(#forecastTable:not(.sheet-mode) tbody tr.row-editing, #forecastTable.sheet-mode tbody tr:not(.today-marker)) > :is(:nth-child(1), :nth-child(4), :nth-child(11), :nth-child(12)) { grid-column:1 / -1; }
+    :is(#forecastTable:not(.sheet-mode) tbody tr.row-editing, #forecastTable.sheet-mode tbody tr:not(.today-marker)) > :is(:nth-child(7), :nth-child(8), :nth-child(9), :nth-child(10)) { display:none; }
+    :is(#forecastTable:not(.sheet-mode) tbody tr.row-editing, #forecastTable.sheet-mode tbody tr:not(.today-marker)) > td::before { display:block; font-size:10px; color:var(--muted); text-transform:uppercase;
                      letter-spacing:.04em; margin-bottom:3px; font-weight:500; text-align:left; }
-    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :nth-child(1)::before { content:"Description"; }
-    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :nth-child(2)::before { content:"Forecast date"; }
-    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :nth-child(3)::before { content:"Actual date"; }
-    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :nth-child(4)::before { content:"Category"; }
-    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :nth-child(5)::before { content:"Forecast amt"; }
-    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :nth-child(6)::before { content:"Actual amt"; }
-    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :nth-child(11)::before { content:"Notes"; }
-    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :nth-child(12) { display:flex; justify-content:flex-end; gap:8px; }
-    #forecastTable:not(.sheet-mode) tbody tr.row-editing > :nth-child(12) button { padding:10px 18px; font-size:15px; }
-    #forecastTable:not(.sheet-mode) tbody tr.row-editing .inline-edit { width:100%; min-width:0; font-size:16px; padding:7px 8px; }
+    :is(#forecastTable:not(.sheet-mode) tbody tr.row-editing, #forecastTable.sheet-mode tbody tr:not(.today-marker)) > :nth-child(1)::before { content:"Description"; }
+    :is(#forecastTable:not(.sheet-mode) tbody tr.row-editing, #forecastTable.sheet-mode tbody tr:not(.today-marker)) > :nth-child(2)::before { content:"Forecast date"; }
+    :is(#forecastTable:not(.sheet-mode) tbody tr.row-editing, #forecastTable.sheet-mode tbody tr:not(.today-marker)) > :nth-child(3)::before { content:"Actual date"; }
+    :is(#forecastTable:not(.sheet-mode) tbody tr.row-editing, #forecastTable.sheet-mode tbody tr:not(.today-marker)) > :nth-child(4)::before { content:"Category"; }
+    :is(#forecastTable:not(.sheet-mode) tbody tr.row-editing, #forecastTable.sheet-mode tbody tr:not(.today-marker)) > :nth-child(5)::before { content:"Forecast amt"; }
+    :is(#forecastTable:not(.sheet-mode) tbody tr.row-editing, #forecastTable.sheet-mode tbody tr:not(.today-marker)) > :nth-child(6)::before { content:"Actual amt"; }
+    :is(#forecastTable:not(.sheet-mode) tbody tr.row-editing, #forecastTable.sheet-mode tbody tr:not(.today-marker)) > :nth-child(8)::before { content:"Forecast bal"; }
+    :is(#forecastTable:not(.sheet-mode) tbody tr.row-editing, #forecastTable.sheet-mode tbody tr:not(.today-marker)) > :nth-child(9)::before { content:"Actual bal"; }
+    :is(#forecastTable:not(.sheet-mode) tbody tr.row-editing, #forecastTable.sheet-mode tbody tr:not(.today-marker)) > :nth-child(11)::before { content:"Notes"; }
+    :is(#forecastTable:not(.sheet-mode) tbody tr.row-editing, #forecastTable.sheet-mode tbody tr:not(.today-marker)) > :nth-child(12) { display:flex; justify-content:flex-end; gap:8px; }
+    :is(#forecastTable:not(.sheet-mode) tbody tr.row-editing, #forecastTable.sheet-mode tbody tr:not(.today-marker)) > :nth-child(12) button { padding:10px 18px; font-size:15px; }
+    :is(#forecastTable:not(.sheet-mode) tbody tr.row-editing, #forecastTable.sheet-mode tbody tr:not(.today-marker)) .inline-edit { width:100%; min-width:0; font-size:16px; padding:7px 8px; }
+    /* Spreadsheet lines also show the (read-only) balance pair. */
+    #forecastTable.sheet-mode tbody tr:not(.today-marker) > :is(:nth-child(8), :nth-child(9)) {
+      display:block; text-align:left; color:var(--muted); }
   }
   .notes-icon { display:inline-block; margin-left:6px; cursor:pointer; font-size:11px;
                 opacity:0.85; user-select:none; }
@@ -1392,10 +1417,20 @@
           </div>
         </div>
         <p id="forecastSpreadsheetHint" class="hidden" style="color:var(--muted);font-size:12px;margin:-6px 0 10px">
-          Click any cell to edit. Tab/Shift+Tab move across a row, ↑/↓/Enter move up and down a
+          <span class="hint-desktop">Click any cell to edit. Tab/Shift+Tab move across a row, ↑/↓/Enter move up and down a
           column. Paste a multi-line block into a cell to fill that column downward. Each row saves
-          shortly after you leave it; balances refresh a moment after things go quiet.
+          shortly after you leave it; balances refresh a moment after things go quiet.</span>
+          <span class="hint-phone">Every line is editable. Each line saves shortly after you leave it;
+          balances refresh a moment after things go quiet.</span>
         </p>
+        <div id="forecastSortBar" class="fc-sort" role="group" aria-label="Sort lines by">
+          <span class="fc-sort-l">Sort</span>
+          <button class="ghost" data-key="actual_date">Date</button>
+          <button class="ghost" data-key="description">Name</button>
+          <button class="ghost" data-key="category">Category</button>
+          <button class="ghost" data-key="actual_amount">Amount</button>
+          <button class="ghost" data-key="actual_balance">Balance</button>
+        </div>
         <div style="overflow-x:auto">
         <table id="forecastTable"><thead><tr>
           <th class="sortable" data-key="description">Description</th>
@@ -1980,7 +2015,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in backend/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.45.0";
+const WEB_VERSION = "1.46.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -1990,6 +2025,18 @@ const WEB_VERSION = "1.45.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+//
+// 1.46.0 (2026-10-17, claude+mkolakowski): Forecast phone layout: (1) sort
+//     buttons (#forecastSortBar: Date / Name / Category / Amount / Balance,
+//     tap again to flip direction) stand in for the hidden table header —
+//     setForecastSort() now backs both the headers and the buttons. (2)
+//     Spreadsheet mode on a phone shows every line as the same stacked form
+//     as tap/double-tap edit (labelled boxes, two per row, plus the read-only
+//     balance pair) instead of the sideways-scrolling grid, with a shorter
+//     phone hint. (3) Tapping the open line's own surface (not a field or
+//     button) closes it when nothing changed (_forecastEditValues() vs the
+//     snapshot taken at render; the double-tap that opened it is ignored).
+//     (4) Forecast 🗑 buttons (.del-btn) get a red outline, desktop too.
 //
 // 1.45.0 (2026-10-16, claude+mkolakowski): Forecast page phone layout
 //     (≤768px, _isPhoneLayout()): read-view lines become cards (description +
@@ -5252,13 +5299,15 @@ function renderForecast() {
     <div class="stat"><div class="l">Highest point</div><div class="v">${fmt(maxBal)}</div><div class="d">${hiDateLabel}</div></div>
     <div class="stat"><div class="l">Lowest point</div><div class="v ${minBal<0?'neg':''}">${fmt(minBal)}</div><div class="d">${loDateLabel}</div></div>`;
 
-  // Update sort indicators on column headers
-  document.querySelectorAll('#forecastTable th.sortable').forEach(th => {
-    th.classList.remove('sort-asc','sort-desc');
-    if (th.dataset.key === sortKey) {
-      th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+  // Update sort indicators on column headers and the phone sort buttons
+  document.querySelectorAll('#forecastTable th.sortable, #forecastSortBar button').forEach(el => {
+    el.classList.remove('sort-asc','sort-desc');
+    if (el.dataset.key === sortKey) {
+      el.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
     }
   });
+  document.querySelectorAll('#forecastSortBar button').forEach(b =>
+    b.classList.toggle('active', b.dataset.key === sortKey));
 
   // Sort a copy
   const rows = data.rows.slice().sort((a,b) => {
@@ -5405,6 +5454,7 @@ function renderForecast() {
 
   // Show the actions column while a line is being edited, and focus it once.
   document.getElementById('forecastTable').classList.toggle('has-editing', editingShown);
+  _editRowSnapshot = editingShown ? _forecastEditValues(tbody.querySelector('tr.row-editing')) : null;
   if (editingShown && _focusEditRow) {
     _focusEditRow = false;
     const d = tbody.querySelector('tr.row-editing .grid-desc');
@@ -5472,9 +5522,18 @@ function _renderForecastEditRow(r) {
 }
 
 let _focusEditRow = false;          // focus the description box on the next render
+let _editRowSnapshot = null;        // the open line's field values as rendered
+let _editOpenedAt = 0;              // when the line was opened (ms), see the tap-to-close rule
+
+// Every field value in an editor row (tags included — they live in a hidden
+// input), joined so two snapshots can be compared for unsaved changes.
+function _forecastEditValues(tr) {
+  return [...tr.querySelectorAll('input, select')].map(el => el.value).join('\u0001');
+}
 
 function startEditForecastRow(rowKey) {
   editingForecastRowKey = rowKey;
+  _editOpenedAt = Date.now();
   _focusEditRow = !_isPhoneLayout();  // on a phone, don't pop the keyboard up on open
   renderForecast();
 }
@@ -5499,8 +5558,26 @@ function wireForecastRowEditing() {
     if (window.getSelection) window.getSelection().removeAllRanges();   // drop the word the dblclick selected
     startEditForecastRow(tr.dataset.rowKey);
   };
-  tbody.addEventListener('dblclick', open);
-  tbody.addEventListener('click', (e) => { if (_isPhoneLayout()) open(e); });
+  tbody.addEventListener('dblclick', (e) => {
+    // On a phone the first tap already opened the line; just drop the text
+    // the double-tap selected.
+    if (Date.now() - _editOpenedAt < 600 && window.getSelection) window.getSelection().removeAllRanges();
+    open(e);
+  });
+  tbody.addEventListener('click', (e) => {
+    if (!_isPhoneLayout()) return;
+    // Tapping the open line itself (not one of its fields or buttons) closes
+    // it — but only when nothing in it has changed, so edits aren't lost. The
+    // second tap of the double-tap that opened it doesn't count.
+    const editing = e.target.closest('tr.row-editing');
+    if (editing) {
+      if (e.target.closest('button, input, select, textarea, a, label, .tag-picker')) return;
+      if (Date.now() - _editOpenedAt < 600) return;
+      if (_forecastEditValues(editing) === _editRowSnapshot) cancelEditForecastRow();
+      return;
+    }
+    open(e);
+  });
   tbody.addEventListener('keydown', (e) => {
     const tr = e.target.closest && e.target.closest('tr.row-editing');
     if (!tr) return;
@@ -5522,10 +5599,10 @@ function cancelEditForecastRow() {
 // one date, leaving the template and its other dates alone.
 function _forecastDeleteBtn(r, cls) {
   if (r.transaction_id) {
-    return `<button class="${cls}" title="Delete" onclick="deleteForecastRow(${r.transaction_id}, ${r.recurring_id ? 'true' : 'false'})">🗑</button>`;
+    return `<button class="${cls} del-btn" title="Delete" onclick="deleteForecastRow(${r.transaction_id}, ${r.recurring_id ? 'true' : 'false'})">🗑</button>`;
   }
   if (r.recurring_id && r.forecast_date) {
-    return `<button class="${cls}" title="Delete this occurrence" onclick="skipForecastOccurrence(${r.recurring_id}, '${r.forecast_date}')">🗑</button>`;
+    return `<button class="${cls} del-btn" title="Delete this occurrence" onclick="skipForecastOccurrence(${r.recurring_id}, '${r.forecast_date}')">🗑</button>`;
   }
   return '';
 }
@@ -5833,20 +5910,23 @@ function _scheduleGridRefresh() {
   _gridRefreshTimer = setTimeout(() => { if (forecastSpreadsheetMode) loadForecast(); }, 1200);
 }
 
-// Wire up sort handlers (called once after init)
+// Sort the forecast by `key`; picking the current key again flips direction.
+function setForecastSort(key) {
+  if (sortKey === key) {
+    sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortKey = key;
+    sortDir = 'asc';
+  }
+  forecastPage = 0;
+  renderForecast();
+}
+
+// Wire up sort handlers (called once after init): the column headers, and the
+// phone layout's sort buttons (#forecastSortBar), which stand in for them.
 function wireForecastSort() {
-  document.querySelectorAll('#forecastTable th.sortable').forEach(th => {
-    th.addEventListener('click', () => {
-      const key = th.dataset.key;
-      if (sortKey === key) {
-        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-      } else {
-        sortKey = key;
-        sortDir = 'asc';
-      }
-      forecastPage = 0;
-      renderForecast();
-    });
+  document.querySelectorAll('#forecastTable th.sortable, #forecastSortBar button').forEach(el => {
+    el.addEventListener('click', () => setForecastSort(el.dataset.key));
   });
 }
 

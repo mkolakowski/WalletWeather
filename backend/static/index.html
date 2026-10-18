@@ -2030,7 +2030,9 @@ const WEB_VERSION = "1.46.1";
 //
 // 1.46.1 (2026-10-18, claude+mkolakowski): The Forecast line editor's ✕
 //     (cancel) button gets a visible --muted outline (.close-btn), next to the
-//     red-outlined 🗑.
+//     red-outlined 🗑. The Highest / Lowest point cards now label the actual
+//     balance with the line's actual date (app 1.22.1 accumulates Actual bal
+//     in actual-date order).
 //
 // 1.46.0 (2026-10-17, claude+mkolakowski): Forecast phone layout: (1) sort
 //     buttons (#forecastSortBar: Date / Name / Category / Amount / Balance,
@@ -5263,8 +5265,9 @@ function renderForecast() {
   let maxDate = null;
   data.rows.forEach(r => {
     const v = r.actual_balance;
-    if (v < minBal) { minBal = v; minDate = r.forecast_date; }
-    if (v > maxBal) { maxBal = v; maxDate = r.forecast_date; }
+    const d = r.actual_date || r.forecast_date;   // Actual bal runs in actual-date order
+    if (v < minBal) { minBal = v; minDate = d; }
+    if (v > maxBal) { maxBal = v; maxDate = d; }
   });
 
   // Delta: how far actual end-of-period is from forecast end-of-period

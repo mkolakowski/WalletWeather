@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.0** · Web version: **1.46.1** · Schema version: **13**
+App version: **1.22.1** · Web version: **1.46.1** · Schema version: **13**
 
 ### Added
 
@@ -308,6 +308,17 @@ App version: **1.22.0** · Web version: **1.46.1** · Schema version: **13**
   sets the every-1/2-week cadence.
 
 ### Fixed
+
+- **Actual bal follows actual dates.** The Forecast table's Actual bal (and
+  Δ Bal) running total now adds lines up in actual-date order instead of
+  planned-date order (`backend/app/forecast.py` `build_forecast`). A line that
+  cleared later than planned now shows the balance as of the day it actually
+  cleared, so the column reads in order when the table is sorted by actual
+  date (the default, and the phone's Date sort button). The Highest / Lowest
+  point cards are labelled with the actual date to match, Δ Bal compares
+  each line with the plan as of that same date, and Current balance / the
+  Today bar count lines by actual date so they still equal Actual bal at
+  today. Forecast bal and the ending balances are unchanged.
 
 - **Current balance and the Today-bar balance now match the Forecast table's
   Actual bal column.** They used to sum only transactions marked cleared,

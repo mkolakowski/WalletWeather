@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.22.0"
+APP_VERSION = "1.22.1"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -35,6 +35,20 @@ APP_VERSION = "1.22.0"
 # When you bump APP_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
+#
+# 1.22.1 (2026-10-18, claude+mkolakowski): Forecast rows' actual_balance
+#     (and diff_balance) now accumulate in actual-date order instead of
+#     planned-date order (forecast.build_forecast), so a line that cleared
+#     later than planned shows the balance as of the day it really cleared.
+#     current_balance (forecast.actual_balance_as_of) now counts the month's
+#     lines by actual date too, so it still equals Actual bal at today's
+#     position (a line planned before today but due to clear later no longer
+#     counts yet). forecast_balance and the ending balances are unchanged.
+#     Cleared transactions now land in the window of their actual date rather
+#     than their planned date (matching the opening-balance rule), so a line
+#     that cleared in another month than planned shows in, and counts toward,
+#     the month it cleared: no longer missing from both months (late) or
+#     counted twice in the next month (early).
 #
 # 1.22.0 (2026-10-15, claude+mkolakowski): current_balance (GET
 #     /api/accounts and GET /api/accounts/{id}/forecast) is now the actual

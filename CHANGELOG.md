@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.0** · Web version: **1.46.0** · Schema version: **13**
+App version: **1.22.1** · Web version: **1.46.1** · Schema version: **13**
 
 ### Added
 
@@ -195,6 +195,15 @@ App version: **1.22.0** · Web version: **1.46.0** · Schema version: **13**
 
 ### Changed
 
+- **Outlined ✕ in the Forecast line editor.** The ✕ (cancel) button next to
+  ✓ and 🗑 now has a clearly visible outline, like the red one on 🗑.
+  Frontend only.
+
+- **GitHub Actions bumped to their Node 24 majors.** The GHCR workflow now uses
+  `actions/checkout@v7`, `docker/login-action@v4`, `docker/metadata-action@v6`,
+  `docker/setup-buildx-action@v4` and `docker/build-push-action@v7`, which
+  clears the "Node.js 20 is deprecated" warning on every build.
+
 - **GHCR images are tagged with the web client version.** The "Build and push
   to GHCR" workflow (`.github/workflows/build-and-push.yml`) reads
   `WEB_VERSION` from `backend/static/index.html` and adds it as an image tag
@@ -299,6 +308,25 @@ App version: **1.22.0** · Web version: **1.46.0** · Schema version: **13**
   sets the every-1/2-week cadence.
 
 ### Fixed
+
+- **Actual bal follows actual dates.** The Forecast table's Actual bal (and
+  Δ Bal) running total now adds lines up in actual-date order instead of
+  planned-date order (`backend/app/forecast.py` `build_forecast`). A line that
+  cleared later than planned now shows the balance as of the day it actually
+  cleared, so the column reads in order when the table is sorted by actual
+  date (the default, and the phone's Date sort button). The Highest / Lowest
+  point cards are labelled with the actual date to match, Δ Bal compares
+  each line with the plan as of that same date, and Current balance / the
+  Today bar count lines by actual date so they still equal Actual bal at
+  today. Forecast bal and the ending balances are unchanged.
+
+- **Lines that clear in a different month show up in the month they cleared.**
+  A cleared transaction is now listed in (and counted toward) the month of its
+  actual date, not its planned date. Before, a line planned for Sep 29 that
+  cleared Oct 2 was listed in September but left out of October's opening
+  balance, so October's balances missed it, and a line that cleared early
+  (planned Nov 2, cleared Oct 30) was counted twice in November.
+  Not-yet-cleared lines still appear in their planned month.
 
 - **Current balance and the Today-bar balance now match the Forecast table's
   Actual bal column.** They used to sum only transactions marked cleared,

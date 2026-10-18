@@ -8,9 +8,13 @@ actual amount/date for that occurrence:
   forecast_balance — running balance using forecasted amounts
   actual_date      — when it cleared (None if not yet)
   actual_amount    — what actually happened (None if not yet)
-  actual_balance   — running balance using actual where present, forecast where absent
+  actual_balance   — running balance using actual where present, forecast where absent,
+                     accumulated in actual-date order (so a line that cleared late
+                     shows the balance as of the day it actually cleared)
   diff_amount      — actual - forecast (None if either side missing)
-  diff_balance     — actual_balance - forecast_balance at this row
+  diff_balance     — actual_balance minus the planned balance at the same point:
+                     every line planned before this line's actual date, plus
+                     same-day lines up to and including this one
   recurring_id     — set when this row originates from a recurring template
   transaction_id   — set when a Transaction row backs this entry (so the UI can PATCH it)
 """
@@ -122,9 +126,14 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
             txn_by_rec_date[(t.recurring_id, t.forecast_date)] = t
 
         # Decide which date this transaction is "anchored at" for the window check.
-        # We always anchor on forecast_date if present (so a delayed actual still
-        # appears in the month it was planned for); otherwise use actual_date.
-        anchor = t.forecast_date or t.actual_date
+        # A cleared transaction belongs to the window holding its actual date —
+        # the same rule the opening balance above uses, so a line that cleared
+        # in a different month than planned is counted once, in the month it
+        # really cleared. Anything not cleared yet anchors on its planned date.
+        if t.is_actual and t.actual_date:
+            anchor = t.actual_date
+        else:
+            anchor = t.forecast_date or t.actual_date
         if not anchor or not (start <= anchor <= end):
             continue
 
@@ -203,22 +212,54 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
                 "tags": [],
             })
 
-    # Sort by anchor date, then put already-cleared (has actual) rows after pending
-    # ones on the same day so the running balance reads naturally.
-    events.sort(key=lambda e: (e["anchor_date"], 0 if e["actual_amount"] is None else 1))
+    # Sort by planned date (the anchor only decides which window a row falls
+    # in), then put already-cleared (has actual) rows after pending ones on
+    # the same day so the running balance reads naturally.
+    events.sort(key=lambda e: (e["forecast_date"] or e["anchor_date"].isoformat(),
+                               0 if e["actual_amount"] is None else 1))
 
-    rows = []
-    fbal = opening  # forecast running balance
-    abal = opening  # actual running balance (uses actual when present, else forecast)
+    # Forecast running balance: in the order above (planned date).
+    fbals = []
+    fbal = opening
     for ev in events:
         f = ev["forecast_amount"]
+        fbal += f if f is not None else 0.0
+        fbals.append(fbal)
+
+    # Actual running balance (actual amount when present, else forecast): in
+    # actual-date order, so a line that cleared later than planned picks up
+    # the balance of the day it really cleared. The sort is stable, so lines
+    # on the same actual date keep the order above.
+    abals = [0.0] * len(events)
+    abal = opening
+    by_actual = sorted(range(len(events)),
+                       key=lambda i: events[i]["actual_date"] or events[i]["anchor_date"].isoformat())
+    for i in by_actual:
+        f = events[i]["forecast_amount"]
+        a = events[i]["actual_amount"]
+        abal += a if a is not None else (f if f is not None else 0.0)
+        abals[i] = abal
+
+    # Δ Bal compares each line's actual balance with the planned balance at
+    # the same point in time, so a late-cleared line isn't measured against
+    # the forecast balance back at its planned date.
+    pos = {i: k for k, i in enumerate(by_actual)}
+    day = lambda ev, key: ev[key] or ev["anchor_date"].isoformat()
+    planned_at = []
+    for i, ev in enumerate(events):
+        d = day(ev, "actual_date")
+        planned_at.append(opening + sum(
+            other["forecast_amount"] or 0.0
+            for j, other in enumerate(events)
+            if day(other, "forecast_date") < d
+            or (day(other, "forecast_date") == d and pos[j] <= pos[i])))
+
+    rows = []
+    for ev, fbal_row, abal_row, planned in zip(events, fbals, abals, planned_at):
+        f = ev["forecast_amount"]
         a = ev["actual_amount"]
-        f_for_bal = f if f is not None else 0.0
-        a_for_bal = a if a is not None else (f if f is not None else 0.0)
-        fbal += f_for_bal
-        abal += a_for_bal
         diff_amt = (a - f) if (a is not None and f is not None) else None
-        diff_bal = abal - fbal
+        diff_bal = abal_row - planned
         rows.append({
             "forecast_date": ev["forecast_date"],
             "actual_date": ev["actual_date"],
@@ -226,9 +267,9 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
             "category": ev["category"],
             "notes": ev["notes"],
             "forecast_amount": f,
-            "forecast_balance": fbal,
+            "forecast_balance": fbal_row,
             "actual_amount": a,
-            "actual_balance": abal,
+            "actual_balance": abal_row,
             "diff_amount": diff_amt,
             "diff_balance": diff_bal,
             "is_actual_real": ev["is_actual_real"],
@@ -248,13 +289,21 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
 
 def actual_balance_as_of(db, account: Account, as_of: date) -> float:
     """Actual balance as of `as_of`, computed exactly like the forecast
-    table's "Actual bal" column for a month view containing that date:
-    starting balance + cleared transactions before the 1st of the month, then
-    every row from the 1st through `as_of` (cleared rows at their real amount,
-    not-yet-cleared rows at their forecast amount).
+    table's "Actual bal" column for the month view containing that date:
+    the month's opening balance plus every row of that month whose actual
+    date is on or before `as_of` (cleared rows at their real amount,
+    not-yet-cleared rows at their forecast amount). Actual bal accumulates in
+    actual-date order, so this is its value at the last row through `as_of`.
 
     This is what the Forecast page's "Current balance" and Today-bar balance
     show, so they agree with the Actual bal column at the same point.
     """
-    data = build_forecast(db, account, as_of.replace(day=1), as_of, with_tags=False)
-    return round(data["actual_ending_balance"], 2)
+    start = as_of.replace(day=1)
+    end = start.replace(day=monthrange(start.year, start.month)[1])
+    data = build_forecast(db, account, start, end, with_tags=False)
+    cutoff = as_of.isoformat()
+    total = data["opening_balance"] + sum(
+        (r["actual_amount"] if r["actual_amount"] is not None else (r["forecast_amount"] or 0.0))
+        for r in data["rows"]
+        if (r["actual_date"] or r["forecast_date"] or "") <= cutoff)
+    return round(total, 2)

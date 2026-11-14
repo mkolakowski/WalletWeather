@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.24.0"
+APP_VERSION = "1.24.1"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -36,6 +36,11 @@ APP_VERSION = "1.24.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.24.1 (2026-11-14, claude+mkolakowski): DELETE /api/admin/users/{uid}
+#     follows the self-deletion rules: an account with another owner stays
+#     (it used to be deleted with its creator), and the call is refused with
+#     409, naming the accounts, while the user is the only owner of an
+#     account other people can see (#57).
 # 1.24.0 (2026-11-14, claude+mkolakowski): a user can delete themselves.
 #     New GET /api/me/deletion-check (what would go, what stays, what's in
 #     the way) and DELETE /api/me (password, or the typed email for a
@@ -818,13 +823,22 @@ def delete_me(payload: DeleteMeIn, request: Request,
                        "access, then delete your user.",
             **_deletion_plan_json(plan),
         })
+    _delete_user(db, user, plan)
+    request.session.clear()
+    return {"ok": True}
 
+
+def _delete_user(db: Session, user: User, plan: dict) -> None:
+    """Delete `user` following a `_deletion_plan` with nothing blocking.
+
+    Shared by self-deletion and the Admin panel, so both keep an account
+    that has another owner.
+    """
     # Accounts that stay: move the row to their other owner, so deleting this
     # user doesn't take the account with it.
-    kept_ids = set()
     for acc, new_owner in plan["kept"]:
         acc.owner = new_owner
-        kept_ids.add(acc.id)
+    db.flush()  # so owner_id below is already the new owner's
     # Accounts that go. Most would go with the user anyway; one whose row
     # belongs to someone who has since left it would otherwise be orphaned.
     doomed_ids = {a.id for a in plan["deleted"]}
@@ -847,8 +861,6 @@ def delete_me(payload: DeleteMeIn, request: Request,
     db.expire(user)
     db.delete(user)
     db.commit()
-    request.session.clear()
-    return {"ok": True}
 
 
 ALLOWED_THEMES = {
@@ -4285,8 +4297,19 @@ def admin_delete_user(uid: int,
         raise HTTPException(404, "User not found")
     if target.id == user.id:
         raise HTTPException(400, "Cannot delete your own account")
-    db.delete(target)
-    db.commit()
+    # Same rule as deleting yourself (#57): an account with another owner
+    # stays, and the deletion is refused while the user is the only owner of
+    # an account other people can see.
+    plan = _deletion_plan(db, target)
+    if plan["blocking"]:
+        raise HTTPException(409, {
+            "message": f"{target.email} is the only owner of accounts other "
+                       "people can see. Make someone else an owner of each, "
+                       "or remove the other people's access, then delete "
+                       "the user.",
+            **_deletion_plan_json(plan),
+        })
+    _delete_user(db, target, plan)
     return {"ok": True}
 
 

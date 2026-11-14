@@ -1,4 +1,5 @@
-"""Deleting your own user: DELETE /api/me and GET /api/me/deletion-check.
+"""Deleting a user: your own (DELETE /api/me, GET /api/me/deletion-check)
+and, as an admin, someone else's (DELETE /api/admin/users/{uid}).
 
 The rule (docs/dev/decisions/legal-risk.md): deletion is refused while the
 user is the only owner of an account other people can see. An account with
@@ -187,3 +188,58 @@ def test_a_transfer_between_accounts_that_stay_survives(two_users):
     transfers = b.get("/api/transfers").json()
     assert len([t for t in transfers["transfers"]
                 if {t["from_account_id"], t["to_account_id"]} == {joint, bs}]) == 1
+
+
+# ---------- An admin deleting someone else (#57) ----------
+
+@pytest.fixture
+def admin(app_started):
+    """A signed-in admin. Admins are named in ADMIN_EMAILS, read at start-up,
+    so the test adds its own address to that set and takes it out again."""
+    from app import main
+    c, info = register(app_started)
+    main.ADMIN_EMAILS.add(info["email"])
+    yield c
+    main.ADMIN_EMAILS.discard(info["email"])
+
+
+def admin_delete(admin_client, who):
+    users = admin_client.get("/api/admin/users").json()
+    users = users["users"] if isinstance(users, dict) else users
+    uid = next(u["id"] for u in users if u["email"] == who["email"])
+    return admin_client.delete(f"/api/admin/users/{uid}")
+
+
+def test_admin_delete_is_refused_for_the_only_owner_of_a_shared_account(admin, two_users):
+    a, a_info, b, b_info = two_users
+    account_id = make_account(a, "Joint")
+    share(a, account_id, b_info, "edit")
+
+    r = admin_delete(admin, a_info)
+    assert r.status_code == 409
+    detail = r.json()["detail"]
+    assert a_info["email"] in detail["message"]
+    assert detail["blocking_accounts"] == [{
+        "id": account_id, "name": "Joint",
+        "shared_with": [{"email": b_info["email"], "level": "edit"}]}]
+    assert a.get("/api/me").status_code == 200
+    assert account_id in account_ids(b)
+
+
+def test_admin_delete_keeps_an_account_with_another_owner(admin, two_users):
+    a, a_info, b, b_info = two_users
+    account_id = make_account(a, "Joint")
+    make_account(a, "Mine alone")
+    share(a, account_id, b_info, "owner")
+
+    r = admin_delete(admin, a_info)
+    assert r.status_code == 200, r.text
+    assert r.json() == {"ok": True}
+    assert a.get("/api/me").status_code == 401
+    assert account_ids(b) == [account_id]
+
+
+def test_admin_delete_needs_an_admin(two_users):
+    a, a_info, b, b_info = two_users
+    assert a.delete(f"/api/admin/users/{b_info['id']}").status_code == 403
+    assert b.get("/api/me").status_code == 200

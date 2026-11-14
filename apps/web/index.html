@@ -2057,7 +2057,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.48.0";
+const WEB_VERSION = "1.48.1";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2068,6 +2068,9 @@ const WEB_VERSION = "1.48.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.48.1 (2026-11-14, claude+mkolakowski): Admin → delete user says what
+//     really happens (accounts with another owner are kept) and, when the
+//     server refuses with 409, names the shared accounts in the way (#57).
 // 1.48.0 (2026-11-14, claude+mkolakowski): Settings gains "Delete my
 //     account" (loadDeleteAccount / submitDeleteAccount). It shows what GET
 //     /api/me/deletion-check says would go, stay or stand in the way, points
@@ -6519,14 +6522,31 @@ async function adminResetPassword(uid) {
 }
 
 async function adminDeleteUser(uid, email) {
-  if (!confirm(`Permanently delete user "${email}" and ALL their accounts, transactions, and categories? This cannot be undone.`)) return;
+  if (!confirm(`Permanently delete user "${email}" and everything only they own (accounts, transactions, categories)? Accounts that have another owner are kept. This cannot be undone.`)) return;
+  let res;
   try {
-    await api('/api/admin/users/' + uid, {method: 'DELETE'});
-  } catch (e) {
-    alert('Failed: ' + e.message);
+    res = await fetch('/api/admin/users/' + uid, {method: 'DELETE'});
+  } catch {
+    alert('Could not reach the server. Nothing was deleted.');
+    return;
+  }
+  if (!res.ok) {
+    let detail = null;
+    try { detail = (await res.json()).detail; } catch {}
+    if (res.status === 409 && detail && detail.blocking_accounts) {
+      // The user is the only owner of accounts other people can see.
+      alert(detail.message + '\n\n' + detail.blocking_accounts.map(a =>
+        '• ' + a.name + ': shared with ' +
+        a.shared_with.map(s => s.email + ' (' + s.level + ')').join(', ')).join('\n') +
+        '\n\nChange these under All permissions below, then try again. Nothing was deleted.');
+    } else {
+      alert('Failed: ' + (typeof detail === 'string' ? detail : res.status));
+    }
     return;
   }
   await loadAdminUsers();
+  // The permissions table below lists users too.
+  loadAdminPermissions();
 }
 
 async function loadAdminPermissions() {

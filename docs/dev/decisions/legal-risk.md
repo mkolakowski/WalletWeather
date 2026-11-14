@@ -76,3 +76,18 @@ Decisions made while planning [`Plans/legal-risk.md`](../../../Plans/legal-risk.
 **The decision:** the policy is a page in this repo, served by GitHub Pages (expected at `https://mkolakowski.github.io/WalletWeather/`). Pages is switched on in the repo's settings, a step for Matthew.
 
 **What it changes:** phase 5 (#49): the policy is written as a Pages page, not only a draft.
+
+## 2026-11-14: an admin deleting a user follows the same rule
+
+**Decided:** 2026-11-14, by Matthew. **Status:** accepted.
+
+**The question:** building self-deletion showed that an admin deleting a user from the Admin panel silently deleted every account that user had created, shared and co-owned ones included (#57). Accounts with another owner are now always kept. What should happen when the user is the only owner of an account other people can see?
+
+**Options considered:**
+- Warn the admin with the list, then let them go ahead: quick for cleaning up after someone who has left, but other people lose those accounts.
+- Hand each account to the person with the highest access: nothing blocks, but someone becomes an owner without being asked.
+- Refuse, as self-deletion does: chosen.
+
+**The decision:** `DELETE /api/admin/users/{uid}` is refused with a conflict that names the accounts. The admin makes someone else an owner of each, or removes the other people's access, under the Admin panel's All permissions, then deletes the user. One rule for both ways of deleting a user.
+
+**What it changes:** app 1.24.1 and web 1.48.1: the admin endpoint and the Admin panel's delete button (#57).

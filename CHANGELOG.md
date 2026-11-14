@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.24.0** · Web version: **1.48.0** · Schema version: **14**
+App version: **1.24.1** · Web version: **1.48.1** · Schema version: **14**
 
 ### Added
 
@@ -98,6 +98,18 @@ App version: **1.24.0** · Web version: **1.48.0** · Schema version: **14**
   of the software shipped in the container image) and `CONTRIBUTING.md`. The
   README's Security Notes now say what "Encryption at rest" does and doesn't
   cover.
+
+### Fixed
+
+- **An admin deleting a user no longer takes other people's accounts with
+  them.** Deleting a user from the Admin panel used to delete every account
+  that user had created, including ones shared with, or co-owned by, other
+  people, without saying so. Now an account that has another owner is kept,
+  and the deletion is refused, naming the accounts, while the user is the
+  only owner of an account other people can see. Make someone else an owner
+  of each, or remove the other people's access, under the Admin panel's
+  All permissions, then delete the user. These are the same rules as
+  deleting your own account.
 
 ### Changed
 

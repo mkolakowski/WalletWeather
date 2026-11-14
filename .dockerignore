@@ -1,0 +1,11 @@
+# The build context is the repo root; only the server and web client go
+# into the image. Everything else (mobile apps, docs, git) is left out.
+*
+!apps/server/requirements.txt
+!apps/server/app/
+!apps/web/
+
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.DS_Store

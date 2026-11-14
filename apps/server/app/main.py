@@ -19,8 +19,8 @@ from pathlib import Path
 #      MAJOR for breaking changes).
 #   2. Add an entry to the APP CHANGELOG block below (see format there).
 #   3. If your change also changes the database shape, also bump
-#      SCHEMA_VERSION in backend/app/db.py per the instructions there.
-#   4. If your change touches the SPA (backend/static/index.html), also
+#      SCHEMA_VERSION in apps/server/app/db.py per the instructions there.
+#   4. If your change touches the SPA (apps/web/index.html), also
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
@@ -4278,7 +4278,11 @@ def admin_download_backup(filename: str, user: User = Depends(current_admin)):
 
 
 # ---------- Static frontend ----------
-STATIC_DIR = Path(__file__).parent.parent / "static"
+# The SPA lives in apps/web, a sibling of apps/server. The Docker image keeps
+# the same layout (/app/server, /app/web), so this resolves in both places;
+# WEB_DIR overrides it.
+STATIC_DIR = Path(os.environ.get("WEB_DIR")
+                  or Path(__file__).resolve().parent.parent.parent / "web")
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 

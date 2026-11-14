@@ -16,7 +16,9 @@ services:
 
   web:
     # Option A: Build from source (default — for development or if you cloned the repo)
-    build: ./backend
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
     # Option B: Pull from GitHub Container Registry (uncomment and replace <username>)
     #image: ghcr.io/mkolakowski/walletweather:latest
     restart: unless-stopped

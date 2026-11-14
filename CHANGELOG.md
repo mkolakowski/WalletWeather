@@ -67,6 +67,10 @@ same commit (or session) that introduces it.
 
 App version: **1.24.1** · Web version: **1.48.1** · Schema version: **14**
 
+## [1.24.1] — 2026-11-14
+
+App version: **1.24.1** · Web version: **1.48.1** · Schema version: **14**
+
 ### Added
 
 - **Delete your own account.** Settings has a new "Delete my account" section.
@@ -101,8 +105,8 @@ App version: **1.24.1** · Web version: **1.48.1** · Schema version: **14**
 
 ### Fixed
 
-- **An admin deleting a user no longer takes other people's accounts with
-  them.** Deleting a user from the Admin panel used to delete every account
+- **Breaking:** **An admin deleting a user no longer takes other people's
+  accounts with them.** Deleting a user from the Admin panel used to delete every account
   that user had created, including ones shared with, or co-owned by, other
   people, without saying so. Now an account that has another owner is kept,
   and the deletion is refused, naming the accounts, while the user is the
@@ -1066,7 +1070,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.22.2...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.24.1...HEAD
+[1.24.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.24.1
 [1.22.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.22.2
 [1.20.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.20.0
 [1.19.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.19.0

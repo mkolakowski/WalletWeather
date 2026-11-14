@@ -20,3 +20,19 @@ yet, and changes in this folder don't trigger the container build.
 - Keep `local.properties`, keystores and signing passwords out of the repo.
 - Gradle and Android Studio build output is already ignored in the root
   `.gitignore`.
+
+## Before listing in Google Play
+
+- The store asks for a privacy policy URL. It is
+  <https://mkolakowski.github.io/WalletWeather/privacy> (the source is
+  `docs/privacy.md`). Read it against what the app really does before
+  submitting, and update it first if the app stores or sends anything it
+  doesn't mention.
+- The Data safety form: the honest answer today is that no data is collected, because the
+  app talks only to the user's own server. Adding analytics, crash reporting
+  or ads would change that answer and the policy.
+- The name "WalletWeather" should be cleared first (`Plans/legal-risk.md`,
+  phase 5).
+- The first sign-in must show the Important notice, as the web app does:
+  `GET /api/me` returns `notice_required`, and
+  `POST /api/me/acknowledge-notice` records the agreement.

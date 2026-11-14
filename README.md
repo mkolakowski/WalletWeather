@@ -169,6 +169,7 @@ walletweather/
 │   │   └── favicon.svg
 │   ├── ios/              # Placeholder for a native iOS app (see its README)
 │   └── android/          # Placeholder for a native Android app (see its README)
+├── docs/                 # Public pages (GitHub Pages: the apps' privacy policy) and dev/decisions
 ├── .dockerignore         # Keeps everything but apps/server and apps/web out of the image
 ├── docker-compose.yml
 ├── docker-compose.test.yml # Runs the tests against a throwaway database
@@ -239,7 +240,8 @@ public internet. To report a security problem, see [SECURITY.md](SECURITY.md).
 WalletWeather sends nothing to its authors or to anyone else: no analytics,
 no telemetry. If you run it for other people, you are the one holding their
 data. [PRIVACY.md](PRIVACY.md) lists what an instance stores and what that
-means for you.
+means for you. The privacy policy for the mobile apps is at
+<https://mkolakowski.github.io/WalletWeather/privacy>.
 
 ## Disclaimer
 

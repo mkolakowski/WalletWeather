@@ -195,6 +195,15 @@ App version: **1.22.1** · Web version: **1.46.1** · Schema version: **13**
 
 ### Changed
 
+- **Container images are built only when a release is published.** The
+  "Build and push to GHCR" workflow (`.github/workflows/build-and-push.yml`)
+  used to run on every push to `main`. It now runs when a GitHub Release is
+  published, or when started by hand from the Actions tab. So
+  `ghcr.io/mkolakowski/walletweather:latest` always points at the newest
+  full release instead of whatever was merged last (a pre-release doesn't
+  move it), and each image is still tagged with the release's version and
+  the web client version.
+
 - **Outlined ✕ in the Forecast line editor.** The ✕ (cancel) button next to
   ✓ and 🗑 now has a clearly visible outline, like the red one on 🗑.
   Frontend only.

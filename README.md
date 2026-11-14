@@ -107,6 +107,8 @@ a "Fill demo credentials" button so you don't have to type them.
 ## Pulling from GitHub Container Registry
 
 Instead of building locally, you can pull a pre-built image from GHCR.
+An image is published for each release, so `latest` is the newest released
+version (not the newest commit on `main`).
 
 1. Edit `docker-compose.yml`: comment out `build:` and uncomment `image:`:
 

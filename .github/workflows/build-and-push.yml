@@ -1,14 +1,11 @@
 name: Build and push to GHCR
 
+# Images are built when a version is released, not on every merge, so
+# `latest` always points at the newest release. Start it by hand from the
+# Actions tab for a one-off build.
 on:
-  push:
-    branches: [main]
-    tags: ['v*']
-    # Mobile-only and Markdown-only changes don't touch the container image.
-    paths-ignore:
-      - 'apps/ios/**'
-      - 'apps/android/**'
-      - '**/*.md'
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
@@ -45,13 +42,17 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
+          # `latest` is set below, for a full release only: never for a
+          # pre-release or a build started by hand.
+          flavor: |
+            latest=false
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,format=short
             type=raw,value=${{ steps.webver.outputs.version }}
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' && !github.event.release.prerelease }}
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v4

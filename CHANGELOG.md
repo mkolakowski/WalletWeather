@@ -195,16 +195,24 @@ App version: **1.22.1** · Web version: **1.46.1** · Schema version: **13**
 
 ### Changed
 
+- **Container images are built only when a release is published.** The
+  "Build and push to GHCR" workflow (`.github/workflows/build-and-push.yml`)
+  used to run on every push to `main`. It now runs when a GitHub Release is
+  published, or when started by hand from the Actions tab. So
+  `ghcr.io/mkolakowski/walletweather:latest` always points at the newest
+  full release instead of whatever was merged last (a pre-release doesn't
+  move it), and each image is still tagged with the release's version and
+  the web client version.
+
 - **The repo is now laid out as `apps/` for room to add mobile apps.** The
   API server moved from `backend/` to `apps/server/`, the web client from
   `backend/static/` to `apps/web/`, and empty `apps/ios/` and
   `apps/android/` folders (each with a README) are ready for native apps.
   The container image is now built from the repo root
   (`docker build -f apps/server/Dockerfile .`) and is published to GHCR with
-  the same name and tags as before; pushes that only change `apps/ios`,
-  `apps/android` or Markdown files no longer rebuild it. If you build from
-  source with your own compose file, change `build: ./backend` to
-  `context: .` plus `dockerfile: apps/server/Dockerfile`. The server finds
+  the same name and tags as before. If you build from source with your own
+  compose file, change `build: ./backend` to `context: .` plus
+  `dockerfile: apps/server/Dockerfile`. The server finds
   the web client in `apps/web` (override with the `WEB_DIR` env var).
 
 - **Outlined ✕ in the Forecast line editor.** The ✕ (cancel) button next to

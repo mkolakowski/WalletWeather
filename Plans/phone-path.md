@@ -58,7 +58,7 @@ Roadmap item 17.
 
 Roadmap item 16. Depends on open question 2.
 
-- A new `api_tokens` table (schema 14): owner, name, access (`full` or `read`), a SHA-256 hash of the token, created date, revoked date. The token itself is shown once, at creation, and never stored.
+- A new `api_tokens` table (the next schema number; 14 went to the Important notice, #46): owner, name, access (`full` or `read`), a SHA-256 hash of the token, created date, revoked date. The token itself is shown once, at creation, and never stored.
 - `Authorization: Bearer <token>` is accepted wherever the session cookie is. A read-only token gets 403 on anything that changes data. A revoked token, or one whose owner is disabled, gets 401.
 - `GET/POST/DELETE /api/tokens` to list, create and revoke your own tokens, from a signed-in browser session only.
 - Settings page: a "API tokens" section to create (name + access), copy once, and revoke.

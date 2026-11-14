@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "13"
+SCHEMA_VERSION = "14"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,10 @@ SCHEMA_VERSION = "13"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v14 (2026-11-14, claude+mkolakowski): add users.notice_ack_at — when the
+#     user acknowledged the "Important notice" (the disclaimer shown once
+#     after sign-in). NULL = not yet; existing users start NULL on purpose,
+#     so everyone sees it once (#46).
 # v13 (2026-10-15, claude+mkolakowski): add users.recurring_position for
 #     the Forecast page layout preference ('above'/'below' — where the
 #     Recurring transactions panel sits relative to the forecast table).
@@ -138,6 +142,9 @@ class User(Base):
     # relative to the forecast table. One of: 'above' | 'below'.
     # NULL means unset → frontend falls back to 'above'.
     recurring_position = Column(String(10), nullable=True)
+    # When the user acknowledged the "Important notice" (the disclaimer shown
+    # once after sign-in). NULL means not yet. Demo users are never asked.
+    notice_ack_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     accounts = relationship("Account", back_populates="owner", cascade="all, delete-orphan")
@@ -568,6 +575,9 @@ def init_db():
         # (Created by Base.metadata.create_all above — boundary marker only.)
         # v12 → v13: per-user Forecast page layout (recurring panel position)
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS recurring_position VARCHAR(10)",
+        # v13 → v14: when the user acknowledged the "Important notice".
+        # No backfill: existing users see the notice once too.
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS notice_ack_at TIMESTAMP",
     ]
     with engine.begin() as conn:
         for sql in migrations:

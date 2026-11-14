@@ -138,6 +138,10 @@
   .login { text-align:center; padding:80px 20px; }
   .login h1 { font-size:24px; margin-bottom:8px; }
   .login p { color:var(--muted); margin-bottom:24px; }
+  /* The "Important notice" text, on the #notice screen and in Settings. */
+  .auth-card.notice-card { max-width:480px; }
+  .notice-text p { color:var(--text); margin:0 0 10px; font-size:14px; line-height:1.5; }
+  .notice-text p:last-child { margin-bottom:0; }
   .auth-card { max-width:360px; margin:0 auto; background:var(--panel); border:1px solid var(--border);
                border-radius:10px; padding:24px; text-align:left; }
   .auth-card label { margin-top:10px; }
@@ -809,6 +813,27 @@
       <div class="divider"><span>or</span></div>
       <a href="/auth/login"><button class="ghost" style="width:100%">Sign in with Google</button></a>
     </div>
+  </div>
+</div>
+
+<!-- The disclaimer's one copy: shown on the #notice screen and in Settings.
+     The wording is decided (docs/dev/decisions/legal-risk.md) and matches the
+     README's Disclaimer section: change all three together. -->
+<template id="noticeText">
+      <p>WalletWeather is a planning tool. Its forecasts are estimates calculated from data you enter and may be inaccurate or incomplete.</p>
+      <p>WalletWeather does not provide financial, tax, legal or investment advice. You are solely responsible for decisions you make using it.</p>
+      <p>The software is provided "as is", without warranty of any kind, and its authors accept no liability for losses arising from its use. See the <a href="https://github.com/mkolakowski/WalletWeather/blob/main/LICENSE" target="_blank" rel="noopener" style="color:var(--accent)">MIT licence</a>.</p>
+</template>
+
+<!-- Shown in place of #app until a signed-in user has agreed to the notice. -->
+<div id="notice" class="login hidden">
+  <h1 data-app-title>WalletWeather</h1>
+  <div class="auth-card notice-card">
+    <h2 style="margin:0 0 8px;font-size:17px">Important notice</h2>
+    <div id="noticeBody" class="notice-text"></div>
+    <div id="noticeError" class="auth-error hidden"></div>
+    <button id="noticeAgreeBtn" onclick="acknowledgeNotice()" style="width:100%;margin-top:12px">I understand and agree</button>
+    <button class="ghost" onclick="logout()" style="width:100%;margin-top:8px">Sign out</button>
   </div>
 </div>
 
@@ -1974,6 +1999,11 @@
         </div>
         <div id="backupStatus" style="margin-top:10px;font-size:13px"></div>
       </div>
+      <div class="panel">
+        <h2>Important notice</h2>
+        <div id="settingsNoticeBody" class="notice-text"></div>
+        <p id="settingsNoticeWhen" style="color:var(--muted);margin:10px 0 0;font-size:13px"></p>
+      </div>
     </div><!-- /pageSettings -->
   </main>
 </div>
@@ -2017,7 +2047,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.46.2";
+const WEB_VERSION = "1.47.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2028,6 +2058,12 @@ const WEB_VERSION = "1.46.2";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.47.0 (2026-11-14, claude+mkolakowski): the "Important notice" (the
+//     disclaimer). After sign-in, a user whose /api/me says notice_required
+//     sees the #notice screen and nothing else until they press "I understand
+//     and agree" (POST /api/me/acknowledge-notice). The demo user is never
+//     asked. Settings gains an "Important notice" card with the same text
+//     (one <template id="noticeText">) and the date it was agreed to (#46).
 // 1.46.2 (2026-11-14, claude+mkolakowski): GET /api/accounts and the
 //     forecast call send the browser's date (?today=, added in api()), so the
 //     Current balance, account tabs and Today bar count today's lines by the
@@ -3847,11 +3883,54 @@ async function setPermission(accountId, userId, level) {
 
 function showLogin() {
   document.getElementById('login').classList.remove('hidden');
+  document.getElementById('notice').classList.add('hidden');
   document.getElementById('app').classList.add('hidden');
 }
 function showApp() {
   document.getElementById('login').classList.add('hidden');
+  document.getElementById('notice').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
+}
+// The "Important notice" (the disclaimer): shown once per user, in place of
+// the app, until they agree. The server says when it's owed
+// (me.notice_required); the demo user is never asked.
+function noticeHtml() {
+  return document.getElementById('noticeText').innerHTML;
+}
+function showNotice() {
+  document.getElementById('noticeBody').innerHTML = noticeHtml();
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('notice').classList.remove('hidden');
+}
+async function acknowledgeNotice() {
+  const btn = document.getElementById('noticeAgreeBtn');
+  const err = document.getElementById('noticeError');
+  err.classList.add('hidden');
+  btn.disabled = true;
+  try {
+    await api('/api/me/acknowledge-notice', {method:'POST'});
+  } catch (e) {
+    err.textContent = 'Could not save that. Check your connection and try again.';
+    err.classList.remove('hidden');
+    btn.disabled = false;
+    return;
+  }
+  btn.disabled = false;
+  init();
+}
+// Settings → "Important notice": the same text, and when it was agreed to.
+function renderSettingsNotice() {
+  const body = document.getElementById('settingsNoticeBody');
+  if (!body) return;
+  body.innerHTML = noticeHtml();
+  const when = document.getElementById('settingsNoticeWhen');
+  if (me && me.notice_acknowledged_at) {
+    when.textContent = 'You agreed to this on ' +
+      new Date(me.notice_acknowledged_at).toLocaleDateString() + '.';
+  } else {
+    when.textContent = '';
+  }
 }
 
 // The live app title (admin-customizable). Default until /api/auth/config
@@ -3898,7 +3977,14 @@ async function init() {
   } catch {}
   try { me = await api('/api/me'); }
   catch { showLogin(); return; }
+  // Nothing else loads until the notice has been agreed to.
+  if (me.notice_required) {
+    applyTheme(me.theme_preference || DEFAULT_THEME);
+    showNotice();
+    return;
+  }
   showApp();
+  renderSettingsNotice();
   document.getElementById('userEmail').textContent = me.email;
   // Show admin tab only for admins
   if (me.is_admin) {

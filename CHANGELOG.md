@@ -65,7 +65,33 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.2** · Web version: **1.46.2** · Schema version: **13**
+App version: **1.23.0** · Web version: **1.47.0** · Schema version: **14**
+
+### Added
+
+- **An "Important notice" everyone agrees to once.** After signing in, each
+  person sees a short notice before anything else: WalletWeather is a planning
+  tool, its forecasts are estimates, it gives no financial, tax, legal or
+  investment advice, and it comes with no warranty. Pressing "I understand and
+  agree" opens the app, and the notice doesn't come back. People who already
+  use an instance see it once after the update; the demo user never does. The
+  same text is at the bottom of Settings, with the date you agreed to it, and
+  in the README's new Disclaimer section. `GET /api/me` now reports
+  `notice_required` and `notice_acknowledged_at`, and a new
+  `POST /api/me/acknowledge-notice` records the agreement. The API itself
+  isn't blocked before the notice is agreed to, only the web app.
+- **Policy documents.** The repository now has `SECURITY.md` (how to report a
+  security problem privately), `PRIVACY.md` (what an instance stores, and what
+  running one for other people means), `THIRD_PARTY_NOTICES.md` (the licences
+  of the software shipped in the container image) and `CONTRIBUTING.md`. The
+  README's Security Notes now say what "Encryption at rest" does and doesn't
+  cover.
+
+### Database
+
+- **Schema 14:** a new `notice_ack_at` column on `users` records when each
+  person agreed to the Important notice. It is added automatically on start
+  and left empty for existing users, so they are asked once.
 
 ## [1.22.2] — 2026-11-14
 

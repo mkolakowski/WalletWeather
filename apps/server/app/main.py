@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.22.2"
+APP_VERSION = "1.23.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -36,6 +36,11 @@ APP_VERSION = "1.22.2"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.23.0 (2026-11-14, claude+mkolakowski): the "Important notice" (the
+#     disclaimer) is acknowledged once per user. GET /api/me adds
+#     notice_required and notice_acknowledged_at; new POST
+#     /api/me/acknowledge-notice records it (the first time sticks). Demo
+#     users are never asked. Schema 14 (users.notice_ack_at) (#46).
 # 1.22.2 (2026-11-14, claude+mkolakowski): current_balance on GET
 #     /api/accounts and GET /api/accounts/{id}/forecast goes by the viewer's
 #     date (new optional ?today=YYYY-MM-DD, within a day of the server's,
@@ -319,7 +324,7 @@ BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", "/data/backups"))
 # admin login. Set DEMO_MODE=true in .env to turn it on.
 DEMO_MODE = os.environ.get("DEMO_MODE", "false").lower() == "true"
 from .demo import (
-    DEMO_ADMIN_EMAIL, DEMO_ADMIN_PASSWORD, DEMO_APP_TITLE,
+    DEMO_ADMIN_EMAIL, DEMO_ADMIN_PASSWORD, DEMO_APP_TITLE, is_demo_email,
     seed_demo_data, wipe_demo_data, reseed_demo_if_changed,
 )
 
@@ -675,13 +680,43 @@ async def logout(request: Request):
     return {"ok": True}
 
 
+def _notice_required(user: User) -> bool:
+    """True until the user has acknowledged the "Important notice".
+
+    Demo users are never asked: the demo is reset hourly, and its login is
+    shared by everyone who tries it.
+    """
+    return user.notice_ack_at is None and not is_demo_email(user.email)
+
+
+def _iso(dt: datetime | None) -> str | None:
+    return dt.isoformat() + "Z" if dt else None
+
+
 @app.get("/api/me")
 def me(user: User = Depends(current_user)):
     return {"id": user.id, "email": user.email, "name": user.name,
             "is_admin": is_admin(user),
             "theme_preference": user.theme_preference,
             "chart_position": user.chart_position,
-            "recurring_position": user.recurring_position}
+            "recurring_position": user.recurring_position,
+            "notice_required": _notice_required(user),
+            "notice_acknowledged_at": _iso(user.notice_ack_at)}
+
+
+@app.post("/api/me/acknowledge-notice")
+def acknowledge_notice(user: User = Depends(current_user),
+                       db: Session = Depends(get_db)):
+    """Record that the user has read and agreed to the "Important notice".
+
+    Safe to call again: the first acknowledgement's time is kept.
+    """
+    if user.notice_ack_at is None:
+        user.notice_ack_at = datetime.utcnow()
+        db.commit()
+    return {"ok": True,
+            "notice_required": False,
+            "notice_acknowledged_at": _iso(user.notice_ack_at)}
 
 
 ALLOWED_THEMES = {

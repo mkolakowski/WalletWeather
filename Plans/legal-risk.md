@@ -6,13 +6,13 @@ Tracking issue: #50
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Notices and policies | #45 | Open |
+| 1. Notices and policies | #45 | Built 2026-11-14, open until your OK |
 | 2. First-login notice | #46 | Open (after phase 1) |
 | 3. Licence check and demo names | #47 | Open |
 | 4. Delete my own account | #48 | Open |
 | 5. Name and store readiness | #49 | Open (waits on your checks) |
 
-Nothing shipped yet.
+Phase 1: documents only, no version. On `main` 2026-11-14; verified by GitHub's community profile showing the security policy and contributing guide, and by a dependency list taken from a clean `python:3.12-slim` install. Still yours to do: switch on private vulnerability reporting.
 
 Sessions: may span — phase 5 waits on checks only you can do, and phases 2 and 4 each end with a release.
 
@@ -93,8 +93,8 @@ Depends on phase 1 (the README carries the same text). The wording, and that exi
 
 ### Phase 3: Licence check and demo names
 
-- The Tests workflow gains a step that lists the licences of everything installed from `requirements.txt` and fails on a copyleft licence that isn't on a short allowlist (`psycopg`). It adds `pip-licenses` (MIT) to `requirements-dev.txt`, pinned.
-- `CLAUDE.md`'s licensing rule names that check.
+- The Tests workflow gains a step that lists the licences of everything installed from `requirements.txt` and fails on a copyleft licence that isn't on a short allowlist (`psycopg`, and `certifi`, which is MPL-2.0 and comes in with `httpx`; phase 1 found it). It adds `pip-licenses` (MIT) to `requirements-dev.txt`, pinned.
+- `CLAUDE.md`'s licensing rule names that check, and names `certifi` beside `psycopg` as a copyleft dependency already in use.
 - Demo data (`apps/server/app/demo.py`), the CSV sample the server generates and the import placeholder in the web client use generic merchant names ("Streaming service", "Coffee shop", "Grocery store") in place of real brands.
 - App and web versions bump (patch), CHANGELOG entry. The demo fingerprint changes, so a running demo reseeds once.
 

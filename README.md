@@ -174,6 +174,10 @@ walletweather/
 ├── docker-compose.test.yml # Runs the tests against a throwaway database
 ├── .env.example
 ├── LICENSE               # MIT
+├── THIRD_PARTY_NOTICES.md # Licences of the software shipped in the image
+├── SECURITY.md           # How to report a security problem
+├── PRIVACY.md            # What an instance stores, and who is responsible for it
+├── CONTRIBUTING.md
 └── README.md
 ```
 
@@ -212,6 +216,49 @@ workflow).
 - Session cookies use the `SESSION_SECRET` for signing
 - Admin access is controlled by the `ADMIN_EMAILS` environment variable, not by database state — an admin cannot be created from the UI
 
+### What the encryption does and doesn't cover
+
+"Encryption at rest" protects the listed fields if someone gets a copy of the
+database alone (a stolen volume or database dump). It does not protect
+against someone who can read the server's `.env` file, where the
+`ENCRYPTION_KEY` sits beside the database, and email addresses, dates,
+categories and tags are stored unencrypted. Other limits to know about
+before you decide where to run it:
+
+- Backups are unencrypted (roadmap item 12).
+- There is no self-serve password reset (item 13), no two-factor sign-in
+  (item 14) and no login rate limiting or audit log (item 15).
+- Session cookies are not marked HTTPS-only, so serve the app over HTTPS
+  yourself (a reverse proxy or private tunnel) if it leaves your own machine.
+
+This is why the warning at the top says not to put WalletWeather on the
+public internet. To report a security problem, see [SECURITY.md](SECURITY.md).
+
+## Privacy
+
+WalletWeather sends nothing to its authors or to anyone else: no analytics,
+no telemetry. If you run it for other people, you are the one holding their
+data. [PRIVACY.md](PRIVACY.md) lists what an instance stores and what that
+means for you.
+
+## Disclaimer
+
+WalletWeather is a planning tool. Its forecasts are estimates calculated from
+data you enter and may be inaccurate or incomplete.
+
+WalletWeather does not provide financial, tax, legal or investment advice.
+You are solely responsible for decisions you make using it.
+
+The software is provided "as is", without warranty of any kind, and its
+authors accept no liability for losses arising from its use. See the
+[MIT licence](LICENSE).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). The published container image also contains other people's
+software under their own licences, listed in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

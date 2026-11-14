@@ -195,6 +195,12 @@ App version: **1.22.1** · Web version: **1.46.1** · Schema version: **13**
 
 ### Changed
 
+- **The web service now reports whether it's healthy.** `docker compose ps`
+  shows `web` as `healthy` once the app answers on `/api/version`, and
+  `unhealthy` if it stops answering for about a minute and a half (three
+  failed checks, 30 seconds apart). The check lives in `docker-compose.yml`,
+  so pull the new file to get it; the image itself is unchanged.
+
 - **Container images are built only when a release is published.** The
   "Build and push to GHCR" workflow (`.github/workflows/build-and-push.yml`)
   used to run on every push to `main`. It now runs when a GitHub Release is

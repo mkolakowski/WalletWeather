@@ -37,6 +37,14 @@ services:
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       DEMO_MODE: ${DEMO_MODE:-false}
       BACKUP_DIR: /data/backups
+    # Healthy once the API answers. The image has no curl, so Python does the
+    # request; start_period covers the first boot's database setup.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/version', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     ports:
       - "8300:8000"
     volumes:

@@ -1999,6 +1999,16 @@
         </div>
         <div id="backupStatus" style="margin-top:10px;font-size:13px"></div>
       </div>
+      <div class="panel" id="deleteAccountPanel">
+        <h2>Delete my account</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Removes your sign-in and everything only you own: your accounts and their transactions,
+          recurring transactions, transfers, categories, tags, budgets and saved reports.
+          <strong style="color:var(--warn)">This can't be undone.</strong>
+        </p>
+        <div id="deleteAccountBody"><span style="color:var(--muted)">Loading…</span></div>
+      </div>
+
       <div class="panel">
         <h2>Important notice</h2>
         <div id="settingsNoticeBody" class="notice-text"></div>
@@ -2047,7 +2057,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.47.1";
+const WEB_VERSION = "1.48.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2058,6 +2068,13 @@ const WEB_VERSION = "1.47.1";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.48.0 (2026-11-14, claude+mkolakowski): Settings gains "Delete my
+//     account" (loadDeleteAccount / submitDeleteAccount). It shows what GET
+//     /api/me/deletion-check says would go, stay or stand in the way, points
+//     at the backup export, and asks for the password (or the typed email
+//     for a Google-only user) before DELETE /api/me. While the user is the
+//     only owner of a shared account it lists those accounts instead of the
+//     form (#48).
 // 1.47.1 (2026-11-14, claude+mkolakowski): the Import page's paste-box
 //     example uses "Streaming service" instead of a real brand name (#47).
 // 1.47.0 (2026-11-14, claude+mkolakowski): the "Important notice" (the
@@ -2752,7 +2769,7 @@ function showPage(name, opts) {
   document.getElementById('navReports').classList.toggle('active', name==='reports');
   document.getElementById('navAdmin').classList.toggle('active', name==='admin');
   document.getElementById('navSettings').classList.toggle('active', name==='settings');
-  if (name === 'settings') { loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); }
+  if (name === 'settings') { loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); loadDeleteAccount(); }
   if (name === 'dashboard') loadDashboard();
   if (name === 'networth') loadNetworth();
   if (name === 'subscriptions') {
@@ -3920,6 +3937,76 @@ async function acknowledgeNotice() {
   }
   btn.disabled = false;
   init();
+}
+// Settings → "Delete my account". The server decides what deleting would
+// do (GET /api/me/deletion-check); this only shows it and asks to confirm.
+async function loadDeleteAccount() {
+  const body = document.getElementById('deleteAccountBody');
+  if (!body) return;
+  let c;
+  try { c = await api('/api/me/deletion-check'); }
+  catch { body.innerHTML = '<span style="color:var(--muted)">Could not load this. Reload the page to try again.</span>'; return; }
+  if (c.is_demo) {
+    body.innerHTML = '<p style="margin:0;font-size:13px">The demo user can\'t be deleted.</p>';
+    return;
+  }
+  const list = items => '<ul style="margin:4px 0 12px;padding-left:20px;font-size:13px">' +
+    items.map(i => '<li>' + i + '</li>').join('') + '</ul>';
+  let html = '';
+  if (c.blocking_accounts.length) {
+    html += '<p style="margin:0 0 4px;font-size:13px"><strong style="color:var(--bad)">You can\'t delete your account yet.</strong> ' +
+      'You are the only owner of accounts other people can see:</p>' +
+      list(c.blocking_accounts.map(a => '<strong>' + escapeHtml(a.name) + '</strong>, shared with ' +
+        a.shared_with.map(s => escapeHtml(s.email) + ' (' + escapeHtml(s.level) + ')').join(', '))) +
+      '<p style="margin:0;font-size:13px">For each one, under <strong>Permissions</strong> above, either make someone else an ' +
+      '<strong>owner</strong> (the account stays with them) or remove the other people\'s access (the account is deleted with you). ' +
+      'Then come back here.</p>';
+    body.innerHTML = html;
+    return;
+  }
+  if (c.accounts_deleted.length) {
+    html += '<p style="margin:0;font-size:13px">These accounts will be deleted:</p>' +
+      list(c.accounts_deleted.map(a => '<strong>' + escapeHtml(a.name) + '</strong>'));
+  }
+  if (c.accounts_kept.length) {
+    html += '<p style="margin:0;font-size:13px">These accounts have another owner and will stay with them:</p>' +
+      list(c.accounts_kept.map(a => '<strong>' + escapeHtml(a.name) + '</strong> → ' + escapeHtml(a.new_owner_email)));
+  }
+  html += '<p style="margin:0 0 12px;font-size:13px">Want a copy first? ' +
+    '<a href="#" style="color:var(--accent)" onclick="document.getElementById(\'exportAccountList\').scrollIntoView({behavior:\'smooth\',block:\'center\'});return false">Download a backup</a> above.</p>';
+  html += c.has_password
+    ? '<label>Your password</label><input id="deleteAccountConfirm" type="password" autocomplete="current-password" style="max-width:320px;width:100%">'
+    : '<label>Type your email address to confirm</label><input id="deleteAccountConfirm" type="email" autocomplete="off" style="max-width:320px;width:100%">';
+  html += '<div id="deleteAccountError" class="auth-error hidden" style="max-width:320px"></div>' +
+    '<div style="margin-top:12px"><button id="deleteAccountBtn" class="danger" onclick="submitDeleteAccount(' + (c.has_password ? 'true' : 'false') + ')">Delete my account</button></div>';
+  body.innerHTML = html;
+}
+async function submitDeleteAccount(hasPassword) {
+  const value = document.getElementById('deleteAccountConfirm').value;
+  const err = document.getElementById('deleteAccountError');
+  const fail = msg => { err.textContent = msg; err.classList.remove('hidden'); };
+  err.classList.add('hidden');
+  if (!value) { fail(hasPassword ? 'Enter your password.' : 'Type your email address.'); return; }
+  if (!confirm('Delete your account and everything only you own? This can\'t be undone.')) return;
+  const btn = document.getElementById('deleteAccountBtn');
+  btn.disabled = true;
+  let res;
+  try {
+    res = await fetch('/api/me', {
+      method: 'DELETE', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(hasPassword ? {password: value} : {confirm_email: value}),
+    });
+  } catch {
+    btn.disabled = false;
+    fail('Could not reach the server. Nothing was deleted.');
+    return;
+  }
+  if (res.ok) { location.reload(); return; }
+  btn.disabled = false;
+  if (res.status === 409) { loadDeleteAccount(); return; }
+  let detail = '';
+  try { detail = (await res.json()).detail; } catch {}
+  fail(typeof detail === 'string' && detail ? detail : 'Could not delete the account. Nothing was deleted.');
 }
 // Settings → "Important notice": the same text, and when it was agreed to.
 function renderSettingsNotice() {

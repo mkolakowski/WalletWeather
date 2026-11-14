@@ -53,10 +53,11 @@ the US) may apply to you. In practice:
   `ENCRYPTION_KEY` can too.
 - **A copy of their data:** each user can export their own data as JSON from
   the app.
-- **Deleting their data:** an admin can delete a user from the Admin panel,
-  which removes that user and what they own. Users can't yet delete their
-  own user (planned, issue #48). Old backup files still contain deleted
-  users until you remove those files.
+- **Deleting their data:** each user can delete their own user from
+  Settings ("Delete my account"), which removes them and everything only
+  they own; an account they share stays if it has another owner. An admin
+  can also delete a user from the Admin panel. Old backup files still
+  contain deleted users until you remove those files.
 
 ## Changes
 

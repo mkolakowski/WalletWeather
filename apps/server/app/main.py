@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.23.1"
+APP_VERSION = "1.24.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -36,6 +36,12 @@ APP_VERSION = "1.23.1"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.24.0 (2026-11-14, claude+mkolakowski): a user can delete themselves.
+#     New GET /api/me/deletion-check (what would go, what stays, what's in
+#     the way) and DELETE /api/me (password, or the typed email for a
+#     Google-only user). Refused with 409 while the user is the only owner
+#     of an account other people can see; an account with another owner
+#     stays and its row moves to that owner. The demo user is refused (#48).
 # 1.23.1 (2026-11-14, claude+mkolakowski): demo data (demo.py) and the
 #     import sample CSV use generic merchant names ("Streaming service",
 #     "Grocery store") instead of real brands. A running demo reseeds once,
@@ -721,6 +727,128 @@ def acknowledge_notice(user: User = Depends(current_user),
     return {"ok": True,
             "notice_required": False,
             "notice_acknowledged_at": _iso(user.notice_ack_at)}
+
+
+# ---------- Deleting your own user ----------
+# A user can delete themselves, with everything only they own. What must not
+# happen is someone else losing an account by surprise, so (decided
+# 2026-11-14, docs/dev/decisions/legal-risk.md) deletion is refused while the
+# user is the only owner of an account other people can still see. They
+# promote someone else to owner, or remove the others' access, on the
+# Permissions panel first.
+#
+# "Owner" here is the permission level, which is what the app enforces.
+# accounts.owner_id only records who the row belongs to in the database, and
+# deleting that user would delete the account with them (ON DELETE CASCADE),
+# so an account that stays is first re-pointed at one of its other owners.
+def _deletion_plan(db: Session, user: User) -> dict:
+    """Sort the accounts tied to `user` into: deleted with them, kept (with
+    the owner the row moves to), and blocking (shared, with no other owner).
+    """
+    account_ids = {a.id for a in db.query(Account).filter_by(owner_id=user.id)}
+    account_ids |= {p.account_id for p in db.query(AccountPermission)
+                    .filter_by(user_id=user.id, level="owner")}
+    deleted, kept, blocking = [], [], []
+    for acc in db.query(Account).filter(Account.id.in_(account_ids)).order_by(Account.id):
+        others = (db.query(AccountPermission, User)
+                  .join(User, User.id == AccountPermission.user_id)
+                  .filter(AccountPermission.account_id == acc.id,
+                          AccountPermission.user_id != user.id,
+                          AccountPermission.level.in_(["owner", "edit", "read"]))
+                  .order_by(AccountPermission.created_at, AccountPermission.user_id)
+                  .all())
+        other_owners = [u for (p, u) in others if p.level == "owner"]
+        if other_owners:
+            kept.append((acc, other_owners[0]))
+        elif others:
+            blocking.append((acc, others))
+        else:
+            deleted.append(acc)
+    return {"deleted": deleted, "kept": kept, "blocking": blocking}
+
+
+def _deletion_plan_json(plan: dict) -> dict:
+    return {
+        "can_delete": not plan["blocking"],
+        "accounts_deleted": [{"id": a.id, "name": a.name} for a in plan["deleted"]],
+        "accounts_kept": [{"id": a.id, "name": a.name, "new_owner_email": u.email}
+                          for (a, u) in plan["kept"]],
+        "blocking_accounts": [
+            {"id": a.id, "name": a.name,
+             "shared_with": [{"email": u.email, "level": p.level} for (p, u) in others]}
+            for (a, others) in plan["blocking"]
+        ],
+    }
+
+
+@app.get("/api/me/deletion-check")
+def deletion_check(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """What deleting the caller's own user would do, without doing it."""
+    out = _deletion_plan_json(_deletion_plan(db, user))
+    out["has_password"] = bool(user.password_hash)
+    out["is_demo"] = is_demo_email(user.email)
+    return out
+
+
+class DeleteMeIn(BaseModel):
+    # A user with a password confirms with it. A Google-only user has none,
+    # and confirms by typing their email address.
+    password: str | None = None
+    confirm_email: str | None = None
+
+
+@app.delete("/api/me")
+def delete_me(payload: DeleteMeIn, request: Request,
+              user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Delete the caller's own user and everything only they own."""
+    if is_demo_email(user.email):
+        raise HTTPException(403, "The demo user can't be deleted.")
+    if user.password_hash:
+        if not payload.password or not verify_password(payload.password, user.password_hash):
+            # 403, not 401: the session is fine, the confirmation isn't.
+            raise HTTPException(403, "That password is incorrect.")
+    elif (payload.confirm_email or "").strip().lower() != user.email.lower():
+        raise HTTPException(400, "Type your email address to confirm.")
+
+    plan = _deletion_plan(db, user)
+    if plan["blocking"]:
+        raise HTTPException(409, {
+            "message": "You are the only owner of accounts other people can "
+                       "see. Make someone else an owner, or remove their "
+                       "access, then delete your user.",
+            **_deletion_plan_json(plan),
+        })
+
+    # Accounts that stay: move the row to their other owner, so deleting this
+    # user doesn't take the account with it.
+    kept_ids = set()
+    for acc, new_owner in plan["kept"]:
+        acc.owner = new_owner
+        kept_ids.add(acc.id)
+    # Accounts that go. Most would go with the user anyway; one whose row
+    # belongs to someone who has since left it would otherwise be orphaned.
+    doomed_ids = {a.id for a in plan["deleted"]}
+    # Transfers this user made between accounts that both stay would be
+    # deleted with them, legs included. Hand each to its from-account's owner.
+    for t in db.query(Transfer).filter_by(owner_id=user.id):
+        if t.from_account_id in doomed_ids or t.to_account_id in doomed_ids:
+            continue
+        from_acc = db.get(Account, t.from_account_id)
+        if from_acc and from_acc.owner_id != user.id:
+            t.owner_id = from_acc.owner_id
+        else:
+            to_acc = db.get(Account, t.to_account_id)
+            if to_acc and to_acc.owner_id != user.id:
+                t.owner_id = to_acc.owner_id
+    db.flush()
+    for acc in plan["deleted"]:
+        db.delete(acc)
+    db.flush()
+    db.expire(user)
+    db.delete(user)
+    db.commit()
+    request.session.clear()
+    return {"ok": True}
 
 
 ALLOWED_THEMES = {

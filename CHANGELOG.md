@@ -65,9 +65,21 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.23.1** · Web version: **1.47.1** · Schema version: **14**
+App version: **1.24.0** · Web version: **1.48.0** · Schema version: **14**
 
 ### Added
+
+- **Delete your own account.** Settings has a new "Delete my account" section.
+  It lists what will be deleted (your sign-in, your accounts and everything in
+  them, your categories, tags, budgets and saved reports), points you at the
+  backup export first, and asks for your password (or, if you only sign in
+  with Google, your email address typed out). Deleting is refused while you
+  are the only owner of an account other people can see: the section names
+  those accounts, and you either make someone else an owner under Permissions
+  (the account stays with them) or remove the others' access first. An account
+  that has another owner is never deleted with you. Until now only an admin
+  could delete a user. The API is `GET /api/me/deletion-check` and
+  `DELETE /api/me`. The demo user can't be deleted.
 
 - **An "Important notice" everyone agrees to once.** After signing in, each
   person sees a short notice before anything else: WalletWeather is a planning

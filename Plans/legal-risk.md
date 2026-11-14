@@ -7,18 +7,18 @@ Tracking issue: #50
 | Phase | Issue | State |
 | --- | --- | --- |
 | 1. Notices and policies | #45 | Built 2026-11-14, open until your OK |
-| 2. First-login notice | #46 | Built 2026-11-14 (app 1.23.0, web 1.47.0, schema 14), not released, open until your OK |
-| 3. Licence check and demo names | #47 | Built 2026-11-14 (app 1.23.1, web 1.47.1), not released, open until your OK |
-| 4. Delete my own account | #48 | Built 2026-11-14 (app 1.24.0, web 1.48.0), not released, open until your OK |
+| 2. First-login notice | #46 | Built 2026-11-14 (app 1.23.0, web 1.47.0, schema 14), released in v1.24.1, open until your OK |
+| 3. Licence check and demo names | #47 | Built 2026-11-14 (app 1.23.1, web 1.47.1), released in v1.24.1, open until your OK |
+| 4. Delete my own account | #48 | Built 2026-11-14 (app 1.24.0, web 1.48.0), released in v1.24.1, open until your OK |
 | 5. Name and store readiness | #49 | Policy page published 2026-11-14; open, waits on your two checks |
 
 Phase 1: documents only, no version. On `main` 2026-11-14; verified by GitHub's community profile showing the security policy and contributing guide, and by a dependency list taken from a clean `python:3.12-slim` install. Private vulnerability reporting was switched on 2026-11-14.
 
-Phase 2: app 1.23.0, web 1.47.0, schema 14, on `main` 2026-11-14, not yet released. Verified by 20 passing tests (6 new), a phone-sized browser run against a throwaway copy (notice after sign-up and after a reload, app only after agreeing, no notice afterwards, the Settings card), and the upgrade path (column dropped, restart re-adds it empty, the user is asked again). The web app is gated; the API itself is not.
+Phase 2: app 1.23.0, web 1.47.0, schema 14, on `main` 2026-11-14, released in v1.24.1 the same day. Verified by 20 passing tests (6 new), a phone-sized browser run against a throwaway copy (notice after sign-up and after a reload, app only after agreeing, no notice afterwards, the Settings card), and the upgrade path (column dropped, restart re-adds it empty, the user is asked again). The web app is gated; the API itself is not.
 
-Phase 3: app 1.23.1, web 1.47.1, on `main` 2026-11-14, not yet released. Verified by 23 passing tests (3 new), by the licence test failing when a GPL package (`Unidecode`) was installed for one run, and by a search finding no brand name left in the code. Built as a test with no new dependency, in place of the planned `pip-licenses` step.
+Phase 3: app 1.23.1, web 1.47.1, on `main` 2026-11-14, released in v1.24.1 the same day. Verified by 23 passing tests (3 new), by the licence test failing when a GPL package (`Unidecode`) was installed for one run, and by a search finding no brand name left in the code. Built as a test with no new dependency, in place of the planned `pip-licenses` step.
 
-Phase 4: app 1.24.0, web 1.48.0, on `main` 2026-11-14, not yet released. Verified by 33 passing tests (10 new) and a phone-sized browser run against a throwaway copy (blocked while a shared account is owned, the form once the sharing is removed, a wrong password refused, then deleted, signed out and unable to sign in, with the user's rows gone from the database). Not tested: a Google-only user's typed-email confirmation. Found along the way: an admin deleting a user still removes shared accounts (#57).
+Phase 4: app 1.24.0, web 1.48.0, on `main` 2026-11-14, released in v1.24.1 the same day. Verified by 33 passing tests (10 new) and a phone-sized browser run against a throwaway copy (blocked while a shared account is owned, the form once the sharing is removed, a wrong password refused, then deleted, signed out and unable to sign in, with the user's rows gone from the database). Not tested: a Google-only user's typed-email confirmation. Found along the way: an admin deleting a user still removes shared accounts (#57).
 
 Phase 5: the policy page (`docs/privacy.md`, with `docs/index.md` and `docs/_config.yml`) and the app README sections are on `main` 2026-11-14; documents only, no version. Waiting on you:
 

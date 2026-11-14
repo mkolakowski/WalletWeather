@@ -67,6 +67,10 @@ same commit (or session) that introduces it.
 
 App version: **1.22.2** · Web version: **1.46.2** · Schema version: **13**
 
+## [1.22.2] — 2026-11-14
+
+App version: **1.22.2** · Web version: **1.46.2** · Schema version: **13**
+
 ### Added
 
 - **Sort buttons and a stacked spreadsheet mode on the phone Forecast page.**
@@ -996,7 +1000,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.20.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.22.2...HEAD
+[1.22.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.22.2
 [1.20.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.20.0
 [1.19.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.19.0
 [1.14.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.14.0

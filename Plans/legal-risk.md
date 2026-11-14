@@ -6,10 +6,10 @@ Tracking issue: #50
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Notices and policies | #45 | Built 2026-11-14, open until your OK |
-| 2. First-login notice | #46 | Built 2026-11-14 (app 1.23.0, web 1.47.0, schema 14), released in v1.24.1, open until your OK |
-| 3. Licence check and demo names | #47 | Built 2026-11-14 (app 1.23.1, web 1.47.1), released in v1.24.1, open until your OK |
-| 4. Delete my own account | #48 | Built 2026-11-14 (app 1.24.0, web 1.48.0), released in v1.24.1, open until your OK |
+| 1. Notices and policies | #45 | Done 2026-11-14, closed 2026-11-14 |
+| 2. First-login notice | #46 | Done 2026-11-14 (app 1.23.0, web 1.47.0, schema 14), released in v1.24.1, closed 2026-11-14 |
+| 3. Licence check and demo names | #47 | Done 2026-11-14 (app 1.23.1, web 1.47.1), released in v1.24.1, closed 2026-11-14 |
+| 4. Delete my own account | #48 | Done 2026-11-14 (app 1.24.0, web 1.48.0), released in v1.24.1, closed 2026-11-14 |
 | 5. Name and store readiness | #49 | Policy page published 2026-11-14; open, waits on your two checks |
 
 Phase 1: documents only, no version. On `main` 2026-11-14; verified by GitHub's community profile showing the security policy and contributing guide, and by a dependency list taken from a clean `python:3.12-slim` install. Private vulnerability reporting was switched on 2026-11-14.

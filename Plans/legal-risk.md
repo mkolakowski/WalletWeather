@@ -7,10 +7,10 @@ Tracking issue: #50
 | Phase | Issue | State |
 | --- | --- | --- |
 | 1. Notices and policies | #45 | Open |
-| 2. First-login notice | #46 | Open (waits on open question 1) |
+| 2. First-login notice | #46 | Open (after phase 1) |
 | 3. Licence check and demo names | #47 | Open |
-| 4. Delete my own account | #48 | Open (waits on open question 3) |
-| 5. Name and store readiness | #49 | Open (waits on your checks and open question 4) |
+| 4. Delete my own account | #48 | Open |
+| 5. Name and store readiness | #49 | Open (waits on your checks) |
 
 Nothing shipped yet.
 
@@ -28,10 +28,12 @@ Sessions: may span — phase 5 waits on checks only you can do, and phases 2 and
 
 ## Open questions
 
-1. **What does the first-login notice say?** (blocks phase 2) Phase 1 writes the README disclaimer; the notice should say the same in two or three sentences. Working assumption: the notice reuses the README's wording, and you approve the text in phase 1 before phase 2 is built.
-2. **Do people already using an instance see the notice after upgrading?** (blocks phase 2) Working assumption: yes, everyone acknowledges it once, the demo user excepted.
-3. **What happens to an account someone shares when they delete themselves?** (blocks phase 4) An account can have other people with edit or read access. The choices are to refuse deletion until the owner hands each shared account to someone else or removes the sharing, or to delete the accounts and everyone's access with them. Working assumption: refuse, and say which accounts are in the way. An instance's only admin (set in `ADMIN_EMAILS`, outside the database) can delete themselves like anyone else.
-4. **Where does the privacy policy for the store apps live?** (blocks phase 5's policy page) App stores need a public URL. The choices are a page in this repo served by GitHub Pages, or a page on a domain of yours. Working assumption: none yet; the policy is drafted in the repo and the URL is chosen when an app is close to listing.
+None open. Resolved 2026-11-14, all recorded in [`docs/dev/decisions/legal-risk.md`](../docs/dev/decisions/legal-risk.md):
+
+1. ~~**What does the first-login notice say?**~~ The fuller, formal wording, quoted on the decision page, in the README and the notice alike.
+2. ~~**Do people already using an instance see the notice after upgrading?**~~ Yes, everyone once, the demo user excepted.
+3. ~~**What happens to an account someone shares when they delete themselves?**~~ Deletion is refused until the owner hands over each shared account or removes the sharing.
+4. ~~**Where does the privacy policy for the store apps live?**~~ A page in this repo, served by GitHub Pages.
 
 ## The plan
 
@@ -63,7 +65,7 @@ Sessions: may span — phase 5 waits on checks only you can do, and phases 2 and
 
 Documents only: no code, no version bump.
 
-- `README.md`: a "Disclaimer" section saying forecasts are estimates from what the user entered, that the app gives no financial, tax or investment advice, and that it comes with no warranty (pointing at `LICENSE`). The wording is yours to approve (open question 1).
+- `README.md`: a "Disclaimer" section saying forecasts are estimates from what the user entered, that the app gives no financial, tax or investment advice, and that it comes with no warranty (pointing at `LICENSE`). The wording was decided on 2026-11-14 and is quoted in [`docs/dev/decisions/legal-risk.md`](../docs/dev/decisions/legal-risk.md).
 - `README.md`, Security Notes: say what "Encryption at rest" does and doesn't cover. The key sits in `.env` beside the database, backups are unencrypted, session cookies aren't HTTPS-only, and there's no login rate limit or two-factor sign-in yet, with a pointer to the roadmap items.
 - `SECURITY.md`: how to report a hole privately (GitHub's private vulnerability reporting, which you switch on in the repo's settings), which versions get fixes, and what to expect.
 - `PRIVACY.md`: what the app stores (emails, names, password hashes, financial entries), that it sends nothing to the project or to third parties (Google only when the operator turns on Google sign-in), and that whoever runs an instance for other people is responsible for their data, with what that means in practice (export, deletion by an admin, backups).
@@ -71,17 +73,17 @@ Documents only: no code, no version bump.
 - `CONTRIBUTING.md`: contributions are accepted under the MIT licence, with a line asking contributors to say when a change was AI-assisted.
 - `CLAUDE.md`: the README's file tree and this file's notes stay in step with the new documents.
 
-**You:** read the disclaimer wording and approve or change it; switch on private vulnerability reporting in the repo's Security settings.
+**You:** switch on private vulnerability reporting in the repo's Security settings.
 
-**Done when:** the six documents are on `main`, GitHub's community profile shows a security policy and contributing guide, and you've approved the disclaimer text.
+**Done when:** the six documents are on `main`, GitHub's community profile shows a security policy and contributing guide, and the README carries the decided disclaimer text.
 
 ### Phase 2: First-login notice
 
-Depends on phase 1's approved wording and open questions 1 and 2.
+Depends on phase 1 (the README carries the same text). The wording, and that existing users see it once, are decided ([`docs/dev/decisions/legal-risk.md`](../docs/dev/decisions/legal-risk.md)).
 
 - A new column on `users` for when the notice was acknowledged (the next schema number at the time), with a migration that leaves it empty for existing users.
 - `GET /api/me` reports whether the notice is still owed; a new `POST /api/me/acknowledge-notice` records it.
-- Web client: after sign-in, a user who hasn't acknowledged sees the notice with one button, and nothing else until they press it. The demo user never sees it. The same text is reachable later from Settings.
+- Web client: after sign-in, a user who hasn't acknowledged sees the notice ("Important notice", with the button "I understand and agree"), and nothing else until they press it. The demo user never sees it. The same text is reachable later from Settings.
 - Tests: the happy path, an unauthenticated call, and a second acknowledgement being harmless.
 - App and web versions bump (minor), schema bumps, CHANGELOG entry.
 
@@ -100,12 +102,12 @@ Depends on phase 1's approved wording and open questions 1 and 2.
 
 ### Phase 4: Delete my own account
 
-Depends on open question 3.
+Shared accounts are decided ([`docs/dev/decisions/legal-risk.md`](../docs/dev/decisions/legal-risk.md)).
 
 - `DELETE /api/me`, asking for the current password (or a typed confirmation for a Google-only user), deletes the user and everything only they own, then ends the session.
-- Shared accounts follow the answer to open question 3.
+- A user who owns accounts that other people can see is refused with a conflict that names those accounts. They hand each to someone else or remove the sharing, then delete.
 - Settings page: a "Delete my account" section that says what will be removed, offers the export first, and asks for the confirmation.
-- Tests: the happy path, a wrong password, and the shared-account case.
+- Tests: the happy path, a wrong password, and the refusal while a shared account is owned.
 - `PRIVACY.md` is updated to say users can delete themselves. App and web versions bump (minor), CHANGELOG entry.
 
 **You:** on a throwaway user, export, delete the account and confirm the sign-in no longer works.
@@ -119,7 +121,8 @@ Waits on your checks; nothing here blocks phases 1 to 4.
 - **You:** search the USPTO trademark database for WALLETWEATHER and close variants in classes 9, 36 and 42, and search the App Store and Google Play for the name. The review's web search found no such mark; the nearest were WALLETWEALTH, WALLETNEWS and WALLETFITNESS.
 - **You:** check any employment agreement for a clause that claims side projects or work done on your own time.
 - The session records both results in this file, and if the name is taken, opens an issue for a rename before any store listing.
-- A privacy policy for the store apps is drafted from `PRIVACY.md`: what the apps collect (the answer should be nothing beyond what the user's own server stores) and where it lives (open question 4).
+- A privacy policy for the store apps is written from `PRIVACY.md` as a page in this repo served by GitHub Pages: what the apps collect (the answer should be nothing beyond what the user's own server stores).
+- **You:** switch on GitHub Pages in the repo's settings, so the policy has its public URL.
 - The iOS and Android READMEs gain a line each on what the stores will ask for (a privacy policy URL, the data-collection answers).
 
-**Done when:** both checks are recorded here with their dates, and the draft policy is in the repo with its URL decided or noted as waiting on the apps.
+**Done when:** both checks are recorded here with their dates, and the policy page opens at its GitHub Pages URL.

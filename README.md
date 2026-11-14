@@ -114,7 +114,9 @@ version (not the newest commit on `main`).
 
 ```yaml
   web:
-    # build: ./backend
+    # build:
+    #   context: .
+    #   dockerfile: apps/server/Dockerfile
     image: ghcr.io/<your-username>/walletweather:latest
 ```
 
@@ -149,21 +151,34 @@ docker compose up -d
 
 ```
 walletweather/
-├── .github/workflows/    # GitHub Actions for GHCR publishing
-├── backend/
-│   ├── Dockerfile        # Multi-stage Python 3.12-slim build (~110 MB)
-│   ├── app/
-│   │   ├── main.py       # FastAPI routes + admin endpoints
-│   │   ├── db.py         # SQLAlchemy models + Fernet encryption
-│   │   ├── forecast.py   # Forecast computation engine
-│   │   └── backup.py     # Export/import logic
-│   └── static/
-│       └── index.html    # Single-page frontend (vanilla JS, no build step)
+├── .github/workflows/    # GitHub Actions: builds the container and pushes it to GHCR
+├── apps/
+│   ├── server/           # FastAPI API server (Python)
+│   │   ├── Dockerfile    # Multi-stage Python 3.12-slim build; context is the repo root
+│   │   ├── requirements.txt
+│   │   └── app/
+│   │       ├── main.py   # FastAPI routes + admin endpoints
+│   │       ├── db.py     # SQLAlchemy models + Fernet encryption
+│   │       ├── forecast.py # Forecast computation engine
+│   │       ├── backup.py # Export/import logic
+│   │       └── demo.py   # Demo-mode seeding and hourly reset
+│   ├── web/              # Single-page web client (vanilla JS, no build step), served by the server
+│   │   ├── index.html
+│   │   └── favicon.svg
+│   ├── ios/              # Placeholder for a native iOS app (see its README)
+│   └── android/          # Placeholder for a native Android app (see its README)
+├── .dockerignore         # Keeps everything but apps/server and apps/web out of the image
 ├── docker-compose.yml
 ├── .env.example
 ├── LICENSE               # MIT
 └── README.md
 ```
+
+The container image bundles `apps/server` and `apps/web`; it's built from the
+repo root (`docker build -f apps/server/Dockerfile .`). Changes that only
+touch `apps/ios`, `apps/android` or Markdown files don't rebuild or republish
+the image. Mobile apps talk to the same `/api/...` endpoints as the web
+client; a running server documents them at `/docs`.
 
 **Stack:** FastAPI · SQLAlchemy · PostgreSQL 16 · bcrypt · Fernet (AES-128-CBC) · Vanilla JS · Docker
 

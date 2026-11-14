@@ -7,11 +7,11 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 Three independent version numbers are tracked:
 
-- **App version** (`APP_VERSION` in `backend/app/main.py`) — the user-facing
+- **App version** (`APP_VERSION` in `apps/server/app/main.py`) — the user-facing
   application version shown in the UI and exposed via `/api/version`.
-- **Web version** (`WEB_VERSION` in `backend/static/index.html`) — the SPA
+- **Web version** (`WEB_VERSION` in `apps/web/index.html`) — the SPA
   version, bumped for frontend-only changes.
-- **Schema version** (`SCHEMA_VERSION` in `backend/app/db.py`) — the database
+- **Schema version** (`SCHEMA_VERSION` in `apps/server/app/db.py`) — the database
   schema generation, bumped whenever a model or migration changes.
 
 <!--
@@ -203,6 +203,17 @@ App version: **1.22.1** · Web version: **1.46.1** · Schema version: **13**
   full release instead of whatever was merged last (a pre-release doesn't
   move it), and each image is still tagged with the release's version and
   the web client version.
+
+- **The repo is now laid out as `apps/` for room to add mobile apps.** The
+  API server moved from `backend/` to `apps/server/`, the web client from
+  `backend/static/` to `apps/web/`, and empty `apps/ios/` and
+  `apps/android/` folders (each with a README) are ready for native apps.
+  The container image is now built from the repo root
+  (`docker build -f apps/server/Dockerfile .`) and is published to GHCR with
+  the same name and tags as before. If you build from source with your own
+  compose file, change `build: ./backend` to `context: .` plus
+  `dockerfile: apps/server/Dockerfile`. The server finds
+  the web client in `apps/web` (override with the `WEB_DIR` env var).
 
 - **Outlined ✕ in the Forecast line editor.** The ✕ (cancel) button next to
   ✓ and 🗑 now has a clearly visible outline, like the red one on 🗑.

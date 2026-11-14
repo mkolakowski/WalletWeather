@@ -160,9 +160,14 @@ people's notes, where a rename can't reach it.
 <!-- playbook:begin licensing 1.8.0 -->
 ## Licensing guardrails
 
-- No new copyleft code (LGPL, GPL, AGPL, MPL); the one exception already in
-  use is `psycopg` (LGPL-3.0), an unmodified dependency. Copyleft projects are for ideas only, never
+- No new copyleft code (LGPL, GPL, AGPL, MPL); the exceptions already in
+  use are `psycopg` (LGPL-3.0) and `certifi` (MPL-2.0, via `httpx`), both
+  unmodified dependencies. Copyleft projects are for ideas only, never
   copied code.
+- Checked by `apps/server/tests/test_licences.py` (decided 2026-11-14, #47),
+  which fails the tests on an installed package that is copyleft or states
+  no licence and isn't on its reviewed list. A package added to that list
+  is added to `THIRD_PARTY_NOTICES.md` in the same commit.
 - Prefer the platform's licensed codecs and services to adding software ones
   with patent or licence exposure, and use no third-party trademark logos.
 - Recommend only libraries already in the project, unless the work exists to

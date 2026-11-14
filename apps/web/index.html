@@ -1225,7 +1225,7 @@
           <label>CSV text (paste here)</label>
           <textarea id="importCsvText" rows="8" style="width:100%;font:12px monospace;background:var(--bg-deep);
             color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px"
-            placeholder="date,description,amount,category,tags,notes,frequency,end_date,recurring_group&#10;2026-04-01,Coffee,-4.25,Dining,,,,,&#10;2026-07-01,Netflix,-15.99,Subscriptions,streaming,,Monthly,,&#10;2026-08-01,Netflix,-15.99,Subscriptions,streaming,,Monthly,,"></textarea>
+            placeholder="date,description,amount,category,tags,notes,frequency,end_date,recurring_group&#10;2026-04-01,Coffee,-4.25,Dining,,,,,&#10;2026-07-01,Streaming service,-15.99,Subscriptions,streaming,,Monthly,,&#10;2026-08-01,Streaming service,-15.99,Subscriptions,streaming,,Monthly,,"></textarea>
         </div>
         <div class="row" style="margin-top:8px">
           <div style="flex:0 0 auto"><button onclick="runImportPreview()">Preview</button></div>
@@ -2047,7 +2047,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.47.0";
+const WEB_VERSION = "1.47.1";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2058,6 +2058,8 @@ const WEB_VERSION = "1.47.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.47.1 (2026-11-14, claude+mkolakowski): the Import page's paste-box
+//     example uses "Streaming service" instead of a real brand name (#47).
 // 1.47.0 (2026-11-14, claude+mkolakowski): the "Important notice" (the
 //     disclaimer). After sign-in, a user whose /api/me says notice_required
 //     sees the #notice screen and nothing else until they press "I understand

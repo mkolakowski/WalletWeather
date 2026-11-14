@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.23.0"
+APP_VERSION = "1.23.1"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -36,6 +36,10 @@ APP_VERSION = "1.23.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.23.1 (2026-11-14, claude+mkolakowski): demo data (demo.py) and the
+#     import sample CSV use generic merchant names ("Streaming service",
+#     "Grocery store") instead of real brands. A running demo reseeds once,
+#     because its fingerprint changes (#47).
 # 1.23.0 (2026-11-14, claude+mkolakowski): the "Important notice" (the
 #     disclaimer) is acknowledged once per user. GET /api/me adds
 #     notice_required and notice_acknowledged_at; new POST
@@ -3029,7 +3033,7 @@ def csv_import_template(account_id: int, user: User = Depends(current_user),
     """Downloadable starter CSV covering every importable column — Category,
     Tags, Frequency/End Date, and Recurring Group — with worked examples of
     a one-time expense, one-time income, a past-recurring bill (three
-    monthly Netflix charges that link to one recurring template), and a
+    monthly streaming charges that link to one recurring template), and a
     Recurring Group override for a series whose description text drifts."""
     _own_account(db, user, account_id)
     cats = db.query(Category).filter_by(owner_id=user.id).order_by(Category.name).limit(2).all()
@@ -3041,15 +3045,15 @@ def csv_import_template(account_id: int, user: User = Depends(current_user),
     w = csv.writer(buf)
     w.writerow(["Date", "Description", "Amount", "Category", "Tags", "Notes",
                 "Frequency", "End Date", "Recurring Group"])
-    w.writerow(["2026-07-01", "Whole Foods Market", "-84.23", cat1, "", "", "", "", ""])
+    w.writerow(["2026-07-01", "Grocery store", "-84.23", cat1, "", "", "", "", ""])
     w.writerow(["2026-09-01", "Paycheck", "2500.00", "Income", "", "", "", "", ""])
     # Same description + Frequency on every row = one series. All three import
     # as real actual transactions; they're linked to a single recurring
     # template (seeded from the most recent row) instead of three unrelated
     # one-off charges.
-    w.writerow(["2026-07-01", "Netflix", "-15.99", cat2, tag1, "Streaming subscription", "Monthly", "", ""])
-    w.writerow(["2026-08-01", "Netflix", "-15.99", cat2, tag1, "", "Monthly", "", ""])
-    w.writerow(["2026-09-01", "Netflix", "-15.99", cat2, tag1, "", "Monthly", "", ""])
+    w.writerow(["2026-07-01", "Streaming service", "-15.99", cat2, tag1, "Streaming subscription", "Monthly", "", ""])
+    w.writerow(["2026-08-01", "Streaming service", "-15.99", cat2, tag1, "", "Monthly", "", ""])
+    w.writerow(["2026-09-01", "Streaming service", "-15.99", cat2, tag1, "", "Monthly", "", ""])
     # Recurring Group overrides description-based grouping — use it when a
     # bill's description text isn't identical every month (e.g. an embedded
     # statement date) but should still link to one template.

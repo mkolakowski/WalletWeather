@@ -227,22 +227,22 @@ _RECURRING = [
     ("Checking",    "Electric",         -85.00,  "monthly_day", 12,   None, "Utilities",     None),
     ("Checking",    "Internet",         -59.99,  "monthly_day", 18,   None, "Utilities",     None),
     ("Checking",    "Gym",              -39.00,  "monthly_day", 5,    None, "Subscriptions", None),
-    ("Checking",    "Netflix",          -15.49,  "monthly_day", 15,   None, "Subscriptions", None),
+    ("Checking",    "Streaming service", -15.49,  "monthly_day", 15,   None, "Subscriptions", None),
     ("Credit Card", "Phone bill",       -65.00,  "monthly_day", 20,   None, "Utilities",     None),
 ]
 
 # One-off actuals in the past ~3 weeks. offsets are days before today.
 _ONE_OFF_ACTUALS = [
     # (account_name, description, amount, days_ago, category_name, notes)
-    ("Checking",    "Trader Joe's",    -87.42,  2,  "Groceries",     None),
-    ("Checking",    "Whole Foods",     -54.91,  9,  "Groceries",     None),
-    ("Checking",    "Costco",         -142.33,  16, "Groceries",     None),
-    ("Checking",    "Shell",           -48.70,  4,  "Transportation", None),
-    ("Checking",    "Target",          -72.18,  11, "Shopping",       None),
-    ("Credit Card", "Chipotle",        -14.25,  1,  "Dining",         None),
-    ("Credit Card", "Starbucks",        -8.50,  3,  "Dining",         None),
-    ("Credit Card", "Uber",            -22.40,  5,  "Transportation", None),
-    ("Credit Card", "AMC Theaters",    -28.00,  12, "Entertainment",  None),
+    ("Checking",    "Grocery store",   -87.42,  2,  "Groceries",     None),
+    ("Checking",    "Organic market",  -54.91,  9,  "Groceries",     None),
+    ("Checking",    "Warehouse club",  -142.33,  16, "Groceries",     None),
+    ("Checking",    "Gas station",     -48.70,  4,  "Transportation", None),
+    ("Checking",    "Department store",-72.18,  11, "Shopping",       None),
+    ("Credit Card", "Burrito shop",    -14.25,  1,  "Dining",         None),
+    ("Credit Card", "Coffee shop",     -8.50,  3,  "Dining",         None),
+    ("Credit Card", "Ride share",      -22.40,  5,  "Transportation", None),
+    ("Credit Card", "Movie theater",   -28.00,  12, "Entertainment",  None),
     ("Credit Card", "Doctor copay",    -40.00,  18, "Healthcare",     None),
 ]
 

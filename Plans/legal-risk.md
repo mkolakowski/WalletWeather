@@ -8,13 +8,15 @@ Tracking issue: #50
 | --- | --- | --- |
 | 1. Notices and policies | #45 | Built 2026-11-14, open until your OK |
 | 2. First-login notice | #46 | Built 2026-11-14 (app 1.23.0, web 1.47.0, schema 14), not released, open until your OK |
-| 3. Licence check and demo names | #47 | Open |
+| 3. Licence check and demo names | #47 | Built 2026-11-14 (app 1.23.1, web 1.47.1), not released, open until your OK |
 | 4. Delete my own account | #48 | Open |
 | 5. Name and store readiness | #49 | Open (waits on your checks) |
 
 Phase 1: documents only, no version. On `main` 2026-11-14; verified by GitHub's community profile showing the security policy and contributing guide, and by a dependency list taken from a clean `python:3.12-slim` install. Private vulnerability reporting was switched on 2026-11-14.
 
 Phase 2: app 1.23.0, web 1.47.0, schema 14, on `main` 2026-11-14, not yet released. Verified by 20 passing tests (6 new), a phone-sized browser run against a throwaway copy (notice after sign-up and after a reload, app only after agreeing, no notice afterwards, the Settings card), and the upgrade path (column dropped, restart re-adds it empty, the user is asked again). The web app is gated; the API itself is not.
+
+Phase 3: app 1.23.1, web 1.47.1, on `main` 2026-11-14, not yet released. Verified by 23 passing tests (3 new), by the licence test failing when a GPL package (`Unidecode`) was installed for one run, and by a search finding no brand name left in the code. Built as a test with no new dependency, in place of the planned `pip-licenses` step.
 
 Sessions: may span — phase 5 waits on checks only you can do, and phases 2 and 4 each end with a release.
 
@@ -95,12 +97,12 @@ Depends on phase 1 (the README carries the same text). The wording, and that exi
 
 ### Phase 3: Licence check and demo names
 
-- The Tests workflow gains a step that lists the licences of everything installed from `requirements.txt` and fails on a copyleft licence that isn't on a short allowlist (`psycopg`, and `certifi`, which is MPL-2.0 and comes in with `httpx`; phase 1 found it). It adds `pip-licenses` (MIT) to `requirements-dev.txt`, pinned.
+- A test (`apps/server/tests/test_licences.py`), run by the Tests workflow and the local test command alike, reads the licence every installed package declares and fails on a copyleft licence, or no licence, that isn't on a short reviewed list (`psycopg`, and `certifi`, which is MPL-2.0 and comes in with `httpx`; phase 1 found it). As built it needs no new dependency: the plan first named `pip-licenses`, and Python's own package metadata turned out to be enough.
 - `CLAUDE.md`'s licensing rule names that check, and names `certifi` beside `psycopg` as a copyleft dependency already in use.
 - Demo data (`apps/server/app/demo.py`), the CSV sample the server generates and the import placeholder in the web client use generic merchant names ("Streaming service", "Coffee shop", "Grocery store") in place of real brands.
 - App and web versions bump (patch), CHANGELOG entry. The demo fingerprint changes, so a running demo reseeds once.
 
-**Done when:** the Tests workflow passes with the new step and fails when a GPL package is added on a test branch; no real brand name is left in demo data or samples.
+**Done when:** the Tests workflow passes with the new test, and the test fails when a GPL package is installed; no real brand name is left in demo data or samples.
 
 ### Phase 4: Delete my own account
 

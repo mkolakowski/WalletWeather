@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.23.0** · Web version: **1.47.0** · Schema version: **14**
+App version: **1.23.1** · Web version: **1.47.1** · Schema version: **14**
 
 ### Added
 
@@ -86,6 +86,22 @@ App version: **1.23.0** · Web version: **1.47.0** · Schema version: **14**
   of the software shipped in the container image) and `CONTRIBUTING.md`. The
   README's Security Notes now say what "Encryption at rest" does and doesn't
   cover.
+
+### Changed
+
+- **Sample data uses generic merchant names.** Demo mode, the downloadable
+  import sample CSV and the example in the Import page's paste box now say
+  "Streaming service", "Grocery store", "Coffee shop" and the like instead of
+  real company names. A demo instance resets its sample data once after the
+  update to pick up the new names; nothing changes for your own data.
+
+### Security
+
+- **Licence check on every test run.** The tests now fail if a dependency
+  under a copyleft licence (GPL, LGPL, AGPL, MPL and similar), or with no
+  licence stated, is added without being reviewed and listed
+  (`apps/server/tests/test_licences.py`). The two already in use, `psycopg`
+  and `certifi`, are listed in `THIRD_PARTY_NOTICES.md`.
 
 ### Database
 

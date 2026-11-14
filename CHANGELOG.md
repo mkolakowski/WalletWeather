@@ -65,7 +65,25 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.24.1** · Web version: **1.48.1** · Schema version: **14**
+App version: **1.25.0** · Web version: **1.49.0** · Schema version: **14**
+
+### Changed
+
+- **Breaking: the Subscriptions page is now "Bills & income", with one list
+  instead of two.** Every recurring bill and income on the accounts you can
+  see is in a single table with an Account column, and you edit any of them
+  in place (✎) without leaving the page. An account filter at the top shows
+  one account or all of them. A new "+ Add recurring" button adds a bill or
+  income right there (adding one from the Forecast page's "Make this
+  recurring" still works). The totals now show bills, income and what's left
+  over per month, each with its yearly figure, for whichever accounts the
+  filter shows. The old "Start date for all monthly recurring" bar is gone:
+  press "Select all monthly", then set the start date in the bulk-edit bar.
+  The table shows 20 rows a page by default. Rows on accounts shared with you
+  read-only are marked "read only" and can't be selected or edited.
+  Bookmarks to `#subscriptions` still open the page.
+- The Subscriptions page's totals were showing as plain text without their
+  card styling; the new totals use the same cards as the Forecast page.
 
 ## [1.24.1] — 2026-11-14
 

@@ -844,7 +844,7 @@
       <button id="navDashboard" class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
       <button id="navNetworth" class="nav-btn" onclick="showPage('networth')">Net Worth</button>
       <button id="navAccounts" class="nav-btn" onclick="showPage('accounts')">Forecast</button>
-      <button id="navSubscriptions" class="nav-btn" onclick="showPage('subscriptions')">Subscriptions</button>
+      <button id="navSubscriptions" class="nav-btn" onclick="showPage('subscriptions')">Bills &amp; income</button>
       <button id="navCalendar" class="nav-btn" onclick="showPage('calendar')">Calendar</button>
       <button id="navReports" class="nav-btn" onclick="showPage('reports')">Reports</button>
       <button id="navSettings" class="nav-btn" onclick="showPage('settings')">Settings</button>
@@ -930,38 +930,78 @@
     </div>
 
     <div id="pageSubscriptions" class="hidden">
-      <div id="recurringHost">
+      <!-- Bills & income (#51): one editable list of every recurring item
+           across the accounts the user can see. The page keeps its internal
+           name and #subscriptions address (stable identifiers). -->
       <div class="panel" id="txnRecurringPanel">
-        <h2>Recurring transactions
-          <span style="float:right;font-weight:normal">
+        <div class="page-title-row">
+          <h2 style="margin:0">Bills &amp; income</h2>
+          <span style="margin-left:auto;display:flex;gap:6px">
             <button id="recTabActive" class="tab small active" onclick="switchRecView('active')">Active</button>
-            <button id="recTabArchived" class="tab small" onclick="switchRecView('archived')">Archived</button>
+            <button id="recTabArchived" class="tab small" onclick="switchRecView('archived')"
+                    title="Items whose end date has passed">Archived</button>
           </span>
-        </h2>
-        <div id="recAccountRow" class="row" style="margin:10px 0">
-          <div style="flex:0 0 auto;min-width:220px">
-            <label>Account</label>
+        </div>
+        <p style="color:var(--muted);font-size:13px;margin:6px 0 10px">
+          Every recurring bill and income on the accounts you can see. Weekly and
+          biweekly items are converted to a monthly figure so everything lines up.
+        </p>
+        <div class="row" style="margin:0 0 10px;align-items:end">
+          <div style="flex:0 1 260px;min-width:180px">
+            <label for="recAccountSel">Account</label>
             <select id="recAccountSel" onchange="onRecAccountChange()"></select>
           </div>
-        </div>
-        <div class="summary" id="recSummary" style="margin:10px 0"></div>
-        <!-- One-step start date for every monthly template on this account.
-             Shown by renderRecurring() only in the Active view, when the
-             account is editable and has at least one monthly row. -->
-        <div id="recMonthlyAnchorBar" class="hidden" style="margin-bottom:10px">
-          <div class="row" style="gap:10px;align-items:end;flex-wrap:wrap">
-            <div style="flex:0 0 auto">
-              <label id="recMonthlyAnchorLabel"
-                     title="No occurrences are projected before this date">Start date for all monthly recurring</label>
-              <input id="recMonthlyAnchor" type="date">
-            </div>
-            <div style="flex:0 0 auto">
-              <button onclick="applyMonthlyAnchorToAll(false)">Apply to all monthly</button>
-              <button class="ghost" onclick="applyMonthlyAnchorToAll(true)">Clear from all monthly</button>
-            </div>
-            <div id="recMonthlyAnchorStatus" style="flex:1 1 auto;font-size:12px;color:var(--muted)"></div>
+          <div style="flex:0 0 auto">
+            <button id="recAddBtn" onclick="toggleRecAddForm(true)">+ Add recurring</button>
           </div>
         </div>
+
+        <!-- Add form: same fields as the edit form, plus the account. -->
+        <div id="recAddPanel" class="hidden" style="margin:0 0 14px;padding:12px;
+             border:1px solid var(--accent);border-radius:8px;background:var(--chip-bg)">
+          <h3 style="margin:0 0 8px;font-size:14px">Add recurring</h3>
+          <div class="row">
+            <div style="flex:1 1 160px"><label for="recAddAccount">Account</label>
+              <select id="recAddAccount"></select></div>
+            <div style="flex:3 1 240px"><label for="recAddDesc">Description</label>
+              <input id="recAddDesc" maxlength="120" placeholder="Rent"></div>
+            <div style="flex:0 1 130px;min-width:110px"><label for="recAddType">Type</label>
+              <select id="recAddType">
+                <option value="withdraw" selected>Withdraw</option>
+                <option value="deposit">Deposit</option>
+              </select></div>
+            <div style="flex:0 1 140px;min-width:120px"><label for="recAddAmt">Amount</label>
+              <input id="recAddAmt" type="number" step="0.01" min="0"></div>
+            <div style="flex:1 1 150px"><label for="recAddCat">Category</label>
+              <select id="recAddCat"></select></div>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <div style="flex:0 1 160px;min-width:130px"><label for="recAddFreq">Frequency</label>
+              <select id="recAddFreq" onchange="onRecAddFreqChange()">
+                <option value="monthly_day">Monthly</option>
+                <option value="biweekly">Biweekly</option>
+                <option value="weekly">Weekly</option>
+              </select></div>
+            <div id="recAddDayWrap" style="flex:0 1 110px;min-width:90px"><label for="recAddDay">Day of month</label>
+              <input id="recAddDay" type="number" min="1" max="31" value="1"></div>
+            <div style="flex:0 1 170px;min-width:150px"><label for="recAddAnchor" id="recAddAnchorLabel"
+                 title="No occurrences are projected before this date">Start date (optional)</label>
+              <input id="recAddAnchor" type="date"></div>
+            <div style="flex:0 1 170px;min-width:150px"><label for="recAddEnd">Ends (optional)</label>
+              <input id="recAddEnd" type="date"></div>
+            <div style="flex:3 1 220px"><label for="recAddNotes">Notes (optional)</label>
+              <input id="recAddNotes" maxlength="256"></div>
+          </div>
+          <div class="row" style="margin-top:12px;align-items:center">
+            <div style="flex:0 0 auto"><button onclick="submitRecAddForm()">Save</button></div>
+            <div style="flex:0 0 auto"><button class="ghost" onclick="toggleRecAddForm(false)">Cancel</button></div>
+            <div id="recAddStatus" role="status" style="flex:1 1 auto;font-size:12px;color:var(--muted)"></div>
+          </div>
+        </div>
+
+        <div id="recTotalsScope" style="font-size:12px;color:var(--muted);margin:0 0 6px"></div>
+        <div class="summary" id="recSummary" style="margin:0 0 12px"></div>
+
         <!-- Bulk edit bar — appears once at least one row is checked.
              Blank fields are left unchanged; Apply sends only the filled
              ones to POST /api/recurring/bulk-update. -->
@@ -1007,18 +1047,23 @@
             <div id="recBulkStatus" style="flex:1 1 100%;font-size:12px;color:var(--muted)"></div>
           </div>
         </div>
+        <div id="recSelectTools" class="hidden" style="margin:0 0 6px">
+          <button class="ghost" style="padding:3px 10px;font-size:12px" onclick="selectAllMonthlyRec()"
+                  title="Select every monthly item you can edit, on every page — then set a start date in the bar that appears">Select all monthly</button>
+        </div>
         <div style="overflow-x:auto">
         <table id="recurringTable"><thead><tr>
           <th style="width:28px" id="recSelectAllTh">
             <input type="checkbox" id="recSelectAll"
                    onclick="toggleAllRecSelection(this.checked)"
-                   title="Select all on this page">
+                   title="Select all on this page" aria-label="Select all on this page">
           </th>
           <th class="sortable" data-key="description">Description</th>
+          <th class="sortable" data-key="account_name">Account</th>
           <th class="sortable" data-key="category_name">Category</th>
           <th class="sortable num" data-key="amount">Amount</th>
-          <th class="sortable num" data-key="monthly_cost">Monthly</th>
-          <th class="sortable num" data-key="yearly_cost">Yearly</th>
+          <th class="sortable num" data-key="monthly">Monthly</th>
+          <th class="sortable num" data-key="yearly">Yearly</th>
           <th class="sortable" data-key="when">Frequency</th>
           <th class="sortable" data-key="end_date">Ends</th>
           <th>Notes</th>
@@ -1027,12 +1072,12 @@
         </div>
         <div id="recurringPagination" class="pagination hidden">
           <div class="pagination-left">
-            <label>Per page</label>
+            <label for="recurringPageSize">Per page</label>
             <select id="recurringPageSize" onchange="onRecurringPageSizeChange()">
-              <option value="5" selected>5</option>
               <option value="10">10</option>
-              <option value="20">20</option>
+              <option value="20" selected>20</option>
               <option value="50">50</option>
+              <option value="100">100</option>
             </select>
             <span id="recurringPageRange" class="pagination-range"></span>
           </div>
@@ -1041,32 +1086,6 @@
             <span id="recurringPageLabel" class="pagination-label"></span>
             <button id="recurringNextPage" class="ghost" onclick="changeRecurringPage(1)">Next »</button>
           </div>
-        </div>
-      </div>
-      </div>
-
-      <div class="panel">
-        <h2>Subscriptions</h2>
-        <p style="color:var(--muted);font-size:13px;margin-top:0">
-          Every active recurring outflow across the accounts you can see,
-          normalized to a monthly cost so cadences line up. Add, edit, or
-          cancel a subscription in the <em>Recurring transactions</em>
-          panel above.
-        </p>
-        <div class="summary" id="subsSummary" style="margin-top:10px"></div>
-        <div id="subsEmpty" class="hidden" style="color:var(--muted);font-size:13px;margin-top:12px">
-          No active subscriptions yet.
-        </div>
-        <div style="overflow-x:auto">
-          <table id="subsTable"><thead><tr>
-            <th>Description</th>
-            <th>Account</th>
-            <th>Category</th>
-            <th>Frequency</th>
-            <th class="num">Per charge</th>
-            <th class="num">Monthly</th>
-            <th class="num">Yearly</th>
-          </tr></thead><tbody></tbody></table>
         </div>
       </div>
     </div>
@@ -2057,7 +2076,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.48.1";
+const WEB_VERSION = "1.49.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2068,6 +2087,16 @@ const WEB_VERSION = "1.48.1";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.49.0 (2026-11-14, claude+mkolakowski): Subscriptions page becomes
+//     "Bills & income" (#51): one editable table for every account
+//     (GET /api/recurring) with an Account column, an account filter
+//     (recFilterAccount, no longer tied to currentAccountId), an
+//     "+ Add recurring" form (submitRecAddForm), and totals for bills,
+//     income and net in .stat cards. Read-only is decided per row from
+//     account_level. #recMonthlyAnchorBar is replaced by "Select all
+//     monthly" + the bulk bar. The read-only Subscriptions table and
+//     loadSubscriptions()/jumpToRecurring() are removed. Default page
+//     size 20. Page id, nav id and #subscriptions are unchanged.
 // 1.48.1 (2026-11-14, claude+mkolakowski): Admin → delete user says what
 //     really happens (accounts with another owner are kept) and, when the
 //     server refuses with 409, names the shared accounts in the way (#57).
@@ -2695,7 +2724,7 @@ if (window.matchMedia) {
 // Calls whose current_balance depends on what "today" is. They get the
 // browser's own date, because the server's clock (UTC) is already on
 // tomorrow during the evening in the Americas.
-const _TODAY_AWARE = /^\/api\/accounts(\/\d+\/forecast)?(\?|$)/;
+const _TODAY_AWARE = /^\/api\/(accounts(\/\d+\/forecast)?|recurring)(\?|$)/;
 
 async function api(path, opts={}) {
   if (!opts.method && _TODAY_AWARE.test(path)) {
@@ -2776,10 +2805,8 @@ function showPage(name, opts) {
   if (name === 'dashboard') loadDashboard();
   if (name === 'networth') loadNetworth();
   if (name === 'subscriptions') {
-    loadSubscriptions();
-    // Recurring panel (top of this page) follows the shared selected account.
-    if (currentAccountId && accounts.some(a => a.id === currentAccountId)) selectAccount(currentAccountId);
-    else if (accounts.length) selectAccount(accounts[0].id);
+    syncRecAccountSelect();
+    loadRecurring();
   }
   if (name === 'calendar') initCalendarPage();
   if (name === 'import') initImportPage();
@@ -4205,21 +4232,29 @@ function _updateAccountTabBalance(accountId, balance) {
   if (tab) tab.innerHTML = _accountTabHtml(accounts[i]);
 }
 
-// The Recurring transactions panel lives on the Subscriptions page but is
-// scoped to one account (currentAccountId, shared with the Forecast page's
-// account tabs). This selector picks which account's templates it shows.
+// The Bills & income page's account filter: "All accounts" or one account.
+// Independent of the Forecast page's selected account (#51).
+let recFilterAccount = '';   // '' = all accounts, else an account id as a string
 function syncRecAccountSelect() {
   const sel = document.getElementById('recAccountSel');
   if (!sel) return;
-  sel.innerHTML = accounts.map(a =>
+  if (recFilterAccount && !accounts.some(a => String(a.id) === recFilterAccount)) recFilterAccount = '';
+  sel.innerHTML = '<option value="">All accounts</option>' + accounts.map(a =>
     `<option value="${a.id}">${escapeHtml(a.name)}${a.level === 'read' ? ' (read only)' : ''}</option>`).join('');
-  if (currentAccountId && accounts.some(a => a.id === currentAccountId)) sel.value = String(currentAccountId);
-  document.getElementById('txnRecurringPanel').classList.toggle('hidden', !accounts.length);
+  sel.value = recFilterAccount;
+  document.getElementById('recAddBtn').classList.toggle('hidden', !_recEditableAccounts().length);
 }
 
 function onRecAccountChange() {
-  const id = parseInt(document.getElementById('recAccountSel').value);
-  if (id) selectAccount(id);
+  recFilterAccount = document.getElementById('recAccountSel').value;
+  editingRecId = null;
+  recurringPage = 0;
+  loadRecurring();
+}
+
+// Accounts the user may add recurring items to.
+function _recEditableAccounts() {
+  return accounts.filter(a => a.level === 'owner' || a.level === 'edit');
 }
 
 function currentAccountLevel() {
@@ -4247,15 +4282,13 @@ async function selectAccount(id) {
   document.querySelectorAll('.account-tab').forEach((el,i)=>{
     el.classList.toggle('active', accounts[i].id===id);
   });
-  const recSel = document.getElementById('recAccountSel');
-  if (recSel) recSel.value = String(id);
   document.getElementById('accountView').classList.remove('hidden');
   // Hide the add transaction toggle entirely on read-only accounts
   const ro = isCurrentAccountReadOnly();
   document.getElementById('addToggle').classList.toggle('hidden', ro);
   document.getElementById('addFormPanel').classList.add('hidden');
   await loadCategories();
-  await Promise.all([loadRecurring(), loadForecast()]);
+  await loadForecast();
 }
 
 async function loadCategories() {
@@ -4625,40 +4658,73 @@ function switchRecView(view) {
 // --- Recurring pagination state ---
 let recurringData = [];            // last-loaded list from the server
 let recurringPage = 0;
-let recurringPageSize = 5;
+let recurringPageSize = 20;
 let recurringSortKey = 'description';
 let recurringSortDir = 'asc';
 
+let recurringTotals = null;        // totals from the last load (active view)
+
+// Loads the Bills & income list (GET /api/recurring). Only fetches while the
+// page is on screen; showPage() loads it when the page opens, so callers on
+// other pages (Forecast deletes, category changes) can call it freely.
 async function loadRecurring() {
+  if (document.getElementById('pageSubscriptions').classList.contains('hidden')) return;
   const archived = recView === 'archived';
-  recurringData = await api(`/api/accounts/${currentAccountId}/recurring?archived=${archived}`);
-  recurringPage = 0;
+  let url = `/api/recurring?archived=${archived}`;
+  if (recFilterAccount) url += `&account_id=${recFilterAccount}`;
+  let resp;
+  try {
+    resp = await api(url);
+  } catch (e) {
+    if (e.message === 'auth') return;
+    recurringData = []; recurringTotals = null;
+    document.querySelector('#recurringTable tbody').innerHTML =
+      `<tr><td colspan="11" style="color:var(--bad);text-align:center;padding:16px">
+        Could not load bills and income. Try again in a moment.</td></tr>`;
+    return;
+  }
+  recurringData = resp.items;
+  recurringTotals = resp.totals;
   // Drop selections that aren't in this list anymore (deleted, or the
-  // account / Active-Archived view changed underneath them).
+  // account filter / Active-Archived view changed underneath them).
   const present = new Set(recurringData.map(r => r.id));
   for (const id of [..._recSelected]) if (!present.has(id)) _recSelected.delete(id);
   renderRecurring();
 }
 
-// Subscriptions-style summary tiles (same design as the cross-account
-// Subscriptions page, scoped to just this account) — active subscription
-// count, monthly cost, and yearly cost. Rows with no monthly_cost (income,
-// or an unrecognized cadence) don't count toward these totals. Hidden in
-// the Archived view since "current monthly cost" doesn't apply there.
-function renderRecSummary(list, archived) {
+function _recRowEditable(r) {
+  return r.account_level === 'owner' || r.account_level === 'edit';
+}
+
+// Totals for whatever the account filter shows: monthly bills, monthly
+// income and what's left per month, each with its yearly figure. Not shown
+// in the Archived view, where "per month" doesn't apply.
+function renderRecSummary(archived) {
   const sum = document.getElementById('recSummary');
+  const scope = document.getElementById('recTotalsScope');
   if (!sum) return;
-  if (archived) { sum.innerHTML = ''; return; }
-  const subs = list.filter(r => r.monthly_cost != null);
-  const totalMonthly = subs.reduce((s, r) => s + r.monthly_cost, 0);
-  const totalYearly = subs.reduce((s, r) => s + r.yearly_cost, 0);
+  if (archived || !recurringTotals) {
+    sum.innerHTML = '';
+    scope.textContent = archived ? 'Items whose end date has passed. They are not counted in any totals.' : '';
+    return;
+  }
+  const t = recurringTotals;
+  const acct = (recFilterAccount && accounts.find(a => String(a.id) === recFilterAccount))
+    || (accounts.length === 1 ? accounts[0] : null);
+  scope.textContent = acct
+    ? `Totals for ${acct.name}`
+    : `Totals for all ${accounts.length} account${accounts.length === 1 ? '' : 's'}`;
+  const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
   sum.innerHTML = `
-    <div class="tile"><span class="label">Active subscriptions</span>
-      <strong>${subs.length}</strong></div>
-    <div class="tile"><span class="label">Monthly cost</span>
-      <strong>${fmt(totalMonthly)}</strong></div>
-    <div class="tile"><span class="label">Yearly cost</span>
-      <strong>${fmt(totalYearly)}</strong></div>`;
+    <div class="stat"><div class="l">Bills per month</div>
+      <div class="v">${fmt(t.bills_monthly)}</div>
+      <div class="d">${plural(t.bills_count, 'item')} · ${fmt(t.bills_yearly)} a year</div></div>
+    <div class="stat"><div class="l">Income per month</div>
+      <div class="v">${fmt(t.income_monthly)}</div>
+      <div class="d">${plural(t.income_count, 'item')} · ${fmt(t.income_yearly)} a year</div></div>
+    <div class="stat"><div class="l">Left over per month</div>
+      <div class="v ${t.net_monthly < 0 ? 'neg' : 'pos'}">${fmt(t.net_monthly)}</div>
+      <div class="d">${fmt(t.net_yearly)} a year</div></div>`;
 }
 
 function renderRecurring() {
@@ -4666,12 +4732,15 @@ function renderRecurring() {
   const archived = recView === 'archived';
   const tbody = document.querySelector('#recurringTable tbody');
   tbody.innerHTML = '';
-  renderRecSummary(unsorted, archived);
-  renderMonthlyAnchorBar(unsorted, archived);
+  renderRecSummary(archived);
+  const monthlyEditable = unsorted.filter(r => r.frequency === 'monthly_day' && _recRowEditable(r)).length;
+  document.getElementById('recSelectTools').classList.toggle('hidden', archived || monthlyEditable < 2);
   if (!unsorted.length) {
-    tbody.innerHTML = `<tr><td colspan="10" style="color:var(--muted);text-align:center;padding:16px">
-      ${archived ? 'No expired recurring transactions.' : 'No active recurring transactions yet.'}
-    </td></tr>`;
+    const msg = !accounts.length
+      ? 'Create an account first in Settings → Accounts, then add its bills and income here.'
+      : (archived ? 'No ended bills or income.'
+                  : 'No bills or income yet. Use “+ Add recurring” to add one.');
+    tbody.innerHTML = `<tr><td colspan="11" style="color:var(--muted);text-align:center;padding:16px">${msg}</td></tr>`;
     document.getElementById('recurringPagination').classList.add('hidden');
     _recPageIds = [];
     refreshRecBulkBar();
@@ -4719,13 +4788,12 @@ function renderRecurring() {
   const startIdx = recurringPage * recurringPageSize;
   const endIdx = Math.min(startIdx + recurringPageSize, total);
   const pageRows = list.slice(startIdx, endIdx);
-  const ro = isCurrentAccountReadOnly();
-  _recPageIds = ro ? [] : pageRows.map(r => r.id);
-  document.getElementById('recSelectAll').classList.toggle('hidden', ro);
+  _recPageIds = pageRows.filter(_recRowEditable).map(r => r.id);
+  document.getElementById('recSelectAll').classList.toggle('hidden', !_recPageIds.length);
 
   // Update pagination UI (hide entirely if everything fits on the smallest page)
   const paginationBar = document.getElementById('recurringPagination');
-  if (total <= 5) {
+  if (total <= 10) {
     paginationBar.classList.add('hidden');
   } else {
     paginationBar.classList.remove('hidden');
@@ -4739,26 +4807,28 @@ function renderRecurring() {
 
   pageRows.forEach(r => {
     const tr = document.createElement('tr');
+    const ro = !_recRowEditable(r);
     const cbCell = recCheckboxCell(r, ro);
-    if (editingRecId === r.id) {
+    if (editingRecId === r.id && !ro) {
       tr.innerHTML = cbCell + renderEditRow(r);
     } else {
       const ends = r.end_date || '—';
-      const cat = r.category_name
-        ? `<span class="cat-pill">${escapeHtml(r.category_name)}</span>`
-        : '<span style="color:var(--muted)">—</span>';
+      const cat = subsCategoryCell(r);
       const notesCell = r.notes
         ? `<span title="${escapeAttr(r.notes)}" style="cursor:help">📝</span>`
         : '<span style="color:var(--muted)">—</span>';
-      const actionsCell = isCurrentAccountReadOnly() ? '<td></td>' : `
-        <td style="white-space:nowrap">
-          <button class="ghost" onclick="startEditRecurring(${r.id})" title="Edit">✎</button>
+      const actionsCell = ro
+        ? '<td><span class="ro-badge" title="You can view this account but not change it">read only</span></td>'
+        : `<td style="white-space:nowrap">
+          <button class="ghost" onclick="startEditRecurring(${r.id})" title="Edit" aria-label="Edit ${escapeAttr(r.description)}">✎</button>
         </td>`;
+      const perMonth = v => v == null ? '—' : `<span class="${v>=0?'pos':'neg'}">${fmt(v)}</span>`;
       tr.innerHTML = `${cbCell}<td>${escapeHtml(r.description)}</td>
+        <td>${escapeHtml(r.account_name || '')}</td>
         <td>${cat}</td>
-        <td class="${r.amount>=0?'pos':'neg'}">${fmt(r.amount)}</td>
-        <td class="num">${r.monthly_cost!=null?fmt(r.monthly_cost):'—'}</td>
-        <td class="num">${r.yearly_cost!=null?fmt(r.yearly_cost):'—'}</td>
+        <td class="num ${r.amount>=0?'pos':'neg'}">${fmt(r.amount)}</td>
+        <td class="num">${perMonth(r.monthly)}</td>
+        <td class="num">${perMonth(r.yearly)}</td>
         <td>${subsFrequencyLabel(r)}</td><td>${ends}</td>
         <td>${notesCell}</td>
         ${actionsCell}`;
@@ -4768,47 +4838,88 @@ function renderRecurring() {
   refreshRecBulkBar();
 }
 
-// ---------- Recurring: start date for every monthly template ----------
-function _monthlyRecIds() {
-  return recurringData.filter(r => r.frequency === 'monthly_day').map(r => r.id);
+// ---------- Recurring: select every monthly item ----------
+// Replaces the old "Start date for all monthly" bar (#51): select them all
+// here, then set Start date in the bulk bar.
+function selectAllMonthlyRec() {
+  const ids = recurringData.filter(r => r.frequency === 'monthly_day' && _recRowEditable(r)).map(r => r.id);
+  ids.forEach(id => _recSelected.add(id));
+  renderRecurring();
+  const status = document.getElementById('recBulkStatus');
+  if (status) status.textContent = `${ids.length} monthly item${ids.length===1?'':'s'} selected. Set a start date above and press Apply.`;
 }
 
-function renderMonthlyAnchorBar(list, archived) {
-  const bar = document.getElementById('recMonthlyAnchorBar');
-  if (!bar) return;
-  const n = list.filter(r => r.frequency === 'monthly_day').length;
-  const show = !archived && n > 0 && !isCurrentAccountReadOnly();
-  bar.classList.toggle('hidden', !show);
-  if (show) {
-    document.getElementById('recMonthlyAnchorLabel').textContent =
-      `Start date for all ${n} monthly recurring`;
-  }
+// ---------- Bills & income: add form ----------
+function toggleRecAddForm(show) {
+  const panel = document.getElementById('recAddPanel');
+  panel.classList.toggle('hidden', !show);
+  document.getElementById('recAddBtn').classList.toggle('hidden', show || !_recEditableAccounts().length);
+  if (!show) return;
+  const editable = _recEditableAccounts();
+  const acctSel = document.getElementById('recAddAccount');
+  acctSel.innerHTML = editable.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
+  // Start on the filtered account when it can be edited.
+  if (recFilterAccount && editable.some(a => String(a.id) === recFilterAccount)) acctSel.value = recFilterAccount;
+  const catSel = document.getElementById('recAddCat');
+  const keep = catSel.value;
+  catSel.innerHTML = '<option value="">— none —</option>' +
+    categories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  catSel.value = keep;
+  document.getElementById('recAddStatus').textContent = '';
+  onRecAddFreqChange();
+  document.getElementById('recAddDesc').focus();
 }
 
-async function applyMonthlyAnchorToAll(clear) {
-  const status = document.getElementById('recMonthlyAnchorStatus');
-  const ids = _monthlyRecIds();
-  if (!ids.length) { status.textContent = 'No monthly recurring transactions.'; return; }
-  const val = document.getElementById('recMonthlyAnchor').value;
-  if (!clear && !val) { status.textContent = 'Pick a start date first.'; return; }
-  const what = clear ? 'Clear the start date from' : `Set the start date to ${val} on`;
-  if (!confirm(`${what} all ${ids.length} monthly recurring transaction${ids.length===1?'':'s'}?`)) return;
-  status.textContent = 'Applying…';
-  let resp;
+function onRecAddFreqChange() {
+  const monthly = document.getElementById('recAddFreq').value === 'monthly_day';
+  document.getElementById('recAddDayWrap').classList.toggle('hidden', !monthly);
+  document.getElementById('recAddAnchorLabel').textContent = monthly ? 'Start date (optional)' : 'Start date';
+}
+
+async function submitRecAddForm() {
+  const status = document.getElementById('recAddStatus');
+  const val = id => document.getElementById(id).value;
+  const accountId = parseInt(val('recAddAccount'), 10);
+  const desc = val('recAddDesc').trim();
+  const rawAmt = parseFloat(val('recAddAmt'));
+  const freq = val('recAddFreq');
+  const day = parseInt(val('recAddDay'), 10);
+  const anchor = val('recAddAnchor') || null;
+  const showErr = (msg, fieldId) => {
+    status.style.color = 'var(--bad)';
+    status.textContent = msg;
+    if (fieldId) document.getElementById(fieldId).focus();
+  };
+  if (!accountId) return showErr('Pick an account.', 'recAddAccount');
+  if (!desc) return showErr('Enter a description.', 'recAddDesc');
+  if (isNaN(rawAmt) || rawAmt <= 0) return showErr('Enter an amount above zero.', 'recAddAmt');
+  if (freq === 'monthly_day' && !(day >= 1 && day <= 31)) return showErr('Day of month must be between 1 and 31.', 'recAddDay');
+  if (freq !== 'monthly_day' && !anchor) return showErr('Weekly and biweekly items need a start date.', 'recAddAnchor');
+  const catVal = val('recAddCat');
+  const body = {
+    description: desc,
+    amount: val('recAddType') === 'withdraw' ? -Math.abs(rawAmt) : Math.abs(rawAmt),
+    frequency: freq,
+    day_of_month: freq === 'monthly_day' ? day : null,
+    anchor_date: anchor,
+    end_date: val('recAddEnd') || null,
+    category_id: catVal ? parseInt(catVal, 10) : null,
+    notes: val('recAddNotes').trim() || null,
+  };
+  status.style.color = 'var(--muted)';
+  status.textContent = 'Saving…';
   try {
-    resp = await api('/api/recurring/bulk-update', {
-      method: 'POST',
-      body: JSON.stringify({ recurring_ids: ids, anchor_date: clear ? null : val }),
-    });
+    await api(`/api/accounts/${accountId}/recurring`, { method: 'POST', body: JSON.stringify(body) });
   } catch (e) {
-    status.textContent = 'Failed: ' + e.message;
-    return;
+    if (e.message === 'auth') return;
+    return showErr('Could not save it. Check the fields and try again.');
   }
-  editingRecId = null;
+  ['recAddDesc', 'recAddAmt', 'recAddAnchor', 'recAddEnd', 'recAddNotes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('recAddDay').value = '1';
+  toggleRecAddForm(false);
   await loadRecurring();
-  await loadForecast();
-  document.getElementById('recMonthlyAnchorStatus').textContent =
-    `${clear ? 'Cleared on' : 'Set on'} ${resp.updated}` + (resp.skipped ? ` (${resp.skipped} skipped)` : '');
 }
 
 // ---------- Recurring: bulk edit selection ----------
@@ -4863,7 +4974,7 @@ function refreshRecBulkBar() {
     allCb.checked = allChecked;
     allCb.indeterminate = !allChecked && _recPageIds.some(id => _recSelected.has(id));
   }
-  if (n === 0 || isCurrentAccountReadOnly()) {
+  if (n === 0) {
     bar.classList.add('hidden');
     document.getElementById('recBulkStatus').textContent = '';
     return;
@@ -4993,12 +5104,13 @@ function renderEditRow(r) {
          <a href="#" onclick="restoreRecurringSkips(${id});return false">Restore</a></span>`
     : '';
   return `
-    <td colspan="9" style="background:var(--chip-bg)" onkeydown="onRecEditKey(event, ${id})">
+    <td colspan="10" style="background:var(--chip-bg)" onkeydown="onRecEditKey(event, ${id})">
       <!-- The table scrolls sideways on narrow screens; pin the form to the
            visible width so every field stays on screen. No effect on desktop. -->
       <div style="position:sticky;left:0;max-width:calc(100vw - 72px)">
       <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
       <div style="flex:1 1 560px;min-width:0">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Account: <strong style="color:var(--text)">${escapeHtml(r.account_name || '')}</strong></div>
       <div class="row">
         <div class="span-full" style="flex:3 1 240px"><label>Description</label>
           <input id="editDesc_${id}" value="${escapeAttr(r.description)}" style="width:100%"></div>
@@ -6776,10 +6888,8 @@ function onNetworthWindowChange(w) {
   loadNetworth();
 }
 
-// ---------- Subscriptions (Tier-2 subscription audit) ----------
-// Renders a cross-account list of every active recurring outflow,
-// normalized to monthly and yearly cost. Pure read: edits flow through
-// the per-account Recurring-transactions panel on the Transactions page.
+// ---------- Bills & income: shared cell formatters ----------
+// Frequency and category cells for the Bills & income table.
 function subsFrequencyLabel(item) {
   if (item.frequency === 'monthly_day') {
     const base = item.day_of_month ? `Monthly · day ${item.day_of_month}` : 'Monthly';
@@ -6799,60 +6909,6 @@ function subsCategoryCell(item) {
   const safe = (item.category_name + '').replace(/</g, '&lt;');
   return `<span class="pill" style="background:${color}22;border:1px solid ${color};color:${color}">${safe}</span>`;
 }
-async function loadSubscriptions() {
-  const sum = document.getElementById('subsSummary');
-  const empty = document.getElementById('subsEmpty');
-  const tb = document.querySelector('#subsTable tbody');
-  const table = document.getElementById('subsTable');
-  sum.innerHTML = '<div class="tile"><span class="label">Loading…</span></div>';
-  tb.innerHTML = '';
-  try {
-    const r = await api('/api/subscriptions');
-    sum.innerHTML = `
-      <div class="tile"><span class="label">Active subscriptions</span>
-        <strong>${r.count}</strong></div>
-      <div class="tile"><span class="label">Monthly cost</span>
-        <strong>${fmt(r.total_monthly)}</strong></div>
-      <div class="tile"><span class="label">Yearly cost</span>
-        <strong>${fmt(r.total_yearly)}</strong></div>
-    `;
-    if (!r.items.length) {
-      empty.classList.remove('hidden');
-      table.classList.add('hidden');
-      return;
-    }
-    empty.classList.add('hidden');
-    table.classList.remove('hidden');
-    tb.innerHTML = r.items.map(it => {
-      const desc = (it.description + '').replace(/</g, '&lt;');
-      const acct = (it.account_name + '').replace(/</g, '&lt;');
-      // Clicking the account cell jumps to Transactions with that account
-      // preselected so the user can edit the recurring row directly.
-      const acctLink = `<a href="#" onclick="jumpToRecurring(${it.account_id});return false"
-                         style="color:var(--accent)">${acct}</a>`;
-      const perCharge = fmt(Math.abs(it.amount));
-      return `<tr>
-        <td>${desc}</td>
-        <td>${acctLink}</td>
-        <td>${subsCategoryCell(it)}</td>
-        <td>${subsFrequencyLabel(it)}</td>
-        <td class="num">${perCharge}</td>
-        <td class="num"><strong>${fmt(it.monthly_cost)}</strong></td>
-        <td class="num">${fmt(it.yearly_cost)}</td>
-      </tr>`;
-    }).join('');
-  } catch (e) {
-    sum.innerHTML = `<div class="tile"><span class="label">Error</span>
-      <strong style="color:var(--bad)">Could not load subscriptions.</strong></div>`;
-  }
-}
-// Used by the Subscriptions table: switch the Recurring transactions panel
-// (top of this page) to the given account and scroll up to it.
-function jumpToRecurring(accountId) {
-  selectAccount(accountId);
-  document.getElementById('txnRecurringPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
 // ---------- Calendar ----------
 // The Calendar page renders a month grid of every event the user can see
 // (from /api/calendar, which wraps build_forecast per-account). Filters run

@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.24.1"
+APP_VERSION = "1.25.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -36,6 +36,12 @@ APP_VERSION = "1.24.1"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.25.0 (2026-11-14, claude+mkolakowski): GET /api/recurring lists every
+#     recurring template (bills and income) across the accounts the user can
+#     see, with each row's account and access level and totals for bills,
+#     income and net per month and year; ?archived, ?account_id and ?today.
+#     For the Bills & income page (#51). The per-account list gains signed
+#     monthly/yearly fields; both share _recurring_row().
 # 1.24.1 (2026-11-14, claude+mkolakowski): DELETE /api/admin/users/{uid}
 #     follows the self-deletion rules: an account with another owner stays
 #     (it used to be deleted with its creator), and the call is refused with
@@ -1495,46 +1501,130 @@ _MONTHLY_FACTOR = {
 }
 
 
+def _recurring_skip_counts(db: Session, rec_ids: list[int]) -> dict[int, int]:
+    """How many occurrences have been deleted from each template."""
+    return dict(
+        db.query(RecurringSkip.recurring_id, func.count(RecurringSkip.id))
+        .filter(RecurringSkip.recurring_id.in_(rec_ids or [0]))
+        .group_by(RecurringSkip.recurring_id)
+        .all()
+    )
+
+
+def _recurring_row(r: RecurringTransaction, today: date,
+                   skip_counts: dict[int, int]) -> dict:
+    """One recurring template as the Recurring / Bills & income tables show it."""
+    is_expired = r.end_date is not None and r.end_date < today
+    amt = float(r.amount)
+    # monthly/yearly: the signed amount normalized to a month (income
+    # positive, bills negative). monthly_cost/yearly_cost: the same for bills
+    # only, as a positive cost; null for income. Both null on an
+    # unrecognized cadence.
+    factor = _MONTHLY_FACTOR.get(r.frequency)
+    monthly = amt * factor if factor is not None else None
+    monthly_cost = -monthly if (monthly is not None and amt < 0) else None
+    return {
+        "id": r.id,
+        "description": r.description,
+        "amount": amt,
+        "frequency": r.frequency,
+        "day_of_month": r.day_of_month,
+        "anchor_date": r.anchor_date.isoformat() if r.anchor_date else None,
+        "end_date": r.end_date.isoformat() if r.end_date else None,
+        "category_id": r.category_id,
+        "category_name": r.category.name if r.category else None,
+        "notes": r.notes,
+        "active": r.active,
+        "expired": is_expired,
+        "monthly": round(monthly, 2) if monthly is not None else None,
+        "yearly": round(monthly * 12, 2) if monthly is not None else None,
+        "monthly_cost": round(monthly_cost, 2) if monthly_cost is not None else None,
+        "yearly_cost": round(monthly_cost * 12, 2) if monthly_cost is not None else None,
+        "skipped_count": skip_counts.get(r.id, 0),
+    }
+
+
 @app.get("/api/accounts/{account_id}/recurring")
 def list_recurring(account_id: int, archived: bool = False,
                    user: User = Depends(current_user), db: Session = Depends(get_db)):
     acc = _account_with_perm(db, user, account_id, "read")
     today = date.today()
-    skip_counts = dict(
-        db.query(RecurringSkip.recurring_id, func.count(RecurringSkip.id))
-        .filter(RecurringSkip.recurring_id.in_([r.id for r in acc.recurring] or [0]))
-        .group_by(RecurringSkip.recurring_id)
-        .all()
-    )
+    skip_counts = _recurring_skip_counts(db, [r.id for r in acc.recurring])
     out = []
     for r in acc.recurring:
-        is_expired = r.end_date is not None and r.end_date < today
-        if archived != is_expired:
-            continue
-        amt = float(r.amount)
-        # Monthly/yearly cost only makes sense for expenses (subscriptions,
-        # bills) on a recognized cadence — recurring income (paychecks) and
-        # rows with no monthly factor just leave these null.
-        factor = _MONTHLY_FACTOR.get(r.frequency)
-        monthly_cost = abs(amt) * factor if (amt < 0 and factor is not None) else None
-        out.append({
-            "id": r.id,
-            "description": r.description,
-            "amount": amt,
-            "frequency": r.frequency,
-            "day_of_month": r.day_of_month,
-            "anchor_date": r.anchor_date.isoformat() if r.anchor_date else None,
-            "end_date": r.end_date.isoformat() if r.end_date else None,
-            "category_id": r.category_id,
-            "category_name": r.category.name if r.category else None,
-            "notes": r.notes,
-            "active": r.active,
-            "expired": is_expired,
-            "monthly_cost": round(monthly_cost, 2) if monthly_cost is not None else None,
-            "yearly_cost": round(monthly_cost * 12, 2) if monthly_cost is not None else None,
-            "skipped_count": skip_counts.get(r.id, 0),
-        })
+        row = _recurring_row(r, today, skip_counts)
+        if archived == row["expired"]:
+            out.append(row)
     return out
+
+
+@app.get("/api/recurring")
+def list_all_recurring(archived: bool = False, account_id: int | None = None,
+                       today: date | None = None,
+                       user: User = Depends(current_user),
+                       db: Session = Depends(get_db)):
+    """Every recurring template (bills and income) across the accounts the
+    user can see, for the Bills & income page. `archived=true` lists the ones
+    whose end date has passed. `account_id` narrows it to one account (404 if
+    the user can't see it). `today` is the viewer's date (see _viewer_today).
+
+    Each item carries its account and the user's access level on it, so the
+    page knows which rows it may edit. `totals` covers the listed items that
+    are active and on a known cadence: monthly and yearly bills, income, and
+    net (income minus bills).
+    """
+    today = _viewer_today(today)
+    if account_id is not None:
+        accounts = [_account_with_perm(db, user, account_id, "read")]
+    else:
+        accounts = _user_visible_accounts(db, user)
+    levels = dict(
+        db.query(AccountPermission.account_id, AccountPermission.level)
+        .filter(AccountPermission.user_id == user.id,
+                AccountPermission.account_id.in_([a.id for a in accounts] or [0]))
+        .all()
+    )
+    recs = [(a, r) for a in accounts for r in a.recurring]
+    skip_counts = _recurring_skip_counts(db, [r.id for _, r in recs])
+    items = []
+    bills_n = income_n = 0
+    bills_m = income_m = 0.0
+    for a, r in recs:
+        row = _recurring_row(r, today, skip_counts)
+        if archived != row["expired"]:
+            continue
+        row.update({
+            "account_id": a.id,
+            "account_name": a.name,
+            "account_level": levels.get(a.id, "read"),
+            "category_color": r.category.color if r.category else None,
+        })
+        items.append(row)
+        factor = _MONTHLY_FACTOR.get(r.frequency)
+        if not r.active or factor is None:
+            continue
+        # Sum unrounded figures so the yearly totals don't drift by cents.
+        monthly = float(r.amount) * factor
+        if monthly < 0:
+            bills_n += 1
+            bills_m += -monthly
+        else:
+            income_n += 1
+            income_m += monthly
+    items.sort(key=lambda x: (x["description"].lower(), x["account_name"].lower(), x["id"]))
+    return {
+        "items": items,
+        "totals": {
+            "bills_count": bills_n,
+            "bills_monthly": round(bills_m, 2),
+            "bills_yearly": round(bills_m * 12, 2),
+            "income_count": income_n,
+            "income_monthly": round(income_m, 2),
+            "income_yearly": round(income_m * 12, 2),
+            "net_monthly": round(income_m - bills_m, 2),
+            "net_yearly": round((income_m - bills_m) * 12, 2),
+        },
+    }
 
 
 @app.post("/api/accounts/{account_id}/recurring")

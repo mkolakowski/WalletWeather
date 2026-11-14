@@ -47,3 +47,5 @@ apps/android/captures/
 *.aab
 *.jks
 *.keystore
+
+PROMPT_LOG.md

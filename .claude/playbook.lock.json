@@ -1,0 +1,215 @@
+{
+  "policy": "ask",
+  "mode": "copy",
+  "publish": "general",
+  "updated": "2026-11-14 11:31 AM EST",
+  "global_rules": "project",
+  "values": {
+    "plans_dir": "Plans",
+    "default_branch": "main",
+    "version_source": "apps/server/app/main.py (APP_VERSION), with WEB_VERSION in apps/web/index.html and SCHEMA_VERSION in apps/server/app/db.py"
+  },
+  "target_file": "CLAUDE.md",
+  "playbook": {
+    "repo": "mkolakowski/claude-playbook",
+    "version": "1.8.0",
+    "commit": "613f249"
+  },
+  "modules": {
+    "own-repos-only": {
+      "decision": "take",
+      "group": "safety",
+      "source_hash": "8a036591264e",
+      "written_hash": "8a036591264e"
+    },
+    "untrusted-input": {
+      "decision": "take",
+      "group": "safety",
+      "source_hash": "b06086a73c7b",
+      "written_hash": "b06086a73c7b"
+    },
+    "no-destructive-fixes": {
+      "decision": "take",
+      "group": "safety",
+      "source_hash": "a6c59abe877c",
+      "written_hash": "a6c59abe877c"
+    },
+    "secrets": {
+      "decision": "take",
+      "group": "safety",
+      "source_hash": "fc9b16adb770",
+      "written_hash": "fc9b16adb770"
+    },
+    "stable-ids": {
+      "decision": "take",
+      "group": "safety",
+      "source_hash": "2c26735ccd4d",
+      "written_hash": "2c26735ccd4d"
+    },
+    "remote-session": {
+      "decision": "take",
+      "group": "personal",
+      "source_hash": "de04ace2555e",
+      "written_hash": "de04ace2555e"
+    },
+    "eastern-time": {
+      "decision": "take",
+      "group": "personal",
+      "source_hash": "8ef0a9f5f354",
+      "written_hash": "8ef0a9f5f354"
+    },
+    "session-titles": {
+      "decision": "take",
+      "group": "personal",
+      "source_hash": "9bcaeebbd21b",
+      "written_hash": "9bcaeebbd21b"
+    },
+    "end-of-turn": {
+      "decision": "take",
+      "group": "personal",
+      "source_hash": "21cd5fe83551",
+      "written_hash": "21cd5fe83551"
+    },
+    "design-calls": {
+      "decision": "take",
+      "group": "personal",
+      "source_hash": "94538554e036",
+      "written_hash": "94538554e036"
+    },
+    "issue-workflow": {
+      "decision": "take",
+      "group": "workflow",
+      "source_hash": "2ef461b8a1a5",
+      "written_hash": "2ef461b8a1a5"
+    },
+    "plans": {
+      "decision": "take",
+      "group": "workflow",
+      "source_hash": "ef31147a8c79",
+      "written_hash": "32c9748e83f3"
+    },
+    "agents-and-tools": {
+      "decision": "take",
+      "group": "workflow",
+      "source_hash": "28a1ac43693b",
+      "written_hash": "28a1ac43693b"
+    },
+    "git-concurrent": {
+      "decision": "take",
+      "group": "releases",
+      "source_hash": "1d41c39cd7df",
+      "written_hash": "1bd0ff280425"
+    },
+    "api-tests": {
+      "decision": "take",
+      "group": "tests",
+      "source_hash": "b7d2d2a25e9b",
+      "written_hash": "b7d2d2a25e9b"
+    },
+    "docker": {
+      "decision": "take",
+      "group": "platform",
+      "source_hash": "c20478081200",
+      "written_hash": "c20478081200"
+    },
+    "build-on-release": {
+      "decision": "take",
+      "group": "platform",
+      "source_hash": "f1e615581089",
+      "written_hash": "f1e615581089"
+    },
+    "claude-md-hygiene": {
+      "decision": "take",
+      "group": "docs",
+      "source_hash": "6cad419dc1fb",
+      "written_hash": "6cad419dc1fb"
+    },
+    "prompt-log": {
+      "decision": "take",
+      "group": "docs",
+      "source_hash": "699f76e176dc",
+      "written_hash": "699f76e176dc"
+    },
+    "models-subagents": {
+      "decision": "take",
+      "group": "tooling",
+      "source_hash": "b143e2ffce96",
+      "written_hash": "b143e2ffce96"
+    },
+    "memory": {
+      "decision": "take",
+      "group": "tooling",
+      "source_hash": "a532d283c1dc",
+      "written_hash": "a532d283c1dc"
+    },
+    "tools-skills": {
+      "decision": "take",
+      "group": "tooling",
+      "source_hash": "65be30260562",
+      "written_hash": "65be30260562"
+    },
+    "release-routine": {
+      "decision": "merge",
+      "group": "releases",
+      "source_hash": "6e302c9f5e02",
+      "written_hash": "dc1b4572cb11",
+      "note": "this repo's Unreleased section, three version numbers and release by tagging, with the playbook's Breaking: prefix and entries written for the person using the app"
+    },
+    "licensing": {
+      "decision": "merge",
+      "group": "safety",
+      "source_hash": "71c2f9be39fc",
+      "written_hash": "a4ef6e8184d8",
+      "note": "names psycopg (LGPL-3.0, an unmodified dependency) as the one exception already in use"
+    },
+    "scheduled-checks": {
+      "decision": "n/a",
+      "group": "workflow",
+      "source_hash": "b5efebc04fe0"
+    },
+    "tests": {
+      "decision": "n/a",
+      "group": "tests",
+      "source_hash": "42c13abd6ce3"
+    },
+    "simulator-lock": {
+      "decision": "n/a",
+      "group": "platform",
+      "source_hash": "94e2e44e8607"
+    },
+    "settings-toggle": {
+      "decision": "n/a",
+      "group": "platform",
+      "source_hash": "f1906b0723f0"
+    },
+    "layout-locks": {
+      "decision": "n/a",
+      "group": "platform",
+      "source_hash": "0ad7c18b5c2d"
+    },
+    "docs": {
+      "decision": "n/a",
+      "group": "docs",
+      "source_hash": "3aec8ac57253"
+    },
+    "dashboard": {
+      "decision": "n/a",
+      "group": "docs",
+      "source_hash": "23bf84b80390"
+    },
+    "project-header": {
+      "decision": "take",
+      "group": "header",
+      "source_hash": "5992717be7d9",
+      "written_hash": "9af1e0745be9"
+    }
+  },
+  "skills": {
+    "session-title": "1.8.0",
+    "whats-next": "1.8.0",
+    "new-plan": "1.8.0",
+    "resolve-open-questions": "1.8.0",
+    "record-decision": "1.8.0",
+    "new-skill": "1.8.0"
+  }
+}

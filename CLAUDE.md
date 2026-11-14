@@ -16,6 +16,16 @@ whenever you edit those files:
 `ROADMAP.md` is the ledger of ideas. A roadmap item that needs phases gets a
 plan ("Plans" below).
 
+**Tests** (decided 2026-11-14, #35): the API tests live in
+`apps/server/tests/` (pytest with FastAPI's test client against a real,
+throwaway PostgreSQL). Run them from the repo root with
+`docker compose -f docker-compose.test.yml run --rm tests` (extra arguments
+go to pytest), then `docker compose -f docker-compose.test.yml down`. They
+need `TEST_DATABASE_URL` and refuse to run without it, so they can't reach a
+database with real data. The `Tests` workflow runs them on every pull
+request and push to `main`. Why: one command that works without a local
+Python, and the same tests in CI.
+
 <!-- playbook:begin project-header 1.8.0 -->
 ## Rules from claude-playbook
 

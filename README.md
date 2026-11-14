@@ -156,6 +156,8 @@ walletweather/
 │   ├── server/           # FastAPI API server (Python)
 │   │   ├── Dockerfile    # Multi-stage Python 3.12-slim build; context is the repo root
 │   │   ├── requirements.txt
+│   │   ├── requirements-dev.txt # Test-only dependencies (pytest)
+│   │   ├── tests/        # API tests (pytest + FastAPI test client)
 │   │   └── app/
 │   │       ├── main.py   # FastAPI routes + admin endpoints
 │   │       ├── db.py     # SQLAlchemy models + Fernet encryption
@@ -169,6 +171,7 @@ walletweather/
 │   └── android/          # Placeholder for a native Android app (see its README)
 ├── .dockerignore         # Keeps everything but apps/server and apps/web out of the image
 ├── docker-compose.yml
+├── docker-compose.test.yml # Runs the tests against a throwaway database
 ├── .env.example
 ├── LICENSE               # MIT
 └── README.md
@@ -181,6 +184,24 @@ the image. Mobile apps talk to the same `/api/...` endpoints as the web
 client; a running server documents them at `/docs`.
 
 **Stack:** FastAPI · SQLAlchemy · PostgreSQL 16 · bcrypt · Fernet (AES-128-CBC) · Vanilla JS · Docker
+
+## Tests
+
+The API tests live in `apps/server/tests/` and run against a real
+PostgreSQL that exists only for the run (in memory, nothing saved). From the
+repo root, with Docker:
+
+```bash
+docker compose -f docker-compose.test.yml run --rm tests
+docker compose -f docker-compose.test.yml down
+```
+
+Anything after `tests` goes to pytest, e.g. `... run --rm tests -k auth -v`.
+To run them with your own Python 3.12 instead, point `TEST_DATABASE_URL` at a
+throwaway database (never one with real data: the tests create users) and run
+`pip install -r requirements-dev.txt && pytest` in `apps/server`. GitHub
+runs them on every pull request and every push to `main` (the **Tests**
+workflow).
 
 ## Security Notes
 

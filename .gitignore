@@ -49,3 +49,4 @@ apps/android/captures/
 *.keystore
 
 PROMPT_LOG.md
+.pytest_cache/

@@ -1,0 +1,3 @@
+# Test-only dependencies, on top of the app's. Not installed in the image.
+-r requirements.txt
+pytest==8.3.3

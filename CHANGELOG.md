@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.22.1** · Web version: **1.46.1** · Schema version: **13**
+App version: **1.22.2** · Web version: **1.46.2** · Schema version: **13**
 
 ### Added
 
@@ -334,6 +334,15 @@ App version: **1.22.1** · Web version: **1.46.1** · Schema version: **13**
   sets the every-1/2-week cadence.
 
 ### Fixed
+
+- **Current balance no longer jumps ahead to tomorrow in the evening.** The
+  Current balance on the Forecast page, the balance on each account tab and
+  the Today bar count every line dated today or earlier. "Today" came from
+  the server's clock, which is usually UTC, so from about 7–8 PM US Eastern
+  tomorrow's lines were counted too. The web client now sends your own date
+  (`?today=` on `GET /api/accounts` and the forecast call), and the balance
+  goes by it. Calls without it, from scripts for example, still use the
+  server's date.
 
 - **Actual bal follows actual dates.** The Forecast table's Actual bal (and
   Δ Bal) running total now adds lines up in actual-date order instead of

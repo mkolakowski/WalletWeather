@@ -2017,7 +2017,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.46.1";
+const WEB_VERSION = "1.46.2";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2028,6 +2028,10 @@ const WEB_VERSION = "1.46.1";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.46.2 (2026-11-14, claude+mkolakowski): GET /api/accounts and the
+//     forecast call send the browser's date (?today=, added in api()), so the
+//     Current balance, account tabs and Today bar count today's lines by the
+//     viewer's date, not the server's UTC date (#39).
 // 1.46.1 (2026-10-18, claude+mkolakowski): The Forecast line editor's ✕
 //     (cancel) button gets a visible --muted outline (.close-btn), next to the
 //     red-outlined 🗑. The Highest / Lowest point cards now label the actual
@@ -2630,7 +2634,15 @@ if (window.matchMedia) {
   } catch {}
 }
 
+// Calls whose current_balance depends on what "today" is. They get the
+// browser's own date, because the server's clock (UTC) is already on
+// tomorrow during the evening in the Americas.
+const _TODAY_AWARE = /^\/api\/accounts(\/\d+\/forecast)?(\?|$)/;
+
 async function api(path, opts={}) {
+  if (!opts.method && _TODAY_AWARE.test(path)) {
+    path += (path.includes('?') ? '&' : '?') + 'today=' + _isoDate(new Date());
+  }
   const res = await fetch(path, { headers:{'Content-Type':'application/json'}, ...opts });
   if (res.status===401) { showLogin(); throw new Error('auth'); }
   if (!res.ok) throw new Error(await res.text());

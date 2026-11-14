@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.22.1"
+APP_VERSION = "1.22.2"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -36,6 +36,11 @@ APP_VERSION = "1.22.1"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.22.2 (2026-11-14, claude+mkolakowski): current_balance on GET
+#     /api/accounts and GET /api/accounts/{id}/forecast goes by the viewer's
+#     date (new optional ?today=YYYY-MM-DD, within a day of the server's,
+#     else 400) instead of the server's UTC date, which in the evening in the
+#     Americas is already tomorrow and counted tomorrow's lines (#39).
 # 1.22.1 (2026-10-18, claude+mkolakowski): Forecast rows' actual_balance
 #     (and diff_balance) now accumulate in actual-date order instead of
 #     planned-date order (forecast.build_forecast), so a line that cleared
@@ -1200,20 +1205,39 @@ def _user_editable_accounts(db: Session, user: User, include_archived: bool = Fa
     return list(q.all())
 
 
-def _current_balance(db: Session, account: Account) -> float:
+def _viewer_today(today: date | None) -> date:
+    """The viewer's own date, sent by the browser as `?today=YYYY-MM-DD`.
+
+    The server's clock is usually UTC, so from the evening in the Americas
+    its date is already tomorrow; going by it would count tomorrow's lines in
+    "today's" balance. Without the parameter (scripts, older clients) the
+    server's date is used. Any real time zone is within a day of UTC, so a
+    date further off than that is refused rather than trusted.
+    """
+    server_today = date.today()
+    if today is None:
+        return server_today
+    if abs((today - server_today).days) > 1:
+        raise HTTPException(400, "today must be within a day of the server's date")
+    return today
+
+
+def _current_balance(db: Session, account: Account, today: date | None = None) -> float:
     """Today's actual balance — the same number the Forecast table's "Actual
     bal" column shows at today's row (see forecast.actual_balance_as_of).
 
     Rows dated on or before today that haven't been marked cleared still count
     (at their forecast amount), exactly as the table treats them, so this
-    figure and the table never disagree.
+    figure and the table never disagree. `today` is the viewer's date (see
+    _viewer_today); it defaults to the server's.
     """
-    return actual_balance_as_of(db, account, date.today())
+    return actual_balance_as_of(db, account, today or date.today())
 
 
 @app.get("/api/accounts")
-def list_accounts(include_archived: bool = False,
+def list_accounts(include_archived: bool = False, today: date | None = None,
                   user: User = Depends(current_user), db: Session = Depends(get_db)):
+    today = _viewer_today(today)
     out = []
     for a in _user_visible_accounts(db, user, include_archived=include_archived):
         out.append({
@@ -1223,7 +1247,7 @@ def list_accounts(include_archived: bool = False,
             # Today-dated cleared balance. Surfaced so selectors (transfer
             # page, account pickers) can show the user's actual available
             # money without a second round-trip.
-            "current_balance": round(_current_balance(db, a), 2),
+            "current_balance": round(_current_balance(db, a, today), 2),
             "archived": a.archived,
             "level": _user_level(db, user, a.id),
         })
@@ -1706,16 +1730,17 @@ def upsert_forecast_actual(account_id: int, payload: ForecastActualIn,
 @app.get("/api/accounts/{account_id}/forecast")
 def forecast(account_id: int, days: int = 90,
              start: date | None = None, end: date | None = None,
+             today: date | None = None,
              user: User = Depends(current_user), db: Session = Depends(get_db)):
     acc = _account_with_perm(db, user, account_id, "read")
+    today = _viewer_today(today)
     if start is None or end is None:
-        today = date.today()
         start = today
         end = today + timedelta(days=days)
     data = build_forecast(db, acc, start, end)
     # Today-dated cleared balance, independent of the requested window, so
     # the UI can show "where the account is right now" next to the forecast.
-    data["current_balance"] = round(_current_balance(db, acc), 2)
+    data["current_balance"] = round(_current_balance(db, acc, today), 2)
     return data
 
 

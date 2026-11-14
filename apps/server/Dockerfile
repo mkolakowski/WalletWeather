@@ -1,8 +1,12 @@
+# Build from the repo root so the image can include both the API server
+# (apps/server) and the web client it serves (apps/web):
+#   docker build -f apps/server/Dockerfile .
+
 # ---- builder ----
 FROM python:3.12-slim AS builder
 ENV PYTHONDONTWRITEBYTECODE=1 PIP_NO_CACHE_DIR=1
 WORKDIR /build
-COPY requirements.txt .
+COPY apps/server/requirements.txt .
 RUN pip install --prefix=/install -r requirements.txt
 
 # ---- runtime ----
@@ -14,9 +18,10 @@ RUN useradd -r -u 1000 app && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p /data/backups && chown app:app /data/backups
 COPY --from=builder /install /install
-WORKDIR /app
-COPY app ./app
-COPY static ./static
+# Same layout as the repo: /app/server/app (Python) next to /app/web (SPA).
+COPY apps/server/app /app/server/app
+COPY apps/web /app/web
+WORKDIR /app/server
 USER app
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -85,11 +85,9 @@
      into one grid, spacing is tight. */
   .line-editor { position:sticky; left:0; max-width:calc(100vw - 72px); box-sizing:border-box;
                  padding:8px 12px 10px; border-left:3px solid var(--accent); }
-  .line-editor .le-top { display:flex; align-items:center; justify-content:space-between; gap:6px 12px;
-                         flex-wrap:wrap; margin:0 0 6px; }
-  .line-editor .le-head { font-size:12px; color:var(--muted); min-width:0; }
-  .line-editor .le-head strong { color:var(--text); font-weight:600; }
-  .line-editor .le-actions { display:flex; gap:6px; flex:0 0 auto; }
+  /* No heading (#69): the buttons are the grid's last cell, bottom-aligned
+     with the fields, so they don't take a line of their own. */
+  .line-editor .le-actions { display:flex; gap:6px; justify-content:flex-end; align-self:end; grid-column:span 2; }
   .line-editor .le-actions button { padding:4px 12px; font-size:13px; }
   .line-editor .le-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(135px, 1fr));
                           gap:6px 10px; align-items:end; }
@@ -103,7 +101,7 @@
   @media (max-width: 768px) {
     .line-editor { position:static; max-width:none; padding:8px 10px; }
     .line-editor .le-grid { grid-template-columns:1fr 1fr; }
-    .line-editor .le-actions { flex:1 1 100%; }
+    .line-editor .le-actions { grid-column:1 / -1; }
     .line-editor .le-actions button { flex:1; }
     /* The Forecast phone layout styles open lines as a grid with a label
        before each cell; the line editor is one cell and labels itself. */
@@ -2271,7 +2269,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.55.1";
+const WEB_VERSION = "1.55.2";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2282,6 +2280,10 @@ const WEB_VERSION = "1.55.1";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.55.2 (2026-11-14, claude+mkolakowski): (#69) The line editor's heading
+//     ("Editing …", account, balances) is gone; the buttons are the grid's
+//     last cell. (#68) Tags take one grid column; with no tags the button
+//     says "No tags" and the add-them hint shows only in the opened list.
 // 1.55.1 (2026-11-14, claude+mkolakowski): (#66) Line editor buttons are
 //     Save, Delete, Cancel (Cancel and Delete swapped), on all three pages.
 // 1.55.0 (2026-11-14, claude+mkolakowski): (#68) renderTagPicker() is now a
@@ -5118,15 +5120,15 @@ function renderTagChips(tagList) {
 // readTagPick() reads, as the pill picker it replaces did.
 function renderTagPicker(inputId, selectedIds) {
   const selected = new Set((selectedIds || []).map(Number));
-  if (!tags || !tags.length) {
-    return `<button type="button" class="tag-dd-btn" id="${inputId}_btn" disabled>
-              <span class="tag-dd-summary"><span class="tag-dd-none">No tags yet (add them in Settings → Categories &amp; tags)</span></span></button>
-            <input type="hidden" id="${inputId}" value="">`;
-  }
-  const opts = tags.map(t => `<label class="tag-dd-opt" data-name="${escapeAttr((t.name || '').toLowerCase())}">
+  // With no tags at all, the button still just says "No tags"; the hint
+  // about adding some shows only once the list is opened (#68).
+  const all = tags || [];
+  const opts = all.length
+    ? all.map(t => `<label class="tag-dd-opt" data-name="${escapeAttr((t.name || '').toLowerCase())}">
       <input type="checkbox" value="${t.id}"${selected.has(t.id) ? ' checked' : ''} onchange="_tagDropdownChanged('${inputId}')">
-      <span class="tag-dd-sw"${t.color ? ` style="background:${escapeAttr(t.color)}"` : ''}></span>${escapeHtml(t.name)}</label>`).join('');
-  const filter = tags.length > 6
+      <span class="tag-dd-sw"${t.color ? ` style="background:${escapeAttr(t.color)}"` : ''}></span>${escapeHtml(t.name)}</label>`).join('')
+    : '<div class="tag-dd-empty">No tags yet. Add them in Settings → Categories &amp; tags.</div>';
+  const filter = all.length > 6
     ? `<input type="search" class="tag-dd-filter" placeholder="Filter tags" aria-label="Filter tags" oninput="_filterTagDropdown(this)">` : '';
   return `<div class="tag-dd" id="${inputId}_dd" onkeydown="_tagDropdownKey(event, '${inputId}')">
       <button type="button" class="tag-dd-btn" id="${inputId}_btn" aria-haspopup="true" aria-expanded="false"
@@ -5681,7 +5683,6 @@ function renderEditRow(r) {
     : '';
   return _lineEditorHtml({
     colspan: 10,
-    head: `Editing <strong>${escapeHtml(r.description || 'recurring item')}</strong> · ${escapeHtml(r.account_name || '')}`,
     fields: [
       { label: 'Description', id: `editDesc_${id}`, wide: true, html: `<input id="editDesc_${id}" maxlength="120" value="${escapeAttr(r.description)}">` },
       { label: 'Category', id: `editCat_${id}`, html: `<select id="editCat_${id}">${catOptions}</select>` },
@@ -6598,20 +6599,17 @@ async function saveForecastRowEdit(rowKey) {
 // Builds the labelled form a line turns into while it's edited, the same on
 // Forecast, Transactions and Bills & income. `fields`: [{label, id, html,
 // wide, hidden, wrapId}]; `tags`: picker HTML or ''; `actions`: buttons HTML.
-function _lineEditorHtml({ colspan, head, fields, tags, tagsId, note, statusId, actions, onKey }) {
+function _lineEditorHtml({ colspan, fields, tags, tagsId, note, statusId, actions, onKey }) {
   const cells = fields.map(f =>
     `<div${f.wrapId ? ` id="${f.wrapId}"` : ''} class="${[f.wide ? 'le-wide' : '', f.hidden ? 'hidden' : ''].join(' ').trim()}">
        <label for="${f.id}"${f.labelId ? ` id="${f.labelId}"` : ''}>${f.label}</label>${f.html}</div>`).join('');
-  // Tags are one more field in the grid (#69), labelled for the dropdown's button.
+  // Tags are one more field in the grid (#69), one column wide (#68),
+  // labelled for the dropdown's button; the buttons come last.
   const tagCell = tags
-    ? `<div class="le-wide"><label for="${tagsId}_btn">Tags</label>${tags}</div>` : '';
+    ? `<div><label for="${tagsId}_btn">Tags</label>${tags}</div>` : '';
   return `<td colspan="${colspan}" class="le-cell"${onKey ? ` onkeydown="${onKey}"` : ''}>
     <div class="line-editor" role="group" aria-label="Edit line">
-      <div class="le-top">
-        <div class="le-head">${head || ''}</div>
-        <div class="le-actions">${actions}</div>
-      </div>
-      <div class="le-grid">${cells}${tagCell}</div>
+      <div class="le-grid">${cells}${tagCell}<div class="le-actions">${actions}</div></div>
       ${note ? `<div class="le-note">${note}</div>` : ''}
       <div class="le-status" id="${statusId}" role="alert"></div>
     </div></td>`;
@@ -6636,17 +6634,11 @@ function _renderForecastLineEditor(r) {
   const inp = (field, type, val, extra) =>
     `<input id="fcEdit_${field}" class="le-input" type="${type}" data-row-key="${k}" data-field="${field}"
             value="${escapeAttr(val == null ? '' : String(val))}"${extra || ''}>`;
-  const balances = [
-    r.forecast_balance != null ? `forecast balance ${fmt(r.forecast_balance)}` : '',
-    r.actual_balance != null ? `actual balance ${fmt(r.actual_balance)}` : '',
-  ].filter(Boolean).join(' · ');
-  const head = `Editing <strong>${escapeHtml(r.description || 'line')}</strong>${balances ? ' · ' + balances : ''}`;
   const note = (!r.transaction_id && r.recurring_id)
     ? 'This date is projected from a recurring item. Saving records it as a real transaction; the recurring item is unchanged.'
     : '';
   return _lineEditorHtml({
     colspan: 12,
-    head,
     fields: [
       { label: 'Description', id: 'fcEdit_desc', wide: true, html: inp('desc', 'text', r.description, ' maxlength="120"') },
       { label: 'Category', id: 'fcEdit_cat', html: `<select id="fcEdit_cat" class="le-input" data-row-key="${k}" data-field="cat">${catOptions}</select>` },
@@ -8144,7 +8136,6 @@ function _renderTxnSearchEditRow(r) {
   const v = x => escapeAttr(x == null ? '' : String(x));
   return `<tr data-txn-id="${r.id}" class="le-row">${_lineEditorHtml({
     colspan: 9,
-    head: `Editing <strong>${escapeHtml(r.description || 'transaction')}</strong> · ${escapeHtml(r.account_name || '')}`,
     fields: [
       { label: 'Description', id: 'editTxnDesc', wide: true, html: `<input id="editTxnDesc" maxlength="120" value="${v(r.description)}">` },
       { label: 'Category', id: 'editTxnCat', html: `<select id="editTxnCat">${catOptions}</select>` },

@@ -65,7 +65,16 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.31.1** · Web version: **1.55.1** · Schema version: **14**
+App version: **1.31.2** · Web version: **1.55.2** · Schema version: **14**
+
+### Changed
+
+- An open line is shorter again: the heading line naming what you're editing
+  and its balances is gone, and Save, Delete and Cancel sit at the end of the
+  fields instead.
+- The Tags field is narrower, one column like the others. If you have no tags
+  yet it simply says "No tags"; the pointer to Settings, where you can add
+  some, appears when you open it.
 
 ## [1.31.1] — 2026-11-14
 

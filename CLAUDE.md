@@ -26,6 +26,13 @@ database with real data. The `Tests` workflow runs them on every pull
 request and push to `main`. Why: one command that works without a local
 Python, and the same tests in CI.
 
+**Session titles start with `WW: `** (decided 2026-11-15, #136): every
+session title in this project begins with `WW: `, ahead of what the
+"Session titles" block below puts there, e.g. `WW: #132: login-limits: 1/3:
+Rate limiting and sign-in events` or `WW: 1.44.0: release`. The prefix counts
+toward the ~60 characters and is never shortened. Why: on the phone's session
+list it tells WalletWeather threads apart from other projects'.
+
 <!-- playbook:begin project-header 1.8.0 -->
 ## Rules from claude-playbook
 

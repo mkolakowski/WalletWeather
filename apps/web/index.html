@@ -153,18 +153,14 @@
      small inline labels (the columns above don't describe them). */
   tr.fc-addrow .add-repeat { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   /* Its width doesn't count toward the columns it spans (#98): with no
-     intrinsic width it fills the cell the other lines size, so ticking
-     Repeats or switching Every to or from Month never moves a column. */
+     intrinsic width it fills the cell the other lines size, so changing
+     Repeats never moves a column. */
   tr.fc-addrow .add-repeat { width:0; min-width:100%; }
-  tr.fc-addrow .le-check { display:inline-flex; align-items:center; gap:5px; margin:0; font-size:13px;
-                           color:var(--text); white-space:nowrap; cursor:pointer; }
-  tr.fc-addrow .le-check input { width:auto; height:auto; min-height:0; margin:0; }
   tr.fc-addrow .le-f.le-inl { display:flex; align-items:center; gap:4px; width:auto !important; min-width:0; }
   tr.fc-addrow .le-f.le-inl.hidden { display:none; }
   tr.fc-addrow .le-f.le-inl > label { position:static !important; width:auto !important; height:auto !important;
       clip:auto !important; overflow:visible !important; margin:0 !important; font-size:11px; color:var(--muted); }
   tr.fc-addrow .le-f.le-inl select { width:auto; padding-left:4px; padding-right:2px; }
-  tr.fc-addrow .le-f.le-inl input[type=number] { width:42px; padding-left:4px; padding-right:4px; }
   tr.fc-addrow .le-f.le-inl input[type=date] { width:auto; }
   tr.fc-addrow input:disabled { opacity:.45; }
   /* Headings the add row renames while Repeats is on (#107). */
@@ -1728,7 +1724,7 @@
         <div style="overflow-x:auto">
         <table id="forecastTable"><thead><tr>
           <th class="sortable" data-key="description">Description</th>
-          <th class="sortable" data-key="forecast_date"><span class="th-swap"><span class="th-main">Forecast date</span><span class="th-alt" aria-hidden="true"></span><span class="th-size" aria-hidden="true">Starts (optional)</span></span></th>
+          <th class="sortable" data-key="forecast_date"><span class="th-swap"><span class="th-main">Forecast date</span><span class="th-alt" aria-hidden="true"></span><span class="th-size" aria-hidden="true">Start date</span></span></th>
           <th class="sortable" data-key="actual_date"><span class="th-swap"><span class="th-main">Actual date</span><span class="th-alt" aria-hidden="true"></span><span class="th-size" aria-hidden="true">Ends</span></span></th>
           <th class="sortable" data-key="category">Category</th>
           <th class="sortable num" data-key="forecast_amount"><span class="th-swap"><span class="th-main">Forecast amt</span><span class="th-alt" aria-hidden="true"></span><span class="th-size" aria-hidden="true">Amount</span></span></th>
@@ -2394,7 +2390,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.61.5";
+const WEB_VERSION = "1.61.6";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2405,6 +2401,7 @@ const WEB_VERSION = "1.61.5";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.61.6 (2026-11-14, claude+mkolakowski): (#109) Add row: one Repeats select (addFreq: None/Weekly/Bi-weekly/Monthly) replaces the checkbox, Every and Day; Monthly's day_of_month comes from the start date, which every repeat now needs; Forecast date heading reads Start date.
 // 1.61.5 (2026-11-14, claude+mkolakowski): (#107) With Repeats on, _setAddHeadings (replaces _setAddEndsHeading) also renames Forecast date to Starts / Starts (optional) by Every, Forecast amt to Amount and blanks Actual amt. Those four headings use .th-swap (name, .th-alt, invisible .th-size of the longest) so their width never changes.
 // 1.61.4 (2026-11-14, claude+mkolakowski): (#105) The Actual date heading reads Ends while the add row has Repeats on (_setAddEndsHeading, reset in closeAddRow); the .le-notch label is removed.
 // 1.61.3 (2026-11-14, claude+mkolakowski): (#103) Add row: Ends moves into the Actual date cell (_lePair with addADateWrap; shown when Repeats is on, with a .le-notch label on desktop); the Repeats cell keeps Repeats/Every/Day with a narrower Day box, so it fits one line from ~1440px.
@@ -6274,10 +6271,9 @@ function _buildAddRow() {
     _leTd(_leField('Forecast amt', 'addFAmt', _leNum('<input id="addFAmt" type="number" step="0.01" placeholder="-0.00">')), { cls: 'num' }),
     _leTd(_leField('Actual amt', 'addAAmt', _leNum('<input id="addAAmt" type="number" step="0.01" placeholder="-0.00">')), { cls: 'num' }),
     _leTd(`<div class="add-repeat">
-        <label class="le-check"><input type="checkbox" id="addRecToggle" onchange="onAddRepeatToggle()"> Repeats</label>
-        ${inlineField('Every', 'addFreq', `<select id="addFreq" onchange="onAddRepeatToggle()">
-            <option value="monthly_day">Month</option><option value="biweekly">2 weeks</option><option value="weekly">Week</option></select>`, { hidden: true, wrapId: 'addFreqWrap' })}
-        ${inlineField('Day', 'addDay', '<input id="addDay" type="number" min="1" max="31" value="1">', { hidden: true, wrapId: 'addDayWrap' })}
+        ${inlineField('Repeats', 'addFreq', `<select id="addFreq" onchange="onAddRepeatToggle()">
+            <option value="">None</option><option value="weekly">Weekly</option>
+            <option value="biweekly">Bi-weekly</option><option value="monthly_day">Monthly</option></select>`)}
       </div>`, { colspan: 4 }),
     _leNotesActionsTd(_leField('Notes', 'addNotes', '<input id="addNotes" maxlength="256" placeholder="Notes">'),
       `<button onclick="submitAddForm()" title="Save (Enter)">Save</button>
@@ -6306,10 +6302,10 @@ function toggleAddForm(show) {
   if (d) d.focus();
 }
 // While Repeats is on, the headings name what the add row's fields hold
-// (#105, #107): Starts (optional for Month), Ends, Amount, and nothing over
+// (#105, #107, #109): Start date, Ends, Amount, and nothing over
 // the unused actual amount. rec false puts the usual headings back.
 const _ADD_REPEAT_HEADINGS = {
-  forecast_date: m => m ? 'Starts (optional)' : 'Starts',
+  forecast_date: () => 'Start date',
   actual_date: () => 'Ends',
   forecast_amount: () => 'Amount',
   actual_amount: () => '',
@@ -6317,13 +6313,13 @@ const _ADD_REPEAT_HEADINGS = {
 // Each heading stacks its usual name, the shown alternative and an
 // invisible copy of the longest one (.th-swap), so it's as wide either way
 // and a narrow table's columns don't move when the names change.
-function _setAddHeadings(rec, monthly) {
+function _setAddHeadings(rec) {
   Object.entries(_ADD_REPEAT_HEADINGS).forEach(([key, text]) => {
     const th = document.querySelector(`#forecastTable thead th[data-key="${key}"]`);
     const alt = th && th.querySelector('.th-alt');
     if (!alt) return;
     th.classList.toggle('th-swapped', !!rec);
-    alt.textContent = rec ? text(monthly) : '';
+    alt.textContent = rec ? text() : '';
   });
 }
 function closeAddRow() {
@@ -6334,20 +6330,15 @@ function closeAddRow() {
 }
 // Repeats: the line becomes a recurring item. Its forecast date is the start
 // date and its forecast amount the amount; the actual columns don't apply.
+// One Repeats dropdown (#109): None keeps a one-off line; Weekly and
+// Bi-weekly count from the start date, Monthly repeats on its day of month.
 function onAddRepeatToggle() {
-  const rec = document.getElementById('addRecToggle').checked;
-  const monthly = document.getElementById('addFreq').value === 'monthly_day';
-  document.getElementById('addFreqWrap').classList.toggle('hidden', !rec);
-  document.getElementById('addDayWrap').classList.toggle('hidden', !rec || !monthly);
+  const rec = document.getElementById('addFreq').value !== '';
   document.getElementById('addADateWrap').classList.toggle('hidden', rec);
   document.getElementById('addEndWrap').classList.toggle('hidden', !rec);
-  _setAddHeadings(rec, monthly);
+  _setAddHeadings(rec);
   document.getElementById('addAAmt').disabled = rec;
-  document.getElementById('addFDate').title = rec ? (monthly ? 'Start date (optional)' : 'Start date') : '';
-  if (rec && monthly) {
-    const fd = document.getElementById('addFDate').value;
-    if (fd) document.getElementById('addDay').value = String(parseInt(fd.slice(8, 10), 10));
-  }
+  document.getElementById('addFDate').title = rec ? 'Start date' : '';
 }
 function _addFormError(msg, fieldId) {
   _lineEditorError('addFormStatus', msg, fieldId ? document.getElementById(fieldId) : null);
@@ -6364,15 +6355,14 @@ async function submitAddForm(addAnother) {
   const fDate = val('addFDate') || null, aDate = val('addADate') || null;
   const catVal = val('addCat');
   const notes = val('addNotes').trim() || null;
-  const isRec = document.getElementById('addRecToggle').checked;
+  const isRec = val('addFreq') !== '';
   if (!desc) return _addFormError('Enter a description.', 'addDesc');
   if (isRec) {
     const amount = fAmt != null ? fAmt : aAmt;
-    if (amount == null || isNaN(amount)) return _addFormError('Enter the amount in Forecast amt (negative for an expense).', 'addFAmt');
+    if (amount == null || isNaN(amount)) return _addFormError('Enter the amount in Amount (negative for an expense).', 'addFAmt');
     const f = val('addFreq');
-    const day = parseInt(val('addDay'), 10);
-    if (f === 'monthly_day' && !(day >= 1 && day <= 31)) return _addFormError('Day of month must be between 1 and 31.', 'addDay');
-    if (f !== 'monthly_day' && !fDate) return _addFormError('Weekly and every-2-weeks items need a start date in Forecast date.', 'addFDate');
+    if (!fDate) return _addFormError('Enter a start date in Start date.', 'addFDate');
+    const day = parseInt(fDate.slice(8, 10), 10);
     try {
       await api(`/api/accounts/${currentAccountId}/recurring`, { method: 'POST', body: JSON.stringify({
         description: desc, amount, frequency: f,

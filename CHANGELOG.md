@@ -65,7 +65,15 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.37.5** · Web version: **1.61.5** · Schema version: **14**
+App version: **1.37.5** · Web version: **1.61.6** · Schema version: **14**
+
+### Changed
+
+- **Breaking:** Forecast's new line has one Repeats dropdown (None, Weekly,
+  Bi-weekly, Monthly) in place of the Repeats checkbox, Every and Day. Pick
+  anything but None and the date column becomes "Start date": Monthly repeats
+  on that date's day of the month, Weekly and Bi-weekly count from it. A
+  start date is now needed for Monthly too.
 
 ## [1.37.5] — 2026-11-14
 

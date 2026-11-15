@@ -49,7 +49,7 @@ All thirteen were settled on 2026-11-14: the answers are below and the reasoning
 3. ~~**Is anything kept on the phone?**~~ Each person chooses, asked once at set-up: Nothing (the default) or Last-known numbers. That's phase 8; until then the app keeps nothing. Offline editing is roadmap item 27.
 4. ~~**Plain `http://` on the home network?**~~ Home-network addresses only, with a warning on the Connect screen.
 5. ~~**Oldest iOS?**~~ iOS 26 and later; the Duo layouts switch on under iOS 27.1.
-6. ~~**How does it look?**~~ The system's light and dark with WalletWeather's colours; the web app's ten themes come later, in phase 9.
+6. ~~**How does it look?**~~ The system's light and dark with WalletWeather's colours; the web app's ten themes come later, in phase 9. AMOLED black and Sepia were added the same day as choices in the app's settings (phase 5).
 7. ~~**Where do the pages go on the open Duo?**~~ The system's bar down the right edge. The sidebar isn't built.
 8. ~~**What does the second pane hold on the open Duo?**~~ Before you tap anything, the page's chart and totals; then what you tap (a line's editor, a day's lines) takes that place. The right half is never empty.
 9. ~~**How much can be edited from the phone?**~~ The day-to-day edits are in the app (mark a line as paid with its real amount and date, add, change or delete a transaction, add, change or skip a bill, move money between accounts). Set-up stays on the web (accounts, categories, tags and rules, budgets, sharing, CSV import, building reports, backups, the Admin pages, deleting your account).
@@ -84,6 +84,7 @@ All thirteen were settled on 2026-11-14: the answers are below and the reasoning
 - Kept numbers are left out of the phone's backups.
 - "Try the demo" opens the app on built-in sample data, which is how Apple's reviewer gets in.
 - iPhone only for now: no iPad or Mac.
+- AMOLED black and Sepia join Light and Dark as choices in the app's settings.
 
 **What the review found** (app 1.35.0, web 1.59.0, schema 14):
 - **The web app's phone layout already says what a phone needs.** A bar with Dashboard, Forecast, Bills & income, Calendar and More (usability phase 4); Forecast lines as cards that open to edit; Transactions folded into Forecast (1.32.6); Bills & income working like Forecast (1.34.0). The native app keeps that shape, so the two feel like one product.
@@ -195,7 +196,7 @@ Depends on phase 3. Each part is tried in the Duo simulator first and kept only 
 Depends on phase 2.
 
 - Under More, read-only: Net worth (the total, its chart, each account), Budgets (spent against each budget this month) and Reports (run a saved report; building one stays on the web).
-- The app's settings: the server and who's signed in, Sign out, appearance (light, dark or the phone's setting), the app lock (Touch ID or Face ID, offered once at first sign-in, or once after updating for people already signed in, and changeable here), "Open the web app" for everything that stays there, the Important notice, and the versions of the app and the server.
+- The app's settings: the server and who's signed in, Sign out, appearance (Match the phone, Light, Dark, AMOLED black or Sepia; the last two are new looks, drawn in the mockups, and aren't among the web app's themes), the app lock (Touch ID or Face ID, offered once at first sign-in, or once after updating for people already signed in, and changeable here), "Open the web app" for everything that stays there, the Important notice, and the versions of the app and the server.
 - The numbers are hidden when the app shows in the app switcher.
 - The Admin pages stay on the web: an admin sees nothing extra in the app.
 - Server: shape tests for `/api/networth`, `/api/budgets/progress` and the saved-report endpoints the app calls.
@@ -249,7 +250,7 @@ Depends on phase 5 (the app's settings).
 
 Depends on phase 5.
 
-- The web app's ten themes in the app, beside "Match the phone".
+- The web app's ten themes in the app, beside Match the phone, Light, Dark, AMOLED black and Sepia.
 - Whether the app follows the theme saved on the server or keeps its own choice is asked when the phase starts.
 
 **You:** look at each page in the themes you use, closed and open.

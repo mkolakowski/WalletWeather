@@ -78,3 +78,19 @@ Decisions made while planning [`Plans/ios-app.md`](../../../Plans/ios-app.md) (t
 - **iPhone only for now.** The open-Duo layouts follow the screen's width and would mostly carry over to an iPad, and iPad was picked first, then changed to iPhone only in the same conversation. iPad and Mac can be a later plan.
 
 **What it changes:** phase 6 (#92). With these, none of the plan's thirteen questions is open.
+
+## 2026-11-14: AMOLED black and Sepia
+
+**Decided:** 2026-11-14, by Matthew. **Status:** accepted.
+
+**The question:** Matthew asked for an AMOLED black look and a sepia look in the mockups. Neither is among the web app's ten themes, and the decision so far was the system's light and dark, with the themes in phase 9. Where do the two new looks go?
+
+**Options considered:**
+- From the first version: every screen built in phases 1 to 3 would be checked in four palettes while it's still changing.
+- With the app's settings, in phase 5: that phase builds the Appearance choice, and the pages are stable by then.
+- With the ten themes, in phase 9: light and dark only until then.
+- Mockups only, decided later.
+
+**The decision:** phase 5's Appearance choice offers Match the phone, Light, Dark, AMOLED black and Sepia. In the mockups the light and sepia cards carry an outline and a soft shadow on a darker page background, after the first drawing left them hard to tell from the background.
+
+**What it changes:** phase 5 (#91). Phases 1 to 3 still build light and dark only. The web app doesn't gain the two looks.

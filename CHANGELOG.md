@@ -67,6 +67,10 @@ same commit (or session) that introduces it.
 
 App version: **1.44.0** · Web version: **1.66.0** · Schema version: **18**
 
+## [1.44.0] — 2026-11-15
+
+App version: **1.44.0** · Web version: **1.66.0** · Schema version: **18**
+
 ### Added
 
 - API tokens can expire. When you make one under **Settings → Your account →
@@ -1639,7 +1643,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.42.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.44.0...HEAD
+[1.44.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.44.0
 [1.42.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.42.0
 [1.41.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.41.0
 [1.40.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.40.0

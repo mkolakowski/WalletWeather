@@ -65,7 +65,15 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.32.4** · Web version: **1.56.4** · Schema version: **14**
+App version: **1.32.5** · Web version: **1.56.5** · Schema version: **14**
+
+### Changed
+
+- In an open line, the up and down arrows on number fields (amounts, day of
+  month) are on the left of the field instead of the right. The arrow keys
+  still work while you're in the field.
+- On Forecast and Bills & income, the Notes field in an open line stretches
+  all the way to the Save button.
 
 ## [1.32.4] — 2026-11-14
 

@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.32.4"
+APP_VERSION = "1.32.5"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -36,6 +36,8 @@ APP_VERSION = "1.32.4"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.32.5 (2026-11-14, claude+mkolakowski): no server change. Bumped with
+#     web 1.56.5 (number arrows on the left, Notes up to Save, #69).
 # 1.32.4 (2026-11-14, claude+mkolakowski): no server change. Bumped with
 #     web 1.56.4 (right-aligned amounts, Notes runs up to the ✎, #69).
 # 1.32.3 (2026-11-14, claude+mkolakowski): no server change. Bumped with

@@ -135,8 +135,22 @@
   tr.le-inline .le-actions { display:flex; gap:6px; justify-content:flex-end; align-items:center; }
   tr.le-inline .le-actions button { min-height:30px; padding:4px 14px; font-size:13px; }
   tr.le-inline > td.le-td-actions { padding-right:4px !important; }
-  /* Amounts in an open line read from the right, like the column. */
-  tr.le-inline input[type=number] { text-align:right; }
+  /* Amounts in an open line read from the right, like the column, with
+     their up/down arrows on the left (_leNum). */
+  tr.le-inline input[type=number] { text-align:right; -moz-appearance:textfield; appearance:textfield; }
+  tr.le-inline input[type=number]::-webkit-inner-spin-button,
+  tr.le-inline input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+  tr.le-inline .le-num { position:relative; }
+  tr.le-inline .le-num input { padding-left:20px !important; }
+  tr.le-inline .le-step { position:absolute; left:2px; top:2px; bottom:2px; width:15px;
+                          display:flex; flex-direction:column; }
+  tr.le-inline .le-step button { flex:1; min-height:0; padding:0; margin:0; border:none; border-radius:3px;
+                                 background:transparent; color:var(--muted); font-size:7px; line-height:1; cursor:pointer; }
+  tr.le-inline .le-step button:hover { background:var(--chip-bg); color:var(--text); }
+  /* Notes + buttons share a cell; the Notes field fills up to Save. */
+  tr.le-inline .le-notes-wrap { display:flex; align-items:center; gap:8px; }
+  tr.le-inline .le-notes-wrap > .le-f { flex:1 1 auto; width:auto; min-width:0; }
+  tr.le-inline .le-notes-wrap > .le-actions { flex:0 0 auto; }
   /* Forecast: no column line between Notes and the actions column. A closed
      line's Notes + ✎ share one cell (.notes-edit); the note fills the space
      and ends in "…", the ✎ stays at the right. */
@@ -174,6 +188,8 @@
     #forecastTable:not(.sheet-mode) tbody tr.row-editing.le-inline > td::before { content:none !important; display:none; }
     #forecastTable:not(.sheet-mode) tbody tr.row-editing.le-inline > :is(:nth-child(1), :nth-child(7), :nth-child(8), :nth-child(9)) { grid-column:1 / -1; }
     tr.le-inline .le-actions button { flex:1; }
+    tr.le-inline .le-notes-wrap { flex-wrap:wrap; }
+    tr.le-inline .le-notes-wrap > .le-f, tr.le-inline .le-notes-wrap > .le-actions { flex:1 1 100%; }
   }
 
   /* Tag dropdown (#68): a button showing the chosen tags; the list floats
@@ -2338,7 +2354,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.56.4";
+const WEB_VERSION = "1.56.5";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2349,6 +2365,11 @@ const WEB_VERSION = "1.56.4";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.56.5 (2026-11-14, claude+mkolakowski): (#69) Number fields in an open
+//     line hide the browser's spin buttons and get a ▲▼ pair on the left
+//     (_leNum / _leStep: stepUp/stepDown, then an input event). Forecast and
+//     Bills put Notes and the buttons in one colspan=2 cell
+//     (_leNotesActionsTd) so the Notes field reaches Save.
 // 1.56.4 (2026-11-14, claude+mkolakowski): (#69) Number inputs in an open
 //     line are right-aligned. Forecast: no column line between Notes and the
 //     actions column; on editable accounts a closed line's Notes and ✎ share
@@ -5794,15 +5815,15 @@ function renderEditRow(r) {
           <option value="withdraw"${isWithdraw?' selected':''}>Expense</option>
           <option value="deposit"${isWithdraw?'':' selected'}>Income</option></select>`)),
     _leTd(_leField('Category', `editCat_${id}`, `<select id="editCat_${id}">${catOptions}</select>`)),
-    _leTd(_leField('Amount', `editAmt_${id}`, `<input id="editAmt_${id}" type="number" step="0.01" min="0" value="${Math.abs(Number(r.amount))}">`), { cls: 'num' }),
-    _leTd(_leField('Day of month', `editDay_${id}`, `<input id="editDay_${id}" type="number" min="1" max="31" value="${r.day_of_month||1}">`,
+    _leTd(_leField('Amount', `editAmt_${id}`, _leNum(`<input id="editAmt_${id}" type="number" step="0.01" min="0" value="${Math.abs(Number(r.amount))}">`)), { cls: 'num' }),
+    _leTd(_leField('Day of month', `editDay_${id}`, _leNum(`<input id="editDay_${id}" type="number" min="1" max="31" value="${r.day_of_month||1}">`),
                { wrapId: `editDayWrap_${id}`, hidden: !isMonthly })),
     _leTd(_leField(isMonthly ? 'Start date (optional)' : 'Start date', `editAnchor_${id}`,
                `<input id="editAnchor_${id}" type="date" value="${r.anchor_date||''}">`, { labelId: `editAnchorLabel_${id}` })),
     _leTd(_leField('Frequency', `editFreq_${id}`, `<select id="editFreq_${id}" onchange="onEditFreqChange(${id})">${freqOptions}</select>`)),
     _leTd(_leField('Ends (optional)', `editEnd_${id}`, `<input id="editEnd_${id}" type="date" title="Ends (optional)" value="${r.end_date||''}">`)),
-    _leTd(_leField('Notes', `editNotes_${id}`, `<input id="editNotes_${id}" maxlength="256" placeholder="Notes" value="${escapeAttr(r.notes||'')}">`)),
-    _leActionsTd(`<button onclick="saveRecurring(${id})" title="Save (Enter)">Save</button>
+    _leNotesActionsTd(_leField('Notes', `editNotes_${id}`, `<input id="editNotes_${id}" maxlength="256" placeholder="Notes" value="${escapeAttr(r.notes||'')}">`),
+      `<button onclick="saveRecurring(${id})" title="Save (Enter)">Save</button>
               <button class="danger" onclick="delRecurring(${id})" title="Delete this recurring item">🗑 Delete</button>
               <button class="ghost" onclick="cancelEditRecurring()" title="Cancel (Esc)">Cancel</button>`),
   ].join('');
@@ -6718,6 +6739,30 @@ function _leTd(inner, opts) {
 }
 function _lePair(...fields) { return `<div class="le-pair">${fields.join('')}</div>`; }
 function _leActionsTd(actions) { return _leTd(`<div class="le-actions">${actions}</div>`, { cls: 'le-td-actions' }); }
+// Notes and the buttons in one cell across both columns, so the Notes field
+// runs right up to Save (#69).
+function _leNotesActionsTd(notesField, actions) {
+  return _leTd(`<div class="le-notes-wrap">${notesField}<div class="le-actions">${actions}</div></div>`,
+               { cls: 'le-notes le-td-actions', colspan: 2 });
+}
+// A number field with its up/down arrows on the left (#69). The browser's
+// own arrows are hidden (they can only sit on the right); these step the
+// value the same way, and the arrow keys still work in the field.
+function _leNum(inputHtml) {
+  return `<div class="le-num">
+    <span class="le-step" aria-hidden="true">
+      <button type="button" tabindex="-1" onmousedown="event.preventDefault()" onclick="_leStep(this, 1)">▲</button>
+      <button type="button" tabindex="-1" onmousedown="event.preventDefault()" onclick="_leStep(this, -1)">▼</button>
+    </span>${inputHtml}</div>`;
+}
+function _leStep(btn, dir) {
+  const input = btn.closest('.le-num').querySelector('input');
+  if (!input) return;
+  try { dir > 0 ? input.stepUp() : input.stepDown(); }
+  catch { const st = parseFloat(input.step) || 1; input.value = String((parseFloat(input.value) || 0) + dir * st); }
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.focus();
+}
 
 // A mistake in an open line editor: said under its fields, field focused.
 function _lineEditorError(statusId, msg, field) {
@@ -6752,14 +6797,14 @@ function _renderForecastLineEditor(r) {
     _leTd(_leField('Forecast date', 'fcEdit_fdate', inp('fdate', 'date', r.forecast_date))),
     _leTd(_leField('Actual date', 'fcEdit_adate', inp('adate', 'date', r.actual_date))),
     _leTd(_leField('Category', 'fcEdit_cat', `<select id="fcEdit_cat" class="le-input" data-row-key="${k}" data-field="cat">${catOptions}</select>`)),
-    _leTd(_leField('Forecast amt', 'fcEdit_famt', inp('famt', 'number', r.forecast_amount, ' step="0.01"')), { cls: 'num' }),
-    _leTd(_leField('Actual amt', 'fcEdit_aamt', inp('aamt', 'number', r.actual_amount, ' step="0.01"')), { cls: 'num' }),
+    _leTd(_leField('Forecast amt', 'fcEdit_famt', _leNum(inp('famt', 'number', r.forecast_amount, ' step="0.01"'))), { cls: 'num' }),
+    _leTd(_leField('Actual amt', 'fcEdit_aamt', _leNum(inp('aamt', 'number', r.actual_amount, ' step="0.01"'))), { cls: 'num' }),
     // Tags attach to saved transactions only; a projection has nothing yet.
     _leTd(r.transaction_id
           ? _leField('Tags', 'editFcTags_btn', renderTagPicker('editFcTags', (r.tags || []).map(t => t.id)))
           : '', { colspan: 4 }),
-    _leTd(_leField('Notes', 'fcEdit_notes', inp('notes', 'text', r.notes, ' maxlength="256" placeholder="Notes"')), { cls: 'le-notes' }),
-    _leActionsTd(`<button onclick="saveEditedForecastRow('${k}')" title="Save (Enter)">Save</button>
+    _leNotesActionsTd(_leField('Notes', 'fcEdit_notes', inp('notes', 'text', r.notes, ' maxlength="256" placeholder="Notes"')),
+      `<button onclick="saveEditedForecastRow('${k}')" title="Save (Enter)">Save</button>
               ${_forecastDeleteBtn(r, 'danger', '🗑 Delete')}
               <button class="ghost" onclick="cancelEditForecastRow()" title="Cancel (Esc)">Cancel</button>`),
   ].join('');
@@ -8252,8 +8297,8 @@ function _renderTxnSearchEditRow(r) {
       + '<div class="le-status" id="editTxnStatus" role="alert"></div>'),
     _leTd(_leField('Category', 'editTxnCat', `<select id="editTxnCat">${catOptions}</select>`)),
     _leTd(_leField('Tags', 'editTxnTags_btn', renderTagPicker('editTxnTags', (r.tags || []).map(t => t.id)))),
-    _leTd(_leField('Forecast amt', 'editTxnFAmt', `<input type="number" step="0.01" id="editTxnFAmt" value="${v(r.forecast_amount)}">`), { cls: 'num' }),
-    _leTd(_leField('Actual amt', 'editTxnAAmt', `<input type="number" step="0.01" id="editTxnAAmt" value="${v(r.amount)}">`), { cls: 'num' }),
+    _leTd(_leField('Forecast amt', 'editTxnFAmt', _leNum(`<input type="number" step="0.01" id="editTxnFAmt" value="${v(r.forecast_amount)}">`)), { cls: 'num' }),
+    _leTd(_leField('Actual amt', 'editTxnAAmt', _leNum(`<input type="number" step="0.01" id="editTxnAAmt" value="${v(r.amount)}">`)), { cls: 'num' }),
     _leActionsTd(`<button onclick="saveTxnRowEdit(${r.id})" title="Save (Enter)">Save</button>
               <button class="danger" onclick="deleteTxnRow(${r.id})">🗑 Delete</button>
               <button class="ghost" onclick="cancelEditTxnRow()" title="Cancel (Esc)">Cancel</button>`),

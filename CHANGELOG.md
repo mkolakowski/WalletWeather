@@ -67,6 +67,10 @@ same commit (or session) that introduces it.
 
 App version: **1.29.1** · Web version: **1.53.1** · Schema version: **14**
 
+## [1.29.1] — 2026-11-14
+
+App version: **1.29.1** · Web version: **1.53.1** · Schema version: **14**
+
 ### Fixed
 
 - In the evening (from 7 PM Eastern, earlier further west), several date
@@ -1202,7 +1206,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.29.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.29.1...HEAD
+[1.29.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.29.1
 [1.29.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.29.0
 [1.28.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.28.0
 [1.27.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.27.0

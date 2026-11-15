@@ -6,11 +6,11 @@ Tracking issue: #135
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Rate limiting and sign-in events | #132 | Built in 1.44.0 (schema 18), not yet released |
+| 1. Rate limiting and sign-in events | #132 | Released in 1.44.0 (schema 18) |
 | 2. More audit events | #133 | Open (after phase 1) |
 | 3. Admin viewer and pruning | #134 | Open (after phase 2) |
 
-Phase 1 built 2026-11-15 in app 1.44.0 / schema 18 (no web change: the sign-in card already shows the server's message), not yet released. Verified by 16 new tests (114 in all pass). Not yet tried on a running instance.
+Phase 1 released 2026-11-15 in v1.44.0 (schema 18; release issue #137; no web change: the sign-in card already shows the server's message). Verified by 16 new tests (114 in all pass) and on a throwaway server (five 401s, then 429 with `Retry-After: 900`, even with the right password). Not yet tried on your instance.
 
 Sessions: may span — each phase ends with a release and your check on your own instance before the next starts.
 

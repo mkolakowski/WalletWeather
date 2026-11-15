@@ -222,6 +222,20 @@ A token can expire: choose 30 days, 90 days, a year or never when you make it
 Settings shows each token's expiry and when it was last used, and an admin
 can see and revoke everyone's tokens on the Admin page.
 
+**From an app, with a password.** An app can swap an email and password for a
+token, without Settings. It gets `read` or `full` access (never admin), and
+expires in 90 days unless you send `"expires_in_days"` (`30`, `365` or `null`
+for never). Wrong passwords count toward the same sign-in limit as the web
+sign-in, and accounts that only use Google have no password to send:
+
+```bash
+curl -H "Content-Type: application/json" \
+     -d '{"email": "you@example.com", "password": "…", "name": "iPhone", "access": "full"}' \
+     https://walletweather.example.com/api/auth/token
+```
+
+The answer holds the token (`"token": "ww_…"`), shown this once.
+
 **Behind Cloudflare Access.** If the server sits behind a Cloudflare Tunnel
 with Zero Trust rules, Cloudflare turns away a request that hasn't signed in
 to Cloudflare before WalletWeather sees the token. There are two ways

@@ -27,7 +27,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.45.0"
+APP_VERSION = "1.46.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -39,6 +39,9 @@ APP_VERSION = "1.45.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.46.0 (2026-11-15, claude+mkolakowski): POST /api/auth/token (#43): email
+#     + password returns a read-only or full token (90 days unless asked),
+#     sharing the login rate limit and sign-in log with /api/auth/login.
 # 1.45.0 (2026-11-15, claude+mkolakowski): no server change; web 1.67.0 (Bills & income on Forecast's column grid, compact rows, #128).
 # 1.44.0 (2026-11-15, claude+mkolakowski): login rate limiting (#132): failed
 #     password sign-ins per email + address are limited (429 + Retry-After);
@@ -851,9 +854,12 @@ def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db
     return {"id": user.id, "email": user.email}
 
 
-@app.post("/api/auth/login")
-def local_login(payload: LoginIn, request: Request, db: Session = Depends(get_db)):
-    email = payload.email.strip().lower()[:320]
+def _password_sign_in(db: Session, request: Request, email_in: str, password: str,
+                      via: str) -> User:
+    """Check an email and password for /api/auth/login and /api/auth/token,
+    under one rate limit and one sign-in log, and return the user or raise
+    429, 401 or 403. `via` goes in the events' detail ("password", "token")."""
+    email = email_in.strip().lower()[:320]
     ip = client_ip(request)
     # Too many recent failures for this email from this address: refuse
     # without checking the password (a right one too), whether or not the
@@ -871,18 +877,59 @@ def local_login(payload: LoginIn, request: Request, db: Session = Depends(get_db
     if not user or not user.password_hash:
         bcrypt.checkpw(b"x", b"$2b$12$" + b"." * 53)
         record_event(db, "login_failed", request, user=user, email=email,
-                     detail="password" if user is None else "password; no password set")
+                     detail=via if user is None else via + "; no password set")
         raise HTTPException(401, "Invalid email or password")
-    if not verify_password(payload.password, user.password_hash):
-        record_event(db, "login_failed", request, user=user, email=email, detail="password")
+    if not verify_password(password, user.password_hash):
+        record_event(db, "login_failed", request, user=user, email=email, detail=via)
         raise HTTPException(401, "Invalid email or password")
     if user.disabled:
         record_event(db, "login_failed", request, user=user, email=email,
-                     detail="password; account disabled")
+                     detail=via + "; account disabled")
         raise HTTPException(403, "Account disabled")
-    record_event(db, "login", request, user=user, email=email, detail="password")
+    record_event(db, "login", request, user=user, email=email, detail=via)
+    return user
+
+
+@app.post("/api/auth/login")
+def local_login(payload: LoginIn, request: Request, db: Session = Depends(get_db)):
+    user = _password_sign_in(db, request, payload.email, payload.password, "password")
     request.session["uid"] = user.id
     return {"id": user.id, "email": user.email}
+
+
+# Password sign-in for apps (#43): the native apps swap an email and password
+# for an API token rather than keeping a session cookie. Decided 2026-11-15:
+# only read or full access (never admin), and 90 days unless the app asks for
+# 30, 365 or never (null). Same rate limit and sign-in log as the web sign-in;
+# no session cookie is set. Google-only accounts have no password, so they get
+# the same 401 as a wrong password and make tokens in Settings instead.
+APP_TOKEN_ACCESS_LEVELS = ("read", "full")
+APP_TOKEN_DEFAULT_DAYS = 90
+
+
+class AppTokenIn(BaseModel):
+    email: str
+    password: str
+    name: str = Field(max_length=80)
+    access: str
+    expires_in_days: int | None = APP_TOKEN_DEFAULT_DAYS
+
+
+@app.post("/api/auth/token")
+def app_token(payload: AppTokenIn, request: Request, db: Session = Depends(get_db)):
+    """Email + password → a new API token, shown once. For native apps."""
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(400, "Name is required")
+    if payload.access == "admin":
+        raise HTTPException(403, "Admin tokens can only be made in Settings")
+    if payload.access not in APP_TOKEN_ACCESS_LEVELS:
+        raise HTTPException(400, "Access must be read or full")
+    _check_expiry(payload.expires_in_days)
+    user = _password_sign_in(db, request, payload.email, payload.password, "token")
+    token, row = _make_token(db, user, name, payload.access, payload.expires_in_days)
+    return {**_token_json(row), "token": token,
+            "user": {"id": user.id, "email": user.email}}
 
 
 @app.get("/auth/login")
@@ -1014,17 +1061,28 @@ def create_token(payload: ApiTokenIn, user: User = Depends(current_session_user)
         raise HTTPException(400, "Access must be read, full or admin")
     if payload.access == "admin" and not is_admin(user):
         raise HTTPException(403, "Only an admin can make an admin token")
-    if payload.expires_in_days is not None and payload.expires_in_days not in TOKEN_EXPIRY_DAYS:
-        raise HTTPException(400, "Expiry must be 30, 90 or 365 days, or left out for never")
+    _check_expiry(payload.expires_in_days)
+    token, row = _make_token(db, user, name, payload.access, payload.expires_in_days)
+    return {**_token_json(row), "token": token}
+
+
+def _check_expiry(days: int | None) -> None:
+    if days is not None and days not in TOKEN_EXPIRY_DAYS:
+        raise HTTPException(400, "Expiry must be 30, 90 or 365 days, or null for never")
+
+
+def _make_token(db: Session, user: User, name: str, access: str,
+                days: int | None) -> tuple[str, ApiToken]:
+    """Store a new token for `user` and return (the token, its row). The
+    token itself is never stored, only its SHA-256."""
     token = TOKEN_PREFIX + secrets.token_urlsafe(32)
-    expires_at = (datetime.utcnow() + timedelta(days=payload.expires_in_days)
-                  if payload.expires_in_days else None)
-    row = ApiToken(owner_id=user.id, name=name, access=payload.access,
+    expires_at = datetime.utcnow() + timedelta(days=days) if days else None
+    row = ApiToken(owner_id=user.id, name=name, access=access,
                    token_hash=_hash_token(token), expires_at=expires_at)
     db.add(row)
     db.commit()
     db.refresh(row)
-    return {**_token_json(row), "token": token}
+    return token, row
 
 
 @app.delete("/api/tokens/{token_id}")

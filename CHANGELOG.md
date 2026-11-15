@@ -65,7 +65,19 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.45.0** · Web version: **1.67.0** · Schema version: **18**
+App version: **1.46.0** · Web version: **1.67.0** · Schema version: **18**
+
+### Added
+
+- Apps can sign in with an email and password and get an API token back,
+  without opening Settings: `POST /api/auth/token` with `email`, `password`,
+  a `name` for the token and `access` (`read` or `full`; admin tokens are made
+  only in Settings). The token expires in 90 days unless the request asks for
+  30, 365 or `null` (never), and it shows in your Settings list like any other.
+  It shares the sign-in limit and the sign-in log with the web sign-in, so
+  wrong passwords in an app count toward the same 15-minute pause. Accounts
+  that only sign in with Google have no password, so they make a token in
+  Settings instead.
 
 ## [1.45.0] — 2026-11-15
 

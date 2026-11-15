@@ -7,12 +7,12 @@ Tracking issue: #121
 | Phase | Issue | State |
 | --- | --- | --- |
 | 1. Server: recurring items carry tags | #118 | Released in v1.40.0, closed 2026-11-15 |
-| 2. Forecast: tags on repeating lines | #119 | Built in web 1.62.1, not released |
+| 2. Forecast: tags on repeating lines | #119 | Released in v1.41.0, closed 2026-11-15 |
 | 3. Bills & income: tag pickers | #120 | Not started, waits for 1 |
 
 - **Phase 1** — app 1.40.0, schema 15, released 2026-11-15 (#123). Verified: 10 new API tests in `tests/test_recurring_tags.py` (53 pass in all); the migration run on a v14 database filled by the v14 test suite (24 recurring items): `recurring_tags` created with both foreign keys, nothing lost, the full suite passes on it.
 
-- **Phase 2** — web 1.62.1 (no server change), built 2026-11-15, not released. Verified: headless Chromium with the API stubbed (picker enabled with Repeats and `tag_ids` reach `POST …/recurring`; a projected line opens with its item's tags and saves them, or `[]` when cleared; a saved line PATCHes; add row one line with columns fixed at four widths).
+- **Phase 2** — web 1.62.1 (no server change), built 2026-11-15, released the same day in v1.41.0 (the API tokens release, cut by another session after this phase's commit). Verified: headless Chromium with the API stubbed (picker enabled with Repeats and `tag_ids` reach `POST …/recurring`; a projected line opens with its item's tags and saves them, or `[]` when cleared; a saved line PATCHes; add row one line with columns fixed at four widths).
 
 Sessions: may span — each phase ends with a release and your look on your own instance before the next starts.
 

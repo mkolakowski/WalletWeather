@@ -24,8 +24,8 @@ Sessions: may span — each phase ends with a release and your look on your own 
 
 ## Open questions
 
-- **Day of month in edit rows (blocks Phase 2).** #110 took the Day of month box out of the add form (the day comes from the start date) but kept it in edit rows, because some saved items have a day and no start date. The plan assumes **edit rows keep Day of month**, shown in the Monthly column only for Monthly items. Say so if editing should drop it too.
-- **Tags move into a column (blocks Phase 1).** #120 showed an item's tags as chips under its description, with no new column. The chosen layout has a Tags column among the computed columns, so the plan assumes **tags move there** (chips in the read view, the picker in the edit row) and out from under the description, which also keeps rows one line.
+- ~~**Day of month in edit rows (blocks Phase 2).**~~ Decided 2026-11-15: edit rows take the day from the start date; a monthly item without one opens with its next day-of-month date filled in. See [the decision page](../docs/dev/decisions/bills-forecast.md).
+- ~~**Tags move into a column (blocks Phase 1).**~~ Decided 2026-11-15 with the column layout: tags show in the Tags column. Built in Phase 1.
 
 ## The plan
 
@@ -62,7 +62,7 @@ Done when:
 
 What changes:
 - **+ Add** opens a new line at the top of the table, built like Forecast's: a field under each column (Description, Start date, Ends, Category, signed Amount, Account), Repeats and the Tags picker sharing the computed columns as in Forecast's add row, Notes with Save / + Another / Cancel. The account is a dropdown only on the All accounts tab. The #recAddPanel panel and its code go.
-- Edit rows (and spreadsheet mode) use the same columns and a signed Amount; the Type dropdown goes; Repeats is the dropdown; Day of month stays for Monthly items (see Open questions).
+- Edit rows (and spreadsheet mode) use the same columns and a signed Amount; the Type dropdown goes; Repeats is the dropdown; Day of month goes too: the day comes from the start date, and a monthly item without one opens with its next day-of-month date filled in (decided 2026-11-15).
 - While the add line is open its headings follow Repeats as on Forecast; no column moves when it opens or changes.
 
 What you do: after the release, add and edit a monthly and a weekly item.

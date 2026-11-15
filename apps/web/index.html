@@ -154,8 +154,21 @@
                                  background:transparent; color:var(--muted); font-size:7px; line-height:1; cursor:pointer; }
   tr.le-inline .le-step button:hover { background:var(--chip-bg); color:var(--text); }
   tr.fc-addrow input:disabled { opacity:.45; }
-  /* Repeats is only as wide as its longest choice, Bi-weekly (#116). */
-  tr.fc-addrow #addFreq { width:auto; }
+  /* Repeats and Tags share one cell (#127): Repeats is only as wide as its
+     longest choice, Bi-weekly (#116); Tags takes all the space to its right.
+     The wrapper takes no width of its own, so no column moves. The header
+     over them loses its inner lines and reads Repeats / Tags the same way
+     (_setAddRowHeadings). */
+  :root { --add-rep-w:100px; }
+  tr.fc-addrow .add-rt { display:flex; gap:6px; align-items:center; width:0; min-width:100%; }
+  tr.fc-addrow .add-rt > .le-f { width:auto; min-width:0; }
+  tr.fc-addrow .add-rt > .le-f:first-child { flex:0 0 var(--add-rep-w); }
+  tr.fc-addrow .add-rt > .le-f:last-child { flex:1 1 0; }
+  /* Header over the merged cell: no lines between its four columns, Tags over
+     where the picker starts (the heading's left edge is the select's). */
+  #forecastTable th.th-open-merge { border-right-color:transparent; }
+  .th-swap { position:relative; }
+  th .ah-tags { position:absolute; top:0; left:calc(var(--add-rep-w) + 6px); white-space:nowrap; }
   /* Headings the add row renames while Repeats is on (#107). */
   .th-swap { display:inline-grid; justify-items:start; }
   th.num .th-swap { justify-items:end; }
@@ -173,7 +186,10 @@
       grid-row:auto !important; padding:0 !important; background:none !important; box-shadow:none;
       white-space:normal !important; font-size:13px !important; }
     #forecastTable:not(.sheet-mode) tbody tr.fc-addrow > td::before { content:none !important; display:none !important; }
-    #forecastTable:not(.sheet-mode) tbody tr.fc-addrow > td:is(:nth-child(1), :nth-child(9)) { grid-column:1 / -1 !important; }
+    #forecastTable:not(.sheet-mode) tbody tr.fc-addrow > td:is(:nth-child(1), :nth-child(7), :nth-child(8)) { grid-column:1 / -1 !important; }
+    tr.fc-addrow .add-rt { width:auto; min-width:0; flex-wrap:wrap; }
+    tr.fc-addrow .add-rt > .le-f:first-child { flex:1 1 40%; }
+    tr.fc-addrow .add-rt > .le-f:last-child { flex:2 1 50%; }
   }
   /* Notes + buttons share a cell; the Notes field fills up to Save. */
   tr.le-inline .le-notes-wrap { display:flex; align-items:center; gap:8px; }
@@ -2429,7 +2445,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.65.0";
+const WEB_VERSION = "1.65.1";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2440,6 +2456,7 @@ const WEB_VERSION = "1.65.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.65.1 (2026-11-15, claude+mkolakowski): (#127) Add row: Repeats and Tags share one colspan-4 cell (.add-rt; Repeats --add-rep-w wide, Tags fills the rest, no column line between); while open the four balance headings stay (no width change) but lose the lines between them (.th-open-merge) and the first reads Repeats with Tags (.ah-tags) over the picker's start.
 // 1.65.0 (2026-11-15, claude+mkolakowski): (#41) Installable: <link rel="manifest"> (use-credentials), theme-color, PNG apple-touch-icon, /sw.js registered on load; #offline card (showOffline) when /api/me fails with a network error, with Try again (reload).
 // 1.64.0 (2026-11-15, claude+mkolakowski): (#120) Bills & income tag pickers: the add form has a Tags picker (#recAddTagsWrap, rendered on open; tag_ids sent on create); each edit row puts a Tags picker (editRecTags_<id>) in the Description cell and saveRecurring always sends its array; the read view shows chips under the description (.row-tag-chips); spreadsheet mode compares tags before saving; onRecEditKey leaves keys inside .tag-dd to the picker.
 // 1.63.0 (2026-11-15, claude+mkolakowski): (#42) Settings → Your account: an "API tokens" panel (loadApiTokens / createApiToken / copyApiToken / revokeApiToken) lists your tokens, makes one (name + Read-only / Full access, plus Admin added only for admins) and shows it once with Copy, and revokes.
@@ -6393,10 +6410,12 @@ function _buildAddRow() {
     // Repeats and Tags each take two of the balance columns, whose headings
     // name them while the row is open (#114). The tags go on a repeating
     // item too (#119): lines made from it start with them.
-    _leTd(_leField('Repeats', 'addFreq', `<select id="addFreq" onchange="onAddRepeatToggle()">
+    // Repeats and Tags share one cell under the four balance columns (#127):
+    // Repeats as wide as Bi-weekly, Tags filling the rest, no line between.
+    // The recurring item carries the tags (#119).
+    _leTd(`<div class="add-rt">${_leField('Repeats', 'addFreq', `<select id="addFreq" onchange="onAddRepeatToggle()">
         <option value="">None</option><option value="weekly">Weekly</option>
-        <option value="biweekly">Bi-weekly</option><option value="monthly_day">Monthly</option></select>`), { colspan: 2 }),
-    _leTd(_leField('Tags', 'addTags_btn', renderTagPicker('addTags', [])), { colspan: 2 }),
+        <option value="biweekly">Bi-weekly</option><option value="monthly_day">Monthly</option></select>`)}${_leField('Tags', 'addTags_btn', renderTagPicker('addTags', []))}</div>`, { colspan: 4 }),
     _leNotesActionsTd(_leField('Notes', 'addNotes', '<input id="addNotes" maxlength="256" placeholder="Notes">'),
       `<button onclick="submitAddForm()" title="Save (Enter)">Save</button>
        <button class="ghost" onclick="submitAddForm(true)" title="Save, then start another line with the same dates and category">+ Another</button>
@@ -6447,14 +6466,19 @@ function _setAddHeadings(rec) {
 }
 // While the row is open, the balance headings name the Repeats and Tags
 // fields under them (#114).
-const _ADD_ROW_HEADINGS = { diff_amount: 'Repeats', forecast_balance: '', actual_balance: 'Tags', diff_balance: '' };
+const _ADD_ROW_KEYS = ['diff_amount', 'forecast_balance', 'actual_balance', 'diff_balance'];
+// The header cells stay (so no column width changes); while the row is open
+// the lines between them are hidden and the first reads Repeats, with Tags
+// positioned over where the picker starts (.ah-tags, #127).
 function _setAddRowHeadings(open) {
-  Object.entries(_ADD_ROW_HEADINGS).forEach(([key, text]) => {
-    const th = document.querySelector(`#forecastTable thead th[data-key="${key}"]`);
+  _ADD_ROW_KEYS.forEach((k, i) => {
+    const th = document.querySelector(`#forecastTable thead th[data-key="${k}"]`);
     const alt = th && th.querySelector('.th-alt');
     if (!alt) return;
     th.classList.toggle('th-swapped', !!open);
-    alt.textContent = open ? text : '';
+    th.classList.toggle('th-open-merge', !!open && i < 3);
+    if (open && i === 0) alt.innerHTML = 'Repeats<span class="ah-tags">Tags</span>';
+    else alt.textContent = '';
   });
 }
 function closeAddRow() {

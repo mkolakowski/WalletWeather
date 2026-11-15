@@ -65,7 +65,16 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.42.0** · Web version: **1.65.0** · Schema version: **16**
+App version: **1.42.0** · Web version: **1.65.1** · Schema version: **16**
+
+### Changed
+
+- On Forecast's new line, the Tags picker now fills all the free space to the
+  right of the Repeats dropdown, with no column line between them. While the
+  line is open, the headings above read "Repeats" and "Tags" over their
+  fields, with no lines between the four columns they sit over, and the
+  remaining column lines match the new line's. No column moves when the line
+  opens.
 
 ## [1.42.0] — 2026-11-15
 

@@ -157,7 +157,6 @@
   th.num .th-swap { justify-items:end; }
   :is(th[data-key="diff_amount"], th[data-key="actual_balance"]).th-swapped { text-align:left; }
   :is(th[data-key="diff_amount"], th[data-key="actual_balance"]).th-swapped .th-swap { justify-items:start; }
-  tr.fc-addrow .tag-dd-btn:disabled { opacity:.45; cursor:default; }
   .th-swap > span { grid-area:1 / 1; white-space:nowrap; }
   .th-swap > .th-size, th.th-swapped .th-swap > .th-main { visibility:hidden; }
   #addToggle.active { box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
@@ -2382,7 +2381,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.61.9";
+const WEB_VERSION = "1.62.1";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2393,6 +2392,7 @@ const WEB_VERSION = "1.61.9";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.62.1 (2026-11-15, claude+mkolakowski): (#119) Tags on repeating lines: the add row's Tags picker stays enabled with Repeats and sends tag_ids with the recurring item; opening a projected line shows a Tags picker (line editor and the older editors) filled with its item's tags, and saving always sends the picker's array (so [] means none). Projected rows show their item's chips from the API.
 // 1.61.9 (2026-11-14, claude+mkolakowski): (#116) The add row's Repeats select (#addFreq) is width:auto, sized to Bi-weekly.
 // 1.61.8 (2026-11-14, claude+mkolakowski): (#114) Add row: Repeats select (colspan 2) and a Tags picker (addTags, colspan 2) under the balance columns; _setAddRowHeadings renames Δ Amt/Actual bal to Repeats/Tags (th-swap) while open; tags saved on one-off lines, picker disabled while Repeats is set. .add-repeat/.le-inl CSS removed.
 // 1.61.7 (2026-11-14, claude+mkolakowski): (#110) Bills & income add form: Repeats (Weekly/Bi-weekly/Monthly) with a required Start date (defaults to today); Monthly's day_of_month comes from it; recAddDay and onRecAddFreqChange are removed. Edit rows keep Day of month.
@@ -6258,8 +6258,8 @@ function _buildAddRow() {
     _leTd(_leField('Forecast amt', 'addFAmt', _leNum('<input id="addFAmt" type="number" step="0.01" placeholder="-0.00">')), { cls: 'num' }),
     _leTd(_leField('Actual amt', 'addAAmt', _leNum('<input id="addAAmt" type="number" step="0.01" placeholder="-0.00">')), { cls: 'num' }),
     // Repeats and Tags each take two of the balance columns, whose headings
-    // name them while the row is open (#114). Recurring items hold no tags,
-    // so the picker is greyed out while Repeats is set.
+    // name them while the row is open (#114). The tags go on a repeating
+    // item too (#119): lines made from it start with them.
     _leTd(_leField('Repeats', 'addFreq', `<select id="addFreq" onchange="onAddRepeatToggle()">
         <option value="">None</option><option value="weekly">Weekly</option>
         <option value="biweekly">Bi-weekly</option><option value="monthly_day">Monthly</option></select>`), { colspan: 2 }),
@@ -6341,9 +6341,6 @@ function onAddRepeatToggle() {
   document.getElementById('addEndWrap').classList.toggle('hidden', !rec);
   _setAddHeadings(rec);
   document.getElementById('addAAmt').disabled = rec;
-  const tagBtn = document.getElementById('addTags_btn');
-  tagBtn.disabled = rec;
-  tagBtn.title = rec ? 'Recurring items have no tags; tags go on one-off lines' : 'Tags';
   document.getElementById('addFDate').title = rec ? 'Start date' : '';
 }
 function _addFormError(msg, fieldId) {
@@ -6374,7 +6371,8 @@ async function submitAddForm(addAnother) {
         description: desc, amount, frequency: f,
         day_of_month: f === 'monthly_day' ? day : null,
         anchor_date: fDate, end_date: val('addEnd') || null,
-        category_id: catVal ? parseInt(catVal, 10) : null, notes }) });
+        category_id: catVal ? parseInt(catVal, 10) : null, notes,
+        tag_ids: readTagPick('addTags') }) });
     } catch (e) { notifyError('Could not save', e); return; }
   } else {
     if (fAmt == null && aAmt == null) return _addFormError('Enter a forecast or an actual amount (negative for an expense).', 'addFAmt');
@@ -6868,10 +6866,10 @@ function _renderForecastEditRow(r) {
   const fAmtVal = r.forecast_amount != null ? r.forecast_amount : '';
   const aAmtVal = r.actual_amount != null ? r.actual_amount : '';
   // Tag picker is stacked under the description input so the row width
-  // doesn't blow up. Only offered on real transactions — projections have
-  // no id yet, so saving a tag would have nowhere to persist it.
+  // doesn't blow up. A projection offers it too, filled with its recurring
+  // item's tags (#119).
   const selectedTagIds = (r.tags || []).map(t => t.id);
-  const tagBlock = r.transaction_id
+  const tagBlock = (r.transaction_id || r.recurring_id)
     ? `<div style="margin-top:6px"><label class="inline-label">Tags</label>
          ${renderTagPicker('editFcTags', selectedTagIds)}</div>`
     : `<input type="hidden" id="editFcTags" value="">`;
@@ -7038,8 +7036,9 @@ async function saveForecastRowEdit(rowKey) {
   const primaryAmt = aAmt != null ? aAmt : fAmt;
   const isActual = aAmt != null;
 
-  // Tags: only meaningful when a real transaction exists (hidden input is
-  // blank for pure projections, so readTagPick returns []).
+  // Tags: the picker is there for a projection too (#119), so what it holds
+  // is sent either way; [] on a projection means "no tags", not "the item's".
+  const hasTagPicker = !!document.getElementById('editFcTags_btn');
   const tagIds = readTagPick('editFcTags');
 
   const body = {
@@ -7052,11 +7051,10 @@ async function saveForecastRowEdit(rowKey) {
     category_id: catId ? parseInt(catId) : null,
     recurring_id: row.recurring_id || null,
     notes: notes || null,
-    // The backend treats `None` as "leave tags alone" and `[]` as "clear
-    // them all"; always send an array on PATCH so the user can remove every
-    // tag in one save, but skip it on POST for a brand-new projection with
-    // no picker so we don't wipe anything unexpectedly.
-    tag_ids: row.transaction_id ? tagIds : (tagIds.length ? tagIds : undefined),
+    // The backend treats `None` as "leave tags alone" (on a new line from a
+    // recurring item: "start with the item's") and `[]` as "clear them all";
+    // send the picker's array whenever there is a picker.
+    tag_ids: hasTagPicker ? tagIds : undefined,
   };
 
   try {
@@ -7156,8 +7154,9 @@ function _renderForecastLineEditor(r) {
     _leTd(_leField('Category', 'fcEdit_cat', `<select id="fcEdit_cat" class="le-input" data-row-key="${k}" data-field="cat">${catOptions}</select>`)),
     _leTd(_leField('Forecast amt', 'fcEdit_famt', _leNum(inp('famt', 'number', r.forecast_amount, ' step="0.01"'))), { cls: 'num' }),
     _leTd(_leField('Actual amt', 'fcEdit_aamt', _leNum(inp('aamt', 'number', r.actual_amount, ' step="0.01"'))), { cls: 'num' }),
-    // Tags attach to saved transactions only; a projection has nothing yet.
-    _leTd(r.transaction_id
+    // A projection shows its recurring item's tags; saving it keeps or
+    // changes them (#119).
+    _leTd((r.transaction_id || r.recurring_id)
           ? _leField('Tags', 'editFcTags_btn', renderTagPicker('editFcTags', (r.tags || []).map(t => t.id)))
           : '', { colspan: 4 }),
     _leNotesActionsTd(_leField('Notes', 'fcEdit_notes', inp('notes', 'text', r.notes, ' maxlength="256" placeholder="Notes"')),
@@ -7201,9 +7200,9 @@ function _renderForecastGridRow(r, rowIdx, opts) {
   const dBal = r.diff_balance != null ? fmt(r.diff_balance) : '—';
   const dAmtCls = r.diff_amount == null ? 'diff-zero' : (r.diff_amount > 0 ? 'diff-pos' : (r.diff_amount < 0 ? 'diff-neg' : 'diff-zero'));
   const dBalCls = r.diff_balance == null ? 'diff-zero' : (r.diff_balance > 0 ? 'diff-pos' : (r.diff_balance < 0 ? 'diff-neg' : 'diff-zero'));
-  // Single-line edit (double-click) also offers the tag picker, but only for
-  // saved transactions — a projection has nothing to attach tags to yet.
-  const tagBits = (editing && r.transaction_id)
+  // Single-line edit (double-click) also offers the tag picker, filled with
+  // the recurring item's tags on a projection (#119).
+  const tagBits = (editing && (r.transaction_id || r.recurring_id))
     ? `<div style="margin-top:6px"><label class="inline-label">Tags</label>${renderTagPicker('editFcTags', (r.tags || []).map(t => t.id))}</div>`
     : ((r.tags && r.tags.length) ? `<div class="row-tag-chips">${renderTagChips(r.tags)}</div>` : '');
   const delBtn = _forecastDeleteBtn(r, 'ghost');
@@ -7335,15 +7334,14 @@ async function _saveGridRow(rowKey, opts) {
     recurring_id: row.recurring_id || null,
     notes: v.notes || null,
     // Spreadsheet-mode autosave has no tag picker (no room at this density) —
-    // omitting tag_ids entirely means "leave alone" on PATCH, and a brand-new
-    // projection has no tags to touch anyway.
+    // omitting tag_ids entirely means "leave alone" on PATCH, and a new line
+    // from a projection then starts with its recurring item's tags.
   };
-  // The double-clicked line shows a tag picker (saved transactions only):
-  // PATCH always gets an array so every tag can be cleared in one save.
-  if (strict && document.getElementById('editFcTags')) {
-    const ids = readTagPick('editFcTags');
-    if (row.transaction_id) body.tag_ids = ids;
-    else if (ids.length) body.tag_ids = ids;
+  // The double-clicked line shows a tag picker (a projection's is filled
+  // with its recurring item's tags, #119): always send its array so every tag
+  // can be cleared in one save.
+  if (strict && document.getElementById('editFcTags_btn')) {
+    body.tag_ids = readTagPick('editFcTags');
   }
   try {
     if (row.transaction_id) {

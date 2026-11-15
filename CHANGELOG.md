@@ -65,7 +65,15 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.40.0** · Web version: **1.61.9** · Schema version: **15**
+App version: **1.40.0** · Web version: **1.62.1** · Schema version: **15**
+
+### Added
+
+- Tags now work on repeating lines in Forecast. The Tags picker on the new line
+  stays available when you set Repeats, and the tags are saved with the
+  repeating item. Its upcoming lines show those tags, opening one shows a Tags
+  picker filled with them, and saving it keeps or changes them (clear them all
+  and the line is saved with none).
 
 ## [1.40.0] — 2026-11-15
 

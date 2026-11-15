@@ -126,3 +126,16 @@ Decisions made while planning [`Plans/ios-app.md`](../../../Plans/ios-app.md) (t
 **The decision:** glass on the cards too. The bar, the sheets, the round buttons and the app's own cards and panels are all Liquid Glass, following the phone's setting, and they turn solid under Reduce Transparency or Increase Contrast.
 
 **What it changes:** phase 1 (#87) builds it and checks it with the setting at each end and with both accessibility switches on; phase 5 (#91) checks each look the same way. Behind the cards, each page carries a soft tint of the look's accent colour fading down from the top, so the glass has something to show. That was chosen the same day over the plain page colour, which would have left the glass reading as a slightly lighter panel.
+
+## 2026-11-15: how the Cloudflare sign-in reaches the app
+
+**Built:** 2026-11-15, in phase 1 (#87). **Status:** built; to be confirmed on Matthew's phone through his real Cloudflare Access.
+
+**The question:** the sign-in sheet (`ASWebAuthenticationSession`) shares Safari's sign-ins, so Cloudflare Access and Google work in it, but the app can't read its cookies. How do the app's own requests get past Cloudflare after signing in there? (The part of the 2026-11-14 decisions that was tried first.)
+
+**Options considered:**
+- **The server hands it back.** Cloudflare puts the signed-in person's Access token on every request it lets through (`Cf-Access-Jwt-Assertion`). The "sign in an app" page's answer to the app (`walletweather://signed-in?code=…&cf=…`) carries that token, and the app sends it as `cf-access-token`, the header `cloudflared` uses. One sheet signs in to Cloudflare and WalletWeather at once, with nothing undocumented.
+- **Cloudflare's token transfer**, as `cloudflared access login` does it: the sheet opens the site's `/cdn-cgi/access/cli` page, which leaves the token, sealed to a key the app made, at Cloudflare's transfer service for the app to collect. Matthew's mkplus app does this (`CloudflareSafariSignIn.swift`) and it worked on his iPhone, but the hand-off isn't documented by Cloudflare, needs a NaCl box implementation, and means a second sheet before the WalletWeather one.
+- **A service token only:** no sign-in to carry, but one to make and paste per phone.
+
+**What was built:** the server hands it back, with the service token under Advanced as the alternative. `GET /app-sign-in/cloudflare` hands back only the Cloudflare token, for when it runs out (24 hours unless the Access application says otherwise). Telling Access's sign-in page from the server's own answer, and the `cf-access-token` header, follow mkplus's `CloudflareAccess` gateway. If the token handed back turns out not to be accepted, the transfer is the fallback, copied from mkplus. Cloudflare's "binding cookie" option, if switched on for the application, would refuse the handed-back token; it's off unless chosen.

@@ -50,3 +50,9 @@ apps/android/captures/
 
 PROMPT_LOG.md
 .pytest_cache/
+
+# The iOS app's signing team, kept on the Mac that builds for a phone (apps/ios/README.md).
+apps/ios/Config/Signing.local.xcconfig
+# Swift package build output (apps/ios/WalletWeatherKit)
+.build/
+.swiftpm/

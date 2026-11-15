@@ -1,0 +1,75 @@
+# The Xcode project is generated from this file with XcodeGen
+# (`cd apps/ios && xcodegen generate`); both are committed, so Xcode opens
+# the project without it. Change this file, not the project, then generate.
+name: WalletWeather
+options:
+  bundleIdPrefix: net.iptater
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+
+configFiles:
+  Debug: Config/Base.xcconfig
+  Release: Config/Base.xcconfig
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+    SWIFT_APPROACHABLE_CONCURRENCY: YES
+    # The iOS app's version (CHANGELOG.md tracks it beside the app, web and
+    # schema versions). Keep AppInfo.version in WalletWeatherKit equal to it.
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    IPHONEOS_DEPLOYMENT_TARGET: "26.0"
+    # iPhone only for now (decided 2026-11-14): no iPad, no Mac.
+    TARGETED_DEVICE_FAMILY: "1"
+    SUPPORTS_MACCATALYST: NO
+    SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+    SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_PREVIEWS: YES
+
+packages:
+  WalletWeatherKit:
+    path: WalletWeatherKit
+
+targets:
+  WalletWeather:
+    type: application
+    platform: iOS
+    sources:
+      - path: WalletWeather
+    dependencies:
+      - package: WalletWeatherKit
+    info:
+      path: Support/Info.plist
+      properties:
+        CFBundleDisplayName: WalletWeather
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # walletweather://: the sign-in sheet's answer and the "Open in
+        # WalletWeather" button in the web app's Settings (WalletWeatherKit's AppLink).
+        CFBundleURLTypes:
+          - CFBundleURLName: net.iptater.walletweather
+            CFBundleURLSchemes: [walletweather]
+        # Plain http:// for home-network addresses only (ServerAddress):
+        # iOS's own local-networking exception, nothing wider.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSLocalNetworkUsageDescription: WalletWeather connects to your WalletWeather server when it's on your home network.
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        # The bundle ID is what keeps the phone's Keychain sign-in: never change it.
+        PRODUCT_BUNDLE_IDENTIFIER: net.iptater.walletweather
+        PRODUCT_NAME: WalletWeather
+        GENERATE_INFOPLIST_FILE: NO

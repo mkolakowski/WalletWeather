@@ -1,0 +1,217 @@
+<!doctype html>
+<!--
+  "Sign in an app" (ios-app phase 1, #87). The WalletWeather app opens this
+  page in the phone's system sign-in sheet, as
+    /app-sign-in?name=<phone>&access=full|read&state=<random>&code_challenge=<PKCE S256>
+  Cloudflare Access (when it's in front) and Google both work here, because
+  the sheet is a real browser. Once signed in, the person confirms; the page
+  asks POST /api/app-sign-in for a one-time code and sends the sheet to the
+  walletweather:// address the server returns, which closes the sheet and
+  hands the app the code (and the Cloudflare sign-in). See "Signing in an
+  app" in apps/server/app/main.py.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>Sign in an app · WalletWeather</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<style>
+  /* The web app's default dark and light themes. */
+  :root { --bg:#0f1419; --panel:#1a2027; --border:#2a323c; --text:#e6edf3; --muted:#8b949e;
+          --accent:#58a6ff; --bad:#f85149; --on-accent:#0f1419; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#ffffff; --panel:#f6f8fa; --border:#d0d7de; --text:#1f2328; --muted:#656d76;
+            --accent:#0969da; --bad:#cf222e; --on-accent:#ffffff; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         padding:max(24px, env(safe-area-inset-top)) 16px 32px; }
+  main { max-width:420px; margin:0 auto; }
+  header { display:flex; align-items:center; gap:10px; margin-bottom:20px; }
+  header img { width:36px; height:36px; }
+  header h1 { font-size:20px; margin:0; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px; }
+  h2 { font-size:17px; margin:0 0 6px; }
+  p { margin:0 0 12px; }
+  .muted { color:var(--muted); font-size:13px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:12px 0 4px; }
+  input[type=email], input[type=password], input[type=text] {
+    width:100%; padding:11px 12px; font:inherit; color:var(--text); background:var(--bg);
+    border:1px solid var(--border); border-radius:8px; }
+  fieldset { border:0; margin:12px 0 0; padding:0; }
+  legend { font-size:13px; color:var(--muted); margin-bottom:6px; padding:0; }
+  .choice { display:flex; gap:10px; align-items:flex-start; padding:10px 12px; margin-bottom:8px;
+            border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:15px; }
+  .choice input { margin-top:3px; }
+  .choice small { display:block; color:var(--muted); font-size:13px; }
+  .buttons { display:flex; gap:10px; margin-top:16px; }
+  button, .button { flex:1; padding:12px; font:inherit; font-weight:600; border-radius:10px; cursor:pointer;
+                    border:1px solid var(--accent); background:var(--accent); color:var(--on-accent);
+                    text-align:center; text-decoration:none; }
+  button.ghost, .button.ghost { background:transparent; color:var(--accent); }
+  button:disabled { opacity:.6; cursor:default; }
+  .or { text-align:center; color:var(--muted); font-size:13px; margin:14px 0; }
+  .error { color:var(--bad); font-size:14px; margin-top:10px; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="/static/favicon.svg" alt="">
+    <h1 id="title">WalletWeather</h1>
+  </header>
+
+  <div id="loading" class="panel"><p class="muted">Loading…</p></div>
+
+  <div id="bad" class="panel hidden">
+    <h2>Open this from the app</h2>
+    <p>This page signs in the WalletWeather app on your phone. Open the app and tap <strong>Sign in</strong>.</p>
+  </div>
+
+  <form id="signIn" class="panel hidden" autocomplete="on">
+    <h2>Sign in to continue</h2>
+    <p class="muted">Then you'll be asked to let the app in.</p>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username" required>
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" required>
+    <div class="buttons"><button id="signInBtn" type="submit">Sign in</button></div>
+    <div id="googleWrap" class="hidden">
+      <div class="or">or</div>
+      <a id="googleBtn" class="button ghost" href="#">Sign in with Google</a>
+    </div>
+    <div id="signInError" class="error hidden" role="alert"></div>
+  </form>
+
+  <form id="confirm" class="panel hidden">
+    <h2>Let the app in?</h2>
+    <p>The WalletWeather app wants to use your account, <strong id="who"></strong>.</p>
+    <label for="deviceName">Name it</label>
+    <input id="deviceName" type="text" maxlength="80" required>
+    <fieldset>
+      <legend>What it can do</legend>
+      <label class="choice"><input type="radio" name="access" value="full">
+        <span>Full access<small>See and change your data, as you can here.</small></span></label>
+      <label class="choice"><input type="radio" name="access" value="read">
+        <span>Read-only<small>See your data, change nothing.</small></span></label>
+    </fieldset>
+    <p class="muted">It gets its own token, which lasts 90 days. You'll find it in Settings → API tokens, where you can revoke it to sign the app out.</p>
+    <div class="buttons">
+      <button id="cancelBtn" type="button" class="ghost">Cancel</button>
+      <button id="allowBtn" type="submit">Allow</button>
+    </div>
+    <div id="confirmError" class="error hidden" role="alert"></div>
+  </form>
+
+  <div id="done" class="panel hidden">
+    <h2>Back to the app…</h2>
+    <p class="muted">If nothing happens, close this sheet and try again.</p>
+  </div>
+</main>
+<script>
+(function () {
+  const q = new URLSearchParams(location.search);
+  const state = q.get('state') || '';
+  const challenge = q.get('code_challenge') || '';
+  const wanted = q.get('access') === 'read' ? 'read' : 'full';
+  const name = (q.get('name') || 'iPhone').slice(0, 80);
+  const $ = id => document.getElementById(id);
+  const show = id => ['loading', 'bad', 'signIn', 'confirm', 'done']
+    .forEach(x => $(x).classList.toggle('hidden', x !== id));
+
+  // The server answers errors with {"detail": "..."}.
+  async function call(path, body) {
+    const res = await fetch(path, {
+      method: body ? 'POST' : 'GET', credentials: 'same-origin',
+      headers: body ? { 'Content-Type': 'application/json' } : {},
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    let data = null;
+    try { data = await res.json(); } catch { /* not JSON */ }
+    if (!res.ok) {
+      const d = data && data.detail;
+      const err = new Error(typeof d === 'string' ? d : 'Something went wrong. Try again.');
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  }
+  function fail(id, e) {
+    const el = $(id);
+    el.textContent = e instanceof TypeError ? 'Could not reach the server. Check your connection and try again.' : e.message;
+    el.classList.remove('hidden');
+  }
+  // Back to the app with nothing: it says the sign-in was cancelled.
+  function cancel() {
+    location.href = 'walletweather://signed-in?' + new URLSearchParams({ state, error: 'cancelled' });
+  }
+
+  async function showConfirm(me) {
+    $('who').textContent = me.email;
+    $('deviceName').value = name;
+    document.querySelector('input[name=access][value=' + wanted + ']').checked = true;
+    show('confirm');
+  }
+
+  async function start() {
+    if (!/^[A-Za-z0-9_-]{8,128}$/.test(state) || !/^[A-Za-z0-9_-]{43}$/.test(challenge)) {
+      show('bad');
+      return;
+    }
+    let config = {};
+    try { config = await call('/api/auth/config'); } catch { /* keep the defaults */ }
+    if (config.app_title) { $('title').textContent = config.app_title; document.title = 'Sign in an app · ' + config.app_title; }
+    if (config.google_enabled) {
+      $('googleBtn').href = '/auth/login?next=' + encodeURIComponent(location.pathname + location.search);
+      $('googleWrap').classList.remove('hidden');
+    }
+    try {
+      showConfirm(await call('/api/me'));
+    } catch (e) {
+      show('signIn');
+      if (e.status !== 401) fail('signInError', e);
+      $('email').focus();
+    }
+  }
+
+  $('signIn').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    $('signInError').classList.add('hidden');
+    $('signInBtn').disabled = true;
+    try {
+      await call('/api/auth/login', { email: $('email').value, password: $('password').value });
+      showConfirm(await call('/api/me'));
+    } catch (e) {
+      fail('signInError', e);
+    } finally {
+      $('signInBtn').disabled = false;
+    }
+  });
+
+  $('confirm').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    $('confirmError').classList.add('hidden');
+    $('allowBtn').disabled = true;
+    try {
+      const access = document.querySelector('input[name=access]:checked').value;
+      const made = await call('/api/app-sign-in', {
+        name: $('deviceName').value.trim() || name, access, state, code_challenge: challenge,
+      });
+      show('done');
+      location.href = made.redirect_url;
+    } catch (e) {
+      fail('confirmError', e);
+      $('allowBtn').disabled = false;
+    }
+  });
+  $('cancelBtn').addEventListener('click', cancel);
+
+  start();
+})();
+</script>
+</body>
+</html>

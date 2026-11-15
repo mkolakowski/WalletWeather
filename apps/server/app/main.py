@@ -1,4 +1,5 @@
 """FastAPI application: local + Google auth, accounts, transactions, forecasting."""
+import base64
 import hashlib
 import math
 import os
@@ -7,6 +8,7 @@ import secrets
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
+from urllib.parse import urlencode
 
 # =============================================================================
 # APP VERSION (web / backend application version)
@@ -27,7 +29,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.49.0"
+APP_VERSION = "1.50.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -39,6 +41,13 @@ APP_VERSION = "1.49.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.50.0 (2026-11-15, claude+mkolakowski): signing in the iOS app (#87):
+#     the /app-sign-in page, POST /api/app-sign-in (one-time code, PKCE) and
+#     POST /api/app-sign-in/token (code → 90-day token), GET
+#     /app-sign-in/cloudflare (hands the Cloudflare Access token back);
+#     Google sign-in can return to /app-sign-in; /api/dashboard cards gain
+#     current_balance, and it and /api/dashboard/charts take today=;
+#     schema 19 (app_sign_in_codes); web 1.72.0.
 # 1.49.0 (2026-11-15, claude+mkolakowski): audit log viewer and pruning
 #     (#134): GET /api/admin/audit (newest first, event/email filters,
 #     `before` cursor); events older than AUDIT_RETENTION_DAYS (180) are
@@ -409,7 +418,7 @@ from .db import (
     init_db, get_db, User, Account, RecurringTransaction, Transaction, Category,
     AccountPermission, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
     Tag, TransactionTag, RecurringTag, TagRule, SavedReport, RecurringSkip,
-    ApiToken, AuditEvent, SessionLocal, SCHEMA_VERSION,
+    ApiToken, AuditEvent, AppSignInCode, SessionLocal, SCHEMA_VERSION,
 )
 from .forecast import build_forecast, actual_balance_as_of
 from .backup import export_user, import_user
@@ -983,10 +992,23 @@ def app_token(payload: AppTokenIn, request: Request, db: Session = Depends(get_d
             "user": {"id": user.id, "email": user.email}}
 
 
+def _safe_next(path: str | None) -> str | None:
+    """Where Google sign-in may return to besides "/": only the "sign in an
+    app" page (#87), so `next` can't send anyone off the site."""
+    if path and (path == "/app-sign-in" or path.startswith("/app-sign-in?")) \
+            and "\\" not in path:
+        return path
+    return None
+
+
 @app.get("/auth/login")
-async def google_login(request: Request):
+async def google_login(request: Request, next: str | None = None):
     if not GOOGLE_ENABLED:
         raise HTTPException(404, "Google login is not configured")
+    # Kept in the session across Google's redirect; the callback goes there.
+    request.session.pop("next", None)
+    if _safe_next(next):
+        request.session["next"] = next
     redirect_uri = f"{APP_BASE_URL}/auth/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
@@ -1027,13 +1049,132 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
     record_event(db, "login", request, user=user, email=email,
                  detail="google; new user" if is_new else "google")
     request.session["uid"] = user.id
-    return RedirectResponse("/")
+    return RedirectResponse(_safe_next(request.session.pop("next", None)) or "/")
 
 
 @app.post("/auth/logout")
 async def logout(request: Request):
     request.session.clear()
     return {"ok": True}
+
+
+# ---------- Signing in an app (ios-app phase 1, #87) ----------
+# The native app opens /app-sign-in in the phone's system sign-in sheet. The
+# sheet is a real browser, so Cloudflare Access (when it's in front), Google
+# and the web app's own sign-in all work there as they do in Safari. Once the
+# person is signed in and taps Allow, the page asks POST /api/app-sign-in for
+# a one-time code and sends the sheet to walletweather://signed-in with it.
+# The app swaps the code for a token at POST /api/app-sign-in/token, proving
+# with its PKCE verifier that it's the app that opened the sheet.
+#
+# Cloudflare: the sheet's Cloudflare sign-in stays in the sheet, so the app's
+# own requests would be turned away. Cloudflare passes the signed-in
+# person's Access token to this server on every request
+# (Cf-Access-Jwt-Assertion), so the redirect carries it back to the app,
+# which sends it with its requests as Cloudflare's own CF_Authorization
+# cookie. GET /app-sign-in/cloudflare does only that part, for when the
+# app's Cloudflare sign-in ends or it was connected another way.
+APP_CALLBACK = "walletweather://"
+APP_SIGN_IN_CODE_MINUTES = 5
+_B64URL = re.compile(r"^[A-Za-z0-9_-]+$")
+_JWT = re.compile(r"^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$")
+
+
+def _cloudflare_token(request: Request) -> str | None:
+    """The Cloudflare Access token Cloudflare stamped on this request, or
+    None when no Cloudflare is in front (or it doesn't look like one)."""
+    jwt = (request.headers.get("cf-access-jwt-assertion")
+           or request.cookies.get("CF_Authorization") or "").strip()
+    return jwt if len(jwt) <= 8192 and _JWT.match(jwt) else None
+
+
+def _app_callback(path: str, request: Request, **params: str) -> str:
+    """walletweather://<path>?..., with the Cloudflare token when there is one."""
+    cf = _cloudflare_token(request)
+    if cf:
+        params["cf"] = cf
+    return APP_CALLBACK + path + "?" + urlencode(params)
+
+
+def _check_state(state: str) -> None:
+    if not (8 <= len(state) <= 128 and _B64URL.match(state)):
+        raise HTTPException(400, "state must be 8 to 128 letters, digits, - or _")
+
+
+@app.get("/app-sign-in/cloudflare")
+def app_sign_in_cloudflare(request: Request, state: str):
+    """Send the sheet back to the app with this request's Cloudflare token.
+    Reaching this at all means Cloudflare let the person in. No WalletWeather
+    sign-in is needed: the token is the person's own, from their own sheet."""
+    _check_state(state)
+    if not _cloudflare_token(request):
+        return RedirectResponse(APP_CALLBACK + "cloudflare?" + urlencode(
+            {"state": state, "error": "no-cloudflare"}))
+    return RedirectResponse(_app_callback("cloudflare", request, state=state))
+
+
+class AppSignInIn(BaseModel):
+    name: str = Field(max_length=80)
+    access: str
+    code_challenge: str
+    state: str
+
+
+@app.post("/api/app-sign-in")
+def app_sign_in(payload: AppSignInIn, request: Request,
+                user: User = Depends(current_session_user),
+                db: Session = Depends(get_db)):
+    """Allow an app in: a one-time code, returned inside the walletweather://
+    address the page sends the sheet to. From a browser session only."""
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(400, "Name is required")
+    if payload.access not in APP_TOKEN_ACCESS_LEVELS:
+        raise HTTPException(400, "Access must be read or full")
+    if not (len(payload.code_challenge) == 43 and _B64URL.match(payload.code_challenge)):
+        raise HTTPException(400, "code_challenge must be a base64url SHA-256")
+    _check_state(payload.state)
+    code = secrets.token_urlsafe(32)
+    db.add(AppSignInCode(
+        code_hash=_hash_token(code), user_id=user.id, name=name,
+        access=payload.access, code_challenge=payload.code_challenge,
+        expires_at=datetime.utcnow() + timedelta(minutes=APP_SIGN_IN_CODE_MINUTES)))
+    db.commit()
+    return {"redirect_url": _app_callback("signed-in", request,
+                                          code=code, state=payload.state)}
+
+
+class AppSignInTokenIn(BaseModel):
+    code: str = Field(max_length=200)
+    code_verifier: str = Field(max_length=200)
+
+
+@app.post("/api/app-sign-in/token")
+def app_sign_in_token(payload: AppSignInTokenIn, request: Request,
+                      db: Session = Depends(get_db)):
+    """A one-time code and its PKCE verifier → a new API token, shown once.
+    The token is named as the page showed it, so it's listed (and can be
+    revoked) in Settings. A code works once: any swap spends it."""
+    bad = HTTPException(400, "This sign-in has expired or was already used. Sign in again.")
+    row = (db.query(AppSignInCode)
+           .filter_by(code_hash=_hash_token(payload.code)).first())
+    now = datetime.utcnow()
+    if not row or row.used_at is not None or row.expires_at <= now:
+        raise bad
+    row.used_at = now
+    db.commit()
+    digest = hashlib.sha256(payload.code_verifier.encode("ascii", "replace")).digest()
+    challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+    if not secrets.compare_digest(challenge, row.code_challenge):
+        raise bad
+    user = db.get(User, row.user_id)
+    if not user or user.disabled:
+        raise bad
+    token, tok = _make_token(db, user, row.name, row.access, APP_TOKEN_DEFAULT_DAYS)
+    record_event(db, "token_created", request, user=user,
+                 detail=f"token #{tok.id}, {tok.access}; by app sign-in")
+    return {**_token_json(tok), "token": token,
+            "user": {"id": user.id, "email": user.email}}
 
 
 def _notice_required(user: User) -> bool:
@@ -2600,7 +2741,8 @@ def backup_import(body: ImportIn, request: Request,
 
 # ---------- Dashboard ----------
 @app.get("/api/dashboard")
-def dashboard(user: User = Depends(current_user), db: Session = Depends(get_db)):
+def dashboard(today: date | None = None,
+              user: User = Depends(current_user), db: Session = Depends(get_db)):
     """Return per-account summary cards for the current month.
 
     For each account the user owns, runs a forecast for the current calendar
@@ -2610,8 +2752,10 @@ def dashboard(user: User = Depends(current_user), db: Session = Depends(get_db))
       - actual high (max of actual_balance) — no date per spec
       - actual low (min of actual_balance) — no date per spec
       - opening / forecast_end / actual_end balances
+      - current_balance: today's actual balance, as the Forecast page shows it
+    `today` is the viewer's date (see _viewer_today).
     """
-    today = date.today()
+    today = _viewer_today(today)
     # First and last day of current month
     start = date(today.year, today.month, 1)
     if today.month == 12:
@@ -2640,6 +2784,7 @@ def dashboard(user: User = Depends(current_user), db: Session = Depends(get_db))
         data = build_forecast(db, acc, start, end)
         rows = data["rows"]
         upcoming_count, upcoming_net = _upcoming(rows)
+        current = round(_current_balance(db, acc, today), 2)
 
         # Defaults: if there are no rows in this month, treat the opening
         # balance as the only "value" we know about for high/low purposes.
@@ -2660,6 +2805,7 @@ def dashboard(user: User = Depends(current_user), db: Session = Depends(get_db))
                 "row_count": 0,
                 "upcoming_count": upcoming_count,
                 "upcoming_net": round(upcoming_net, 2),
+                "current_balance": current,
             })
             continue
 
@@ -2696,6 +2842,7 @@ def dashboard(user: User = Depends(current_user), db: Session = Depends(get_db))
             "row_count": len(rows),
             "upcoming_count": upcoming_count,
             "upcoming_net": round(upcoming_net, 2),
+            "current_balance": current,
         })
 
     return {"cards": cards}
@@ -2704,9 +2851,11 @@ def dashboard(user: User = Depends(current_user), db: Session = Depends(get_db))
 ALLOWED_DASHBOARD_WINDOWS = {"month", "30d", "90d"}
 
 
-def _resolve_dashboard_window(window: str) -> tuple[date, date, str]:
-    """Convert a window string into (start, end, label)."""
-    today = date.today()
+def _resolve_dashboard_window(window: str,
+                              today: date | None = None) -> tuple[date, date, str]:
+    """Convert a window string into (start, end, label). `today` is the
+    viewer's date when known (see _viewer_today), else the server's."""
+    today = today or date.today()
     if window == "30d":
         return today - timedelta(days=29), today, "Last 30 days"
     if window == "90d":
@@ -2721,7 +2870,7 @@ def _resolve_dashboard_window(window: str) -> tuple[date, date, str]:
 
 
 @app.get("/api/dashboard/charts")
-def dashboard_charts(window: str = "month",
+def dashboard_charts(window: str = "month", today: date | None = None,
                      user: User = Depends(current_user),
                      db: Session = Depends(get_db)):
     """Per-account chart data: category spending breakdown, totals, balance trend.
@@ -2739,7 +2888,7 @@ def dashboard_charts(window: str = "month",
     if window not in ALLOWED_DASHBOARD_WINDOWS:
         raise HTTPException(400, f"window must be one of {sorted(ALLOWED_DASHBOARD_WINDOWS)}")
 
-    start, end, label = _resolve_dashboard_window(window)
+    start, end, label = _resolve_dashboard_window(window, _viewer_today(today))
 
     # Category color lookup is per user, not per account.
     cat_colors: dict[str, str | None] = {}
@@ -5229,6 +5378,13 @@ if STATIC_DIR.exists():
     @app.get("/sw.js")
     def service_worker():
         return FileResponse(STATIC_DIR / "sw.js", media_type="text/javascript",
+                            headers={"Cache-Control": "no-cache"})
+
+    # The "sign in an app" page (#87), opened by the native app in the
+    # phone's sign-in sheet. Its script does the work (see "Signing in an app").
+    @app.get("/app-sign-in")
+    def app_sign_in_page():
+        return FileResponse(STATIC_DIR / "app-sign-in.html",
                             headers={"Cache-Control": "no-cache"})
 
 

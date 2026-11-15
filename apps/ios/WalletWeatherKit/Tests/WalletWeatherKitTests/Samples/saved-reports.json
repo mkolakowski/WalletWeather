@@ -1,0 +1,54 @@
+[
+    {
+        "id": 1,
+        "name": "This month's spending",
+        "params": {
+            "group_by": "category",
+            "range_mode": "month",
+            "kind": "spending",
+            "include_transfers": false,
+            "chart_type": "bar"
+        },
+        "pinned": true,
+        "sort_order": 0
+    },
+    {
+        "id": 2,
+        "name": "Income year-to-date",
+        "params": {
+            "group_by": "category",
+            "range_mode": "ytd",
+            "kind": "income",
+            "include_transfers": false,
+            "chart_type": "table"
+        },
+        "pinned": false,
+        "sort_order": 1
+    },
+    {
+        "id": 3,
+        "name": "Last 90 days by tag",
+        "params": {
+            "group_by": "tag",
+            "range_mode": "last_90d",
+            "kind": "any",
+            "include_transfers": false,
+            "chart_type": "pie"
+        },
+        "pinned": false,
+        "sort_order": 2
+    },
+    {
+        "id": 4,
+        "name": "Spending by account this month",
+        "params": {
+            "group_by": "account",
+            "range_mode": "month",
+            "kind": "spending",
+            "include_transfers": false,
+            "chart_type": "bar"
+        },
+        "pinned": false,
+        "sort_order": 3
+    }
+]

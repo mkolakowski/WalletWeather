@@ -436,8 +436,10 @@ or formatting), in the same piece of work:
 1. Bump the version that changed, where it lives: `APP_VERSION` in
    `apps/server/app/main.py`; `WEB_VERSION` in `apps/web/index.html` for a
    change to the web client; `SCHEMA_VERSION` in `apps/server/app/db.py`
-   whenever a model or migration changes. Patch for a small fix, minor for a
-   feature-sized change.
+   whenever a model or migration changes; `MARKETING_VERSION` in
+   `apps/ios/project.yml` (and `AppInfo.version` in `apps/ios/WalletWeatherKit`,
+   then `xcodegen generate`) for a change to the iOS app (decided 2026-11-15,
+   #87). Patch for a small fix, minor for a feature-sized change.
 2. Record it in `CHANGELOG.md` under `[Unreleased]`, as the comment at the
    top of that file says: a full sentence in the user's terms under Added,
    Changed, Fixed, Database or Security, with the version line kept in step.

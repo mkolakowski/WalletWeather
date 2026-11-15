@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "18"
+SCHEMA_VERSION = "19"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,9 @@ SCHEMA_VERSION = "18"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v19 (2026-11-15, claude+mkolakowski): add app_sign_in_codes — the
+#     one-time codes the "sign in an app" page hands a native app, swapped
+#     for an API token (ios-app phase 1, #87). Only their SHA-256 is kept.
 # v18 (2026-11-15, claude+mkolakowski): add audit_events — sign-ins,
 #     failed sign-ins and blocked sign-ins (login-limits phase 1, #132);
 #     failed ones are what the login rate limit counts.
@@ -597,6 +600,29 @@ class AuditEvent(Base):
     detail = Column(String(200), nullable=True)
 
 
+class AppSignInCode(Base):
+    """A one-time code from the "sign in an app" page (ios-app phase 1, #87).
+
+    Made when someone signed in to the web app allows a native app in; the
+    app swaps it, once, for an API token, proving with `code_verifier` that
+    it's the app that asked (PKCE, S256: `code_challenge` is the base64url
+    SHA-256 of the verifier). Only the SHA-256 of the code is kept. A code is
+    spent by its first swap, right or wrong, and lasts a few minutes. Rows go
+    with their user via the DB-level ON DELETE CASCADE.
+    """
+    __tablename__ = "app_sign_in_codes"
+    id = Column(Integer, primary_key=True)
+    code_hash = Column(String(64), nullable=False, unique=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"),
+                     nullable=False, index=True)
+    name = Column(String(80), nullable=False)
+    access = Column(String(10), nullable=False)
+    code_challenge = Column(String(64), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+
+
 def init_db():
     """Create missing tables, then apply in-place column migrations.
 
@@ -656,6 +682,8 @@ def init_db():
         "ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP",
         "ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS last_used_at TIMESTAMP",
         # v17 → v18: audit_events
+        # (Created by Base.metadata.create_all above — boundary marker only.)
+        # v18 → v19: app_sign_in_codes
         # (Created by Base.metadata.create_all above — boundary marker only.)
     ]
     with engine.begin() as conn:

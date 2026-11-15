@@ -1,0 +1,4 @@
+// Settings shared by every build. The signing team isn't kept in the repo:
+// put `DEVELOPMENT_TEAM = <your team ID>` in Config/Signing.local.xcconfig
+// (gitignored) on the Mac that builds for a phone. See apps/ios/README.md.
+#include? "Signing.local.xcconfig"

@@ -5,7 +5,7 @@ All notable changes to WalletWeather are recorded in this file.
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Three independent version numbers are tracked:
+Four independent version numbers are tracked:
 
 - **App version** (`APP_VERSION` in `apps/server/app/main.py`) — the user-facing
   application version shown in the UI and exposed via `/api/version`.
@@ -13,6 +13,10 @@ Three independent version numbers are tracked:
   version, bumped for frontend-only changes.
 - **Schema version** (`SCHEMA_VERSION` in `apps/server/app/db.py`) — the database
   schema generation, bumped whenever a model or migration changes.
+- **iOS version** (`MARKETING_VERSION` in `apps/ios/project.yml`, kept equal to
+  `AppInfo.version` in `apps/ios/WalletWeatherKit`) — the iPhone app, from
+  0.1.0, bumped for changes under `apps/ios`. It joins a section's version
+  line from the release the app first ships in.
 
 <!--
 =============================================================================
@@ -65,9 +69,47 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.49.0** · Web version: **1.71.0** · Schema version: **18**
+App version: **1.50.0** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.1.0**
 
 ### Added
+
+- **The iPhone app, version 0.1.0** (built from source for now; not on
+  TestFlight or the App Store yet). It signs in to your own server with the
+  phone's sign-in sheet (see below), with the "Open in WalletWeather" button
+  in the web app's Settings, or with a pasted token; a Cloudflare service
+  token can be entered under Advanced. It shows the Important notice at first
+  sign-in, checks that the server is new enough (1.50.0 or later), and opens
+  on a read-only Dashboard: "rest of this month", each account's balance
+  today, month-end forecast and actual and the month's low and high, the
+  charts with the Month / 30 days / 90 days switch, and pinned reports. On an
+  iPhone Duo it uses one column when closed and two halves when open. Plain
+  `http://` addresses work only on the home network, with a warning. The
+  only thing it keeps on the phone is the sign-in, in the Keychain on that
+  device; signing out removes it. Forecast, Bills & income, Calendar and
+  Search come in the next versions. See `apps/ios/README.md`.
+
+- **Signing in the iPhone app.** The coming WalletWeather app for iPhone signs
+  in through a new page, `/app-sign-in`, which it opens in the phone's own
+  sign-in sheet: you sign in there as you do on the web (email and password,
+  or Google, and Cloudflare first if your server is behind Cloudflare
+  Access), then tap **Allow**. The app gets its own API token, named after
+  the phone, lasting 90 days, and listed in **Settings → API tokens**, where
+  revoking it signs the app out. When your server is behind Cloudflare
+  Access, the app is also handed your Cloudflare sign-in, so no Cloudflare
+  service token is needed. Behind the page are two new endpoints:
+  `POST /api/app-sign-in` (from a signed-in browser only) makes a one-time
+  code that lasts five minutes, and `POST /api/app-sign-in/token` swaps it
+  for the token; `GET /app-sign-in/cloudflare` hands back only the
+  Cloudflare sign-in, for when it runs out.
+- **Settings → API tokens → Open in WalletWeather**: on an iPhone, a token
+  you've just made has an "Open in WalletWeather" button beside Copy, which
+  hands the token and your server's address to the iPhone app. The app asks
+  before it connects.
+- `GET /api/dashboard` now gives each account card its balance today
+  (`current_balance`, the same figure the Forecast page shows), and it and
+  `GET /api/dashboard/charts` take the viewer's date as `today=`, as the
+  Forecast already does, so "this month" is the viewer's month whatever time
+  zone the server runs in.
 
 - **Admin → Audit log**: admins can now read the audit log, newest first,
   filter it by event or by part of an email address, and page back with
@@ -98,6 +140,13 @@ App version: **1.49.0** · Web version: **1.71.0** · Schema version: **18**
   hold amounts, account names or passwords. A refused action (a wrong
   password, a missing permission) writes nothing. There is no screen to read
   the log yet: that comes with the Admin page's audit log viewer.
+
+### Database
+
+- Schema 19 adds `app_sign_in_codes`, the one-time codes the iPhone app's
+  sign-in page hands out. Only a fingerprint (SHA-256) of each code is kept,
+  each works once, and they're removed with their user. The table is created
+  on startup; nothing to do by hand.
 
 ## [1.47.1] — 2026-11-15
 

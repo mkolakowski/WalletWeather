@@ -15,6 +15,7 @@ struct ForecastView: View {
 
     @State private var accounts: Loadable<[Account]> = .loading
     @State private var month: Loadable<ForecastMonth> = .loading
+    @State private var kept = KeptTracker()
     @State private var categories: [TransactionCategory] = []
     @State private var open: OpenLine?
     @State private var adding = false
@@ -35,6 +36,7 @@ struct ForecastView: View {
     var body: some View {
         NavigationStack {
             content
+                .keptBar(kept)
                 .background(PageBackground().ignoresSafeArea())
                 .navigationTitle("Forecast")
                 .toolbar { toolbar }
@@ -233,7 +235,7 @@ struct ForecastView: View {
     // MARK: - Loading
 
     private func loadAll() async {
-        guard let client = model.client else { return }
+        guard let client = model.client(kept) else { return }
         do {
             let list = try await client.accounts()
             accounts = .loaded(list)
@@ -249,7 +251,7 @@ struct ForecastView: View {
     }
 
     private func loadMonth() async {
-        guard let client = model.client, let account else { return }
+        guard let client = model.client(kept), let account else { return }
         do {
             month = .loaded(try await client.forecast(account: account.id, month: shownMonth))
         } catch {

@@ -47,7 +47,7 @@ public enum APIError: Error, Sendable, Equatable {
     public var message: String {
         switch self {
         case .offline:
-            "Your balances aren't kept on this phone, so they'll show once you're connected again."
+            "This page isn't kept on this phone, so it'll show once you're connected again."
         case .slowServer:
             "WalletWeather didn't answer in time. It may be busy or starting up."
         case let .cannotReach(host):
@@ -68,6 +68,14 @@ public enum APIError: Error, Sendable, Equatable {
             detail.hasSuffix(".") ? detail : detail + "."
         case .unexpectedResponse:
             "The server's answer wasn't what this app expected. Check that the server is up to date, then try again."
+        }
+    }
+
+    /// The server couldn't be reached at all, so a kept copy may stand in.
+    public var serverUnreachable: Bool {
+        switch self {
+        case .offline, .slowServer, .cannotReach: true
+        default: false
         }
     }
 

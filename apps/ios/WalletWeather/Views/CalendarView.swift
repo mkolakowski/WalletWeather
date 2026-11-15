@@ -17,6 +17,7 @@ struct CalendarView: View {
 
     @State private var accounts: [Account] = []
     @State private var month: Loadable<CalendarMonth> = .loading
+    @State private var kept = KeptTracker()
     @State private var categories: [TransactionCategory] = []
     @State private var adding = false
     @State private var newDraft = NewTransactionDraft(today: .today())
@@ -31,6 +32,7 @@ struct CalendarView: View {
     var body: some View {
         NavigationStack {
             content
+                .keptBar(kept)
                 .background(PageBackground().ignoresSafeArea())
                 .navigationTitle("Calendar")
                 .toolbar {
@@ -155,7 +157,7 @@ struct CalendarView: View {
     // MARK: - Loading
 
     private func loadAll() async {
-        guard let client = model.client else { return }
+        guard let client = model.client(kept) else { return }
         do {
             accounts = try await client.accounts()
         } catch {
@@ -172,7 +174,7 @@ struct CalendarView: View {
     }
 
     private func load() async {
-        guard let client = model.client else { return }
+        guard let client = model.client(kept) else { return }
         do {
             month = .loaded(try await client.calendar(shownMonth, account: accountId == 0 ? nil : accountId))
         } catch {

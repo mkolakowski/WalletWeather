@@ -169,7 +169,9 @@ The app checks `GET /api/version` when it connects. A server older than
   doesn't mention.
 - The App Privacy questions (the "nutrition label"): the honest answer today
   is that no data is collected, because the app talks only to the user's own
-  server. Adding analytics, crash reporting or ads would change that answer
+  server. Last-known numbers (phase 8) stay on the phone and are never sent
+  anywhere, so they don't change that answer, but the policy says what's
+  kept. Adding analytics, crash reporting or ads would change that answer
   and the policy.
 - The name "WalletWeather" should be cleared first (`Plans/legal-risk.md`,
   phase 5).

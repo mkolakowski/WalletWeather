@@ -5,7 +5,7 @@ public enum AppInfo {
     /// The iOS app's own version (CHANGELOG.md tracks it beside the app,
     /// web and schema versions). Keep it equal to MARKETING_VERSION in the
     /// Xcode project.
-    public static let version = "0.4.0"
+    public static let version = "0.5.0"
     /// The first server version with what the app's pages need: the
     /// phone's date on Net worth, Budgets and Reports (#91), on top of each
     /// bill's next dates (#89) and the Forecast's (#88).
@@ -27,7 +27,8 @@ public func isVersion(_ found: String, atLeast needed: String) -> Bool? {
 }
 
 /// Where the app is signed in to, and with what. Kept in the Keychain on
-/// this device only (never in iCloud); nothing else is kept on the phone.
+/// this device only (never in iCloud). The numbers are kept only when the
+/// person chose Last-known numbers (`KeptResponses`).
 public struct Connection: Sendable, Codable, Equatable {
     public var server: URL
     /// The WalletWeather API token, sent as `Authorization: Bearer`.
@@ -47,18 +48,28 @@ public struct Connection: Sendable, Codable, Equatable {
 /// The WalletWeather API, as the app calls it. Redirects aren't followed:
 /// the API never redirects, so a redirect is Cloudflare Access sending the
 /// request to its sign-in page.
+///
+/// With a `keeper` (Last-known numbers), the pages' read requests keep the
+/// server's answer, and answer from that copy when the server can't be
+/// reached, telling the `observer` how old it is. Editing is never kept.
 public final class APIClient: Sendable {
     public let connection: Connection
     private let session: URLSession
+    private let keeper: KeptResponses?
+    private let observer: KeptObserver?
     /// How long a request may take before the server counts as slow.
     public static let timeout: TimeInterval = 20
 
-    public init(connection: Connection, session: URLSession = APIClient.makeSession()) {
+    public init(connection: Connection, session: URLSession = APIClient.makeSession(),
+                keeper: KeptResponses? = nil, observer: KeptObserver? = nil) {
         self.connection = connection
         self.session = session
+        self.keeper = keeper
+        self.observer = observer
     }
 
-    /// No cookies and no cache: nothing about the server is kept on the phone.
+    /// No cookies and no URL cache: what the phone keeps is only what
+    /// `KeptResponses` keeps, when the person chose it.
     public static func makeSession() -> URLSession {
         let config = URLSessionConfiguration.ephemeral
         config.httpCookieStorage = nil
@@ -101,33 +112,33 @@ public final class APIClient: Sendable {
     }
 
     public func accounts(today: LocalDay = .today()) async throws(APIError) -> [Account] {
-        try await get("/api/accounts", query: ["today": today.description])
+        try await get("/api/accounts", query: ["today": today.description], keep: true)
     }
 
     public func dashboard(today: LocalDay = .today()) async throws(APIError) -> Dashboard {
-        try await get("/api/dashboard", query: ["today": today.description])
+        try await get("/api/dashboard", query: ["today": today.description], keep: true)
     }
 
     public func charts(_ window: ChartWindow, today: LocalDay = .today()) async throws(APIError) -> DashboardCharts {
-        try await get("/api/dashboard/charts", query: ["window": window.rawValue, "today": today.description])
+        try await get("/api/dashboard/charts", query: ["window": window.rawValue, "today": today.description], keep: true)
     }
 
     public func savedReports() async throws(APIError) -> [SavedReport] {
-        try await get("/api/saved-reports")
+        try await get("/api/saved-reports", keep: true)
     }
 
     public func runReport(_ id: Int, today: LocalDay = .today()) async throws(APIError) -> ReportRun {
-        try await send("POST", "/api/saved-reports/\(id)/run", query: ["today": today.description], body: [String: String]())
+        try await send("POST", "/api/saved-reports/\(id)/run", query: ["today": today.description], body: [String: String](), keep: true)
     }
 
     // MARK: More (#91)
 
     public func netWorth(_ window: ChartWindow, today: LocalDay = .today()) async throws(APIError) -> NetWorth {
-        try await get("/api/networth", query: ["window": window.rawValue, "today": today.description])
+        try await get("/api/networth", query: ["window": window.rawValue, "today": today.description], keep: true)
     }
 
     public func budgets(today: LocalDay = .today()) async throws(APIError) -> BudgetProgress {
-        try await get("/api/budgets/progress", query: ["window": "month", "today": today.description])
+        try await get("/api/budgets/progress", query: ["window": "month", "today": today.description], keep: true)
     }
 
     // MARK: Forecast (#88)
@@ -135,12 +146,12 @@ public final class APIClient: Sendable {
     /// One account's month of lines.
     public func forecast(account: Int, month: YearMonth, today: LocalDay = .today()) async throws(APIError) -> ForecastMonth {
         try await get("/api/accounts/\(account)/forecast",
-                      query: ["start": month.start.description, "end": month.end.description, "today": today.description])
+                      query: ["start": month.start.description, "end": month.end.description, "today": today.description], keep: true)
     }
 
     /// The signed-in person's own categories.
     public func categories() async throws(APIError) -> [TransactionCategory] {
-        try await get("/api/categories")
+        try await get("/api/categories", keep: true)
     }
 
     /// Saves a line: a new transaction for a projected line, the whole line
@@ -183,7 +194,7 @@ public final class APIClient: Sendable {
     public func recurring(account: Int? = nil, ended: Bool = false, today: LocalDay = .today()) async throws(APIError) -> RecurringList {
         var query = ["today": today.description, "archived": ended ? "true" : "false"]
         if let account { query["account_id"] = String(account) }
-        return try await get("/api/recurring", query: query)
+        return try await get("/api/recurring", query: query, keep: true)
     }
 
     public func addRecurring(_ draft: BillDraft, account: Int) async throws(APIError) {
@@ -204,7 +215,7 @@ public final class APIClient: Sendable {
     public func calendar(_ month: YearMonth, account: Int? = nil) async throws(APIError) -> CalendarMonth {
         var query = ["start": month.start.description, "end": month.end.description]
         if let account { query["account_id"] = String(account) }
-        return try await get("/api/calendar", query: query)
+        return try await get("/api/calendar", query: query, keep: true)
     }
 
     /// Moves money between two accounts you may edit, recorded as paid.
@@ -226,12 +237,14 @@ public final class APIClient: Sendable {
 
     // MARK: - Requests
 
-    func get<T: Decodable>(_ path: String, query: [String: String] = [:]) async throws(APIError) -> T {
-        try await send("GET", path, query: query, body: Optional<[String: String]>.none)
+    /// `keep`: a page's read request, kept with Last-known numbers.
+    func get<T: Decodable>(_ path: String, query: [String: String] = [:], keep: Bool = false) async throws(APIError) -> T {
+        try await send("GET", path, query: query, body: Optional<[String: String]>.none, keep: keep)
     }
 
     func send<T: Decodable, B: Encodable>(_ method: String, _ path: String, query: [String: String] = [:],
-                                          body: B?) async throws(APIError) -> T {
+                                          body: B?, keep: Bool = false) async throws(APIError) -> T {
+        let key = keep ? KeptResponses.key(server: connection.server, method: method, path: path, query: query) : nil
         var request = URLRequest(url: ServerAddress.url(connection.server, path, query: query),
                                  cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: Self.timeout)
         request.httpMethod = method
@@ -251,13 +264,32 @@ public final class APIClient: Sendable {
         let response: URLResponse
         do {
             (data, response) = try await session.data(for: request, delegate: NoRedirects())
-        } catch let error as URLError {
-            throw APIError.from(error, host: connection.host)
         } catch {
-            throw .cannotReach(connection.host)
+            let problem = (error as? URLError).map { APIError.from($0, host: connection.host) } ?? .cannotReach(connection.host)
+            if let kept: T = await keptAnswer(key: key, after: problem) { return kept }
+            throw problem
         }
         guard let http = response as? HTTPURLResponse else { throw .unexpectedResponse(path) }
-        return try Self.decode(T.self, data: data, response: http, path: path)
+        let value = try Self.decode(T.self, data: data, response: http, path: path)
+        if let key {
+            keeper?.save(data, for: key)
+            await observer?(nil)
+        }
+        return value
+    }
+
+    /// The kept copy, when the server can't be reached and there is one.
+    private func keptAnswer<T: Decodable>(key: String?, after problem: APIError) async -> T? {
+        guard let key, let keeper, problem.serverUnreachable, let found = keeper.load(key),
+              let value = try? Self.decoder().decode(T.self, from: found.data) else { return nil }
+        await observer?(found.keptAt)
+        return value
+    }
+
+    static func decoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return decoder
     }
 
     /// Turns an answer into `T`, or into the error it stands for.
@@ -280,10 +312,8 @@ public final class APIClient: Sendable {
             if response.statusCode == 404 { throw .notWalletWeather }
             throw .server(status: response.statusCode, detail: "The server answered with an error (\(response.statusCode))")
         }
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
         do {
-            return try decoder.decode(T.self, from: data)
+            return try decoder().decode(T.self, from: data)
         } catch {
             let looksLikePage = String(data: data.prefix(200), encoding: .utf8)?
                 .trimmingCharacters(in: .whitespaces).hasPrefix("<") ?? false

@@ -29,13 +29,24 @@ struct MoreView: View {
                             get: { settings.lockEnabled },
                             set: { on in Task { await settings.setLock(on) } }))
                     }
+                    Picker("Keep on this phone", selection: Binding(get: { model.keep }, set: { model.setKeep($0) })) {
+                        ForEach(KeepChoice.allCases) { Text($0.title).tag($0) }
+                    }
                 } header: {
                     Text("This phone")
                 } footer: {
-                    if settings.biometryName != nil {
-                        Text("With the lock on, WalletWeather asks when it opens and when you come back after a minute away. The numbers are hidden in the app switcher either way.")
-                    } else {
-                        Text("The numbers are hidden in the app switcher. Set up Face ID or Touch ID in the phone's Settings to lock the app too.")
+                    VStack(alignment: .leading, spacing: 6) {
+                        if settings.biometryName != nil {
+                            Text("With the lock on, WalletWeather asks when it opens and when you come back after a minute away. The numbers are hidden in the app switcher either way.")
+                        } else {
+                            Text("The numbers are hidden in the app switcher. Set up Face ID or Touch ID in the phone's Settings to lock the app too.")
+                        }
+                        switch model.keep {
+                        case .nothing:
+                            Text("No numbers are kept on this phone, so the app needs a connection to your server.")
+                        case .lastKnown:
+                            Text("The pages you last loaded are kept on this phone, so they still open, marked with their age, when your server can't be reached. They can't be read while the phone is locked, stay out of iCloud and computer backups, and are deleted when you sign out or choose Nothing.")
+                        }
                     }
                 }
                 Section("Your server") {
@@ -62,7 +73,7 @@ struct MoreView: View {
                 }
                 Section {
                 } footer: {
-                    Text("WalletWeather \(AppInfo.version), server \(model.serverVersion?.appVersion ?? "…"). Accounts, categories, budgets, sharing, imports, building reports and backups are set up in the web app. Signing out ends this phone's token on your server, then removes it and the server's address from the phone.")
+                    Text("WalletWeather \(AppInfo.version), server \(model.serverVersion?.appVersion ?? "…"). Accounts, categories, budgets, sharing, imports, building reports and backups are set up in the web app. Signing out ends this phone's token on your server, then removes it, the server's address and any kept numbers from the phone.")
                 }
             }
             .scrollContentBackground(.hidden)
@@ -114,6 +125,7 @@ struct NetWorthView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @SceneStorage("networth.window") private var window: ChartWindow = .month
     @State private var worth: Loadable<NetWorth> = .loading
+    @State private var kept = KeptTracker()
 
     var body: some View {
         Group {
@@ -136,6 +148,7 @@ struct NetWorthView: View {
             }
         }
         .refreshable { await load() }
+        .keptBar(kept)
         .background(PageBackground().ignoresSafeArea())
         .navigationTitle("Net worth")
         .task(id: "\(model.generation)/\(window.rawValue)") { await load() }
@@ -204,7 +217,7 @@ struct NetWorthView: View {
     }
 
     private func load() async {
-        guard let client = model.client else { return }
+        guard let client = model.client(kept) else { return }
         if worth.value?.window != window { worth = .loading }
         do { worth = .loaded(try await client.netWorth(window)) } catch { worth = .failed(error) }
     }
@@ -218,6 +231,7 @@ struct BudgetsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var progress: Loadable<BudgetProgress> = .loading
+    @State private var kept = KeptTracker()
 
     var body: some View {
         Group {
@@ -240,6 +254,7 @@ struct BudgetsView: View {
             }
         }
         .refreshable { await load() }
+        .keptBar(kept)
         .background(PageBackground().ignoresSafeArea())
         .navigationTitle("Budgets")
         .task(id: model.generation) { await load() }
@@ -303,7 +318,7 @@ struct BudgetsView: View {
     }
 
     private func load() async {
-        guard let client = model.client else { return }
+        guard let client = model.client(kept) else { return }
         do { progress = .loaded(try await client.budgets()) } catch { progress = .failed(error) }
     }
 }
@@ -344,6 +359,7 @@ struct ReportsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var reports: Loadable<[SavedReport]> = .loading
+    @State private var kept = KeptTracker()
     @State private var chosen: SavedReport?
 
     var body: some View {
@@ -376,6 +392,7 @@ struct ReportsView: View {
                 }
             }
         }
+        .keptBar(kept)
         .background(PageBackground().ignoresSafeArea())
         .navigationTitle("Reports")
         .task(id: model.generation) { await load() }
@@ -412,7 +429,7 @@ struct ReportsView: View {
     }
 
     private func load() async {
-        guard let client = model.client else { return }
+        guard let client = model.client(kept) else { return }
         do { reports = .loaded(try await client.savedReports()) } catch { reports = .failed(error) }
     }
 }
@@ -423,9 +440,11 @@ struct ReportResult: View {
     @Environment(AppModel.self) private var model
     let report: SavedReport
     @State private var run: Loadable<ReportRun> = .loading
+    @State private var kept = KeptTracker()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
+            if let keptAt = kept.keptAt { KeptBar(keptAt: keptAt) }
             switch run {
             case .loading:
                 ProgressView().frame(maxWidth: .infinity).padding(40)
@@ -483,7 +502,7 @@ struct ReportResult: View {
     }
 
     private func load() async {
-        guard let client = model.client else { return }
+        guard let client = model.client(kept) else { return }
         do { run = .loaded(try await client.runReport(report.id)) } catch { run = .failed(error) }
     }
 }

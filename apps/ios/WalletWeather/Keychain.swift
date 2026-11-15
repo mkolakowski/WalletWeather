@@ -4,9 +4,9 @@ import WalletWeatherKit
 
 /// The sign-in (server address, token, Cloudflare sign-in) in the Keychain:
 /// on this device only, readable only while it's unlocked, never synced to
-/// iCloud and never moved to another phone by a backup. It's the only thing
-/// the app keeps (Plans/ios-app.md: nothing else is kept on the phone until
-/// phase 8 adds the choice). Signing out deletes it.
+/// iCloud and never moved to another phone by a backup. Besides it the app
+/// keeps its settings and, only with Last-known numbers, the pages last
+/// loaded (`KeptResponses`, phase 8). Signing out deletes all of it.
 enum Keychain {
     private static let service = "net.iptater.walletweather"
     private static let account = "connection"

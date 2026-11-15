@@ -69,7 +69,26 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.54.0** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.4.0**
+App version: **1.54.0** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.5.0**
+
+### Added
+
+- **Last-known numbers on the iPhone** (iOS app 0.5.0). When you sign in, the
+  app asks what this phone should keep: **Nothing** (as before, the app needs
+  a connection) or **Last-known numbers**, which keeps the pages you load so
+  they still open when your server can't be reached, under a bar saying when
+  they were loaded. Changes wait until the server answers again. The kept
+  numbers can't be read while the phone is locked, stay out of iCloud and
+  computer backups, and are deleted when you sign out or choose Nothing. You
+  can change the choice in More → This phone. If you're already signed in,
+  the app stays on Nothing until you change it there.
+
+### Changed
+
+- Signing out of the iPhone app also sets what the phone keeps back to
+  Nothing, so the next sign-in is asked again.
+- The privacy policy (`docs/privacy.md`) now says what the iPhone app keeps
+  with Last-known numbers.
 
 ## [1.54.0] — 2026-11-15
 

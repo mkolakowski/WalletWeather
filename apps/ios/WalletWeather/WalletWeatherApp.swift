@@ -28,6 +28,7 @@ struct AppRoot: View {
     @Environment(AppSettings.self) private var settings
     @Environment(\.scenePhase) private var scenePhase
     @State private var offeringLock = false
+    @State private var askingKeep = false
 
     var body: some View {
         @Bindable var model = model
@@ -52,10 +53,22 @@ struct AppRoot: View {
             }
         }
         .onChange(of: scenePhase) { _, phase in settings.scenePhaseChanged(to: phase) }
-        // The lock is offered once: at first sign-in, or after updating for
-        // someone already signed in.
+        // After a sign-in: what this phone keeps (asked at each sign-in),
+        // then the lock (offered once: at first sign-in, or after updating
+        // for someone already signed in).
         .task(id: model.me?.id) {
-            if model.phase == .ready, model.me != nil, settings.shouldOfferLock { offeringLock = true }
+            guard model.phase == .ready, model.me != nil else { return }
+            if model.askKeep {
+                askingKeep = true
+            } else if settings.shouldOfferLock {
+                offeringLock = true
+            }
+        }
+        .alert("What should this phone keep?", isPresented: $askingKeep) {
+            Button("Last-known numbers") { answerKeep(.lastKnown) }
+            Button("Nothing", role: .cancel) { answerKeep(.nothing) }
+        } message: {
+            Text("With last-known numbers, WalletWeather still opens when your server can't be reached, showing the pages you last loaded and when they were loaded. They can't be read while the phone is locked, stay out of backups, and are deleted when you sign out. With nothing, the app needs a connection. You can change this in More.")
         }
         .alert("Lock WalletWeather with \(settings.biometryName ?? "Face ID")?", isPresented: $offeringLock) {
             Button("Lock with \(settings.biometryName ?? "Face ID")") { Task { await settings.setLock(true) } }
@@ -73,6 +86,18 @@ struct AppRoot: View {
             Text(model.connection == nil
                  ? "Sign in with the token from the web app's Settings."
                  : "Sign in with the token from the web app's Settings. This replaces the server you're signed in to.")
+        }
+    }
+}
+
+extension AppRoot {
+    /// Records the answer, then offers the lock once the question has gone.
+    fileprivate func answerKeep(_ choice: KeepChoice) {
+        model.setKeep(choice)
+        guard settings.shouldOfferLock else { return }
+        Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            offeringLock = true
         }
     }
 }

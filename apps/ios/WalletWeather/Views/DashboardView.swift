@@ -14,6 +14,7 @@ struct DashboardView: View {
     @State private var summary: Loadable<Dashboard> = .loading
     @State private var charts: Loadable<DashboardCharts> = .loading
     @State private var pinned: [PinnedReport] = []
+    @State private var kept = KeptTracker()
 
     struct PinnedReport: Identifiable {
         let report: SavedReport
@@ -37,6 +38,7 @@ struct DashboardView: View {
                     }
                 }
             }
+            .keptBar(kept)
             .background(PageBackground().ignoresSafeArea())
             .navigationTitle("Dashboard")
             .toolbar {
@@ -121,7 +123,7 @@ struct DashboardView: View {
     // MARK: - Loading
 
     private func load() async {
-        guard let client = model.client else { return }
+        guard let client = model.client(kept) else { return }
         do {
             summary = .loaded(try await client.dashboard())
         } catch {
@@ -133,7 +135,7 @@ struct DashboardView: View {
     }
 
     private func loadCharts() async {
-        guard let client = model.client else { return }
+        guard let client = model.client(kept) else { return }
         if charts.value?.window != window { charts = .loading }
         do {
             charts = .loaded(try await client.charts(window))
@@ -145,7 +147,7 @@ struct DashboardView: View {
     /// Pinned reports, each run on its own, as the web Dashboard does. A
     /// report that can't run says so in its own card.
     private func loadPinned() async {
-        guard let client = model.client else { return }
+        guard let client = model.client(kept) else { return }
         guard let saved = try? await client.savedReports() else { return }
         pinned = saved.filter(\.pinned).map { PinnedReport(report: $0, run: .loading) }
         for i in pinned.indices {

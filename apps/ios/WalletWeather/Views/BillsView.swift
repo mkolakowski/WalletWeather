@@ -16,6 +16,7 @@ struct BillsView: View {
 
     @State private var accounts: [Account] = []
     @State private var list: Loadable<RecurringList> = .loading
+    @State private var kept = KeptTracker()
     @State private var categories: [TransactionCategory] = []
     @State private var open: OpenBill?
     @State private var moving = false
@@ -30,6 +31,7 @@ struct BillsView: View {
     var body: some View {
         NavigationStack {
             content
+                .keptBar(kept)
                 .background(PageBackground().ignoresSafeArea())
                 .navigationTitle("Bills & income")
                 .toolbar {
@@ -173,7 +175,7 @@ struct BillsView: View {
     // MARK: - Loading
 
     private func loadAll() async {
-        guard let client = model.client else { return }
+        guard let client = model.client(kept) else { return }
         do {
             accounts = try await client.accounts()
         } catch {
@@ -188,7 +190,7 @@ struct BillsView: View {
     }
 
     private func load() async {
-        guard let client = model.client else { return }
+        guard let client = model.client(kept) else { return }
         do {
             list = .loaded(try await client.recurring(account: accountId == 0 ? nil : accountId, ended: showEnded))
         } catch {

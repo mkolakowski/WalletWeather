@@ -45,7 +45,54 @@ final class AppModel {
 
     private let sheet = SignInSheet()
 
-    var client: APIClient? { connection.map { APIClient(connection: $0) } }
+    // MARK: - What the phone keeps (#101)
+
+    /// Nothing (the default) or Last-known numbers. Asked once at each
+    /// sign-in; signing out sets it back to Nothing (decided 2026-11-15).
+    /// Someone already signed in when this arrived stays on Nothing and
+    /// isn't asked.
+    private(set) var keep: KeepChoice
+    /// The set-up question is due: set by a fresh sign-in.
+    var askKeep = false
+    let kept: KeptResponses
+    private let defaults: UserDefaults
+    private static let keepKey = "keep.choice"
+
+    init(defaults: UserDefaults = .standard, kept: KeptResponses = .standard) {
+        self.defaults = defaults
+        self.kept = kept
+        keep = KeepChoice(rawValue: defaults.string(forKey: Self.keepKey) ?? "") ?? .nothing
+        // Debug only: `WW_DEBUG_KEEP=lastKnown|nothing` sets the choice, for
+        // checking kept numbers from the command line.
+        if let debug = Self.debugSetting("WW_DEBUG_KEEP").flatMap(KeepChoice.init(rawValue:)) {
+            keep = debug
+            defaults.set(debug.rawValue, forKey: Self.keepKey)
+        }
+        // Nothing should be on the phone under Nothing; tidy up after a
+        // crash between choosing Nothing and the files going.
+        if keep == .nothing { kept.deleteAll() }
+    }
+
+    /// Choosing Nothing deletes what's kept straight away.
+    func setKeep(_ choice: KeepChoice) {
+        askKeep = false
+        keep = choice
+        defaults.set(choice.rawValue, forKey: Self.keepKey)
+        if choice == .nothing { kept.deleteAll() }
+    }
+
+    /// The pages' client for edits and anything not kept. With Last-known
+    /// numbers its read requests still keep what they load.
+    var client: APIClient? { client(nil) }
+
+    /// A page's client: with Last-known numbers it keeps what it loads, and
+    /// answers from that copy when the server can't be reached, telling
+    /// `tracker` how old it is.
+    func client(_ tracker: KeptTracker?) -> APIClient? {
+        guard let connection else { return nil }
+        let observer: KeptObserver? = tracker.map { tracker in { @MainActor (date: Date?) in tracker.record(date) } }
+        return APIClient(connection: connection, keeper: keep == .lastKnown ? kept : nil, observer: observer)
+    }
 
     /// Whether this person may change lines on `account`: an account they
     /// own or may edit, under a token that isn't read-only. Until `/api/me`
@@ -59,7 +106,8 @@ final class AppModel {
     /// (`SIMCTL_CHILD_<name>=…`): `WW_DEBUG_PLACE` (forecast, search, …),
     /// `WW_DEBUG_OPEN_LINE` (a Forecast line's or a bill's name, opened in
     /// the editor), `WW_DEBUG_SEARCH` (search text), and `WW_DEBUG_ACCOUNT`
-    /// and `WW_DEBUG_DAY` (the Calendar's account and day). Always nil in a
+    /// and `WW_DEBUG_DAY` (the Calendar's account and day), and
+    /// `WW_DEBUG_KEEP` (what the phone keeps). Always nil in a
     /// Release build.
     static func debugSetting(_ name: String) -> String? {
         #if DEBUG
@@ -214,6 +262,9 @@ final class AppModel {
     }
 
     private func finishSignIn(_ signedIn: Connection) async {
+        // A new sign-in starts with nothing kept, and asks what to keep.
+        kept.deleteAll()
+        askKeep = true
         Keychain.saveConnection(signedIn)
         connection = signedIn
         me = nil
@@ -297,6 +348,7 @@ final class AppModel {
         if keepAddress, let server = connection?.server { typedAddress = server.absoluteString }
         if !keepAddress { typedAddress = "" }
         Keychain.deleteConnection()
+        setKeep(.nothing)
         connection = nil
         me = nil
         serverVersion = nil

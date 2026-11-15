@@ -173,3 +173,14 @@ Decisions made while planning [`Plans/ios-app.md`](../../../Plans/ios-app.md) (t
 **Also settled in building it:** AMOLED black and Sepia use the mockups' colours (AMOLED: a black page, outlined cards, the dark theme's accent; Sepia: a tan page, cream cards with an outline and a soft shadow, brown text, a rust accent). The look and the lock setting are kept in the app's preferences, and `docs/privacy.md` now says so.
 
 **What it changes:** phase 5 (#91).
+
+## 2026-11-15: kept numbers after signing out, and when they show
+
+**Decided:** 2026-11-15, by Matthew, while starting phase 8 (#101). **Status:** accepted.
+
+- **Signing out sets the choice back to Nothing**, and the next sign-in asks again. Someone else signing in on the same phone keeps nothing until they choose to. The other option was a choice that stays across sign-outs, asked once per install like the lock.
+- **Kept numbers show only when the server can't be reached** (no connection, nothing answering, or too slow to answer), under a bar saying when they were loaded. Online, pages load from the server as before. The other option was opening every page on its kept copy at once and swapping in fresh numbers: faster, but it shows old numbers briefly even when online.
+
+**Also settled in building it:** what's kept is the server's answer to each page's read requests (Dashboard, its charts and pinned reports, Forecast, Bills & income, Calendar, Net worth, Budgets, Reports, and the accounts and categories lists), keyed by the request without the phone's date, so yesterday's copy still answers today. Search, sign-in and edits are never kept. Each answer is a file in the app's own Application Support folder, written with complete file protection and left out of backups; at most 300 are kept, oldest out first. A new sign-in starts empty. Someone already signed in when this arrived stays on Nothing and isn't asked.
+
+**What it changes:** phase 8 (#101).

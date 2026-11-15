@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.37.4"
+APP_VERSION = "1.37.5"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -36,6 +36,7 @@ APP_VERSION = "1.37.4"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.37.5 (2026-11-14, claude+mkolakowski): no server change; web 1.61.5 (add row headings follow Repeats and Every, #107).
 # 1.37.4 (2026-11-14, claude+mkolakowski): no server change; web 1.61.4 (Actual date heading reads Ends while Repeats is on, #105).
 # 1.37.3 (2026-11-14, claude+mkolakowski): no server change; web 1.61.3 (Ends in the add row's Actual date cell, #103).
 # 1.37.2 (2026-11-14, claude+mkolakowski): no server change; web 1.61.2 (add row keeps its columns when Repeats changes, #98).

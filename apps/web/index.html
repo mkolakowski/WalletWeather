@@ -1246,6 +1246,8 @@
               <input id="recAddAnchor" type="date"></div>
             <div style="flex:0 1 170px;min-width:150px"><label for="recAddEnd">Ends (optional)</label>
               <input id="recAddEnd" type="date"></div>
+            <!-- Filled by toggleRecAddForm so new tags show up (#120). -->
+            <div id="recAddTagsWrap" style="flex:1 1 170px;min-width:140px"></div>
             <div style="flex:3 1 220px"><label for="recAddNotes">Notes (optional)</label>
               <input id="recAddNotes" maxlength="256"></div>
           </div>
@@ -2411,7 +2413,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.63.0";
+const WEB_VERSION = "1.64.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2422,6 +2424,7 @@ const WEB_VERSION = "1.63.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.64.0 (2026-11-15, claude+mkolakowski): (#120) Bills & income tag pickers: the add form has a Tags picker (#recAddTagsWrap, rendered on open; tag_ids sent on create); each edit row puts a Tags picker (editRecTags_<id>) in the Description cell and saveRecurring always sends its array; the read view shows chips under the description (.row-tag-chips); spreadsheet mode compares tags before saving; onRecEditKey leaves keys inside .tag-dd to the picker.
 // 1.63.0 (2026-11-15, claude+mkolakowski): (#42) Settings → Your account: an "API tokens" panel (loadApiTokens / createApiToken / copyApiToken / revokeApiToken) lists your tokens, makes one (name + Read-only / Full access, plus Admin added only for admins) and shows it once with Copy, and revokes.
 // 1.62.1 (2026-11-15, claude+mkolakowski): (#119) Tags on repeating lines: the add row's Tags picker stays enabled with Repeats and sends tag_ids with the recurring item; opening a projected line shows a Tags picker (line editor and the older editors) filled with its item's tags, and saving always sends the picker's array (so [] means none). Projected rows show their item's chips from the API.
 // 1.61.9 (2026-11-14, claude+mkolakowski): (#116) The add row's Repeats select (#addFreq) is width:auto, sized to Bi-weekly.
@@ -5883,7 +5886,9 @@ function renderRecurring() {
           <button class="ghost" onclick="startEditRecurring(${r.id})" title="Edit" aria-label="Edit ${escapeAttr(r.description)}">✎</button>
         </td>`;
       const perMonth = v => v == null ? '—' : `<span class="${v>=0?'pos':'neg'}">${fmt(v)}</span>`;
-      tr.innerHTML = `${cbCell}<td>${escapeHtml(r.description)}</td>
+      const tagBits = (r.tags && r.tags.length)
+        ? `<div class="row-tag-chips">${renderTagChips(r.tags)}</div>` : '';
+      tr.innerHTML = `${cbCell}<td>${escapeHtml(r.description)}${tagBits}</td>
         <td>${escapeHtml(r.account_name || '')}</td>
         <td>${cat}</td>
         <td class="num ${r.amount>=0?'pos':'neg'}">${fmt(r.amount)}</td>
@@ -5926,6 +5931,10 @@ function toggleRecAddForm(show) {
     categories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
   catSel.value = keep;
   document.getElementById('recAddStatus').textContent = '';
+  // Tags (#120): keep what's picked if the form is opened again while open.
+  const keepTags = readTagPick('recAddTags');
+  document.getElementById('recAddTagsWrap').innerHTML =
+    '<label for="recAddTags_btn">Tags (optional)</label>' + renderTagPicker('recAddTags', keepTags);
   const anchor = document.getElementById('recAddAnchor');
   if (!anchor.value) anchor.value = _isoDate(new Date());
   document.getElementById('recAddDesc').focus();
@@ -5959,6 +5968,7 @@ async function submitRecAddForm() {
     end_date: val('recAddEnd') || null,
     category_id: catVal ? parseInt(catVal, 10) : null,
     notes: val('recAddNotes').trim() || null,
+    tag_ids: readTagPick('recAddTags'),
   };
   status.style.color = 'var(--muted)';
   status.textContent = 'Saving…';
@@ -5971,6 +5981,7 @@ async function submitRecAddForm() {
   ['recAddDesc', 'recAddAmt', 'recAddAnchor', 'recAddEnd', 'recAddNotes'].forEach(id => {
     document.getElementById(id).value = '';
   });
+  document.getElementById('recAddTagsWrap').innerHTML = '';  // next time starts with no tags
   toggleRecAddForm(false);
   await loadRecurring();
 }
@@ -6159,6 +6170,7 @@ function renderEditRow(r, opts) {
     : '';
   return [
     _leTd(_leField('Description', `editDesc_${id}`, `<input id="editDesc_${id}" maxlength="120" value="${escapeAttr(r.description)}">`)
+          + _leField('Tags', `editRecTags_${id}_btn`, renderTagPicker(`editRecTags_${id}`, (r.tags || []).map(t => t.id)))
           + (skipNote ? `<div class="le-ro">${skipNote}</div>` : '')
           + `<div class="le-status" id="editStatus_${id}" role="alert"></div>`),
     _leTd(_leField('Type', `editType_${id}`, `<select id="editType_${id}">
@@ -6184,6 +6196,7 @@ function renderEditRow(r, opts) {
 // left alone on <select>s (it opens/commits the dropdown) and on buttons and
 // links, which already treat it as a click.
 function onRecEditKey(ev, id) {
+  if (ev.target.closest && ev.target.closest('.tag-dd')) return;   // the picker's own keys (#120)
   if (ev.key === 'Escape') { ev.preventDefault(); if (!recSheetMode) cancelEditRecurring(); return; }
   if (ev.key === 'Enter' && ev.target.tagName === 'INPUT') {
     ev.preventDefault();
@@ -6268,6 +6281,8 @@ async function saveRecurring(id, opts) {
     category_id: catVal ? parseInt(catVal) : null,
     notes: document.getElementById(`editNotes_${id}`).value.trim() || null,
     active: true,
+    // Always the picker's array, so every tag can be cleared in one save (#120).
+    tag_ids: readTagPick(`editRecTags_${id}`),
   };
   // Mistakes are shown in the edit row, and the field gets the focus.
   const fieldErr = (msg, field) => {
@@ -6284,7 +6299,8 @@ async function saveRecurring(id, opts) {
   if (sheet && before && before.description === body.description && Number(before.amount) === body.amount
       && before.frequency === body.frequency && (before.day_of_month || null) === body.day_of_month
       && (before.anchor_date || null) === body.anchor_date && (before.end_date || null) === body.end_date
-      && (before.category_id || null) === body.category_id && (before.notes || null) === body.notes) {
+      && (before.category_id || null) === body.category_id && (before.notes || null) === body.notes
+      && (before.tags || []).map(t => t.id).sort().join(',') === [...body.tag_ids].sort().join(',')) {
     document.getElementById(`editStatus_${id}`).textContent = '';
     return;
   }
@@ -6296,7 +6312,10 @@ async function saveRecurring(id, opts) {
   }
   if (sheet) {
     document.getElementById(`editStatus_${id}`).textContent = '';
-    if (before) Object.assign(before, body);
+    if (before) {
+      const { tag_ids, ...fields } = body;
+      Object.assign(before, fields, { tags: (tags || []).filter(t => tag_ids.includes(t.id)) });
+    }
     _scheduleRecSheetRefresh();
     return;
   }

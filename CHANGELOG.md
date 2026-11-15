@@ -65,7 +65,16 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.41.0** · Web version: **1.63.0** · Schema version: **16**
+App version: **1.41.0** · Web version: **1.64.0** · Schema version: **16**
+
+### Added
+
+- Bills & income items can be tagged. The add form has a Tags picker; editing
+  an item (or spreadsheet mode) shows one under its description, and an item's
+  tags show as small chips under its description in the table. Tags carry
+  through: the item's upcoming lines on Forecast show them, and a line saved
+  from it starts with them. Clearing all of an item's tags in the picker
+  removes them; lines already saved keep the tags they have.
 
 ## [1.41.0] — 2026-11-15
 

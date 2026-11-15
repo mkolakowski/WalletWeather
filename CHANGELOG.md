@@ -65,7 +65,12 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.39.0** · Web version: **1.61.8** · Schema version: **14**
+App version: **1.39.0** · Web version: **1.61.9** · Schema version: **14**
+
+### Changed
+
+- The Repeats dropdown on Forecast's new line is only as wide as its longest
+  choice, Bi-weekly, instead of stretching across the space under its heading.
 
 ## [1.39.0] — 2026-11-14
 

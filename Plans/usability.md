@@ -9,12 +9,13 @@ Tracking issue: #56
 | 1. Bills & income page | #51 | Released in v1.25.0, waiting on your check |
 | 2. Forecast editing and lost features | #52 | Released in v1.26.0, waiting on your check |
 | 3. Messages and dialogs | #53 | Released in v1.27.0, waiting on your check |
-| 4. Navigation and Settings layout | #54 | Open |
+| 4. Navigation and Settings layout | #54 | Released in v1.28.0, waiting on your check |
 | 5. Polish: wording, keyboard, filters | #55 | Open |
 
 - **Phase 1** — app 1.25.0, web 1.49.0, released 2026-11-14 (#59). Verified: 7 new API tests for `GET /api/recurring` (43 pass); the page driven in jsdom against a demo copy (filter, totals, add, edit on another account, Select all monthly → bulk bar, Archived, a read-only shared account). Not yet seen in a real browser: screenshots were blocked in that session, so your look on desktop and phone is the check.
 - **Phase 2** — app 1.26.0 (no server change), web 1.50.0, released 2026-11-14 (#60). Verified: 43 API tests pass; the page driven in jsdom against a demo copy (✎ opens a line with Delete inside; Save and add another keeps date and category; Transactions page search, bulk tag bar, transfer Edit / Save / Back returning to Transactions, and to Forecast when opened there; a read-only viewer gets no ✎). Not yet seen in a real browser.
 - **Phase 3** — app 1.27.0 (no server change), web 1.51.0, released 2026-11-14 (#61). Verified: no `alert(`, `confirm(` or `prompt(` call left (grep); 43 API tests pass; jsdom against a demo copy: delete dialog (Cancel focused, red Delete last; Cancel, Escape and Delete each behave), rename account through the input dialog, short password refused inside the dialog, form mistakes next to the fields, a duplicate category shown as the server's sentence. Row editors on Forecast and Transactions still report mistakes as a message rather than beside the field. Not yet seen in a real browser.
+- **Phase 4** — app 1.28.0 (no server change), web 1.52.0, released 2026-11-14 (#63). Settings has a seventh tab, Your account (Delete my account, Important notice), decided 2026-11-14 because those panels were added after the plan. Verified: 43 API tests pass; jsdom against a demo copy (cold loads of `#settings/budgets`, `#import`, `#transfer/<id>` and a missing transfer id; tab clicks, arrow keys and Back through tabs; More sheet open, navigate, Escape; the right entry lit for Import and Transfer). The phone bottom bar's CSS could not be exercised (jsdom applies no media queries); it was checked by reading. Found and fixed: a cold `#transfer/<id>` opened a blank form still set to save over that transfer. Found and filed: #62 (transfer form defaults to tomorrow in the evening).
 
 Sessions: may span — each phase ends with a release and your look on your own instance (desktop and phone) before the next starts.
 
@@ -98,7 +99,7 @@ What's wrong today: the page shows the same recurring items twice (an editable t
 ### Phase 4: Navigation and Settings layout
 
 - On a phone, a bar fixed at the bottom holds Dashboard, Forecast, Bills & income and Calendar, plus a "More" button for the other pages and Log out. Desktop keeps the row of buttons in the top bar.
-- Settings becomes tabs (Appearance, Accounts, Categories & tags, Budgets, Sharing, Backup), one showing at a time, each with its own address. Every panel that exists today sits under one of them.
+- Settings becomes tabs (Appearance, Accounts, Categories & tags, Budgets, Sharing, Backup, and Your account for Delete my account and the Important notice), one showing at a time, each with its own address. Every panel that exists today sits under one of them.
 - Import and Transfer get their own addresses, so a refresh or the back button keeps you there.
 
 **You:** walk every page on your phone and on desktop; refresh on Import and on Transfer; open Budgets from a cold start.

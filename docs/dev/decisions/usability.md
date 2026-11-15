@@ -89,3 +89,16 @@ Decisions made while planning [`Plans/usability.md`](../../../Plans/usability.md
 - Expense / Income: chosen.
 
 **What it changes:** phase 5 (#55): the words shown only. Stored values and API fields such as `withdraw` and `deposit` stay as they are.
+
+## 2026-11-14: a seventh Settings tab, "Your account"
+
+**Decided:** 2026-11-14, by Matthew. **Status:** accepted.
+
+**The question:** two Settings panels were added after the plan was written, by the legal-risk work: Delete my account and the Important notice. Neither fits the six tabs chosen above. Where do they go?
+
+**Options considered:**
+- Both under Backup: deleting fits after "download a backup first", but the notice is out of place there.
+- Delete under Backup and the notice under Appearance: no extra tab, but Appearance ends up holding the disclaimer.
+- A seventh tab, "Your account", for both: chosen. Things about you rather than your money get their own place, at the cost of one more tab.
+
+**What it changes:** phase 4 (#54): the Settings tabs and the `#settings/your-account` address.

@@ -27,7 +27,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.44.0"
+APP_VERSION = "1.45.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -39,6 +39,7 @@ APP_VERSION = "1.44.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.45.0 (2026-11-15, claude+mkolakowski): no server change; web 1.67.0 (Bills & income on Forecast's column grid, compact rows, #128).
 # 1.44.0 (2026-11-15, claude+mkolakowski): login rate limiting (#132): failed
 #     password sign-ins per email + address are limited (429 + Retry-After);
 #     sign-ins, failures and blocks go to audit_events (schema 18);

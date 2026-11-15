@@ -32,7 +32,8 @@ server it runs on:
   address it came from, the user if there is one, and when. Never a password.
   It's what the sign-in rate limit counts. It's kept until removed; automatic
   removal of old entries comes in a later release. Deleting a user keeps
-  their entries but unlinks them from the user (the email stays).
+  their entries but removes both the link to the user and the email address
+  from them, failed attempts on that email included.
 - **In the browser:** one signed session cookie that keeps the user signed
   in. No tracking cookies.
 
@@ -62,8 +63,8 @@ the US) may apply to you. In practice:
   Settings ("Delete my account"), which removes them and everything only
   they own; an account they share stays if it has another owner. An admin
   can also delete a user from the Admin panel. Old backup files still
-  contain deleted users until you remove those files, and the sign-in log
-  keeps the email address on their past entries.
+  contain deleted users until you remove those files. The sign-in log keeps
+  their past entries without their email address.
 
 ## Changes
 

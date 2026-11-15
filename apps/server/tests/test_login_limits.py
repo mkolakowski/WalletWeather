@@ -195,10 +195,63 @@ def test_a_disabled_users_right_password_is_recorded_as_failed(client, registere
         db.close()
 
 
-def test_deleting_a_user_keeps_their_events_without_the_link(client, registered, limits):
+def _rows_by_id(ids):
+    from app.db import AuditEvent, SessionLocal
+    db = SessionLocal()
+    try:
+        return [(r.email, r.user_id, r.event) for r in
+                db.query(AuditEvent).filter(AuditEvent.id.in_(ids)).order_by(AuditEvent.id)]
+    finally:
+        db.close()
+
+
+def _ids_for(email):
+    from app.db import AuditEvent, SessionLocal
+    db = SessionLocal()
+    try:
+        return [r.id for r in db.query(AuditEvent).filter_by(email=email.lower())]
+    finally:
+        db.close()
+
+
+def test_deleting_yourself_keeps_your_events_without_your_email(client, registered, limits):
+    """Decided 2026-11-15 (#139): the rows stay, the email and the link go."""
     client.cookies.clear()
+    login(client, registered["email"], "wrong-password")
     login(client, registered["email"], registered["password"])
+    ids = _ids_for(registered["email"])
+    assert len(ids) >= 2
     r = client.request("DELETE", "/api/me", json={"password": registered["password"]})
     assert r.status_code == 200
-    rows = events(registered["email"])
-    assert rows and all(e["user_id"] is None for e in rows)
+    rows = _rows_by_id(ids)
+    assert len(rows) == len(ids)
+    assert all(email is None and user_id is None for (email, user_id, _) in rows)
+    assert {e for (_, _, e) in rows} >= {"login", "login_failed"}
+
+
+def test_an_admin_deleting_a_user_blanks_their_email_too(app_started, client, registered, limits):
+    from app import main
+    main.ADMIN_EMAILS.add(registered["email"])
+    try:
+        victim = TestClient(app_started)
+        email, pw = unique_email(), "correct-horse-battery"
+        uid = victim.post("/api/auth/register", json={"email": email, "password": pw}).json()["id"]
+        victim.cookies.clear()
+        login(victim, email, pw)
+        # A failed try on their address with the email typed in capitals.
+        login(TestClient(app_started), email.upper(), "nope-nope")
+        ids = _ids_for(email)
+        assert client.delete(f"/api/admin/users/{uid}").status_code == 200
+        rows = _rows_by_id(ids)
+        assert len(rows) == len(ids) and all(r[0] is None and r[1] is None for r in rows)
+    finally:
+        main.ADMIN_EMAILS.discard(registered["email"])
+
+
+def test_deleting_a_user_leaves_other_peoples_events_alone(app_started, client, registered, limits):
+    other_email = unique_email()
+    login(TestClient(app_started), other_email, "whatever-pw")
+    client.cookies.clear()
+    login(client, registered["email"], registered["password"])
+    client.request("DELETE", "/api/me", json={"password": registered["password"]})
+    assert events(other_email) and all(e["event"] == "login_failed" for e in events(other_email))

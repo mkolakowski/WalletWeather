@@ -27,7 +27,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.46.0"
+APP_VERSION = "1.46.1"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -39,6 +39,8 @@ APP_VERSION = "1.46.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.46.1 (2026-11-15, claude+mkolakowski): deleting a user blanks their email
+#     on their sign-in log entries (#139).
 # 1.46.0 (2026-11-15, claude+mkolakowski): POST /api/auth/token (#43): email
 #     + password returns a read-only or full token (90 days unless asked),
 #     sharing the login rate limit and sign-in log with /api/auth/login.
@@ -1251,6 +1253,13 @@ def _delete_user(db: Session, user: User, plan: dict) -> None:
     for acc in plan["deleted"]:
         db.delete(acc)
     db.flush()
+    # The sign-in log keeps what happened but not who (decided 2026-11-15,
+    # #139): blank the email on rows that are theirs by id or by address,
+    # failed attempts on their email included. user_id goes to NULL by the
+    # foreign key when the user row goes.
+    (db.query(AuditEvent)
+     .filter((AuditEvent.user_id == user.id) | (AuditEvent.email == user.email.lower()))
+     .update({AuditEvent.email: None}, synchronize_session=False))
     db.expire(user)
     db.delete(user)
     db.commit()

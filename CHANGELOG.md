@@ -67,6 +67,10 @@ same commit (or session) that introduces it.
 
 App version: **1.46.1** · Web version: **1.68.1** · Schema version: **18**
 
+## [1.46.1] — 2026-11-15
+
+App version: **1.46.1** · Web version: **1.68.1** · Schema version: **18**
+
 ### Added
 
 - **+ Add recurring** on Bills & income now opens a new line at the top of
@@ -1695,7 +1699,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.45.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.46.1...HEAD
+[1.46.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.46.1
 [1.45.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.45.0
 [1.44.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.44.0
 [1.42.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.42.0

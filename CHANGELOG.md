@@ -65,7 +65,19 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.31.2** · Web version: **1.55.2** · Schema version: **14**
+App version: **1.32.0** · Web version: **1.56.0** · Schema version: **14**
+
+### Changed
+
+- **An open line lines up with the table's columns.** On Forecast,
+  Transactions and Bills & income, each field you edit now sits under its own
+  column heading, labelled, all on one line, so an open line is about as tall
+  as a field. Columns that only show calculated figures hold the extra fields
+  while you edit: on Forecast, Tags sit under the difference and balance
+  columns; on Bills & income, Day of month and Start date sit under Monthly
+  and Yearly; on Transactions, both dates share the Date column, Notes shares
+  the Description column and the actual amount sits under Status.
+- Save, Delete and Cancel are taller and centered in their column.
 
 ## [1.31.2] — 2026-11-14
 

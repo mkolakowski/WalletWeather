@@ -6,7 +6,7 @@ Tracking issue: #93
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Connect and Dashboard | #87 | Built 2026-11-15 (app 1.50.0, web 1.72.0, schema 19, iOS 0.1.0), not released; waiting on your phone check |
+| 1. Connect and Dashboard | #87 | Released in 1.50.0 (2026-11-15; web 1.72.0, schema 19, iOS 0.1.1); simulator screenshots on #87; waiting on your phone check |
 | 2. Forecast | #88 | Open (after phase 1) |
 | 3. Bills & income and Calendar | #89 | Open (after phase 2) |
 | 4. The Duo's big screen | #90 | Open (after phase 3) |
@@ -17,7 +17,7 @@ Tracking issue: #93
 | 9. The web app's themes | #102 | Open (after phase 5) |
 | 10. Search everything | #112 | Open (after phases 3 and 5, and #111: one search on the server and in the web app) |
 
-Phase 1 built on 2026-11-15: server 1.50.0 (the "sign in an app" page and its two endpoints, `current_balance` on the Dashboard, schema 19), web 1.72.0 (the "Open in WalletWeather" button) and the iOS app 0.1.0 (Connect, sign-in, the Important notice, the frame and the Dashboard). Verified by the server tests (pytest, all passing), `swift test` in `apps/ios/WalletWeatherKit` against samples recorded from the demo server, and a simulator build; the Cloudflare part waits on your phone (see `docs/dev/decisions/ios-app.md`, "how the Cloudflare sign-in reaches the app").
+Phase 1 built on 2026-11-15: server 1.50.0 (the "sign in an app" page and its two endpoints, `current_balance` on the Dashboard, schema 19), web 1.72.0 (the "Open in WalletWeather" button) and the iOS app 0.1.0 (Connect, sign-in, the Important notice, the frame and the Dashboard). Verified by the server tests (pytest, all passing), `swift test` in `apps/ios/WalletWeatherKit` against samples recorded from the demo server, and simulator screenshots on the Duo (closed, open on its side, open upright) and an iPhone 17, which found two layout bugs fixed in iOS 0.1.1; released in v1.50.0 the same day. The Cloudflare part waits on your phone (see `docs/dev/decisions/ios-app.md`, "how the Cloudflare sign-in reaches the app").
 
 Written 2026-11-14 from a review of the app at 1.35.0 (web 1.59.0, schema 14). Until now the only notes on a native app were `apps/ios/README.md` and the "ready for native apps later" goal of `Plans/phone-path.md`.
 

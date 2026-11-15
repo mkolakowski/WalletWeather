@@ -67,6 +67,10 @@ same commit (or session) that introduces it.
 
 App version: **1.32.5** · Web version: **1.56.5** · Schema version: **14**
 
+## [1.32.5] — 2026-11-14
+
+App version: **1.32.5** · Web version: **1.56.5** · Schema version: **14**
+
 ### Changed
 
 - In an open line, the up and down arrows on number fields (amounts, day of
@@ -1342,7 +1346,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.32.4...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.32.5...HEAD
+[1.32.5]: https://github.com/mkolakowski/walletweather/releases/tag/v1.32.5
 [1.32.4]: https://github.com/mkolakowski/walletweather/releases/tag/v1.32.4
 [1.32.3]: https://github.com/mkolakowski/walletweather/releases/tag/v1.32.3
 [1.32.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.32.2

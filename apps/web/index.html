@@ -118,13 +118,15 @@
     table#txnSearchTable thead th:nth-child(6) { width:160px; }
     table#txnSearchTable thead th:is(:nth-child(7), :nth-child(8)) { width:110px; }
     /* Bills & income uses Forecast's widths, one column over for the select
-       checkbox (#128): dates 142, Category 150, Amount and Account 120,
-       Repeats like an amount, Tags a little wider, Notes 240 like Forecast. */
+       checkbox (#128): dates 142, Amount and Account 120, Repeats like an
+       amount. Category, Tags and Notes ask for less than Forecast's (120,
+       110, 160) because this table has more columns: the room goes to the
+       date fields, which need about 130px to show a whole date (#129). */
     table#recurringTable thead th:is(:nth-child(3), :nth-child(4)) { width:142px; }
-    table#recurringTable thead th:nth-child(5) { width:150px; }
+    table#recurringTable thead th:nth-child(5) { width:120px; }
     table#recurringTable thead th:is(:nth-child(6), :nth-child(7), :nth-child(8)) { width:120px; }
-    table#recurringTable thead th:nth-child(11) { width:140px; }
-    table#recurringTable thead th:nth-child(12) { width:240px; }
+    table#recurringTable thead th:nth-child(11) { width:110px; }
+    table#recurringTable thead th:nth-child(12) { width:160px; }
   }
   /* The ✎ (and read-only badge) sit at the right end of the row. */
   :is(#forecastTable, #recurringTable, #txnSearchTable) tbody tr:not(.le-inline):not(.today-marker) > td:last-child { text-align:right; }
@@ -176,7 +178,7 @@
   :is(th[data-key="diff_amount"], th[data-key="actual_balance"]).th-swapped .th-swap { justify-items:start; }
   .th-swap > span { grid-area:1 / 1; white-space:nowrap; }
   .th-swap > .th-size, th.th-swapped .th-swap > .th-main { visibility:hidden; }
-  #addToggle.active { box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+  :is(#addToggle, #recAddBtn).active { box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
   @media (max-width: 768px) {
     /* Phone: the add row is a stacked two-column form, overriding the read
        card's per-cell placement. */
@@ -371,6 +373,10 @@
      30px input height made the row taller than a closed one). */
   #recurringTable tr.le-inline .rec-row-cb { width:auto; height:auto; min-height:0; vertical-align:middle; margin:0; }
   table.tw-wrapped#recurringTable .rec-sizer { display:none; }
+  /* Phone cards: the add line has no checkbox, and the open rows' Monthly and
+     Yearly cells are only there to fill columns. */
+  table.tw-wrapped#recurringTable tr.rec-addrow > td:first-child,
+  table.tw-wrapped#recurringTable tr.le-inline > td.le-blank { display:none; }
   #recurringTable .rec-tags { display:flex; gap:4px; overflow:hidden; white-space:nowrap; }
   #recurringTable thead th:nth-child(12) { border-right:none; }
   /* The balance pair is plain text (no input boxes), so keep a little air. */
@@ -1266,50 +1272,6 @@
       <div id="recTotalsScope" style="font-size:12px;color:var(--muted);margin:0 0 6px"
            title="Weekly and biweekly items are converted to a monthly figure so everything lines up"></div>
       <div class="summary" id="recSummary" style="margin:0 0 12px"></div>
-
-        <!-- Add form: same fields as the edit form, plus the account. -->
-        <div id="recAddPanel" class="panel hidden">
-          <h2>Add recurring</h2>
-          <div class="row">
-            <div style="flex:1 1 160px"><label for="recAddAccount">Account</label>
-              <select id="recAddAccount"></select></div>
-            <div style="flex:3 1 240px"><label for="recAddDesc">Description</label>
-              <input id="recAddDesc" maxlength="120" placeholder="Rent"></div>
-            <div style="flex:0 1 130px;min-width:110px"><label for="recAddType">Type</label>
-              <select id="recAddType">
-                <option value="withdraw" selected>Expense</option>
-                <option value="deposit">Income</option>
-              </select></div>
-            <div style="flex:0 1 140px;min-width:120px"><label for="recAddAmt">Amount</label>
-              <input id="recAddAmt" type="number" step="0.01" min="0"></div>
-            <div style="flex:1 1 150px"><label for="recAddCat">Category</label>
-              <select id="recAddCat"></select></div>
-          </div>
-          <div class="row" style="margin-top:8px">
-            <!-- Like Forecast's add row (#110): Monthly repeats on the start
-                 date's day of the month, so there's no Day of month box. -->
-            <div style="flex:0 1 140px;min-width:120px"><label for="recAddFreq">Repeats</label>
-              <select id="recAddFreq">
-                <option value="weekly">Weekly</option>
-                <option value="biweekly">Bi-weekly</option>
-                <option value="monthly_day" selected>Monthly</option>
-              </select></div>
-            <div style="flex:0 1 170px;min-width:150px"><label for="recAddAnchor"
-                 title="The first date it falls on; nothing is projected before it. Monthly repeats on this day of the month.">Start date</label>
-              <input id="recAddAnchor" type="date"></div>
-            <div style="flex:0 1 170px;min-width:150px"><label for="recAddEnd">Ends (optional)</label>
-              <input id="recAddEnd" type="date"></div>
-            <!-- Filled by toggleRecAddForm so new tags show up (#120). -->
-            <div id="recAddTagsWrap" style="flex:1 1 170px;min-width:140px"></div>
-            <div style="flex:3 1 220px"><label for="recAddNotes">Notes (optional)</label>
-              <input id="recAddNotes" maxlength="256"></div>
-          </div>
-          <div class="row" style="margin-top:12px;align-items:center">
-            <div style="flex:0 0 auto"><button onclick="submitRecAddForm()">Save</button></div>
-            <div style="flex:0 0 auto"><button class="ghost" onclick="toggleRecAddForm(false)">Cancel</button></div>
-            <div id="recAddStatus" role="status" style="flex:1 1 auto;font-size:12px;color:var(--muted)"></div>
-          </div>
-        </div>
 
       <div class="panel" id="txnRecurringPanel">
         <div class="fc-controls">
@@ -2492,7 +2454,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.67.0";
+const WEB_VERSION = "1.68.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2503,6 +2465,7 @@ const WEB_VERSION = "1.67.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.68.0 (2026-11-15, claude+mkolakowski): (#129) Bills & income: + Add recurring opens an inline add line at the top of #recurringTable (_buildRecAddRow / _recAddRowEl, put back by renderRecurring via _placeRecAddRow; account dropdown only on All accounts), replacing #recAddPanel. Add line and edit rows take a signed Amount (Type dropdown gone) and the day from the start date (Day of month gone; _nextDayOfMonth fills a missing start date, which spreadsheet mode doesn't count as a change); onEditFreqChange removed.
 // 1.67.0 (2026-11-15, claude+mkolakowski): (#128) Bills & income on Forecast's column grid: Description | Start date | Ends | Category | Amount | Account | Repeats (recRepeatLabel replaces subsFrequencyLabel) | Monthly | Yearly | Tags | Notes+✎ (.notes-edit, colspan 2) | spacer; widths like Forecast's, 34px one-line rows (only the description wraps), tags in their own column (.rec-tags), edit rows in the same column order; Start date sorts (anchor_date).
 // 1.66.0 (2026-11-15, claude+mkolakowski): (#43) API tokens: Settings gets an Expires select (30 days / 90 days default / a year / Never) sent as expires_in_days, and each token line shows made, expires/expired and last used (apiTokenDetails). Admin page: an "API tokens" panel (loadAdminTokens / adminRevokeToken) lists everyone's tokens with Revoke.
 // 1.65.1 (2026-11-15, claude+mkolakowski): (#127) Add row: Repeats and Tags share one colspan-4 cell (.add-rt; Repeats --add-rep-w wide, Tags fills the rest, no column line between); while open the four balance headings stay (no width change) but lose the lines between them (.th-open-merge) and the first reads Repeats with Tags (.ah-tags) over the picker's start.
@@ -5929,6 +5892,7 @@ function renderRecurring() {
     tbody.innerHTML = `<tr><td colspan="13" style="color:var(--muted);text-align:center;padding:16px">${msg}</td></tr>`;
     document.getElementById('recurringPagination').classList.add('hidden');
     _recPageIds = [];
+    _placeRecAddRow();
     refreshRecBulkBar();
     return;
   }
@@ -6020,6 +5984,7 @@ function renderRecurring() {
     }
     tbody.appendChild(tr);
   });
+  _placeRecAddRow();
   refreshRecBulkBar();
 }
 
@@ -6034,75 +5999,120 @@ function selectAllMonthlyRec() {
   if (status) status.textContent = `${ids.length} monthly item${ids.length===1?'':'s'} selected. Set a start date above and press Apply.`;
 }
 
-// ---------- Bills & income: add form ----------
-function toggleRecAddForm(show) {
-  const panel = document.getElementById('recAddPanel');
-  panel.classList.toggle('hidden', !show);
-  document.getElementById('recAddBtn').classList.toggle('hidden', show || !_recEditableAccounts().length);
-  if (!show) return;
+// ---------- Bills & income: add line (#129) ----------
+// "+ Add recurring" opens a new line at the top of the table, built like an
+// edit row and Forecast's add line: a field under each column, a signed
+// Amount (negative = bill, positive = income), Repeats and Tags under their
+// own headings, Notes with the buttons. Monthly repeats on the start date's
+// day. The row element is kept while open and put back after every re-render
+// (renderRecurring), so what's typed survives a refresh.
+let _recAddRowEl = null;
+function _recAddAccountCell() {
   const editable = _recEditableAccounts();
-  const acctSel = document.getElementById('recAddAccount');
-  acctSel.innerHTML = editable.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
-  // Start on the filtered account when it can be edited.
-  if (recFilterAccount && editable.some(a => String(a.id) === recFilterAccount)) acctSel.value = recFilterAccount;
-  const catSel = document.getElementById('recAddCat');
-  const keep = catSel.value;
-  catSel.innerHTML = '<option value="">— none —</option>' +
-    categories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-  catSel.value = keep;
-  document.getElementById('recAddStatus').textContent = '';
-  // Tags (#120): keep what's picked if the form is opened again while open.
-  const keepTags = readTagPick('recAddTags');
-  document.getElementById('recAddTagsWrap').innerHTML =
-    '<label for="recAddTags_btn">Tags (optional)</label>' + renderTagPicker('recAddTags', keepTags);
-  const anchor = document.getElementById('recAddAnchor');
-  if (!anchor.value) anchor.value = _isoDate(new Date());
-  document.getElementById('recAddDesc').focus();
+  // On an account's own tab the account is that one; a dropdown on All accounts.
+  const fixed = recFilterAccount && editable.find(a => String(a.id) === recFilterAccount);
+  if (fixed) return `<div class="le-ro" id="recAddAccountName" data-id="${fixed.id}" title="Adding to this account">${escapeHtml(fixed.name)}</div>`;
+  return _leField('Account', 'recAddAccount',
+    `<select id="recAddAccount">${editable.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('')}</select>`);
+}
+function _buildRecAddRow() {
+  const tr = document.createElement('tr');
+  tr.className = 'le-row le-inline rec-addrow';
+  const catOptions = '<option value="">— none —</option>' +
+    (categories || []).map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  tr.innerHTML = [
+    '<td></td>',
+    _leTd(_leField('Description', 'recAddDesc', '<input id="recAddDesc" maxlength="120" placeholder="New item: description">')
+          + '<div class="le-status" id="recAddStatus" role="status"></div>'),
+    _leTd(_leField('Start date', 'recAddAnchor',
+          `<input id="recAddAnchor" type="date" value="${_isoDate(new Date())}" title="The first date it falls on; Monthly repeats on this day of the month">`)),
+    _leTd(_leField('Ends (optional)', 'recAddEnd', '<input id="recAddEnd" type="date" title="Ends (optional)">')),
+    _leTd(_leField('Category', 'recAddCat', `<select id="recAddCat">${catOptions}</select>`)),
+    _leTd(_leField('Amount', 'recAddAmt', _leNum('<input id="recAddAmt" type="number" step="0.01" placeholder="-0.00" title="Negative for a bill, positive for income">')), { cls: 'num' }),
+    _leTd(_recAddAccountCell()),
+    _leTd(_leField('Repeats', 'recAddFreq', `<select id="recAddFreq">
+        <option value="weekly">Weekly</option><option value="biweekly">Bi-weekly</option>
+        <option value="monthly_day" selected>Monthly</option></select>`)),
+    _leTd('', { cls: 'num le-blank' }),
+    _leTd('', { cls: 'num le-blank' }),
+    _leTd(_leField('Tags', 'recAddTags_btn', renderTagPicker('recAddTags', []))),
+    _leNotesActionsTd(_leField('Notes', 'recAddNotes', '<input id="recAddNotes" maxlength="256" placeholder="Notes">'),
+      `<button onclick="submitRecAddForm()" title="Save (Enter)">Save</button>
+       <button class="ghost" onclick="submitRecAddForm(true)" title="Save, then start another with the same dates, category, account, repeats and tags">+ Another</button>
+       <button class="ghost" onclick="toggleRecAddForm(false)" title="Cancel (Esc)">Cancel</button>`),
+  ].join('');
+  tr.onkeydown = (ev) => {
+    if (ev.target.closest && ev.target.closest('.tag-dd')) return;
+    if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); toggleRecAddForm(false); }
+    else if (ev.key === 'Enter' && ev.target.tagName === 'INPUT') { ev.preventDefault(); ev.stopPropagation(); submitRecAddForm(); }
+  };
+  return tr;
+}
+function _placeRecAddRow() {
+  if (!_recAddRowEl) return;
+  const tbody = document.querySelector('#recurringTable tbody');
+  tbody.insertBefore(_recAddRowEl, tbody.firstChild);
+}
+function toggleRecAddForm(show) {
+  const btn = document.getElementById('recAddBtn');
+  if (!show) {
+    if (_recAddRowEl) { _recAddRowEl.remove(); _recAddRowEl = null; }
+    if (btn) btn.classList.remove('active');
+    return;
+  }
+  if (!_recEditableAccounts().length) return;
+  if (!_recAddRowEl) _recAddRowEl = _buildRecAddRow();
+  _placeRecAddRow();
+  if (btn) btn.classList.add('active');
+  const d = document.getElementById('recAddDesc');
+  if (d) d.focus();
 }
 
-async function submitRecAddForm() {
-  const status = document.getElementById('recAddStatus');
-  const val = id => document.getElementById(id).value;
-  const accountId = parseInt(val('recAddAccount'), 10);
+async function submitRecAddForm(addAnother) {
+  const st = document.getElementById('recAddStatus');
+  if (!st) return;
+  st.textContent = ''; st.style.color = '';
+  const val = id => (document.getElementById(id) || {}).value || '';
+  const err = (msg, id) => _lineEditorError('recAddStatus', msg, id ? document.getElementById(id) : null);
+  const acctSel = document.getElementById('recAddAccount');
+  const acctFixed = document.getElementById('recAddAccountName');
+  const accountId = parseInt(acctSel ? acctSel.value : (acctFixed ? acctFixed.dataset.id : ''), 10);
   const desc = val('recAddDesc').trim();
-  const rawAmt = parseFloat(val('recAddAmt'));
+  const amount = val('recAddAmt') === '' ? NaN : parseFloat(val('recAddAmt'));
   const freq = val('recAddFreq');
   const anchor = val('recAddAnchor') || null;
-  const day = anchor ? parseInt(anchor.slice(8, 10), 10) : null;
-  const showErr = (msg, fieldId) => {
-    status.style.color = 'var(--bad)';
-    status.textContent = msg;
-    if (fieldId) document.getElementById(fieldId).focus();
-  };
-  if (!accountId) return showErr('Pick an account.', 'recAddAccount');
-  if (!desc) return showErr('Enter a description.', 'recAddDesc');
-  if (isNaN(rawAmt) || rawAmt <= 0) return showErr('Enter an amount above zero.', 'recAddAmt');
-  if (!anchor) return showErr('Enter a start date.', 'recAddAnchor');
+  if (!accountId) return err('Pick an account.', 'recAddAccount');
+  if (!desc) return err('Enter a description.', 'recAddDesc');
+  if (isNaN(amount) || amount === 0) return err('Enter the amount: negative for a bill, positive for income.', 'recAddAmt');
+  if (!anchor) return err('Enter a start date.', 'recAddAnchor');
   const catVal = val('recAddCat');
   const body = {
     description: desc,
-    amount: val('recAddType') === 'withdraw' ? -Math.abs(rawAmt) : Math.abs(rawAmt),
+    amount,
     frequency: freq,
-    day_of_month: freq === 'monthly_day' ? day : null,
+    day_of_month: freq === 'monthly_day' ? parseInt(anchor.slice(8, 10), 10) : null,
     anchor_date: anchor,
     end_date: val('recAddEnd') || null,
     category_id: catVal ? parseInt(catVal, 10) : null,
     notes: val('recAddNotes').trim() || null,
     tag_ids: readTagPick('recAddTags'),
   };
-  status.style.color = 'var(--muted)';
-  status.textContent = 'Saving…';
   try {
     await api(`/api/accounts/${accountId}/recurring`, { method: 'POST', body: JSON.stringify(body) });
   } catch (e) {
     if (e.message === 'auth') return;
-    return showErr('Could not save it. Check the fields and try again.');
+    notifyError('Could not save', e);
+    return;
   }
-  ['recAddDesc', 'recAddAmt', 'recAddAnchor', 'recAddEnd', 'recAddNotes'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
-  document.getElementById('recAddTagsWrap').innerHTML = '';  // next time starts with no tags
-  toggleRecAddForm(false);
+  if (addAnother) {
+    // Keep the dates, category, account, repeats and tags; clear the rest.
+    ['recAddDesc', 'recAddAmt', 'recAddNotes'].forEach(id => { document.getElementById(id).value = ''; });
+    st.style.color = 'var(--good)';
+    st.textContent = `Saved “${desc}”.`;
+    document.getElementById('recAddDesc').focus();
+  } else {
+    toggleRecAddForm(false);
+  }
   await loadRecurring();
 }
 
@@ -6281,32 +6291,35 @@ function renderEditRow(r, opts) {
   const freqOptions = Object.entries({weekly:'Weekly', biweekly:'Bi-weekly', monthly_day:'Monthly'})
     .map(([f, label]) => `<option value="${f}"${f===r.frequency?' selected':''}>${label}</option>`).join('');
   const isMonthly = r.frequency === 'monthly_day';
-  const isWithdraw = Number(r.amount) < 0;
+  // The day comes from the start date (#129). A monthly item saved without a
+  // start date opens with its next day-of-month date filled in; it's written
+  // when the row is saved (spreadsheet mode leaves it alone unless something
+  // else on the row changes).
+  const prefilled = (!r.anchor_date && isMonthly && r.day_of_month) ? _nextDayOfMonth(r.day_of_month) : '';
+  const anchorVal = r.anchor_date || prefilled;
   const skipNote = r.skipped_count
     ? `<small>${r.skipped_count} deleted date${r.skipped_count===1?'':'s'} ·
        <a href="#" onclick="restoreRecurringSkips(${id});return false">Restore</a></small>`
     : '';
   // Same columns as the read row (#128): Description | Start date | Ends |
-  // Category | Amount | Account (type) | Repeats | Monthly (day of month) |
-  // Yearly (nothing to edit) | Tags | Notes + buttons.
+  // Category | Amount (signed, #129) | Account (fixed) | Repeats | Monthly and
+  // Yearly (worked out on save) | Tags | Notes + buttons.
   return [
     _leTd(_leField('Description', `editDesc_${id}`, `<input id="editDesc_${id}" maxlength="120" value="${escapeAttr(r.description)}">`)
           + (skipNote ? `<div class="le-ro">${skipNote}</div>` : '')
           + `<div class="le-status" id="editStatus_${id}" role="alert"></div>`),
-    _leTd(_leField(isMonthly ? 'Start date (optional)' : 'Start date', `editAnchor_${id}`,
-               `<input id="editAnchor_${id}" type="date" value="${r.anchor_date||''}">`, { labelId: `editAnchorLabel_${id}` })),
+    _leTd(_leField('Start date', `editAnchor_${id}`,
+               `<input id="editAnchor_${id}" type="date" value="${anchorVal}" data-prefilled="${prefilled}"
+                       title="${prefilled ? `Filled in from day ${r.day_of_month}; saved with this row` : 'The first date it falls on; Monthly repeats on this day of the month'}">`)),
     _leTd(_leField('Ends (optional)', `editEnd_${id}`, `<input id="editEnd_${id}" type="date" title="Ends (optional)" value="${r.end_date||''}">`)),
     _leTd(_leField('Category', `editCat_${id}`, `<select id="editCat_${id}">${catOptions}</select>`)),
-    _leTd(_leField('Amount', `editAmt_${id}`, _leNum(`<input id="editAmt_${id}" type="number" step="0.01" min="0" value="${Math.abs(Number(r.amount))}">`)), { cls: 'num' }),
-    _leTd(_leField('Type', `editType_${id}`, `<select id="editType_${id}">
-          <option value="withdraw"${isWithdraw?' selected':''}>Expense</option>
-          <option value="deposit"${isWithdraw?'':' selected'}>Income</option></select>`)),
-    _leTd(_leField('Repeats', `editFreq_${id}`, `<select id="editFreq_${id}" onchange="onEditFreqChange(${id})">${freqOptions}</select>`)),
+    _leTd(_leField('Amount', `editAmt_${id}`, _leNum(`<input id="editAmt_${id}" type="number" step="0.01" value="${Number(r.amount)}" title="Negative for a bill, positive for income">`)), { cls: 'num' }),
+    _leTd(`<div class="le-ro" title="An item stays on its account">${escapeHtml(r.account_name || '')}</div>`),
+    _leTd(_leField('Repeats', `editFreq_${id}`, `<select id="editFreq_${id}">${freqOptions}</select>`)),
     // Monthly and Yearly are number columns, as in the read row, so the
     // invisible copy of the read row measures the same (#128).
-    _leTd(_leField('Day of month', `editDay_${id}`, _leNum(`<input id="editDay_${id}" type="number" min="1" max="31" value="${r.day_of_month||1}">`),
-               { wrapId: `editDayWrap_${id}`, hidden: !isMonthly }), { cls: 'num' }),
-    _leTd('', { cls: 'num' }),
+    _leTd('', { cls: 'num le-blank' }),
+    _leTd('', { cls: 'num le-blank' }),
     _leTd(_leField('Tags', `editRecTags_${id}_btn`, renderTagPicker(`editRecTags_${id}`, (r.tags || []).map(t => t.id)))),
     _leNotesActionsTd(_leField('Notes', `editNotes_${id}`, `<input id="editNotes_${id}" maxlength="256" placeholder="Notes" value="${escapeAttr(r.notes||'')}">`),
       sheet ? `<button class="danger" onclick="delRecurring(${id})" title="Delete this recurring item">🗑 Delete</button>` :
@@ -6378,29 +6391,31 @@ function cancelEditRecurring() {
   renderRecurring();
 }
 
-// Frequency changed in the edit panel: show/hide Day of month and relabel
-// the date field in place. Nothing is re-rendered or re-fetched, so
-// whatever else was typed into the panel is kept.
-function onEditFreqChange(id) {
-  const monthly = document.getElementById(`editFreq_${id}`).value === 'monthly_day';
-  document.getElementById(`editDayWrap_${id}`).classList.toggle('hidden', !monthly);
-  document.getElementById(`editAnchorLabel_${id}`).textContent =
-    monthly ? 'Start date (optional)' : 'Start date';
+// The next date (today or later) that falls on day `d` of a month, as
+// YYYY-MM-DD. Skips months too short for it, so day 31 stays day 31 (#129).
+function _nextDayOfMonth(d) {
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  for (let k = 0; k < 13; k++) {
+    const c = new Date(t.getFullYear(), t.getMonth() + k, d);
+    if (c.getDate() === d && c >= t) return _isoDate(c);
+  }
+  return '';
 }
 
 async function saveRecurring(id, opts) {
   const sheet = !!(opts && opts.sheet);
   const freq = document.getElementById(`editFreq_${id}`).value;
   const catVal = document.getElementById(`editCat_${id}`).value;
-  const rawAmt = parseFloat(document.getElementById(`editAmt_${id}`).value);
-  const withdraw = document.getElementById(`editType_${id}`).value === 'withdraw';
-  const day = parseInt(document.getElementById(`editDay_${id}`).value, 10);
+  const amtRaw = document.getElementById(`editAmt_${id}`).value;
+  const anchorEl = document.getElementById(`editAnchor_${id}`);
+  const anchor = anchorEl.value || null;
   const body = {
     description: document.getElementById(`editDesc_${id}`).value.trim(),
-    amount: isNaN(rawAmt) ? NaN : (withdraw ? -Math.abs(rawAmt) : Math.abs(rawAmt)),
+    amount: amtRaw === '' ? NaN : parseFloat(amtRaw),   // signed (#129)
     frequency: freq,
-    day_of_month: freq==='monthly_day' ? day : null,
-    anchor_date: document.getElementById(`editAnchor_${id}`).value || null,
+    // The day comes from the start date (#129).
+    day_of_month: (freq === 'monthly_day' && anchor) ? parseInt(anchor.slice(8, 10), 10) : null,
+    anchor_date: anchor,
     end_date: document.getElementById(`editEnd_${id}`).value || null,
     category_id: catVal ? parseInt(catVal) : null,
     notes: document.getElementById(`editNotes_${id}`).value.trim() || null,
@@ -6415,14 +6430,16 @@ async function saveRecurring(id, opts) {
     if (el) el.focus();
   };
   if (!body.description) return fieldErr('Enter a description.', 'editDesc');
-  if (isNaN(body.amount)) return fieldErr('Enter an amount.', 'editAmt');
-  if (freq === 'monthly_day' && !(day >= 1 && day <= 31)) return fieldErr('Day of month must be between 1 and 31.', 'editDay');
-  if (freq !== 'monthly_day' && !body.anchor_date) return fieldErr('Weekly and biweekly items need a start date.', 'editAnchor');
-  // Spreadsheet mode: skip rows that haven't changed.
+  if (isNaN(body.amount) || body.amount === 0) return fieldErr('Enter the amount: negative for a bill, positive for income.', 'editAmt');
+  if (!body.anchor_date) return fieldErr('Enter a start date.', 'editAnchor');
+  // Spreadsheet mode: skip rows that haven't changed. A start date that was
+  // only filled in (no start date saved yet) doesn't count as a change.
   const before = recurringData.find(r => r.id === id);
+  const anchorSame = (before && (before.anchor_date || null) === body.anchor_date)
+    || (before && !before.anchor_date && anchorEl.dataset.prefilled && body.anchor_date === anchorEl.dataset.prefilled);
   if (sheet && before && before.description === body.description && Number(before.amount) === body.amount
       && before.frequency === body.frequency && (before.day_of_month || null) === body.day_of_month
-      && (before.anchor_date || null) === body.anchor_date && (before.end_date || null) === body.end_date
+      && anchorSame && (before.end_date || null) === body.end_date
       && (before.category_id || null) === body.category_id && (before.notes || null) === body.notes
       && (before.tags || []).map(t => t.id).sort().join(',') === [...body.tag_ids].sort().join(',')) {
     document.getElementById(`editStatus_${id}`).textContent = '';

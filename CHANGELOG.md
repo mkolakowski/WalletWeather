@@ -65,10 +65,16 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.46.0** · Web version: **1.67.0** · Schema version: **18**
+App version: **1.46.0** · Web version: **1.68.0** · Schema version: **18**
 
 ### Added
 
+- **+ Add recurring** on Bills & income now opens a new line at the top of
+  the table, like Forecast's Add transaction: a field under each column
+  (Description, Start date, Ends, Category, Amount, Account, Repeats, Tags,
+  Notes), with Save, **+ Another** and Cancel. The account is a dropdown on the
+  All accounts tab and fixed on an account's own tab. The separate add form
+  above the table is gone.
 - Apps can sign in with an email and password and get an API token back,
   without opening Settings: `POST /api/auth/token` with `email`, `password`,
   a `name` for the token and `access` (`read` or `full`; admin tokens are made
@@ -78,6 +84,19 @@ App version: **1.46.0** · Web version: **1.67.0** · Schema version: **18**
   wrong passwords in an app count toward the same 15-minute pause. Accounts
   that only sign in with Google have no password, so they make a token in
   Settings instead.
+
+### Changed
+
+- **Breaking:** Bills & income amounts are entered signed, like Forecast's:
+  negative for a bill, positive for income, in the new line and when editing.
+  The Expense/Income dropdown is gone.
+- **Breaking:** editing a Bills & income item no longer has a Day of month
+  box: a monthly item repeats on its start date's day. An item saved without a
+  start date opens with its next day-of-month date filled in, and saving the
+  row keeps it (spreadsheet mode only saves it if you change something else on
+  that row).
+- Bills & income's date columns are wider (Category, Tags and Notes ask for
+  less room), so more of a date shows while you edit.
 
 ## [1.45.0] — 2026-11-15
 

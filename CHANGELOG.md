@@ -69,7 +69,21 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.50.0** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.1.1**
+App version: **1.51.0** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.1.2**
+
+### Added
+
+- **Signing out of the iPhone app now ends its token** on your server, so it
+  shows as revoked in **Settings → API tokens** straight away rather than
+  staying usable until it expires. If the server can't be reached when you
+  sign out, the app still signs out and tells you the token is still listed,
+  to revoke there. Connecting the app to another server with the "Open in
+  WalletWeather" button ends the old server's token the same way (iOS app
+  0.1.2).
+- `DELETE /api/tokens/current` ends the API token the request is signed with,
+  and nothing else. Any token may do this, read-only ones too; a token still
+  can't list, make or revoke other tokens. A signed-in browser gets a 400,
+  since it has no token to end.
 
 ## [1.50.0] — 2026-11-15
 

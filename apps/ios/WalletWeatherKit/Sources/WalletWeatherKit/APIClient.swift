@@ -5,7 +5,7 @@ public enum AppInfo {
     /// The iOS app's own version (CHANGELOG.md tracks it beside the app,
     /// web and schema versions). Keep it equal to MARKETING_VERSION in the
     /// Xcode project.
-    public static let version = "0.1.1"
+    public static let version = "0.1.2"
     /// The first server version with the "sign in an app" page (#87).
     public static let minimumServerVersion = "1.50.0"
 }
@@ -116,6 +116,12 @@ public final class APIClient: Sendable {
 
     public func runReport(_ id: Int) async throws(APIError) -> ReportRun {
         try await send("POST", "/api/saved-reports/\(id)/run", body: [String: String]())
+    }
+
+    /// Ends this phone's token on the server, for Sign out (#145). A token
+    /// may revoke itself and nothing else.
+    public func endToken() async throws(APIError) {
+        let _: EmptyAnswer = try await send("DELETE", "/api/tokens/current", body: Optional<[String: String]>.none)
     }
 
     /// Swaps the sign-in sheet's one-time code for this phone's token.

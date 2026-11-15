@@ -32,8 +32,9 @@ struct MoreView: View {
                 }
                 Section {
                     Button("Sign out", role: .destructive) { confirmSignOut = true }
+                        .disabled(model.busy)
                 } footer: {
-                    Text("Signing out removes this phone's token and server from the phone. The token stays listed in the web app's Settings → API tokens until it runs out; revoke it there to end it now.")
+                    Text("Signing out ends this phone's token on your server, then removes it and the server's address from the phone.")
                 }
             }
             .scrollContentBackground(.hidden)
@@ -41,7 +42,7 @@ struct MoreView: View {
             .navigationTitle("More")
             .confirmationDialog("Sign out of WalletWeather on this phone?", isPresented: $confirmSignOut,
                                 titleVisibility: .visible) {
-                Button("Sign out", role: .destructive) { model.signOut() }
+                Button("Sign out", role: .destructive) { Task { await model.signOutEndingToken() } }
             }
         }
     }

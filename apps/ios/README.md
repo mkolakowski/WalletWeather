@@ -103,9 +103,10 @@ backup). Signing out deletes them. Balances and transactions aren't kept:
 the app needs a connection. Phase 8 adds the choice to keep the last-known
 numbers.
 
-Signing out doesn't revoke the token on the server (no token can revoke
-tokens). It stays listed in Settings until it runs out; revoke it there to
-end it straight away.
+Signing out ends the token on the server first (`DELETE /api/tokens/current`:
+a token may revoke itself, and nothing else). If the server can't be reached,
+the app still signs out and says the token stays listed in Settings → API
+tokens until it's revoked there.
 
 ## The responses it reads
 

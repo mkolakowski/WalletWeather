@@ -36,6 +36,9 @@ final class AppModel {
     /// What the Connect screen shows while it works, or why it stopped.
     var busy = false
     var connectError: String?
+    /// Something the Connect screen should say that isn't a problem (why a
+    /// token may still be listed after signing out).
+    var connectNotice: String?
     /// The server address typed last, kept in memory only.
     var typedAddress = ""
     var pendingLink: PendingLink?
@@ -86,6 +89,7 @@ final class AppModel {
 
     func signIn(serviceToken: CloudflareCredential?) async {
         connectError = nil
+        connectNotice = nil
         let address: ServerAddress
         do { address = try ServerAddress.parse(typedAddress) } catch {
             connectError = error.localizedDescription
@@ -140,6 +144,7 @@ final class AppModel {
     /// A pasted token.
     func connect(token: String, serviceToken: CloudflareCredential?) async {
         connectError = nil
+        connectNotice = nil
         let address: ServerAddress
         do { address = try ServerAddress.parse(typedAddress) } catch {
             connectError = error.localizedDescription
@@ -157,7 +162,12 @@ final class AppModel {
     func connect(link: PendingLink) async {
         pendingLink = nil
         typedAddress = link.address.url.absoluteString
-        if phase != .connect { signOut(keepAddress: true) }
+        if phase != .connect {
+            // The old server's token is ended first, as Sign out does.
+            await signOutEndingToken()
+            typedAddress = link.address.url.absoluteString
+        }
+        connectNotice = nil
         await connect(Connection(server: link.address.url, token: link.token))
     }
 
@@ -238,7 +248,29 @@ final class AppModel {
         pendingLink = PendingLink(address: address, token: token)
     }
 
-    /// Removes the token and everything else from the phone.
+    /// Sign out: ends this phone's token on the server (#145), then removes
+    /// everything from the phone. If the server can't be reached it still
+    /// signs out, and the Connect screen says the token is still listed.
+    func signOutEndingToken() async {
+        if let client, connection?.token != nil {
+            busy = true
+            do {
+                try await client.endToken()
+            } catch .tokenExpired, .tokenRevoked {
+                // Already ended.
+            } catch {
+                signOut()
+                connectNotice = "Signed out on this phone. The server couldn't be reached, so this phone's token is still listed in the web app's Settings → API tokens until you revoke it there."
+                busy = false
+                return
+            }
+            busy = false
+        }
+        signOut()
+    }
+
+    /// Removes the token and everything else from the phone, without asking
+    /// the server (for a token that has already ended).
     func signOut(keepAddress: Bool = false) {
         if keepAddress, let server = connection?.server { typedAddress = server.absoluteString }
         if !keepAddress { typedAddress = "" }

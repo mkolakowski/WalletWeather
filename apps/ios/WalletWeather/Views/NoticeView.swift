@@ -37,7 +37,7 @@ struct NoticeView: View {
                 }
                 .buttonStyle(.glassProminent)
                 .disabled(saving)
-                Button("Sign out") { model.signOut() }
+                Button("Sign out") { Task { await model.signOutEndingToken() } }
                     .frame(maxWidth: .infinity)
                     .buttonStyle(.glass)
             }

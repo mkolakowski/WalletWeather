@@ -29,7 +29,7 @@ from urllib.parse import urlencode
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.50.0"
+APP_VERSION = "1.51.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,8 @@ APP_VERSION = "1.50.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.51.0 (2026-11-15, claude+mkolakowski): DELETE /api/tokens/current (#145):
+#     a token, read-only too, may revoke itself (the iOS app's Sign out).
 # 1.50.0 (2026-11-15, claude+mkolakowski): signing in the iOS app (#87):
 #     the /app-sign-in page, POST /api/app-sign-in (one-time code, PKCE) and
 #     POST /api/app-sign-in/token (code → 90-day token), GET
@@ -664,6 +666,8 @@ def _email_ok(email: str) -> bool:
 #   full   everything a signed-in user can do, except the Admin endpoints
 #   admin  full, plus the Admin endpoints while its owner is an admin
 # No token can list, create or revoke tokens: that needs a browser session.
+# The one exception: a token may revoke itself (DELETE /api/tokens/current),
+# so an app can end its own token when it signs out (#145).
 TOKEN_ACCESS_LEVELS = ("read", "full", "admin")
 TOKEN_PREFIX = "ww_"
 _READ_METHODS = {"GET", "HEAD", "OPTIONS"}
@@ -1279,6 +1283,25 @@ def _make_token(db: Session, user: User, name: str, access: str,
     db.commit()
     db.refresh(row)
     return token, row
+
+
+# Declared before /api/tokens/{token_id}, which would otherwise take "current".
+@app.delete("/api/tokens/current")
+def revoke_current_token(request: Request, user: User = Depends(current_reader),
+                         db: Session = Depends(get_db)):
+    """End the API token this request is signed with, and nothing else (#145).
+
+    The one thing a token may do to tokens: an app ends its own when it signs
+    out. Any access level, read-only too, since ending itself gives nothing
+    away. A browser session has no token to end: 400.
+    """
+    row = request.state.api_token
+    if row is None:
+        raise HTTPException(400, "Only an API token can end itself. Sign out instead.")
+    row.revoked_at = datetime.utcnow()
+    db.commit()
+    record_event(db, "token_revoked", request, user=user, detail=f"token #{row.id}; by itself")
+    return _token_json(row)
 
 
 @app.delete("/api/tokens/{token_id}")

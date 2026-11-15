@@ -60,6 +60,9 @@ struct ConnectView: View {
                     .disabled(model.busy)
                     Text("Opens your server's sign-in page: Cloudflare first if it's in front, then your email and password or Google.")
                         .font(.footnote).foregroundStyle(.secondary)
+                    if let notice = model.connectNotice {
+                        Text(notice).font(.callout).foregroundStyle(.secondary)
+                    }
                     if let error = model.connectError {
                         Text(error)
                             .font(.callout)

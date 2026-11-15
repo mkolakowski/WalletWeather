@@ -242,6 +242,7 @@ struct ForecastView: View {
             if !list.contains(where: { $0.id == accountId }), let first = list.first { accountId = first.id }
         } catch {
             accounts = .failed(error)
+            kept.clear()
             return
         }
         categories = (try? await client.categories()) ?? []
@@ -256,6 +257,7 @@ struct ForecastView: View {
             month = .loaded(try await client.forecast(account: account.id, month: shownMonth))
         } catch {
             month = .failed(error)
+            kept.clear()
         }
     }
 }

@@ -80,6 +80,12 @@ App version: **1.54.1** · Web version: **1.72.0** · Schema version: **19** · 
   still applies when the app opens offline. Picking a look on the phone never
   changes the web app.
 
+### Fixed
+
+- In the iPhone app with Last-known numbers, a page that was never loaded no
+  longer shows the "Offline · as loaded …" bar above its "Can't reach the
+  server" message.
+
 ## [1.54.1] — 2026-11-15
 
 App version: **1.54.1** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.5.0**

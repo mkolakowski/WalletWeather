@@ -180,6 +180,7 @@ struct BillsView: View {
             accounts = try await client.accounts()
         } catch {
             list = .failed(error)
+            kept.clear()
             return
         }
         if accountId != 0, !accounts.contains(where: { $0.id == accountId }) { accountId = 0 }
@@ -195,6 +196,7 @@ struct BillsView: View {
             list = .loaded(try await client.recurring(account: accountId == 0 ? nil : accountId, ended: showEnded))
         } catch {
             list = .failed(error)
+            kept.clear()
         }
     }
 }

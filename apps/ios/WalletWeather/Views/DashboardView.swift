@@ -128,6 +128,7 @@ struct DashboardView: View {
             summary = .loaded(try await client.dashboard())
         } catch {
             summary = .failed(error)
+            kept.clear()
             return
         }
         await loadCharts()

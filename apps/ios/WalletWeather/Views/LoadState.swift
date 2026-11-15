@@ -63,6 +63,9 @@ struct ProblemView: View {
 final class KeptTracker {
     private(set) var keptAt: Date?
 
+    /// The page couldn't load at all: it shows why, not kept numbers.
+    func clear() { keptAt = nil }
+
     func record(_ date: Date?) {
         guard let date else {
             keptAt = nil

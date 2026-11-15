@@ -219,7 +219,7 @@ struct NetWorthView: View {
     private func load() async {
         guard let client = model.client(kept) else { return }
         if worth.value?.window != window { worth = .loading }
-        do { worth = .loaded(try await client.netWorth(window)) } catch { worth = .failed(error) }
+        do { worth = .loaded(try await client.netWorth(window)) } catch { worth = .failed(error); kept.clear() }
     }
 }
 
@@ -319,7 +319,7 @@ struct BudgetsView: View {
 
     private func load() async {
         guard let client = model.client(kept) else { return }
-        do { progress = .loaded(try await client.budgets()) } catch { progress = .failed(error) }
+        do { progress = .loaded(try await client.budgets()) } catch { progress = .failed(error); kept.clear() }
     }
 }
 
@@ -430,7 +430,7 @@ struct ReportsView: View {
 
     private func load() async {
         guard let client = model.client(kept) else { return }
-        do { reports = .loaded(try await client.savedReports()) } catch { reports = .failed(error) }
+        do { reports = .loaded(try await client.savedReports()) } catch { reports = .failed(error); kept.clear() }
     }
 }
 
@@ -503,6 +503,6 @@ struct ReportResult: View {
 
     private func load() async {
         guard let client = model.client(kept) else { return }
-        do { run = .loaded(try await client.runReport(report.id)) } catch { run = .failed(error) }
+        do { run = .loaded(try await client.runReport(report.id)) } catch { run = .failed(error); kept.clear() }
     }
 }

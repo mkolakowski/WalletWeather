@@ -162,6 +162,7 @@ struct CalendarView: View {
             accounts = try await client.accounts()
         } catch {
             month = .failed(error)
+            kept.clear()
             return
         }
         if accountId != 0, !accounts.contains(where: { $0.id == accountId }) { accountId = 0 }
@@ -179,6 +180,7 @@ struct CalendarView: View {
             month = .loaded(try await client.calendar(shownMonth, account: accountId == 0 ? nil : accountId))
         } catch {
             month = .failed(error)
+            kept.clear()
         }
     }
 }

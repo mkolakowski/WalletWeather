@@ -149,6 +149,32 @@
   tr.le-inline .le-step button { flex:1; min-height:0; padding:0; margin:0; border:none; border-radius:3px;
                                  background:transparent; color:var(--muted); font-size:7px; line-height:1; cursor:pointer; }
   tr.le-inline .le-step button:hover { background:var(--chip-bg); color:var(--text); }
+  /* The add-a-line row (#94): Repeats and its fields sit in one line with
+     small inline labels (the columns above don't describe them). */
+  tr.fc-addrow .add-repeat { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  tr.fc-addrow .le-check { display:inline-flex; align-items:center; gap:5px; margin:0; font-size:13px;
+                           color:var(--text); white-space:nowrap; cursor:pointer; }
+  tr.fc-addrow .le-check input { width:auto; height:auto; min-height:0; margin:0; }
+  tr.fc-addrow .le-f.le-inl { display:flex; align-items:center; gap:4px; width:auto !important; min-width:0; }
+  tr.fc-addrow .le-f.le-inl.hidden { display:none; }
+  tr.fc-addrow .le-f.le-inl > label { position:static !important; width:auto !important; height:auto !important;
+      clip:auto !important; overflow:visible !important; margin:0 !important; font-size:11px; color:var(--muted); }
+  tr.fc-addrow .le-f.le-inl select { width:auto; }
+  tr.fc-addrow .le-f.le-inl input[type=number] { width:56px; }
+  tr.fc-addrow .le-f.le-inl input[type=date] { width:auto; }
+  tr.fc-addrow input:disabled { opacity:.45; }
+  #addToggle.active { box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+  @media (max-width: 768px) {
+    /* Phone: the add row is a stacked two-column form, overriding the read
+       card's per-cell placement. */
+    #forecastTable:not(.sheet-mode) tbody tr.fc-addrow { display:grid !important; grid-template-columns:1fr 1fr;
+      gap:8px; padding:10px 8px; }
+    #forecastTable:not(.sheet-mode) tbody tr.fc-addrow > td { display:block !important; grid-column:auto !important;
+      grid-row:auto !important; padding:0 !important; background:none !important; box-shadow:none;
+      white-space:normal !important; font-size:13px !important; }
+    #forecastTable:not(.sheet-mode) tbody tr.fc-addrow > td::before { content:none !important; display:none !important; }
+    #forecastTable:not(.sheet-mode) tbody tr.fc-addrow > td:is(:nth-child(1), :nth-child(7), :nth-child(8)) { grid-column:1 / -1 !important; }
+  }
   /* Notes + buttons share a cell; the Notes field fills up to Save. */
   tr.le-inline .le-notes-wrap { display:flex; align-items:center; gap:8px; }
   tr.le-inline .le-notes-wrap > .le-f { flex:1 1 auto; width:auto; min-width:0; }
@@ -1591,64 +1617,6 @@
       <div class="summary" id="summary"></div>
 
       <div id="subviewForecast">
-      <div class="panel hidden" id="addFormPanel">
-        <h2>Add transaction</h2>
-        <div id="addForm">
-          <div id="addFormInner">
-            <div class="row">
-              <div><label for="addDesc">Description</label><input id="addDesc"></div>
-              <div><label for="addType">Type</label>
-                <select id="addType">
-                  <option value="withdraw" selected>Expense</option>
-                  <option value="deposit">Income</option>
-                </select>
-              </div>
-              <div><label for="addAmt">Amount</label><input id="addAmt" type="number" step="0.01" min="0"></div>
-              <div><label for="addCat">Category</label>
-                <select id="addCat"><option value="">— none —</option></select>
-              </div>
-            </div>
-            <div class="row" style="margin-top:8px">
-              <div id="addDateWrap"><label for="addDate">Date</label><input id="addDate" type="date"></div>
-              <div id="addStatusWrap"><label for="addStatus">Status</label>
-                <select id="addStatus">
-                  <option value="forecast">Forecast (planned)</option>
-                  <option value="actual">Actual (cleared)</option>
-                </select>
-              </div>
-              <div style="flex:2"><label for="addNotes">Notes (optional, max 256)</label><input id="addNotes" maxlength="256"></div>
-            </div>
-            <div class="row" style="margin-top:14px;align-items:center">
-              <div style="flex:0 0 auto">
-                <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;margin:0">
-                  <input id="addRecToggle" type="checkbox" onchange="onRecToggle()" style="width:auto">
-                  <span>Make this recurring</span>
-                </label>
-              </div>
-            </div>
-            <div id="addRecFields" class="row recurring-fields disabled" style="margin-top:8px">
-              <div><label for="addFreq">Frequency</label>
-                <select id="addFreq" onchange="toggleAddWhenFields()" disabled>
-                  <option value="monthly_day">Monthly (day of month)</option>
-                  <option value="biweekly">Biweekly</option>
-                  <option value="weekly">Weekly</option>
-                </select>
-              </div>
-              <div id="addDayWrap"><label for="addDay">Day of month</label><input id="addDay" type="number" min="1" max="31" value="1" disabled></div>
-              <div id="addAnchorWrap"><label id="addAnchorLabel" title="Optional. No occurrences are projected before this date." for="addAnchor">Start date (optional)</label><input id="addAnchor" type="date" disabled></div>
-              <div style="flex:2"><label for="addEnd">End date (optional)</label><input id="addEnd" type="date" disabled></div>
-            </div>
-            <div class="row" style="margin-top:14px">
-              <div style="flex:0 0 auto"><button onclick="submitAddForm()">Save</button></div>
-              <div style="flex:0 0 auto"><button class="ghost" onclick="submitAddForm(true)"
-                   title="Save, then keep the form open with the same date, type and category">Save and add another</button></div>
-              <div style="flex:0 0 auto"><button class="ghost" onclick="toggleAddForm(false)">Cancel</button></div>
-              <div id="addFormStatus" role="status" style="flex:1 1 auto;align-self:center;font-size:12px;color:var(--muted)"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div class="panel">
         <div class="fc-controls">
           <!-- Account actions (#85): part of the table's controls, under the
@@ -1658,8 +1626,6 @@
             <button id="addToggle" onclick="toggleAddForm(true)">+ Add transaction</button>
             <button class="ghost" onclick="openTransferPage()">⇄ Transfer</button>
             <button class="ghost" id="importBtn" onclick="openImportPage(currentAccountId)">⬆ Import CSV</button>
-            <button class="ghost" id="addRecurringBtn" onclick="addRecurringForAccount()"
-                    title="Add a recurring bill or income to this account (opens Bills &amp; income)">↻ Add recurring</button>
             <button class="ghost" id="acctMenuBtn" aria-haspopup="menu" aria-expanded="false"
                     onclick="toggleAccountMenu()" title="More for this account" aria-label="More for this account">⋯</button>
             <div id="acctMenu" class="acct-menu hidden" role="menu" aria-label="This account">
@@ -2419,7 +2385,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.60.0";
+const WEB_VERSION = "1.61.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2430,6 +2396,7 @@ const WEB_VERSION = "1.60.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.61.0 (2026-11-14, claude+mkolakowski): (#94) Add transaction is a new line at the top of #forecastTable (tr.fc-addrow.le-inline, _buildAddRow): one field per column, Repeats with inline-labelled frequency/day/ends across the four computed columns, Notes + Save / + Another / Cancel. Signed amounts; one-off lines post forecast/actual dates and amounts, Repeats posts a recurring item (forecast date = start). The row element is kept (_addRowEl) and re-appended by renderForecast. #addFormPanel and its old functions are removed. (#85) ↻ Add recurring removed.
 // 1.60.0 (2026-11-14, claude+mkolakowski): (#85) Forecast's Account actions panel is gone; its buttons are .fc-actions at the start of the table's .fc-controls row, plus ↻ Add recurring (addRecurringForAccount: Bills & income filtered to the account, add form open) and a ⋯ menu (#acctMenu: rename, archive, export this account's backup; items by access level). Add/Import/Add recurring hide on read-only accounts.
 // 1.59.0 (2026-11-14, claude+mkolakowski): (#82) Tables wrap when too wide: _initTableWrap() watches <main> (MutationObserver) and each table's container width (ResizeObserver); _twCheck() adds .tw-wrapped when a table overflows its container, and _twLabel() copies header names into each cell's data-label (open lines label themselves; button spacers ignored). Wrapped rows are flex rows; .fc-sort shows while a panel's table is wrapped. Forecast's phone card layout is exempt.
 // 1.58.0 (2026-11-14, claude+mkolakowski): (#81) Bills & income laid out like Forecast: #recAccountsBar tabs (All accounts first; syncRecAccountSelect/selectRecAccount/_markRecTabs replace the dropdown), #recActionsPanel, totals, #recAddPanel as a panel, then the table panel with fc-controls (Active/Archived, #recSpreadsheetBtn, pagination with Auto/All via _recEffectivePageSize) and #recSortBar. #recurringTable gets Forecast's column lines and compact cells. Spreadsheet mode (recSheetMode): every editable row uses renderEditRow(r, {sheet}) with Delete only; leaving a row saves it (saveRecurring(id, {sheet}) skips unchanged rows), and _scheduleRecSheetRefresh reloads once focus leaves the table.
@@ -3512,13 +3479,6 @@ document.addEventListener('DOMContentLoaded', _initTableWrap);
 if (document.readyState !== 'loading') _initTableWrap();
 
 // ---------- Forecast account actions (#85) ----------
-// ↻ Add recurring: Bills & income, filtered to this account, add form open.
-async function addRecurringForAccount() {
-  recFilterAccount = String(currentAccountId || '');
-  showPage('subscriptions');
-  await loadRecurring();
-  toggleRecAddForm(true);
-}
 function toggleAccountMenu(show) {
   const menu = document.getElementById('acctMenu');
   const btn = document.getElementById('acctMenuBtn');
@@ -5210,10 +5170,9 @@ async function selectAccount(id) {
   // Hide the add transaction toggle entirely on read-only accounts
   const ro = isCurrentAccountReadOnly();
   document.getElementById('addToggle').classList.toggle('hidden', ro);
-  document.getElementById('addRecurringBtn').classList.toggle('hidden', ro);
   document.getElementById('importBtn').classList.toggle('hidden', ro);
   toggleAccountMenu(false);
-  document.getElementById('addFormPanel').classList.add('hidden');
+  closeAddRow();
   await loadCategories();
   await loadForecast();
 }
@@ -5233,7 +5192,7 @@ async function loadCategories() {
     ).join('');
   }
   // Populate the add form's category dropdown
-  for (const selId of ['addCat']) {
+  for (const selId of []) {
     const sel = document.getElementById(selId);
     if (!sel) continue;
     const current = sel.value;
@@ -6273,139 +6232,139 @@ async function delRecurring(id) {
   await loadForecast();
 }
 
-function toggleAddWhenFields() {
-  const f = document.getElementById('addFreq').value;
-  document.getElementById('addDayWrap').classList.toggle('hidden', f!=='monthly_day');
-  // The date input is shown for every cadence: an optional start date for
-  // monthly, the required cadence anchor for weekly/biweekly.
-  const anchorLabel = document.getElementById('addAnchorLabel');
-  anchorLabel.textContent = f==='monthly_day' ? 'Start date (optional)' : 'Start date';
-  anchorLabel.title = f==='monthly_day'
-    ? 'Optional. No occurrences are projected before this date.'
-    : 'First occurrence. Repeats every week/two weeks from this date; nothing is projected before it.';
-}
-
-function toggleAddForm(show) {
-  document.getElementById('addFormStatus').textContent = '';
-  // The form lives in its own panel that only exists on screen while open;
-  // the "+ Add transaction" button sits in the Account actions bar.
-  document.getElementById('addFormPanel').classList.toggle('hidden', !show);
-  if (show) {
-    // Default the date to today if empty
-    if (!document.getElementById('addDate').value) {
-      document.getElementById('addDate').value = _isoDate(new Date());   // valueAsDate would use the UTC date (#62)
+// ---------- Forecast: add a line (#94) ----------
+// "+ Add transaction" opens a new line at the top of the Forecast table,
+// built like the line editor so each field sits under its column:
+// Description, Forecast date, Actual date, Category, Forecast amt, Actual
+// amt, then Repeats across the four computed columns, and Notes with the
+// buttons. Amounts are signed like the table (negative = expense). The row
+// element is kept while open and put back after every re-render
+// (renderForecast), so what's typed survives a refresh.
+let _addRowEl = null;
+function _buildAddRow() {
+  const tr = document.createElement('tr');
+  tr.className = 'le-row le-inline fc-addrow';
+  const catOptions = '<option value="">— none —</option>' +
+    (categories || []).map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  const inlineField = (label, id, html, opts) => _leField(label, id, html, opts).replace('class="le-f', 'class="le-f le-inl');
+  tr.innerHTML = [
+    _leTd(_leField('Description', 'addDesc', '<input id="addDesc" maxlength="120" placeholder="New line: description">')
+          + '<div class="le-status" id="addFormStatus" role="status"></div>'),
+    _leTd(_leField('Forecast date', 'addFDate', `<input id="addFDate" type="date" value="${_isoDate(new Date())}">`)),
+    _leTd(_leField('Actual date', 'addADate', '<input id="addADate" type="date">')),
+    _leTd(_leField('Category', 'addCat', `<select id="addCat">${catOptions}</select>`)),
+    _leTd(_leField('Forecast amt', 'addFAmt', _leNum('<input id="addFAmt" type="number" step="0.01" placeholder="-0.00">')), { cls: 'num' }),
+    _leTd(_leField('Actual amt', 'addAAmt', _leNum('<input id="addAAmt" type="number" step="0.01" placeholder="-0.00">')), { cls: 'num' }),
+    _leTd(`<div class="add-repeat">
+        <label class="le-check"><input type="checkbox" id="addRecToggle" onchange="onAddRepeatToggle()"> Repeats</label>
+        ${inlineField('Every', 'addFreq', `<select id="addFreq" onchange="onAddRepeatToggle()">
+            <option value="monthly_day">Month</option><option value="biweekly">2 weeks</option><option value="weekly">Week</option></select>`, { hidden: true, wrapId: 'addFreqWrap' })}
+        ${inlineField('Day', 'addDay', '<input id="addDay" type="number" min="1" max="31" value="1">', { hidden: true, wrapId: 'addDayWrap' })}
+        ${inlineField('Ends', 'addEnd', '<input id="addEnd" type="date">', { hidden: true, wrapId: 'addEndWrap' })}
+      </div>`, { colspan: 4 }),
+    _leNotesActionsTd(_leField('Notes', 'addNotes', '<input id="addNotes" maxlength="256" placeholder="Notes">'),
+      `<button onclick="submitAddForm()" title="Save (Enter)">Save</button>
+       <button class="ghost" onclick="submitAddForm(true)" title="Save, then start another line with the same dates and category">+ Another</button>
+       <button class="ghost" onclick="toggleAddForm(false)" title="Cancel (Esc)">Cancel</button>`),
+  ].join('');
+  tr.onkeydown = (ev) => {
+    if (ev.target.closest('.tag-dd')) return;
+    if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); toggleAddForm(false); }
+    else if (ev.key === 'Enter' && ev.target.tagName === 'INPUT' && ev.target.type !== 'checkbox') {
+      ev.preventDefault(); ev.stopPropagation(); submitAddForm();
     }
-    document.getElementById('addDesc').focus();
+  };
+  return tr;
+}
+function toggleAddForm(show) {
+  if (!show) { closeAddRow(); return; }
+  if (isCurrentAccountReadOnly()) return;
+  if (!_addRowEl) {
+    _addRowEl = _buildAddRow();
+    const tbody = document.querySelector('#forecastTable tbody');
+    tbody.insertBefore(_addRowEl, tbody.firstChild);
+  }
+  document.getElementById('addToggle').classList.add('active');
+  const d = document.getElementById('addDesc');
+  if (d) d.focus();
+}
+function closeAddRow() {
+  if (_addRowEl) { _addRowEl.remove(); _addRowEl = null; }
+  const b = document.getElementById('addToggle');
+  if (b) b.classList.remove('active');
+}
+// Repeats: the line becomes a recurring item. Its forecast date is the start
+// date and its forecast amount the amount; the actual columns don't apply.
+function onAddRepeatToggle() {
+  const rec = document.getElementById('addRecToggle').checked;
+  const monthly = document.getElementById('addFreq').value === 'monthly_day';
+  document.getElementById('addFreqWrap').classList.toggle('hidden', !rec);
+  document.getElementById('addDayWrap').classList.toggle('hidden', !rec || !monthly);
+  document.getElementById('addEndWrap').classList.toggle('hidden', !rec);
+  ['addADate', 'addAAmt'].forEach(id => { document.getElementById(id).disabled = rec; });
+  document.getElementById('addFDate').title = rec ? (monthly ? 'Start date (optional)' : 'Start date') : '';
+  if (rec && monthly) {
+    const fd = document.getElementById('addFDate').value;
+    if (fd) document.getElementById('addDay').value = String(parseInt(fd.slice(8, 10), 10));
   }
 }
-
-function onRecToggle() {
-  const isRec = document.getElementById('addRecToggle').checked;
-  // Recurring fields: enable/disable + grey
-  document.getElementById('addRecFields').classList.toggle('disabled', !isRec);
-  ['addFreq','addDay','addAnchor','addEnd'].forEach(id => {
-    document.getElementById(id).disabled = !isRec;
-  });
-  // For a recurring, the per-occurrence Date and Status don't apply: the
-  // schedule + day-of-month/anchor define the dates, and recurring templates
-  // are forecasts by definition (actuals are logged later on individual rows).
-  document.getElementById('addDateWrap').classList.toggle('disabled-wrap', isRec);
-  document.getElementById('addStatusWrap').classList.toggle('disabled-wrap', isRec);
-  document.getElementById('addDate').disabled = isRec;
-  document.getElementById('addStatus').disabled = isRec;
-}
-
-// A mistake on the Add transaction form: said next to its buttons, with the
-// field focused.
 function _addFormError(msg, fieldId) {
-  const st = document.getElementById('addFormStatus');
-  st.style.color = 'var(--bad)';
-  st.textContent = msg;
-  if (fieldId) document.getElementById(fieldId).focus();
+  _lineEditorError('addFormStatus', msg, fieldId ? document.getElementById(fieldId) : null);
 }
 
 async function submitAddForm(addAnother) {
-  const _st = document.getElementById('addFormStatus');
-  _st.textContent = ''; _st.style.color = 'var(--muted)';
+  const st = document.getElementById('addFormStatus');
+  if (!st) return;
+  st.textContent = ''; st.style.color = '';
+  const val = id => document.getElementById(id).value;
+  const num = id => { const v = val(id); return v === '' ? null : parseFloat(v); };
+  const desc = val('addDesc').trim();
+  const fAmt = num('addFAmt'), aAmt = num('addAAmt');
+  const fDate = val('addFDate') || null, aDate = val('addADate') || null;
+  const catVal = val('addCat');
+  const notes = val('addNotes').trim() || null;
   const isRec = document.getElementById('addRecToggle').checked;
-  const desc = document.getElementById('addDesc').value.trim();
-  const type = document.getElementById('addType').value;
-  const rawAmt = parseFloat(document.getElementById('addAmt').value);
-  const signedAmt = isNaN(rawAmt) ? NaN : (type === 'withdraw' ? -Math.abs(rawAmt) : Math.abs(rawAmt));
-  const catVal = document.getElementById('addCat').value;
-  const notesVal = document.getElementById('addNotes').value.trim();
-
   if (!desc) return _addFormError('Enter a description.', 'addDesc');
-  if (isNaN(signedAmt)) return _addFormError('Enter an amount.', 'addAmt');
-
   if (isRec) {
-    const f = document.getElementById('addFreq').value;
-    const endVal = document.getElementById('addEnd').value;
-    const body = {
-      description: desc,
-      amount: signedAmt,
-      frequency: f,
-      day_of_month: f==='monthly_day' ? parseInt(document.getElementById('addDay').value) : null,
-      anchor_date: document.getElementById('addAnchor').value || null,
-      end_date: endVal || null,
-      category_id: catVal ? parseInt(catVal) : null,
-      notes: notesVal || null,
-    };
-    if (f !== 'monthly_day' && !body.anchor_date) {
-      return _addFormError('Weekly and biweekly recurring transactions need a start date.', 'addAnchor');
-    }
+    const amount = fAmt != null ? fAmt : aAmt;
+    if (amount == null || isNaN(amount)) return _addFormError('Enter the amount in Forecast amt (negative for an expense).', 'addFAmt');
+    const f = val('addFreq');
+    const day = parseInt(val('addDay'), 10);
+    if (f === 'monthly_day' && !(day >= 1 && day <= 31)) return _addFormError('Day of month must be between 1 and 31.', 'addDay');
+    if (f !== 'monthly_day' && !fDate) return _addFormError('Weekly and every-2-weeks items need a start date in Forecast date.', 'addFDate');
     try {
-      await api(`/api/accounts/${currentAccountId}/recurring`, {method:'POST', body: JSON.stringify(body)});
-    } catch (e) {
-      notifyError('Could not save', e);
-      return;
-    }
+      await api(`/api/accounts/${currentAccountId}/recurring`, { method: 'POST', body: JSON.stringify({
+        description: desc, amount, frequency: f,
+        day_of_month: f === 'monthly_day' ? day : null,
+        anchor_date: fDate, end_date: val('addEnd') || null,
+        category_id: catVal ? parseInt(catVal, 10) : null, notes }) });
+    } catch (e) { notifyError('Could not save', e); return; }
   } else {
-    const kind = document.getElementById('addStatus').value;
-    const d = document.getElementById('addDate').value;
-    if (!d) return _addFormError('Enter a date.', 'addDate');
+    if (fAmt == null && aAmt == null) return _addFormError('Enter a forecast or an actual amount (negative for an expense).', 'addFAmt');
+    if (!fDate && !aDate) return _addFormError('Enter a forecast or an actual date.', 'addFDate');
     const body = {
       description: desc,
-      amount: signedAmt,
-      forecast_date: kind==='forecast' ? d : null,
-      actual_date: kind==='actual' ? d : null,
-      is_actual: kind==='actual',
-      category_id: catVal ? parseInt(catVal) : null,
-      notes: notesVal || null,
+      amount: aAmt != null ? aAmt : fAmt,
+      forecast_date: fDate, actual_date: aDate,
+      is_actual: aAmt != null || (!!aDate && !fDate),
+      category_id: catVal ? parseInt(catVal, 10) : null, notes,
     };
+    if (fAmt != null) body.forecast_amount = fAmt;
     try {
-      await api(`/api/accounts/${currentAccountId}/transactions`, {method:'POST', body: JSON.stringify(body)});
-    } catch (e) {
-      notifyError('Could not save', e);
-      return;
-    }
+      await api(`/api/accounts/${currentAccountId}/transactions`, { method: 'POST', body: JSON.stringify(body) });
+    } catch (e) { notifyError('Could not save', e); return; }
   }
-
   if (addAnother) {
-    // Keep the date, type, category, status and recurring settings; clear
-    // what differs from one entry to the next.
-    ['addDesc', 'addAmt', 'addNotes'].forEach(id => { document.getElementById(id).value = ''; });
-    _st.style.color = 'var(--good)';
-    _st.textContent = `Saved “${desc}”. Add the next one.`;
+    // Keep the dates, category and repeat settings; clear the rest.
+    ['addDesc', 'addFAmt', 'addAAmt', 'addNotes'].forEach(id => { document.getElementById(id).value = ''; });
+    st.style.color = 'var(--good)';
+    st.textContent = `Saved “${desc}”.`;
     document.getElementById('addDesc').focus();
-    await loadForecast();
-    return;
+  } else {
+    closeAddRow();
   }
-
-  // Reset and close
-  document.getElementById('addDesc').value = '';
-  document.getElementById('addAmt').value = '';
-  document.getElementById('addCat').value = '';
-  document.getElementById('addNotes').value = '';
-  document.getElementById('addType').value = 'withdraw';
-  document.getElementById('addEnd').value = '';
-  document.getElementById('addAnchor').value = '';
-  document.getElementById('addDay').value = '1';
-  document.getElementById('addRecToggle').checked = false;
-  onRecToggle();  // re-grey the recurring fields
-  toggleAddForm(false);
-  await loadRecurring();
   await loadForecast();
+  if (isRec) loadRecurring();
 }
 
 // --- Forecast state ---
@@ -6686,6 +6645,7 @@ function renderForecast() {
 
   const tbody = document.querySelector('#forecastTable tbody');
   tbody.innerHTML = '';
+  if (_addRowEl) tbody.appendChild(_addRowEl);   // the open "add a line" row stays on top (#94)
   const ro = isCurrentAccountReadOnly();
 
   // Paginate

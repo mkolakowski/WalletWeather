@@ -65,7 +65,22 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.36.0** · Web version: **1.60.0** · Schema version: **14**
+App version: **1.37.0** · Web version: **1.61.0** · Schema version: **14**
+
+### Changed
+
+- **Breaking: "+ Add transaction" opens a new line at the top of the Forecast
+  table** instead of a separate form above it. Each field sits under its
+  column: Description, Forecast date, Actual date, Category, Forecast amt,
+  Actual amt and Notes. Amounts are signed like the table, so type a minus
+  for an expense. Fill in the forecast date and amount for a planned line,
+  or the actual ones for a cleared line. Tick "Repeats" to make it a
+  recurring item; the forecast date becomes its start date and the forecast
+  amount its amount, with the frequency, day of month and end date beside
+  it. "+ Another" saves and keeps the line open with the same dates and
+  category. Enter saves and Escape cancels.
+- The "↻ Add recurring" button on Forecast is gone, since "Repeats" on the
+  new line does the same.
 
 ## [1.36.0] — 2026-11-14
 

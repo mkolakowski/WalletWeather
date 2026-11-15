@@ -66,7 +66,7 @@ All thirteen were settled on 2026-11-14: the answers are below and the reasoning
 
 **Carried over from earlier decisions:**
 - The server is reached over HTTPS through a Cloudflare Tunnel with Zero Trust rules (phone-path).
-- The app signs in with an API token that is full access or read-only, and a token never reaches the Admin endpoints (phone-path, phase 2 and its open question 2).
+- The app signs in with an API token that is full access or read-only (phone-path, phase 2). Tokens can also be admin level (phone-path, decided 2026-11-15), but the app never asks for one: Admin stays on the web.
 - The first sign-in shows the Important notice (legal-risk phase 2): `GET /api/me` returns `notice_required`.
 - The apps collect nothing, and the store privacy policy is `docs/privacy.md` (legal-risk phase 5).
 - The name is cleared before any store listing (legal-risk phase 5, #49).

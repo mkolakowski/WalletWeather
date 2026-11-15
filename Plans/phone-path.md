@@ -7,7 +7,7 @@ Tracking issue: #44
 | Phase | Issue | State |
 | --- | --- | --- |
 | 1. Installable web app | #41 | Open |
-| 2. API tokens | #42 | Open (waits on open question 2) |
+| 2. API tokens | #42 | Open (open question 2 settled 2026-11-15) |
 | 3. Token extras | #43 | Open (after phase 2) |
 
 Nothing shipped yet.
@@ -25,7 +25,7 @@ Sessions: may span — each phase ends with a release and your check on a phone 
 ## Open questions
 
 1. **How do scripts and native apps get past Cloudflare Access?** (affects using phase 2 from outside your network, not building it) The server sits behind a Cloudflare Tunnel with Zero Trust rules, which turn away any request that hasn't signed in through Cloudflare, before WalletWeather sees the token. The choices are a Cloudflare service token sent beside the WalletWeather token, or an Access rule that lets `/api/*` through and leaves the WalletWeather token as the only check. Working assumption: phase 2 is built and tested against the server directly, and its README section describes both ways without picking one. For the iOS app this was settled on 2026-11-14 (`docs/dev/decisions/ios-app.md`): the app signs in to Cloudflare itself by default and takes a service token as the alternative. It is still open for scripts.
-2. **Can a full-access token use the Admin panel's endpoints?** (blocks phase 2) Working assumption: no. A token can never reach `/api/admin/*` or create and revoke tokens; those need a signed-in browser session.
+2. ~~**Can a full-access token use the Admin panel's endpoints?**~~ Settled 2026-11-15 ([decision](../docs/dev/decisions/phone-path.md)): no, but there is a third access level, **admin**, that can. Only an admin can create one, and it stops reaching `/api/admin/*` as soon as its owner stops being an admin.
 
 ## The plan
 
@@ -34,7 +34,7 @@ Sessions: may span — each phase ends with a release and your check on a phone 
 **Decided 2026-11-14:**
 - The server is reached over HTTPS through a Cloudflare Tunnel with Zero Trust rules.
 - Offline, the installed app opens and says it's offline. No balances or transactions are stored on the phone.
-- Each token is full access or read-only, chosen when it's created.
+- Each token is read-only, full access or admin, chosen when it's created (the admin level decided 2026-11-15).
 - Expiry dates, last-used times, the admin view of tokens and password sign-in that returns a token wait for phase 3.
 
 **Out of scope:** the native apps themselves, push notifications, offline viewing or editing of data, limiting a token to chosen accounts. The native iOS app has its own plan, `Plans/ios-app.md` (#93); its first phase waits on phase 2 here.
@@ -56,18 +56,18 @@ Roadmap item 17.
 
 ### Phase 2: API tokens
 
-Roadmap item 16. Depends on open question 2.
+Roadmap item 16.
 
-- A new `api_tokens` table (the next schema number; 14 went to the Important notice, #46): owner, name, access (`full` or `read`), a SHA-256 hash of the token, created date, revoked date. The token itself is shown once, at creation, and never stored.
-- `Authorization: Bearer <token>` is accepted wherever the session cookie is. A read-only token gets 403 on anything that changes data. A revoked token, or one whose owner is disabled, gets 401.
+- A new `api_tokens` table (the next schema number; 14 went to the Important notice, #46): owner, name, access (`read`, `full` or `admin`), a SHA-256 hash of the token, created date, revoked date. The token itself is shown once, at creation, and never stored.
+- `Authorization: Bearer <token>` is accepted wherever the session cookie is. A read-only token gets 403 on anything that changes data. Only an admin token reaches `/api/admin/*`; read-only and full tokens get 403 there. An admin token works as full access everywhere else, and loses its admin reach (403) the moment its owner is no longer in `ADMIN_EMAILS`. Working assumption: no token can create or revoke tokens, whatever its level; that needs a signed-in browser. A revoked token, or one whose owner is disabled, gets 401.
 - `GET/POST/DELETE /api/tokens` to list, create and revoke your own tokens, from a signed-in browser session only.
-- Settings page: a "API tokens" section to create (name + access), copy once, and revoke.
-- Tests for each endpoint and for the bearer path: full, read-only, revoked, admin refused.
+- Settings page: a "API tokens" section to create (name + access; the admin level is offered only to admins), copy once, and revoke.
+- Tests for each endpoint and for the bearer path: read-only, full, admin (allowed on `/api/admin/*` for an admin, refused once the owner loses admin), full refused on `/api/admin/*`, revoked, and a token refused on the token endpoints.
 - README: how to call the API with a token, and the two ways through Cloudflare Access (open question 1).
 
 **You:** create a token in Settings and run the README's example `curl` with it.
 
-**Done when:** tests pass; a token made in Settings fetches `/api/accounts`; a read-only one is refused on a write; a revoked one stops working at once.
+**Done when:** tests pass; a token made in Settings fetches `/api/accounts`; a read-only one is refused on a write; a full one is refused on the Admin endpoints and an admin one isn't; a revoked one stops working at once.
 
 ### Phase 3: Token extras
 

@@ -27,7 +27,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.47.0"
+APP_VERSION = "1.47.1"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -39,6 +39,7 @@ APP_VERSION = "1.47.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.47.1 (2026-11-15, claude+mkolakowski): backups carry tags, tag rules and the tags on recurring items and transactions (BACKUP_VERSION 4, #117); no web change.
 # 1.47.0 (2026-11-15, claude+mkolakowski): no server change; web 1.69.0 (Bills & income's + Add in the controls row like Forecast's, #130).
 # 1.46.1 (2026-11-15, claude+mkolakowski): deleting a user blanks their email
 #     on their sign-in log entries (#139).

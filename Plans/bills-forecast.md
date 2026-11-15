@@ -8,13 +8,15 @@ Tracking issue: #131
 | --- | --- | --- |
 | 1. Forecast's columns, compact rows | #128 | Released in v1.45.0, closed 2026-11-15 |
 | 2. Inline add line and edit rows | #129 | Released in v1.46.1, closed 2026-11-15 |
-| 3. Controls row | #130 | Built in web 1.69.0, not released |
+| 3. Controls row | #130 | Released in v1.47.0, closed 2026-11-15 |
 
 - **Phase 1** — web 1.67.0 (no server change), built and released 2026-11-15 in v1.45.0 (#138). Verified: headless Chromium with sample data at 1600, 1440, 1280, 1100 and 390px (still a table down to 1100; header, read and open-row lines match; no column moves and no height change when a row opens; every heading sorts; spreadsheet mode and Archived render; phone cards label every field). Tags moved into their column per the open question's assumption. Known limit: Description is about 86px wide at 1440–1600, as on Forecast for editable accounts.
 
 - **Phase 2** — web 1.68.0 and 1.68.1 (no server change), built and released 2026-11-15 in v1.46.1 (#140). Verified: headless Chromium with the API stubbed (POST/PATCH bodies for each Repeats choice, signed amounts and the start date's day; errors beside the field; spreadsheet mode skips a row whose only change is a filled-in start date; no column moves and 34px rows when the add line or a row opens at 1440 and 1100; phone add line stacks with labels). Width hints rebalanced so dates get more room; then (1.68.1, your choice) the date columns got a 130px floor, so a whole date always shows while editing and windows under about 1250px get the phone cards. Headings don't change with the add line (Bills' already name each field).
 
-- **Phase 3** — web 1.69.0 (no server change), built 2026-11-15, not released. Verified: headless Chromium at 1440, 1100 and 390px (order, divider, button size, + Add opens the line, hidden for read-only accounts).
+- **Phase 3** — web 1.69.0 (no server change), built and released 2026-11-15 in v1.47.0 (#141). Verified: headless Chromium at 1440, 1100 and 390px (order, divider, button size, + Add opens the line, hidden for read-only accounts).
+
+All three phases are released and closed; the plan is closed (2026-11-15).
 
 Sessions: may span — each phase ends with a release and your look on your own instance before the next starts.
 

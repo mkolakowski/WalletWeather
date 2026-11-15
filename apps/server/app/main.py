@@ -1,5 +1,6 @@
 """FastAPI application: local + Google auth, accounts, transactions, forecasting."""
 import hashlib
+import math
 import os
 import re
 import secrets
@@ -26,7 +27,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.43.0"
+APP_VERSION = "1.44.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -38,6 +39,10 @@ APP_VERSION = "1.43.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.44.0 (2026-11-15, claude+mkolakowski): login rate limiting (#132): failed
+#     password sign-ins per email + address are limited (429 + Retry-After);
+#     sign-ins, failures and blocks go to audit_events (schema 18);
+#     TRUST_PROXY_HEADERS, LOGIN_MAX_FAILURES, LOGIN_WINDOW_MINUTES settings.
 # 1.43.0 (2026-11-15, claude+mkolakowski): token extras (#43): expiry chosen
 #     at creation (30/90/365 days or never), last-used time, GET
 #     /api/admin/tokens and DELETE /api/admin/tokens/{id} (browser only);
@@ -387,7 +392,7 @@ from .db import (
     init_db, get_db, User, Account, RecurringTransaction, Transaction, Category,
     AccountPermission, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
     Tag, TransactionTag, RecurringTag, TagRule, SavedReport, RecurringSkip,
-    ApiToken, SessionLocal, SCHEMA_VERSION,
+    ApiToken, AuditEvent, SessionLocal, SCHEMA_VERSION,
 )
 from .forecast import build_forecast, actual_balance_as_of
 from .backup import export_user, import_user
@@ -398,6 +403,14 @@ ALLOWED_EMAILS = {e.strip().lower() for e in os.environ.get("ALLOWED_EMAILS", ""
 ALLOW_REGISTRATION = os.environ.get("ALLOW_REGISTRATION", "true").lower() == "true"
 ADMIN_EMAILS = {e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()}
 BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", "/data/backups"))
+
+# Login rate limiting (login-limits phase 1, #132). TRUST_PROXY_HEADERS makes
+# the visitor's address come from Cloudflare's CF-Connecting-IP header; only
+# turn it on when the server can be reached only through Cloudflare, since
+# anyone who reaches it directly could forge the header.
+TRUST_PROXY_HEADERS = os.environ.get("TRUST_PROXY_HEADERS", "false").lower() == "true"
+LOGIN_MAX_FAILURES = max(1, int(os.environ.get("LOGIN_MAX_FAILURES", "5")))
+LOGIN_WINDOW_MINUTES = max(1, int(os.environ.get("LOGIN_WINDOW_MINUTES", "15")))
 
 # Demo mode: when on, the app boots with a pre-seeded admin user and sample
 # data, the UI is branded "WalletWeather Demo", and a background daemon
@@ -702,6 +715,61 @@ def current_admin(request: Request, user: User = Depends(current_user)) -> User:
     return user
 
 
+# ---------- Audit log and login rate limiting (#132) ----------
+def client_ip(request: Request) -> str | None:
+    """The visitor's address: Cloudflare's CF-Connecting-IP when
+    TRUST_PROXY_HEADERS is on and the header is there, otherwise the
+    connection's own address."""
+    if TRUST_PROXY_HEADERS:
+        forwarded = request.headers.get("cf-connecting-ip", "").strip()
+        if forwarded:
+            return forwarded[:45]
+    return request.client.host[:45] if request.client and request.client.host else None
+
+
+def record_event(db: Session, event: str, request: Request | None = None,
+                 user: User | None = None, email: str | None = None,
+                 detail: str | None = None) -> None:
+    """Write one audit event and commit it. Never pass a password."""
+    db.add(AuditEvent(
+        event=event,
+        user_id=user.id if user else None,
+        email=(email if email is not None else (user.email if user else None) or None),
+        ip=client_ip(request) if request is not None else None,
+        detail=detail[:200] if detail else None,
+    ))
+    db.commit()
+
+
+def _login_retry_after(db: Session, email: str, ip: str | None) -> int:
+    """Seconds until this email may try a password again from this address,
+    or 0 when it isn't blocked.
+
+    Blocked when the last LOGIN_MAX_FAILURES failed sign-ins for the pair
+    since its last successful one all fall within LOGIN_WINDOW_MINUTES of
+    each other, until that window has passed since the newest of them.
+    Blocked attempts aren't failures, so trying during a block doesn't make
+    it longer.
+    """
+    window = timedelta(minutes=LOGIN_WINDOW_MINUTES)
+    now = datetime.utcnow()
+    same_pair = (AuditEvent.email == email,
+                 AuditEvent.ip.is_(None) if ip is None else AuditEvent.ip == ip)
+    last_ok = (db.query(func.max(AuditEvent.created_at))
+               .filter(AuditEvent.event == "login", *same_pair).scalar())
+    q = (db.query(AuditEvent.created_at)
+         .filter(AuditEvent.event == "login_failed", *same_pair,
+                 AuditEvent.created_at > now - 2 * window))
+    if last_ok is not None:
+        q = q.filter(AuditEvent.created_at > last_ok)
+    times = [t for (t,) in q.order_by(AuditEvent.created_at.desc())
+             .limit(LOGIN_MAX_FAILURES).all()]
+    if len(times) < LOGIN_MAX_FAILURES or times[0] - times[-1] > window:
+        return 0
+    remaining = (times[0] + window - now).total_seconds()
+    return math.ceil(remaining) if remaining > 0 else 0
+
+
 # ---------- Local auth schemas ----------
 class RegisterIn(BaseModel):
     email: str
@@ -784,16 +852,34 @@ def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db
 
 @app.post("/api/auth/login")
 def local_login(payload: LoginIn, request: Request, db: Session = Depends(get_db)):
-    email = payload.email.strip().lower()
+    email = payload.email.strip().lower()[:320]
+    ip = client_ip(request)
+    # Too many recent failures for this email from this address: refuse
+    # without checking the password (a right one too), whether or not the
+    # account exists, so the answer never says which emails have one.
+    wait = _login_retry_after(db, email, ip)
+    if wait:
+        record_event(db, "login_blocked", request, email=email)
+        minutes = math.ceil(wait / 60)
+        raise HTTPException(
+            429,
+            f"Too many failed sign-ins. Try again in {minutes} minute{'s' if minutes != 1 else ''}.",
+            headers={"Retry-After": str(wait)})
     user = db.query(User).filter_by(email=email).first()
     # Constant-ish failure path: still verify against a dummy hash to reduce timing leaks
     if not user or not user.password_hash:
         bcrypt.checkpw(b"x", b"$2b$12$" + b"." * 53)
+        record_event(db, "login_failed", request, user=user, email=email,
+                     detail="password" if user is None else "password; no password set")
         raise HTTPException(401, "Invalid email or password")
     if not verify_password(payload.password, user.password_hash):
+        record_event(db, "login_failed", request, user=user, email=email, detail="password")
         raise HTTPException(401, "Invalid email or password")
     if user.disabled:
+        record_event(db, "login_failed", request, user=user, email=email,
+                     detail="password; account disabled")
         raise HTTPException(403, "Account disabled")
+    record_event(db, "login", request, user=user, email=email, detail="password")
     request.session["uid"] = user.id
     return {"id": user.id, "email": user.email}
 
@@ -834,9 +920,13 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     if user.disabled:
+        record_event(db, "login_failed", request, user=user, email=email,
+                     detail="google; account disabled")
         raise HTTPException(403, "Account disabled")
     if is_new:
         seed_default_categories(db, user)
+    record_event(db, "login", request, user=user, email=email,
+                 detail="google; new user" if is_new else "google")
     request.session["uid"] = user.id
     return RedirectResponse("/")
 

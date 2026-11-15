@@ -35,6 +35,9 @@ services:
       ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-true}
       ALLOWED_EMAILS: ${ALLOWED_EMAILS:-}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      LOGIN_MAX_FAILURES: ${LOGIN_MAX_FAILURES:-5}
+      LOGIN_WINDOW_MINUTES: ${LOGIN_WINDOW_MINUTES:-15}
+      TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}
       DEMO_MODE: ${DEMO_MODE:-false}
       BACKUP_DIR: /data/backups
     # Healthy once the API answers. The image has no curl, so Python does the

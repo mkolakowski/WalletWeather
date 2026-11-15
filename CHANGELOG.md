@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.43.0** · Web version: **1.66.0** · Schema version: **17**
+App version: **1.44.0** · Web version: **1.66.0** · Schema version: **18**
 
 ### Added
 
@@ -85,6 +85,12 @@ App version: **1.43.0** · Web version: **1.66.0** · Schema version: **17**
   token, admin ones included, can list or revoke tokens
   (`GET /api/admin/tokens`, `DELETE /api/admin/tokens/{id}`).
 
+- The server now keeps a log of sign-ins: each successful sign-in (with a
+  password or Google), each failed one and each blocked one, with the email
+  that was typed, the address it came from and when. Passwords are never
+  recorded. There's no screen for it yet; an Admin page view comes in a later
+  release.
+
 ### Changed
 
 - On Forecast's new line, the Tags picker now fills all the free space to the
@@ -99,6 +105,21 @@ App version: **1.43.0** · Web version: **1.66.0** · Schema version: **17**
 - Two new columns on `api_tokens`, `expires_at` and `last_used_at` (schema 17).
   They're added automatically on start; nothing to do. Tokens made before this
   never expire.
+- New `audit_events` table for the sign-in log (schema 18). It's created
+  automatically on start; nothing to do.
+
+### Security
+
+- Password guessing is now limited. After 5 wrong passwords for the same email
+  from the same address within 15 minutes, that email can't sign in from that
+  address for 15 minutes after the last wrong one, even with the right
+  password; the sign-in screen says how long to wait (the API answers `429`
+  with `Retry-After`). It works the same for emails with no account, so it
+  never reveals which emails exist. Change the numbers with
+  `LOGIN_MAX_FAILURES` and `LOGIN_WINDOW_MINUTES` in `.env`. **Behind a
+  Cloudflare Tunnel**, set `TRUST_PROXY_HEADERS=true` so the limit applies
+  per visitor rather than to everyone at once, but only if the server can't
+  be reached any other way.
 
 ## [1.42.0] — 2026-11-15
 

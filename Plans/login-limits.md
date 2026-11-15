@@ -6,11 +6,11 @@ Tracking issue: #135
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Rate limiting and sign-in events | #132 | Open |
+| 1. Rate limiting and sign-in events | #132 | Built in 1.44.0 (schema 18), not yet released |
 | 2. More audit events | #133 | Open (after phase 1) |
 | 3. Admin viewer and pruning | #134 | Open (after phase 2) |
 
-Nothing built yet.
+Phase 1 built 2026-11-15 in app 1.44.0 / schema 18 (no web change: the sign-in card already shows the server's message), not yet released. Verified by 16 new tests (114 in all pass). Not yet tried on a running instance.
 
 Sessions: may span — each phase ends with a release and your check on your own instance before the next starts.
 
@@ -25,7 +25,7 @@ Sessions: may span — each phase ends with a release and your check on your own
 ## Open questions
 
 1. **How many wrong passwords, and for how long?** (blocks phase 1's numbers, not its build) Working assumption: 5 failed sign-ins for the same email from the same address within 15 minutes block further tries for that pair until the 15 minutes since the last failure have passed; a correct password before that clears the count. Both numbers are settings in `.env` (`LOGIN_MAX_FAILURES`, `LOGIN_WINDOW_MINUTES`) with those defaults.
-2. **What does an event store?** (blocks phase 1) Working assumption: when it happened, what it was, the email involved (typed text, cut to 320 characters), the user if there is one, the address the request came from when known, and a short detail. Never a password, never the browser's user-agent string. It is personal data, so it's added to `PRIVACY.md` in phase 1.
+2. **What does an event store?** (blocks phase 1) Working assumption: when it happened, what it was, the email involved (typed text, cut to 320 characters), the user if there is one, the address the request came from when known, and a short detail. Never a password, never the browser's user-agent string. It is personal data, so it's added to `PRIVACY.md` in phase 1. As built, deleting a user keeps their entries with the email but unlinks the user; the alternative is to blank the email or delete the entries when the user goes, which would also wipe their recent failures from the rate limit.
 3. **How long are events kept?** (blocks phase 3) Working assumption: 180 days, a setting (`AUDIT_RETENTION_DAYS`), and never less than a day so the rate limit's window is always there.
 4. **Should Google sign-in and registration be limited too?** (blocks nothing) Left out on purpose: Google handles its own password guessing, and `ALLOWED_EMAILS` and `ALLOW_REGISTRATION` already control who can sign up. Revisit if registration is ever left open on a public address.
 

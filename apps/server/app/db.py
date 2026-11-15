@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "17"
+SCHEMA_VERSION = "18"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,9 @@ SCHEMA_VERSION = "17"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v18 (2026-11-15, claude+mkolakowski): add audit_events — sign-ins,
+#     failed sign-ins and blocked sign-ins (login-limits phase 1, #132);
+#     failed ones are what the login rate limit counts.
 # v17 (2026-11-15, claude+mkolakowski): add api_tokens.expires_at (NULL =
 #     never expires) and api_tokens.last_used_at (NULL = never used) (#43).
 # v16 (2026-11-15, claude+mkolakowski): add api_tokens — personal API
@@ -80,7 +83,7 @@ SCHEMA_VERSION = "17"
 
 from sqlalchemy import (
     create_engine, Column, Integer, String, Date, DateTime, Numeric,
-    ForeignKey, Boolean, LargeBinary, Text, UniqueConstraint
+    ForeignKey, Boolean, LargeBinary, Text, UniqueConstraint, Index
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from decimal import Decimal
@@ -574,6 +577,26 @@ class ApiToken(Base):
     last_used_at = Column(DateTime, nullable=True)
 
 
+class AuditEvent(Base):
+    """Something that happened on the server, for the audit log (#132).
+
+    Phase 1 of login-limits writes `login`, `login_failed` and
+    `login_blocked`; the login rate limit counts `login_failed` rows for an
+    email and address. `email` is what was typed (so it can name an account
+    that doesn't exist); `ip` is the visitor's address when known. Never a
+    password. `user_id` is kept as NULL when the user is deleted.
+    """
+    __tablename__ = "audit_events"
+    __table_args__ = (Index("ix_audit_events_login", "email", "ip", "created_at"),)
+    id = Column(Integer, primary_key=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    event = Column(String(40), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    email = Column(String(320), nullable=True)
+    ip = Column(String(45), nullable=True)
+    detail = Column(String(200), nullable=True)
+
+
 def init_db():
     """Create missing tables, then apply in-place column migrations.
 
@@ -632,6 +655,8 @@ def init_db():
         # expire and show as never used until their next request.
         "ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP",
         "ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS last_used_at TIMESTAMP",
+        # v17 → v18: audit_events
+        # (Created by Base.metadata.create_all above — boundary marker only.)
     ]
     with engine.begin() as conn:
         for sql in migrations:

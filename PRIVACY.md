@@ -26,8 +26,13 @@ server it runs on:
 - **Backups:** exports and scheduled system backups are unencrypted JSON
   files that contain all of the above, email addresses included.
 - **Logs:** the web server's access log, which records the address and path
-  of each request, goes to the container's output. The app keeps no log of
-  its own.
+  of each request, goes to the container's output. The app also keeps a
+  sign-in log in the database: each sign-in, failed sign-in and blocked
+  sign-in, with the email that was typed (even one with no account), the
+  address it came from, the user if there is one, and when. Never a password.
+  It's what the sign-in rate limit counts. It's kept until removed; automatic
+  removal of old entries comes in a later release. Deleting a user keeps
+  their entries but unlinks them from the user (the email stays).
 - **In the browser:** one signed session cookie that keeps the user signed
   in. No tracking cookies.
 
@@ -57,7 +62,8 @@ the US) may apply to you. In practice:
   Settings ("Delete my account"), which removes them and everything only
   they own; an account they share stays if it has another owner. An admin
   can also delete a user from the Admin panel. Old backup files still
-  contain deleted users until you remove those files.
+  contain deleted users until you remove those files, and the sign-in log
+  keeps the email address on their past entries.
 
 ## Changes
 

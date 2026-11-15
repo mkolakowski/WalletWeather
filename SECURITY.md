@@ -32,6 +32,6 @@ version to get them.
 ## Known limits
 
 These are known and listed in the README's Security Notes and the roadmap,
-so they don't need a report: backups are not encrypted, there is no login
-rate limiting, no two-factor sign-in and no self-serve password reset, and
-session cookies are not marked HTTPS-only.
+so they don't need a report: backups are not encrypted, there is no
+two-factor sign-in and no self-serve password reset, and session cookies are
+not marked HTTPS-only.

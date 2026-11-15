@@ -67,6 +67,10 @@ same commit (or session) that introduces it.
 
 App version: **1.26.0** · Web version: **1.50.0** · Schema version: **14**
 
+## [1.26.0] — 2026-11-14
+
+App version: **1.26.0** · Web version: **1.50.0** · Schema version: **14**
+
 ### Added
 
 - **A Transactions page** in the top bar. It holds the search across all your
@@ -1112,7 +1116,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.25.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.26.0...HEAD
+[1.26.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.26.0
 [1.25.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.25.0
 [1.24.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.24.1
 [1.22.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.22.2

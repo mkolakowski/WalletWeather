@@ -217,6 +217,12 @@ The server has no sync today, so this needs endpoints for queued changes and
 rules for when the phone and the server disagree. It builds on the app's
 "Last-known numbers" choice (`Plans/ios-app.md`, phase 8). **Effort: large.**
 
+### 28. Search across everything
+One search box that finds transactions, bills and income, accounts,
+categories and saved reports, in the web app's top bar and in the iOS app.
+Today only transactions can be searched (item 3). It needs one search endpoint
+that returns matches grouped by kind (#111). **Effort: medium.**
+
 ---
 
 ## What's already in good shape (don't re-prioritize these)

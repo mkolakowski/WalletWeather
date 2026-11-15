@@ -94,3 +94,19 @@ Decisions made while planning [`Plans/ios-app.md`](../../../Plans/ios-app.md) (t
 **The decision:** phase 5's Appearance choice offers Match the phone, Light, Dark, AMOLED black and Sepia. In the mockups the light and sepia cards carry an outline and a soft shadow on a darker page background, after the first drawing left them hard to tell from the background.
 
 **What it changes:** phase 5 (#91). Phases 1 to 3 still build light and dark only. The web app doesn't gain the two looks.
+
+## 2026-11-14: search, and where its button goes
+
+**Decided:** 2026-11-14, by Matthew. **Status:** accepted.
+
+**The question:** Matthew asked for a search button in the app. What does search find, and where does the button sit? Today the server searches transactions only, and the web app has that as a panel under Forecast.
+
+**Options considered:**
+- Transactions only: exactly what the web app does today; bills and lines that haven't happened aren't found.
+- Transactions and bills: the server's existing search plus bills and paychecks matched by name in the app. No server change.
+- Everything, in the web app too: one search across transactions, bills, accounts, categories and reports. It needs a new search endpoint, and the web app gains a search box to match.
+- The button beside the pages bar with + moved to the top corner of each page; two round buttons beside the bar; or a magnifier at the top of each page.
+
+**The decision:** everything, in the web app too. The app's search button is the round one beside the pages bar, the spot iOS gives search, and + moves to the top corner of each page.
+
+**What it changes:** a new piece of server and web work (#111, roadmap item 28); phase 2 (#88) puts the button in place with transaction search; a new phase 10 widens it to everything once #111 has shipped.

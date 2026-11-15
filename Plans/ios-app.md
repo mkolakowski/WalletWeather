@@ -15,12 +15,13 @@ Tracking issue: #93
 | 7. More ways to sign in | #100 | Open (after phase 1; email and password after phone-path phase 3, #43) |
 | 8. Kept on the phone | #101 | Open (after phase 5) |
 | 9. The web app's themes | #102 | Open (after phase 5) |
+| 10. Search everything | #112 | Open (after phases 3 and 5, and #111: one search on the server and in the web app) |
 
 Nothing built yet. Written 2026-11-14 from a review of the app at 1.35.0 (web 1.59.0, schema 14). Until now the only notes on a native app were `apps/ios/README.md` and the "ready for native apps later" goal of `Plans/phone-path.md`.
 
 All thirteen open questions were settled on 2026-11-14 (`docs/dev/decisions/ios-app.md`). Questions 1 to 7 made phase 1 bigger and added phases 7 to 9.
 
-Order: phases 1, 2, 3 and 5 in turn; then 4, 7, 8 and 9 in any order; 6 whenever you want it on TestFlight.
+Order: phases 1, 2, 3 and 5 in turn; then 4, 7, 8, 9 and 10 in any order; 6 whenever you want it on TestFlight.
 
 Mockups: <https://claude.ai/artifact/4P7y4vUZww5xJGAq1TPKcc> (a private page; drawn from this plan, not screenshots of a build).
 
@@ -39,6 +40,7 @@ Sessions: may span — each phase ends with a build on your phone and your check
 | 7. More ways to sign in | Sonnet | none | Two additions on phase 1's sign-in. Switch to Opus if a QR generator has to be chosen and licence-checked. |
 | 8. Kept on the phone | Opus | Sonnet: tests that nothing is left behind | A privacy decision: what is stored, how it's protected, and when it's deleted. |
 | 9. The web app's themes | Sonnet | none | Ten palettes applied to screens already built. |
+| 10. Search everything | Sonnet | none | One screen on patterns already built, over an endpoint that exists by then. |
 
 ## Open questions
 
@@ -85,6 +87,7 @@ All thirteen were settled on 2026-11-14: the answers are below and the reasoning
 - "Try the demo" opens the app on built-in sample data, which is how Apple's reviewer gets in.
 - iPhone only for now: no iPad or Mac.
 - AMOLED black and Sepia join Light and Dark as choices in the app's settings.
+- Search finds everything (transactions, bills and income, accounts, categories and reports), and the web app gains the same search (#111). Its button is the round one beside the pages bar; + moves to the top corner of each page.
 
 **What the review found** (app 1.35.0, web 1.59.0, schema 14):
 - **The web app's phone layout already says what a phone needs.** A bar with Dashboard, Forecast, Bills & income, Calendar and More (usability phase 4); Forecast lines as cards that open to edit; Transactions folded into Forecast (1.32.6); Bills & income working like Forecast (1.34.0). The native app keeps that shape, so the two feel like one product.
@@ -137,7 +140,7 @@ Depends on phone-path phase 2 (#42, API tokens). The biggest phase: it may take 
 - The token is kept in the Keychain, on this device only and never in iCloud. Signing out removes it. Nothing else is kept on the phone (phase 8 adds the choice).
 - The Important notice at first sign-in, as the web app shows it.
 - A server check on connecting: a server older than the app needs gets a plain message, not a broken screen.
-- The frame every page sits in: the five places of the web app's phone bar, one column when the Duo is closed or on any other iPhone, two panes when it's open. The system's own bar, which iOS stands down the right edge on the Duo.
+- The frame every page sits in: the five places of the web app's phone bar, one column when the Duo is closed or on any other iPhone, two panes when it's open. The system's own bar, which iOS stands down the right edge on the Duo. The round button beside the bar is kept for Search (phase 2); a page's own actions, such as +, sit in its top corner.
 - Light and dark, following the phone, with WalletWeather's colours.
 - Dashboard, read-only: the account cards (balance today, forecast and actual month-end, the month's low and high with their dates), "rest of this month", the charts with the Month / 30 days / 90 days switch, and pinned reports. Open Duo: accounts on the left half, charts on the right.
 - No connection, a slow server, an expired token and an expired Cloudflare session each get their own plain message with a retry.
@@ -156,7 +159,7 @@ Depends on phase 1.
 - Closed: each line is a card, as in the web app's phone layout (name and amount, the forecast and actual dates, category, both balances, the difference when there is one). Tapping a line opens its editor as a sheet.
 - Open: the full table on the left (date, name, category, forecast, actual, difference, balance) under the balance chart, and the tapped line's editor on the right, so the list stays put while you edit. Before a line is tapped, the right half shows the month's summary: income and spending against plan, what's still to come, the low and high, and the lines that differ from plan.
 - Editing, on accounts you may edit: mark a line as paid with its real amount and date, undo that, change its notes and category, add a one-off transaction, delete one. A read-only account or token shows no edit controls.
-- Search across transactions, from the page's search field.
+- Search: the round button beside the pages bar opens it, and + sits in the top corner of the page. In this phase it finds transactions, through the search the server already has; phase 10 widens it to everything.
 - Server: shape tests for the forecast, transaction and search endpoints the app calls.
 
 **You:** on your phone, mark one bill as paid with a different amount, add a transaction, then delete it. Do the same with the Duo open.
@@ -256,3 +259,16 @@ Depends on phase 5.
 **You:** look at each page in the themes you use, closed and open.
 
 **Done when:** every page has been checked in each theme, closed and open, and its text is readable in each.
+
+### Phase 10: Search everything
+
+Depends on phases 3 and 5 (the pages a result opens) and on #111 (one search on the server and in the web app).
+
+- The search opened by the round button beside the pages bar finds transactions, bills and income, accounts, categories and saved reports, grouped by kind, through the server's new search endpoint.
+- Tapping a result opens it where it lives: a transaction or a bill in its editor, an account in Forecast, a category as its transactions, a report run.
+- Open Duo: the results stay on the left half and the tapped result opens on the right.
+- Nothing about a search is kept on the phone.
+
+**You:** search for a bill, a shop and a category on your phone, with the Duo closed and open.
+
+**Done when:** tests pass; each kind of result opens the right place; the issue has screenshots closed and open.

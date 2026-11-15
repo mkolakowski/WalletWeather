@@ -6,9 +6,11 @@ Tracking issue: #131
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Forecast's columns, compact rows | #128 | Not started |
+| 1. Forecast's columns, compact rows | #128 | Built in web 1.67.0, not released |
 | 2. Inline add line and edit rows | #129 | Not started, waits for 1 |
 | 3. Controls row | #130 | Not started, waits for 2 |
+
+- **Phase 1** — web 1.67.0 (no server change), built 2026-11-15, not released. Verified: headless Chromium with sample data at 1600, 1440, 1280, 1100 and 390px (still a table down to 1100; header, read and open-row lines match; no column moves and no height change when a row opens; every heading sorts; spreadsheet mode and Archived render; phone cards label every field). Tags moved into their column per the open question's assumption. Known limit: Description is about 86px wide at 1440–1600, as on Forecast for editable accounts.
 
 Sessions: may span — each phase ends with a release and your look on your own instance before the next starts.
 

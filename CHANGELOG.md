@@ -65,7 +65,13 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.37.0** · Web version: **1.61.0** · Schema version: **14**
+App version: **1.37.1** · Web version: **1.61.1** · Schema version: **14**
+
+### Fixed
+
+- The new Add transaction line on Forecast showed stray "/" marks under the
+  forecast date, the forecast amount and the notes, pushing those fields out
+  of line. They're gone.
 
 ## [1.37.0] — 2026-11-14
 

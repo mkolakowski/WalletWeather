@@ -318,7 +318,7 @@
   /* Read view only (not spreadsheet mode): a "/" after the first cell of each
      pair. The actions column (the ✎ that opens a line) shows on accounts you
      can edit (.can-edit) and while a line is open (.has-editing). */
-  #forecastTable:not(.sheet-mode) tr:not(.fc-editing):not(.row-editing) > td:is(:nth-child(2), :nth-child(5), :nth-child(8))::after {
+  #forecastTable:not(.sheet-mode) tr:not(.fc-editing):not(.row-editing):not(.le-inline) > td:is(:nth-child(2), :nth-child(5), :nth-child(8))::after {
     content:"/"; color:var(--muted); margin-left:6px; }
   #forecastTable:not(.sheet-mode):not(.has-editing):not(.can-edit) thead th:last-child,
   #forecastTable:not(.sheet-mode):not(.has-editing):not(.can-edit) tbody tr:not(.today-marker) > td:last-child { display:none; }
@@ -2385,7 +2385,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.61.0";
+const WEB_VERSION = "1.61.1";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2396,6 +2396,7 @@ const WEB_VERSION = "1.61.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.61.1 (2026-11-14, claude+mkolakowski): (#94) The paired-column '/' (::after on cells 2, 5, 8) no longer applies to .le-inline rows, so the add-a-line row has no stray slashes.
 // 1.61.0 (2026-11-14, claude+mkolakowski): (#94) Add transaction is a new line at the top of #forecastTable (tr.fc-addrow.le-inline, _buildAddRow): one field per column, Repeats with inline-labelled frequency/day/ends across the four computed columns, Notes + Save / + Another / Cancel. Signed amounts; one-off lines post forecast/actual dates and amounts, Repeats posts a recurring item (forecast date = start). The row element is kept (_addRowEl) and re-appended by renderForecast. #addFormPanel and its old functions are removed. (#85) ↻ Add recurring removed.
 // 1.60.0 (2026-11-14, claude+mkolakowski): (#85) Forecast's Account actions panel is gone; its buttons are .fc-actions at the start of the table's .fc-controls row, plus ↻ Add recurring (addRecurringForAccount: Bills & income filtered to the account, add form open) and a ⋯ menu (#acctMenu: rename, archive, export this account's backup; items by access level). Add/Import/Add recurring hide on read-only accounts.
 // 1.59.0 (2026-11-14, claude+mkolakowski): (#82) Tables wrap when too wide: _initTableWrap() watches <main> (MutationObserver) and each table's container width (ResizeObserver); _twCheck() adds .tw-wrapped when a table overflows its container, and _twLabel() copies header names into each cell's data-label (open lines label themselves; button spacers ignored). Wrapped rows are flex rows; .fc-sort shows while a panel's table is wrapped. Forecast's phone card layout is exempt.

@@ -67,6 +67,10 @@ same commit (or session) that introduces it.
 
 App version: **1.32.2** · Web version: **1.56.2** · Schema version: **14**
 
+## [1.32.2] — 2026-11-14
+
+App version: **1.32.2** · Web version: **1.56.2** · Schema version: **14**
+
 ### Fixed
 
 - On the Forecast page, the date and amount columns were too narrow while a
@@ -1306,7 +1310,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.32.1...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.32.2...HEAD
+[1.32.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.32.2
 [1.32.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.32.1
 [1.32.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.32.0
 [1.31.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.31.2

@@ -76,6 +76,9 @@
   button.ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
   button.ghost.active { background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
   button.danger { background:var(--bad); }
+  /* A visible focus ring for keyboard users (#55); mouse clicks don't show it. */
+  :is(button, a, input, select, textarea, [tabindex]):focus-visible {
+    outline:2px solid var(--accent); outline-offset:2px; }
   /* In-page messages (notify) and dialogs (confirmDialog / promptDialog), #53. */
   .app-toasts { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:1000;
                 display:flex; flex-direction:column; gap:8px; width:min(520px, calc(100vw - 32px));
@@ -233,6 +236,9 @@
                              cursor:pointer; margin:0; font-size:13px;
                              color:var(--text); text-transform:none; letter-spacing:0; }
   .account-checklist label:hover { border-color:var(--accent); }
+  /* Report filters (#55): checkboxes instead of Cmd/Ctrl-click list boxes. */
+  .report-checklist { max-height:120px; overflow-y:auto; align-content:flex-start; }
+  .report-checklist .empty { color:var(--muted); font-size:12px; }
   .account-checklist input[type="checkbox"] { width:auto; margin:0; }
   .notes-col { max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .notes-col.muted { color:var(--muted); }
@@ -847,19 +853,19 @@
     </div>
 
     <div id="formSignin">
-      <label>Email</label>
+      <label for="siEmail">Email</label>
       <input id="siEmail" type="email" autocomplete="email">
-      <label>Password</label>
+      <label for="siPass">Password</label>
       <input id="siPass" type="password" autocomplete="current-password">
       <button onclick="doSignin()" style="width:100%;margin-top:12px">Sign in</button>
     </div>
 
     <div id="formSignup" class="hidden">
-      <label>Name</label>
+      <label for="suName">Name</label>
       <input id="suName" type="text" autocomplete="name">
-      <label>Email</label>
+      <label for="suEmail">Email</label>
       <input id="suEmail" type="email" autocomplete="email">
-      <label>Password (8+ characters)</label>
+      <label for="suPass">Password (8+ characters)</label>
       <input id="suPass" type="password" autocomplete="new-password">
       <button onclick="doSignup()" style="width:100%;margin-top:12px">Create account</button>
     </div>
@@ -1025,8 +1031,8 @@
               <input id="recAddDesc" maxlength="120" placeholder="Rent"></div>
             <div style="flex:0 1 130px;min-width:110px"><label for="recAddType">Type</label>
               <select id="recAddType">
-                <option value="withdraw" selected>Withdraw</option>
-                <option value="deposit">Deposit</option>
+                <option value="withdraw" selected>Expense</option>
+                <option value="deposit">Income</option>
               </select></div>
             <div style="flex:0 1 140px;min-width:120px"><label for="recAddAmt">Amount</label>
               <input id="recAddAmt" type="number" step="0.01" min="0"></div>
@@ -1071,28 +1077,28 @@
               <strong id="recBulkCount">0 selected</strong>
             </div>
             <div style="flex:0 0 auto">
-              <label style="font-size:12px;color:var(--muted)">Category</label>
+              <label style="font-size:12px;color:var(--muted)" for="recBulkCat">Category</label>
               <select id="recBulkCat"></select>
             </div>
             <div style="flex:0 0 110px">
               <label style="font-size:12px;color:var(--muted)"
-                     title="Each row keeps its own sign — expenses stay expenses, income stays income">Amount</label>
+                     title="Each row keeps its own sign — expenses stay expenses, income stays income" for="recBulkAmt">Amount</label>
               <input id="recBulkAmt" type="number" step="0.01" min="0" placeholder="no change">
             </div>
             <div style="flex:0 0 110px">
-              <label style="font-size:12px;color:var(--muted)" title="Applies to monthly rows only">Day of month</label>
+              <label style="font-size:12px;color:var(--muted)" title="Applies to monthly rows only" for="recBulkDay">Day of month</label>
               <input id="recBulkDay" type="number" min="1" max="31" placeholder="no change">
             </div>
             <div style="flex:0 0 auto">
               <label style="font-size:12px;color:var(--muted)"
-                     title="No occurrences are projected before this date">Start date</label>
+                     title="No occurrences are projected before this date" for="recBulkAnchor">Start date</label>
               <input id="recBulkAnchor" type="date">
               <label style="font-size:12px;display:inline-flex;align-items:center;gap:4px;margin:2px 0 0"
                      title="Clears the start date on monthly rows (weekly/biweekly keep their anchor)">
                 <input id="recBulkAnchorClear" type="checkbox" style="width:auto;margin:0"> clear (monthly)</label>
             </div>
             <div style="flex:0 0 auto">
-              <label style="font-size:12px;color:var(--muted)">End date</label>
+              <label style="font-size:12px;color:var(--muted)" for="recBulkEnd">End date</label>
               <input id="recBulkEnd" type="date">
               <label style="font-size:12px;display:inline-flex;align-items:center;gap:4px;margin:2px 0 0">
                 <input id="recBulkEndClear" type="checkbox" style="width:auto;margin:0"> clear</label>
@@ -1170,27 +1176,27 @@
 
         <div class="cal-filters">
           <div>
-            <label>Account</label>
+            <label for="calFilterAccount">Account</label>
             <select id="calFilterAccount" onchange="applyCalendarFilters()">
               <option value="">All accounts</option>
             </select>
           </div>
           <div>
-            <label>Category</label>
+            <label for="calFilterCategory">Category</label>
             <select id="calFilterCategory" onchange="applyCalendarFilters()">
               <option value="">All categories</option>
               <option value="__none__">(uncategorized)</option>
             </select>
           </div>
           <div>
-            <label>Tag</label>
+            <label for="calFilterTag">Tag</label>
             <select id="calFilterTag" onchange="applyCalendarFilters()">
               <option value="">All tags</option>
               <option value="__none__">(untagged)</option>
             </select>
           </div>
           <div>
-            <label>Source</label>
+            <label for="calFilterSource">Source</label>
             <select id="calFilterSource" onchange="applyCalendarFilters()">
               <option value="">All</option>
               <option value="scheduled">Scheduled (recurring)</option>
@@ -1198,16 +1204,16 @@
             </select>
           </div>
           <div>
-            <label>Kind</label>
+            <label for="calFilterKind">Kind</label>
             <select id="calFilterKind" onchange="applyCalendarFilters()">
               <option value="">Any</option>
-              <option value="spending">Spending</option>
+              <option value="spending">Expenses</option>
               <option value="income">Income</option>
               <option value="transfers">Transfers</option>
             </select>
           </div>
           <div>
-            <label>Status</label>
+            <label for="calFilterStatus">Status</label>
             <select id="calFilterStatus" onchange="applyCalendarFilters()">
               <option value="">Any</option>
               <option value="cleared">Cleared</option>
@@ -1266,40 +1272,40 @@
           <a href="#" onclick="downloadImportTemplate();return false">Download a starter template</a>.
         </p>
         <div class="row">
-          <div><label>Target account</label>
+          <div><label for="importTargetAccount">Target account</label>
             <select id="importTargetAccount"></select>
           </div>
           <div style="flex:0 0 auto">
-            <label>File</label>
+            <label for="importCsvFile">File</label>
             <input id="importCsvFile" type="file" accept=".csv,text/csv,text/plain" onchange="onImportCsvFile()">
           </div>
           <div style="flex:0 0 auto;align-self:end">
             <button class="ghost" onclick="downloadImportTemplate()">Download template</button>
           </div>
           <div style="flex:0 0 auto">
-            <label>Has header row?</label>
+            <label for="importHasHeader">Has header row?</label>
             <select id="importHasHeader">
               <option value="1" selected>Yes</option>
               <option value="0">No</option>
             </select>
           </div>
           <div style="flex:0 0 auto">
-            <label>Sign convention</label>
+            <label for="importSignConv">Sign convention</label>
             <select id="importSignConv">
               <option value="amount" selected>Single signed amount column</option>
-              <option value="amount_invert">Single column (positive = withdraw)</option>
+              <option value="amount_invert">Single column (positive = expense)</option>
               <option value="debit_credit">Separate debit + credit columns</option>
             </select>
           </div>
           <div style="flex:0 0 auto">
-            <label>Default category</label>
+            <label for="importDefaultCat">Default category</label>
             <select id="importDefaultCat" title="Used when a row has no Category column, or its value doesn't match an existing category">
               <option value="">— none —</option>
             </select>
           </div>
         </div>
         <div style="margin-top:10px">
-          <label>CSV text (paste here)</label>
+          <label for="importCsvText">CSV text (paste here)</label>
           <textarea id="importCsvText" rows="8" style="width:100%;font:12px monospace;background:var(--bg-deep);
             color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px"
             placeholder="date,description,amount,category,tags,notes,frequency,end_date,recurring_group&#10;2026-04-01,Coffee,-4.25,Dining,,,,,&#10;2026-07-01,Streaming service,-15.99,Subscriptions,streaming,,Monthly,,&#10;2026-08-01,Streaming service,-15.99,Subscriptions,streaming,,Monthly,,"></textarea>
@@ -1335,35 +1341,35 @@
         <p style="color:var(--muted);font-size:13px;margin:6px 0 12px">
           Move money between two accounts you can edit. A paired posting is
           created on each side so per-account balances update, but the dashboard
-          and reports exclude transfers from spending and income totals.
+          and reports exclude transfers from expense and income totals.
         </p>
         <input type="hidden" id="transferEditId" value="">
         <div class="row" style="margin-top:8px">
           <div>
-            <label>From account</label>
+            <label for="transferFrom">From account</label>
             <select id="transferFrom" onchange="updateTransferBalances()"></select>
             <div class="transfer-bal" id="transferFromBal"></div>
           </div>
           <div>
-            <label>To account</label>
+            <label for="transferTo">To account</label>
             <select id="transferTo" onchange="updateTransferBalances()"></select>
             <div class="transfer-bal" id="transferToBal"></div>
           </div>
         </div>
         <div class="row" style="margin-top:8px">
           <div>
-            <label>Amount</label>
+            <label for="transferAmount">Amount</label>
             <input id="transferAmount" type="number" step="0.01" min="0.01" oninput="updateTransferBalances()">
           </div>
-          <div><label>Date</label><input id="transferDate" type="date"></div>
+          <div><label for="transferDate">Date</label><input id="transferDate" type="date"></div>
         </div>
         <div class="row" style="margin-top:8px">
-          <div style="flex:2"><label>Description</label>
+          <div style="flex:2"><label for="transferDesc">Description</label>
             <input id="transferDesc" maxlength="120" placeholder="Transfer">
           </div>
         </div>
         <div class="row" style="margin-top:8px">
-          <div style="flex:2"><label>Notes (optional, max 256)</label>
+          <div style="flex:2"><label for="transferNotes">Notes (optional, max 256)</label>
             <input id="transferNotes" maxlength="256">
           </div>
         </div>
@@ -1401,27 +1407,27 @@
         <div id="addForm">
           <div id="addFormInner">
             <div class="row">
-              <div><label>Description</label><input id="addDesc"></div>
-              <div><label>Type</label>
+              <div><label for="addDesc">Description</label><input id="addDesc"></div>
+              <div><label for="addType">Type</label>
                 <select id="addType">
-                  <option value="withdraw" selected>Withdraw</option>
-                  <option value="deposit">Deposit</option>
+                  <option value="withdraw" selected>Expense</option>
+                  <option value="deposit">Income</option>
                 </select>
               </div>
-              <div><label>Amount</label><input id="addAmt" type="number" step="0.01" min="0"></div>
-              <div><label>Category</label>
+              <div><label for="addAmt">Amount</label><input id="addAmt" type="number" step="0.01" min="0"></div>
+              <div><label for="addCat">Category</label>
                 <select id="addCat"><option value="">— none —</option></select>
               </div>
             </div>
             <div class="row" style="margin-top:8px">
-              <div id="addDateWrap"><label>Date</label><input id="addDate" type="date"></div>
-              <div id="addStatusWrap"><label>Status</label>
+              <div id="addDateWrap"><label for="addDate">Date</label><input id="addDate" type="date"></div>
+              <div id="addStatusWrap"><label for="addStatus">Status</label>
                 <select id="addStatus">
                   <option value="forecast">Forecast (planned)</option>
                   <option value="actual">Actual (cleared)</option>
                 </select>
               </div>
-              <div style="flex:2"><label>Notes (optional, max 256)</label><input id="addNotes" maxlength="256"></div>
+              <div style="flex:2"><label for="addNotes">Notes (optional, max 256)</label><input id="addNotes" maxlength="256"></div>
             </div>
             <div class="row" style="margin-top:14px;align-items:center">
               <div style="flex:0 0 auto">
@@ -1432,16 +1438,16 @@
               </div>
             </div>
             <div id="addRecFields" class="row recurring-fields disabled" style="margin-top:8px">
-              <div><label>Frequency</label>
+              <div><label for="addFreq">Frequency</label>
                 <select id="addFreq" onchange="toggleAddWhenFields()" disabled>
                   <option value="monthly_day">Monthly (day of month)</option>
                   <option value="biweekly">Biweekly</option>
                   <option value="weekly">Weekly</option>
                 </select>
               </div>
-              <div id="addDayWrap"><label>Day of month</label><input id="addDay" type="number" min="1" max="31" value="1" disabled></div>
-              <div id="addAnchorWrap"><label id="addAnchorLabel" title="Optional. No occurrences are projected before this date.">Start date (optional)</label><input id="addAnchor" type="date" disabled></div>
-              <div style="flex:2"><label>End date (optional)</label><input id="addEnd" type="date" disabled></div>
+              <div id="addDayWrap"><label for="addDay">Day of month</label><input id="addDay" type="number" min="1" max="31" value="1" disabled></div>
+              <div id="addAnchorWrap"><label id="addAnchorLabel" title="Optional. No occurrences are projected before this date." for="addAnchor">Start date (optional)</label><input id="addAnchor" type="date" disabled></div>
+              <div style="flex:2"><label for="addEnd">End date (optional)</label><input id="addEnd" type="date" disabled></div>
             </div>
             <div class="row" style="margin-top:14px">
               <div style="flex:0 0 auto"><button onclick="submitAddForm()">Save</button></div>
@@ -1458,7 +1464,7 @@
         <div class="fc-controls">
           <div class="fc-left">
             <div class="ctl">
-              <label>View</label>
+              <label for="forecastMode">View</label>
               <select id="forecastMode" onchange="onForecastModeChange()">
                 <option value="month" selected>Month</option>
                 <option value="restofmonth">Rest of this month</option>
@@ -1468,7 +1474,7 @@
             <div class="ctl" id="forecastMonthWrap">
               <button class="ghost month-nav" id="forecastPrevMonthBtn" onclick="shiftForecastMonth(-1)"
                       title="Previous month" aria-label="Previous month">Prev</button>
-              <label>Month</label>
+              <label for="forecastMonthSel">Month</label>
               <select id="forecastMonthSel" onchange="loadForecast()">
                 <option value="1">January</option><option value="2">February</option>
                 <option value="3">March</option><option value="4">April</option>
@@ -1479,7 +1485,7 @@
               </select>
             </div>
             <div class="ctl" id="forecastYearWrap">
-              <label>Year</label>
+              <label for="forecastYearSel">Year</label>
               <select id="forecastYearSel" onchange="loadForecast()"></select>
               <button class="ghost month-nav" id="forecastNextMonthBtn" onclick="shiftForecastMonth(1)"
                       title="Next month" aria-label="Next month">Next</button>
@@ -1487,7 +1493,7 @@
                       title="Jump to the current month">Current month</button>
             </div>
             <div class="ctl hidden" id="forecastDurationWrap">
-              <label>Range</label>
+              <label for="forecastDays">Range</label>
               <select id="forecastDays" onchange="loadForecast()">
                 <option value="30">30 days</option>
                 <option value="60">60 days</option>
@@ -1504,7 +1510,7 @@
           <div class="fc-right">
             <div id="forecastPagination" class="pagination hidden" style="margin-top:0;gap:16px">
               <div class="pagination-left">
-                <label>Per page</label>
+                <label for="forecastPageSize">Per page</label>
                 <select id="forecastPageSize" onchange="onForecastPageSizeChange()">
                   <option value="auto" selected>Auto (fit window)</option>
                   <option value="10">10</option>
@@ -1567,39 +1573,39 @@
       <div class="panel">
         <h2>Search transactions</h2>
         <div class="row">
-          <div style="flex:2"><label>Text</label>
+          <div style="flex:2"><label for="txnSearchQ">Text</label>
             <input id="txnSearchQ" placeholder="Search description or notes…"
                    onkeydown="if(event.key==='Enter')runTxnSearch()">
           </div>
-          <div><label>Account</label>
+          <div><label for="txnSearchAccount">Account</label>
             <select id="txnSearchAccount" onchange="runTxnSearch()">
               <option value="">All accounts</option>
             </select>
           </div>
-          <div><label>Category</label>
+          <div><label for="txnSearchCategory">Category</label>
             <select id="txnSearchCategory" onchange="runTxnSearch()">
               <option value="">All categories</option>
             </select>
           </div>
-          <div><label>Tag</label>
+          <div><label for="txnSearchTag">Tag</label>
             <select id="txnSearchTag" onchange="runTxnSearch()">
               <option value="">All tags</option>
             </select>
           </div>
-          <div><label>Kind</label>
+          <div><label for="txnSearchKind">Kind</label>
             <select id="txnSearchKind" onchange="runTxnSearch()">
               <option value="">Any</option>
-              <option value="spending">Spending only</option>
+              <option value="spending">Expenses only</option>
               <option value="income">Income only</option>
               <option value="transfers">Transfers only</option>
             </select>
           </div>
         </div>
         <div class="row" style="margin-top:8px">
-          <div><label>From</label><input id="txnSearchFrom" type="date" onchange="runTxnSearch()"></div>
-          <div><label>To</label><input id="txnSearchTo" type="date" onchange="runTxnSearch()"></div>
-          <div><label>Min $</label><input id="txnSearchMin" type="number" step="0.01" placeholder="-9999"></div>
-          <div><label>Max $</label><input id="txnSearchMax" type="number" step="0.01" placeholder="9999"></div>
+          <div><label for="txnSearchFrom">From</label><input id="txnSearchFrom" type="date" onchange="runTxnSearch()"></div>
+          <div><label for="txnSearchTo">To</label><input id="txnSearchTo" type="date" onchange="runTxnSearch()"></div>
+          <div><label for="txnSearchMin">Min $</label><input id="txnSearchMin" type="number" step="0.01" placeholder="-9999"></div>
+          <div><label for="txnSearchMax">Max $</label><input id="txnSearchMax" type="number" step="0.01" placeholder="9999"></div>
           <div style="flex:0 0 auto"><label>&nbsp;</label>
             <div style="display:flex;gap:6px">
               <button onclick="runTxnSearch()">Search</button>
@@ -1620,7 +1626,7 @@
               <strong id="txnBulkCount">0 selected</strong>
             </div>
             <div>
-              <label style="font-size:12px;color:var(--muted)">Tag</label>
+              <label style="font-size:12px;color:var(--muted)" for="txnBulkTag">Tag</label>
               <select id="txnBulkTag"></select>
             </div>
             <div style="flex:0 0 auto">
@@ -1702,7 +1708,7 @@
 
             <div class="row" style="margin-top:6px">
               <div>
-                <label>Group by</label>
+                <label for="reportGroupBy">Group by</label>
                 <select id="reportGroupBy" onchange="onReportParamChange()">
                   <option value="category">Category</option>
                   <option value="tag">Tag</option>
@@ -1710,7 +1716,7 @@
                 </select>
               </div>
               <div>
-                <label>Range</label>
+                <label for="reportRangeMode">Range</label>
                 <select id="reportRangeMode" onchange="onReportRangeModeChange()">
                   <option value="month">Month</option>
                   <option value="last_30d">Last 30 days</option>
@@ -1721,7 +1727,7 @@
                 </select>
               </div>
               <div id="reportMonthWrap">
-                <label>Month</label>
+                <label for="reportMonthSel">Month</label>
                 <select id="reportMonthSel" onchange="onReportParamChange()">
                   <option value="1">January</option><option value="2">February</option>
                   <option value="3">March</option><option value="4">April</option>
@@ -1732,27 +1738,27 @@
                 </select>
               </div>
               <div id="reportYearWrap">
-                <label>Year</label>
+                <label for="reportYearSel">Year</label>
                 <select id="reportYearSel" onchange="onReportParamChange()"></select>
               </div>
               <div id="reportCustomStart" class="hidden">
-                <label>Start</label>
+                <label for="reportStart">Start</label>
                 <input id="reportStart" type="date" onchange="onReportParamChange()">
               </div>
               <div id="reportCustomEnd" class="hidden">
-                <label>End</label>
+                <label for="reportEnd">End</label>
                 <input id="reportEnd" type="date" onchange="onReportParamChange()">
               </div>
               <div>
-                <label>Kind</label>
+                <label for="reportKind">Kind</label>
                 <select id="reportKind" onchange="onReportParamChange()">
                   <option value="any">All</option>
-                  <option value="spending">Spending</option>
+                  <option value="spending">Expenses</option>
                   <option value="income">Income</option>
                 </select>
               </div>
               <div>
-                <label>Chart</label>
+                <label for="reportChart">Chart</label>
                 <select id="reportChart" onchange="onReportParamChange()">
                   <option value="table">Table only</option>
                   <option value="bar">Bar</option>
@@ -1769,16 +1775,19 @@
 
             <div class="row" style="margin-top:8px">
               <div style="flex:2">
-                <label>Accounts (none = all you can see)</label>
-                <select id="reportAccountIds" multiple size="3" onchange="onReportParamChange()"></select>
+                <label id="reportAccountIdsLabel">Accounts (none = all you can see)</label>
+                <div id="reportAccountIds" class="account-checklist report-checklist" role="group" aria-labelledby="reportAccountIdsLabel"
+                     onchange="onReportParamChange()"></div>
               </div>
               <div style="flex:2">
-                <label>Categories (none = all)</label>
-                <select id="reportCategoryIds" multiple size="3" onchange="onReportParamChange()"></select>
+                <label id="reportCategoryIdsLabel">Categories (none = all)</label>
+                <div id="reportCategoryIds" class="account-checklist report-checklist" role="group" aria-labelledby="reportCategoryIdsLabel"
+                     onchange="onReportParamChange()"></div>
               </div>
               <div style="flex:2">
-                <label>Tags (any-of)</label>
-                <select id="reportTagIds" multiple size="3" onchange="onReportParamChange()"></select>
+                <label id="reportTagIdsLabel">Tags (any-of)</label>
+                <div id="reportTagIds" class="account-checklist report-checklist" role="group" aria-labelledby="reportTagIdsLabel"
+                     onchange="onReportParamChange()"></div>
               </div>
             </div>
           </div>
@@ -1809,7 +1818,7 @@
         </p>
         <div class="row">
           <div style="flex:1">
-            <label>App title</label>
+            <label for="adminAppTitle">App title</label>
             <input id="adminAppTitle" maxlength="80" placeholder="WalletWeather">
           </div>
           <div style="flex:0 0 auto"><button onclick="saveAppTitle()">Save</button></div>
@@ -1850,23 +1859,25 @@
 
         <h3 class="backup-subhead">Schedule</h3>
         <div class="row">
-          <div><label>Enabled</label>
+          <div><label for="adminBackupEnabled">Enabled</label>
             <select id="adminBackupEnabled">
               <option value="false">Disabled</option>
               <option value="true">Enabled</option>
             </select>
           </div>
-          <div><label>Frequency</label>
+          <div><label for="adminBackupFreq">Frequency</label>
             <select id="adminBackupFreq">
               <option value="daily">Daily</option>
               <option value="weekly">Weekly</option>
               <option value="monthly">Monthly</option>
             </select>
           </div>
-          <div><label>Hour (UTC, 0-23)</label>
-            <input id="adminBackupHour" type="number" min="0" max="23" value="3">
+          <div><label for="adminBackupHour" id="adminBackupHourLabel">Hour (your time, 0–23)</label>
+            <input id="adminBackupHour" type="number" min="0" max="23" value="3"
+                   oninput="_backupHourNote()" aria-describedby="adminBackupHourNote">
+            <div id="adminBackupHourNote" style="font-size:11px;color:var(--muted);margin-top:2px"></div>
           </div>
-          <div><label>Retention (days)</label>
+          <div><label for="adminBackupRetention">Retention (days)</label>
             <input id="adminBackupRetention" type="number" min="1" value="30">
           </div>
           <div style="flex:0 0 auto"><button onclick="saveBackupConfig()">Save schedule</button></div>
@@ -1908,7 +1919,7 @@
         <div id="dashLayoutSection" style="scroll-margin-top:16px;padding:8px;margin:16px -8px 0;border-radius:8px">
         <h3 style="margin:12px 0 6px;font-size:14px">Dashboard charts placement</h3>
         <p style="color:var(--muted);margin:0 0 10px;font-size:13px">
-          Choose where the per-account charts (spending donut, totals, and balance
+          Choose where the per-account charts (expenses donut, totals, and balance
           sparkline) appear on the Dashboard. Default: <em>Inside each card</em>.
         </p>
         <div id="chartPositionPicker" class="row" style="gap:8px"
@@ -1936,9 +1947,9 @@
           Dashboard and Forecast page without losing its data.
         </p>
         <div class="row">
-          <div><label>Name</label><input id="newAccName" placeholder="Checking"></div>
-          <div><label>Starting balance</label><input id="newAccBal" type="number" step="0.01" value="0"></div>
-          <div><label>As of date</label><input id="newAccDate" type="date"></div>
+          <div><label for="newAccName">Name</label><input id="newAccName" placeholder="Checking"></div>
+          <div><label for="newAccBal">Starting balance</label><input id="newAccBal" type="number" step="0.01" value="0"></div>
+          <div><label for="newAccDate">As of date</label><input id="newAccDate" type="date"></div>
           <div><button onclick="createAccount()">Create</button></div>
         </div>
         <div id="manageAccountsList" style="margin-top:16px"></div>
@@ -1951,8 +1962,8 @@
         </p>
         <div id="categoriesList" style="margin-bottom:14px;color:var(--muted);font-size:13px">No categories yet.</div>
         <div class="row">
-          <div><label>New category name</label><input id="newCatName" placeholder="Groceries"></div>
-          <div><label>Color</label><input id="newCatColor" type="color" value="#58a6ff"></div>
+          <div><label for="newCatName">New category name</label><input id="newCatName" placeholder="Groceries"></div>
+          <div><label for="newCatColor">Color</label><input id="newCatColor" type="color" value="#58a6ff"></div>
           <div><button onclick="createCategory()">Add category</button></div>
         </div>
       </div>
@@ -1961,13 +1972,13 @@
         <h2>Tags</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           Tags are lighter than categories &mdash; each transaction has one category, but can carry any number of tags
-          (like &ldquo;vacation&rdquo;, &ldquo;reimbursable&rdquo;, or &ldquo;business&rdquo;). Use them to slice spending
+          (like &ldquo;vacation&rdquo;, &ldquo;reimbursable&rdquo;, or &ldquo;business&rdquo;). Use them to slice expenses
           across categories without reshuffling your budget.
         </p>
         <div id="tagsList" style="margin-bottom:14px;color:var(--muted);font-size:13px">No tags yet.</div>
         <div class="row">
-          <div><label>New tag name</label><input id="newTagName" placeholder="vacation" maxlength="60"></div>
-          <div><label>Color</label><input id="newTagColor" type="color" value="#9d6bff"></div>
+          <div><label for="newTagName">New tag name</label><input id="newTagName" placeholder="vacation" maxlength="60"></div>
+          <div><label for="newTagColor">Color</label><input id="newTagColor" type="color" value="#9d6bff"></div>
           <div><button onclick="createTag()">Add tag</button></div>
         </div>
       </div>
@@ -1987,15 +1998,15 @@
         <h3 style="margin:12px 0 6px;font-size:14px" id="tagRuleFormTitle">New rule</h3>
         <input type="hidden" id="editTagRuleId" value="">
         <div class="row">
-          <div><label>Label (optional)</label>
+          <div><label for="newTagRuleName">Label (optional)</label>
             <input id="newTagRuleName" placeholder="Coffee runs" maxlength="80"></div>
-          <div style="flex:1.4"><label>Description contains</label>
+          <div style="flex:1.4"><label for="newTagRulePattern">Description contains</label>
             <input id="newTagRulePattern" placeholder="STARBUCKS" maxlength="120"></div>
         </div>
         <div class="row" style="margin-top:8px">
-          <div><label>Only when category is</label>
+          <div><label for="newTagRuleCategory">Only when category is</label>
             <select id="newTagRuleCategory"><option value="">— any —</option></select></div>
-          <div><label>Apply tag</label>
+          <div><label for="newTagRuleTag">Apply tag</label>
             <select id="newTagRuleTag"></select></div>
           <div style="flex:0 0 auto;align-self:end">
             <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
@@ -2019,12 +2030,12 @@
       <div class="panel" data-settings-section="budgets">
         <h2>Budgets</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
-          Set a monthly spending cap per category. Progress is computed against actual
-          (cleared) spending in the chosen window. Transfers between your accounts are
+          Set a monthly cap on expenses per category. Progress is computed against actual
+          (cleared) expenses in the chosen window. Transfers between your accounts are
           excluded.
         </p>
         <div class="row" style="margin-bottom:10px">
-          <div style="flex:0 0 auto"><label>Window</label>
+          <div style="flex:0 0 auto"><label for="budgetWindow">Window</label>
             <select id="budgetWindow" onchange="loadBudgets()">
               <option value="month" selected>This month</option>
               <option value="30d">Last 30 days</option>
@@ -2064,8 +2075,8 @@
 
         <h3 class="backup-subhead">Export</h3>
         <div style="margin-bottom:8px">
-          <label>Select accounts to include</label>
-          <div id="exportAccountList" class="account-checklist">
+          <label id="exportAccountListLabel">Select accounts to include</label>
+          <div id="exportAccountList" class="account-checklist" role="group" aria-labelledby="exportAccountListLabel">
             <span style="color:var(--muted)">Loading…</span>
           </div>
         </div>
@@ -2076,10 +2087,10 @@
         <h3 class="backup-subhead" style="margin-top:20px">Restore</h3>
         <div class="row">
           <div style="flex:2">
-            <label>Backup file</label>
+            <label for="importFile">Backup file</label>
             <input id="importFile" type="file" accept="application/json,.json" onchange="onImportFileChosen()">
           </div>
-          <div><label>Mode</label>
+          <div><label for="importMode">Mode</label>
             <select id="importMode">
               <option value="merge">Merge (add to existing)</option>
               <option value="replace">Replace (wipe my data first)</option>
@@ -2087,8 +2098,8 @@
           </div>
         </div>
         <div id="importAccountWrap" class="hidden" style="margin-top:10px">
-          <label>Select accounts to restore</label>
-          <div id="importAccountList" class="account-checklist"></div>
+          <label id="importAccountListLabel">Select accounts to restore</label>
+          <div id="importAccountList" class="account-checklist" role="group" aria-labelledby="importAccountListLabel"></div>
         </div>
         <div class="row" style="margin-top:10px">
           <div style="flex:0 0 auto"><button class="danger" onclick="importBackup()">Restore</button></div>
@@ -2202,7 +2213,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.52.0";
+const WEB_VERSION = "1.53.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2213,6 +2224,16 @@ const WEB_VERSION = "1.52.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.53.0 (2026-11-14, claude+mkolakowski): (#55) (1) "Expense"/"Income" in
+//     every visible label (option values withdraw/deposit/spending and API
+//     fields unchanged). (2) :focus-visible outline. (3) Forecast account
+//     tabs are role=tab with roving tabindex; arrows, Home/End, Enter/Space.
+//     (4) 90 labels get for= (static markup, the recurring edit row, delete-
+//     account confirm); checklists get role=group + aria-labelledby.
+//     (5) Report Accounts/Categories/Tags are checkbox lists
+//     (_fillReportChecklist, _reportChecked) instead of <select multiple>.
+//     (6) Admin backup hour shown/set in local time (_utcToLocalHour,
+//     _localToUtcHour; UTC kept for half-hour zones), last run in local time.
 // 1.52.0 (2026-11-14, claude+mkolakowski): (#54) (1) Phones (≤768px): the
 //     header's buttons hide and #bottomNav (Dashboard, Forecast, Bills &
 //     income, Calendar, More) is fixed to the bottom; More opens #moreSheet
@@ -3580,8 +3601,8 @@ function renderDonut(categories) {
   const total = (categories || []).reduce((s, c) => s + (c.spending_actual || 0), 0);
   if (!categories || !categories.length || total <= 0) {
     return `<div class="chart-empty" style="width:100%">
-      <div class="chart-title">Spending by category</div>
-      No spending in this window.
+      <div class="chart-title">Expenses by category</div>
+      No expenses in this window.
     </div>`;
   }
   // Top 5 + "Other" rollup.
@@ -3620,8 +3641,8 @@ function renderDonut(categories) {
 
   return `
     <div style="flex:0 0 auto">
-      <div class="chart-title">Spending by category</div>
-      <svg class="chart-donut" viewBox="0 0 100 100" aria-label="Spending by category">
+      <div class="chart-title">Expenses by category</div>
+      <svg class="chart-donut" viewBox="0 0 100 100" aria-label="Expenses by category">
         ${paths}
         <text class="center-big" x="50" y="50" text-anchor="middle"
               dominant-baseline="central">${escapeHtml(fmt(total))}</text>
@@ -3668,7 +3689,7 @@ function renderTotals(t) {
       <div><span class="v">${fmt(t.income_actual)}</span>${deltaHtml(dIncome)}</div>
     </div>
     <div class="row-t">
-      <div class="k">Spending</div>
+      <div class="k">Expenses</div>
       <div><span class="v">${fmt(t.spending_actual)}</span>${deltaHtml(dSpend)}</div>
     </div>
     <div class="row-t net">
@@ -3791,19 +3812,22 @@ async function initReportsPage() {
   }
 }
 
+// Report filters are checklists (#55). Rebuilding one keeps what was ticked.
+function _fillReportChecklist(id, items, emptyText) {
+  const box = document.getElementById(id);
+  const keep = new Set(_reportChecked(id));
+  box.innerHTML = items.length
+    ? items.map(it => `<label><input type="checkbox" value="${it.id}"${keep.has(it.id) ? ' checked' : ''}
+        style="width:auto;margin:0"> ${escapeHtml(it.name)}</label>`).join('')
+    : `<span class="empty">${emptyText}</span>`;
+}
+function _reportChecked(id) {
+  return [...document.querySelectorAll(`#${id} input[type=checkbox]:checked`)].map(cb => Number(cb.value));
+}
 function populateReportFilterOptions() {
-  // Accounts dropdown
-  const accSel = document.getElementById('reportAccountIds');
-  accSel.innerHTML = (accounts || [])
-    .map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
-  // Categories dropdown
-  const catSel = document.getElementById('reportCategoryIds');
-  catSel.innerHTML = (categories || [])
-    .map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-  // Tags dropdown
-  const tagSel = document.getElementById('reportTagIds');
-  tagSel.innerHTML = (tags || [])
-    .map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+  _fillReportChecklist('reportAccountIds', accounts || [], 'No accounts yet.');
+  _fillReportChecklist('reportCategoryIds', categories || [], 'No categories yet.');
+  _fillReportChecklist('reportTagIds', tags || [], 'No tags yet.');
 }
 
 function renderReportRail() {
@@ -3891,11 +3915,11 @@ function paintReportEditor() {
   document.getElementById('reportKind').value  = p.kind;
   document.getElementById('reportChart').value = p.chart_type;
   document.getElementById('reportIncludeTransfers').checked = !!p.include_transfers;
-  // Multi-selects — set selectedness from params.
+  // Filter checklists — tick what the params name.
   const setMulti = (id, ids) => {
-    const want = new Set((ids || []).map(Number));
-    [...document.getElementById(id).options].forEach(o => {
-      o.selected = want.has(Number(o.value));
+    const want = new Set(ids || []);
+    document.querySelectorAll(`#${id} input[type=checkbox]`).forEach(cb => {
+      cb.checked = want.has(Number(cb.value));
     });
   };
   setMulti('reportAccountIds',  p.account_ids);
@@ -3918,8 +3942,7 @@ function onReportRangeModeChange(silent) {
 function readEditorParams() {
   // Read every editor control back into a params object. Saving and
   // running both go through this so they're guaranteed to agree.
-  const getMulti = id =>
-    [...document.getElementById(id).selectedOptions].map(o => Number(o.value));
+  const getMulti = id => _reportChecked(id);
   return {
     group_by:   document.getElementById('reportGroupBy').value,
     range_mode: document.getElementById('reportRangeMode').value,
@@ -3981,8 +4004,8 @@ function renderReportResult(d) {
   sum.innerHTML = `
     <div class="stat"><div class="l">Forecast income</div><div class="v pos">${fmt(t.forecast_income)}</div></div>
     <div class="stat"><div class="l">Actual income</div><div class="v pos">${fmt(t.actual_income)}</div></div>
-    <div class="stat"><div class="l">Forecast spending</div><div class="v neg">${fmt(t.forecast_spending)}</div></div>
-    <div class="stat"><div class="l">Actual spending</div><div class="v neg">${fmt(t.actual_spending)}</div></div>
+    <div class="stat"><div class="l">Forecast expenses</div><div class="v neg">${fmt(t.forecast_spending)}</div></div>
+    <div class="stat"><div class="l">Actual expenses</div><div class="v neg">${fmt(t.actual_spending)}</div></div>
     <div class="stat"><div class="l">Forecast net</div><div class="v ${fnetCls}">${fmt(t.forecast_net)}</div></div>
     <div class="stat"><div class="l">Actual net</div><div class="v ${netCls}">${fmt(t.actual_net)}</div></div>`;
 
@@ -4394,8 +4417,8 @@ async function loadDeleteAccount() {
   html += '<p style="margin:0 0 12px;font-size:13px">Want a copy first? ' +
     '<a href="#" style="color:var(--accent)" onclick="document.getElementById(\'exportAccountList\').scrollIntoView({behavior:\'smooth\',block:\'center\'});return false">Download a backup</a> above.</p>';
   html += c.has_password
-    ? '<label>Your password</label><input id="deleteAccountConfirm" type="password" autocomplete="current-password" style="max-width:320px;width:100%">'
-    : '<label>Type your email address to confirm</label><input id="deleteAccountConfirm" type="email" autocomplete="off" style="max-width:320px;width:100%">';
+    ? '<label for="deleteAccountConfirm">Your password</label><input id="deleteAccountConfirm" type="password" autocomplete="current-password" style="max-width:320px;width:100%">'
+    : '<label for="deleteAccountConfirm">Type your email address to confirm</label><input id="deleteAccountConfirm" type="email" autocomplete="off" style="max-width:320px;width:100%">';
   html += '<div id="deleteAccountError" class="auth-error hidden" style="max-width:320px"></div>' +
     '<div style="margin-top:12px"><button id="deleteAccountBtn" class="danger" onclick="submitDeleteAccount(' + (c.has_password ? 'true' : 'false') + ')">Delete my account</button></div>';
   body.innerHTML = html;
@@ -4589,13 +4612,35 @@ async function loadAccounts() {
   accounts = await api('/api/accounts');
   const bar = document.getElementById('accountsBar');
   bar.innerHTML = '';
+  bar.setAttribute('role', 'tablist');
+  bar.setAttribute('aria-label', 'Accounts');
   accounts.forEach(a => {
     const el = document.createElement('div');
     el.className = 'account-tab' + (a.id===currentAccountId?' active':'');
     el.innerHTML = _accountTabHtml(a);
+    // Reachable and usable from the keyboard (#55): Tab to the selected
+    // account, arrow keys between accounts, Enter or Space to open one.
+    el.setAttribute('role', 'tab');
+    el.setAttribute('aria-selected', String(a.id === currentAccountId));
+    el.tabIndex = a.id === currentAccountId ? 0 : -1;
     el.onclick = () => selectAccount(a.id);
+    el.onkeydown = (ev) => {
+      const tabs = [...bar.querySelectorAll('.account-tab')];
+      const i = tabs.indexOf(el);
+      let j = null;
+      if (ev.key === 'ArrowRight') j = (i + 1) % tabs.length;
+      else if (ev.key === 'ArrowLeft') j = (i - 1 + tabs.length) % tabs.length;
+      else if (ev.key === 'Home') j = 0;
+      else if (ev.key === 'End') j = tabs.length - 1;
+      else if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); selectAccount(a.id); return; }
+      if (j === null) return;
+      ev.preventDefault();
+      tabs[j].focus();
+      selectAccount(accounts[j].id);
+    };
     bar.appendChild(el);
   });
+  if (!accounts.some(a => a.id === currentAccountId) && bar.firstElementChild) bar.firstElementChild.tabIndex = 0;
   document.getElementById('accountsNoAccount').classList.toggle('hidden', accounts.length > 0);
   syncRecAccountSelect();
   if (accounts.length && !currentAccountId) selectAccount(accounts[0].id);
@@ -4669,7 +4714,10 @@ async function createAccount() {
 async function selectAccount(id) {
   currentAccountId = id;
   document.querySelectorAll('.account-tab').forEach((el,i)=>{
-    el.classList.toggle('active', accounts[i].id===id);
+    const on = accounts[i].id === id;
+    el.classList.toggle('active', on);
+    el.setAttribute('aria-selected', String(on));
+    el.tabIndex = on ? 0 : -1;
   });
   document.getElementById('accountView').classList.remove('hidden');
   // Hide the add transaction toggle entirely on read-only accounts
@@ -5501,28 +5549,28 @@ function renderEditRow(r) {
       <div style="flex:1 1 560px;min-width:0">
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Account: <strong style="color:var(--text)">${escapeHtml(r.account_name || '')}</strong></div>
       <div class="row">
-        <div class="span-full" style="flex:3 1 240px"><label>Description</label>
+        <div class="span-full" style="flex:3 1 240px"><label for="editDesc_${id}">Description</label>
           <input id="editDesc_${id}" value="${escapeAttr(r.description)}" style="width:100%"></div>
-        <div style="flex:1 1 150px"><label>Category</label>
+        <div style="flex:1 1 150px"><label for="editCat_${id}">Category</label>
           <select id="editCat_${id}" style="width:100%">${catOptions}</select></div>
-        <div style="flex:0 1 130px;min-width:110px"><label>Type</label>
+        <div style="flex:0 1 130px;min-width:110px"><label for="editType_${id}">Type</label>
           <select id="editType_${id}" style="width:100%">
-            <option value="withdraw"${isWithdraw?' selected':''}>Withdraw</option>
-            <option value="deposit"${isWithdraw?'':' selected'}>Deposit</option>
+            <option value="withdraw"${isWithdraw?' selected':''}>Expense</option>
+            <option value="deposit"${isWithdraw?'':' selected'}>Income</option>
           </select></div>
-        <div style="flex:0 1 140px;min-width:120px"><label>Amount</label>
+        <div style="flex:0 1 140px;min-width:120px"><label for="editAmt_${id}">Amount</label>
           <input id="editAmt_${id}" type="number" step="0.01" min="0" value="${Math.abs(Number(r.amount))}" style="width:100%"></div>
       </div>
       <div class="row" style="margin-top:8px">
-        <div style="flex:0 1 140px;min-width:120px"><label>Frequency</label>
+        <div style="flex:0 1 140px;min-width:120px"><label for="editFreq_${id}">Frequency</label>
           <select id="editFreq_${id}" onchange="onEditFreqChange(${id})" style="width:100%">${freqOptions}</select></div>
-        <div id="editDayWrap_${id}" class="${isMonthly?'':'hidden'}" style="flex:0 1 110px;min-width:90px"><label>Day of month</label>
+        <div id="editDayWrap_${id}" class="${isMonthly?'':'hidden'}" style="flex:0 1 110px;min-width:90px"><label for="editDay_${id}">Day of month</label>
           <input id="editDay_${id}" type="number" min="1" max="31" value="${r.day_of_month||1}" style="width:100%"></div>
-        <div style="flex:0 1 170px;min-width:150px"><label id="editAnchorLabel_${id}">${isMonthly ? 'Start date (optional)' : 'Start date'}</label>
+        <div style="flex:0 1 170px;min-width:150px"><label id="editAnchorLabel_${id}" for="editAnchor_${id}">${isMonthly ? 'Start date (optional)' : 'Start date'}</label>
           <input id="editAnchor_${id}" type="date" value="${r.anchor_date||''}" style="width:100%"></div>
-        <div style="flex:0 1 170px;min-width:150px"><label>Ends (optional)</label>
+        <div style="flex:0 1 170px;min-width:150px"><label for="editEnd_${id}">Ends (optional)</label>
           <input id="editEnd_${id}" type="date" value="${r.end_date||''}" style="width:100%"></div>
-        <div class="span-full" style="flex:3 1 220px"><label>Notes</label>
+        <div class="span-full" style="flex:3 1 220px"><label for="editNotes_${id}">Notes</label>
           <input id="editNotes_${id}" maxlength="256" value="${escapeAttr(r.notes||'')}" style="width:100%"></div>
       </div>
       ${skipNote ? `<div style="margin-top:10px">${skipNote}</div>` : ''}
@@ -6001,9 +6049,9 @@ function renderForecast() {
   const inOutCard = (title, out, inc) => {
     const net = inc - out;
     return `<div class="stat"><div class="l">${title}</div>
-      <div class="io"><span class="io-l">Out</span><span class="neg">${fmt(out)}</span></div>
-      <div class="io"><span class="io-l">In</span><span class="pos">${fmt(inc)}</span></div>
-      <div class="d" title="Incoming minus outgoing">net ${net > 0 ? '+' : ''}${fmt(net)}</div></div>`;
+      <div class="io"><span class="io-l">Expenses</span><span class="neg">${fmt(out)}</span></div>
+      <div class="io"><span class="io-l">Income</span><span class="pos">${fmt(inc)}</span></div>
+      <div class="d" title="Income minus expenses">net ${net > 0 ? '+' : ''}${fmt(net)}</div></div>`;
   };
   sum.innerHTML = `${curBal}
     <div class="stat"><div class="l">Opening balance</div><div class="v">${fmt(data.opening_balance)}</div></div>
@@ -7128,16 +7176,41 @@ async function adminSetPerm(accountId, userId, level) {
   }
 }
 
+// The schedule is stored as a UTC hour (#55: shown and set in local time).
+// Whole-hour time zones convert exactly; elsewhere the field stays in UTC.
+function _localHourOffset() {
+  const off = -new Date().getTimezoneOffset() / 60;   // local = UTC + off
+  return Number.isInteger(off) ? off : null;
+}
+function _utcToLocalHour(h) { const o = _localHourOffset(); return o === null ? h : ((h + o) % 24 + 24) % 24; }
+function _localToUtcHour(h) { const o = _localHourOffset(); return o === null ? h : ((h - o) % 24 + 24) % 24; }
+function _backupHourNote() {
+  const note = document.getElementById('adminBackupHourNote');
+  const label = document.getElementById('adminBackupHourLabel');
+  const v = parseInt(document.getElementById('adminBackupHour').value, 10);
+  if (_localHourOffset() === null) {
+    label.textContent = 'Hour (UTC, 0–23)';
+    note.textContent = '';
+    return;
+  }
+  note.textContent = Number.isInteger(v) && v >= 0 && v <= 23
+    ? `Stored as ${String(_localToUtcHour(v)).padStart(2, '0')}:00 UTC, so it moves an hour when daylight saving changes.`
+    : '';
+}
+
 async function loadAdminBackupConfig() {
   try {
     const cfg = await api('/api/admin/backup-config');
     document.getElementById('adminBackupEnabled').value = cfg.enabled ? 'true' : 'false';
     document.getElementById('adminBackupFreq').value = cfg.frequency || 'daily';
-    document.getElementById('adminBackupHour').value = cfg.hour ?? 3;
+    document.getElementById('adminBackupHour').value = _utcToLocalHour(cfg.hour ?? 3);
+    _backupHourNote();
     document.getElementById('adminBackupRetention').value = cfg.retention_days ?? 30;
     const statusEl = document.getElementById('adminBackupScheduleStatus');
     if (cfg.last_run_at) {
-      statusEl.textContent = `Last run: ${cfg.last_run_at.slice(0,19).replace('T',' ')} UTC — ${cfg.last_run_status || 'unknown'}`;
+      const raw = cfg.last_run_at;
+      const when = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(raw) ? raw : raw + 'Z');
+      statusEl.textContent = `Last run: ${isNaN(when) ? raw : when.toLocaleString()} — ${cfg.last_run_status || 'unknown'}`;
     } else {
       statusEl.textContent = 'No scheduled backup has run yet.';
     }
@@ -7155,7 +7228,7 @@ async function saveBackupConfig() {
       body: JSON.stringify({
         enabled: document.getElementById('adminBackupEnabled').value === 'true',
         frequency: document.getElementById('adminBackupFreq').value,
-        hour: parseInt(document.getElementById('adminBackupHour').value),
+        hour: _localToUtcHour(parseInt(document.getElementById('adminBackupHour').value, 10)),
         retention_days: parseInt(document.getElementById('adminBackupRetention').value),
       }),
     });
@@ -7542,7 +7615,7 @@ function renderCalendar() {
   const transferCount = filtered.filter(ev => ev.transfer_id != null).length;
   document.getElementById('calSummary').textContent =
     `${filtered.length} event${filtered.length===1?'':'s'} · `
-    + `${incomeCount} income · ${spendCount} spending · ${transferCount} transfer`
+    + `${incomeCount} income · ${spendCount} expense${spendCount===1?'':'s'} · ${transferCount} transfer${transferCount===1?'':'s'}`
     + ` · net ${fmt(monthNet)}`;
 
   // Build a 6-row grid starting on the Sunday of the first week.
@@ -8485,7 +8558,7 @@ async function loadBudgets() {
   }
   document.getElementById('budgetWindowRange').textContent = `${data.label} · ${data.start} → ${data.end}`;
   if (!data.rows.length) {
-    wrap.innerHTML = `<div style="color:var(--muted);font-size:13px">No spending categories yet. Spend will show up here once you have actual postings.</div>`;
+    wrap.innerHTML = `<div style="color:var(--muted);font-size:13px">No expense categories yet. Expenses will show up here once you have actual postings.</div>`;
     return;
   }
   // Header + rows

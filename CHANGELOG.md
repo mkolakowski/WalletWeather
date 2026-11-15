@@ -65,7 +65,30 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.28.0** · Web version: **1.52.0** · Schema version: **14**
+App version: **1.29.0** · Web version: **1.53.0** · Schema version: **14**
+
+### Changed
+
+- **"Expense" and "Income" everywhere.** The app used three pairs of words for
+  money going out and coming in (Withdraw/Deposit, Spending/Income,
+  Out/In). It now says Expense and Income on the add and edit forms, in the
+  filters on Calendar, Transactions and Reports, in the Forecast and Reports
+  totals, on the Dashboard charts and in the help text. Nothing stored
+  changes, and saved reports and imports work as before.
+- **Report filters are checkboxes.** Accounts, Categories and Tags on the
+  Reports page are lists you tick, instead of boxes that needed Cmd- or
+  Ctrl-click to pick more than one.
+- **Breaking: the admin backup hour is in your own time.** Admin → System
+  backups shows and sets the hour in the time zone of the browser you're
+  using; it's still stored in UTC, and the note under the field says which
+  UTC hour that is. If you had read the old field as UTC, the number shown
+  will now differ, but the schedule itself hasn't moved. "Last run" is shown
+  in your time too.
+- **Easier to use with a keyboard or a screen reader.** The account tabs on
+  the Forecast page can be reached with Tab and switched with the arrow keys,
+  Enter or Space. Every form field's label is tied to its field, so screen
+  readers announce it and clicking the label puts the cursor in the field. A
+  clear outline shows which control has keyboard focus.
 
 ## [1.28.0] — 2026-11-14
 

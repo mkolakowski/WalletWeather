@@ -65,7 +65,16 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.32.2** · Web version: **1.56.2** · Schema version: **14**
+App version: **1.32.3** · Web version: **1.56.3** · Schema version: **14**
+
+### Changed
+
+- **An open line is the same height as the others** on Forecast, Transactions
+  and Bills & income (on a computer). The small labels above each field are
+  gone, since every field sits under its column heading; hover over a field
+  to see its name. Lines on the Forecast page are a few pixels taller so the
+  buttons fit. On a phone the open line still shows its labels.
+- Save, Delete and Cancel sit at the right edge of the row.
 
 ## [1.32.2] — 2026-11-14
 

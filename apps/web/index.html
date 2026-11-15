@@ -132,8 +132,23 @@
   tr.le-inline .le-hint { color:var(--muted); font-weight:normal; }
   /* Taller buttons, centered in their cell. */
   tr.le-inline td.le-td-actions { white-space:nowrap; }
-  tr.le-inline .le-actions { display:flex; gap:6px; justify-content:center; align-items:center; }
-  tr.le-inline .le-actions button { min-height:34px; padding:6px 14px; font-size:13px; }
+  tr.le-inline .le-actions { display:flex; gap:6px; justify-content:flex-end; align-items:center; }
+  tr.le-inline .le-actions button { min-height:30px; padding:4px 14px; font-size:13px; }
+  tr.le-inline > td.le-td-actions { padding-right:4px !important; }
+  @media (min-width: 769px) {
+    /* Same height open or closed (#69): on desktop the open line has no
+       visible labels (each field is under its column heading; the label
+       stays for screen readers and as a tooltip), fields are vertically
+       centered, and every line of these tables is at least as tall as an
+       open one. */
+    tr.le-inline > td { vertical-align:middle; padding-top:1px !important; padding-bottom:1px !important; }
+    tr.le-inline .le-f > label { position:absolute; width:1px; height:1px; margin:-1px; padding:0;
+                                 overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+    tr.le-inline .le-ro { padding-bottom:0; }
+    tr.le-inline input, tr.le-inline select, tr.le-inline .tag-dd-btn { height:30px; min-height:30px; padding-top:2px; padding-bottom:2px; }
+    #forecastTable tbody tr:not(.today-marker):not(.week-divider) { height:34px; }
+    :is(#txnSearchTable, #recurringTable) tbody tr { height:38px; }
+  }
   @media (max-width: 768px) {
     /* Forecast on a phone: the open line is a two-column stacked form. */
     #forecastTable:not(.sheet-mode) tbody tr.row-editing.le-inline { display:grid; grid-template-columns:1fr 1fr;
@@ -2308,7 +2323,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.56.2";
+const WEB_VERSION = "1.56.3";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2319,6 +2334,12 @@ const WEB_VERSION = "1.56.2";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.56.3 (2026-11-14, claude+mkolakowski): (#69) Same row height open or
+//     closed on desktop: open-line labels are visually hidden (kept for
+//     screen readers; each .le-f carries the name as a tooltip), inputs and
+//     buttons are 30px, cells vertically centered, and body rows get a
+//     minimum height (Forecast 34px, Transactions/Bills 38px). The buttons
+//     sit at the right edge of their cell. Phone keeps the labels.
 // 1.56.2 (2026-11-14, claude+mkolakowski): (#69) Fixed: the column widths
 //     from 1.56.1 lost to the older "width:1%" rule on Forecast's date and
 //     amount columns (equal specificity, later in the file), squeezing the
@@ -5192,7 +5213,7 @@ function renderTagPicker(inputId, selectedIds) {
   const filter = all.length > 6
     ? `<input type="search" class="tag-dd-filter" placeholder="Filter tags" aria-label="Filter tags" oninput="_filterTagDropdown(this)">` : '';
   return `<div class="tag-dd" id="${inputId}_dd" onkeydown="_tagDropdownKey(event, '${inputId}')">
-      <button type="button" class="tag-dd-btn" id="${inputId}_btn" aria-haspopup="true" aria-expanded="false"
+      <button type="button" class="tag-dd-btn" id="${inputId}_btn" title="Tags" aria-haspopup="true" aria-expanded="false"
               onclick="toggleTagDropdown('${inputId}')">
         <span class="tag-dd-summary">${_tagSummaryHtml(selected)}</span><span class="caret" aria-hidden="true">▾</span>
       </button>
@@ -5759,8 +5780,8 @@ function renderEditRow(r) {
     _leTd(_leField(isMonthly ? 'Start date (optional)' : 'Start date', `editAnchor_${id}`,
                `<input id="editAnchor_${id}" type="date" value="${r.anchor_date||''}">`, { labelId: `editAnchorLabel_${id}` })),
     _leTd(_leField('Frequency', `editFreq_${id}`, `<select id="editFreq_${id}" onchange="onEditFreqChange(${id})">${freqOptions}</select>`)),
-    _leTd(_leField('Ends (optional)', `editEnd_${id}`, `<input id="editEnd_${id}" type="date" value="${r.end_date||''}">`)),
-    _leTd(_leField('Notes', `editNotes_${id}`, `<input id="editNotes_${id}" maxlength="256" value="${escapeAttr(r.notes||'')}">`)),
+    _leTd(_leField('Ends (optional)', `editEnd_${id}`, `<input id="editEnd_${id}" type="date" title="Ends (optional)" value="${r.end_date||''}">`)),
+    _leTd(_leField('Notes', `editNotes_${id}`, `<input id="editNotes_${id}" maxlength="256" placeholder="Notes" value="${escapeAttr(r.notes||'')}">`)),
     _leActionsTd(`<button onclick="saveRecurring(${id})" title="Save (Enter)">Save</button>
               <button class="danger" onclick="delRecurring(${id})" title="Delete this recurring item">🗑 Delete</button>
               <button class="ghost" onclick="cancelEditRecurring()" title="Cancel (Esc)">Cancel</button>`),
@@ -6660,7 +6681,8 @@ async function saveForecastRowEdit(rowKey) {
 // column's cell. _leField builds one labelled field, _leTd a cell.
 function _leField(label, id, html, opts) {
   opts = opts || {};
-  return `<div class="le-f${opts.hidden ? ' hidden' : ''}"${opts.wrapId ? ` id="${opts.wrapId}"` : ''}>
+  const name = String(label).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  return `<div class="le-f${opts.hidden ? ' hidden' : ''}" title="${escapeAttr(name)}"${opts.wrapId ? ` id="${opts.wrapId}"` : ''}>
     <label for="${id}"${opts.labelId ? ` id="${opts.labelId}"` : ''}>${label}</label>${html}</div>`;
 }
 function _leTd(inner, opts) {
@@ -6709,7 +6731,7 @@ function _renderForecastLineEditor(r) {
     _leTd(r.transaction_id
           ? _leField('Tags', 'editFcTags_btn', renderTagPicker('editFcTags', (r.tags || []).map(t => t.id)))
           : '', { colspan: 4 }),
-    _leTd(_leField('Notes', 'fcEdit_notes', inp('notes', 'text', r.notes, ' maxlength="256"'))),
+    _leTd(_leField('Notes', 'fcEdit_notes', inp('notes', 'text', r.notes, ' maxlength="256" placeholder="Notes"'))),
     _leActionsTd(`<button onclick="saveEditedForecastRow('${k}')" title="Save (Enter)">Save</button>
               ${_forecastDeleteBtn(r, 'danger', '🗑 Delete')}
               <button class="ghost" onclick="cancelEditForecastRow()" title="Cancel (Esc)">Cancel</button>`),
@@ -8199,7 +8221,7 @@ function _renderTxnSearchEditRow(r) {
     _leTd(_leField('Actual date', 'editTxnADate', `<input type="date" id="editTxnADate" value="${v(r.actual_date)}">`)),
     _leTd(_lePair(
       _leField('Description', 'editTxnDesc', `<input id="editTxnDesc" maxlength="120" value="${v(r.description)}">`),
-      _leField('Notes', 'editTxnNotes', `<input id="editTxnNotes" maxlength="256" value="${v(r.notes)}">`))
+      _leField('Notes', 'editTxnNotes', `<input id="editTxnNotes" maxlength="256" placeholder="Notes" value="${v(r.notes)}">`))
       + '<div class="le-status" id="editTxnStatus" role="alert"></div>'),
     _leTd(_leField('Category', 'editTxnCat', `<select id="editTxnCat">${catOptions}</select>`)),
     _leTd(_leField('Tags', 'editTxnTags_btn', renderTagPicker('editTxnTags', (r.tags || []).map(t => t.id)))),

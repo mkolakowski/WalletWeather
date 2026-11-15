@@ -67,6 +67,10 @@ same commit (or session) that introduces it.
 
 App version: **1.27.0** · Web version: **1.51.0** · Schema version: **14**
 
+## [1.27.0] — 2026-11-14
+
+App version: **1.27.0** · Web version: **1.51.0** · Schema version: **14**
+
 ### Changed
 
 - **No more browser pop-ups.** Confirmations, messages and the few places that
@@ -1136,7 +1140,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.26.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.27.0...HEAD
+[1.27.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.27.0
 [1.26.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.26.0
 [1.25.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.25.0
 [1.24.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.24.1

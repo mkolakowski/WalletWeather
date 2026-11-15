@@ -65,7 +65,14 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.37.2** · Web version: **1.61.2** · Schema version: **14**
+App version: **1.37.2** · Web version: **1.61.3** · Schema version: **14**
+
+### Changed
+
+- When you tick Repeats on Forecast's new line, the Ends date now takes the
+  place of the Actual date field (an actual date doesn't apply to a repeating
+  item), marked "Ends". Repeats, Every and Day then fit on one line, so the
+  row no longer grows taller when Every is Month.
 
 ## [1.37.2] — 2026-11-14
 

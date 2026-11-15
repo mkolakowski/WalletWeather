@@ -151,7 +151,7 @@
   tr.le-inline .le-step button:hover { background:var(--chip-bg); color:var(--text); }
   /* The add-a-line row (#94): Repeats and its fields sit in one line with
      small inline labels (the columns above don't describe them). */
-  tr.fc-addrow .add-repeat { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  tr.fc-addrow .add-repeat { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   /* Its width doesn't count toward the columns it spans (#98): with no
      intrinsic width it fills the cell the other lines size, so ticking
      Repeats or switching Every to or from Month never moves a column. */
@@ -163,10 +163,19 @@
   tr.fc-addrow .le-f.le-inl.hidden { display:none; }
   tr.fc-addrow .le-f.le-inl > label { position:static !important; width:auto !important; height:auto !important;
       clip:auto !important; overflow:visible !important; margin:0 !important; font-size:11px; color:var(--muted); }
-  tr.fc-addrow .le-f.le-inl select { width:auto; }
-  tr.fc-addrow .le-f.le-inl input[type=number] { width:56px; }
+  tr.fc-addrow .le-f.le-inl select { width:auto; padding-left:4px; padding-right:2px; }
+  tr.fc-addrow .le-f.le-inl input[type=number] { width:42px; padding-left:4px; padding-right:4px; }
   tr.fc-addrow .le-f.le-inl input[type=date] { width:auto; }
   tr.fc-addrow input:disabled { opacity:.45; }
+  @media (min-width: 769px) {
+    /* Ends sits under the Actual date heading (#103), so it carries its own
+       small name on its top border instead of the hidden label. */
+    tr.fc-addrow .le-f.le-notch { position:relative; }
+    tr.fc-addrow .le-f.le-notch > label { position:absolute !important; top:-6px; left:7px; z-index:1;
+      width:auto !important; height:auto !important; margin:0 !important; padding:0 3px !important;
+      clip:auto !important; overflow:visible !important; font-size:9.5px; line-height:1.1;
+      color:var(--muted); background:var(--bg-deep); border-radius:2px; pointer-events:none; }
+  }
   #addToggle.active { box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
   @media (max-width: 768px) {
     /* Phone: the add row is a stacked two-column form, overriding the read
@@ -2389,7 +2398,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.61.2";
+const WEB_VERSION = "1.61.3";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2400,6 +2409,7 @@ const WEB_VERSION = "1.61.2";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.61.3 (2026-11-14, claude+mkolakowski): (#103) Add row: Ends moves into the Actual date cell (_lePair with addADateWrap; shown when Repeats is on, with a .le-notch label on desktop); the Repeats cell keeps Repeats/Every/Day with a narrower Day box, so it fits one line from ~1440px.
 // 1.61.2 (2026-11-14, claude+mkolakowski): (#98) The add row's Repeats block (.add-repeat) has width:0; min-width:100%, so showing Every/Day/Ends no longer re-sizes the table's auto-layout columns.
 // 1.61.1 (2026-11-14, claude+mkolakowski): (#94) The paired-column '/' (::after on cells 2, 5, 8) no longer applies to .le-inline rows, so the add-a-line row has no stray slashes.
 // 1.61.0 (2026-11-14, claude+mkolakowski): (#94) Add transaction is a new line at the top of #forecastTable (tr.fc-addrow.le-inline, _buildAddRow): one field per column, Repeats with inline-labelled frequency/day/ends across the four computed columns, Notes + Save / + Another / Cancel. Signed amounts; one-off lines post forecast/actual dates and amounts, Repeats posts a recurring item (forecast date = start). The row element is kept (_addRowEl) and re-appended by renderForecast. #addFormPanel and its old functions are removed. (#85) ↻ Add recurring removed.
@@ -6257,7 +6267,11 @@ function _buildAddRow() {
     _leTd(_leField('Description', 'addDesc', '<input id="addDesc" maxlength="120" placeholder="New line: description">')
           + '<div class="le-status" id="addFormStatus" role="status"></div>'),
     _leTd(_leField('Forecast date', 'addFDate', `<input id="addFDate" type="date" value="${_isoDate(new Date())}">`)),
-    _leTd(_leField('Actual date', 'addADate', '<input id="addADate" type="date">')),
+    // Repeats swaps Actual date for Ends here (#103): an actual date doesn't
+    // apply to a repeating item, and this keeps the Repeats cell to one line.
+    _leTd(_lePair(_leField('Actual date', 'addADate', '<input id="addADate" type="date">', { wrapId: 'addADateWrap' }),
+          _leField('Ends', 'addEnd', '<input id="addEnd" type="date">', { hidden: true, wrapId: 'addEndWrap' })
+            .replace('class="le-f', 'class="le-f le-notch').replace('title="Ends"', 'title="Ends (optional)"'))),
     _leTd(_leField('Category', 'addCat', `<select id="addCat">${catOptions}</select>`)),
     _leTd(_leField('Forecast amt', 'addFAmt', _leNum('<input id="addFAmt" type="number" step="0.01" placeholder="-0.00">')), { cls: 'num' }),
     _leTd(_leField('Actual amt', 'addAAmt', _leNum('<input id="addAAmt" type="number" step="0.01" placeholder="-0.00">')), { cls: 'num' }),
@@ -6266,7 +6280,6 @@ function _buildAddRow() {
         ${inlineField('Every', 'addFreq', `<select id="addFreq" onchange="onAddRepeatToggle()">
             <option value="monthly_day">Month</option><option value="biweekly">2 weeks</option><option value="weekly">Week</option></select>`, { hidden: true, wrapId: 'addFreqWrap' })}
         ${inlineField('Day', 'addDay', '<input id="addDay" type="number" min="1" max="31" value="1">', { hidden: true, wrapId: 'addDayWrap' })}
-        ${inlineField('Ends', 'addEnd', '<input id="addEnd" type="date">', { hidden: true, wrapId: 'addEndWrap' })}
       </div>`, { colspan: 4 }),
     _leNotesActionsTd(_leField('Notes', 'addNotes', '<input id="addNotes" maxlength="256" placeholder="Notes">'),
       `<button onclick="submitAddForm()" title="Save (Enter)">Save</button>
@@ -6306,8 +6319,9 @@ function onAddRepeatToggle() {
   const monthly = document.getElementById('addFreq').value === 'monthly_day';
   document.getElementById('addFreqWrap').classList.toggle('hidden', !rec);
   document.getElementById('addDayWrap').classList.toggle('hidden', !rec || !monthly);
+  document.getElementById('addADateWrap').classList.toggle('hidden', rec);
   document.getElementById('addEndWrap').classList.toggle('hidden', !rec);
-  ['addADate', 'addAAmt'].forEach(id => { document.getElementById(id).disabled = rec; });
+  document.getElementById('addAAmt').disabled = rec;
   document.getElementById('addFDate').title = rec ? (monthly ? 'Start date (optional)' : 'Start date') : '';
   if (rec && monthly) {
     const fd = document.getElementById('addFDate').value;

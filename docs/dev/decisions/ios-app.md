@@ -58,3 +58,14 @@ Decisions made while planning [`Plans/ios-app.md`](../../../Plans/ios-app.md) (t
 - **On the open Duo the pages are on the system's bar down the right edge.** The other options were a sidebar on the left listing every page (about a quarter of the width, and it pushes the first pane across the fold) and a setting to switch between the two (both layouts to build and test on every page).
 
 **What it changes:** phase 1 (#87) for all four, and the plan gains phase 9 for the themes.
+
+## 2026-11-14: the second pane, editing, the app lock, and backups
+
+**Decided:** 2026-11-14, by Matthew. **Status:** accepted.
+
+- **On the open Duo, the right half shows the page's chart and totals until something is tapped, then what was tapped takes that place.** The other options were the right half holding only what's tapped, with a prompt when nothing is (an empty half most of the time), and charts always on the right with editing in a sheet (the sheet would cover the fold).
+- **Day-to-day edits are in the app, and set-up stays on the web.** In the app: mark a line as paid with its real amount and date, add, change or delete a transaction, add, change or skip a bill, move money between accounts. On the web: accounts, categories, tags and rules, budgets, sharing, CSV import, building reports, backups, the Admin pages, deleting your account. The other options were a read-only app first (it couldn't confirm a payment) and bringing set-up into the app in a later phase.
+- **The app lock is offered once at first sign-in** ("Lock WalletWeather with Touch ID?") and can be changed in the app's settings. The other options were off unless switched on, and on from the start. The numbers are hidden in the app switcher either way.
+- **Kept numbers are left out of iCloud and computer backups.** A restored or new phone starts empty and loads them again. Including them would have put copies of the numbers in iCloud or on a computer.
+
+**What it changes:** phases 2 and 3 (#88, #89) for the second pane and editing, phase 5 (#91) for the app lock, and phase 8 (#101) for backups.

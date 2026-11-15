@@ -7,18 +7,18 @@ Tracking issue: #93
 | Phase | Issue | State |
 | --- | --- | --- |
 | 1. Connect and Dashboard | #87 | Open (waits on phone-path phase 2, #42). Bigger since 2026-11-14: the sign-in sheet and Cloudflare sign-in are in it |
-| 2. Forecast | #88 | Open (after phase 1; open questions 8 and 9) |
+| 2. Forecast | #88 | Open (after phase 1) |
 | 3. Bills & income and Calendar | #89 | Open (after phase 2) |
 | 4. The Duo's big screen | #90 | Open (after phase 3) |
-| 5. The other pages and app settings | #91 | Open (after phase 2; open questions 9 and 10) |
+| 5. The other pages and app settings | #91 | Open (after phase 2) |
 | 6. TestFlight and the App Store | #92 | Open (waits on legal-risk phase 5, #49, and open questions 11 and 12) |
 | 7. More ways to sign in | #100 | Open (after phase 1; email and password after phone-path phase 3, #43) |
-| 8. Kept on the phone | #101 | Open (after phase 5; open question 13) |
+| 8. Kept on the phone | #101 | Open (after phase 5) |
 | 9. The web app's themes | #102 | Open (after phase 5) |
 
 Nothing built yet. Written 2026-11-14 from a review of the app at 1.35.0 (web 1.59.0, schema 14). Until now the only notes on a native app were `apps/ios/README.md` and the "ready for native apps later" goal of `Plans/phone-path.md`.
 
-Open questions 1 to 7 were settled on 2026-11-14 (`docs/dev/decisions/ios-app.md`), which made phase 1 bigger and added phases 7 to 9.
+Open questions 1 to 10 and 13 were settled on 2026-11-14 (`docs/dev/decisions/ios-app.md`). Questions 1 to 7 made phase 1 bigger and added phases 7 to 9.
 
 Order: phases 1, 2, 3 and 5 in turn; then 4, 7, 8 and 9 in any order; 6 whenever you want it on TestFlight.
 
@@ -42,7 +42,7 @@ Sessions: may span — each phase ends with a build on your phone and your check
 
 ## Open questions
 
-Questions 1 to 7 were settled on 2026-11-14: the answers are below and the reasoning is in [`docs/dev/decisions/ios-app.md`](../docs/dev/decisions/ios-app.md). The rest each have a working assumption, and the mockups are drawn to those.
+Questions 1 to 10 and 13 were settled on 2026-11-14: the answers are below and the reasoning is in [`docs/dev/decisions/ios-app.md`](../docs/dev/decisions/ios-app.md). Questions 11 and 12 each have a working assumption.
 
 1. ~~**How does the app sign in?**~~ All four ways, with the web sign-in sheet first: the sheet, the "Open in WalletWeather" link and paste in phase 1; the QR code and email and password in phase 7.
 2. ~~**How does the app get past Cloudflare Access?**~~ The app signs in to Cloudflare itself by default, and takes a service token as the alternative. Both are in phase 1. Carrying the Cloudflare sign-in from the sheet to the app's own requests isn't proven yet, so it's tried first.
@@ -51,12 +51,12 @@ Questions 1 to 7 were settled on 2026-11-14: the answers are below and the reaso
 5. ~~**Oldest iOS?**~~ iOS 26 and later; the Duo layouts switch on under iOS 27.1.
 6. ~~**How does it look?**~~ The system's light and dark with WalletWeather's colours; the web app's ten themes come later, in phase 9.
 7. ~~**Where do the pages go on the open Duo?**~~ The system's bar down the right edge. The sidebar isn't built.
-8. **What does the second pane hold on the open Duo?** (blocks phases 2 and 3) Working assumption, as drawn: Dashboard, accounts beside charts; Forecast, the full table beside the open line's editor; Bills & income, the list beside the editor; Calendar, the month beside the tapped day's lines.
-9. **How much can be edited from the phone?** (blocks phases 2, 3 and 5) Working assumption: the day-to-day edits are in the app (mark a line as paid with its real amount and date, add, change or delete a transaction, add, change or skip a bill, move money between accounts), and set-up stays on the web (accounts, categories, tags and rules, budgets, sharing, CSV import, building reports, backups, the Admin pages, deleting your account).
-10. **Does the app lock?** (blocks phase 5) Ask for Touch ID or Face ID when the app opens: off unless switched on, on from the start, or offered once at first sign-in. Working assumption: offered once at first sign-in and changeable in the app's settings. The numbers are always hidden in the app switcher.
+8. ~~**What does the second pane hold on the open Duo?**~~ Before you tap anything, the page's chart and totals; then what you tap (a line's editor, a day's lines) takes that place. The right half is never empty.
+9. ~~**How much can be edited from the phone?**~~ The day-to-day edits are in the app (mark a line as paid with its real amount and date, add, change or delete a transaction, add, change or skip a bill, move money between accounts). Set-up stays on the web (accounts, categories, tags and rules, budgets, sharing, CSV import, building reports, backups, the Admin pages, deleting your account).
+10. ~~**Does the app lock?**~~ Touch ID or Face ID is offered once at first sign-in and can be changed in the app's settings. The numbers are always hidden in the app switcher.
 11. **How does Apple's reviewer get in?** (blocks phase 6) App Store review needs a working sign-in, and no public demo is planned (`Plans/legal-risk.md`). The choices: sample data built into the app behind "Try the demo" on the Connect screen (no server needed, and anyone can try the app before setting one up); a temporary demo server for each review; or stay on TestFlight for your own devices and skip the public listing. Working assumption: built-in sample data.
 12. **iPad and Mac?** (blocks phase 6) The open-Duo layouts are driven by width, so they would carry over to an iPad with little work. Working assumption: iPhone only for now.
-13. **Do the kept numbers go into the phone's backups?** (blocks phase 8) What "Last-known numbers" keeps could be left out of iCloud and computer backups, or included so a restored phone opens with them. Working assumption: left out.
+13. ~~**Do the kept numbers go into the phone's backups?**~~ No. They're left out of iCloud and computer backups, so a restored phone starts empty.
 
 ## The plan
 
@@ -78,6 +78,10 @@ Questions 1 to 7 were settled on 2026-11-14: the answers are below and the reaso
 - iOS 26 and later.
 - The system's light and dark; the web app's ten themes later.
 - On the open Duo, the system's bar down the right edge.
+- On the open Duo, the right half shows the page's summary until you tap something, then what you tapped.
+- Day-to-day edits in the app; set-up stays on the web.
+- The app lock is offered once at first sign-in.
+- Kept numbers are left out of the phone's backups.
 
 **What the review found** (app 1.35.0, web 1.59.0, schema 14):
 - **The web app's phone layout already says what a phone needs.** A bar with Dashboard, Forecast, Bills & income, Calendar and More (usability phase 4); Forecast lines as cards that open to edit; Transactions folded into Forecast (1.32.6); Bills & income working like Forecast (1.34.0). The native app keeps that shape, so the two feel like one product.
@@ -107,7 +111,7 @@ Questions 1 to 7 were settled on 2026-11-14: the answers are below and the reaso
 - A second window of the same app can be opened on the inner screen only.
 
 **How the bigger screen is used:**
-1. **Two panes that meet at the fold.** The list stays on the left half while what you tapped opens on the right. Nothing you need to read or tap sits on the fold.
+1. **Two panes that meet at the fold.** The list stays on the left half while what you tapped opens on the right; until you tap, the right half shows the page's chart and totals. Nothing you need to read or tap sits on the fold.
 2. **The full forecast table** (forecast and actual side by side, the difference, the balance) where the front screen shows cards.
 3. **Accounts beside charts** on the Dashboard, where the front screen stacks them.
 4. **A month you can read:** amounts written in each day of the Calendar, with the tapped day's lines beside it.
@@ -116,7 +120,7 @@ Questions 1 to 7 were settled on 2026-11-14: the answers are below and the reaso
 7. **Half open, like a small laptop:** the chart above the fold, the number pad below it (phase 4).
 8. **Closing it keeps your place:** a line open in the right pane becomes a sheet on the front screen, with what you'd typed.
 
-**Out of scope:** the Android app; an Apple Watch app; widgets and bill reminders (they need phase 8's kept numbers first, or a way for the server to reach the phone); offline editing (roadmap item 27); Siri and Shortcuts; signing up for an account inside the app; more than one server at a time; and everything open question 9 leaves on the web.
+**Out of scope:** the Android app; an Apple Watch app; widgets and bill reminders (they need phase 8's kept numbers first, or a way for the server to reach the phone); offline editing (roadmap item 27); Siri and Shortcuts; signing up for an account inside the app; more than one server at a time; and the set-up that stays on the web (accounts, categories, tags and rules, budgets, sharing, CSV import, building reports, backups, the Admin pages, deleting your account).
 
 ### Phase 1: Connect and Dashboard
 
@@ -143,11 +147,11 @@ Depends on phone-path phase 2 (#42, API tokens). The biggest phase: it may take 
 
 ### Phase 2: Forecast
 
-Depends on phase 1 and open questions 8 and 9.
+Depends on phase 1.
 
 - One account at a time with the web app's account switcher; month by month with previous and next; the summary (balance today, forecast and actual month-end).
 - Closed: each line is a card, as in the web app's phone layout (name and amount, the forecast and actual dates, category, both balances, the difference when there is one). Tapping a line opens its editor as a sheet.
-- Open: the full table on the left (date, name, category, forecast, actual, difference, balance) under the balance chart, and the tapped line's editor on the right, so the list stays put while you edit.
+- Open: the full table on the left (date, name, category, forecast, actual, difference, balance) under the balance chart, and the tapped line's editor on the right, so the list stays put while you edit. Before a line is tapped, the right half shows the month's summary: income and spending against plan, what's still to come, the low and high, and the lines that differ from plan.
 - Editing, on accounts you may edit: mark a line as paid with its real amount and date, undo that, change its notes and category, add a one-off transaction, delete one. A read-only account or token shows no edit controls.
 - Search across transactions, from the page's search field.
 - Server: shape tests for the forecast, transaction and search endpoints the app calls.
@@ -162,6 +166,7 @@ Depends on phase 2 (its list, editor and two-pane patterns).
 
 - Bills & income: All accounts and each account; the monthly totals (bills, income, what's left); each line with its amount, how often, and its next date. Add, change, end and skip once, on accounts you may edit. Editing several at once stays on the web.
 - Calendar: the month with each day's bills and paychecks, the day's closing balance, and today marked. Closed: a compact month with dots, and the tapped day's lines listed under it. Open: the month on the left with amounts written in each day, and the tapped day's lines on the right.
+- Open, before anything is tapped, the right half shows the page's summary: the monthly totals for Bills & income, and today's lines and balances for the Calendar.
 - Moving money between two accounts, from the + button.
 - Server: shape tests for `/api/recurring`, `/api/subscriptions`, `/api/calendar` and `/api/transfers`.
 
@@ -185,10 +190,10 @@ Depends on phase 3. Each part is tried in the Duo simulator first and kept only 
 
 ### Phase 5: The other pages and app settings
 
-Depends on phase 2 and open questions 9 and 10.
+Depends on phase 2.
 
 - Under More, read-only: Net worth (the total, its chart, each account), Budgets (spent against each budget this month) and Reports (run a saved report; building one stays on the web).
-- The app's settings: the server and who's signed in, Sign out, appearance (light, dark or the phone's setting), the app lock (open question 10), "Open the web app" for everything that stays there, the Important notice, and the versions of the app and the server.
+- The app's settings: the server and who's signed in, Sign out, appearance (light, dark or the phone's setting), the app lock (Touch ID or Face ID, offered once at first sign-in, or once after updating for people already signed in, and changeable here), "Open the web app" for everything that stays there, the Important notice, and the versions of the app and the server.
 - The numbers are hidden when the app shows in the app switcher.
 - The Admin pages stay on the web: an admin sees nothing extra in the app.
 - Server: shape tests for `/api/networth`, `/api/budgets/progress` and the saved-report endpoints the app calls.
@@ -226,10 +231,10 @@ Depends on phase 1; the email and password part also on phone-path phase 3 (#43)
 
 ### Phase 8: Kept on the phone
 
-Depends on phase 5 (the app's settings) and open question 13.
+Depends on phase 5 (the app's settings).
 
 - Set-up asks once what this phone keeps: **Nothing** (the default: the app needs a connection, as before) or **Last-known numbers** (the app opens without a connection to the pages it last loaded, each marked with when it was loaded). The choice can be changed in the app's settings, and people who already have the app stay on Nothing until they change it.
-- What's kept can't be read while the phone is locked, and is deleted on signing out or on switching back to Nothing.
+- What's kept can't be read while the phone is locked, is left out of iCloud and computer backups, and is deleted on signing out or on switching back to Nothing.
 - Editing still needs a connection.
 - `docs/privacy.md` and the App Privacy answers are updated before this ships: the numbers stay on the phone, so nothing is collected, but the policy has to say what's stored.
 

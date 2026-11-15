@@ -67,6 +67,10 @@ same commit (or session) that introduces it.
 
 App version: **1.35.0** · Web version: **1.59.0** · Schema version: **14**
 
+## [1.35.0] — 2026-11-14
+
+App version: **1.35.0** · Web version: **1.59.0** · Schema version: **14**
+
 ### Changed
 
 - **Tables wrap instead of scrolling sideways.** Whenever a table is wider than
@@ -1386,7 +1390,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.32.5...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.35.0...HEAD
+[1.35.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.35.0
 [1.32.5]: https://github.com/mkolakowski/walletweather/releases/tag/v1.32.5
 [1.32.4]: https://github.com/mkolakowski/walletweather/releases/tag/v1.32.4
 [1.32.3]: https://github.com/mkolakowski/walletweather/releases/tag/v1.32.3

@@ -92,24 +92,27 @@ struct ForecastView: View {
     /// Any iPhone, and the Duo closed: the summary, then a card per line.
     private func cards(_ data: ForecastMonth) -> some View {
         List {
-            Section {
-                header(data)
-            }
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
-            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-            Section {
-                if data.rows.isEmpty { emptyMonth }
-                ForEach(data.rows) { line in
-                    Button { openLine(line) } label: { LineCard(line: line, today: .today()) }
-                        .buttonStyle(.plain)
-                        .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onUndo: undoPaid,
-                                             onDelete: { pendingDelete = $0 }))
+            Group {
+                Section {
+                    header(data)
                 }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                Section {
+                    if data.rows.isEmpty { emptyMonth }
+                    ForEach(data.rows) { line in
+                        Button { openLine(line) } label: { LineCard(line: line, today: .today()) }
+                            .buttonStyle(.plain)
+                            .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onUndo: undoPaid,
+                                                 onDelete: { pendingDelete = $0 }))
+                    }
+                }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
             }
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
-            .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+            .listRowBackground(Palette.row)
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
@@ -122,27 +125,30 @@ struct ForecastView: View {
     private func twoPanes(_ data: ForecastMonth) -> some View {
         HStack(spacing: 0) {
             List {
-                Section {
-                    header(data)
-                    ForecastChart(data: data, month: shownMonth)
-                        .card()
-                }
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 28))
-                Section {
-                    if data.rows.isEmpty { emptyMonth } else { LineTableHeader().listRowSeparator(.hidden) }
-                    ForEach(data.rows) { line in
-                        Button { openLine(line) } label: {
-                            LineTableRow(line: line, selected: open?.id == line.id)
-                        }
-                        .buttonStyle(.plain)
-                        .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onUndo: undoPaid,
-                                             onDelete: { pendingDelete = $0 }))
+                Group {
+                    Section {
+                        header(data)
+                        ForecastChart(data: data, month: shownMonth)
+                            .card()
                     }
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 28))
+                    Section {
+                        if data.rows.isEmpty { emptyMonth } else { LineTableHeader().listRowSeparator(.hidden) }
+                        ForEach(data.rows) { line in
+                            Button { openLine(line) } label: {
+                                LineTableRow(line: line, selected: open?.id == line.id)
+                            }
+                            .buttonStyle(.plain)
+                            .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onUndo: undoPaid,
+                                                 onDelete: { pendingDelete = $0 }))
+                        }
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 28))
                 }
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 28))
+                .listRowBackground(Palette.row)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)

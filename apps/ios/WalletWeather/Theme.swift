@@ -153,6 +153,15 @@ enum Palette {
         }
     }
 
+    /// Behind each row of a list or form: the card colour in AMOLED black,
+    /// Sepia and the web themes; nil keeps the system's in Light and Dark.
+    static var row: Color? {
+        switch look {
+        case .system, .web, .light, .dark: nil
+        default: panel
+        }
+    }
+
     /// A card's outline: AMOLED's, Sepia's and the web themes'; none for
     /// light and dark.
     static var outline: Color {

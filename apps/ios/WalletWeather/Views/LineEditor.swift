@@ -106,14 +106,17 @@ struct LineEditor: View {
 
     private var form: some View {
             Form {
-                aboutSection
-                if open.editable {
-                    paidSection
-                    detailsSection
-                    deleteSection
-                } else {
-                    readOnlySection
+                Group {
+                    aboutSection
+                    if open.editable {
+                        paidSection
+                        detailsSection
+                        deleteSection
+                    } else {
+                        readOnlySection
+                    }
                 }
+                .listRowBackground(Palette.row)
             }
             .scrollContentBackground(.hidden)
             .background { if !embedded { PageBackground().ignoresSafeArea() } }
@@ -195,6 +198,7 @@ struct LineEditor: View {
             Button(line.isProjection ? "Delete this date" : "Delete transaction", role: .destructive) {
                 confirmDelete = true
             }
+            .foregroundStyle(Palette.bad)  // kept red under a look's own text colour
         }
     }
 
@@ -303,43 +307,46 @@ struct AddTransactionSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    Picker("Kind", selection: $draft.kind) {
-                        ForEach(NewTransactionDraft.Kind.allCases) { Text($0.title).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets())
-                }
-                Section {
-                    if accountChoices.count > 1 {
-                        Picker("Account", selection: Binding(get: { target.id }, set: { chosenAccount = $0 })) {
-                            ForEach(accountChoices) { Text($0.name).tag($0.id) }
+                Group {
+                    Section {
+                        Picker("Kind", selection: $draft.kind) {
+                            ForEach(NewTransactionDraft.Kind.allCases) { Text($0.title).tag($0) }
                         }
+                        .pickerStyle(.segmented)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
                     }
-                    LabeledContent("Amount") {
-                        TextField("0.00", text: $draft.amountText)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .monospacedDigit()
-                            .focused($amountFocused)
+                    Section {
+                        if accountChoices.count > 1 {
+                            Picker("Account", selection: Binding(get: { target.id }, set: { chosenAccount = $0 })) {
+                                ForEach(accountChoices) { Text($0.name).tag($0.id) }
+                            }
+                        }
+                        LabeledContent("Amount") {
+                            TextField("0.00", text: $draft.amountText)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .monospacedDigit()
+                                .focused($amountFocused)
+                        }
+                        TextField("Name", text: $draft.name)
+                            .textInputAutocapitalization(.words)
+                        DatePicker("Date", selection: Binding(get: { draft.date.date },
+                                                              set: { draft.date = LocalDay.today(now: $0) }),
+                                   displayedComponents: .date)
+                        Toggle("Paid", isOn: $draft.paid)
+                    } footer: {
+                        Text(draft.paid ? "Recorded as paid on this date." : "Planned for this date; mark it paid when it clears.")
                     }
-                    TextField("Name", text: $draft.name)
-                        .textInputAutocapitalization(.words)
-                    DatePicker("Date", selection: Binding(get: { draft.date.date },
-                                                          set: { draft.date = LocalDay.today(now: $0) }),
-                               displayedComponents: .date)
-                    Toggle("Paid", isOn: $draft.paid)
-                } footer: {
-                    Text(draft.paid ? "Recorded as paid on this date." : "Planned for this date; mark it paid when it clears.")
+                    Section {
+                        Picker("Category", selection: $draft.categoryId) {
+                            Text("None").tag(Int?.none)
+                            ForEach(categories) { Text($0.name).tag(Optional($0.id)) }
+                        }
+                        TextField("Notes", text: $draft.notes, axis: .vertical).lineLimit(1...4)
+                    }
                 }
-                Section {
-                    Picker("Category", selection: $draft.categoryId) {
-                        Text("None").tag(Int?.none)
-                        ForEach(categories) { Text($0.name).tag(Optional($0.id)) }
-                    }
-                    TextField("Notes", text: $draft.notes, axis: .vertical).lineLimit(1...4)
-                }
+                .listRowBackground(Palette.row)
             }
             .scrollContentBackground(.hidden)
             .background(PageBackground().ignoresSafeArea())

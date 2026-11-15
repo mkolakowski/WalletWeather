@@ -15,66 +15,70 @@ struct MoreView: View {
         @Bindable var settings = settings
         NavigationStack {
             List {
-                Section {
-                    NavigationLink { NetWorthView() } label: { Label("Net worth", systemImage: "chart.line.uptrend.xyaxis.circle") }
-                    NavigationLink { BudgetsView() } label: { Label("Budgets", systemImage: "chart.bar.doc.horizontal") }
-                    NavigationLink { ReportsView() } label: { Label("Reports", systemImage: "doc.text.magnifyingglass") }
-                }
-                Section {
-                    Picker("Appearance", selection: $settings.look) {
-                        ForEach(Look.allCases) { Text($0.title).tag($0) }
+                Group {
+                    Section {
+                        NavigationLink { NetWorthView() } label: { Label("Net worth", systemImage: "chart.line.uptrend.xyaxis.circle") }
+                        NavigationLink { BudgetsView() } label: { Label("Budgets", systemImage: "chart.bar.doc.horizontal") }
+                        NavigationLink { ReportsView() } label: { Label("Reports", systemImage: "doc.text.magnifyingglass") }
                     }
-                    if let biometry = settings.biometryName {
-                        Toggle("Lock with \(biometry)", isOn: Binding(
-                            get: { settings.lockEnabled },
-                            set: { on in Task { await settings.setLock(on) } }))
-                    }
-                    Picker("Keep on this phone", selection: Binding(get: { model.keep }, set: { model.setKeep($0) })) {
-                        ForEach(KeepChoice.allCases) { Text($0.title).tag($0) }
-                    }
-                } header: {
-                    Text("This phone")
-                } footer: {
-                    VStack(alignment: .leading, spacing: 6) {
-                        if settings.biometryName != nil {
-                            Text("With the lock on, WalletWeather asks when it opens and when you come back after a minute away. The numbers are hidden in the app switcher either way.")
-                        } else {
-                            Text("The numbers are hidden in the app switcher. Set up Face ID or Touch ID in the phone's Settings to lock the app too.")
+                    Section {
+                        Picker("Appearance", selection: $settings.look) {
+                            ForEach(Look.allCases) { Text($0.title).tag($0) }
                         }
-                        switch model.keep {
-                        case .nothing:
-                            Text("No numbers are kept on this phone, so the app needs a connection to your server.")
-                        case .lastKnown:
-                            Text("The pages you last loaded are kept on this phone, so they still open, marked with their age, when your server can't be reached. They can't be read while the phone is locked, stay out of iCloud and computer backups, and are deleted when you sign out or choose Nothing.")
+                        if let biometry = settings.biometryName {
+                            Toggle("Lock with \(biometry)", isOn: Binding(
+                                get: { settings.lockEnabled },
+                                set: { on in Task { await settings.setLock(on) } }))
                         }
-                    }
-                }
-                Section("Your server") {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(model.connection?.host ?? "")
-                        if let me = model.me {
-                            Text("Signed in as \(me.email), \(me.isReadOnly ? "read-only" : "full access")")
-                                .font(.footnote).foregroundStyle(.secondary)
+                        Picker("Keep on this phone", selection: Binding(get: { model.keep }, set: { model.setKeep($0) })) {
+                            ForEach(KeepChoice.allCases) { Text($0.title).tag($0) }
                         }
-                    }
-                    if let cf = model.connection?.cloudflare {
-                        LabeledContent("Cloudflare", value: cloudflareText(cf))
-                    }
-                    if let server = model.connection?.server {
-                        Link(destination: server) {
-                            LabeledContent("Open the web app") {
-                                Text("accounts, categories, import").font(.footnote)
+                    } header: {
+                        Text("This phone")
+                    } footer: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            if settings.biometryName != nil {
+                                Text("With the lock on, WalletWeather asks when it opens and when you come back after a minute away. The numbers are hidden in the app switcher either way.")
+                            } else {
+                                Text("The numbers are hidden in the app switcher. Set up Face ID or Touch ID in the phone's Settings to lock the app too.")
+                            }
+                            switch model.keep {
+                            case .nothing:
+                                Text("No numbers are kept on this phone, so the app needs a connection to your server.")
+                            case .lastKnown:
+                                Text("The pages you last loaded are kept on this phone, so they still open, marked with their age, when your server can't be reached. They can't be read while the phone is locked, stay out of iCloud and computer backups, and are deleted when you sign out or choose Nothing.")
                             }
                         }
                     }
-                    Button("Important notice") { showingNotice = true }
-                    Button("Sign out", role: .destructive) { confirmSignOut = true }
-                        .disabled(model.busy)
+                    Section("Your server") {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(model.connection?.host ?? "")
+                            if let me = model.me {
+                                Text("Signed in as \(me.email), \(me.isReadOnly ? "read-only" : "full access")")
+                                    .font(.footnote).foregroundStyle(.secondary)
+                            }
+                        }
+                        if let cf = model.connection?.cloudflare {
+                            LabeledContent("Cloudflare", value: cloudflareText(cf))
+                        }
+                        if let server = model.connection?.server {
+                            Link(destination: server) {
+                                LabeledContent("Open the web app") {
+                                    Text("accounts, categories, import").font(.footnote)
+                                }
+                            }
+                        }
+                        Button("Important notice") { showingNotice = true }
+                        Button("Sign out", role: .destructive) { confirmSignOut = true }
+                            .foregroundStyle(Palette.bad)  // kept red under a look's own text colour
+                            .disabled(model.busy)
+                    }
+                    Section {
+                    } footer: {
+                        Text("WalletWeather \(AppInfo.version), server \(model.serverVersion?.appVersion ?? "…"). Accounts, categories, budgets, sharing, imports, building reports and backups are set up in the web app. Signing out ends this phone's token on your server, then removes it, the server's address and any kept numbers from the phone.")
+                    }
                 }
-                Section {
-                } footer: {
-                    Text("WalletWeather \(AppInfo.version), server \(model.serverVersion?.appVersion ?? "…"). Accounts, categories, budgets, sharing, imports, building reports and backups are set up in the web app. Signing out ends this phone's token on your server, then removes it, the server's address and any kept numbers from the phone.")
-                }
+                .listRowBackground(Palette.row)
             }
             .scrollContentBackground(.hidden)
             .background(PageBackground().ignoresSafeArea())

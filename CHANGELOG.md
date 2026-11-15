@@ -80,8 +80,16 @@ App version: **1.54.1** · Web version: **1.72.0** · Schema version: **19** · 
   still applies when the app opens offline. Picking a look on the phone never
   changes the web app.
 
+### Changed
+
+- In the iPhone app's AMOLED black, Sepia and the web themes, the rows of
+  More, the editors and the sheets now take the look's card colour instead of
+  plain white or black. Light and Dark are unchanged.
+
 ### Fixed
 
+- In the iPhone app's Sepia look, Delete, End… and Sign out were drawn in
+  the brown text colour instead of red. They're red again, in every look.
 - In the iPhone app with Last-known numbers, a page that was never loaded no
   longer shows the "Offline · as loaded …" bar above its "Can't reach the
   server" message.

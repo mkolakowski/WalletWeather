@@ -96,40 +96,43 @@ struct BillsView: View {
     private func listView(_ data: RecurringList) -> some View {
         let trailing: CGFloat = sizeClass == .regular ? 28 : 16
         return List {
-            Section {
-                VStack(alignment: .leading, spacing: 12) {
-                    accountPicker
-                    Picker("Show", selection: $showEnded) {
-                        Text("Current").tag(false)
-                        Text("Ended").tag(true)
+            Group {
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        accountPicker
+                        Picker("Show", selection: $showEnded) {
+                            Text("Current").tag(false)
+                            Text("Ended").tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                        if !showEnded { BillTotalsGrid(totals: data.totals) }
                     }
-                    .pickerStyle(.segmented)
-                    if !showEnded { BillTotalsGrid(totals: data.totals) }
+                    .card()
                 }
-                .card()
-            }
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
-            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: trailing))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: trailing))
 
-            Section {
-                if data.items.isEmpty {
-                    Text(showEnded ? "Nothing has ended." : "No bills or income yet. Tap + to add one.")
-                        .font(.callout).foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity).padding(.vertical, 24)
-                }
-                ForEach(data.items) { item in
-                    Button { openItem(item) } label: {
-                        BillCard(item: item, showAccount: account == nil, selected: open?.item?.id == item.id)
+                Section {
+                    if data.items.isEmpty {
+                        Text(showEnded ? "Nothing has ended." : "No bills or income yet. Tap + to add one.")
+                            .font(.callout).foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity).padding(.vertical, 24)
                     }
-                    .buttonStyle(.plain)
-                    .modifier(BillSwipes(item: item, editable: canEdit(item),
-                                         onSkip: { skipping = $0 }, onEnd: { ending = $0 }))
+                    ForEach(data.items) { item in
+                        Button { openItem(item) } label: {
+                            BillCard(item: item, showAccount: account == nil, selected: open?.item?.id == item.id)
+                        }
+                        .buttonStyle(.plain)
+                        .modifier(BillSwipes(item: item, editable: canEdit(item),
+                                             onSkip: { skipping = $0 }, onEnd: { ending = $0 }))
+                    }
                 }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: trailing))
             }
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
-            .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: trailing))
+            .listRowBackground(Palette.row)
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
@@ -387,19 +390,22 @@ struct SkipDateSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    ForEach(item.nextDates, id: \.self) { day in
-                        Button { confirm = day } label: {
-                            HStack {
-                                Text(day.date.formatted(.dateTime.weekday(.wide).month(.wide).day().year()))
-                                Spacer()
-                                if day == item.nextDate { Text("Next").font(.caption).foregroundStyle(.secondary) }
+                Group {
+                    Section {
+                        ForEach(item.nextDates, id: \.self) { day in
+                            Button { confirm = day } label: {
+                                HStack {
+                                    Text(day.date.formatted(.dateTime.weekday(.wide).month(.wide).day().year()))
+                                    Spacer()
+                                    if day == item.nextDate { Text("Next").font(.caption).foregroundStyle(.secondary) }
+                                }
                             }
                         }
+                    } footer: {
+                        Text("Only that date is skipped; \(item.description) keeps its other dates. Skipped dates can be restored in the web app's Bills & income.")
                     }
-                } footer: {
-                    Text("Only that date is skipped; \(item.description) keeps its other dates. Skipped dates can be restored in the web app's Bills & income.")
                 }
+                .listRowBackground(Palette.row)
             }
             .navigationTitle("Skip a date of \(item.description)")
             .navigationBarTitleDisplayMode(.inline)
@@ -445,12 +451,15 @@ struct EndBillSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    DatePicker("Last date", selection: Binding(get: { last.date }, set: { last = LocalDay.today(now: $0) }),
-                               displayedComponents: .date)
-                } footer: {
-                    Text("\(item.description) is projected up to this date and no further. It moves to Ended the day after.")
+                Group {
+                    Section {
+                        DatePicker("Last date", selection: Binding(get: { last.date }, set: { last = LocalDay.today(now: $0) }),
+                                   displayedComponents: .date)
+                    } footer: {
+                        Text("\(item.description) is projected up to this date and no further. It moves to Ended the day after.")
+                    }
                 }
+                .listRowBackground(Palette.row)
             }
             .navigationTitle("End \(item.description)")
             .navigationBarTitleDisplayMode(.inline)
@@ -606,11 +615,14 @@ struct BillEditor: View {
 
     private var form: some View {
         Form {
-            if open.editable {
-                editingSections
-            } else if let item = open.item {
-                readOnlySection(item)
+            Group {
+                if open.editable {
+                    editingSections
+                } else if let item = open.item {
+                    readOnlySection(item)
+                }
             }
+            .listRowBackground(Palette.row)
         }
         .scrollContentBackground(.hidden)
         .background { if !embedded { PageBackground().ignoresSafeArea() } }
@@ -684,6 +696,7 @@ struct BillEditor: View {
                     Button("Skip a date…") { onSkip(item) }
                 }
                 Button("End…", role: .destructive) { onEnd(item) }
+                    .foregroundStyle(Palette.bad)  // kept red under a look's own text colour
             }
         }
     }

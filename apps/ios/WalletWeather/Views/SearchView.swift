@@ -75,19 +75,22 @@ struct SearchView: View {
                     ContentUnavailableView.search(text: query)
                 } else {
                     List {
-                        Section {
-                            ForEach(data.results) { hit in
-                                Button { openHit(hit) } label: {
-                                    SearchHitRow(hit: hit, selected: open?.line.transactionId == hit.id)
+                        Group {
+                            Section {
+                                ForEach(data.results) { hit in
+                                    Button { openHit(hit) } label: {
+                                        SearchHitRow(hit: hit, selected: open?.line.transactionId == hit.id)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .listRowBackground(Color.clear)
                                 }
-                                .buttonStyle(.plain)
-                                .listRowBackground(Color.clear)
-                            }
-                        } footer: {
-                            if data.total > data.results.count {
-                                Text("Showing the newest \(data.results.count) of \(data.total). Add a word to narrow it down.")
+                            } footer: {
+                                if data.total > data.results.count {
+                                    Text("Showing the newest \(data.results.count) of \(data.total). Add a word to narrow it down.")
+                                }
                             }
                         }
+                        .listRowBackground(Palette.row)
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)

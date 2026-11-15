@@ -39,35 +39,38 @@ struct MoveMoneySheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    Picker("From", selection: $draft.fromAccountId) {
-                        Text("Choose").tag(Int?.none)
-                        ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
+                Group {
+                    Section {
+                        Picker("From", selection: $draft.fromAccountId) {
+                            Text("Choose").tag(Int?.none)
+                            ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
+                        }
+                        Picker("To", selection: $draft.toAccountId) {
+                            Text("Choose").tag(Int?.none)
+                            ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
+                        }
+                        LabeledContent("Amount") {
+                            TextField("0.00", text: $draft.amountText)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .monospacedDigit()
+                        }
+                        DatePicker("Date", selection: Binding(get: { draft.date.date },
+                                                              set: { draft.date = LocalDay.today(now: $0) }),
+                                   displayedComponents: .date)
+                    } footer: {
+                        if let problem = draft.problem, !draft.amountText.isEmpty || draft.fromAccountId != nil {
+                            Text(problem)
+                        } else {
+                            Text("Recorded as paid on this date, on both accounts.")
+                        }
                     }
-                    Picker("To", selection: $draft.toAccountId) {
-                        Text("Choose").tag(Int?.none)
-                        ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
-                    }
-                    LabeledContent("Amount") {
-                        TextField("0.00", text: $draft.amountText)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .monospacedDigit()
-                    }
-                    DatePicker("Date", selection: Binding(get: { draft.date.date },
-                                                          set: { draft.date = LocalDay.today(now: $0) }),
-                               displayedComponents: .date)
-                } footer: {
-                    if let problem = draft.problem, !draft.amountText.isEmpty || draft.fromAccountId != nil {
-                        Text(problem)
-                    } else {
-                        Text("Recorded as paid on this date, on both accounts.")
+                    Section {
+                        TextField("Description", text: $draft.description)
+                        TextField("Notes", text: $draft.notes, axis: .vertical).lineLimit(1...4)
                     }
                 }
-                Section {
-                    TextField("Description", text: $draft.description)
-                    TextField("Notes", text: $draft.notes, axis: .vertical).lineLimit(1...4)
-                }
+                .listRowBackground(Palette.row)
             }
             .scrollContentBackground(.hidden)
             .background(PageBackground().ignoresSafeArea())

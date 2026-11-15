@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.46.1** · Web version: **1.68.0** · Schema version: **18**
+App version: **1.46.1** · Web version: **1.68.1** · Schema version: **18**
 
 ### Added
 
@@ -95,8 +95,10 @@ App version: **1.46.1** · Web version: **1.68.0** · Schema version: **18**
   start date opens with its next day-of-month date filled in, and saving the
   row keeps it (spreadsheet mode only saves it if you change something else on
   that row).
-- Bills & income's date columns are wider (Category, Tags and Notes ask for
-  less room), so more of a date shows while you edit.
+- Bills & income's date columns are now always wide enough to show a whole
+  date while you edit (Category, Tags and Notes ask for less room). On a
+  window narrower than about 1250px the table switches to the stacked cards it
+  uses on phones instead of cutting dates off.
 - Deleting a user (yourself in Settings, or someone else from the Admin page)
   now also removes their email address from the sign-in log. What happened
   and when stays in the log; whose it was doesn't. Entries already logged for

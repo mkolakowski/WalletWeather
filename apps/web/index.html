@@ -121,8 +121,10 @@
        checkbox (#128): dates 142, Amount and Account 120, Repeats like an
        amount. Category, Tags and Notes ask for less than Forecast's (120,
        110, 160) because this table has more columns: the room goes to the
-       date fields, which need about 130px to show a whole date (#129). */
-    table#recurringTable thead th:is(:nth-child(3), :nth-child(4)) { width:142px; }
+       date fields. The date columns never go below 130px, so a whole date
+       always shows while editing; a window too narrow for that gets the
+       phone cards instead (#129). */
+    table#recurringTable thead th:is(:nth-child(3), :nth-child(4)) { width:142px; min-width:130px; }
     table#recurringTable thead th:nth-child(5) { width:120px; }
     table#recurringTable thead th:is(:nth-child(6), :nth-child(7), :nth-child(8)) { width:120px; }
     table#recurringTable thead th:nth-child(11) { width:110px; }
@@ -2454,7 +2456,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.68.0";
+const WEB_VERSION = "1.68.1";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2465,6 +2467,7 @@ const WEB_VERSION = "1.68.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.68.1 (2026-11-15, claude+mkolakowski): (#129) Bills & income date columns have min-width:130px so a whole date shows while editing; windows too narrow for that (under about 1250px) get the phone cards.
 // 1.68.0 (2026-11-15, claude+mkolakowski): (#129) Bills & income: + Add recurring opens an inline add line at the top of #recurringTable (_buildRecAddRow / _recAddRowEl, put back by renderRecurring via _placeRecAddRow; account dropdown only on All accounts), replacing #recAddPanel. Add line and edit rows take a signed Amount (Type dropdown gone) and the day from the start date (Day of month gone; _nextDayOfMonth fills a missing start date, which spreadsheet mode doesn't count as a change); onEditFreqChange removed.
 // 1.67.0 (2026-11-15, claude+mkolakowski): (#128) Bills & income on Forecast's column grid: Description | Start date | Ends | Category | Amount | Account | Repeats (recRepeatLabel replaces subsFrequencyLabel) | Monthly | Yearly | Tags | Notes+✎ (.notes-edit, colspan 2) | spacer; widths like Forecast's, 34px one-line rows (only the description wraps), tags in their own column (.rec-tags), edit rows in the same column order; Start date sorts (anchor_date).
 // 1.66.0 (2026-11-15, claude+mkolakowski): (#43) API tokens: Settings gets an Expires select (30 days / 90 days default / a year / Never) sent as expires_in_days, and each token line shows made, expires/expired and last used (apiTokenDetails). Admin page: an "API tokens" panel (loadAdminTokens / adminRevokeToken) lists everyone's tokens with Revoke.

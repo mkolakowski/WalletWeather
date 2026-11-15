@@ -65,7 +65,13 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.37.1** · Web version: **1.61.1** · Schema version: **14**
+App version: **1.37.1** · Web version: **1.61.2** · Schema version: **14**
+
+### Fixed
+
+- Adding a line on Forecast no longer makes the table's columns jump around
+  when you tick Repeats or switch Every to or from Month: the columns keep
+  their widths, and the repeat fields wrap inside their space when needed.
 
 ## [1.37.1] — 2026-11-14
 

@@ -10,7 +10,7 @@ Tracking issue: #93
 | 2. Forecast | #88 | Released in 1.52.0 (2026-11-15; iOS 0.2.0); waiting on your phone check |
 | 3. Bills & income and Calendar | #89 | Released in 1.53.0 (2026-11-15; iOS 0.3.0); waiting on your phone check |
 | 4. The Duo's big screen | #90 | Open (after phase 3) |
-| 5. The other pages and app settings | #91 | Built in 1.54.0 (2026-11-15; iOS 0.4.0), not released; waiting on your phone check |
+| 5. The other pages and app settings | #91 | Released in 1.54.0 (2026-11-15; iOS 0.4.0); waiting on your phone check |
 | 6. TestFlight and the App Store | #92 | Open (waits on legal-risk phase 5, #49) |
 | 7. More ways to sign in | #100 | Open (after phase 1; email and password after phone-path phase 3, #43) |
 | 8. Kept on the phone | #101 | Open (after phase 5) |
@@ -23,7 +23,7 @@ Phase 2 built on 2026-11-15, before your phone check of phase 1 (your call): ser
 
 Phase 3 built on 2026-11-15: server 1.53.0 (`next_date` and `next_dates` on `/api/recurring`; changing a bill may keep its category on a shared account) and the iOS app 0.3.0 (Bills & income, Calendar, Move money from the + menu). Its four choices are in `docs/dev/decisions/ios-app.md` ("the Calendar's accounts, moving money, skipping and ending"). Verified by the server tests (`tests/test_app_bills.py`), `swift test` on samples recorded from the demo server, and the live tests against a demo server (add, skip, find on the Calendar and end a bill; move money). Released in v1.53.0 the same day; no simulator screenshots yet (the Duo simulator hung on install).
 
-Phase 5 built on 2026-11-15: server 1.54.0 (`today=` on Net worth, Budgets and report runs) and the iOS app 0.4.0 (Net worth, Budgets and Reports under More; Appearance with AMOLED black and Sepia; the app lock, asking after a minute away; the app-switcher cover). Verified by the server tests (`tests/test_app_more.py`), `swift test` on samples recorded from the demo server (with three budgets added), and a live test against it. No simulator screenshots: the Duo simulator hangs on install.
+Phase 5 built on 2026-11-15: server 1.54.0 (`today=` on Net worth, Budgets and report runs) and the iOS app 0.4.0 (Net worth, Budgets and Reports under More; Appearance with AMOLED black and Sepia; the app lock, asking after a minute away; the app-switcher cover). Verified by the server tests (`tests/test_app_more.py`), `swift test` on samples recorded from the demo server (with three budgets added), and a live test against it. No simulator screenshots: the Duo simulator hangs on install. Released in v1.54.0 the same day.
 
 Written 2026-11-14 from a review of the app at 1.35.0 (web 1.59.0, schema 14). Until now the only notes on a native app were `apps/ios/README.md` and the "ready for native apps later" goal of `Plans/phone-path.md`.
 

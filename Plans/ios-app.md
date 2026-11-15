@@ -106,7 +106,7 @@ All thirteen were settled on 2026-11-14: the answers are below and the reasoning
 - `apps/ios/WalletWeather.xcodeproj` for the app, and `apps/ios/WalletWeatherKit`, a local Swift package for everything with no screen: the API client, the models, money and date formatting. The package is tested with `swift test`, with no simulator.
 - System frameworks only: SwiftUI, Swift Charts, the Keychain, LocalAuthentication. Nothing to add to the licence list.
 - The system's own tab bar, navigation, lists and sheets, so iOS places and adapts them in each way the Duo can be held.
-- Liquid Glass throughout: the bar, the sheets and the round buttons use the system's glass, and the app's own cards and panels are glass too. All of it follows the phone's Liquid Glass setting (a slider from clear to tinted in iOS 27) and turns solid under Reduce Transparency or Increase Contrast.
+- Liquid Glass throughout: the bar, the sheets and the round buttons use the system's glass, and the app's own cards and panels are glass too. All of it follows the phone's Liquid Glass setting (a slider from clear to tinted in iOS 27) and turns solid under Reduce Transparency or Increase Contrast. Behind the cards, each page carries a soft tint of the look's accent colour fading down from the top, so the glass has something to show.
 - The app has its own version number (from 0.1.0), listed in `CHANGELOG.md` beside the app, web and schema versions. It names the oldest server version it works with and checks `GET /api/version` on connecting.
 - Changes under `apps/ios` already don't rebuild the container image.
 

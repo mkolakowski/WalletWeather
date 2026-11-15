@@ -125,4 +125,4 @@ Decisions made while planning [`Plans/ios-app.md`](../../../Plans/ios-app.md) (t
 
 **The decision:** glass on the cards too. The bar, the sheets, the round buttons and the app's own cards and panels are all Liquid Glass, following the phone's setting, and they turn solid under Reduce Transparency or Increase Contrast.
 
-**What it changes:** phase 1 (#87) builds it and checks it with the setting at each end and with both accessibility switches on; phase 5 (#91) checks each look the same way. What sits behind the cards, so the glass has something to show, is still to be chosen.
+**What it changes:** phase 1 (#87) builds it and checks it with the setting at each end and with both accessibility switches on; phase 5 (#91) checks each look the same way. Behind the cards, each page carries a soft tint of the look's accent colour fading down from the top, so the glass has something to show. That was chosen the same day over the plain page colour, which would have left the glass reading as a slightly lighter panel.

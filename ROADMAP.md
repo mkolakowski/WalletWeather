@@ -158,10 +158,11 @@ session cookies. **Effort: small.** Pairs naturally with item 4.~~
 
 ## Tier 4 — Polish & integration
 
-### 17. PWA / installable app
-Add a manifest and service worker so the app installs on phones and works
+### ~~17. PWA / installable app~~ ✅ **Shipped in v1.42.0.**
+~~Add a manifest and service worker so the app installs on phones and works
 offline-read. Vanilla SPA + no build tools makes this an afternoon's work.
-**Effort: small.**
+**Effort: small.**~~ Offline it shows a notice rather than reading data
+(decided 2026-11-14, `Plans/phone-path.md`).
 
 ### ~~18. Calendar view of bills & paychecks~~ ✅ **Shipped in v1.9.0.**
 ~~A month grid showing recurring transactions on their due dates is a

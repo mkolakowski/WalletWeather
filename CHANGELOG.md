@@ -65,9 +65,17 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.41.0** · Web version: **1.64.0** · Schema version: **16**
+App version: **1.42.0** · Web version: **1.65.0** · Schema version: **16**
 
 ### Added
+
+- WalletWeather can be installed on your phone. Open it in Safari (Share →
+  **Add to Home Screen**) or Chrome (**Install app**), and it opens full screen
+  with its own icon, named after your instance's title. With no connection, the
+  installed app opens to a "You're offline" notice with **Try again**: your
+  balances and transactions are never stored on the phone. Behind Cloudflare
+  Access, an expired Cloudflare sign-in takes you to Cloudflare's sign-in page
+  as before.
 
 - Bills & income items can be tagged. The add form has a Tags picker; editing
   an item (or spreadsheet mode) shows one under its description, and an item's

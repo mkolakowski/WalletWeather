@@ -26,7 +26,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.41.0"
+APP_VERSION = "1.42.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -38,6 +38,9 @@ APP_VERSION = "1.41.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.42.0 (2026-11-15, claude+mkolakowski): installable web app (#41):
+#     /manifest.webmanifest (named after the app title) and /sw.js routes;
+#     web 1.65.0 (icons, service worker, offline notice).
 # 1.41.0 (2026-11-15, claude+mkolakowski): API tokens (#42): `Authorization:
 #     Bearer <token>` works wherever the session cookie does; read/full/admin
 #     access; GET/POST/DELETE /api/tokens from a browser session only;
@@ -4828,3 +4831,44 @@ if STATIC_DIR.exists():
         # of the browser heuristically reusing a stale copy.
         return FileResponse(STATIC_DIR / "index.html",
                             headers={"Cache-Control": "no-cache"})
+
+    # Installable web app (#41). The service worker is served from the root
+    # so it covers the whole site; no-cache so a new release's worker is
+    # picked up on the next open.
+    @app.get("/sw.js")
+    def service_worker():
+        return FileResponse(STATIC_DIR / "sw.js", media_type="text/javascript",
+                            headers={"Cache-Control": "no-cache"})
+
+
+# The manifest is built here rather than kept as a file so the installed
+# app takes the instance's title (an admin's custom title, or "WalletWeather
+# Demo" in demo mode). Public, like /api/auth/config, which shows the title
+# too. Colors are the default dark theme's background.
+MANIFEST_BG = "#0f1419"
+
+
+@app.get("/manifest.webmanifest")
+def web_manifest(db: Session = Depends(get_db)):
+    title = get_app_title(db)
+    icons = "/static/icons/"
+    return JSONResponse(
+        {
+            "name": title,
+            "short_name": title,
+            "description": "Track balances, forecast cashflow, compare planned vs actual.",
+            "id": "/",
+            "start_url": "/",
+            "scope": "/",
+            "display": "standalone",
+            "background_color": MANIFEST_BG,
+            "theme_color": MANIFEST_BG,
+            "icons": [
+                {"src": icons + "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+                {"src": icons + "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+                {"src": icons + "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+            ],
+        },
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "no-cache"},
+    )

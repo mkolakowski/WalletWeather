@@ -26,6 +26,7 @@ Built with FastAPI, PostgreSQL, and a single-page vanilla JS frontend. Runs on D
 - **Backup & restore** — per-account or full export/import as unencrypted JSON
 - **Encryption at rest** — account names, balances, transaction amounts, descriptions, and notes are Fernet-encrypted in PostgreSQL
 - **Mobile responsive** — 3-column grid layout on narrow screens
+- **Installable** — add it to your phone's home screen to open it full screen with its own icon; offline it says so (nothing is stored on the phone)
 - **Archive accounts** — hide accounts without losing data
 
 ## Quick Start

@@ -28,6 +28,9 @@ services:
     working_dir: /src/apps/server
     volumes:
       - ./apps/server:/src/apps/server
+      # The web client too, read-only: the server serves /sw.js and the icons
+      # from it, and the tests check those routes.
+      - ./apps/web:/src/apps/web:ro
       - test_pip_cache:/root/.cache/pip
     environment:
       TEST_DATABASE_URL: postgresql+psycopg://walletweather:walletweather@test-db:5432/walletweather_test

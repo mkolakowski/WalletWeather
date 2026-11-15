@@ -6,7 +6,11 @@
 <meta name="color-scheme" content="dark light">
 <title data-app-title>WalletWeather</title>
 <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-<link rel="apple-touch-icon" href="/static/favicon.svg">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<!-- Installable web app (#41). use-credentials so the manifest request
+     carries the Cloudflare Access cookie when the server is behind it. -->
+<link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
+<meta name="theme-color" content="#0f1419">
 <style>
   :root { --bg:#0f1419; --panel:#1a2027; --border:#2a323c; --text:#e6edf3; --muted:#8b949e;
           --accent:#58a6ff; --good:#3fb950; --bad:#f85149; --warn:#d29922;
@@ -1101,6 +1105,18 @@
     <div id="noticeError" class="auth-error hidden"></div>
     <button id="noticeAgreeBtn" onclick="acknowledgeNotice()" style="width:100%;margin-top:12px">I understand and agree</button>
     <button class="ghost" onclick="logout()" style="width:100%;margin-top:8px">Sign out</button>
+  </div>
+</div>
+
+<!-- Shown instead of the sign-in screen when the server can't be reached
+     (the installed app opened offline, #41). Nothing is stored on the phone,
+     so there's nothing to show until it's back. -->
+<div id="offline" class="login hidden">
+  <h1 data-app-title>WalletWeather</h1>
+  <div class="auth-card" role="alert">
+    <h2 style="margin:0 0 8px;font-size:17px">You're offline</h2>
+    <p style="margin:0 0 12px;font-size:13px;color:var(--muted)">Your balances and transactions aren't stored on this device, so they'll show once you're connected again.</p>
+    <button onclick="location.reload()" style="width:100%">Try again</button>
   </div>
 </div>
 
@@ -2413,7 +2429,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.64.0";
+const WEB_VERSION = "1.65.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2424,6 +2440,7 @@ const WEB_VERSION = "1.64.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.65.0 (2026-11-15, claude+mkolakowski): (#41) Installable: <link rel="manifest"> (use-credentials), theme-color, PNG apple-touch-icon, /sw.js registered on load; #offline card (showOffline) when /api/me fails with a network error, with Try again (reload).
 // 1.64.0 (2026-11-15, claude+mkolakowski): (#120) Bills & income tag pickers: the add form has a Tags picker (#recAddTagsWrap, rendered on open; tag_ids sent on create); each edit row puts a Tags picker (editRecTags_<id>) in the Description cell and saveRecurring always sends its array; the read view shows chips under the description (.row-tag-chips); spreadsheet mode compares tags before saving; onRecEditKey leaves keys inside .tag-dd to the picker.
 // 1.63.0 (2026-11-15, claude+mkolakowski): (#42) Settings → Your account: an "API tokens" panel (loadApiTokens / createApiToken / copyApiToken / revokeApiToken) lists your tokens, makes one (name + Read-only / Full access, plus Admin added only for admins) and shows it once with Copy, and revokes.
 // 1.62.1 (2026-11-15, claude+mkolakowski): (#119) Tags on repeating lines: the add row's Tags picker stays enabled with Repeats and sends tag_ids with the recurring item; opening a projected line shows a Tags picker (line editor and the older editors) filled with its item's tags, and saving always sends the picker's array (so [] means none). Projected rows show their item's chips from the API.
@@ -4752,7 +4769,12 @@ async function setPermission(accountId, userId, level) {
   }
 }
 
+function showOffline() {
+  ['login', 'notice', 'app'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  document.getElementById('offline').classList.remove('hidden');
+}
 function showLogin() {
+  document.getElementById('offline').classList.add('hidden');
   document.getElementById('login').classList.remove('hidden');
   document.getElementById('notice').classList.add('hidden');
   document.getElementById('app').classList.add('hidden');
@@ -4973,7 +4995,12 @@ async function init() {
     applyVersionFooter(cfg);
   } catch {}
   try { me = await api('/api/me'); }
-  catch { showLogin(); return; }
+  catch (e) {
+    // A network failure (offline, or a Cloudflare session that expired while
+    // the page was open) isn't "signed out": say so, and Try again reloads.
+    if (e instanceof TypeError) { showOffline(); return; }
+    showLogin(); return;
+  }
   // Nothing else loads until the notice has been agreed to.
   if (me.notice_required) {
     applyTheme(me.theme_preference || DEFAULT_THEME);
@@ -9427,6 +9454,11 @@ async function deleteBudget(category_id) {
   } catch (e) { notifyError('Delete failed', e); }
 }
 
+// Installable web app (#41): the service worker keeps the page shell for
+// opening offline. A failed registration only loses that; the app still works.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
+}
 init();
 </script>
 </body>

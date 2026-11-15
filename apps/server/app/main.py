@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.32.0"
+APP_VERSION = "1.32.1"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -36,6 +36,8 @@ APP_VERSION = "1.32.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.32.1 (2026-11-14, claude+mkolakowski): no server change. Bumped with
+#     web 1.56.1 (columns don't shift when a line opens, #69).
 # 1.32.0 (2026-11-14, claude+mkolakowski): no server change. Bumped with
 #     web 1.56.0 (line editor aligned to the table's columns, #69).
 # 1.31.2 (2026-11-14, claude+mkolakowski): no server change. Bumped with

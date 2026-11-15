@@ -65,7 +65,18 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.32.0** · Web version: **1.56.0** · Schema version: **14**
+App version: **1.32.1** · Web version: **1.56.1** · Schema version: **14**
+
+### Changed
+
+- **Columns stay put when you open a line.** On Forecast, Transactions and
+  Bills & income the columns are now always as wide as editing needs, so
+  opening a line for editing no longer makes them jump. The last column is
+  always wide enough for Save, Delete and Cancel, so in the normal view its ✎
+  has some room around it. While a line is open, Transactions shows the
+  actual date under Account, and Bills & income shows the type under Account,
+  the day of month under Monthly and the start date under Yearly; the
+  "Restore deleted dates" link sits under the description.
 
 ## [1.32.0] — 2026-11-14
 

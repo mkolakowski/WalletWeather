@@ -91,8 +91,30 @@
   tr.le-inline label { font-size:10.5px; margin:0 0 2px; line-height:1.3; white-space:nowrap;
                        overflow:hidden; text-overflow:ellipsis; }
   tr.le-inline input, tr.le-inline select, tr.le-inline .tag-dd-btn { width:100%; min-width:0; padding:4px 6px; font-size:13px; }
-  tr.le-inline input[type=date] { min-width:128px; }
-  tr.le-inline input[type=number] { min-width:84px; }
+  /* Fields never widen their column (#69 follow-up): the wrapper takes no
+     width of its own and fills whatever the column is, so a column is as
+     wide with a line open as without. Columns get the widths editing needs
+     below, and each actions header holds an invisible copy of the three
+     buttons (.le-spacer) so that column is exactly their width either way. */
+  tr.le-inline .le-f, tr.le-inline .le-pair, tr.le-inline .le-ro { width:0; min-width:100%; }
+  .le-spacer { display:flex; gap:6px; visibility:hidden; height:0; overflow:hidden; pointer-events:none; }
+  .le-spacer button { min-height:0; height:0; padding:0 14px; font-size:13px; border-width:1px; }
+  @media (min-width: 769px) {
+    #forecastTable thead th:is(:nth-child(2), :nth-child(3)) { width:142px; }
+    #forecastTable thead th:nth-child(4) { width:150px; }
+    #forecastTable thead th:is(:nth-child(5), :nth-child(6)) { width:120px; }
+    #txnSearchTable thead th:is(:nth-child(2), :nth-child(3)) { width:142px; }
+    #txnSearchTable thead th:nth-child(5) { width:150px; }
+    #txnSearchTable thead th:nth-child(6) { width:160px; }
+    #txnSearchTable thead th:is(:nth-child(7), :nth-child(8)) { width:110px; }
+    #recurringTable thead th:nth-child(3) { width:120px; }
+    #recurringTable thead th:nth-child(4) { width:150px; }
+    #recurringTable thead th:nth-child(5) { width:110px; }
+    #recurringTable thead th:nth-child(6) { width:96px; }
+    #recurringTable thead th:nth-child(7) { width:142px; }
+    #recurringTable thead th:nth-child(8) { width:150px; }
+    #recurringTable thead th:nth-child(9) { width:142px; }
+  }
   tr.le-inline .le-pair { display:flex; gap:6px; align-items:flex-end; }
   tr.le-inline .le-pair > .le-f { flex:1 1 0; min-width:0; }
   tr.le-inline .le-pair > .le-f.hidden { display:none; }
@@ -1195,7 +1217,7 @@
           <th class="sortable" data-key="when">Frequency</th>
           <th class="sortable" data-key="end_date">Ends</th>
           <th>Notes</th>
-          <th></th>
+          <th><span class="le-spacer" aria-hidden="true"><button tabindex="-1">Save</button><button tabindex="-1">🗑 Delete</button><button tabindex="-1">Cancel</button></span></th>
         </tr></thead><tbody></tbody></table>
         </div>
         <div id="recurringPagination" class="pagination hidden">
@@ -1621,7 +1643,7 @@
           <th class="sortable num" data-key="actual_balance">Actual bal</th>
           <th class="sortable num" data-key="diff_balance">Δ Bal</th>
           <th>Notes</th>
-          <th></th>
+          <th><span class="le-spacer" aria-hidden="true"><button tabindex="-1">Save</button><button tabindex="-1">🗑 Delete</button><button tabindex="-1">Cancel</button></span></th>
         </tr></thead><tbody></tbody></table>
         </div>
       </div>
@@ -1710,7 +1732,7 @@
                    title="Select all visible">
           </th>
           <th>Date</th><th>Account</th><th>Description</th><th>Category</th><th>Tags</th>
-          <th class="num">Amount</th><th>Status</th><th></th>
+          <th class="num">Amount</th><th>Status</th><th><span class="le-spacer" aria-hidden="true"><button tabindex="-1">Save</button><button tabindex="-1">🗑 Delete</button><button tabindex="-1">Cancel</button></span></th>
         </tr></thead><tbody></tbody></table>
         </div>
       </div>
@@ -2277,7 +2299,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.56.0";
+const WEB_VERSION = "1.56.1";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2288,6 +2310,13 @@ const WEB_VERSION = "1.56.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.56.1 (2026-11-14, claude+mkolakowski): (#69) Columns keep the same width
+//     with or without a line open: open-line fields take no width of their
+//     own (.le-f width:0; min-width:100%), the field columns get the widths
+//     editing needs (desktop), and each actions header holds an invisible
+//     copy of Save/Delete/Cancel (.le-spacer). Transactions and Bills put one
+//     field per column (actual date under Account; type under Account, day
+//     of month under Monthly, start date under Yearly).
 // 1.56.0 (2026-11-14, claude+mkolakowski): (#69) The line editor keeps the
 //     table's columns again (tr.le-inline): each field is labelled in its own
 //     column's cell (_leField, _leTd, _lePair), inputs bottom-aligned on one
@@ -5685,9 +5714,9 @@ function changeRecurringPage(delta) {
 
 function renderEditRow(r) {
   // One cell per column after the select checkbox the caller adds (10):
-  // Description, Account (shown, not editable), Category, Amount (type +
-  // amount), Monthly+Yearly (day of month + start date), Frequency, Ends,
-  // Notes, buttons. Field ids are the ones saveRecurring reads.
+  // Description (+ restore deleted dates), Account (type; the account isn't
+  // editable), Category, Amount, Monthly (day of month), Yearly (start date),
+  // Frequency, Ends, Notes, buttons. Field ids are the ones saveRecurring reads.
   const id = r.id;
   const catOptions = ['<option value="">— none —</option>']
     .concat(categories.map(c =>
@@ -5703,20 +5732,17 @@ function renderEditRow(r) {
     : '';
   return [
     _leTd(_leField('Description', `editDesc_${id}`, `<input id="editDesc_${id}" maxlength="120" value="${escapeAttr(r.description)}">`)
+          + (skipNote ? `<div class="le-ro">${skipNote}</div>` : '')
           + `<div class="le-status" id="editStatus_${id}" role="alert"></div>`),
-    _leTd(`<div class="le-ro">${escapeHtml(r.account_name || '')}${skipNote}</div>`),
-    _leTd(_leField('Category', `editCat_${id}`, `<select id="editCat_${id}">${catOptions}</select>`)),
-    _leTd(_lePair(
-      _leField('Type', `editType_${id}`, `<select id="editType_${id}">
+    _leTd(_leField('Type', `editType_${id}`, `<select id="editType_${id}">
           <option value="withdraw"${isWithdraw?' selected':''}>Expense</option>
-          <option value="deposit"${isWithdraw?'':' selected'}>Income</option></select>`),
-      _leField('Amount', `editAmt_${id}`, `<input id="editAmt_${id}" type="number" step="0.01" min="0" value="${Math.abs(Number(r.amount))}">`))),
-    _leTd(_lePair(
-      _leField('Day of month', `editDay_${id}`, `<input id="editDay_${id}" type="number" min="1" max="31" value="${r.day_of_month||1}">`,
-               { wrapId: `editDayWrap_${id}`, hidden: !isMonthly }),
-      _leField(isMonthly ? 'Start date (optional)' : 'Start date', `editAnchor_${id}`,
+          <option value="deposit"${isWithdraw?'':' selected'}>Income</option></select>`)),
+    _leTd(_leField('Category', `editCat_${id}`, `<select id="editCat_${id}">${catOptions}</select>`)),
+    _leTd(_leField('Amount', `editAmt_${id}`, `<input id="editAmt_${id}" type="number" step="0.01" min="0" value="${Math.abs(Number(r.amount))}">`), { cls: 'num' }),
+    _leTd(_leField('Day of month', `editDay_${id}`, `<input id="editDay_${id}" type="number" min="1" max="31" value="${r.day_of_month||1}">`,
+               { wrapId: `editDayWrap_${id}`, hidden: !isMonthly })),
+    _leTd(_leField(isMonthly ? 'Start date (optional)' : 'Start date', `editAnchor_${id}`,
                `<input id="editAnchor_${id}" type="date" value="${r.anchor_date||''}">`, { labelId: `editAnchorLabel_${id}` })),
-      { colspan: 2 }),
     _leTd(_leField('Frequency', `editFreq_${id}`, `<select id="editFreq_${id}" onchange="onEditFreqChange(${id})">${freqOptions}</select>`)),
     _leTd(_leField('Ends (optional)', `editEnd_${id}`, `<input id="editEnd_${id}" type="date" value="${r.end_date||''}">`)),
     _leTd(_leField('Notes', `editNotes_${id}`, `<input id="editNotes_${id}" maxlength="256" value="${escapeAttr(r.notes||'')}">`)),
@@ -8143,9 +8169,9 @@ let editingTxnSearchRowId = null;
 let _txnSearchRowsById = new Map();
 
 function _renderTxnSearchEditRow(r) {
-  // One cell per column (9): checkbox (empty), Date (forecast + actual),
-  // Account (shown, not editable), Description + Notes, Category, Tags,
-  // Amount (forecast), Status (actual amount), buttons. Field ids are the
+  // One cell per column (9): checkbox (empty), Date (forecast date),
+  // Account (actual date; the account isn't editable), Description + Notes,
+  // Category, Tags, Amount (forecast), Status (actual amount), buttons. Field ids are the
   // ones saveTxnRowEdit reads.
   const catOptions = ['<option value="">— none —</option>']
     .concat(categories.map(c =>
@@ -8154,10 +8180,8 @@ function _renderTxnSearchEditRow(r) {
   const v = x => escapeAttr(x == null ? '' : String(x));
   return `<tr data-txn-id="${r.id}" class="le-row le-inline" onkeydown="onTxnEditKey(event, ${r.id})">${[
     _leTd(''),
-    _leTd(_lePair(
-      _leField('Forecast date', 'editTxnFDate', `<input type="date" id="editTxnFDate" value="${v(r.forecast_date)}">`),
-      _leField('Actual date', 'editTxnADate', `<input type="date" id="editTxnADate" value="${v(r.actual_date)}">`))),
-    _leTd(`<div class="le-ro">${escapeHtml(r.account_name || '')}</div>`),
+    _leTd(_leField('Forecast date', 'editTxnFDate', `<input type="date" id="editTxnFDate" value="${v(r.forecast_date)}">`)),
+    _leTd(_leField('Actual date', 'editTxnADate', `<input type="date" id="editTxnADate" value="${v(r.actual_date)}">`)),
     _leTd(_lePair(
       _leField('Description', 'editTxnDesc', `<input id="editTxnDesc" maxlength="120" value="${v(r.description)}">`),
       _leField('Notes', 'editTxnNotes', `<input id="editTxnNotes" maxlength="256" value="${v(r.notes)}">`))

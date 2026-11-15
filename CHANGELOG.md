@@ -111,6 +111,19 @@ App version: **1.50.0** · Web version: **1.72.0** · Schema version: **19** · 
   Forecast already does, so "this month" is the viewer's month whatever time
   zone the server runs in.
 
+### Database
+
+- Schema 19 adds `app_sign_in_codes`, the one-time codes the iPhone app's
+  sign-in page hands out. Only a fingerprint (SHA-256) of each code is kept,
+  each works once, and they're removed with their user. The table is created
+  on startup; nothing to do by hand.
+
+## [1.49.0] — 2026-11-15
+
+App version: **1.49.0** · Web version: **1.71.0** · Schema version: **18**
+
+### Added
+
 - **Admin → Audit log**: admins can now read the audit log, newest first,
   filter it by event or by part of an email address, and page back with
   **Load more**. When an entry names someone by number ("user #7"), the panel
@@ -121,7 +134,6 @@ App version: **1.50.0** · Web version: **1.72.0** · Schema version: **19** · 
   they're older than `AUDIT_RETENTION_DAYS` (a new setting, 180 days by
   default, never less than 1). Add it to your `.env` to keep entries for a
   different time; it's listed in `.env.example`.
-
 - **Settings → Your account → Change password**: change your own password by
   typing the current one and the new one twice (at least 8 characters). Users
   who sign in only with Google see a note instead, since they have no
@@ -138,15 +150,7 @@ App version: **1.50.0** · Web version: **1.72.0** · Schema version: **19** · 
   entry says who did it; when it was done to someone else, it names them by
   user number (for example "user #7"), never by email address. Entries never
   hold amounts, account names or passwords. A refused action (a wrong
-  password, a missing permission) writes nothing. There is no screen to read
-  the log yet: that comes with the Admin page's audit log viewer.
-
-### Database
-
-- Schema 19 adds `app_sign_in_codes`, the one-time codes the iPhone app's
-  sign-in page hands out. Only a fingerprint (SHA-256) of each code is kept,
-  each works once, and they're removed with their user. The table is created
-  on startup; nothing to do by hand.
+  password, a missing permission) writes nothing.
 
 ## [1.47.1] — 2026-11-15
 
@@ -1806,7 +1810,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.47.1...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.49.0...HEAD
+[1.49.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.49.0
 [1.47.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.47.1
 [1.47.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.47.0
 [1.46.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.46.1

@@ -7,14 +7,14 @@ Tracking issue: #135
 | Phase | Issue | State |
 | --- | --- | --- |
 | 1. Rate limiting and sign-in events | #132 | Released in 1.44.0 (schema 18) |
-| 2. More audit events | #133 | Built in 1.48.0 (web 1.70.0), not released |
-| 3. Admin viewer and pruning | #134 | Built in 1.49.0 (web 1.71.0), not released |
+| 2. More audit events | #133 | Released in 1.49.0 (built as 1.48.0) |
+| 3. Admin viewer and pruning | #134 | Released in 1.49.0 (web 1.71.0) |
 
 Phase 1 released 2026-11-15 in v1.44.0 (schema 18; release issue #137; no web change: the sign-in card already shows the server's message). Verified by 16 new tests (114 in all pass) and on a throwaway server (five 401s, then 429 with `Retry-After: 900`, even with the right password). Not yet tried on your instance.
 
-Phase 2 built 2026-11-15 in v1.48.0 (web 1.70.0, schema unchanged at 18), not yet released. It also added Settings → Change password (`POST /api/me/password`), since there was no own-password change to log ([decision](../docs/dev/decisions/login-limits.md)). Verified by 28 new tests in `test_audit_events.py` (167 in all pass) and on a throwaway server (a wrong current password: 403 and no row; a password change, a token and an export each left one row).
+Phase 2 built 2026-11-15 as v1.48.0 (web 1.70.0, schema unchanged at 18) and released with phase 3 in v1.49.0 (release issue #143). It also added Settings → Change password (`POST /api/me/password`), since there was no own-password change to log ([decision](../docs/dev/decisions/login-limits.md)). Verified by 28 new tests in `test_audit_events.py` (167 in all pass) and on a throwaway server (a wrong current password: 403 and no row; a password change, a token and an export each left one row).
 
-Phase 3 built 2026-11-15 in v1.49.0 (web 1.71.0, schema unchanged at 18), not yet released. 11 new tests in `test_audit_viewer.py` (178 in all pass). The Admin panel was not opened in a browser (none on the build machine); its script passes a syntax check.
+Phase 3 released 2026-11-15 in v1.49.0 (web 1.71.0, schema unchanged at 18; release issue #143; tagged on 7a3af82, before 1.50.0). 11 new tests in `test_audit_viewer.py` (178 in all pass). The Admin panel was not opened in a browser (none on the build machine); its script passes a syntax check.
 
 Sessions: may span — each phase ends with a release and your check on your own instance before the next starts.
 

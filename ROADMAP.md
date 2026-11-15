@@ -143,11 +143,11 @@ Standard `pyotp` + a QR code on enrollment. Self-hosted apps with real
 financial data warrant this. **Effort: small-to-medium.** New columns on
 `users`, an enrollment page, a verify step in login.
 
-### 15. Login rate limiting & audit log
-Rate-limit failed logins by IP+username, and write significant events
+### ~~15. Login rate limiting & audit log~~ ✅ **Shipped in v1.44.0 (rate limiting) and v1.49.0 (audit events, Admin → Audit log).**
+~~Rate-limit failed logins by IP+username, and write significant events
 (login, password change, admin actions, backup, restore) to an
 `audit_events` table viewable by admins. Cheap insurance.
-**Effort: small.**
+**Effort: small.**~~
 
 ### ~~16. API tokens~~ ✅ **Shipped in v1.41.0.**
 ~~For users who want to script ingest (e.g., a cron job pushing CSVs from

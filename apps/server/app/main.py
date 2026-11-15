@@ -27,7 +27,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.48.0"
+APP_VERSION = "1.49.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -39,6 +39,10 @@ APP_VERSION = "1.48.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.49.0 (2026-11-15, claude+mkolakowski): audit log viewer and pruning
+#     (#134): GET /api/admin/audit (newest first, event/email filters,
+#     `before` cursor); events older than AUDIT_RETENTION_DAYS (180) are
+#     deleted once a day by the backup thread; web 1.71.0.
 # 1.48.0 (2026-11-15, claude+mkolakowski): more audit events (#133):
 #     password changes and resets, admin user/permission/title/backup
 #     settings changes, backups made/downloaded/restored, personal
@@ -424,6 +428,9 @@ BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", "/data/backups"))
 TRUST_PROXY_HEADERS = os.environ.get("TRUST_PROXY_HEADERS", "false").lower() == "true"
 LOGIN_MAX_FAILURES = max(1, int(os.environ.get("LOGIN_MAX_FAILURES", "5")))
 LOGIN_WINDOW_MINUTES = max(1, int(os.environ.get("LOGIN_WINDOW_MINUTES", "15")))
+# How long audit events are kept (login-limits phase 3, #134; 180 days decided
+# 2026-11-15). Never less than a day, so the rate limit's window is always there.
+AUDIT_RETENTION_DAYS = max(1, int(os.environ.get("AUDIT_RETENTION_DAYS", "180")))
 
 # Demo mode: when on, the app boots with a pre-seeded admin user and sample
 # data, the UI is branded "WalletWeather Demo", and a background daemon
@@ -535,12 +542,33 @@ def _enforce_retention(retention_days: int):
             pass
 
 
+def prune_audit_events(db: Session, now: datetime | None = None) -> int:
+    """Delete audit events older than AUDIT_RETENTION_DAYS (never less than
+    a day). Returns how many went."""
+    cutoff = (now or datetime.utcnow()) - timedelta(days=max(1, AUDIT_RETENTION_DAYS))
+    gone = (db.query(AuditEvent).filter(AuditEvent.created_at < cutoff)
+            .delete(synchronize_session=False))
+    db.commit()
+    return gone
+
+
 def _backup_scheduler_loop():
     """Background daemon that checks every 30 minutes whether a scheduled
-    backup should run. Reads config from the BackupSchedule table."""
+    backup should run. Reads config from the BackupSchedule table. Also
+    prunes old audit events once a day (#134)."""
     from .db import SessionLocal
+    last_prune = None
     while True:
         time.sleep(1800)  # 30 minutes
+        if last_prune is None or datetime.utcnow() - last_prune >= timedelta(days=1):
+            db = SessionLocal()
+            try:
+                prune_audit_events(db)
+                last_prune = datetime.utcnow()
+            except Exception:
+                pass  # tried again in 30 minutes
+            finally:
+                db.close()
         db = SessionLocal()
         try:
             sched = db.query(BackupSchedule).first()
@@ -5125,6 +5153,57 @@ def admin_download_backup(filename: str, request: Request,
     record_event(db, "backup_downloaded", request, user=user, detail=filename)
     return FileResponse(filepath, media_type="application/json",
                         headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+# ---------- Audit log viewer (#134) ----------
+# Every event record_event writes. The Admin panel's filter offers these.
+AUDIT_EVENT_TYPES = (
+    "login", "login_failed", "login_blocked",
+    "password_changed", "password_reset",
+    "user_disabled", "user_enabled", "user_deleted",
+    "permission_changed", "app_title_changed", "backup_settings_changed",
+    "backup_made", "backup_downloaded", "backup_restored",
+    "backup_exported", "backup_imported",
+    "token_created", "token_revoked",
+)
+_AUDIT_USER_REF = re.compile(r"\buser #(\d+)")
+
+
+@app.get("/api/admin/audit")
+def admin_audit(event: str | None = None, email: str | None = None,
+                before: int | None = None, limit: int = 50,
+                user: User = Depends(current_admin), db: Session = Depends(get_db)):
+    """Audit events, newest first. `event` matches exactly; `email` is any
+    part of the email, in any case. Paged: pass the response's `next` as
+    `before` for the page after. `users` gives the email of each user a page
+    refers to (by `user_id` or "user #7" in a detail) who still exists, so
+    the panel can name them; the log itself keeps only the number."""
+    limit = max(1, min(limit, 200))
+    q = db.query(AuditEvent)
+    if event:
+        q = q.filter(AuditEvent.event == event)
+    needle = (email or "").strip().lower()
+    if needle:
+        needle = needle.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        q = q.filter(func.lower(AuditEvent.email).like(f"%{needle}%", escape="\\"))
+    if before is not None:
+        q = q.filter(AuditEvent.id < before)
+    rows = q.order_by(AuditEvent.id.desc()).limit(limit + 1).all()
+    more = len(rows) > limit
+    rows = rows[:limit]
+    ids = {r.user_id for r in rows if r.user_id is not None}
+    ids |= {int(n) for r in rows for n in _AUDIT_USER_REF.findall(r.detail or "")}
+    users = ({str(u.id): u.email for u in db.query(User).filter(User.id.in_(ids))}
+             if ids else {})
+    return {
+        "events": [{"id": r.id, "created_at": _iso(r.created_at), "event": r.event,
+                    "user_id": r.user_id, "email": r.email, "ip": r.ip,
+                    "detail": r.detail} for r in rows],
+        "users": users,
+        "next": rows[-1].id if more else None,
+        "event_types": list(AUDIT_EVENT_TYPES),
+        "retention_days": AUDIT_RETENTION_DAYS,
+    }
 
 
 # ---------- Static frontend ----------

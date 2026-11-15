@@ -45,3 +45,17 @@ Decisions made while planning [`Plans/login-limits.md`](../../../Plans/login-lim
 **The decision:** build the form in phase 2: Settings → Change password, `POST /api/me/password` with the current and new password, browser session only, not for Google-only users (they have no password; an admin can set one). Name the person acted on by number ("user #7", or "own user" when an admin acts on themselves), so a deletion leaves nothing naming them with no extra clean-up; the phase 3 viewer can show the email for users who still exist. Log admin and personal backups, scheduled ones included (with no user).
 
 **What it changes:** #133 (app 1.48.0, web 1.70.0): `record_event` calls and `audit_target` in `apps/server/app/main.py`, the Change password panel in `apps/web/index.html`, `test_audit_events.py`, `PRIVACY.md`, and the plan's phase 2.
+
+## 2026-11-15: how long the audit log keeps entries, and how the viewer names people
+
+**Decided:** 2026-11-15, by Matthew. **Status:** accepted. Settles open question 3 (#134).
+
+**The questions:** how long audit events are kept before the daily clean-up deletes them, and how the Admin panel shows a user an event names by number.
+
+**Options considered:**
+- Retention: 180 days; 90 days; 365 days; keep forever unless a setting says otherwise.
+- Names: the email next to the number while that user exists; the number only.
+
+**The decision:** 180 days by default, set with `AUDIT_RETENTION_DAYS` and never less than a day. The panel shows "user #7 (bob@example.com)" while user 7 exists and "user #7" once they're deleted; the log keeps only the number, so the #139 rule still holds.
+
+**What it changes:** #134 (app 1.49.0, web 1.71.0): `GET /api/admin/audit` and `prune_audit_events` in `apps/server/app/main.py`, the Audit log panel in `apps/web/index.html`, `.env.example`, `docker-compose.yml`, the README settings table and `PRIVACY.md`.

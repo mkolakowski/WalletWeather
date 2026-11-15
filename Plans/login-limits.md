@@ -8,11 +8,13 @@ Tracking issue: #135
 | --- | --- | --- |
 | 1. Rate limiting and sign-in events | #132 | Released in 1.44.0 (schema 18) |
 | 2. More audit events | #133 | Built in 1.48.0 (web 1.70.0), not released |
-| 3. Admin viewer and pruning | #134 | Open (after phase 2) |
+| 3. Admin viewer and pruning | #134 | Built in 1.49.0 (web 1.71.0), not released |
 
 Phase 1 released 2026-11-15 in v1.44.0 (schema 18; release issue #137; no web change: the sign-in card already shows the server's message). Verified by 16 new tests (114 in all pass) and on a throwaway server (five 401s, then 429 with `Retry-After: 900`, even with the right password). Not yet tried on your instance.
 
 Phase 2 built 2026-11-15 in v1.48.0 (web 1.70.0, schema unchanged at 18), not yet released. It also added Settings → Change password (`POST /api/me/password`), since there was no own-password change to log ([decision](../docs/dev/decisions/login-limits.md)). Verified by 28 new tests in `test_audit_events.py` (167 in all pass) and on a throwaway server (a wrong current password: 403 and no row; a password change, a token and an export each left one row).
+
+Phase 3 built 2026-11-15 in v1.49.0 (web 1.71.0, schema unchanged at 18), not yet released. 11 new tests in `test_audit_viewer.py` (178 in all pass). The Admin panel was not opened in a browser (none on the build machine); its script passes a syntax check.
 
 Sessions: may span — each phase ends with a release and your check on your own instance before the next starts.
 
@@ -28,7 +30,7 @@ Sessions: may span — each phase ends with a release and your check on your own
 
 1. **How many wrong passwords, and for how long?** (blocks phase 1's numbers, not its build) Working assumption: 5 failed sign-ins for the same email from the same address within 15 minutes block further tries for that pair until the 15 minutes since the last failure have passed; a correct password before that clears the count. Both numbers are settings in `.env` (`LOGIN_MAX_FAILURES`, `LOGIN_WINDOW_MINUTES`) with those defaults.
 2. **What does an event store?** (blocks phase 1) Partly settled 2026-11-15 ([decision](../docs/dev/decisions/login-limits.md), #139): deleting a user blanks the email on their entries, which stay without the email or the link to the user. Still a working assumption for the rest: when it happened, what it was, the email involved (typed text, cut to 320 characters), the user if there is one, the address the request came from when known, and a short detail. Never a password, never the browser's user-agent string. It is personal data, so it's added to `PRIVACY.md` in phase 1.
-3. **How long are events kept?** (blocks phase 3) Working assumption: 180 days, a setting (`AUDIT_RETENTION_DAYS`), and never less than a day so the rate limit's window is always there.
+3. ~~**How long are events kept?**~~ Decided 2026-11-15 ([decision](../docs/dev/decisions/login-limits.md)): 180 days, a setting (`AUDIT_RETENTION_DAYS`), and never less than a day so the rate limit's window is always there.
 4. **Should Google sign-in and registration be limited too?** (blocks nothing) Left out on purpose: Google handles its own password guessing, and `ALLOWED_EMAILS` and `ALLOW_REGISTRATION` already control who can sign up. Revisit if registration is ever left open on a public address.
 
 ## The plan
@@ -75,7 +77,7 @@ Roadmap item 15, second part. Depends on phase 1.
 Roadmap item 15, third part. Depends on phase 2.
 
 - `GET /api/admin/audit`: newest first, filters for event and email, paged with a cursor. Readable by an admin's session or an admin token.
-- Admin page: an "Audit log" panel with the filters and a "Load more" button. Every typed value (emails especially) is shown as text, never as HTML.
+- Admin page: an "Audit log" panel with the filters and a "Load more" button. Every typed value (emails especially) is shown as text, never as HTML. A "user #7" in a detail shows that user's email while they exist (decided 2026-11-15).
 - Pruning: events older than `AUDIT_RETENTION_DAYS` (180, open question 3) are deleted once a day by the existing background thread, never anything newer than a day.
 - Tests for the endpoint (shape, filters, paging, 403 for a non-admin and for a read-only or full token) and for pruning (old rows go, recent ones stay).
 

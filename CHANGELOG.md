@@ -65,9 +65,20 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.48.0** · Web version: **1.70.0** · Schema version: **18**
+App version: **1.49.0** · Web version: **1.71.0** · Schema version: **18**
 
 ### Added
+
+- **Admin → Audit log**: admins can now read the audit log, newest first,
+  filter it by event or by part of an email address, and page back with
+  **Load more**. When an entry names someone by number ("user #7"), the panel
+  adds their email while that user still exists. The panel uses the new
+  `GET /api/admin/audit`, which also works with an admin API token (not a
+  read-only or full one).
+- Old audit log entries are now deleted automatically, once a day, when
+  they're older than `AUDIT_RETENTION_DAYS` (a new setting, 180 days by
+  default, never less than 1). Add it to your `.env` to keep entries for a
+  different time; it's listed in `.env.example`.
 
 - **Settings → Your account → Change password**: change your own password by
   typing the current one and the new one twice (at least 8 characters). Users

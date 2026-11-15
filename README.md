@@ -71,6 +71,7 @@ All configuration is via environment variables in `.env`:
 | `GOOGLE_CLIENT_SECRET` | No | — | Google OAuth client secret |
 | `LOGIN_MAX_FAILURES` | No | `5` | Wrong passwords for one email from one address before sign-in is paused |
 | `LOGIN_WINDOW_MINUTES` | No | `15` | How long those failures count, and how long the pause lasts after the last one |
+| `AUDIT_RETENTION_DAYS` | No | `180` | How many days the audit log keeps its entries; older ones are deleted once a day (at least 1) |
 | `TRUST_PROXY_HEADERS` | No | `false` | Set `true` behind a Cloudflare Tunnel to take the visitor's address from `CF-Connecting-IP`. Only when the server can be reached **only** through Cloudflare, or the header can be forged. |
 | `DEMO_MODE` | No | `false` | Set to `true` to boot with a pre-seeded demo admin, sample data, the "WalletWeather Demo" title, and an hourly auto-reset of edited demo data. |
 
@@ -295,9 +296,8 @@ before you decide where to run it:
 
 - Backups are unencrypted (roadmap item 12).
 - There is no self-serve password reset (item 13) and no two-factor sign-in
-  (item 14). Wrong passwords are rate limited and sign-ins are logged, but
-  the log can't be read in the app yet and doesn't cover other actions
-  (item 15).
+  (item 14). Wrong passwords are rate limited, and sign-ins and admin
+  actions are logged for admins to read in Admin → Audit log.
 - Session cookies are not marked HTTPS-only, so serve the app over HTTPS
   yourself (a reverse proxy or private tunnel) if it leaves your own machine.
 

@@ -8,9 +8,11 @@ Tracking issue: #44
 | --- | --- | --- |
 | 1. Installable web app | #41 | Released in 1.42.0 (web 1.65.0) |
 | 2. API tokens | #42 | Released in 1.41.0 (web 1.63.0, schema 16) |
-| 3. Token extras | #43 | Expiry, last used and the Admin token list released in 1.44.0 (built as 1.43.0; web 1.66.0, schema 17). `POST /api/auth/token` built in 1.46.0, not yet released. |
+| 3. Token extras | #43 | Released: expiry, last used and the Admin token list in 1.44.0; `POST /api/auth/token` in 1.46.1. Closed 2026-11-15. |
 
-Phase 3, last part: `POST /api/auth/token` built 2026-11-15 in app 1.46.0 (no schema or web change), not yet released. Read or full only, 90 days unless asked (decided 2026-11-15); shares the login rate limit and sign-in log (`Plans/login-limits.md`, #132). Verified by 15 new tests (129 in all pass).
+All three phases are released and closed; the plan is closed (2026-11-15).
+
+Phase 3, last part: `POST /api/auth/token` built 2026-11-15 in app 1.46.0 (no schema or web change), released in v1.46.1 (release issue #140). Read or full only, 90 days unless asked (decided 2026-11-15); shares the login rate limit and sign-in log (`Plans/login-limits.md`, #132). Verified by 15 new tests (129 in all pass).
 
 Phase 3 built in part 2026-11-15 in app 1.43.0 / web 1.66.0 / schema 17, released in v1.44.0 (release issue #137; 1.43.0 never went out on its own): expiry (30/90/365 days or never, 90 days pre-selected in Settings), last-used time, and the Admin panel's token list with Revoke (browser session only, so no token can revoke tokens). Verified by 20 new tests (98 in all pass) and on a throwaway server upgraded from 1.41.0's database: an old token kept working and never expires. `POST /api/auth/token` is not built: it needs login rate limiting first (roadmap item 15), so #43 stays open for it.
 

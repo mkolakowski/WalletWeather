@@ -103,12 +103,14 @@
   #forecastTable tr:not(.fc-editing) > :nth-child(6),
   #forecastTable tr:not(.fc-editing) > :nth-child(9) { padding-left:2px; }
   /* Read view only (not spreadsheet mode): a "/" after the first cell of each
-     pair, and no actions column (edit/delete live in spreadsheet mode). */
+     pair. The actions column (the ✎ that opens a line) shows on accounts you
+     can edit (.can-edit) and while a line is open (.has-editing). */
   #forecastTable:not(.sheet-mode) tr:not(.fc-editing):not(.row-editing) > td:is(:nth-child(2), :nth-child(5), :nth-child(8))::after {
     content:"/"; color:var(--muted); margin-left:6px; }
-  #forecastTable:not(.sheet-mode):not(.has-editing) thead th:last-child,
-  #forecastTable:not(.sheet-mode):not(.has-editing) tbody tr:not(.today-marker) > td:last-child { display:none; }
-  #forecastTable:not(.sheet-mode):not(.has-editing) tr:not(.today-marker):not(.fc-editing) > :nth-child(11) { border-right:none; }
+  #forecastTable:not(.sheet-mode):not(.has-editing):not(.can-edit) thead th:last-child,
+  #forecastTable:not(.sheet-mode):not(.has-editing):not(.can-edit) tbody tr:not(.today-marker) > td:last-child { display:none; }
+  #forecastTable:not(.sheet-mode):not(.has-editing):not(.can-edit) tr:not(.today-marker):not(.fc-editing) > :nth-child(11) { border-right:none; }
+  #forecastTable thead th:last-child { width:1%; }
   /* The double-clicked line stands out while it's being edited. */
   #forecastTable tr.row-editing td { background:color-mix(in srgb, var(--accent) 10%, transparent); }
   /* Forecast 🗑 buttons (line editor, spreadsheet rows) get a red outline. */
@@ -442,7 +444,8 @@
     #forecastTable:not(.sheet-mode) tbody tr.week-even,
     #forecastTable.sheet-mode tbody tr.week-even { background:color-mix(in srgb, var(--text) 5%, transparent); }
 
-    /* Read view card. */
+    /* Read view card. Tapping the card opens it, so its ✎ cell is hidden. */
+    #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(12) { display:none; }
     #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(1) { grid-column:1 / 3; grid-row:1; font-weight:600; padding-right:10px; }
     #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(5) { grid-column:3; grid-row:1; }
     #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(6) { grid-column:4; grid-row:1; padding-left:4px; }
@@ -844,6 +847,7 @@
       <button id="navDashboard" class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
       <button id="navNetworth" class="nav-btn" onclick="showPage('networth')">Net Worth</button>
       <button id="navAccounts" class="nav-btn" onclick="showPage('accounts')">Forecast</button>
+      <button id="navTransactions" class="nav-btn" onclick="showPage('transactions')">Transactions</button>
       <button id="navSubscriptions" class="nav-btn" onclick="showPage('subscriptions')">Bills &amp; income</button>
       <button id="navCalendar" class="nav-btn" onclick="showPage('calendar')">Calendar</button>
       <button id="navReports" class="nav-btn" onclick="showPage('reports')">Reports</button>
@@ -1387,7 +1391,10 @@
             </div>
             <div class="row" style="margin-top:14px">
               <div style="flex:0 0 auto"><button onclick="submitAddForm()">Save</button></div>
+              <div style="flex:0 0 auto"><button class="ghost" onclick="submitAddForm(true)"
+                   title="Save, then keep the form open with the same date, type and category">Save and add another</button></div>
               <div style="flex:0 0 auto"><button class="ghost" onclick="toggleAddForm(false)">Cancel</button></div>
+              <div id="addFormStatus" role="status" style="flex:1 1 auto;align-self:center;font-size:12px;color:var(--muted)"></div>
             </div>
           </div>
         </div>
@@ -1496,7 +1503,13 @@
       </div>
       </div><!-- /subviewForecast -->
 
-      <div id="subviewSearch" class="hidden">
+    </div>
+    </div><!-- /pageAccounts -->
+
+    <!-- Transactions (#52): search every account, tag in bulk, and the
+         recent transfers list. Lived on the Forecast page until 1.32.0
+         removed its toggle and left it with no way in. -->
+    <div id="pageTransactions" class="hidden">
       <div class="panel">
         <h2>Search transactions</h2>
         <div class="row">
@@ -1580,16 +1593,15 @@
 
       <div class="panel">
         <h2>Recent transfers</h2>
-        <p style="color:var(--muted);margin:0 0 10px;font-size:13px">
-          Account-to-account moves. Use the "Transfer money" button above to create one.
-        </p>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px">
+          <p style="color:var(--muted);margin:0;font-size:13px">Account-to-account moves. Edit or delete one here.</p>
+          <button class="ghost" onclick="openTransferPage()">⇄ Transfer money</button>
+        </div>
         <div id="recentTransfersWrap">
           <div style="color:var(--muted);font-size:13px">Loading…</div>
         </div>
       </div>
-      </div><!-- /subviewSearch -->
-    </div>
-    </div><!-- /pageAccounts -->
+    </div><!-- /pageTransactions -->
 
     <div id="pageReports" class="hidden">
       <div class="reports-layout">
@@ -2076,7 +2088,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.49.0";
+const WEB_VERSION = "1.50.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2087,6 +2099,16 @@ const WEB_VERSION = "1.49.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.50.0 (2026-11-14, claude+mkolakowski): (#52) (1) New Transactions page
+//     (#pageTransactions, nav #navTransactions, hash #transactions) holds
+//     what was #subviewSearch: cross-account search, bulk tagging and Recent
+//     transfers, unreachable since 1.32.0. initAccountsExtras() now runs when
+//     it opens, not with Forecast; setAccountsSubview() removed. The transfer
+//     form returns to the page it was opened from (_transferReturnPage).
+//     (2) Forecast read rows end with ✎ (startEditForecastRow); the actions
+//     column shows on editable accounts (#forecastTable.can-edit), hidden on
+//     phones where tapping opens the line. (3) Add transaction gains "Save
+//     and add another" (submitAddForm(true)) and #addFormStatus.
 // 1.49.0 (2026-11-14, claude+mkolakowski): Subscriptions page becomes
 //     "Bills & income" (#51): one editable table for every account
 //     (GET /api/recurring) with an Account column, an account filter
@@ -2742,7 +2764,7 @@ async function api(path, opts={}) {
 // currentAccountId that a cold reload won't have), not independent tabs, so
 // they're deliberately left out of the hash — navigating into/out of them
 // doesn't touch the URL.
-const HASH_ROUTABLE_PAGES = ['dashboard', 'networth', 'accounts', 'subscriptions',
+const HASH_ROUTABLE_PAGES = ['dashboard', 'networth', 'accounts', 'transactions', 'subscriptions',
                              'calendar', 'reports', 'admin', 'settings'];
 
 // The internal page name is 'accounts' (predates the Forecast rename, and
@@ -2784,6 +2806,7 @@ function showPage(name, opts) {
   document.getElementById('pageNetworth').classList.toggle('hidden', name!=='networth');
   document.getElementById('pageAccounts').classList.toggle('hidden', name!=='accounts');
   document.querySelector('main').classList.toggle('wide', name==='accounts');   // wider Forecast layout
+  document.getElementById('pageTransactions').classList.toggle('hidden', name!=='transactions');
   document.getElementById('pageSubscriptions').classList.toggle('hidden', name!=='subscriptions');
   document.getElementById('pageCalendar').classList.toggle('hidden', name!=='calendar');
   document.getElementById('pageImport').classList.toggle('hidden', name!=='import');
@@ -2793,9 +2816,12 @@ function showPage(name, opts) {
   document.getElementById('pageSettings').classList.toggle('hidden', name!=='settings');
   document.getElementById('navDashboard').classList.toggle('active', name==='dashboard');
   document.getElementById('navNetworth').classList.toggle('active', name==='networth');
-  // 'import' + 'transfer' are reached from the Forecast page — keep it lit.
+  // 'import' is reached from the Forecast page, 'transfer' from Forecast or
+  // Transactions — keep the page it came from lit.
   document.getElementById('navAccounts').classList.toggle('active',
-    name==='accounts' || name==='import' || name==='transfer');
+    name==='accounts' || name==='import' || (name==='transfer' && _transferReturnPage==='accounts'));
+  document.getElementById('navTransactions').classList.toggle('active',
+    name==='transactions' || (name==='transfer' && _transferReturnPage==='transactions'));
   document.getElementById('navSubscriptions').classList.toggle('active', name==='subscriptions');
   document.getElementById('navCalendar').classList.toggle('active', name==='calendar');
   document.getElementById('navReports').classList.toggle('active', name==='reports');
@@ -2820,8 +2846,8 @@ function showPage(name, opts) {
     if (currentAccountId && accounts.some(a => a.id === currentAccountId)) {
       selectAccount(currentAccountId);
     }
-    initAccountsExtras();
   }
+  if (name === 'transactions') initAccountsExtras();
 }
 
 // ---------- Dashboard state ----------
@@ -5253,6 +5279,7 @@ function toggleAddWhenFields() {
 }
 
 function toggleAddForm(show) {
+  document.getElementById('addFormStatus').textContent = '';
   // The form lives in its own panel that only exists on screen while open;
   // the "+ Add transaction" button sits in the Account actions bar.
   document.getElementById('addFormPanel').classList.toggle('hidden', !show);
@@ -5281,7 +5308,8 @@ function onRecToggle() {
   document.getElementById('addStatus').disabled = isRec;
 }
 
-async function submitAddForm() {
+async function submitAddForm(addAnother) {
+  document.getElementById('addFormStatus').textContent = '';
   const isRec = document.getElementById('addRecToggle').checked;
   const desc = document.getElementById('addDesc').value.trim();
   const type = document.getElementById('addType').value;
@@ -5340,6 +5368,16 @@ async function submitAddForm() {
       alert('Could not save: ' + e.message);
       return;
     }
+  }
+
+  if (addAnother) {
+    // Keep the date, type, category, status and recurring settings; clear
+    // what differs from one entry to the next.
+    ['addDesc', 'addAmt', 'addNotes'].forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('addFormStatus').textContent = `Saved “${desc}”. Add the next one.`;
+    document.getElementById('addDesc').focus();
+    await loadForecast();
+    return;
   }
 
   // Reset and close
@@ -5734,9 +5772,11 @@ function renderForecast() {
       : `<td class="notes-col muted">—</td>`;
     const actDateCell = `<td class="${defaultedCls}">${actDateVal || '—'}</td>`;
     const actAmtCell  = `<td class="num${defaultedCls}">${actAmtVal != null ? fmt(actAmtVal) : '—'}</td>`;
-    // Normal (read) view has no row buttons — editing and deleting happen in
-    // Spreadsheet mode. The empty cell keeps the column count; CSS hides it.
-    const actionsCell = '<td></td>';
+    // ✎ opens the line for editing (as double-click does); Delete is inside
+    // the open line (#52). Read-only accounts get an empty cell, hidden by CSS.
+    const actionsCell = ro ? '<td></td>'
+      : `<td><button class="ghost" title="Edit or delete this line" aria-label="Edit ${escapeAttr(r.description)}"
+           onclick="startEditForecastRow('${escapeAttr(rowKey)}')">✎</button></td>`;
 
     // Tag chips render inline below the description so adding them didn't
     // require a whole new column (the table is already wide).
@@ -5765,6 +5805,7 @@ function renderForecast() {
 
   // Show the actions column while a line is being edited, and focus it once.
   document.getElementById('forecastTable').classList.toggle('has-editing', editingShown);
+  document.getElementById('forecastTable').classList.toggle('can-edit', !ro);
   _editRowSnapshot = editingShown ? _forecastEditValues(tbody.querySelector('tr.row-editing')) : null;
   if (editingShown && _focusEditRow) {
     _focusEditRow = false;
@@ -7361,18 +7402,6 @@ function initAccountsExtras() {
   loadRecentTransfers();
 }
 
-// Toggles between the two Transactions sub-views on the Forecast page —
-// "This account" (the per-account forecast table) and "Search all
-// accounts" (the cross-account filtered search table).
-let accountsSubview = 'forecast';
-function setAccountsSubview(v) {
-  accountsSubview = v;
-  document.getElementById('subviewForecast').classList.toggle('hidden', v !== 'forecast');
-  document.getElementById('subviewSearch').classList.toggle('hidden', v !== 'search');
-  document.getElementById('acctSubviewForecast').classList.toggle('active', v === 'forecast');
-  document.getElementById('acctSubviewSearch').classList.toggle('active', v === 'search');
-}
-
 function resetTxnSearch() {
   ['txnSearchQ','txnSearchFrom','txnSearchTo','txnSearchMin','txnSearchMax'].forEach(id => {
     document.getElementById(id).value = '';
@@ -7696,7 +7725,7 @@ async function loadRecentTransfers() {
   _transfersCacheById = {};
   data.transfers.forEach(t => { _transfersCacheById[t.id] = t; });
   if (!data.transfers.length) {
-    wrap.innerHTML = `<div style="color:var(--muted);font-size:13px">No transfers yet. Use the "Transfer money" button above.</div>`;
+    wrap.innerHTML = `<div style="color:var(--muted);font-size:13px">No transfers yet. Use “Transfer money” to make one.</div>`;
     return;
   }
   wrap.innerHTML = `<div class="transfers-list">${data.transfers.map(t => `
@@ -7711,7 +7740,11 @@ async function loadRecentTransfers() {
     </div>`).join('')}</div>`;
 }
 
+// Page the transfer form returns to: 'accounts' (Forecast) or 'transactions'.
+let _transferReturnPage = 'accounts';
 function openTransferPage(transferId) {
+  _transferReturnPage = document.getElementById('pageTransactions').classList.contains('hidden')
+    ? 'accounts' : 'transactions';
   _pendingTransferOpen = {
     editId: transferId ? Number(transferId) : null,
     preselectFromId: currentAccountId || null,
@@ -7810,7 +7843,7 @@ function updateTransferBalances() {
 }
 
 function transferPageBack() {
-  showPage('accounts');
+  showPage(_transferReturnPage);
 }
 
 async function submitTransfer() {
@@ -7837,9 +7870,9 @@ async function submitTransfer() {
     // Refresh the accounts list so current_balance is up-to-date next
     // time the transfer page is opened (both legs' balances just moved).
     await loadAccounts();
-    // Navigate back to the Forecast page — showPage() re-selects
-    // currentAccountId and refreshes Recent Transfers on its own.
-    showPage('accounts');
+    // Back to the page the form was opened from; showPage() refreshes the
+    // forecast (Forecast) or Recent transfers (Transactions) on its own.
+    showPage(_transferReturnPage);
   } catch (e) {
     err.textContent = e.message; err.classList.remove('hidden');
   }
@@ -7859,7 +7892,7 @@ async function deleteTransfer(id) {
     // If we're on the transfer page editing this one, bounce back.
     const onTransferPage = !document.getElementById('pageTransfer').classList.contains('hidden');
     if (onTransferPage) {
-      showPage('accounts');
+      showPage(_transferReturnPage);
     } else if (currentAccountId) {
       await selectAccount(currentAccountId);
     }

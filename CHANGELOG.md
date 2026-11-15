@@ -65,7 +65,27 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.25.0** · Web version: **1.49.0** · Schema version: **14**
+App version: **1.26.0** · Web version: **1.50.0** · Schema version: **14**
+
+### Added
+
+- **A Transactions page** in the top bar. It holds the search across all your
+  accounts (text, account, category, tag, kind, dates and amounts), tagging
+  many results at once, and the list of recent transfers with Edit and Delete,
+  plus a "Transfer money" button. These had been unreachable since version
+  1.32.0 of the web client, which removed the switch that opened them, and the
+  transfers list was the only place to edit a transfer. Editing a transfer from
+  here brings you back here afterwards.
+- **"Save and add another"** on the Forecast page's Add transaction form. It
+  saves and keeps the form open with the same date, type, category and status,
+  ready for the next entry.
+
+### Changed
+
+- **Each line on the Forecast page has an ✎ button** that opens it for editing,
+  with Delete inside the opened line. Double-click still works, and on a phone
+  tapping a line still opens it. Accounts shared with you read-only show no
+  button.
 
 ## [1.25.0] — 2026-11-14
 

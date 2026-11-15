@@ -257,7 +257,11 @@ Why: the session list on my phone is how I tell the threads apart.
   big.
 - Report outcomes faithfully: failing tests with their output, skipped steps
   named, and done-and-verified stated plainly, without hedging.
-- Never close an issue without asking.
+- Never close an issue without asking. The one exception (decided
+  2026-11-14, #84): a release issue ("Release X.Y.Z") is closed by the
+  session once the GitHub Release is published and the "Build and push to
+  GHCR" run for it has passed, with a comment saying so. The issues for the
+  changes it shipped still wait for my OK.
 - Don't offer choices where there's no real alternative (a plain
   confirmation of something this file already says to do), or
   mid-implementation when I've already chosen. A single obvious next step is

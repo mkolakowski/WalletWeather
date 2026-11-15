@@ -69,3 +69,12 @@ Decisions made while planning [`Plans/ios-app.md`](../../../Plans/ios-app.md) (t
 - **Kept numbers are left out of iCloud and computer backups.** A restored or new phone starts empty and loads them again. Including them would have put copies of the numbers in iCloud or on a computer.
 
 **What it changes:** phases 2 and 3 (#88, #89) for the second pane and editing, phase 5 (#91) for the app lock, and phase 8 (#101) for backups.
+
+## 2026-11-14: Apple's reviewer, and iPad and Mac
+
+**Decided:** 2026-11-14, by Matthew. **Status:** accepted.
+
+- **Apple's reviewer gets in through sample data built into the app**, behind "Try the demo" on the Connect screen. No server is needed, and anyone can try the app before setting one up. The other options were a demo server put on the internet for each review (a public instance each time, which the README warns against) and staying on TestFlight with no public listing.
+- **iPhone only for now.** The open-Duo layouts follow the screen's width and would mostly carry over to an iPad, and iPad was picked first, then changed to iPhone only in the same conversation. iPad and Mac can be a later plan.
+
+**What it changes:** phase 6 (#92). With these, none of the plan's thirteen questions is open.

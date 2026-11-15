@@ -11,14 +11,14 @@ Tracking issue: #93
 | 3. Bills & income and Calendar | #89 | Open (after phase 2) |
 | 4. The Duo's big screen | #90 | Open (after phase 3) |
 | 5. The other pages and app settings | #91 | Open (after phase 2) |
-| 6. TestFlight and the App Store | #92 | Open (waits on legal-risk phase 5, #49, and open questions 11 and 12) |
+| 6. TestFlight and the App Store | #92 | Open (waits on legal-risk phase 5, #49) |
 | 7. More ways to sign in | #100 | Open (after phase 1; email and password after phone-path phase 3, #43) |
 | 8. Kept on the phone | #101 | Open (after phase 5) |
 | 9. The web app's themes | #102 | Open (after phase 5) |
 
 Nothing built yet. Written 2026-11-14 from a review of the app at 1.35.0 (web 1.59.0, schema 14). Until now the only notes on a native app were `apps/ios/README.md` and the "ready for native apps later" goal of `Plans/phone-path.md`.
 
-Open questions 1 to 10 and 13 were settled on 2026-11-14 (`docs/dev/decisions/ios-app.md`). Questions 1 to 7 made phase 1 bigger and added phases 7 to 9.
+All thirteen open questions were settled on 2026-11-14 (`docs/dev/decisions/ios-app.md`). Questions 1 to 7 made phase 1 bigger and added phases 7 to 9.
 
 Order: phases 1, 2, 3 and 5 in turn; then 4, 7, 8 and 9 in any order; 6 whenever you want it on TestFlight.
 
@@ -42,7 +42,7 @@ Sessions: may span — each phase ends with a build on your phone and your check
 
 ## Open questions
 
-Questions 1 to 10 and 13 were settled on 2026-11-14: the answers are below and the reasoning is in [`docs/dev/decisions/ios-app.md`](../docs/dev/decisions/ios-app.md). Questions 11 and 12 each have a working assumption.
+All thirteen were settled on 2026-11-14: the answers are below and the reasoning is in [`docs/dev/decisions/ios-app.md`](../docs/dev/decisions/ios-app.md). Nothing is open.
 
 1. ~~**How does the app sign in?**~~ All four ways, with the web sign-in sheet first: the sheet, the "Open in WalletWeather" link and paste in phase 1; the QR code and email and password in phase 7.
 2. ~~**How does the app get past Cloudflare Access?**~~ The app signs in to Cloudflare itself by default, and takes a service token as the alternative. Both are in phase 1. Carrying the Cloudflare sign-in from the sheet to the app's own requests isn't proven yet, so it's tried first.
@@ -54,8 +54,8 @@ Questions 1 to 10 and 13 were settled on 2026-11-14: the answers are below and t
 8. ~~**What does the second pane hold on the open Duo?**~~ Before you tap anything, the page's chart and totals; then what you tap (a line's editor, a day's lines) takes that place. The right half is never empty.
 9. ~~**How much can be edited from the phone?**~~ The day-to-day edits are in the app (mark a line as paid with its real amount and date, add, change or delete a transaction, add, change or skip a bill, move money between accounts). Set-up stays on the web (accounts, categories, tags and rules, budgets, sharing, CSV import, building reports, backups, the Admin pages, deleting your account).
 10. ~~**Does the app lock?**~~ Touch ID or Face ID is offered once at first sign-in and can be changed in the app's settings. The numbers are always hidden in the app switcher.
-11. **How does Apple's reviewer get in?** (blocks phase 6) App Store review needs a working sign-in, and no public demo is planned (`Plans/legal-risk.md`). The choices: sample data built into the app behind "Try the demo" on the Connect screen (no server needed, and anyone can try the app before setting one up); a temporary demo server for each review; or stay on TestFlight for your own devices and skip the public listing. Working assumption: built-in sample data.
-12. **iPad and Mac?** (blocks phase 6) The open-Duo layouts are driven by width, so they would carry over to an iPad with little work. Working assumption: iPhone only for now.
+11. ~~**How does Apple's reviewer get in?**~~ Sample data built into the app, behind "Try the demo" on the Connect screen. No server is needed, and anyone can try the app before setting one up.
+12. ~~**iPad and Mac?**~~ iPhone only for now.
 13. ~~**Do the kept numbers go into the phone's backups?**~~ No. They're left out of iCloud and computer backups, so a restored phone starts empty.
 
 ## The plan
@@ -82,6 +82,8 @@ Questions 1 to 10 and 13 were settled on 2026-11-14: the answers are below and t
 - Day-to-day edits in the app; set-up stays on the web.
 - The app lock is offered once at first sign-in.
 - Kept numbers are left out of the phone's backups.
+- "Try the demo" opens the app on built-in sample data, which is how Apple's reviewer gets in.
+- iPhone only for now: no iPad or Mac.
 
 **What the review found** (app 1.35.0, web 1.59.0, schema 14):
 - **The web app's phone layout already says what a phone needs.** A bar with Dashboard, Forecast, Bills & income, Calendar and More (usability phase 4); Forecast lines as cards that open to edit; Transactions folded into Forecast (1.32.6); Bills & income working like Forecast (1.34.0). The native app keeps that shape, so the two feel like one product.
@@ -120,7 +122,7 @@ Questions 1 to 10 and 13 were settled on 2026-11-14: the answers are below and t
 7. **Half open, like a small laptop:** the chart above the fold, the number pad below it (phase 4).
 8. **Closing it keeps your place:** a line open in the right pane becomes a sheet on the front screen, with what you'd typed.
 
-**Out of scope:** the Android app; an Apple Watch app; widgets and bill reminders (they need phase 8's kept numbers first, or a way for the server to reach the phone); offline editing (roadmap item 27); Siri and Shortcuts; signing up for an account inside the app; more than one server at a time; and the set-up that stays on the web (accounts, categories, tags and rules, budgets, sharing, CSV import, building reports, backups, the Admin pages, deleting your account).
+**Out of scope:** the Android app; iPad and Mac (iPhone only for now); an Apple Watch app; widgets and bill reminders (they need phase 8's kept numbers first, or a way for the server to reach the phone); offline editing (roadmap item 27); Siri and Shortcuts; signing up for an account inside the app; more than one server at a time; and the set-up that stays on the web (accounts, categories, tags and rules, budgets, sharing, CSV import, building reports, backups, the Admin pages, deleting your account).
 
 ### Phase 1: Connect and Dashboard
 
@@ -204,11 +206,12 @@ Depends on phase 2.
 
 ### Phase 6: TestFlight and the App Store
 
-Waits on legal-risk phase 5 (#49, the name) and open questions 11 and 12.
+Waits on legal-risk phase 5 (#49, the name).
 
 - The app icon (from `favicon.svg`), the launch screen, the privacy manifest, and the App Privacy answers ("no data collected").
 - `docs/privacy.md` read against what the app really does (the token in the Keychain, and what phase 8 keeps if it has shipped) and updated first if it needs it.
-- The way in for Apple's reviewer (open question 11).
+- "Try the demo" on the Connect screen: the app opens on sample data built into it, with no server, so Apple's reviewer and anyone curious can get in. The samples are recorded from the demo server and decoded by the same tests as the real responses, so they can't drift from what the server sends.
+- iPhone only: iPad and Mac stay switched off.
 - A TestFlight build for your own devices first; the public listing only after your check.
 - The store's text and screenshots, with the Duo closed and open.
 - README: where to get the app, and the oldest server version it works with.

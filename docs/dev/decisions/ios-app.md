@@ -110,3 +110,19 @@ Decisions made while planning [`Plans/ios-app.md`](../../../Plans/ios-app.md) (t
 **The decision:** everything, in the web app too. The app's search button is the round one beside the pages bar, the spot iOS gives search, and + moves to the top corner of each page.
 
 **What it changes:** a new piece of server and web work (#111, roadmap item 28); phase 2 (#88) puts the button in place with transaction search; a new phase 10 widens it to everything once #111 has shipped.
+
+## 2026-11-15: Liquid Glass
+
+**Decided:** 2026-11-15, by Matthew. **Status:** accepted.
+
+**The question:** the plan got Liquid Glass only by using the system's bars and sheets. It never stated glass, said which of the app's own surfaces use it, or checked it against the phone's Liquid Glass setting (a slider from clear to tinted in iOS 27, overridden by Reduce Transparency).
+
+**Options considered:**
+- System glass with solid cards: the bar, sheets and round buttons are glass and the cards stay solid, so the numbers are always on a plain surface.
+- Glass on the cards too: more striking, but the numbers sit over whatever is behind the card, and every look has to be checked at each glass setting.
+- System glass with solid cards, plus a switch in the app to turn its glass off.
+- Leaving the plan as it was.
+
+**The decision:** glass on the cards too. The bar, the sheets, the round buttons and the app's own cards and panels are all Liquid Glass, following the phone's setting, and they turn solid under Reduce Transparency or Increase Contrast.
+
+**What it changes:** phase 1 (#87) builds it and checks it with the setting at each end and with both accessibility switches on; phase 5 (#91) checks each look the same way. What sits behind the cards, so the glass has something to show, is still to be chosen.

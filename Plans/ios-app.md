@@ -88,6 +88,7 @@ All thirteen were settled on 2026-11-14: the answers are below and the reasoning
 - iPhone only for now: no iPad or Mac.
 - AMOLED black and Sepia join Light and Dark as choices in the app's settings.
 - Search finds everything (transactions, bills and income, accounts, categories and reports), and the web app gains the same search (#111). Its button is the round one beside the pages bar; + moves to the top corner of each page.
+- Liquid Glass on the cards as well as the bars, following the phone's glass setting.
 
 **What the review found** (app 1.35.0, web 1.59.0, schema 14):
 - **The web app's phone layout already says what a phone needs.** A bar with Dashboard, Forecast, Bills & income, Calendar and More (usability phase 4); Forecast lines as cards that open to edit; Transactions folded into Forecast (1.32.6); Bills & income working like Forecast (1.34.0). The native app keeps that shape, so the two feel like one product.
@@ -105,6 +106,7 @@ All thirteen were settled on 2026-11-14: the answers are below and the reasoning
 - `apps/ios/WalletWeather.xcodeproj` for the app, and `apps/ios/WalletWeatherKit`, a local Swift package for everything with no screen: the API client, the models, money and date formatting. The package is tested with `swift test`, with no simulator.
 - System frameworks only: SwiftUI, Swift Charts, the Keychain, LocalAuthentication. Nothing to add to the licence list.
 - The system's own tab bar, navigation, lists and sheets, so iOS places and adapts them in each way the Duo can be held.
+- Liquid Glass throughout: the bar, the sheets and the round buttons use the system's glass, and the app's own cards and panels are glass too. All of it follows the phone's Liquid Glass setting (a slider from clear to tinted in iOS 27) and turns solid under Reduce Transparency or Increase Contrast.
 - The app has its own version number (from 0.1.0), listed in `CHANGELOG.md` beside the app, web and schema versions. It names the oldest server version it works with and checks `GET /api/version` on connecting.
 - Changes under `apps/ios` already don't rebuild the container image.
 
@@ -142,6 +144,7 @@ Depends on phone-path phase 2 (#42, API tokens). The biggest phase: it may take 
 - A server check on connecting: a server older than the app needs gets a plain message, not a broken screen.
 - The frame every page sits in: the five places of the web app's phone bar, one column when the Duo is closed or on any other iPhone, two panes when it's open. The system's own bar, which iOS stands down the right edge on the Duo. The round button beside the bar is kept for Search (phase 2); a page's own actions, such as +, sit in its top corner.
 - Light and dark, following the phone, with WalletWeather's colours.
+- Glass: the bar, sheets, round buttons and the cards are Liquid Glass. Checked with the phone's Liquid Glass setting at each end, with Reduce Transparency on and with Increase Contrast on: the numbers on a card must stay easy to read in every case, and the cards turn solid when the phone asks for less transparency.
 - Dashboard, read-only: the account cards (balance today, forecast and actual month-end, the month's low and high with their dates), "rest of this month", the charts with the Month / 30 days / 90 days switch, and pinned reports. Open Duo: accounts on the left half, charts on the right.
 - No connection, a slow server, an expired token and an expired Cloudflare session each get their own plain message with a retry.
 - Server, on top of #42: a "sign in an app" page that asks you to confirm and hands the app a code that works once, and an endpoint that swaps the code for a token named after the phone, so it shows and can be revoked in Settings; the "Open in WalletWeather" link in Settings. Tests for each new endpoint, and shape tests for `/api/version`, `/api/me`, `/api/accounts`, `/api/dashboard` and `/api/dashboard/charts`. The app and web versions bump.
@@ -199,7 +202,7 @@ Depends on phase 3. Each part is tried in the Duo simulator first and kept only 
 Depends on phase 2.
 
 - Under More, read-only: Net worth (the total, its chart, each account), Budgets (spent against each budget this month) and Reports (run a saved report; building one stays on the web).
-- The app's settings: the server and who's signed in, Sign out, appearance (Match the phone, Light, Dark, AMOLED black or Sepia; the last two are new looks, drawn in the mockups, and aren't among the web app's themes), the app lock (Touch ID or Face ID, offered once at first sign-in, or once after updating for people already signed in, and changeable here), "Open the web app" for everything that stays there, the Important notice, and the versions of the app and the server.
+- The app's settings: the server and who's signed in, Sign out, appearance (Match the phone, Light, Dark, AMOLED black or Sepia; the last two are new looks, drawn in the mockups, and aren't among the web app's themes; each look is checked at each end of the phone's Liquid Glass setting), the app lock (Touch ID or Face ID, offered once at first sign-in, or once after updating for people already signed in, and changeable here), "Open the web app" for everything that stays there, the Important notice, and the versions of the app and the server.
 - The numbers are hidden when the app shows in the app switcher.
 - The Admin pages stay on the web: an admin sees nothing extra in the app.
 - Server: shape tests for `/api/networth`, `/api/budgets/progress` and the saved-report endpoints the app calls.

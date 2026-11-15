@@ -65,7 +65,19 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.30.0** · Web version: **1.54.0** · Schema version: **14**
+App version: **1.31.0** · Web version: **1.55.0** · Schema version: **14**
+
+### Changed
+
+- **Tags are picked from a dropdown.** In the Forecast and Transactions line
+  editors, a Tags button shows the tags already chosen; pressing it opens a
+  list with a checkbox for each tag, so you can tick as many as you like. A
+  filter box at the top narrows a long list. Clicking elsewhere or pressing
+  Escape closes it. This replaces the row of every tag as clickable pills.
+- **An open line takes less space.** Save, Cancel and Delete sit on the same
+  line as the heading instead of stacked down the side, tags are one more
+  field among the others, and the spacing is tighter, so on a normal-width
+  window an open line is the heading plus about two rows of fields.
 
 ## [1.30.0] — 2026-11-14
 

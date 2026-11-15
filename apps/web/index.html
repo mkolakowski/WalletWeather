@@ -81,37 +81,59 @@
      visible width so every field stays on screen when the table scrolls
      sideways. */
   td.le-cell { padding:0 !important; background:color-mix(in srgb, var(--accent) 8%, transparent) !important; }
+  /* Compact (#69): buttons share the heading's line, fields and tags pack
+     into one grid, spacing is tight. */
   .line-editor { position:sticky; left:0; max-width:calc(100vw - 72px); box-sizing:border-box;
-                 display:flex; flex-wrap:wrap; gap:12px 18px; align-items:flex-start;
-                 padding:12px 14px; border-left:3px solid var(--accent); }
-  .line-editor .le-main { flex:1 1 560px; min-width:0; }
-  .line-editor .le-head { font-size:12px; color:var(--muted); margin:0 0 10px; }
+                 padding:8px 12px 10px; border-left:3px solid var(--accent); }
+  .line-editor .le-top { display:flex; align-items:center; justify-content:space-between; gap:6px 12px;
+                         flex-wrap:wrap; margin:0 0 6px; }
+  .line-editor .le-head { font-size:12px; color:var(--muted); min-width:0; }
   .line-editor .le-head strong { color:var(--text); font-weight:600; }
-  .line-editor .le-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
-                          gap:10px 12px; align-items:end; }
+  .line-editor .le-actions { display:flex; gap:6px; flex:0 0 auto; }
+  .line-editor .le-actions button { padding:4px 12px; font-size:13px; }
+  .line-editor .le-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(135px, 1fr));
+                          gap:6px 10px; align-items:end; }
   .line-editor .le-grid > .le-wide { grid-column:span 2; }
   .line-editor .le-grid > .hidden { display:none; }
-  .line-editor label { font-size:11px; margin:0 0 3px; }
-  .line-editor .le-grid input, .line-editor .le-grid select { width:100%; }
-  .line-editor .le-tags { margin-top:10px; display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
-  .line-editor .le-tags > label { margin:0; }
-  .line-editor .le-note { margin-top:10px; font-size:12px; color:var(--muted); }
-  .line-editor .le-status { color:var(--bad); font-size:12px; margin-top:8px; }
+  .line-editor label { font-size:10.5px; margin:0 0 2px; line-height:1.3; }
+  .line-editor .le-grid input, .line-editor .le-grid select { width:100%; padding:4px 6px; font-size:13px; }
+  .line-editor .le-note { margin-top:6px; font-size:12px; color:var(--muted); }
+  .line-editor .le-status { color:var(--bad); font-size:12px; margin-top:6px; }
   .line-editor .le-status:empty { display:none; }
-  .line-editor .le-actions { flex:0 0 120px; margin-left:auto; padding-top:24px;
-                             display:flex; flex-direction:column; gap:8px; }
-  .line-editor .le-actions button { width:100%; }
   @media (max-width: 768px) {
-    .line-editor { position:static; max-width:none; padding:10px; }
+    .line-editor { position:static; max-width:none; padding:8px 10px; }
     .line-editor .le-grid { grid-template-columns:1fr 1fr; }
-    .line-editor .le-actions { flex:1 1 100%; flex-direction:row; padding-top:0; }
-    .line-editor .le-actions button { flex:1; width:auto; }
+    .line-editor .le-actions { flex:1 1 100%; }
+    .line-editor .le-actions button { flex:1; }
     /* The Forecast phone layout styles open lines as a grid with a label
        before each cell; the line editor is one cell and labels itself. */
     #forecastTable:not(.sheet-mode) tbody tr.row-editing.le-row { display:block; padding:0; }
     #forecastTable:not(.sheet-mode) tbody tr.row-editing.le-row > td { display:block; }
     #forecastTable:not(.sheet-mode) tbody tr.row-editing.le-row > td::before { content:none !important; display:none; }
   }
+
+  /* Tag dropdown (#68): a button showing the chosen tags; the list floats
+     (position:fixed, placed by _placeTagMenu) so a scrolling table can't
+     clip it. */
+  .tag-dd { position:relative; }
+  .tag-dd-btn { width:100%; display:flex; align-items:center; gap:6px; text-align:left;
+                background:var(--bg-deep); color:var(--text); border:1px solid var(--border);
+                border-radius:6px; padding:3px 8px; min-height:28px; font-size:13px; cursor:pointer; }
+  .tag-dd-btn:hover { border-color:var(--accent); }
+  .tag-dd-btn .tag-dd-summary { flex:1; min-width:0; display:flex; gap:4px; overflow:hidden; white-space:nowrap; }
+  .tag-dd-btn .tag-dd-none { color:var(--muted); }
+  .tag-dd-btn .caret { color:var(--muted); flex:0 0 auto; }
+  .tag-dd-menu { position:fixed; z-index:950; background:var(--panel); border:1px solid var(--border);
+                 border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.35); padding:6px;
+                 width:min(280px, calc(100vw - 16px)); max-height:260px; overflow-y:auto; }
+  .tag-dd-menu.hidden { display:none; }
+  .tag-dd-menu .tag-dd-filter { width:100%; margin:0 0 4px; padding:4px 6px; font-size:13px; }
+  .tag-dd-menu .tag-dd-opt { display:flex; align-items:center; gap:8px; padding:5px 6px; margin:0;
+                             border-radius:6px; font-size:13px; color:var(--text); cursor:pointer; }
+  .tag-dd-menu .tag-dd-opt:hover { background:var(--chip-bg); }
+  .tag-dd-menu .tag-dd-opt input { width:auto; margin:0; }
+  .tag-dd-menu .tag-dd-sw { width:10px; height:10px; border-radius:3px; flex:0 0 auto; background:var(--muted); }
+  .tag-dd-menu .tag-dd-empty { color:var(--muted); font-size:12px; padding:6px; }
 
   /* A visible focus ring for keyboard users (#55); mouse clicks don't show it. */
   :is(button, a, input, select, textarea, [tabindex]):focus-visible {
@@ -607,7 +629,6 @@
               font-size:11px; background:var(--chip-bg); color:var(--muted);
               border:1px solid var(--border); line-height:1.5; white-space:nowrap; }
   .row-tag-chips { margin-top:3px; display:flex; flex-wrap:wrap; gap:3px; }
-  .tag-picker-row { display:flex; flex-wrap:wrap; gap:4px; margin-top:2px; }
   .tag-pill.tag-picker { user-select:none; }
   .tag-pill.tag-picker.on { font-weight:600; }
 
@@ -2250,7 +2271,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.54.0";
+const WEB_VERSION = "1.55.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2261,6 +2282,15 @@ const WEB_VERSION = "1.54.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.55.0 (2026-11-14, claude+mkolakowski): (#68) renderTagPicker() is now a
+//     dropdown (.tag-dd): a button with the chosen tags' chips opens a
+//     position:fixed checkbox list (_placeTagMenu) with a filter box past six
+//     tags; ids still go to the hidden input readTagPick() reads.
+//     _tagDropdownKey keeps Escape/Enter inside it (stopPropagation) so they
+//     don't cancel or save the line. _toggleTagPick and the pill row removed.
+//     (#69) The line editor is compact: .le-top holds the heading and a row
+//     of Save/Cancel/Delete; tags are a grid field (tagsId); tighter grid
+//     (135px min), padding and labels.
 // 1.54.0 (2026-11-14, claude+mkolakowski): (#66) One line editor:
 //     _lineEditorHtml() builds a labelled form in a single spanning cell
 //     (.line-editor: .le-grid of fields, .le-tags, .le-note, .le-status,
@@ -5080,57 +5110,114 @@ function renderTagChips(tagList) {
 // Render a multi-select tag picker for an inline-edit row. Each tag is a
 // clickable pill; the selected state is tracked in a hidden CSV input so
 // form code stays straightforward. `selectedIds` is an array of tag ids.
+// Tag dropdown (#68): a button listing the chosen tags opens a list with a
+// checkbox per tag (and a filter box when there are many). The chosen ids
+// are kept, comma-separated, in the hidden input `inputId`, which
+// readTagPick() reads, as the pill picker it replaces did.
 function renderTagPicker(inputId, selectedIds) {
   const selected = new Set((selectedIds || []).map(Number));
   if (!tags || !tags.length) {
-    return `<span style="color:var(--muted);font-size:12px">No tags yet. Create some in Settings → Tags.</span>
+    return `<button type="button" class="tag-dd-btn" id="${inputId}_btn" disabled>
+              <span class="tag-dd-summary"><span class="tag-dd-none">No tags yet (add them in Settings → Categories &amp; tags)</span></span></button>
             <input type="hidden" id="${inputId}" value="">`;
   }
-  const pills = tags.map(t => {
-    const on = selected.has(t.id);
-    const style = t.color
-      ? (on ? `background:${t.color};color:#fff;border-color:${t.color}`
-            : `background:${t.color}22;color:${t.color};border-color:${t.color}55`)
-      : '';
-    return `<span class="tag-pill tag-picker${on?' on':''}" data-tag-id="${t.id}"
-              style="${style};cursor:pointer;margin:2px 4px 2px 0"
-              onclick="_toggleTagPick(this, '${inputId}')">${escapeHtml(t.name)}</span>`;
-  }).join('');
-  const csv = Array.from(selected).join(',');
-  return `<div class="tag-picker-row">${pills}</div>
-          <input type="hidden" id="${inputId}" value="${csv}">`;
+  const opts = tags.map(t => `<label class="tag-dd-opt" data-name="${escapeAttr((t.name || '').toLowerCase())}">
+      <input type="checkbox" value="${t.id}"${selected.has(t.id) ? ' checked' : ''} onchange="_tagDropdownChanged('${inputId}')">
+      <span class="tag-dd-sw"${t.color ? ` style="background:${escapeAttr(t.color)}"` : ''}></span>${escapeHtml(t.name)}</label>`).join('');
+  const filter = tags.length > 6
+    ? `<input type="search" class="tag-dd-filter" placeholder="Filter tags" aria-label="Filter tags" oninput="_filterTagDropdown(this)">` : '';
+  return `<div class="tag-dd" id="${inputId}_dd" onkeydown="_tagDropdownKey(event, '${inputId}')">
+      <button type="button" class="tag-dd-btn" id="${inputId}_btn" aria-haspopup="true" aria-expanded="false"
+              onclick="toggleTagDropdown('${inputId}')">
+        <span class="tag-dd-summary">${_tagSummaryHtml(selected)}</span><span class="caret" aria-hidden="true">▾</span>
+      </button>
+      <div class="tag-dd-menu hidden" id="${inputId}_menu" role="group" aria-label="Tags">${filter}${opts}
+        <div class="tag-dd-empty hidden">No tags match.</div></div>
+      <input type="hidden" id="${inputId}" value="${Array.from(selected).join(',')}">
+    </div>`;
 }
-
-function _toggleTagPick(el, inputId) {
-  const id = Number(el.dataset.tagId);
-  if (!id) return;
-  const input = document.getElementById(inputId);
-  const cur = new Set((input.value || '').split(',').filter(Boolean).map(Number));
-  if (cur.has(id)) {
-    cur.delete(id);
-    el.classList.remove('on');
-  } else {
-    cur.add(id);
-    el.classList.add('on');
-  }
-  input.value = Array.from(cur).join(',');
-  // Re-paint the pill's fill state. The caller's color lookup is expensive
-  // to redo here, so fall back to class-driven styling via .tag-picker.on.
-  const t = (tags || []).find(x => x.id === id);
-  if (t && t.color) {
-    if (cur.has(id)) {
-      el.style.background = t.color;
-      el.style.color = '#fff';
-      el.style.borderColor = t.color;
-    } else {
-      el.style.background = t.color + '22';
-      el.style.color = t.color;
-      el.style.borderColor = t.color + '55';
-    }
+function _tagSummaryHtml(selected) {
+  const chosen = (tags || []).filter(t => selected.has(t.id));
+  return chosen.length ? renderTagChips(chosen) : '<span class="tag-dd-none">No tags</span>';
+}
+function toggleTagDropdown(inputId, show) {
+  const menu = document.getElementById(inputId + '_menu');
+  const btn = document.getElementById(inputId + '_btn');
+  if (!menu || !btn) return;
+  if (show === undefined) show = menu.classList.contains('hidden');
+  document.querySelectorAll('.tag-dd-menu:not(.hidden)').forEach(m => {
+    if (m !== menu) _closeTagMenu(m);
+  });
+  if (!show) { _closeTagMenu(menu); return; }
+  menu.classList.remove('hidden');
+  btn.setAttribute('aria-expanded', 'true');
+  _placeTagMenu(menu, btn);
+  const first = menu.querySelector('.tag-dd-filter') || menu.querySelector('input[type=checkbox]');
+  if (first) first.focus();
+}
+function _closeTagMenu(menu) {
+  menu.classList.add('hidden');
+  const btn = document.getElementById(menu.id.replace(/_menu$/, '_btn'));
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+// Below the button, or above it when there's no room underneath.
+function _placeTagMenu(menu, btn) {
+  const r = btn.getBoundingClientRect();
+  const w = Math.min(280, window.innerWidth - 16);
+  menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+  const h = Math.min(menu.scrollHeight || 260, 260);
+  const below = window.innerHeight - r.bottom;
+  menu.style.top = (below < h + 8 && r.top > below ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+}
+function _tagDropdownChanged(inputId) {
+  const menu = document.getElementById(inputId + '_menu');
+  const ids = [...menu.querySelectorAll('input[type=checkbox]:checked')].map(cb => Number(cb.value));
+  document.getElementById(inputId).value = ids.join(',');
+  const btn = document.getElementById(inputId + '_btn');
+  btn.querySelector('.tag-dd-summary').innerHTML = _tagSummaryHtml(new Set(ids));
+}
+function _filterTagDropdown(input) {
+  const q = input.value.trim().toLowerCase();
+  const menu = input.closest('.tag-dd-menu');
+  let shown = 0;
+  menu.querySelectorAll('.tag-dd-opt').forEach(o => {
+    const on = !q || o.dataset.name.includes(q);
+    o.classList.toggle('hidden', !on);
+    if (on) shown++;
+  });
+  menu.querySelector('.tag-dd-empty').classList.toggle('hidden', shown > 0);
+}
+// Keys inside the dropdown stay inside it: Escape closes the list (not the
+// whole line editor) and Enter never submits the line.
+function _tagDropdownKey(ev, inputId) {
+  const menu = document.getElementById(inputId + '_menu');
+  const open = menu && !menu.classList.contains('hidden');
+  if (ev.key === 'Escape' && open) {
+    ev.preventDefault(); ev.stopPropagation();
+    toggleTagDropdown(inputId, false);
+    document.getElementById(inputId + '_btn').focus();
+  } else if (ev.key === 'Enter') {
+    ev.stopPropagation();
+    if (ev.target.type === 'checkbox') { ev.preventDefault(); ev.target.click(); }
+    else if (ev.target.classList.contains('tag-dd-filter')) ev.preventDefault();
+  } else if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+    if (!open) return;
+    const items = [...menu.querySelectorAll('.tag-dd-filter, .tag-dd-opt:not(.hidden) input')];
+    const i = items.indexOf(document.activeElement);
+    const next = items[Math.max(0, Math.min(items.length - 1, i + (ev.key === 'ArrowDown' ? 1 : -1)))];
+    if (next) { ev.preventDefault(); next.focus(); }
   }
 }
+// Clicking anywhere else, scrolling or resizing closes an open list.
+document.addEventListener('click', (ev) => {
+  if (ev.target.closest && ev.target.closest('.tag-dd')) return;
+  document.querySelectorAll('.tag-dd-menu:not(.hidden)').forEach(_closeTagMenu);
+});
+['resize', 'scroll'].forEach(type => window.addEventListener(type, (ev) => {
+  if (ev.target && ev.target.closest && ev.target.closest('.tag-dd-menu')) return;
+  document.querySelectorAll('.tag-dd-menu:not(.hidden)').forEach(_closeTagMenu);
+}, true));
 
-// Read a tag-picker hidden input and return an integer array, or [] if blank.
 function readTagPick(inputId) {
   const v = (document.getElementById(inputId) || {}).value || '';
   return v.split(',').filter(Boolean).map(x => parseInt(x, 10)).filter(n => !Number.isNaN(n));
@@ -6509,20 +6596,22 @@ async function saveForecastRowEdit(rowKey) {
 // Builds the labelled form a line turns into while it's edited, the same on
 // Forecast, Transactions and Bills & income. `fields`: [{label, id, html,
 // wide, hidden, wrapId}]; `tags`: picker HTML or ''; `actions`: buttons HTML.
-function _lineEditorHtml({ colspan, head, fields, tags, note, statusId, actions, onKey }) {
+function _lineEditorHtml({ colspan, head, fields, tags, tagsId, note, statusId, actions, onKey }) {
   const cells = fields.map(f =>
     `<div${f.wrapId ? ` id="${f.wrapId}"` : ''} class="${[f.wide ? 'le-wide' : '', f.hidden ? 'hidden' : ''].join(' ').trim()}">
        <label for="${f.id}"${f.labelId ? ` id="${f.labelId}"` : ''}>${f.label}</label>${f.html}</div>`).join('');
+  // Tags are one more field in the grid (#69), labelled for the dropdown's button.
+  const tagCell = tags
+    ? `<div class="le-wide"><label for="${tagsId}_btn">Tags</label>${tags}</div>` : '';
   return `<td colspan="${colspan}" class="le-cell"${onKey ? ` onkeydown="${onKey}"` : ''}>
     <div class="line-editor" role="group" aria-label="Edit line">
-      <div class="le-main">
-        ${head ? `<div class="le-head">${head}</div>` : ''}
-        <div class="le-grid">${cells}</div>
-        ${tags ? `<div class="le-tags"><label>Tags</label>${tags}</div>` : ''}
-        ${note ? `<div class="le-note">${note}</div>` : ''}
-        <div class="le-status" id="${statusId}" role="alert"></div>
+      <div class="le-top">
+        <div class="le-head">${head || ''}</div>
+        <div class="le-actions">${actions}</div>
       </div>
-      <div class="le-actions">${actions}</div>
+      <div class="le-grid">${cells}${tagCell}</div>
+      ${note ? `<div class="le-note">${note}</div>` : ''}
+      <div class="le-status" id="${statusId}" role="alert"></div>
     </div></td>`;
 }
 // A mistake in an open line editor: said under its fields, field focused.
@@ -6567,6 +6656,7 @@ function _renderForecastLineEditor(r) {
     ],
     // Tags attach to saved transactions only; a projection has nothing yet.
     tags: r.transaction_id ? renderTagPicker('editFcTags', (r.tags || []).map(t => t.id)) : '',
+    tagsId: 'editFcTags',
     note,
     statusId: 'fcEditStatus',
     actions: `<button onclick="saveEditedForecastRow('${k}')" title="Save (Enter)">Save</button>
@@ -8063,6 +8153,7 @@ function _renderTxnSearchEditRow(r) {
       { label: 'Notes', id: 'editTxnNotes', wide: true, html: `<input id="editTxnNotes" maxlength="256" value="${v(r.notes)}">` },
     ],
     tags: renderTagPicker('editTxnTags', (r.tags || []).map(t => t.id)),
+    tagsId: 'editTxnTags',
     statusId: 'editTxnStatus',
     onKey: `onTxnEditKey(event, ${r.id})`,
     actions: `<button onclick="saveTxnRowEdit(${r.id})" title="Save (Enter)">Save</button>

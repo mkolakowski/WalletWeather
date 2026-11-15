@@ -37,7 +37,7 @@ Sessions: may span — each phase ends with a release and your check on a phone 
 - Each token is full access or read-only, chosen when it's created.
 - Expiry dates, last-used times, the admin view of tokens and password sign-in that returns a token wait for phase 3.
 
-**Out of scope:** the native apps themselves, push notifications, offline viewing or editing of data, limiting a token to chosen accounts.
+**Out of scope:** the native apps themselves, push notifications, offline viewing or editing of data, limiting a token to chosen accounts. The native iOS app has its own plan, `Plans/ios-app.md` (#93); its first phase waits on phase 2 here.
 
 ### Phase 1: Installable web app
 

@@ -3,21 +3,25 @@
 Placeholder for a native iOS app. Nothing here is built or published yet,
 and changes in this folder don't trigger the container build.
 
-## Getting started
+## The plan
 
-1. In Xcode, create a new project (App, SwiftUI) named `WalletWeather` and
-   save it **in this folder**, so you end up with
-   `apps/ios/WalletWeather.xcodeproj`.
-2. Point the app at your server's `APP_BASE_URL` and talk to the same JSON
-   API the web client uses (`/api/...`). The live schema is at
-   `<APP_BASE_URL>/docs` (and `/openapi.json`) on a running server.
+[`Plans/ios-app.md`](../../Plans/ios-app.md) (tracking issue #93) is the plan
+for this app: what it covers, how it signs in, how it uses the iPhone Duo's
+inner screen, and the phases it ships in. This folder stays a placeholder
+until that plan's phase 1.
 
 ## Things to know
 
-- Sign-in is cookie-based today (`POST /api/auth/login` sets a session
-  cookie). `URLSession` keeps cookies by default, so that works for a first
-  version; a token-based login can be added to the server later if needed.
-- Keep secrets (server URL presets, OAuth client IDs) out of the repo.
+- The app will be a SwiftUI project in this folder
+  (`apps/ios/WalletWeather.xcodeproj`) with a local Swift package for the API
+  client (`apps/ios/WalletWeatherKit`), and no third-party packages.
+- It talks to the same JSON API the web client uses (`/api/...`). The live
+  list of endpoints is at `<APP_BASE_URL>/docs` (and `/openapi.json`) on a
+  running server; it doesn't describe what each one returns, so the plan adds
+  tests for the responses the app reads.
+- Sign-in will use an API token (`Plans/phone-path.md`, phase 2), not the
+  session cookie the web client uses.
+- Keep secrets (server addresses, tokens, signing files) out of the repo.
 - Xcode build output is already ignored in the root `.gitignore`.
 
 ## Before listing in the App Store

@@ -205,6 +205,12 @@ above.
 Per-posting file uploads (image/PDF), stored encrypted on disk. Nice but
 storage and backup story gets complicated quickly. **Effort: medium.**
 
+### 26. Native iOS app
+A SwiftUI app for iPhone that signs in to your own server with an API token
+(item 16) and covers the everyday pages: Dashboard, Forecast, Bills & income
+and Calendar, with two-pane layouts on the iPhone Duo's inner screen. Planned
+in `Plans/ios-app.md` (#93). **Effort: large.**
+
 ---
 
 ## What's already in good shape (don't re-prioritize these)

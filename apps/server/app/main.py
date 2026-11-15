@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.39.0"
+APP_VERSION = "1.39.1"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -36,6 +36,7 @@ APP_VERSION = "1.39.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.39.1 (2026-11-15, claude+mkolakowski): no server change; web 1.61.9 (Repeats dropdown only as wide as Bi-weekly, #116).
 # 1.39.0 (2026-11-14, claude+mkolakowski): no server change; web 1.61.8 (tag picker and Repeats/Tags headings in Forecast's add row, #114).
 # 1.38.0 (2026-11-14, claude+mkolakowski): no server change; web 1.61.7 (one Repeats dropdown in Forecast's add row and the Bills & income add form, #109 #110).
 # 1.37.5 (2026-11-14, claude+mkolakowski): no server change; web 1.61.5 (add row headings follow Repeats and Every, #107).

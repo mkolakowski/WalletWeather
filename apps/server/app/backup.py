@@ -8,9 +8,29 @@ from datetime import date, datetime
 from decimal import Decimal
 from sqlalchemy.orm import Session
 
-from .db import User, Account, RecurringTransaction, RecurringSkip, Transaction, Category, AccountPermission
+from .db import (
+    User, Account, RecurringTransaction, RecurringSkip, RecurringTag, Transaction,
+    TransactionTag, Category, AccountPermission, Tag, TagRule,
+)
 
-BACKUP_VERSION = 3
+# 4 (#117): tags, tag rules, and each recurring item's and transaction's tag
+# names. Every addition is an optional key, so older backups still import.
+BACKUP_VERSION = 4
+TAG_NAME_MAX = 60          # Tag.name's column size
+TAG_RULE_PATTERN_MAX = 120
+
+
+def _tag_names(db: Session, link, key: str, ids: list[int]) -> dict[int, list[str]]:
+    """`{id: [tag names]}` for a batch of recurring items or transactions
+    (`link` is RecurringTag or TransactionTag, `key` its id column)."""
+    if not ids:
+        return {}
+    col = getattr(link, key)
+    out: dict[int, list[str]] = {}
+    for item_id, name in (db.query(col, Tag.name).join(Tag, Tag.id == link.tag_id)
+                            .filter(col.in_(ids)).order_by(Tag.name).all()):
+        out.setdefault(item_id, []).append(name)
+    return out
 
 
 def export_user(db: Session, user: User, accounts: list | None = None) -> dict:
@@ -21,12 +41,28 @@ def export_user(db: Session, user: User, accounts: list | None = None) -> dict:
         {"name": c.name, "color": c.color}
         for c in db.query(Category).filter_by(owner_id=user.id).all()
     ]
+    tags_out = [
+        {"name": t.name, "color": t.color}
+        for t in db.query(Tag).filter_by(owner_id=user.id).order_by(Tag.name).all()
+    ]
+    tag_rules_out = []
+    for r in db.query(TagRule).filter_by(owner_id=user.id).order_by(TagRule.id).all():
+        tag, cat = db.get(Tag, r.tag_id), (db.get(Category, r.category_id) if r.category_id else None)
+        if not tag:
+            continue
+        tag_rules_out.append({
+            "name": r.name, "description_pattern": r.description_pattern,
+            "category_name": cat.name if cat else None, "tag_name": tag.name,
+            "active": r.active,
+        })
 
     if accounts is None:
         accounts = db.query(Account).filter_by(owner_id=user.id).all()
 
     accounts_out = []
     for acc in accounts:
+        rec_tags = _tag_names(db, RecurringTag, "recurring_id", [r.id for r in acc.recurring])
+        txn_tags = _tag_names(db, TransactionTag, "transaction_id", [t.id for t in acc.transactions])
         accounts_out.append({
             "name": acc.name,
             "starting_balance": float(acc.starting_balance),
@@ -43,6 +79,7 @@ def export_user(db: Session, user: User, accounts: list | None = None) -> dict:
                     "active": r.active,
                     "category_name": r.category.name if r.category else None,
                     "notes": r.notes,
+                    "tags": rec_tags.get(r.id, []),
                     # Occurrences deleted from the forecast. Older backups
                     # lack this key; restore treats that as "none".
                     "skipped_dates": sorted(
@@ -63,6 +100,7 @@ def export_user(db: Session, user: User, accounts: list | None = None) -> dict:
                     "recurring_description": _rec_desc_for(t),
                     "category_name": t.category.name if t.category else None,
                     "notes": t.notes,
+                    "tags": txn_tags.get(t.id, []),
                 }
                 for t in acc.transactions
             ],
@@ -73,6 +111,8 @@ def export_user(db: Session, user: User, accounts: list | None = None) -> dict:
         "exported_at": datetime.utcnow().isoformat() + "Z",
         "user": {"email": user.email, "name": user.name},
         "categories": categories_out,
+        "tags": tags_out,
+        "tag_rules": tag_rules_out,
         "accounts": accounts_out,
     }
 
@@ -95,13 +135,14 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
                 account_names: list[str] | None = None) -> dict:
     """Import a previously exported payload into `user`'s account.
 
-    mode='replace' — delete the user's existing accounts and categories first.
-    mode='merge'   — keep existing data and add alongside. Categories with the
-                     same name are reused; new ones are created.
+    mode='replace' — delete the user's existing accounts, categories and tags
+                     (and their tag rules) first.
+    mode='merge'   — keep existing data and add alongside. Categories and tags
+                     with the same name are reused; new ones are created.
     account_names  — if provided, only import accounts whose name is in this list.
                      If None, every account in the backup is imported.
 
-    Returns a small summary dict. Accepts backups from version 1 and 2.
+    Returns a small summary dict. Accepts backups from versions 1 to 4.
     """
     if not isinstance(payload, dict) or "accounts" not in payload:
         raise ValueError("Not a valid backup file (missing 'accounts').")
@@ -118,9 +159,13 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
             db.delete(acc)
         for cat in db.query(Category).filter_by(owner_id=user.id).all():
             db.delete(cat)
+        # Deleting a tag removes its links and rules (ON DELETE CASCADE).
+        for tag in db.query(Tag).filter_by(owner_id=user.id).all():
+            db.delete(tag)
         db.flush()
 
-    counts = {"categories": 0, "accounts": 0, "recurring": 0, "transactions": 0}
+    counts = {"categories": 0, "accounts": 0, "recurring": 0, "transactions": 0,
+              "tags": 0, "tag_rules": 0}
 
     cat_by_name: dict[str, Category] = {}
     for c in db.query(Category).filter_by(owner_id=user.id).all():
@@ -134,6 +179,45 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
         db.flush()
         cat_by_name[name] = cat
         counts["categories"] += 1
+
+    # Tags are matched by name. One that's used but not listed (a tag from
+    # someone else's share, or a hand-edited file) is created without a colour.
+    tag_by_name: dict[str, Tag] = {t.name: t for t in db.query(Tag).filter_by(owner_id=user.id).all()}
+
+    def get_tag(name, color=None) -> Tag | None:
+        name = str(name or "").strip()[:TAG_NAME_MAX]
+        if not name:
+            return None
+        if name not in tag_by_name:
+            tag = Tag(owner_id=user.id, name=name, color=color)
+            db.add(tag)
+            db.flush()
+            tag_by_name[name] = tag
+            counts["tags"] += 1
+        return tag_by_name[name]
+
+    for tg in payload.get("tags") or []:
+        if isinstance(tg, dict):
+            get_tag(tg.get("name"), tg.get("color"))
+
+    seen_rules = {(r.description_pattern, r.tag_id, r.category_id)
+                  for r in db.query(TagRule).filter_by(owner_id=user.id).all()}
+    for rd in payload.get("tag_rules") or []:
+        if not isinstance(rd, dict):
+            continue
+        pattern = str(rd.get("description_pattern") or "").strip().lower()[:TAG_RULE_PATTERN_MAX]
+        tag = get_tag(rd.get("tag_name"))
+        if not pattern or tag is None:
+            continue
+        cat = cat_by_name.get(rd.get("category_name")) if rd.get("category_name") else None
+        key = (pattern, tag.id, cat.id if cat else None)
+        if key in seen_rules:
+            continue
+        seen_rules.add(key)
+        db.add(TagRule(owner_id=user.id, name=(rd.get("name") or None), description_pattern=pattern,
+                       category_id=cat.id if cat else None, tag_id=tag.id,
+                       active=bool(rd.get("active", True))))
+        counts["tag_rules"] += 1
 
     for acc_data in payload["accounts"]:
         if not isinstance(acc_data, dict):
@@ -173,6 +257,8 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
             db.flush()
             for sd in {_parse_date(x) for x in r_data.get("skipped_dates") or []} - {None}:
                 db.add(RecurringSkip(recurring_id=rec.id, skip_date=sd))
+            for tag in {tg.id: tg for tg in (get_tag(n) for n in r_data.get("tags") or []) if tg}.values():
+                db.add(RecurringTag(recurring_id=rec.id, tag_id=tag.id))
             rec_by_desc[rec.description] = rec
             counts["recurring"] += 1
 
@@ -194,6 +280,11 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
                 t.recurring_id = rec_by_desc[rec_desc].id
             db.add(t)
             counts["transactions"] += 1
+            t_tags = {tg.id: tg for tg in (get_tag(n) for n in t_data.get("tags") or []) if tg}
+            if t_tags:
+                db.flush()   # need t.id for the links
+                for tag in t_tags.values():
+                    db.add(TransactionTag(transaction_id=t.id, tag_id=tag.id))
 
     db.commit()
     return counts

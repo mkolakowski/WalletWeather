@@ -67,6 +67,16 @@ same commit (or session) that introduces it.
 
 App version: **1.47.0** · Web version: **1.69.0** · Schema version: **18**
 
+### Fixed
+
+- Backups now include your tags, your tag rules and which tags are on each
+  bill, income item and transaction. Before, exporting and restoring a backup
+  (yours, or the scheduled and admin system backups) lost every tag. Restoring
+  matches tags by name: your own are reused, missing ones are created, and
+  importing the same file twice doesn't repeat tags or rules. Backup files are
+  now version 4: older backups still import, but a version 4 file can't be
+  imported by an older WalletWeather.
+
 ## [1.47.0] — 2026-11-15
 
 App version: **1.47.0** · Web version: **1.69.0** · Schema version: **18**

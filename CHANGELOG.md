@@ -65,7 +65,19 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.32.1** · Web version: **1.56.1** · Schema version: **14**
+App version: **1.32.2** · Web version: **1.56.2** · Schema version: **14**
+
+### Fixed
+
+- On the Forecast page, the date and amount columns were too narrow while a
+  line was open, so dates showed as "11/01/2" and amounts were cut off. They
+  now get the width they need.
+
+### Changed
+
+- The Notes column is wider on Forecast and Bills & income; a long note ends
+  in "…" and shows in full when you hover over it.
+- The ✎ button sits at the right end of each row.
 
 ## [1.32.1] — 2026-11-14
 

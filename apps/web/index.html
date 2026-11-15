@@ -100,21 +100,28 @@
   .le-spacer { display:flex; gap:6px; visibility:hidden; height:0; overflow:hidden; pointer-events:none; }
   .le-spacer button { min-height:0; height:0; padding:0 14px; font-size:13px; border-width:1px; }
   @media (min-width: 769px) {
-    #forecastTable thead th:is(:nth-child(2), :nth-child(3)) { width:142px; }
-    #forecastTable thead th:nth-child(4) { width:150px; }
-    #forecastTable thead th:is(:nth-child(5), :nth-child(6)) { width:120px; }
-    #txnSearchTable thead th:is(:nth-child(2), :nth-child(3)) { width:142px; }
-    #txnSearchTable thead th:nth-child(5) { width:150px; }
-    #txnSearchTable thead th:nth-child(6) { width:160px; }
-    #txnSearchTable thead th:is(:nth-child(7), :nth-child(8)) { width:110px; }
-    #recurringTable thead th:nth-child(3) { width:120px; }
-    #recurringTable thead th:nth-child(4) { width:150px; }
-    #recurringTable thead th:nth-child(5) { width:110px; }
-    #recurringTable thead th:nth-child(6) { width:96px; }
-    #recurringTable thead th:nth-child(7) { width:142px; }
-    #recurringTable thead th:nth-child(8) { width:150px; }
-    #recurringTable thead th:nth-child(9) { width:142px; }
+    /* "table#…" outranks the older "width:1%" rule on the paired date and
+       amount columns, which otherwise wins and squeezes the open line's
+       inputs (1.56.1 shipped with that bug). */
+    table#forecastTable thead th:is(:nth-child(2), :nth-child(3)) { width:142px; }
+    table#forecastTable thead th:nth-child(4) { width:150px; }
+    table#forecastTable thead th:is(:nth-child(5), :nth-child(6)) { width:120px; }
+    table#forecastTable thead th:nth-child(11) { width:240px; }
+    table#txnSearchTable thead th:is(:nth-child(2), :nth-child(3)) { width:142px; }
+    table#txnSearchTable thead th:nth-child(5) { width:150px; }
+    table#txnSearchTable thead th:nth-child(6) { width:160px; }
+    table#txnSearchTable thead th:is(:nth-child(7), :nth-child(8)) { width:110px; }
+    table#recurringTable thead th:nth-child(3) { width:120px; }
+    table#recurringTable thead th:nth-child(4) { width:150px; }
+    table#recurringTable thead th:nth-child(5) { width:110px; }
+    table#recurringTable thead th:nth-child(6) { width:96px; }
+    table#recurringTable thead th:nth-child(7) { width:142px; }
+    table#recurringTable thead th:nth-child(8) { width:150px; }
+    table#recurringTable thead th:nth-child(9) { width:142px; }
+    table#recurringTable thead th:nth-child(10) { width:200px; }
   }
+  /* The ✎ (and read-only badge) sit at the right end of the row. */
+  :is(#forecastTable, #recurringTable, #txnSearchTable) tbody tr:not(.le-inline):not(.today-marker) > td:last-child { text-align:right; }
   tr.le-inline .le-pair { display:flex; gap:6px; align-items:flex-end; }
   tr.le-inline .le-pair > .le-f { flex:1 1 0; min-width:0; }
   tr.le-inline .le-pair > .le-f.hidden { display:none; }
@@ -327,7 +334,9 @@
   .report-checklist { max-height:120px; overflow-y:auto; align-content:flex-start; }
   .report-checklist .empty { color:var(--muted); font-size:12px; }
   .account-checklist input[type="checkbox"] { width:auto; margin:0; }
-  .notes-col { max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* max-width:0 lets the Notes column keep its header's width (240px on
+     desktop) and cut long notes off with "…" instead of growing. */
+  .notes-col { max-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .notes-col.muted { color:var(--muted); }
   .pagination { display:flex; justify-content:space-between; align-items:center;
                 margin-top:14px; gap:12px; flex-wrap:wrap; }
@@ -2299,7 +2308,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.56.1";
+const WEB_VERSION = "1.56.2";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2310,6 +2319,12 @@ const WEB_VERSION = "1.56.1";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.56.2 (2026-11-14, claude+mkolakowski): (#69) Fixed: the column widths
+//     from 1.56.1 lost to the older "width:1%" rule on Forecast's date and
+//     amount columns (equal specificity, later in the file), squeezing the
+//     open line's dates and amounts; they're now "table#…". Notes columns get
+//     a width (Forecast 240px, Bills 200px) and .notes-col uses max-width:0
+//     so long notes end in "…" at that width. The ✎ is right-aligned.
 // 1.56.1 (2026-11-14, claude+mkolakowski): (#69) Columns keep the same width
 //     with or without a line open: open-line fields take no width of their
 //     own (.le-f width:0; min-width:100%), the field columns get the widths

@@ -1258,18 +1258,11 @@
     </div>
 
     <div id="pageSubscriptions" class="hidden">
-      <!-- Bills & income (#51), laid out like Forecast (#81): account tabs
-           (All accounts first), an actions panel, the totals, the add form,
-           then the table with its controls and spreadsheet mode. The page
-           keeps its internal name and #subscriptions address. -->
+      <!-- Bills & income (#51), laid out like Forecast (#81, #130): account tabs
+           (All accounts first), the totals, then the table with its controls
+           row (+ Add recurring, Active / Archived, Spreadsheet mode, paging).
+           The page keeps its internal name and #subscriptions address. -->
       <div class="accounts-bar" id="recAccountsBar"></div>
-
-      <div class="panel" id="recActionsPanel">
-        <h2>Bills &amp; income</h2>
-        <div class="row">
-          <div style="flex:0 0 auto"><button id="recAddBtn" onclick="toggleRecAddForm(true)">+ Add recurring</button></div>
-        </div>
-      </div>
 
       <div id="recTotalsScope" style="font-size:12px;color:var(--muted);margin:0 0 6px"
            title="Weekly and biweekly items are converted to a monthly figure so everything lines up"></div>
@@ -1277,6 +1270,12 @@
 
       <div class="panel" id="txnRecurringPanel">
         <div class="fc-controls">
+          <!-- Like Forecast's (#130): the add button at the start of the
+               controls row, set apart by a divider; hidden on accounts you
+               can't edit (syncRecAccountSelect). -->
+          <div class="fc-actions" id="recActions" role="group" aria-label="Bills and income actions">
+            <button id="recAddBtn" onclick="toggleRecAddForm(true)">+ Add recurring</button>
+          </div>
           <div class="fc-left">
             <div class="ctl" role="group" aria-label="Show">
               <button id="recTabActive" class="tab small active" onclick="switchRecView('active')">Active</button>
@@ -2456,7 +2455,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.68.1";
+const WEB_VERSION = "1.69.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2467,6 +2466,7 @@ const WEB_VERSION = "1.68.1";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.69.0 (2026-11-15, claude+mkolakowski): (#130) Bills & income: + Add recurring moves into the table's controls row as .fc-actions (#recActions, hidden when no account is editable), like Forecast's Add transaction; the separate #recActionsPanel ("Bills & income" heading + button) is gone.
 // 1.68.1 (2026-11-15, claude+mkolakowski): (#129) Bills & income date columns have min-width:130px so a whole date shows while editing; windows too narrow for that (under about 1250px) get the phone cards.
 // 1.68.0 (2026-11-15, claude+mkolakowski): (#129) Bills & income: + Add recurring opens an inline add line at the top of #recurringTable (_buildRecAddRow / _recAddRowEl, put back by renderRecurring via _placeRecAddRow; account dropdown only on All accounts), replacing #recAddPanel. Add line and edit rows take a signed Amount (Type dropdown gone) and the day from the start date (Day of month gone; _nextDayOfMonth fills a missing start date, which spreadsheet mode doesn't count as a change); onEditFreqChange removed.
 // 1.67.0 (2026-11-15, claude+mkolakowski): (#128) Bills & income on Forecast's column grid: Description | Start date | Ends | Category | Amount | Account | Repeats (recRepeatLabel replaces subsFrequencyLabel) | Monthly | Yearly | Tags | Notes+✎ (.notes-edit, colspan 2) | spacer; widths like Forecast's, 34px one-line rows (only the description wraps), tags in their own column (.rec-tags), edit rows in the same column order; Start date sorts (anchor_date).
@@ -5257,7 +5257,7 @@ function syncRecAccountSelect() {
   if (accounts.length) make('', 'All accounts');
   accounts.forEach(a => make(String(a.id), _accountTabHtml(a)));
   _markRecTabs();
-  document.getElementById('recAddBtn').classList.toggle('hidden', !_recEditableAccounts().length);
+  document.getElementById('recActions').classList.toggle('hidden', !_recEditableAccounts().length);
 }
 function _markRecTabs() {
   document.querySelectorAll('#recAccountsBar .account-tab').forEach(el => {

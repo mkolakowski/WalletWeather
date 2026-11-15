@@ -65,7 +65,15 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.46.1** · Web version: **1.68.1** · Schema version: **18**
+App version: **1.46.1** · Web version: **1.69.0** · Schema version: **18**
+
+### Changed
+
+- On Bills & income, **+ Add recurring** now sits at the start of the table's
+  controls row, with a divider after it, like Forecast's Add transaction, and
+  the separate "Bills & income" panel above the totals is gone. On a phone it
+  is a full-width button above the other controls. It still hides on accounts
+  you can't edit.
 
 ## [1.46.1] — 2026-11-15
 

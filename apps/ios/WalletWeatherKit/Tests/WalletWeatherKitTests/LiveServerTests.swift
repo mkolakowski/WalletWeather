@@ -72,3 +72,54 @@ struct LiveForecastTests {
         #expect(try await client.searchTransactions(draft.name).total == 0)
     }
 }
+
+/// Bills & income and moving money (#89) against a real server, only when
+/// one is given (a demo server; it changes that server's data):
+///   WW_LIVE_SERVER=http://localhost:8300 WW_LIVE_EDIT_TOKEN=ww_… swift test
+@Suite(.enabled(if: ProcessInfo.processInfo.environment["WW_LIVE_EDIT_TOKEN"] != nil), .serialized)
+struct LiveBillsTests {
+    let client: APIClient
+    let today = LocalDay.today()
+
+    init() throws {
+        let env = ProcessInfo.processInfo.environment
+        let server = try #require(env["WW_LIVE_SERVER"].flatMap(URL.init(string:)))
+        client = APIClient(connection: Connection(server: server, token: env["WW_LIVE_EDIT_TOKEN"]))
+    }
+
+    @Test func addSkipThenEndABill() async throws {
+        let account = try #require(try await client.accounts().first(where: \.canEdit))
+        var draft = BillDraft(today: today)
+        draft.name = "Live bill \(UUID().uuidString.prefix(6))"
+        draft.amountText = "12.34"
+        draft.frequency = .weekly
+        try await client.addRecurring(draft, account: account.id)
+        let added = try #require(try await client.recurring(account: account.id).items.first { $0.description == draft.name })
+        #expect(added.amount == Money(Decimal(string: "-12.34")!) && added.nextDate == today && added.nextDates.count == 6)
+
+        try await client.skip(added, on: added.nextDates[0])
+        let skipped = try #require(try await client.recurring(account: account.id).items.first { $0.id == added.id })
+        #expect(skipped.nextDate == added.nextDates[1])
+
+        // It shows on the Calendar on its next date.
+        let month = YearMonth(added.nextDates[1])
+        let cal = try await client.calendar(month, account: account.id)
+        #expect(cal.events(on: added.nextDates[1]).contains { $0.recurringId == added.id })
+
+        let yesterday = LocalDay.today(now: Date().addingTimeInterval(-86_400))
+        try await client.updateRecurring(added.id, RecurringBody(ending: skipped, after: yesterday))
+        #expect(try await client.recurring(account: account.id).items.contains { $0.id == added.id } == false)
+        #expect(try await client.recurring(account: account.id, ended: true).items.contains { $0.id == added.id })
+    }
+
+    @Test func moveMoney() async throws {
+        let editable = try await client.accounts().filter(\.canEdit)
+        try #require(editable.count >= 2)
+        var draft = MoveMoneyDraft(today: today, from: editable[0].id, to: editable[1].id)
+        draft.amountText = "1.23"
+        let moved = try await client.moveMoney(try #require(TransferBody(draft)))
+        #expect(moved.amount == Money(Decimal(string: "1.23")!) && moved.toAccountName == editable[1].name)
+        let rows = try await client.forecast(account: editable[1].id, month: YearMonth(today)).rows
+        #expect(rows.contains { $0.isTransfer && $0.isPaid && $0.amount == moved.amount })
+    }
+}

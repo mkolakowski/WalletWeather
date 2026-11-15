@@ -152,3 +152,14 @@ Decisions made while planning [`Plans/ios-app.md`](../../../Plans/ios-app.md) (t
 - **Tapping a search result opens its editor right there** (a sheet closed, the right half open). The other option was jumping to the line in Forecast, on its account and month.
 
 **What it changes:** phase 2 (#88). Found on the way: a line on an account shared for editing carries the owner's category, which the server refused when the line was saved with it, so server 1.52.0 lets a save keep the category a line already has.
+
+## 2026-11-15: the Calendar's accounts, moving money, skipping and ending
+
+**Decided:** 2026-11-15, by Matthew, while starting phase 3 (#89). **Status:** accepted.
+
+- **The Calendar shows all accounts, or one you pick,** as the web app's does; picking one adds each day's closing balance (the server has a balance only for one account). The other option was one account at a time, like Forecast.
+- **+ becomes a menu** on Forecast, Bills & income and Calendar: the page's own Add (a transaction, or a bill or income) and Move money. The other option was a separate button beside +.
+- **Skip once picks from the next six dates,** the next one first. The other option was the next date only. The server sends the dates (`next_dates` on `/api/recurring`, from 1.53.0), so the app still does no forecasting of its own.
+- **End asks for the last date,** today by default; the item stops after it and moves to Ended. The other option was ending today in one tap.
+
+**What it changes:** phase 3 (#89). `/api/subscriptions`, listed in the phase for a shape test, isn't called by the app: the web app's Bills & income page reads `/api/recurring` too, so it was left out.

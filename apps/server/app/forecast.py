@@ -65,6 +65,24 @@ def _occurrences(rec: RecurringTransaction, start: date, end: date):
             occ += timedelta(days=step)
 
 
+def upcoming_dates(rec: RecurringTransaction, today: date, skipped: set, paid: set,
+                   count: int = 6) -> list[date]:
+    """The next `count` dates of a repeating item from `today` on, leaving
+    out dates deleted from the forecast (`skipped`) and dates already paid
+    (`paid`, a cleared transaction saved for that date). Empty for an item
+    that's switched off or has ended. Looks up to 400 days ahead."""
+    if not rec.active:
+        return []
+    out = []
+    for occ, _amount, _desc in _occurrences(rec, today, today + timedelta(days=400)):
+        if occ in skipped or occ in paid:
+            continue
+        out.append(occ)
+        if len(out) >= count:
+            break
+    return out
+
+
 def _tags_for_account_transactions(db, txn_ids: list[int]) -> dict[int, list[dict]]:
     """Bulk-load tag metadata for a list of transaction ids.
 

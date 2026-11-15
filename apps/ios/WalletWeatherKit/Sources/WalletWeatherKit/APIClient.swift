@@ -5,10 +5,10 @@ public enum AppInfo {
     /// The iOS app's own version (CHANGELOG.md tracks it beside the app,
     /// web and schema versions). Keep it equal to MARKETING_VERSION in the
     /// Xcode project.
-    public static let version = "0.2.0"
-    /// The first server version with what the Forecast page needs: each
-    /// line's category id and the token's access in `/api/me` (#88).
-    public static let minimumServerVersion = "1.52.0"
+    public static let version = "0.3.0"
+    /// The first server version with what the app's pages need: each
+    /// bill's next dates (#89), on top of the Forecast's (#88).
+    public static let minimumServerVersion = "1.53.0"
 }
 
 /// Compares `1.49.0`-style versions; nil for text that isn't one.
@@ -163,6 +163,43 @@ public final class APIClient: Sendable {
     /// you can see, newest first.
     public func searchTransactions(_ text: String, limit: Int = 100) async throws(APIError) -> TransactionSearch {
         try await get("/api/transactions/search", query: ["q": text, "limit": String(limit)])
+    }
+
+    // MARK: Bills & income, Calendar, moving money (#89)
+
+    /// Bills and paychecks on every account you can see, or one; the ended
+    /// ones with `ended`.
+    public func recurring(account: Int? = nil, ended: Bool = false, today: LocalDay = .today()) async throws(APIError) -> RecurringList {
+        var query = ["today": today.description, "archived": ended ? "true" : "false"]
+        if let account { query["account_id"] = String(account) }
+        return try await get("/api/recurring", query: query)
+    }
+
+    public func addRecurring(_ draft: BillDraft, account: Int) async throws(APIError) {
+        let _: EmptyAnswer = try await send("POST", "/api/accounts/\(account)/recurring", body: RecurringBody(draft))
+    }
+
+    /// Saves a bill: the whole item again, as a PATCH replaces it.
+    public func updateRecurring(_ id: Int, _ body: RecurringBody) async throws(APIError) {
+        let _: EmptyAnswer = try await send("PATCH", "/api/recurring/\(id)", body: body)
+    }
+
+    /// Skips one date, leaving the bill and its other dates alone.
+    public func skip(_ item: RecurringItem, on day: LocalDay) async throws(APIError) {
+        let _: EmptyAnswer = try await send("POST", "/api/recurring/\(item.id)/skip", body: ["skip_date": day.description])
+    }
+
+    /// The Calendar's month, on every account or one.
+    public func calendar(_ month: YearMonth, account: Int? = nil) async throws(APIError) -> CalendarMonth {
+        var query = ["start": month.start.description, "end": month.end.description]
+        if let account { query["account_id"] = String(account) }
+        return try await get("/api/calendar", query: query)
+    }
+
+    /// Moves money between two accounts you may edit, recorded as paid.
+    @discardableResult
+    public func moveMoney(_ body: TransferBody) async throws(APIError) -> Transfer {
+        try await send("POST", "/api/transfers", body: body)
     }
 
     /// Ends this phone's token on the server, for Sign out (#145). A token

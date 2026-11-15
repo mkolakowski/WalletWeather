@@ -57,8 +57,10 @@ final class AppModel {
 
     /// A Debug-only launch setting, for screenshots from the command line
     /// (`SIMCTL_CHILD_<name>=…`): `WW_DEBUG_PLACE` (forecast, search, …),
-    /// `WW_DEBUG_OPEN_LINE` (a Forecast line's name, opened in the editor)
-    /// and `WW_DEBUG_SEARCH` (search text). Always nil in a Release build.
+    /// `WW_DEBUG_OPEN_LINE` (a Forecast line's or a bill's name, opened in
+    /// the editor), `WW_DEBUG_SEARCH` (search text), and `WW_DEBUG_ACCOUNT`
+    /// and `WW_DEBUG_DAY` (the Calendar's account and day). Always nil in a
+    /// Release build.
     static func debugSetting(_ name: String) -> String? {
         #if DEBUG
         return ProcessInfo.processInfo.environment[name]

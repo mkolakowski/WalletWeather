@@ -19,6 +19,8 @@ struct ForecastView: View {
     @State private var open: OpenLine?
     @State private var adding = false
     @State private var newDraft = NewTransactionDraft(today: .today())
+    @State private var moving = false
+    @State private var moveDraft = MoveMoneyDraft(today: .today())
     @State private var pendingDelete: ForecastLine?
     @State private var problem: String?
 
@@ -28,6 +30,7 @@ struct ForecastView: View {
         return list.first { $0.id == accountId } ?? list.first
     }
     private var editable: Bool { account.map(model.canEdit) ?? false }
+    private var editableAccounts: [Account] { (accounts.value ?? []).filter(model.canEdit) }
 
     var body: some View {
         NavigationStack {
@@ -41,6 +44,9 @@ struct ForecastView: View {
             if let account {
                 AddTransactionSheet(account: account, categories: categories, draft: $newDraft) { await loadMonth() }
             }
+        }
+        .sheet(isPresented: $moving) {
+            MoveMoneySheet(accounts: editableAccounts, draft: $moveDraft) { await loadMonth() }
         }
         .confirmationDialog(pendingDelete.map(deleteTitle) ?? "", isPresented: Binding(
             get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
@@ -170,12 +176,13 @@ struct ForecastView: View {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         if editable {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Add transaction", systemImage: "plus") {
-                    newDraft = NewTransactionDraft(today: shownMonth.contains(.today()) ? .today() : shownMonth.start)
-                    adding = true
-                }
-            }
+            AddMenu(addTitle: "Add transaction", canMove: editableAccounts.count > 1, onAdd: {
+                newDraft = NewTransactionDraft(today: shownMonth.contains(.today()) ? .today() : shownMonth.start)
+                adding = true
+            }, onMove: {
+                moveDraft = MoveMoneyDraft(today: .today(), from: account?.id)
+                moving = true
+            })
         }
     }
 

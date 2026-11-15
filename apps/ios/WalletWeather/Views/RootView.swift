@@ -20,12 +20,10 @@ struct RootView: View {
                 ForecastView()
             }
             Tab("Bills & income", systemImage: "arrow.left.arrow.right", value: .bills) {
-                ComingSoonView(title: "Bills & income", phase: "a later version",
-                               detail: "Your repeating bills and paychecks, with their next dates.")
+                BillsView()
             }
             Tab("Calendar", systemImage: "calendar", value: .calendar) {
-                ComingSoonView(title: "Calendar", phase: "a later version",
-                               detail: "Each day's bills, paychecks and closing balance.")
+                CalendarView()
             }
             Tab("More", systemImage: "ellipsis.circle", value: .more) {
                 MoreView()
@@ -36,31 +34,6 @@ struct RootView: View {
         }
         .onAppear {
             if let debug = AppModel.debugSetting("WW_DEBUG_PLACE").flatMap(Place.init(rawValue:)) { place = debug }
-        }
-    }
-}
-
-/// A place that isn't built yet, with the way to the web app meanwhile.
-struct ComingSoonView: View {
-    @Environment(AppModel.self) private var model
-    let title: String
-    let phase: String
-    let detail: String
-
-    var body: some View {
-        NavigationStack {
-            ContentUnavailableView {
-                Label("\(title) comes in \(phase)", systemImage: "hammer")
-            } description: {
-                Text(detail)
-            } actions: {
-                if let server = model.connection?.server {
-                    Link("Open the web app", destination: server)
-                        .buttonStyle(.glass)
-                }
-            }
-            .background(PageBackground().ignoresSafeArea())
-            .navigationTitle(title)
         }
     }
 }

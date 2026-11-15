@@ -286,13 +286,19 @@ struct AddTransactionSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let account: Account
+    /// The accounts it may go on, when the page shows more than one (the
+    /// Calendar on all accounts); empty to keep it on `account`.
+    var accountChoices: [Account] = []
     let categories: [TransactionCategory]
     @Binding var draft: NewTransactionDraft
     let onSaved: () async -> Void
 
     @State private var saving = false
     @State private var problem: String?
+    @State private var chosenAccount: Int?
     @FocusState private var amountFocused: Bool
+
+    private var target: Account { accountChoices.first { $0.id == chosenAccount } ?? account }
 
     var body: some View {
         NavigationStack {
@@ -306,6 +312,11 @@ struct AddTransactionSheet: View {
                     .listRowInsets(EdgeInsets())
                 }
                 Section {
+                    if accountChoices.count > 1 {
+                        Picker("Account", selection: Binding(get: { target.id }, set: { chosenAccount = $0 })) {
+                            ForEach(accountChoices) { Text($0.name).tag($0.id) }
+                        }
+                    }
                     LabeledContent("Amount") {
                         TextField("0.00", text: $draft.amountText)
                             .keyboardType(.decimalPad)
@@ -332,7 +343,7 @@ struct AddTransactionSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(PageBackground().ignoresSafeArea())
-            .navigationTitle("Add to \(account.name)")
+            .navigationTitle(accountChoices.count > 1 ? "Add transaction" : "Add to \(account.name)")
             .navigationBarTitleDisplayMode(.inline)
             .disabled(saving)
             .toolbar {
@@ -359,7 +370,7 @@ struct AddTransactionSheet: View {
         saving = true
         defer { saving = false }
         do {
-            try await client.add(draft, account: account.id)
+            try await client.add(draft, account: target.id)
         } catch {
             problem = AppModel.describe(error)
             return

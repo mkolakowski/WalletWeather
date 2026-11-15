@@ -69,7 +69,35 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.52.0** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.2.0**
+App version: **1.53.0** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.3.0**
+
+### Added
+
+- **Bills & income in the iPhone app** (iOS app 0.3.0, which needs server
+  1.53.0): every bill and paycheck on all your accounts or one, with what
+  they come to each month and what's left over, and each one's amount, how
+  often it repeats and its next date. Tap one to change it, or **+** to add
+  one. Swipe right to skip a date (pick from the next six), or left to end it
+  after a date you choose; it then moves to **Ended**. On an iPhone Duo held
+  open, the right half shows the tapped one, or the monthly totals and what's
+  due in the next seven days.
+- **The Calendar in the iPhone app**: the month with dots for each day's
+  bills (red), income (green) and money moved (grey), today marked, and the
+  tapped day's lines underneath. It shows all accounts, or one, which adds
+  each day's closing balance. Held open, the Duo writes each day's net and
+  balance into the month and shows the tapped day, or today's lines and
+  balances, on the right.
+- **Move money between two accounts** from the **+** menu on Forecast, Bills
+  & income and Calendar, which now also holds the page's own Add. It's
+  recorded as paid on both accounts.
+- `GET /api/recurring` items now carry `next_date` and `next_dates` (the next
+  six dates from today, leaving out skipped and already-paid ones).
+
+### Fixed
+
+- Changing or ending a bill on an account someone shared with you for editing
+  no longer needs its category to be one of your own when you leave it as it
+  was.
 
 ## [1.52.0] — 2026-11-15
 

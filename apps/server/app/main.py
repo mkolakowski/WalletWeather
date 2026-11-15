@@ -29,7 +29,7 @@ from urllib.parse import urlencode
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.52.0"
+APP_VERSION = "1.53.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,11 @@ APP_VERSION = "1.52.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.53.0 (2026-11-15, claude+mkolakowski): for the iOS app's Bills & income
+#     and Calendar (#89): GET /api/recurring items gain next_dates (the next
+#     six dates from today, leaving out skipped and already-paid ones) and
+#     next_date (the first of them, or null); saving an item that keeps its
+#     category no longer needs the category to be the saver's own.
 # 1.52.0 (2026-11-15, claude+mkolakowski): for the iOS app's Forecast (#88):
 #     /api/me gains token_access (read, full or admin for a token, null for
 #     a browser session); forecast rows gain category_id; saving a line that
@@ -428,7 +433,7 @@ from .db import (
     Tag, TransactionTag, RecurringTag, TagRule, SavedReport, RecurringSkip,
     ApiToken, AuditEvent, AppSignInCode, SessionLocal, SCHEMA_VERSION,
 )
-from .forecast import build_forecast, actual_balance_as_of
+from .forecast import build_forecast, actual_balance_as_of, upcoming_dates
 from .backup import export_user, import_user
 
 SECRET_KEY = os.environ["SESSION_SECRET"]
@@ -2261,6 +2266,23 @@ def list_recurring(account_id: int, archived: bool = False,
     return out
 
 
+def _recurring_upcoming(db: Session, recs: list, today: date) -> dict[int, list[date]]:
+    """Each item's next dates (forecast.upcoming_dates), with the skipped
+    and already-paid dates from today on looked up in two queries."""
+    ids = [r.id for r in recs] or [0]
+    skipped: dict[int, set] = {}
+    for rid, d in (db.query(RecurringSkip.recurring_id, RecurringSkip.skip_date)
+                   .filter(RecurringSkip.recurring_id.in_(ids), RecurringSkip.skip_date >= today)):
+        skipped.setdefault(rid, set()).add(d)
+    paid: dict[int, set] = {}
+    for rid, d in (db.query(Transaction.recurring_id, Transaction.forecast_date)
+                   .filter(Transaction.recurring_id.in_(ids), Transaction.is_actual.is_(True),
+                           Transaction.forecast_date >= today)):
+        paid.setdefault(rid, set()).add(d)
+    return {r.id: upcoming_dates(r, today, skipped.get(r.id, set()), paid.get(r.id, set()))
+            for r in recs}
+
+
 @app.get("/api/recurring")
 def list_all_recurring(archived: bool = False, account_id: int | None = None,
                        today: date | None = None,
@@ -2290,6 +2312,7 @@ def list_all_recurring(archived: bool = False, account_id: int | None = None,
     recs = [(a, r) for a in accounts for r in a.recurring]
     skip_counts = _recurring_skip_counts(db, [r.id for _, r in recs])
     tags_by_rec = _tags_for_recurring(db, [r.id for _, r in recs])
+    upcoming = _recurring_upcoming(db, [r for _, r in recs], today)
     items = []
     bills_n = income_n = 0
     bills_m = income_m = 0.0
@@ -2297,11 +2320,15 @@ def list_all_recurring(archived: bool = False, account_id: int | None = None,
         row = _recurring_row(r, today, skip_counts, tags_by_rec)
         if archived != row["expired"]:
             continue
+        nexts = upcoming.get(r.id, [])
         row.update({
             "account_id": a.id,
             "account_name": a.name,
             "account_level": levels.get(a.id, "read"),
             "category_color": r.category.color if r.category else None,
+            # The iOS app's next date and "skip once" choices (#89).
+            "next_date": nexts[0].isoformat() if nexts else None,
+            "next_dates": [d.isoformat() for d in nexts],
         })
         items.append(row)
         factor = _MONTHLY_FACTOR.get(r.frequency)
@@ -2364,7 +2391,9 @@ def update_recurring(rec_id: int, payload: RecurringIn,
     if not rec:
         raise HTTPException(404)
     _account_with_perm(db, user, rec.account_id, "edit")
-    if payload.category_id is not None:
+    # A category the item already has may be kept: on a shared account it's
+    # the owner's, not the saver's own (#89, as for lines in #88).
+    if payload.category_id is not None and payload.category_id != rec.category_id:
         _own_category(db, user, payload.category_id)
     rec.description = payload.description
     rec.amount = Decimal(str(payload.amount))

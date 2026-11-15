@@ -1,0 +1,81 @@
+# Bills & income, closer to Forecast
+
+Tracking issue: #131
+
+## Status
+
+| Phase | Issue | State |
+| --- | --- | --- |
+| 1. Forecast's columns, compact rows | #128 | Not started |
+| 2. Inline add line and edit rows | #129 | Not started, waits for 1 |
+| 3. Controls row | #130 | Not started, waits for 2 |
+
+Sessions: may span — each phase ends with a release and your look on your own instance before the next starts.
+
+## Agents and tools
+
+| Phase | Main session | Subagents | Why |
+| --- | --- | --- | --- |
+| 1. Columns, compact rows | Opus | none | Reorders a table's columns and every rule that counts them (widths, lines, phone card, sort keys, spreadsheet mode). |
+| 2. Add line, edit rows | Opus | none | A new kind of row, signed amounts, and the save paths for add, edit and spreadsheet mode. |
+| 3. Controls row | Sonnet | none | Moves existing buttons into an existing pattern. |
+
+## Open questions
+
+- **Day of month in edit rows (blocks Phase 2).** #110 took the Day of month box out of the add form (the day comes from the start date) but kept it in edit rows, because some saved items have a day and no start date. The plan assumes **edit rows keep Day of month**, shown in the Monthly column only for Monthly items. Say so if editing should drop it too.
+- **Tags move into a column (blocks Phase 1).** #120 showed an item's tags as chips under its description, with no new column. The chosen layout has a Tags column among the computed columns, so the plan assumes **tags move there** (chips in the read view, the picker in the edit row) and out from under the description, which also keeps rows one line.
+
+## The plan
+
+**Goal:** the Bills & income table looks and behaves like Forecast's: the same column grid, short one-line rows, an inline add line at the top of the table instead of a separate panel, and the buttons in the table's controls row.
+
+**Decided 2026-11-15 (this plan's scoping round):**
+- All four parts are in: columns, compact rows, inline add line, controls row.
+- Columns, dates and amounts first: Description | Start date | Ends | Category | Amount | Account | Repeats | Monthly | Yearly | Tags | Notes | buttons (with the select checkbox column first, as now). Start date and Ends get their own columns, so Frequency no longer wraps and rows can be one line.
+- The inline add line and edit rows take a **signed** Amount (negative = expense), like Forecast; the Type dropdown goes there. Everything else about how items are stored is unchanged.
+- **+ Add** moves into the table's controls row, left, like Forecast; the separate "Bills & income" actions panel goes. Totals stay above the table.
+- Phases ship in this order: columns and rows, then the add line, then the controls row.
+- Each phase is checked in headless Chromium with the API stubbed (columns, row heights, lines, saves) at desktop and phone widths, then your look after release. No API change is expected, so no server tests are added.
+
+**Out of scope:**
+- Transfer, Import and the ⋯ menu from Forecast's controls row (they don't apply to recurring items).
+- Changing how items are stored or the recurring API.
+- The Reports, Calendar and other tables.
+
+### Phase 1: Forecast's columns, compact rows
+
+What changes:
+- `#recurringTable` gets the column order above, with Forecast's widths (dates 142px, category 150px, amounts 120px, Notes 240px) and the same column lines and heading style. Account moves after Amount; Repeats shows Weekly / Bi-weekly / Monthly; Start date and Ends are plain date columns.
+- Tags show as chips in their own column (see Open questions), no longer under the description.
+- Read rows are one line (about 34px, like Forecast), instead of 48px or more.
+- Sorting works on every heading, including the new Start date column. Selecting rows, the bulk bar, spreadsheet mode, the Archived view and the phone card layout keep working.
+
+What you do: after the release, look at Bills & income on desktop and phone.
+
+Done when:
+- In headless Chromium with the API stubbed at 1600, 1440, 1280, 1100 and 390px wide: columns in the new order at Forecast's widths, untagged read rows one line tall, each heading sorts, row selection and the bulk bar work, spreadsheet mode and Archived render, and the phone card shows every field.
+- No server change; web version bumped, changelog entry.
+
+### Phase 2: Inline add line and edit rows
+
+What changes:
+- **+ Add** opens a new line at the top of the table, built like Forecast's: a field under each column (Description, Start date, Ends, Category, signed Amount, Account), Repeats and the Tags picker sharing the computed columns as in Forecast's add row, Notes with Save / + Another / Cancel. The account is a dropdown only on the All accounts tab. The #recAddPanel panel and its code go.
+- Edit rows (and spreadsheet mode) use the same columns and a signed Amount; the Type dropdown goes; Repeats is the dropdown; Day of month stays for Monthly items (see Open questions).
+- While the add line is open its headings follow Repeats as on Forecast; no column moves when it opens or changes.
+
+What you do: after the release, add and edit a monthly and a weekly item.
+
+Done when:
+- In headless Chromium with the API stubbed: each Repeats choice posts the right frequency, day of month, start date and signed amount; a missing start date or description shows an error beside the field; editing and spreadsheet-mode saves send the signed amount and tags; the add line is one row tall and no column moves at four desktop widths; the phone layout stacks the fields.
+- Web version bumped, changelog entry (marked **Breaking** where the Type dropdown goes).
+
+### Phase 3: Controls row
+
+What changes:
+- + Add moves to the left of the table's controls row, in Forecast's button style, and the "Bills & income" actions panel is removed. Active/Archived, Spreadsheet mode and paging stay, arranged and spaced like Forecast's row.
+
+What you do: after the release, check the page on desktop and phone.
+
+Done when:
+- In headless Chromium at desktop and phone widths: + Add opens the inline add line, the controls sit in Forecast's arrangement, and nothing else on the page moved.
+- Web version bumped, changelog entry.

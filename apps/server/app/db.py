@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "14"
+SCHEMA_VERSION = "15"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,9 @@ SCHEMA_VERSION = "14"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v15 (2026-11-15, claude+mkolakowski): add recurring_tags, the tags on a
+#     recurring item (many-to-many, cascade from either side). Lines created
+#     from the item start with its tags (recurring-tags plan, #118).
 # v14 (2026-11-14, claude+mkolakowski): add users.notice_ack_at — when the
 #     user acknowledged the "Important notice" (the disclaimer shown once
 #     after sign-in). NULL = not yet; existing users start NULL on purpose,
@@ -456,6 +459,19 @@ class TransactionTag(Base):
                     primary_key=True)
 
 
+class RecurringTag(Base):
+    """Many-to-many link between RecurringTransaction and Tag (#118). A line
+    created from the item starts with these tags; changing them later leaves
+    lines already saved alone. Cascade delete from either side."""
+    __tablename__ = "recurring_tags"
+    recurring_id = Column(Integer,
+                          ForeignKey("recurring_transactions.id", ondelete="CASCADE"),
+                          primary_key=True)
+    tag_id = Column(Integer,
+                    ForeignKey("tags.id", ondelete="CASCADE"),
+                    primary_key=True)
+
+
 class TagRule(Base):
     """Auto-tagging rule. When a transaction's description contains
     `description_pattern` (case-insensitive substring) and — if
@@ -578,6 +594,8 @@ def init_db():
         # v13 → v14: when the user acknowledged the "Important notice".
         # No backfill: existing users see the notice once too.
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS notice_ack_at TIMESTAMP",
+        # v14 → v15: recurring_tags
+        # (Created by Base.metadata.create_all above — boundary marker only.)
     ]
     with engine.begin() as conn:
         for sql in migrations:

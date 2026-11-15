@@ -65,7 +65,21 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.39.1** · Web version: **1.61.9** · Schema version: **14**
+App version: **1.40.0** · Web version: **1.61.9** · Schema version: **15**
+
+### Added
+
+- Bills and income items can carry tags. Projected lines on Forecast show
+  their item's tags, and a line saved from an item starts with them; changing
+  an item's tags later leaves lines already saved as they are. This release
+  adds it to the API (`tag_ids` when creating or editing a recurring item,
+  `tags` in the recurring lists and on projected forecast rows); the tag
+  pickers on Forecast and Bills & income follow in the next releases.
+
+### Database
+
+- New `recurring_tags` table linking recurring items to tags (schema 15). It's
+  created automatically on start; nothing to do.
 
 ## [1.39.1] — 2026-11-15
 

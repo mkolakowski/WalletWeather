@@ -21,7 +21,7 @@ actual amount/date for that occurrence:
 from datetime import date, timedelta
 from decimal import Decimal
 from calendar import monthrange
-from .db import Account, RecurringTransaction, RecurringSkip, Transaction, Tag, TransactionTag
+from .db import Account, RecurringTransaction, RecurringSkip, RecurringTag, Transaction, Tag, TransactionTag
 
 
 def _occurrences(rec: RecurringTransaction, start: date, end: date):
@@ -187,6 +187,18 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
                     RecurringSkip.skip_date <= end)
             .all()
         )
+    # A projected row shows its recurring item's tags (#118): a line saved
+    # from it starts with them.
+    tags_by_rec: dict[int, list[dict]] = {}
+    if with_tags and recs:
+        for rid, tid, name, color in (
+                db.query(RecurringTag.recurring_id, Tag.id, Tag.name, Tag.color)
+                .join(Tag, Tag.id == RecurringTag.tag_id)
+                .filter(RecurringTag.recurring_id.in_([r.id for r in recs]))
+                .all()):
+            tags_by_rec.setdefault(rid, []).append({"id": tid, "name": name, "color": color})
+        for lst in tags_by_rec.values():
+            lst.sort(key=lambda x: x["name"].lower())
     for rec in recs:
         rec_cat = rec.category.name if rec.category else None
         rec_notes = rec.notes
@@ -207,9 +219,8 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
                 "recurring_id": rec.id,
                 "transaction_id": None,
                 "transfer_id": None,
-                # Projected rows have no backing transaction yet, so no tags
-                # can be attached until the user saves the row first.
-                "tags": [],
+                # The item's tags; a line saved from this row starts with them.
+                "tags": tags_by_rec.get(rec.id, []),
             })
 
     # Sort by planned date (the anchor only decides which window a row falls

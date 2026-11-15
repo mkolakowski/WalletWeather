@@ -24,7 +24,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.39.1"
+APP_VERSION = "1.40.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -36,6 +36,7 @@ APP_VERSION = "1.39.1"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.40.0 (2026-11-15, claude+mkolakowski): recurring items carry tags (recurring_tags, schema 15): tag_ids on create/PATCH, tags in both recurring lists and on projected forecast rows; a line created from an item starts with its tags (#118).
 # 1.39.1 (2026-11-15, claude+mkolakowski): no server change; web 1.61.9 (Repeats dropdown only as wide as Bi-weekly, #116).
 # 1.39.0 (2026-11-14, claude+mkolakowski): no server change; web 1.61.8 (tag picker and Repeats/Tags headings in Forecast's add row, #114).
 # 1.38.0 (2026-11-14, claude+mkolakowski): no server change; web 1.61.7 (one Repeats dropdown in Forecast's add row and the Bills & income add form, #109 #110).
@@ -372,7 +373,7 @@ from pydantic import BaseModel, EmailStr, Field
 from .db import (
     init_db, get_db, User, Account, RecurringTransaction, Transaction, Category,
     AccountPermission, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
-    Tag, TransactionTag, TagRule, SavedReport, RecurringSkip,
+    Tag, TransactionTag, RecurringTag, TagRule, SavedReport, RecurringSkip,
     SessionLocal, SCHEMA_VERSION,
 )
 from .forecast import build_forecast, actual_balance_as_of
@@ -979,6 +980,9 @@ class RecurringIn(BaseModel):
     category_id: int | None = None
     notes: str | None = Field(default=None, max_length=NOTES_MAX_LEN)
     active: bool = True
+    # Tags (#118): None leaves them as they are, [] clears them. Lines created
+    # from the item start with these tags.
+    tag_ids: list[int] | None = None
 
 
 class TransactionIn(BaseModel):
@@ -1145,6 +1149,44 @@ def _tags_for_transactions(db: Session, txn_ids: list[int]) -> dict[int, list[di
     for txn_id, tid, name, color in rows:
         out.setdefault(txn_id, []).append({"id": tid, "name": name, "color": color})
     return out
+
+
+def _apply_recurring_tags(db: Session, user: User, rec: RecurringTransaction,
+                          tag_ids: list[int] | None) -> None:
+    """Replace the tag set on a recurring item (#118); same rules as
+    _apply_tags: None leaves it, [] clears it, every id must be the user's."""
+    if tag_ids is None:
+        return
+    validated = []
+    for tid in dict.fromkeys(tag_ids):
+        _own_tag(db, user, tid)
+        validated.append(tid)
+    db.query(RecurringTag).filter_by(recurring_id=rec.id).delete(
+        synchronize_session=False
+    )
+    for tid in validated:
+        db.add(RecurringTag(recurring_id=rec.id, tag_id=tid))
+
+
+def _tags_for_recurring(db: Session, rec_ids: list[int]) -> dict[int, list[dict]]:
+    """`{recurring_id: [{id, name, color}, ...]}` for a batch of items."""
+    if not rec_ids:
+        return {}
+    rows = (db.query(RecurringTag.recurring_id, Tag.id, Tag.name, Tag.color)
+              .join(Tag, Tag.id == RecurringTag.tag_id)
+              .filter(RecurringTag.recurring_id.in_(rec_ids))
+              .order_by(Tag.name).all())
+    out: dict[int, list[dict]] = {}
+    for rid, tid, name, color in rows:
+        out.setdefault(rid, []).append({"id": tid, "name": name, "color": color})
+    return out
+
+
+def _copy_recurring_tags(db: Session, rec_id: int, t: Transaction) -> None:
+    """Start a line created from a recurring item with the item's tags
+    (#118). They're the item's own tags, so no per-user check here."""
+    for (tid,) in db.query(RecurringTag.tag_id).filter_by(recurring_id=rec_id).all():
+        db.add(TransactionTag(transaction_id=t.id, tag_id=tid))
 
 
 @app.get("/api/tags")
@@ -1559,7 +1601,8 @@ def _recurring_skip_counts(db: Session, rec_ids: list[int]) -> dict[int, int]:
 
 
 def _recurring_row(r: RecurringTransaction, today: date,
-                   skip_counts: dict[int, int]) -> dict:
+                   skip_counts: dict[int, int],
+                   tags_by_rec: dict[int, list[dict]] | None = None) -> dict:
     """One recurring template as the Recurring / Bills & income tables show it."""
     is_expired = r.end_date is not None and r.end_date < today
     amt = float(r.amount)
@@ -1588,6 +1631,7 @@ def _recurring_row(r: RecurringTransaction, today: date,
         "monthly_cost": round(monthly_cost, 2) if monthly_cost is not None else None,
         "yearly_cost": round(monthly_cost * 12, 2) if monthly_cost is not None else None,
         "skipped_count": skip_counts.get(r.id, 0),
+        "tags": (tags_by_rec or {}).get(r.id, []),
     }
 
 
@@ -1597,9 +1641,10 @@ def list_recurring(account_id: int, archived: bool = False,
     acc = _account_with_perm(db, user, account_id, "read")
     today = date.today()
     skip_counts = _recurring_skip_counts(db, [r.id for r in acc.recurring])
+    tags_by_rec = _tags_for_recurring(db, [r.id for r in acc.recurring])
     out = []
     for r in acc.recurring:
-        row = _recurring_row(r, today, skip_counts)
+        row = _recurring_row(r, today, skip_counts, tags_by_rec)
         if archived == row["expired"]:
             out.append(row)
     return out
@@ -1633,11 +1678,12 @@ def list_all_recurring(archived: bool = False, account_id: int | None = None,
     )
     recs = [(a, r) for a in accounts for r in a.recurring]
     skip_counts = _recurring_skip_counts(db, [r.id for _, r in recs])
+    tags_by_rec = _tags_for_recurring(db, [r.id for _, r in recs])
     items = []
     bills_n = income_n = 0
     bills_m = income_m = 0.0
     for a, r in recs:
-        row = _recurring_row(r, today, skip_counts)
+        row = _recurring_row(r, today, skip_counts, tags_by_rec)
         if archived != row["expired"]:
             continue
         row.update({
@@ -1693,6 +1739,8 @@ def create_recurring(account_id: int, payload: RecurringIn,
     rec.amount = Decimal(str(payload.amount))
     rec.notes = payload.notes
     db.add(rec)
+    db.flush()  # need rec.id before attaching tags
+    _apply_recurring_tags(db, user, rec, payload.tag_ids)
     db.commit()
     db.refresh(rec)
     return {"id": rec.id}
@@ -1716,6 +1764,7 @@ def update_recurring(rec_id: int, payload: RecurringIn,
     rec.category_id = payload.category_id
     rec.notes = payload.notes
     rec.active = payload.active
+    _apply_recurring_tags(db, user, rec, payload.tag_ids)
     db.commit()
     return {"ok": True}
 
@@ -1911,6 +1960,11 @@ def create_transaction(account_id: int, payload: TransactionIn,
         t.forecast_amount = Decimal(str(payload.forecast_amount))
     db.add(t)
     db.flush()  # need t.id before attaching tags
+    if payload.tag_ids is None and payload.recurring_id is not None:
+        # A line saved from a recurring item starts with its tags (#118).
+        rec = db.get(RecurringTransaction, payload.recurring_id)
+        if rec and rec.account_id == acc.id:
+            _copy_recurring_tags(db, rec.id, t)
     _apply_tags(db, user, t, payload.tag_ids)
     # Auto-tagging rules fire AFTER explicit tag_ids so that the user's
     # explicit list is the floor, and rules can only add (never remove).
@@ -2038,6 +2092,8 @@ def upsert_forecast_actual(account_id: int, payload: ForecastActualIn,
     t.forecast_amount = Decimal(str(fc_amt))
     t.notes = payload.notes if payload.notes is not None else rec.notes
     db.add(t)
+    db.flush()
+    _copy_recurring_tags(db, rec.id, t)  # #118
     db.commit()
     db.refresh(t)
     return {"ok": True, "transaction_id": t.id}

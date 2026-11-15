@@ -39,7 +39,9 @@ struct BalanceChart: View {
         .chartYAxis {
             AxisMarks(position: .leading) { value in
                 AxisGridLine()
-                AxisValueLabel { if let v = value.as(Double.self) { Text(Money(v).short) } }
+                AxisValueLabel {
+                    if let v = value.as(Double.self) { Text(Money(v).short).foregroundStyle(.secondary) }
+                }
             }
         }
         .frame(height: 150)
@@ -86,32 +88,52 @@ struct CategoryDonut: View {
             if categories.isEmpty {
                 Text("No expenses in this window.").font(.callout).foregroundStyle(.secondary)
             } else {
-                HStack(alignment: .center, spacing: 16) {
-                    Chart(categories) { c in
-                        SectorMark(angle: .value("Spent", c.spendingActual.amount), innerRadius: .ratio(0.6), angularInset: 1)
-                            .foregroundStyle(Palette.category(c.color, name: c.name))
+                // The legend beside the donut when there's room for whole
+                // names and amounts, under it in a narrow half (the open
+                // Duo held upright).
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .center, spacing: 16) {
+                        donut
+                        legend.frame(minWidth: 220)
                     }
-                    .chartBackground { _ in
-                        VStack(spacing: 0) {
-                            Text(total.short).font(.headline.monospacedDigit())
-                            Text("spent").font(.caption2).foregroundStyle(.secondary)
-                        }
-                    }
-                    .frame(width: 120, height: 120)
-                    .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 5) {
-                        ForEach(categories) { c in
-                            HStack(spacing: 6) {
-                                Circle().fill(Palette.category(c.color, name: c.name)).frame(width: 9, height: 9)
-                                Text(c.name).lineLimit(1)
-                                Spacer(minLength: 4)
-                                Text(c.spendingActual.formatted).monospacedDigit().foregroundStyle(.secondary)
-                            }
-                            .font(.caption)
-                            .accessibilityElement(children: .combine)
-                        }
+                    VStack(alignment: .leading, spacing: 12) {
+                        donut.frame(maxWidth: .infinity)
+                        legend
                     }
                 }
+            }
+        }
+    }
+}
+
+extension CategoryDonut {
+    private var donut: some View {
+        Chart(categories) { c in
+            SectorMark(angle: .value("Spent", c.spendingActual.amount), innerRadius: .ratio(0.6), angularInset: 1)
+                .foregroundStyle(Palette.category(c.color, name: c.name))
+        }
+        .chartBackground { _ in
+            VStack(spacing: 0) {
+                Text(total.short).font(.headline.monospacedDigit())
+                Text("spent").font(.caption2).foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: 120, height: 120)
+        .accessibilityHidden(true)
+    }
+
+    private var legend: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            ForEach(categories) { c in
+                HStack(spacing: 6) {
+                    Circle().fill(Palette.category(c.color, name: c.name)).frame(width: 9, height: 9)
+                    Text(c.name).lineLimit(1)
+                    Spacer(minLength: 4)
+                    Text(c.spendingActual.formatted).monospacedDigit().foregroundStyle(.secondary)
+                        .lineLimit(1).fixedSize()
+                }
+                .font(.caption)
+                .accessibilityElement(children: .combine)
             }
         }
     }

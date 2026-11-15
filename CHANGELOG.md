@@ -69,11 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.50.0** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.1.0**
+App version: **1.50.0** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.1.1**
 
 ### Added
 
-- **The iPhone app, version 0.1.0** (built from source for now; not on
+- **The iPhone app, version 0.1.1** (built from source for now; not on
   TestFlight or the App Store yet). It signs in to your own server with the
   phone's sign-in sheet (see below), with the "Open in WalletWeather" button
   in the web app's Settings, or with a pasted token; a Cloudflare service

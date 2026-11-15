@@ -67,6 +67,10 @@ same commit (or session) that introduces it.
 
 App version: **1.29.0** · Web version: **1.53.0** · Schema version: **14**
 
+## [1.29.0] — 2026-11-14
+
+App version: **1.29.0** · Web version: **1.53.0** · Schema version: **14**
+
 ### Changed
 
 - **"Expense" and "Income" everywhere.** The app used three pairs of words for
@@ -1191,7 +1195,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.28.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.29.0...HEAD
+[1.29.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.29.0
 [1.28.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.28.0
 [1.27.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.27.0
 [1.26.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.26.0

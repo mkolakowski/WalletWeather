@@ -97,7 +97,6 @@ App version: **1.46.1** · Web version: **1.68.0** · Schema version: **18**
   that row).
 - Bills & income's date columns are wider (Category, Tags and Notes ask for
   less room), so more of a date shows while you edit.
-
 - Deleting a user (yourself in Settings, or someone else from the Admin page)
   now also removes their email address from the sign-in log. What happened
   and when stays in the log; whose it was doesn't. Entries already logged for

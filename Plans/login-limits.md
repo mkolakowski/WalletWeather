@@ -7,10 +7,12 @@ Tracking issue: #135
 | Phase | Issue | State |
 | --- | --- | --- |
 | 1. Rate limiting and sign-in events | #132 | Released in 1.44.0 (schema 18) |
-| 2. More audit events | #133 | Open (after phase 1) |
+| 2. More audit events | #133 | Built in 1.48.0 (web 1.70.0), not released |
 | 3. Admin viewer and pruning | #134 | Open (after phase 2) |
 
 Phase 1 released 2026-11-15 in v1.44.0 (schema 18; release issue #137; no web change: the sign-in card already shows the server's message). Verified by 16 new tests (114 in all pass) and on a throwaway server (five 401s, then 429 with `Retry-After: 900`, even with the right password). Not yet tried on your instance.
+
+Phase 2 built 2026-11-15 in v1.48.0 (web 1.70.0, schema unchanged at 18), not yet released. It also added Settings → Change password (`POST /api/me/password`), since there was no own-password change to log ([decision](../docs/dev/decisions/login-limits.md)). Verified by 28 new tests in `test_audit_events.py` (167 in all pass) and on a throwaway server (a wrong current password: 403 and no row; a password change, a token and an export each left one row).
 
 Sessions: may span — each phase ends with a release and your check on your own instance before the next starts.
 
@@ -61,8 +63,9 @@ Roadmap item 15, first part.
 Roadmap item 15, second part. Depends on phase 1.
 
 - A small `record_event(db, event, user=None, email=None, detail=None)` helper, so each call is one line.
+- Settings → Change password (`POST /api/me/password`, current password plus the new one), since there was no way to change your own password to log (decided 2026-11-15).
 - Events for: your own password change and an admin resetting someone's; an admin disabling, enabling or deleting a user; an admin changing a permission, the instance title or the backup settings; a backup made, downloaded or restored; deleting your own account; an API token made or revoked (by its owner or an admin).
-- Each event names who did it and, where there is one, who it was done to (`detail`), never any amounts, account names or other financial data.
+- Each event names who did it and, where there is one, who it was done to (`detail`, by user number such as "user #7", decided 2026-11-15), never any amounts, account names or other financial data. Backups include each user's own export and import, and scheduled backups (decided 2026-11-15).
 - Tests: one per event type that checks the row is written with the right user and detail, and that a refused action (a 403, a wrong password) writes nothing.
 
 **Done when:** tests pass; each action above leaves a row, checked in the database after trying it.

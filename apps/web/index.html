@@ -2349,6 +2349,23 @@
         </div>
       </div>
 
+      <div class="panel" data-settings-section="your-account" id="changePasswordPanel">
+        <h2>Change password</h2>
+        <div id="changePasswordGoogle" class="hidden" style="color:var(--muted);font-size:13px">
+          You sign in with Google, so there's no password to change here. An admin can set one for you.
+        </div>
+        <form id="changePasswordForm" onsubmit="changePassword(event)" style="max-width:320px">
+          <label for="pwCurrent">Current password</label>
+          <input id="pwCurrent" type="password" autocomplete="current-password" required style="width:100%">
+          <label for="pwNew">New password</label>
+          <input id="pwNew" type="password" autocomplete="new-password" minlength="8" maxlength="128" required style="width:100%">
+          <label for="pwNew2">New password again</label>
+          <input id="pwNew2" type="password" autocomplete="new-password" minlength="8" maxlength="128" required style="width:100%">
+          <div id="changePasswordError" class="auth-error hidden"></div>
+          <div style="margin-top:12px"><button id="changePasswordBtn" type="submit">Change password</button></div>
+        </form>
+      </div>
+
       <div class="panel" data-settings-section="your-account" id="deleteAccountPanel">
         <h2>Delete my account</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
@@ -2455,7 +2472,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.69.0";
+const WEB_VERSION = "1.70.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2466,6 +2483,7 @@ const WEB_VERSION = "1.69.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.70.0 (2026-11-15, claude+mkolakowski): (#133) Settings → Your account: a "Change password" panel (loadChangePassword / changePassword) posts the current and new password to /api/me/password; a Google-only user (me.has_password false) sees a note instead.
 // 1.69.0 (2026-11-15, claude+mkolakowski): (#130) Bills & income: + Add recurring moves into the table's controls row as .fc-actions (#recActions, hidden when no account is editable), like Forecast's Add transaction; the separate #recActionsPanel ("Bills & income" heading + button) is gone.
 // 1.68.1 (2026-11-15, claude+mkolakowski): (#129) Bills & income date columns have min-width:130px so a whole date shows while editing; windows too narrow for that (under about 1250px) get the phone cards.
 // 1.68.0 (2026-11-15, claude+mkolakowski): (#129) Bills & income: + Add recurring opens an inline add line at the top of #recurringTable (_buildRecAddRow / _recAddRowEl, put back by renderRecurring via _placeRecAddRow; account dropdown only on All accounts), replacing #recAddPanel. Add line and edit rows take a signed Amount (Type dropdown gone) and the day from the start date (Day of month gone; _nextDayOfMonth fills a missing start date, which spreadsheet mode doesn't count as a change); onEditFreqChange removed.
@@ -3473,7 +3491,7 @@ function showPage(name, opts) {
   document.getElementById('navAdmin').classList.toggle('active', name==='admin');
   document.getElementById('navSettings').classList.toggle('active', name==='settings');
   _syncPhoneNav(name);
-  if (name === 'settings') { showSettingsSection(settingsSection, { noHash: true }); loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); loadApiTokens(); loadDeleteAccount(); }
+  if (name === 'settings') { showSettingsSection(settingsSection, { noHash: true }); loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); loadApiTokens(); loadChangePassword(); loadDeleteAccount(); }
   if (name === 'dashboard') loadDashboard();
   if (name === 'networth') loadNetworth();
   if (name === 'subscriptions') {
@@ -4910,6 +4928,35 @@ async function revokeApiToken(id) {
   try { await api('/api/tokens/' + id, { method: 'DELETE' }); }
   catch (e) { notifyError('Could not revoke the token', e); return; }
   await loadApiTokens();
+}
+// Settings → "Change password" (#133). Only for a user with a password; a
+// Google-only user gets a note instead. The server checks the current one.
+function loadChangePassword() {
+  const form = document.getElementById('changePasswordForm');
+  if (!form) return;
+  const has = !!(me && me.has_password);
+  form.classList.toggle('hidden', !has);
+  document.getElementById('changePasswordGoogle').classList.toggle('hidden', has);
+}
+async function changePassword(ev) {
+  ev.preventDefault();
+  const err = document.getElementById('changePasswordError');
+  const fail = msg => { err.textContent = msg; err.classList.remove('hidden'); };
+  err.classList.add('hidden');
+  const current = document.getElementById('pwCurrent').value;
+  const next = document.getElementById('pwNew').value;
+  if (next.length < 8) { fail('The new password needs at least 8 characters.'); return; }
+  if (next !== document.getElementById('pwNew2').value) { fail('The new passwords don\'t match.'); return; }
+  const btn = document.getElementById('changePasswordBtn');
+  btn.disabled = true;
+  try {
+    await api('/api/me/password', { method: 'POST', body: JSON.stringify({ current_password: current, new_password: next }) });
+  } catch (e) {
+    fail(errText(e));
+    return;
+  } finally { btn.disabled = false; }
+  document.getElementById('changePasswordForm').reset();
+  notify('Password changed.');
 }
 // Settings → "Delete my account". The server decides what deleting would
 // do (GET /api/me/deletion-check); this only shows it and asks to confirm.

@@ -28,10 +28,14 @@ def bearer(app, token):
 
 
 def last_event(email):
+    """The newest sign-in event for this email (login, login_failed or
+    login_blocked). A token made after it writes token_created too (#133),
+    checked in test_audit_events.py."""
     from app.db import AuditEvent, SessionLocal
     db = SessionLocal()
     try:
         r = (db.query(AuditEvent).filter_by(email=email.lower())
+             .filter(AuditEvent.event.like("login%"))
              .order_by(AuditEvent.id.desc()).first())
         return (r.event, r.detail) if r else None
     finally:

@@ -65,7 +65,28 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.47.1** · Web version: **1.69.0** · Schema version: **18**
+App version: **1.48.0** · Web version: **1.70.0** · Schema version: **18**
+
+### Added
+
+- **Settings → Your account → Change password**: change your own password by
+  typing the current one and the new one twice (at least 8 characters). Users
+  who sign in only with Google see a note instead, since they have no
+  password here; an admin can still set one for them. The form uses the new
+  `POST /api/me/password`, which works from a signed-in browser only, not
+  with an API token. `GET /api/me` now also says whether you have a password
+  (`has_password`).
+- The audit log in the database now also records what people do, not only
+  sign-ins: changing your own password, an admin resetting one, an admin
+  disabling, enabling or deleting a user, an admin changing a permission, the
+  instance title or the backup settings, a backup being made (by hand or on
+  schedule), downloaded or restored, exporting or importing your own data,
+  deleting your own account, and an API token being made or revoked. Each
+  entry says who did it; when it was done to someone else, it names them by
+  user number (for example "user #7"), never by email address. Entries never
+  hold amounts, account names or passwords. A refused action (a wrong
+  password, a missing permission) writes nothing. There is no screen to read
+  the log yet: that comes with the Admin page's audit log viewer.
 
 ## [1.47.1] — 2026-11-15
 

@@ -30,7 +30,13 @@ server it runs on:
   sign-in log in the database: each sign-in, failed sign-in and blocked
   sign-in, with the email that was typed (even one with no account), the
   address it came from, the user if there is one, and when. Never a password.
-  It's what the sign-in rate limit counts. It's kept until removed; automatic
+  It's what the sign-in rate limit counts. The same log records account and
+  admin actions: password changes and resets, an admin disabling, enabling
+  or deleting a user or changing a permission, the instance title or the
+  backup settings, backups made, downloaded, restored, exported or imported,
+  a user deleting themselves, and API tokens made or revoked. Each says who
+  did it and from which address; a user an action was done to is named by
+  number, not email. No amounts, account names or other financial data. It's kept until removed; automatic
   removal of old entries comes in a later release. Deleting a user keeps
   their entries but removes both the link to the user and the email address
   from them, failed attempts on that email included.

@@ -30,3 +30,18 @@ Decisions made while planning [`Plans/login-limits.md`](../../../Plans/login-lim
 **The decision:** blank the email. Deleting a user, by themselves or by an admin, sets `email` to NULL on every `audit_events` row with their user id or their email address (any case), and the foreign key already nulls the user id. Their recent failures stop counting toward the rate limit, which doesn't matter for an account that no longer exists.
 
 **What it changes:** #139 (app 1.46.1): `_delete_user` in `apps/server/app/main.py`, its tests in `test_login_limits.py`, and `PRIVACY.md`. Entries logged for users deleted before 1.46.1 keep their email.
+
+## 2026-11-15: what phase 2 logs, and how it names people
+
+**Decided:** 2026-11-15, by Matthew. **Status:** accepted. Settles the rest of open question 2 for phase 2 (#133).
+
+**The questions:** phase 2 was to log "your own password change", but the app had no way to change your own password (only an admin reset in Admin → Users). How should an event name the user an admin acted on, given that deleting a user blanks their email in the log (#139)? And which backups count?
+
+**Options considered:**
+- Own password: skip the event and open an issue for a change-password form; or build the form in phase 2.
+- The person acted on: by user number in `detail` ("user #7"); or by email in `detail`, scrubbed when that user is deleted.
+- Backups: admin and personal (each user's export and import), scheduled ones included; the same without scheduled ones; admin only.
+
+**The decision:** build the form in phase 2: Settings → Change password, `POST /api/me/password` with the current and new password, browser session only, not for Google-only users (they have no password; an admin can set one). Name the person acted on by number ("user #7", or "own user" when an admin acts on themselves), so a deletion leaves nothing naming them with no extra clean-up; the phase 3 viewer can show the email for users who still exist. Log admin and personal backups, scheduled ones included (with no user).
+
+**What it changes:** #133 (app 1.48.0, web 1.70.0): `record_event` calls and `audit_target` in `apps/server/app/main.py`, the Change password panel in `apps/web/index.html`, `test_audit_events.py`, `PRIVACY.md`, and the plan's phase 2.

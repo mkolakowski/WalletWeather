@@ -27,7 +27,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.47.1"
+APP_VERSION = "1.48.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -39,6 +39,11 @@ APP_VERSION = "1.47.1"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.48.0 (2026-11-15, claude+mkolakowski): more audit events (#133):
+#     password changes and resets, admin user/permission/title/backup
+#     settings changes, backups made/downloaded/restored, personal
+#     export/import, own-user deletion, tokens made/revoked; POST
+#     /api/me/password; /api/me gains has_password; web 1.70.0.
 # 1.47.1 (2026-11-15, claude+mkolakowski): backups carry tags, tag rules and the tags on recurring items and transactions (BACKUP_VERSION 4, #117); no web change.
 # 1.47.0 (2026-11-15, claude+mkolakowski): no server change; web 1.69.0 (Bills & income's + Add in the controls row like Forecast's, #130).
 # 1.46.1 (2026-11-15, claude+mkolakowski): deleting a user blanks their email
@@ -567,6 +572,7 @@ def _backup_scheduler_loop():
                 _enforce_retention(sched.retention_days)
                 sched.last_run_at = now
                 sched.last_run_status = f"OK: {filename}"
+                record_event(db, "backup_made", detail=f"scheduled: {filename}")
             except Exception as e:
                 sched.last_run_at = now
                 sched.last_run_status = f"ERROR: {str(e)[:200]}"
@@ -738,7 +744,13 @@ def client_ip(request: Request) -> str | None:
 def record_event(db: Session, event: str, request: Request | None = None,
                  user: User | None = None, email: str | None = None,
                  detail: str | None = None) -> None:
-    """Write one audit event and commit it. Never pass a password."""
+    """Write one audit event and commit it. Never pass a password.
+
+    `user` is who did it. Who it was done to goes in `detail` by number
+    ("user #7", see audit_target), never by email, so deleting that user
+    leaves nothing naming them (decided 2026-11-15, #139, #133). No amounts,
+    account names or other financial data in `detail`.
+    """
     db.add(AuditEvent(
         event=event,
         user_id=user.id if user else None,
@@ -747,6 +759,11 @@ def record_event(db: Session, event: str, request: Request | None = None,
         detail=detail[:200] if detail else None,
     ))
     db.commit()
+
+
+def audit_target(actor: User, target_id: int) -> str:
+    """How an event's detail names the user an action was done to."""
+    return "own user" if target_id == actor.id else f"user #{target_id}"
 
 
 def _login_retry_after(db: Session, email: str, ip: str | None) -> int:
@@ -932,6 +949,8 @@ def app_token(payload: AppTokenIn, request: Request, db: Session = Depends(get_d
     _check_expiry(payload.expires_in_days)
     user = _password_sign_in(db, request, payload.email, payload.password, "token")
     token, row = _make_token(db, user, name, payload.access, payload.expires_in_days)
+    record_event(db, "token_created", request, user=user,
+                 detail=f"token #{row.id}, {row.access}; by sign-in")
     return {**_token_json(row), "token": token,
             "user": {"id": user.id, "email": user.email}}
 
@@ -1010,7 +1029,8 @@ def me(user: User = Depends(current_user)):
             "chart_position": user.chart_position,
             "recurring_position": user.recurring_position,
             "notice_required": _notice_required(user),
-            "notice_acknowledged_at": _iso(user.notice_ack_at)}
+            "notice_acknowledged_at": _iso(user.notice_ack_at),
+            "has_password": user.password_hash is not None}
 
 
 @app.post("/api/me/acknowledge-notice")
@@ -1055,7 +1075,8 @@ def list_tokens(user: User = Depends(current_session_user),
 
 
 @app.post("/api/tokens")
-def create_token(payload: ApiTokenIn, user: User = Depends(current_session_user),
+def create_token(payload: ApiTokenIn, request: Request,
+                 user: User = Depends(current_session_user),
                  db: Session = Depends(get_db)):
     """Make a token. The response is the only time `token` is shown."""
     name = payload.name.strip()
@@ -1067,6 +1088,8 @@ def create_token(payload: ApiTokenIn, user: User = Depends(current_session_user)
         raise HTTPException(403, "Only an admin can make an admin token")
     _check_expiry(payload.expires_in_days)
     token, row = _make_token(db, user, name, payload.access, payload.expires_in_days)
+    record_event(db, "token_created", request, user=user,
+                 detail=f"token #{row.id}, {row.access}")
     return {**_token_json(row), "token": token}
 
 
@@ -1090,7 +1113,8 @@ def _make_token(db: Session, user: User, name: str, access: str,
 
 
 @app.delete("/api/tokens/{token_id}")
-def revoke_token(token_id: int, user: User = Depends(current_session_user),
+def revoke_token(token_id: int, request: Request,
+                 user: User = Depends(current_session_user),
                  db: Session = Depends(get_db)):
     """Revoke one of the caller's tokens. It stops working at once. Safe to
     call again: the first revocation's time is kept."""
@@ -1100,6 +1124,7 @@ def revoke_token(token_id: int, user: User = Depends(current_session_user),
     if row.revoked_at is None:
         row.revoked_at = datetime.utcnow()
         db.commit()
+        record_event(db, "token_revoked", request, user=user, detail=f"token #{row.id}")
     return _token_json(row)
 
 
@@ -1117,7 +1142,8 @@ def admin_list_tokens(user: User = Depends(current_session_admin),
 
 
 @app.delete("/api/admin/tokens/{token_id}")
-def admin_revoke_token(token_id: int, user: User = Depends(current_session_admin),
+def admin_revoke_token(token_id: int, request: Request,
+                       user: User = Depends(current_session_admin),
                        db: Session = Depends(get_db)):
     """Revoke anyone's token. It stops working at once; safe to repeat."""
     row = db.get(ApiToken, token_id)
@@ -1126,9 +1152,37 @@ def admin_revoke_token(token_id: int, user: User = Depends(current_session_admin
     if row.revoked_at is None:
         row.revoked_at = datetime.utcnow()
         db.commit()
+        record_event(db, "token_revoked", request, user=user,
+                     detail=f"token #{row.id} of {audit_target(user, row.owner_id)}")
     owner = db.get(User, row.owner_id)
     return {**_token_json(row), "owner_id": row.owner_id,
             "owner_email": owner.email if owner else None}
+
+
+# ---------- Changing your own password (#133) ----------
+class PasswordChangeIn(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+
+@app.post("/api/me/password")
+def change_password(payload: PasswordChangeIn, request: Request,
+                    user: User = Depends(current_session_user),
+                    db: Session = Depends(get_db)):
+    """Change the caller's own password, confirmed with the current one.
+    Browser session only: a token can't change the password it can't see.
+    A Google-only user has no password here; an admin can set one."""
+    if is_demo_email(user.email):
+        raise HTTPException(403, "The demo user's password can't be changed.")
+    if not user.password_hash:
+        raise HTTPException(400, "You sign in with Google, so there's no password to change.")
+    if not verify_password(payload.current_password, user.password_hash):
+        # 403, not 401: the session is fine, the confirmation isn't.
+        raise HTTPException(403, "That password is incorrect.")
+    user.password_hash = hash_password(payload.new_password)
+    db.commit()
+    record_event(db, "password_changed", request, user=user)
+    return {"ok": True}
 
 
 # ---------- Deleting your own user ----------
@@ -1220,6 +1274,10 @@ def delete_me(payload: DeleteMeIn, request: Request,
                        "access, then delete your user.",
             **_deletion_plan_json(plan),
         })
+    # Written before the deletion, which then blanks its email and user like
+    # the rest of theirs (#139): what's left says a user deleted themselves,
+    # when, and from where.
+    record_event(db, "user_deleted", request, user=user, detail="own user")
     _delete_user(db, user, plan)
     request.session.clear()
     return {"ok": True}
@@ -2468,7 +2526,7 @@ def forecast(account_id: int, days: int = 90,
 
 # ---------- Backup: export / import ----------
 @app.get("/api/backup/export")
-def backup_export(account_ids: str | None = None,
+def backup_export(request: Request, account_ids: str | None = None,
                   user: User = Depends(current_user), db: Session = Depends(get_db)):
     editable = _user_editable_accounts(db, user, include_archived=True)
     if account_ids:
@@ -2483,6 +2541,8 @@ def backup_export(account_ids: str | None = None,
     else:
         accounts = editable
     payload = export_user(db, user, accounts=accounts)
+    record_event(db, "backup_exported", request, user=user,
+                 detail=f"{len(accounts)} account{'' if len(accounts) == 1 else 's'}")
     filename = f"walletweather-backup-{date.today().isoformat()}.json"
     return JSONResponse(
         content=payload,
@@ -2497,12 +2557,16 @@ class ImportIn(BaseModel):
 
 
 @app.post("/api/backup/import")
-def backup_import(body: ImportIn, user: User = Depends(current_user), db: Session = Depends(get_db)):
+def backup_import(body: ImportIn, request: Request,
+                  user: User = Depends(current_user), db: Session = Depends(get_db)):
     try:
         counts = import_user(db, user, body.payload, mode=body.mode,
                              account_names=body.account_names)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    n = counts.get("accounts", 0)
+    record_event(db, "backup_imported", request, user=user,
+                 detail=f"{body.mode}, {n} account{'' if n == 1 else 's'}")
     return {"ok": True, "imported": counts}
 
 
@@ -4763,7 +4827,7 @@ def admin_get_app_title(user: User = Depends(current_admin), db: Session = Depen
 
 
 @app.post("/api/admin/app-title")
-def admin_set_app_title(payload: AppTitleIn,
+def admin_set_app_title(payload: AppTitleIn, request: Request,
                         user: User = Depends(current_admin),
                         db: Session = Depends(get_db)):
     """Set the instance display name shown in the browser tab and UI header."""
@@ -4776,16 +4840,20 @@ def admin_set_app_title(payload: AppTitleIn,
     else:
         db.add(AdminSetting(key=APP_TITLE_KEY, value=title))
     db.commit()
+    record_event(db, "app_title_changed", request, user=user, detail=title)
     return {"app_title": title}
 
 
 @app.delete("/api/admin/app-title")
-def admin_reset_app_title(user: User = Depends(current_admin), db: Session = Depends(get_db)):
+def admin_reset_app_title(request: Request, user: User = Depends(current_admin),
+                          db: Session = Depends(get_db)):
     """Reset to the default ('WalletWeather')."""
     row = db.get(AdminSetting, APP_TITLE_KEY)
     if row:
         db.delete(row)
         db.commit()
+        record_event(db, "app_title_changed", request, user=user,
+                     detail=f"reset to {APP_TITLE_DEFAULT}")
     return {"app_title": APP_TITLE_DEFAULT}
 
 
@@ -4816,24 +4884,29 @@ def admin_list_users(user: User = Depends(current_admin), db: Session = Depends(
 
 
 @app.patch("/api/admin/users/{uid}")
-def admin_update_user(uid: int, payload: AdminUserPatchIn,
+def admin_update_user(uid: int, payload: AdminUserPatchIn, request: Request,
                       user: User = Depends(current_admin), db: Session = Depends(get_db)):
     target = db.get(User, uid)
     if not target:
         raise HTTPException(404, "User not found")
     # Protect against disabling yourself
-    if payload.disabled is not None:
-        if target.id == user.id and payload.disabled:
-            raise HTTPException(400, "Cannot disable your own account")
+    if payload.disabled is not None and target.id == user.id and payload.disabled:
+        raise HTTPException(400, "Cannot disable your own account")
+    events = []
+    if payload.disabled is not None and bool(target.disabled) != payload.disabled:
         target.disabled = payload.disabled
+        events.append("user_disabled" if payload.disabled else "user_enabled")
     if payload.new_password is not None:
         target.password_hash = hash_password(payload.new_password)
+        events.append("password_reset")
     db.commit()
+    for event in events:
+        record_event(db, event, request, user=user, detail=audit_target(user, target.id))
     return {"ok": True}
 
 
 @app.delete("/api/admin/users/{uid}")
-def admin_delete_user(uid: int,
+def admin_delete_user(uid: int, request: Request,
                       user: User = Depends(current_admin), db: Session = Depends(get_db)):
     target = db.get(User, uid)
     if not target:
@@ -4852,7 +4925,9 @@ def admin_delete_user(uid: int,
                        "the user.",
             **_deletion_plan_json(plan),
         })
+    target_id = target.id
     _delete_user(db, target, plan)
+    record_event(db, "user_deleted", request, user=user, detail=audit_target(user, target_id))
     return {"ok": True}
 
 
@@ -4875,7 +4950,7 @@ def admin_list_permissions(user: User = Depends(current_admin), db: Session = De
 
 
 @app.post("/api/admin/permissions")
-def admin_set_permission(payload: PermissionIn,
+def admin_set_permission(payload: PermissionIn, request: Request,
                          user: User = Depends(current_admin), db: Session = Depends(get_db)):
     """Set any permission on any account (admin override).
     Admins bypass the owner-only restrictions and can assign any level.
@@ -4902,10 +4977,15 @@ def admin_set_permission(payload: PermissionIn,
         if owner_count <= 1:
             raise HTTPException(400, "Cannot remove the last owner. Promote someone else first.")
 
+    # By account number, never its name (#133).
+    detail = (f"{audit_target(user, target.id)}, account #{acc.id}: "
+              f"{existing_level} → {payload.level}")
+
     if payload.level == "deny":
         if existing:
             db.delete(existing)
             db.commit()
+            record_event(db, "permission_changed", request, user=user, detail=detail)
         return {"ok": True, "level": "deny"}
 
     if existing:
@@ -4917,6 +4997,8 @@ def admin_set_permission(payload: PermissionIn,
             level=payload.level,
         ))
     db.commit()
+    if existing_level != payload.level:
+        record_event(db, "permission_changed", request, user=user, detail=detail)
     return {"ok": True, "level": payload.level}
 
 
@@ -4937,7 +5019,7 @@ def admin_get_backup_config(user: User = Depends(current_admin), db: Session = D
 
 
 @app.post("/api/admin/backup-config")
-def admin_set_backup_config(payload: AdminBackupConfigIn,
+def admin_set_backup_config(payload: AdminBackupConfigIn, request: Request,
                             user: User = Depends(current_admin), db: Session = Depends(get_db)):
     if payload.frequency not in ("daily", "weekly", "monthly"):
         raise HTTPException(400, "Invalid frequency")
@@ -4954,6 +5036,9 @@ def admin_set_backup_config(payload: AdminBackupConfigIn,
     sched.hour = payload.hour
     sched.retention_days = payload.retention_days
     db.commit()
+    record_event(db, "backup_settings_changed", request, user=user,
+                 detail=(f"{'on' if payload.enabled else 'off'}, {payload.frequency} "
+                         f"at {payload.hour}:00 UTC, keep {payload.retention_days} days"))
     return {"ok": True}
 
 
@@ -4976,7 +5061,8 @@ def admin_list_backups(user: User = Depends(current_admin)):
 
 
 @app.post("/api/admin/backups/now")
-def admin_trigger_backup(user: User = Depends(current_admin), db: Session = Depends(get_db)):
+def admin_trigger_backup(request: Request, user: User = Depends(current_admin),
+                         db: Session = Depends(get_db)):
     try:
         filename = _run_system_backup()
         # Update schedule status so the admin panel shows when the last backup ran
@@ -4985,13 +5071,14 @@ def admin_trigger_backup(user: User = Depends(current_admin), db: Session = Depe
             sched.last_run_at = datetime.utcnow()
             sched.last_run_status = f"OK (manual): {filename}"
             db.commit()
+        record_event(db, "backup_made", request, user=user, detail=f"manual: {filename}")
         return {"ok": True, "filename": filename}
     except Exception as e:
         raise HTTPException(500, f"Backup failed: {e}")
 
 
 @app.post("/api/admin/backups/restore/{filename}")
-def admin_restore_backup(filename: str,
+def admin_restore_backup(filename: str, request: Request,
                          user: User = Depends(current_admin), db: Session = Depends(get_db)):
     """Restore from a local system backup file. This is a destructive operation
     that replaces ALL data for ALL users present in the backup."""
@@ -5023,14 +5110,19 @@ def admin_restore_backup(filename: str,
         counts = import_user(db, target, udata, mode="replace")
         restored["users"] += 1
         restored["accounts"] += counts.get("accounts", 0)
+    n = restored["users"]
+    record_event(db, "backup_restored", request, user=user,
+                 detail=f"{filename}, {n} user{'' if n == 1 else 's'}")
     return {"ok": True, "restored": restored}
 
 
 @app.get("/api/admin/backups/download/{filename}")
-def admin_download_backup(filename: str, user: User = Depends(current_admin)):
+def admin_download_backup(filename: str, request: Request,
+                          user: User = Depends(current_admin), db: Session = Depends(get_db)):
     filepath = BACKUP_DIR / filename
     if not filepath.exists() or not filepath.name.startswith("system-backup-"):
         raise HTTPException(404, "Backup file not found")
+    record_event(db, "backup_downloaded", request, user=user, detail=filename)
     return FileResponse(filepath, media_type="application/json",
                         headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 

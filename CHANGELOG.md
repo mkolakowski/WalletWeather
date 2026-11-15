@@ -65,7 +65,21 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.33.0** · Web version: **1.57.0** · Schema version: **14**
+App version: **1.34.0** · Web version: **1.58.0** · Schema version: **14**
+
+### Changed
+
+- **Breaking: Bills & income is laid out and works like the Forecast page.**
+  - Account tabs across the top (with balances), starting with All accounts,
+    replace the Account dropdown.
+  - An actions panel at the top holds "+ Add recurring"; the totals sit under
+    it, and the add form opens as its own panel.
+  - The table looks like Forecast's, with column lines and compact rows. Its
+    controls (Active / Archived, Spreadsheet mode and Per page) sit above it,
+    and Per page starts on "Auto", which fits as many rows as your window
+    holds; "All" is new too. On a phone, sort buttons sit above the table.
+  - **Spreadsheet mode**: every row you can edit opens at once; a row saves
+    shortly after you leave it and the totals refresh once you stop typing.
 
 ### Changed
 

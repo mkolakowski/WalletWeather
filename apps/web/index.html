@@ -282,7 +282,11 @@
   /* …and the line editor's ✕ (cancel) a clearly visible neutral one. */
   #forecastTable button.close-btn { border:1px solid var(--muted); }
   /* Spreadsheet button gets a clearly visible outline (accent fill when on). */
-  #forecastSpreadsheetBtn:not(.active) { border:1px solid var(--muted); }
+  #forecastSpreadsheetBtn:not(.active), #recSpreadsheetBtn:not(.active) { border:1px solid var(--muted); }
+  /* Bills & income's table looks like Forecast's (#81): column lines and
+     compact cells. */
+  #recurringTable th, #recurringTable td { border-right:1px solid var(--border); padding:4px 6px; }
+  #recurringTable th:last-child, #recurringTable td:last-child { border-right:none; }
   /* The balance pair is plain text (no input boxes), so keep a little air. */
   #forecastTable tr:not(.fc-editing) > :nth-child(8) { padding-right:6px; }
   #forecastTable tr:not(.fc-editing) > :nth-child(9) { padding-left:6px; }
@@ -1136,36 +1140,26 @@
     </div>
 
     <div id="pageSubscriptions" class="hidden">
-      <!-- Bills & income (#51): one editable list of every recurring item
-           across the accounts the user can see. The page keeps its internal
-           name and #subscriptions address (stable identifiers). -->
-      <div class="panel" id="txnRecurringPanel">
-        <div class="page-title-row">
-          <h2 style="margin:0">Bills &amp; income</h2>
-          <span style="margin-left:auto;display:flex;gap:6px">
-            <button id="recTabActive" class="tab small active" onclick="switchRecView('active')">Active</button>
-            <button id="recTabArchived" class="tab small" onclick="switchRecView('archived')"
-                    title="Items whose end date has passed">Archived</button>
-          </span>
+      <!-- Bills & income (#51), laid out like Forecast (#81): account tabs
+           (All accounts first), an actions panel, the totals, the add form,
+           then the table with its controls and spreadsheet mode. The page
+           keeps its internal name and #subscriptions address. -->
+      <div class="accounts-bar" id="recAccountsBar"></div>
+
+      <div class="panel" id="recActionsPanel">
+        <h2>Bills &amp; income</h2>
+        <div class="row">
+          <div style="flex:0 0 auto"><button id="recAddBtn" onclick="toggleRecAddForm(true)">+ Add recurring</button></div>
         </div>
-        <p style="color:var(--muted);font-size:13px;margin:6px 0 10px">
-          Every recurring bill and income on the accounts you can see. Weekly and
-          biweekly items are converted to a monthly figure so everything lines up.
-        </p>
-        <div class="row" style="margin:0 0 10px;align-items:end">
-          <div style="flex:0 1 260px;min-width:180px">
-            <label for="recAccountSel">Account</label>
-            <select id="recAccountSel" onchange="onRecAccountChange()"></select>
-          </div>
-          <div style="flex:0 0 auto">
-            <button id="recAddBtn" onclick="toggleRecAddForm(true)">+ Add recurring</button>
-          </div>
-        </div>
+      </div>
+
+      <div id="recTotalsScope" style="font-size:12px;color:var(--muted);margin:0 0 6px"
+           title="Weekly and biweekly items are converted to a monthly figure so everything lines up"></div>
+      <div class="summary" id="recSummary" style="margin:0 0 12px"></div>
 
         <!-- Add form: same fields as the edit form, plus the account. -->
-        <div id="recAddPanel" class="hidden" style="margin:0 0 14px;padding:12px;
-             border:1px solid var(--accent);border-radius:8px;background:var(--chip-bg)">
-          <h3 style="margin:0 0 8px;font-size:14px">Add recurring</h3>
+        <div id="recAddPanel" class="panel hidden">
+          <h2>Add recurring</h2>
           <div class="row">
             <div style="flex:1 1 160px"><label for="recAddAccount">Account</label>
               <select id="recAddAccount"></select></div>
@@ -1205,9 +1199,53 @@
           </div>
         </div>
 
-        <div id="recTotalsScope" style="font-size:12px;color:var(--muted);margin:0 0 6px"></div>
-        <div class="summary" id="recSummary" style="margin:0 0 12px"></div>
-
+      <div class="panel" id="txnRecurringPanel">
+        <div class="fc-controls">
+          <div class="fc-left">
+            <div class="ctl" role="group" aria-label="Show">
+              <button id="recTabActive" class="tab small active" onclick="switchRecView('active')">Active</button>
+              <button id="recTabArchived" class="tab small" onclick="switchRecView('archived')"
+                      title="Items whose end date has passed">Archived</button>
+            </div>
+          </div>
+          <div class="fc-center">
+            <button class="ghost" id="recSpreadsheetBtn" onclick="toggleRecSpreadsheetMode()"
+                    title="Edit every row directly in the table, like a spreadsheet">Spreadsheet mode</button>
+          </div>
+          <div class="fc-right">
+        <div id="recurringPagination" class="pagination hidden" style="margin-top:0;gap:16px">
+          <div class="pagination-left">
+            <label for="recurringPageSize">Per page</label>
+            <select id="recurringPageSize" onchange="onRecurringPageSizeChange()">
+              <option value="auto" selected>Auto (fit window)</option>
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="all">All</option>
+            </select>
+            <span id="recurringPageRange" class="pagination-range"></span>
+          </div>
+          <div class="pagination-right">
+            <button id="recurringPrevPage" class="ghost" onclick="changeRecurringPage(-1)">« Prev</button>
+            <span id="recurringPageLabel" class="pagination-label"></span>
+            <button id="recurringNextPage" class="ghost" onclick="changeRecurringPage(1)">Next »</button>
+          </div>
+        </div>
+          </div>
+        </div>
+        <p id="recSpreadsheetHint" class="hidden" style="color:var(--muted);font-size:12px;margin:-6px 0 10px">
+          Every row you can edit is open. Each row saves shortly after you leave it; the totals refresh a moment after things go quiet.
+        </p>
+        <div id="recSortBar" class="fc-sort" role="group" aria-label="Sort by">
+          <span class="fc-sort-l">Sort</span>
+          <button class="ghost" data-key="description">Name</button>
+          <button class="ghost" data-key="account_name">Account</button>
+          <button class="ghost" data-key="category_name">Category</button>
+          <button class="ghost" data-key="amount">Amount</button>
+          <button class="ghost" data-key="monthly">Monthly</button>
+          <button class="ghost" data-key="when">Frequency</button>
+        </div>
         <!-- Bulk edit bar — appears once at least one row is checked.
              Blank fields are left unchanged; Apply sends only the filled
              ones to POST /api/recurring/bulk-update. -->
@@ -1275,23 +1313,6 @@
           <th>Notes</th>
           <th><span class="le-spacer" aria-hidden="true"><button tabindex="-1">Save</button><button tabindex="-1">🗑 Delete</button><button tabindex="-1">Cancel</button></span></th>
         </tr></thead><tbody></tbody></table>
-        </div>
-        <div id="recurringPagination" class="pagination hidden">
-          <div class="pagination-left">
-            <label for="recurringPageSize">Per page</label>
-            <select id="recurringPageSize" onchange="onRecurringPageSizeChange()">
-              <option value="10">10</option>
-              <option value="20" selected>20</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-            </select>
-            <span id="recurringPageRange" class="pagination-range"></span>
-          </div>
-          <div class="pagination-right">
-            <button id="recurringPrevPage" class="ghost" onclick="changeRecurringPage(-1)">« Prev</button>
-            <span id="recurringPageLabel" class="pagination-label"></span>
-            <button id="recurringNextPage" class="ghost" onclick="changeRecurringPage(1)">Next »</button>
-          </div>
         </div>
       </div>
     </div>
@@ -2355,7 +2376,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.57.0";
+const WEB_VERSION = "1.58.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2366,6 +2387,7 @@ const WEB_VERSION = "1.57.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.58.0 (2026-11-14, claude+mkolakowski): (#81) Bills & income laid out like Forecast: #recAccountsBar tabs (All accounts first; syncRecAccountSelect/selectRecAccount/_markRecTabs replace the dropdown), #recActionsPanel, totals, #recAddPanel as a panel, then the table panel with fc-controls (Active/Archived, #recSpreadsheetBtn, pagination with Auto/All via _recEffectivePageSize) and #recSortBar. #recurringTable gets Forecast's column lines and compact cells. Spreadsheet mode (recSheetMode): every editable row uses renderEditRow(r, {sheet}) with Delete only; leaving a row saves it (saveRecurring(id, {sheet}) skips unchanged rows), and _scheduleRecSheetRefresh reloads once focus leaves the table.
 // 1.57.0 (2026-11-14, claude+mkolakowski): (#80) The Transactions page is Forecast's All accounts tab: #allAccountsView inside #pageAccounts, an .all-tab first in #accountsBar (forecastAllView, showAllAccountsView, _markForecastTabs), hash #forecast/all; showPage('transactions') and #transactions redirect there. Account tabs are matched by data-account-id, not position. navTransactions, its More entry and #pageTransactions are removed; the transfer form returns via _returnFromTransfer().
 // 1.56.6 (2026-11-14, claude+mkolakowski): (#79) Every page is full width: main has no max-width and a 40px gutter; showPage() always adds main.wide.
 // 1.56.5 (2026-11-14, claude+mkolakowski): (#69) Number fields in an open
@@ -4903,21 +4925,58 @@ function _updateAccountTabBalance(accountId, balance) {
 // Independent of the Forecast page's selected account (#51).
 let recFilterAccount = '';   // '' = all accounts, else an account id as a string
 function syncRecAccountSelect() {
-  const sel = document.getElementById('recAccountSel');
-  if (!sel) return;
+  // Account tabs like Forecast's (#81): All accounts first, then each
+  // account with its balance; arrow keys move between them.
+  const bar = document.getElementById('recAccountsBar');
+  if (!bar) return;
   if (recFilterAccount && !accounts.some(a => String(a.id) === recFilterAccount)) recFilterAccount = '';
-  sel.innerHTML = '<option value="">All accounts</option>' + accounts.map(a =>
-    `<option value="${a.id}">${escapeHtml(a.name)}${a.level === 'read' ? ' (read only)' : ''}</option>`).join('');
-  sel.value = recFilterAccount;
+  bar.innerHTML = '';
+  bar.setAttribute('role', 'tablist');
+  bar.setAttribute('aria-label', 'Accounts');
+  const make = (key, html, label) => {
+    const el = document.createElement('div');
+    el.className = 'account-tab' + (key === '' ? ' all-tab' : '');
+    el.dataset.recAccount = key;
+    el.setAttribute('role', 'tab');
+    el.innerHTML = html;
+    if (label) el.setAttribute('aria-label', label);
+    el.onclick = () => selectRecAccount(key);
+    el.onkeydown = (ev) => {
+      const tabs = [...bar.querySelectorAll('.account-tab')];
+      const i = tabs.indexOf(el);
+      let j = null;
+      if (ev.key === 'ArrowRight') j = (i + 1) % tabs.length;
+      else if (ev.key === 'ArrowLeft') j = (i - 1 + tabs.length) % tabs.length;
+      else if (ev.key === 'Home') j = 0;
+      else if (ev.key === 'End') j = tabs.length - 1;
+      else if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); selectRecAccount(key); return; }
+      if (j === null) return;
+      ev.preventDefault(); tabs[j].focus(); tabs[j].click();
+    };
+    bar.appendChild(el);
+  };
+  if (accounts.length) make('', 'All accounts');
+  accounts.forEach(a => make(String(a.id), _accountTabHtml(a)));
+  _markRecTabs();
   document.getElementById('recAddBtn').classList.toggle('hidden', !_recEditableAccounts().length);
 }
-
-function onRecAccountChange() {
-  recFilterAccount = document.getElementById('recAccountSel').value;
+function _markRecTabs() {
+  document.querySelectorAll('#recAccountsBar .account-tab').forEach(el => {
+    const on = el.dataset.recAccount === recFilterAccount;
+    el.classList.toggle('active', on);
+    el.setAttribute('aria-selected', String(on));
+    el.tabIndex = on ? 0 : -1;
+  });
+}
+function selectRecAccount(key) {
+  recFilterAccount = key || '';
   editingRecId = null;
   recurringPage = 0;
+  _markRecTabs();
   loadRecurring();
 }
+// Kept for anything that still calls it.
+function onRecAccountChange() { selectRecAccount(recFilterAccount); }
 
 // Accounts the user may add recurring items to.
 function _recEditableAccounts() {
@@ -5407,7 +5466,23 @@ function switchRecView(view) {
 // --- Recurring pagination state ---
 let recurringData = [];            // last-loaded list from the server
 let recurringPage = 0;
-let recurringPageSize = 20;
+let recurringPageMode = 'auto';    // 'auto' (fit window) | '10' | '20' | '50' | '100' | 'all'
+let _recRowH = 0;                  // measured row height, for auto sizing
+// Rows per page, as on Forecast: Auto fits the window (all rows on a phone).
+function _recEffectivePageSize(total) {
+  if (recurringPageMode === 'all' || (recurringPageMode === 'auto' && _isPhoneLayout())) return Math.max(1, total);
+  if (recurringPageMode !== 'auto') return parseInt(recurringPageMode, 10);
+  const tbl = document.getElementById('recurringTable');
+  const top = tbl.getBoundingClientRect().top + window.scrollY;
+  const head = tbl.tHead ? tbl.tHead.offsetHeight : 40;
+  const room = window.innerHeight - top - head - 90;
+  return Math.max(5, Math.floor(room / (_recRowH || 38)));
+}
+window.addEventListener('resize', () => {
+  if (recurringPageMode !== 'auto' || recSheetMode) return;
+  const pg = document.getElementById('pageSubscriptions');
+  if (pg && !pg.classList.contains('hidden') && recurringData.length) renderRecurring();
+});
 let recurringSortKey = 'description';
 let recurringSortDir = 'asc';
 
@@ -5496,7 +5571,11 @@ function renderRecurring() {
     return;
   }
 
-  // Update sort indicators on column headers
+  // Update sort indicators on column headers (and the phone sort bar)
+  document.querySelectorAll('#recSortBar button').forEach(b => {
+    b.classList.toggle('sort-asc', b.dataset.key === recurringSortKey && recurringSortDir === 'asc');
+    b.classList.toggle('sort-desc', b.dataset.key === recurringSortKey && recurringSortDir === 'desc');
+  });
   document.querySelectorAll('#recurringTable th.sortable').forEach(th => {
     th.classList.remove('sort-asc','sort-desc');
     if (th.dataset.key === recurringSortKey) {
@@ -5531,18 +5610,19 @@ function renderRecurring() {
 
   // Paginate
   const total = list.length;
-  const totalPages = Math.max(1, Math.ceil(total / recurringPageSize));
+  const pageSize = _recEffectivePageSize(total);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
   if (recurringPage >= totalPages) recurringPage = totalPages - 1;
   if (recurringPage < 0) recurringPage = 0;
-  const startIdx = recurringPage * recurringPageSize;
-  const endIdx = Math.min(startIdx + recurringPageSize, total);
+  const startIdx = recurringPage * pageSize;
+  const endIdx = Math.min(startIdx + pageSize, total);
   const pageRows = list.slice(startIdx, endIdx);
   _recPageIds = pageRows.filter(_recRowEditable).map(r => r.id);
   document.getElementById('recSelectAll').classList.toggle('hidden', !_recPageIds.length);
 
   // Update pagination UI (hide entirely if everything fits on the smallest page)
   const paginationBar = document.getElementById('recurringPagination');
-  if (total <= 10) {
+  if (totalPages <= 1 && recurringPageMode === 'auto') {
     paginationBar.classList.add('hidden');
   } else {
     paginationBar.classList.remove('hidden');
@@ -5558,8 +5638,9 @@ function renderRecurring() {
     const tr = document.createElement('tr');
     const ro = !_recRowEditable(r);
     const cbCell = recCheckboxCell(r, ro);
-    if (editingRecId === r.id && !ro) {
-      tr.innerHTML = cbCell + renderEditRow(r);
+    tr.dataset.recId = r.id;
+    if ((editingRecId === r.id || recSheetMode) && !ro) {
+      tr.innerHTML = cbCell + renderEditRow(r, { sheet: recSheetMode });
       tr.className = 'le-row le-inline';
       tr.onkeydown = (ev) => onRecEditKey(ev, r.id);
     } else {
@@ -5826,7 +5907,7 @@ async function runRecBulkDelete() {
 }
 
 function onRecurringPageSizeChange() {
-  recurringPageSize = parseInt(document.getElementById('recurringPageSize').value);
+  recurringPageMode = document.getElementById('recurringPageSize').value;
   recurringPage = 0;
   renderRecurring();
 }
@@ -5836,7 +5917,8 @@ function changeRecurringPage(delta) {
   renderRecurring();
 }
 
-function renderEditRow(r) {
+function renderEditRow(r, opts) {
+  const sheet = !!(opts && opts.sheet);
   // One cell per column after the select checkbox the caller adds (10):
   // Description (+ restore deleted dates), Account (type; the account isn't
   // editable), Category, Amount, Monthly (day of month), Yearly (start date),
@@ -5870,6 +5952,7 @@ function renderEditRow(r) {
     _leTd(_leField('Frequency', `editFreq_${id}`, `<select id="editFreq_${id}" onchange="onEditFreqChange(${id})">${freqOptions}</select>`)),
     _leTd(_leField('Ends (optional)', `editEnd_${id}`, `<input id="editEnd_${id}" type="date" title="Ends (optional)" value="${r.end_date||''}">`)),
     _leNotesActionsTd(_leField('Notes', `editNotes_${id}`, `<input id="editNotes_${id}" maxlength="256" placeholder="Notes" value="${escapeAttr(r.notes||'')}">`),
+      sheet ? `<button class="danger" onclick="delRecurring(${id})" title="Delete this recurring item">🗑 Delete</button>` :
       `<button onclick="saveRecurring(${id})" title="Save (Enter)">Save</button>
               <button class="danger" onclick="delRecurring(${id})" title="Delete this recurring item">🗑 Delete</button>
               <button class="ghost" onclick="cancelEditRecurring()" title="Cancel (Esc)">Cancel</button>`),
@@ -5880,12 +5963,48 @@ function renderEditRow(r) {
 // left alone on <select>s (it opens/commits the dropdown) and on buttons and
 // links, which already treat it as a click.
 function onRecEditKey(ev, id) {
-  if (ev.key === 'Escape') { ev.preventDefault(); cancelEditRecurring(); return; }
+  if (ev.key === 'Escape') { ev.preventDefault(); if (!recSheetMode) cancelEditRecurring(); return; }
   if (ev.key === 'Enter' && ev.target.tagName === 'INPUT') {
     ev.preventDefault();
-    saveRecurring(id);
+    saveRecurring(id, recSheetMode ? { sheet: true } : undefined);
   }
 }
+
+// ---------- Bills & income: spreadsheet mode (#81) ----------
+// Like Forecast's: every row you can edit is open; a row saves shortly after
+// focus leaves it, and the list (with its totals) reloads once things go
+// quiet, so other rows being typed into aren't redrawn underneath you.
+let recSheetMode = false;
+let _recSheetRefreshTimer = null;
+function toggleRecSpreadsheetMode() {
+  recSheetMode = !recSheetMode;
+  editingRecId = null;
+  document.getElementById('recSpreadsheetBtn').classList.toggle('active', recSheetMode);
+  document.getElementById('recSpreadsheetHint').classList.toggle('hidden', !recSheetMode);
+  renderRecurring();
+}
+function _scheduleRecSheetRefresh() {
+  clearTimeout(_recSheetRefreshTimer);
+  _recSheetRefreshTimer = setTimeout(() => {
+    const active = document.activeElement;
+    if (recSheetMode && active && active.closest && active.closest('#recurringTable tr.le-inline')) {
+      _scheduleRecSheetRefresh();   // still typing: wait
+      return;
+    }
+    loadRecurring();
+  }, 1500);
+}
+document.addEventListener('focusout', (ev) => {
+  if (!recSheetMode) return;
+  const tr = ev.target.closest && ev.target.closest('#recurringTable tr.le-inline');
+  if (!tr) return;
+  // Save when focus leaves the row (not when it moves within it).
+  setTimeout(() => {
+    if (tr.contains(document.activeElement)) return;
+    const id = Number(tr.dataset.recId);
+    if (id && document.getElementById(`editDesc_${id}`)) saveRecurring(id, { sheet: true });
+  }, 0);
+});
 
 function escapeAttr(s){return (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 
@@ -5911,7 +6030,8 @@ function onEditFreqChange(id) {
     monthly ? 'Start date (optional)' : 'Start date';
 }
 
-async function saveRecurring(id) {
+async function saveRecurring(id, opts) {
+  const sheet = !!(opts && opts.sheet);
   const freq = document.getElementById(`editFreq_${id}`).value;
   const catVal = document.getElementById(`editCat_${id}`).value;
   const rawAmt = parseFloat(document.getElementById(`editAmt_${id}`).value);
@@ -5938,10 +6058,25 @@ async function saveRecurring(id) {
   if (isNaN(body.amount)) return fieldErr('Enter an amount.', 'editAmt');
   if (freq === 'monthly_day' && !(day >= 1 && day <= 31)) return fieldErr('Day of month must be between 1 and 31.', 'editDay');
   if (freq !== 'monthly_day' && !body.anchor_date) return fieldErr('Weekly and biweekly items need a start date.', 'editAnchor');
+  // Spreadsheet mode: skip rows that haven't changed.
+  const before = recurringData.find(r => r.id === id);
+  if (sheet && before && before.description === body.description && Number(before.amount) === body.amount
+      && before.frequency === body.frequency && (before.day_of_month || null) === body.day_of_month
+      && (before.anchor_date || null) === body.anchor_date && (before.end_date || null) === body.end_date
+      && (before.category_id || null) === body.category_id && (before.notes || null) === body.notes) {
+    document.getElementById(`editStatus_${id}`).textContent = '';
+    return;
+  }
   try {
     await api('/api/recurring/'+id, {method:'PATCH', body: JSON.stringify(body)});
   } catch (e) {
     notifyError('Could not save', e);
+    return;
+  }
+  if (sheet) {
+    document.getElementById(`editStatus_${id}`).textContent = '';
+    if (before) Object.assign(before, body);
+    _scheduleRecSheetRefresh();
     return;
   }
   editingRecId = null;
@@ -7079,7 +7214,7 @@ function wireForecastSort() {
 }
 
 function wireRecurringSort() {
-  document.querySelectorAll('#recurringTable th.sortable').forEach(th => {
+  document.querySelectorAll('#recurringTable th.sortable, #recSortBar button').forEach(th => {
     th.addEventListener('click', () => {
       const key = th.dataset.key;
       if (recurringSortKey === key) {

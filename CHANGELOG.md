@@ -71,6 +71,10 @@ same commit (or session) that introduces it.
 
 App version: **1.53.0** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.3.0**
 
+## [1.53.0] — 2026-11-15
+
+App version: **1.53.0** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.3.0**
+
 ### Added
 
 - **Bills & income in the iPhone app** (iOS app 0.3.0, which needs server
@@ -1896,7 +1900,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.52.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.53.0...HEAD
+[1.53.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.53.0
 [1.52.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.52.0
 [1.51.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.51.0
 [1.50.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.50.0

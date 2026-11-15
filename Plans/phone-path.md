@@ -8,7 +8,7 @@ Tracking issue: #44
 | --- | --- | --- |
 | 1. Installable web app | #41 | Released in 1.42.0 (web 1.65.0) |
 | 2. API tokens | #42 | Released in 1.41.0 (web 1.63.0, schema 16) |
-| 3. Token extras | #43 | Expiry, last used and the Admin token list built in 1.43.0 (web 1.66.0, schema 17), not yet released. `POST /api/auth/token` waits on login rate limiting (roadmap item 15). |
+| 3. Token extras | #43 | Expiry, last used and the Admin token list built in 1.43.0 (web 1.66.0, schema 17), not yet released. `POST /api/auth/token` waits on login rate limiting (roadmap item 15, plan `Plans/login-limits.md`, #135). |
 
 Phase 3 built in part 2026-11-15 in app 1.43.0 / web 1.66.0 / schema 17, not yet released: expiry (30/90/365 days or never, 90 days pre-selected in Settings), last-used time, and the Admin panel's token list with Revoke (browser session only, so no token can revoke tokens). Verified by 20 new tests (98 in all pass) and on a throwaway server upgraded from 1.41.0's database: an old token kept working and never expires. `POST /api/auth/token` is not built: it needs login rate limiting first (roadmap item 15), so #43 stays open for it.
 

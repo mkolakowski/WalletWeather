@@ -65,7 +65,14 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.32.3** · Web version: **1.56.3** · Schema version: **14**
+App version: **1.32.4** · Web version: **1.56.4** · Schema version: **14**
+
+### Changed
+
+- Amounts you type into an open line line up on the right, like the column.
+- On the Forecast page there's no column line between Notes and the ✎ any
+  more, and a long note uses the empty space up to the ✎ before it's cut off.
+  An open line looks as it did.
 
 ## [1.32.3] — 2026-11-14
 

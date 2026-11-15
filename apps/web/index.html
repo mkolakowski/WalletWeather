@@ -135,6 +135,20 @@
   tr.le-inline .le-actions { display:flex; gap:6px; justify-content:flex-end; align-items:center; }
   tr.le-inline .le-actions button { min-height:30px; padding:4px 14px; font-size:13px; }
   tr.le-inline > td.le-td-actions { padding-right:4px !important; }
+  /* Amounts in an open line read from the right, like the column. */
+  tr.le-inline input[type=number] { text-align:right; }
+  /* Forecast: no column line between Notes and the actions column. A closed
+     line's Notes + ✎ share one cell (.notes-edit); the note fills the space
+     and ends in "…", the ✎ stays at the right. */
+  #forecastTable thead th:nth-child(11),
+  #forecastTable tbody tr:not(.le-inline) > td:nth-child(11),
+  #forecastTable tbody tr.le-inline > td.le-notes { border-right:none; }
+  #forecastTable td.notes-edit { overflow:visible; }
+  #forecastTable td.notes-edit .notes-wrap { display:flex; align-items:center; gap:8px; }
+  #forecastTable td.notes-edit .notes-text { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
+                                             white-space:nowrap; text-align:left; }
+  #forecastTable td.notes-edit.muted .notes-text { color:var(--muted); }
+  #forecastTable td.notes-edit button { flex:0 0 auto; }
   @media (min-width: 769px) {
     /* Same height open or closed (#69): on desktop the open line has no
        visible labels (each field is under its column heading; the label
@@ -635,6 +649,7 @@
     #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > td.diff-zero { display:none; }
     #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(11) { grid-column:1 / -1; grid-row:5; max-width:none; font-size:12px; color:var(--muted); }
     #forecastTable:not(.sheet-mode) tbody tr:not(.today-marker):not(.row-editing) > :nth-child(11).muted { display:none; }
+    #forecastTable td.notes-edit button { display:none; }   /* tapping the card opens it */
     #forecastTable tr.today-marker, #forecastTable tr.today-marker td { display:block; }
     .today-bar { flex-wrap:wrap; gap:4px 10px; }
     .today-bar .today-track { flex:1 1 60px; }
@@ -2323,7 +2338,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.56.3";
+const WEB_VERSION = "1.56.4";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2334,6 +2349,11 @@ const WEB_VERSION = "1.56.3";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.56.4 (2026-11-14, claude+mkolakowski): (#69) Number inputs in an open
+//     line are right-aligned. Forecast: no column line between Notes and the
+//     actions column; on editable accounts a closed line's Notes and ✎ share
+//     one colspan=2 cell (.notes-edit, note ellipsized, ✎ right; hidden on
+//     phones). The open line's Notes cell (.le-notes) is unchanged.
 // 1.56.3 (2026-11-14, claude+mkolakowski): (#69) Same row height open or
 //     closed on desktop: open-line labels are visually hidden (kept for
 //     screen readers; each .le-f carries the name as a tooltip), inputs and
@@ -6390,6 +6410,14 @@ function renderForecast() {
     const actionsCell = ro ? '<td></td>'
       : `<td><button class="ghost" title="Edit or delete this line" aria-label="Edit ${escapeAttr(r.description)}"
            onclick="startEditForecastRow('${escapeAttr(rowKey)}')">✎</button></td>`;
+    // Editable accounts: Notes and the ✎ share one cell across the Notes and
+    // actions columns, so a long note can run into the space left of the ✎
+    // (no column line between them). Read-only accounts keep two cells; the
+    // empty actions one is hidden by CSS.
+    const notesAndEditCell = `<td colspan="2" class="notes-col notes-edit${r.notes ? '' : ' muted'}"><div class="notes-wrap">
+        <span class="notes-text"${r.notes ? ` title="${escapeAttr(r.notes)}"` : ''}>${r.notes ? escapeHtml(r.notes) : '—'}</span>
+        <button class="ghost" title="Edit or delete this line" aria-label="Edit ${escapeAttr(r.description)}"
+           onclick="startEditForecastRow('${escapeAttr(rowKey)}')">✎</button></div></td>`;
 
     // Tag chips render inline below the description so adding them didn't
     // require a whole new column (the table is already wide).
@@ -6407,8 +6435,7 @@ function renderForecast() {
       <td class="num">${fBal}</td>
       <td class="num">${aBal}</td>
       <td class="num ${dBalCls}">${dBal}</td>
-      ${notesCell}
-      ${actionsCell}`;
+      ${ro ? notesCell + actionsCell : notesAndEditCell}`;
     tbody.appendChild(tr);
   });
   // Today is after every row on this page (or the list is empty).
@@ -6731,7 +6758,7 @@ function _renderForecastLineEditor(r) {
     _leTd(r.transaction_id
           ? _leField('Tags', 'editFcTags_btn', renderTagPicker('editFcTags', (r.tags || []).map(t => t.id)))
           : '', { colspan: 4 }),
-    _leTd(_leField('Notes', 'fcEdit_notes', inp('notes', 'text', r.notes, ' maxlength="256" placeholder="Notes"'))),
+    _leTd(_leField('Notes', 'fcEdit_notes', inp('notes', 'text', r.notes, ' maxlength="256" placeholder="Notes"')), { cls: 'le-notes' }),
     _leActionsTd(`<button onclick="saveEditedForecastRow('${k}')" title="Save (Enter)">Save</button>
               ${_forecastDeleteBtn(r, 'danger', '🗑 Delete')}
               <button class="ghost" onclick="cancelEditForecastRow()" title="Cancel (Esc)">Cancel</button>`),

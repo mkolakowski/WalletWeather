@@ -71,6 +71,10 @@ same commit (or session) that introduces it.
 
 App version: **1.54.0** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.4.0**
 
+## [1.54.0] — 2026-11-15
+
+App version: **1.54.0** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.4.0**
+
 ### Added
 
 - **Net worth, Budgets and Reports in the iPhone app**, under More, read-only
@@ -1924,7 +1928,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.53.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.54.0...HEAD
+[1.54.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.54.0
 [1.53.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.53.0
 [1.52.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.52.0
 [1.51.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.51.0

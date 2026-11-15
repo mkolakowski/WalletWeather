@@ -65,7 +65,31 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.27.0** · Web version: **1.51.0** · Schema version: **14**
+App version: **1.28.0** · Web version: **1.52.0** · Schema version: **14**
+
+### Changed
+
+- **Breaking: on a phone, pages are reached from a bar at the bottom of the
+  screen.** It holds Dashboard, Forecast, Bills & income and Calendar, plus
+  More, which opens Net Worth, Transactions, Reports, Settings, Admin (for
+  admins) and Log out. The row of buttons at the top, which wrapped onto
+  several lines on a phone, now shows only on wider screens.
+- **Breaking: Settings is split into tabs**: Appearance, Accounts, Categories
+  & tags, Budgets, Sharing, Backup and Your account (Delete my account and the
+  Important notice). One shows at a time. Each has its own address, such as
+  `#settings/budgets`, so you can bookmark it, and the browser's Back button
+  steps through the tabs you visited. Settings remembers the last tab you had
+  open. The Dashboard's Edit button opens the Appearance tab.
+- **Import and Transfer money have their own addresses** (`#import`,
+  `#transfer`, and `#transfer/<number>` while editing one), so refreshing the
+  page or pressing Back keeps you where you were instead of dropping you on
+  the Dashboard.
+
+### Fixed
+
+- Opening a transfer's address directly (for example after a refresh) now
+  loads that transfer before showing it. Without this the form would have
+  come up blank while still set to save over that transfer.
 
 ## [1.27.0] — 2026-11-14
 

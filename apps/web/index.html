@@ -328,8 +328,42 @@
   .dash-card .section-label { font-size:10px; color:var(--muted); text-transform:uppercase;
                               letter-spacing:.05em; margin:4px 0 6px; }
 
+  /* ---------- Phone bottom bar and Settings tabs (#54) ---------- */
+  .bottom-nav, .more-sheet, .more-backdrop { display:none; }
+  .settings-tabs { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 14px; }
+  /* A panel outside the chosen Settings tab. Separate from .hidden, which
+     some panels use for their own reasons (Permissions with no accounts). */
+  #pageSettings .section-off { display:none !important; }
+  .settings-tabs button { background:transparent; color:var(--muted); border:1px solid var(--border);
+                          border-radius:999px; padding:6px 14px; font-size:13px; white-space:nowrap; }
+  .settings-tabs button:hover { color:var(--text); }
+  .settings-tabs button.active { background:var(--chip-bg); color:var(--accent); border-color:var(--accent); }
+
   /* ---------- Mobile (≤768px) ---------- */
   @media (max-width: 768px) {
+    /* The header keeps only the title; pages are reached from the bar at the
+       bottom of the screen (four pages and More). */
+    header > div { display:none; }
+    body { padding-bottom:calc(64px + env(safe-area-inset-bottom)); }
+    .bottom-nav { display:grid; grid-template-columns:repeat(5, 1fr); position:fixed; left:0; right:0; bottom:0;
+                  z-index:900; background:var(--panel); border-top:1px solid var(--border);
+                  padding:4px 4px calc(4px + env(safe-area-inset-bottom)); }
+    .bottom-nav button { background:transparent; border:none; color:var(--muted); display:flex; flex-direction:column;
+                         align-items:center; gap:2px; padding:6px 2px; font-size:10.5px; line-height:1.15;
+                         border-radius:8px; min-height:52px; }
+    .bottom-nav button svg { width:22px; height:22px; flex:0 0 auto; }
+    .bottom-nav button.active { color:var(--accent); background:var(--chip-bg); }
+    .more-backdrop:not(.hidden) { display:block; position:fixed; inset:0; z-index:898; background:rgba(0,0,0,.4); }
+    .more-sheet:not(.hidden) { display:flex; flex-direction:column; position:fixed; left:8px; right:8px;
+                  bottom:calc(68px + env(safe-area-inset-bottom)); z-index:899; background:var(--panel);
+                  border:1px solid var(--border); border-radius:12px; padding:6px; box-shadow:0 8px 30px rgba(0,0,0,.4); }
+    .more-sheet button { background:transparent; border:none; color:var(--text); text-align:left;
+                         padding:12px 14px; font-size:15px; border-radius:8px; }
+    .more-sheet button.active { color:var(--accent); background:var(--chip-bg); }
+    .more-sheet .more-who { color:var(--muted); font-size:12px; padding:8px 14px 4px;
+                            border-top:1px solid var(--border); margin-top:4px; overflow-wrap:anywhere; }
+    .app-toasts { bottom:calc(76px + env(safe-area-inset-bottom)); }
+    .settings-tabs { flex-wrap:nowrap; overflow-x:auto; padding-bottom:4px; margin-bottom:10px; }
     main, main.wide { padding:10px; }
     header { padding:10px 12px; flex-wrap:wrap; gap:6px; }
     h1 { font-size:16px; }
@@ -1853,7 +1887,18 @@
     </div>
 
     <div id="pageSettings" class="hidden">
-      <div class="panel">
+      <!-- Settings tabs (#54): one section shows at a time; each has its own
+           address, #settings/<section>. -->
+      <div class="settings-tabs" role="tablist" aria-label="Settings sections">
+        <button type="button" role="tab" data-section="appearance">Appearance</button>
+        <button type="button" role="tab" data-section="accounts">Accounts</button>
+        <button type="button" role="tab" data-section="categories">Categories &amp; tags</button>
+        <button type="button" role="tab" data-section="budgets">Budgets</button>
+        <button type="button" role="tab" data-section="sharing">Sharing</button>
+        <button type="button" role="tab" data-section="backup">Backup</button>
+        <button type="button" role="tab" data-section="your-account">Your account</button>
+      </div>
+      <div class="panel" data-settings-section="appearance">
         <h2>Appearance</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           Pick a look. Your choice is saved to your account on the server and follows you across browsers and devices.
@@ -1884,7 +1929,7 @@
         </div><!-- /#dashLayoutSection -->
       </div>
 
-      <div class="panel">
+      <div class="panel" data-settings-section="accounts">
         <h2>Accounts</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           Create a new bank account to track, or archive an existing one to hide it from the
@@ -1899,7 +1944,7 @@
         <div id="manageAccountsList" style="margin-top:16px"></div>
       </div>
 
-      <div class="panel">
+      <div class="panel" data-settings-section="categories">
         <h2>Categories</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           Categories let you tag transactions for easier tracking. They're shared across all your accounts.
@@ -1912,7 +1957,7 @@
         </div>
       </div>
 
-      <div class="panel">
+      <div class="panel" data-settings-section="categories">
         <h2>Tags</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           Tags are lighter than categories &mdash; each transaction has one category, but can carry any number of tags
@@ -1927,7 +1972,7 @@
         </div>
       </div>
 
-      <div class="panel">
+      <div class="panel" data-settings-section="categories">
         <h2>Auto-tag rules</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           When a transaction's description contains the pattern (case-insensitive
@@ -1971,7 +2016,7 @@
         <div id="tagRulesStatus" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
       </div>
 
-      <div class="panel">
+      <div class="panel" data-settings-section="budgets">
         <h2>Budgets</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           Set a monthly spending cap per category. Progress is computed against actual
@@ -1994,7 +2039,7 @@
         </div>
       </div>
 
-      <div class="panel" id="permissionsPanel">
+      <div class="panel" data-settings-section="sharing" id="permissionsPanel">
         <h2>Permissions</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           Grant other users access to your accounts.
@@ -2010,7 +2055,7 @@
         <div id="permissionsStatus" style="margin-top:10px;font-size:13px;color:var(--muted)"></div>
       </div>
 
-      <div class="panel">
+      <div class="panel" data-settings-section="backup">
         <h2>Backup &amp; restore</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           Backups are JSON files containing accounts, recurring transactions, categories, and history.
@@ -2050,7 +2095,7 @@
         </div>
         <div id="backupStatus" style="margin-top:10px;font-size:13px"></div>
       </div>
-      <div class="panel" id="deleteAccountPanel">
+      <div class="panel" data-settings-section="your-account" id="deleteAccountPanel">
         <h2>Delete my account</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           Removes your sign-in and everything only you own: your accounts and their transactions,
@@ -2060,13 +2105,43 @@
         <div id="deleteAccountBody"><span style="color:var(--muted)">Loading…</span></div>
       </div>
 
-      <div class="panel">
+      <div class="panel" data-settings-section="your-account">
         <h2>Important notice</h2>
         <div id="settingsNoticeBody" class="notice-text"></div>
         <p id="settingsNoticeWhen" style="color:var(--muted);margin:10px 0 0;font-size:13px"></p>
       </div>
     </div><!-- /pageSettings -->
   </main>
+
+  <!-- Phone navigation (#54): four main pages and More, fixed to the bottom
+       of the screen at 768px and narrower. Desktop keeps the header buttons. -->
+  <div id="moreBackdrop" class="more-backdrop hidden" onclick="toggleMoreSheet(false)"></div>
+  <div id="moreSheet" class="more-sheet hidden" role="menu" aria-label="More pages">
+    <button type="button" role="menuitem" data-nav="networth" onclick="showPage('networth')">Net Worth</button>
+    <button type="button" role="menuitem" data-nav="transactions" onclick="showPage('transactions')">Transactions</button>
+    <button type="button" role="menuitem" data-nav="reports" onclick="showPage('reports')">Reports</button>
+    <button type="button" role="menuitem" data-nav="settings" onclick="showPage('settings')">Settings</button>
+    <button type="button" role="menuitem" data-nav="admin" id="moreAdmin" class="hidden" onclick="showPage('admin')">Admin</button>
+    <div class="more-who" id="moreWho"></div>
+    <button type="button" role="menuitem" onclick="logout()">Log out</button>
+  </div>
+  <nav id="bottomNav" class="bottom-nav" aria-label="Main">
+    <button type="button" data-nav="dashboard" onclick="showPage('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      <span>Dashboard</span></button>
+    <button type="button" data-nav="accounts" onclick="showPage('accounts')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18"/><path d="M4 16l5-6 4 3 7-8"/></svg>
+      <span>Forecast</span></button>
+    <button type="button" data-nav="subscriptions" onclick="showPage('subscriptions')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></svg>
+      <span>Bills &amp; income</span></button>
+    <button type="button" data-nav="calendar" onclick="showPage('calendar')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+      <span>Calendar</span></button>
+    <button type="button" data-nav="more" id="moreBtn" aria-haspopup="menu" aria-expanded="false" onclick="toggleMoreSheet()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      <span>More</span></button>
+  </nav>
 </div>
 
 <!-- In-page messages and dialogs (#53), used in place of the browser's
@@ -2127,7 +2202,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.51.0";
+const WEB_VERSION = "1.52.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2138,6 +2213,20 @@ const WEB_VERSION = "1.51.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.52.0 (2026-11-14, claude+mkolakowski): (#54) (1) Phones (≤768px): the
+//     header's buttons hide and #bottomNav (Dashboard, Forecast, Bills &
+//     income, Calendar, More) is fixed to the bottom; More opens #moreSheet
+//     (Net Worth, Transactions, Reports, Settings, Admin, Log out).
+//     _syncPhoneNav() lights the entry for the page (_navKeyFor: Import →
+//     Forecast, Transfer → where it was opened). (2) Settings tabs: panels
+//     carry data-settings-section; showSettingsSection() toggles
+//     .section-off (not .hidden, which Permissions uses itself) and pushes
+//     #settings/<section>; arrow keys move between tabs. A seventh tab, Your
+//     account, holds Delete my account and Important notice. (3) Hashes can
+//     carry a second part (_hashSub()); 'import' and 'transfer' are now
+//     hash-routable, #transfer/<id> while editing. initTransferPage() fetches
+//     a transfer missing from _transfersCacheById instead of opening a blank
+//     form still in edit mode (bug found and fixed).
 // 1.51.0 (2026-11-14, claude+mkolakowski): (#53) Every alert/confirm/prompt
 //     is replaced: notify()/notifyError() show messages in #appToasts;
 //     confirmDialog() and promptDialog() share <dialog id="appDialog">
@@ -2933,14 +3022,14 @@ async function promptDialog(label, value, opts) {
                                    validate: opts.validate } });
 }
 
-// Top-level nav tabs get their own URL hash so a refresh (or the browser's
-// back/forward buttons) lands back on the same tab. 'import'/'transfer' are
-// contextual sub-flows off the Forecast page (they lean on state like
-// currentAccountId that a cold reload won't have), not independent tabs, so
-// they're deliberately left out of the hash — navigating into/out of them
-// doesn't touch the URL.
+// Every page gets its own URL hash so a refresh (or the browser's back and
+// forward buttons) lands back on the same page. Some carry a second part
+// after a slash (#54): #settings/<section>, and #transfer/<id> when editing
+// a transfer. Import and Transfer pick their account from the current one,
+// which loadAccounts() sets before the first page is shown, so a cold
+// reload on them works.
 const HASH_ROUTABLE_PAGES = ['dashboard', 'networth', 'accounts', 'transactions', 'subscriptions',
-                             'calendar', 'reports', 'admin', 'settings'];
+                             'calendar', 'reports', 'admin', 'settings', 'import', 'transfer'];
 
 // The internal page name is 'accounts' (predates the Forecast rename, and
 // renaming it would mean touching every showPage('accounts') call site and
@@ -2958,23 +3047,45 @@ const HASH_TO_PAGE = Object.fromEntries(
 );
 
 function _pageFromHash() {
-  const slug = (location.hash || '').replace(/^#/, '');
+  const slug = (location.hash || '').replace(/^#/, '').split('/')[0];
   const name = HASH_TO_PAGE[slug];
   if (!name) return 'dashboard';
   if (name === 'admin' && !(me && me.is_admin)) return 'dashboard';
   return name;
 }
+// The part after the slash, if any: a Settings section or a transfer id.
+function _hashSub() {
+  return decodeURIComponent((location.hash || '').replace(/^#/, '').split('/')[1] || '');
+}
 
 window.addEventListener('popstate', () => {
-  showPage(_pageFromHash(), { fromPopState: true });
+  showPage(_pageFromHash(), { fromPopState: true, sub: _hashSub() });
 });
 
 function showPage(name, opts) {
   opts = opts || {};
-  if (HASH_ROUTABLE_PAGES.includes(name) && !opts.fromPopState) {
-    const hashSlug = PAGE_HASH_ALIASES[name] || name;
+  toggleMoreSheet(false);
+  // The part after the slash: which Settings section, which transfer.
+  let sub = opts.sub || '';
+  if (name === 'settings') {
+    sub = SETTINGS_SECTIONS.includes(opts.section) ? opts.section
+        : SETTINGS_SECTIONS.includes(sub) ? sub : settingsSection;
+    settingsSection = sub;
+  } else if (name === 'transfer') {
+    if (opts.fromPopState && /^\d+$/.test(sub)) {
+      _pendingTransferOpen = { editId: Number(sub), preselectFromId: currentAccountId || null };
+    } else if (!opts.fromPopState && !_pendingTransferOpen) {
+      _pendingTransferOpen = { editId: null, preselectFromId: currentAccountId || null };
+    }
+    sub = (_pendingTransferOpen && _pendingTransferOpen.editId) ? String(_pendingTransferOpen.editId) : '';
+  } else {
+    sub = '';
+  }
+  if (HASH_ROUTABLE_PAGES.includes(name)) {
+    const hashSlug = (PAGE_HASH_ALIASES[name] || name) + (sub ? '/' + sub : '');
     if (location.hash.replace(/^#/, '') !== hashSlug) {
-      history.pushState({ page: name }, '', '#' + hashSlug);
+      if (opts.fromPopState) history.replaceState({ page: name }, '', '#' + hashSlug);
+      else history.pushState({ page: name }, '', '#' + hashSlug);
     }
   }
   document.getElementById('pageDashboard').classList.toggle('hidden', name!=='dashboard');
@@ -3002,7 +3113,8 @@ function showPage(name, opts) {
   document.getElementById('navReports').classList.toggle('active', name==='reports');
   document.getElementById('navAdmin').classList.toggle('active', name==='admin');
   document.getElementById('navSettings').classList.toggle('active', name==='settings');
-  if (name === 'settings') { loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); loadDeleteAccount(); }
+  _syncPhoneNav(name);
+  if (name === 'settings') { showSettingsSection(settingsSection, { noHash: true }); loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); loadDeleteAccount(); }
   if (name === 'dashboard') loadDashboard();
   if (name === 'networth') loadNetworth();
   if (name === 'subscriptions') {
@@ -3024,6 +3136,81 @@ function showPage(name, opts) {
   }
   if (name === 'transactions') initAccountsExtras();
 }
+
+// ---------- Phone navigation and Settings tabs (#54) ----------
+const MORE_PAGES = ['networth', 'transactions', 'reports', 'settings', 'admin'];
+// Which navigation entry a page lights up: Import belongs to Forecast,
+// Transfer to whichever page opened it.
+function _navKeyFor(name) {
+  if (name === 'import') return 'accounts';
+  if (name === 'transfer') return _transferReturnPage;
+  return name;
+}
+function _syncPhoneNav(name) {
+  const key = _navKeyFor(name);
+  document.querySelectorAll('#bottomNav [data-nav], #moreSheet [data-nav]').forEach(b => {
+    const on = b.dataset.nav === key || (b.dataset.nav === 'more' && MORE_PAGES.includes(key));
+    b.classList.toggle('active', on);
+    if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+}
+function toggleMoreSheet(show) {
+  const sheet = document.getElementById('moreSheet');
+  if (!sheet) return;
+  if (show === undefined) show = sheet.classList.contains('hidden');
+  sheet.classList.toggle('hidden', !show);
+  document.getElementById('moreBackdrop').classList.toggle('hidden', !show);
+  document.getElementById('moreBtn').setAttribute('aria-expanded', String(show));
+  if (show) {
+    document.getElementById('moreWho').textContent = (me && me.email) ? 'Signed in as ' + me.email : '';
+    document.getElementById('moreAdmin').classList.toggle('hidden', !(me && me.is_admin));
+    const first = sheet.querySelector('button:not(.hidden)');
+    if (first) first.focus();
+  }
+}
+document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape' && !document.getElementById('moreSheet').classList.contains('hidden')) {
+    toggleMoreSheet(false);
+    document.getElementById('moreBtn').focus();
+  }
+});
+
+const SETTINGS_SECTIONS = ['appearance', 'accounts', 'categories', 'budgets', 'sharing', 'backup', 'your-account'];
+let settingsSection = 'appearance';
+function showSettingsSection(section, opts) {
+  opts = opts || {};
+  if (!SETTINGS_SECTIONS.includes(section)) section = 'appearance';
+  settingsSection = section;
+  document.querySelectorAll('#pageSettings [data-settings-section]').forEach(p => {
+    p.classList.toggle('section-off', p.dataset.settingsSection !== section);
+  });
+  document.querySelectorAll('#pageSettings .settings-tabs button').forEach(b => {
+    const on = b.dataset.section === section;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', String(on));
+    b.tabIndex = on ? 0 : -1;
+  });
+  if (!opts.noHash && location.hash !== '#settings/' + section) {
+    history.pushState({ page: 'settings' }, '', '#settings/' + section);
+  }
+}
+// Tabs: click, and arrow keys move between them (the usual tablist keys).
+document.addEventListener('click', (ev) => {
+  const b = ev.target.closest && ev.target.closest('#pageSettings .settings-tabs button');
+  if (b) showSettingsSection(b.dataset.section);
+});
+document.addEventListener('keydown', (ev) => {
+  const b = ev.target.closest && ev.target.closest('#pageSettings .settings-tabs button');
+  if (!b || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(ev.key)) return;
+  ev.preventDefault();
+  const i = SETTINGS_SECTIONS.indexOf(b.dataset.section);
+  const n = SETTINGS_SECTIONS.length;
+  const next = ev.key === 'Home' ? 0 : ev.key === 'End' ? n - 1
+             : (i + (ev.key === 'ArrowRight' ? 1 : -1) + n) % n;
+  showSettingsSection(SETTINGS_SECTIONS[next]);
+  const nb = document.querySelector(`#pageSettings .settings-tabs button[data-section="${SETTINGS_SECTIONS[next]}"]`);
+  if (nb) nb.focus();
+});
 
 // ---------- Dashboard state ----------
 const ALLOWED_DASHBOARD_WINDOWS = ['month', '30d', '90d'];
@@ -3326,7 +3513,7 @@ async function onDashboardWindowChange(w) {
 // card ordering, etc.) drops into the same section without another
 // navigation flow.
 function editDashboardLayout() {
-  showPage('settings');
+  showPage('settings', { section: 'appearance' });
   // Defer so showPage has finished flipping `hidden` classes before we
   // try to measure/scroll.
   setTimeout(() => {
@@ -4336,7 +4523,7 @@ async function init() {
   // back to the Dashboard. Use fromPopState so this initial paint doesn't
   // push a redundant duplicate history entry on top of the page the
   // browser already navigated to.
-  showPage(_pageFromHash(), { fromPopState: true });
+  showPage(_pageFromHash(), { fromPopState: true, sub: _hashSub() });
 }
 
 function switchTab(which) {
@@ -7959,7 +8146,27 @@ function initTransferPage() {
     toSel.appendChild(new Option(a.name, a.id));
   });
 
-  const opts = _pendingTransferOpen || { editId: null, preselectFromId: currentAccountId || null };
+  let opts = _pendingTransferOpen || { editId: null, preselectFromId: currentAccountId || null };
+  // Opened straight from an address (#transfer/<id>) the transfer isn't
+  // cached yet: fetch it first. Until then the form is not in edit mode, so
+  // a save can't overwrite the transfer with blank or default values.
+  if (opts.editId && !_transfersCacheById[opts.editId]) {
+    _pendingTransferOpen = null;
+    editIdInput.value = '';
+    document.getElementById('transferPageTitle').textContent = 'Loading transfer…';
+    api('/api/transfers?limit=1000').then(data => {
+      data.transfers.forEach(t => { _transfersCacheById[t.id] = t; });
+      if (document.getElementById('pageTransfer').classList.contains('hidden')) return;
+      if (!_transfersCacheById[opts.editId]) {
+        notify('That transfer wasn’t found. It may have been deleted.', 'error');
+        opts = { editId: null, preselectFromId: opts.preselectFromId };
+        history.replaceState({ page: 'transfer' }, '', '#transfer');
+      }
+      _pendingTransferOpen = opts;
+      initTransferPage();
+    }).catch(e => notifyError('Could not load the transfer', e));
+    return;
+  }
   editIdInput.value = opts.editId || '';
 
   if (opts.editId && _transfersCacheById[opts.editId]) {

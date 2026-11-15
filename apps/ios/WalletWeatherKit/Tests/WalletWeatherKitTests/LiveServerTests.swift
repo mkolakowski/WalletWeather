@@ -123,3 +123,24 @@ struct LiveBillsTests {
         #expect(rows.contains { $0.isTransfer && $0.isPaid && $0.amount == moved.amount })
     }
 }
+
+/// The More pages (#91) against a real server, only when one is given;
+/// reads only.
+@Suite(.enabled(if: ProcessInfo.processInfo.environment["WW_LIVE_EDIT_TOKEN"] != nil))
+struct LiveMoreTests {
+    @Test func netWorthBudgetsAndReports() async throws {
+        let env = ProcessInfo.processInfo.environment
+        let server = try #require(env["WW_LIVE_SERVER"].flatMap(URL.init(string:)))
+        let client = APIClient(connection: Connection(server: server, token: env["WW_LIVE_EDIT_TOKEN"]))
+        for window in ChartWindow.allCases {
+            let worth = try await client.netWorth(window)
+            #expect(worth.window == window && worth.trend.last?.date == worth.end)
+        }
+        let month = YearMonth(.today())
+        let budgets = try await client.budgets()
+        #expect(budgets.label == month.label)
+        if let report = try await client.savedReports().first {
+            #expect(try await client.runReport(report.id).rangeLabel.isEmpty == false)
+        }
+    }
+}

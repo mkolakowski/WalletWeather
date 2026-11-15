@@ -163,3 +163,13 @@ Decisions made while planning [`Plans/ios-app.md`](../../../Plans/ios-app.md) (t
 - **End asks for the last date,** today by default; the item stops after it and moves to Ended. The other option was ending today in one tap.
 
 **What it changes:** phase 3 (#89). `/api/subscriptions`, listed in the phase for a shape test, isn't called by the app: the web app's Bills & income page reads `/api/recurring` too, so it was left out.
+
+## 2026-11-15: when the app lock asks again
+
+**Decided:** 2026-11-15, by Matthew, while starting phase 5 (#91). **Status:** accepted.
+
+**The decision:** with the lock on, the app asks when it starts and when it comes back after **a minute or more** away. Quick trips to another app (the bank, a message) don't ask. The other options were every time it comes back, after five minutes, and only when it starts. The numbers are hidden in the app switcher whatever the setting.
+
+**Also settled in building it:** AMOLED black and Sepia use the mockups' colours (AMOLED: a black page, outlined cards, the dark theme's accent; Sepia: a tan page, cream cards with an outline and a soft shadow, brown text, a rust accent). The look and the lock setting are kept in the app's preferences, and `docs/privacy.md` now says so.
+
+**What it changes:** phase 5 (#91).

@@ -29,7 +29,7 @@ from urllib.parse import urlencode
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.53.0"
+APP_VERSION = "1.54.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,10 @@ APP_VERSION = "1.53.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.54.0 (2026-11-15, claude+mkolakowski): for the iOS app's More pages (#91):
+#     /api/networth, /api/budgets/progress and POST
+#     /api/saved-reports/{id}/run take today= (the viewer's date), so "this
+#     month" is the phone's month, not the server's.
 # 1.53.0 (2026-11-15, claude+mkolakowski): for the iOS app's Bills & income
 #     and Calendar (#89): GET /api/recurring items gain next_dates (the next
 #     six dates from today, leaving out skipped and already-paid ones) and
@@ -3318,7 +3322,7 @@ def delete_budget(category_id: int,
 
 
 @app.get("/api/budgets/progress")
-def budgets_progress(window: str = "month",
+def budgets_progress(window: str = "month", today: date | None = None,
                      user: User = Depends(current_user), db: Session = Depends(get_db)):
     """Per-category spend vs budget for the chosen window.
 
@@ -3329,7 +3333,7 @@ def budgets_progress(window: str = "month",
     """
     if window not in ALLOWED_DASHBOARD_WINDOWS:
         raise HTTPException(400, f"window must be one of {sorted(ALLOWED_DASHBOARD_WINDOWS)}")
-    start, end, label = _resolve_dashboard_window(window)
+    start, end, label = _resolve_dashboard_window(window, _viewer_today(today))
 
     spend_by_cat: dict[str, float] = {}
     UNCAT = "(uncategorized)"
@@ -4064,7 +4068,7 @@ def csv_import_template(account_id: int, user: User = Depends(current_user),
 
 # ---------- Net worth ----------
 @app.get("/api/networth")
-def net_worth(window: str = "month",
+def net_worth(window: str = "month", today: date | None = None,
               user: User = Depends(current_user), db: Session = Depends(get_db)):
     """Aggregated net worth across all visible accounts.
 
@@ -4075,7 +4079,7 @@ def net_worth(window: str = "month",
     """
     if window not in ALLOWED_DASHBOARD_WINDOWS:
         raise HTTPException(400, f"window must be one of {sorted(ALLOWED_DASHBOARD_WINDOWS)}")
-    start, end, label = _resolve_dashboard_window(window)
+    start, end, label = _resolve_dashboard_window(window, _viewer_today(today))
 
     accounts = _user_visible_accounts(db, user)
     # Per-day totals, indexed by date string
@@ -4446,16 +4450,17 @@ ALLOWED_REPORT_KINDS = {"any", "income", "spending"}
 ALLOWED_CHART_TYPES = {"table", "bar", "pie"}
 
 
-def _resolve_report_range(params: dict) -> tuple[date, date, str]:
+def _resolve_report_range(params: dict, today: date | None = None) -> tuple[date, date, str]:
     """Translate a params dict's range_mode (+ optional year/month/start/end)
     into a concrete (start, end, label) triple.
 
     Defaults: range_mode='month', current month if year/month absent.
     Falls back to "current month" on any unparseable input rather than
     erroring — easier to debug a wrong-but-rendered chart than a stack
-    trace from a saved report someone wrote weeks ago.
+    trace from a saved report someone wrote weeks ago. `today` is the
+    viewer's date when known (see _viewer_today).
     """
-    today = date.today()
+    today = today or date.today()
     mode = params.get("range_mode") or "month"
     if mode == "month":
         y = int(params.get("year") or today.year)
@@ -4499,7 +4504,7 @@ def _resolve_report_range(params: dict) -> tuple[date, date, str]:
     return start, end, label
 
 
-def _compute_report(db: Session, user: User, params: dict) -> dict:
+def _compute_report(db: Session, user: User, params: dict, today: date | None = None) -> dict:
     """Run a report.
 
     `params` is the JSON-serializable dict that we both store on
@@ -4527,7 +4532,7 @@ def _compute_report(db: Session, user: User, params: dict) -> dict:
     if kind not in ALLOWED_REPORT_KINDS:
         kind = "any"
     include_transfers = bool(params.get("include_transfers"))
-    start, end, range_label = _resolve_report_range(params)
+    start, end, range_label = _resolve_report_range(params, today)
 
     # Account scoping. If the saved report was originally pinned to a set
     # of accounts that the user has since lost access to (e.g. permission
@@ -4956,7 +4961,7 @@ def delete_saved_report(report_id: int,
 
 
 @app.post("/api/saved-reports/{report_id}/run")
-def run_saved_report(report_id: int,
+def run_saved_report(report_id: int, today: date | None = None,
                      user: User = Depends(current_reader),
                      db: Session = Depends(get_db)):
     r = _own_saved_report(db, user, report_id)
@@ -4964,7 +4969,7 @@ def run_saved_report(report_id: int,
         params = json.loads(r.params or "{}")
     except Exception:
         params = {}
-    return _compute_report(db, user, params)
+    return _compute_report(db, user, params, _viewer_today(today))
 
 
 # ---------- Report templates (built-in starting points) ----------

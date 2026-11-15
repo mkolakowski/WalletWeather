@@ -5,10 +5,11 @@ public enum AppInfo {
     /// The iOS app's own version (CHANGELOG.md tracks it beside the app,
     /// web and schema versions). Keep it equal to MARKETING_VERSION in the
     /// Xcode project.
-    public static let version = "0.3.0"
-    /// The first server version with what the app's pages need: each
-    /// bill's next dates (#89), on top of the Forecast's (#88).
-    public static let minimumServerVersion = "1.53.0"
+    public static let version = "0.4.0"
+    /// The first server version with what the app's pages need: the
+    /// phone's date on Net worth, Budgets and Reports (#91), on top of each
+    /// bill's next dates (#89) and the Forecast's (#88).
+    public static let minimumServerVersion = "1.54.0"
 }
 
 /// Compares `1.49.0`-style versions; nil for text that isn't one.
@@ -115,8 +116,18 @@ public final class APIClient: Sendable {
         try await get("/api/saved-reports")
     }
 
-    public func runReport(_ id: Int) async throws(APIError) -> ReportRun {
-        try await send("POST", "/api/saved-reports/\(id)/run", body: [String: String]())
+    public func runReport(_ id: Int, today: LocalDay = .today()) async throws(APIError) -> ReportRun {
+        try await send("POST", "/api/saved-reports/\(id)/run", query: ["today": today.description], body: [String: String]())
+    }
+
+    // MARK: More (#91)
+
+    public func netWorth(_ window: ChartWindow, today: LocalDay = .today()) async throws(APIError) -> NetWorth {
+        try await get("/api/networth", query: ["window": window.rawValue, "today": today.description])
+    }
+
+    public func budgets(today: LocalDay = .today()) async throws(APIError) -> BudgetProgress {
+        try await get("/api/budgets/progress", query: ["window": "month", "today": today.description])
     }
 
     // MARK: Forecast (#88)

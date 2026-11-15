@@ -20,7 +20,7 @@ settings:
     SWIFT_APPROACHABLE_CONCURRENCY: YES
     # The iOS app's version (CHANGELOG.md tracks it beside the app, web and
     # schema versions). Keep AppInfo.version in WalletWeatherKit equal to it.
-    MARKETING_VERSION: "0.3.0"
+    MARKETING_VERSION: "0.4.0"
     CURRENT_PROJECT_VERSION: "1"
     IPHONEOS_DEPLOYMENT_TARGET: "26.0"
     # iPhone only for now (decided 2026-11-14): no iPad, no Mac.
@@ -67,6 +67,8 @@ targets:
           NSAllowsLocalNetworking: true
         NSLocalNetworkUsageDescription: WalletWeather connects to your WalletWeather server when it's on your home network.
         ITSAppUsesNonExemptEncryption: false
+        # The app lock (#91), when turned on in More.
+        NSFaceIDUsageDescription: "WalletWeather uses Face ID to unlock the app when you turn its lock on."
     settings:
       base:
         # The bundle ID is what keeps the phone's Keychain sign-in: never change it.

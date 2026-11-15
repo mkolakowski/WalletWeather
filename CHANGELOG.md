@@ -69,7 +69,31 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.53.0** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.3.0**
+App version: **1.54.0** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.4.0**
+
+### Added
+
+- **Net worth, Budgets and Reports in the iPhone app**, under More, read-only
+  (iOS app 0.4.0, which needs server 1.54.0). Net worth shows the total today,
+  how it moved, its chart (Month, 30 days or 90 days) and each account.
+  Budgets shows this month's spending against each budget, what's left or how
+  far over, and the categories with spending but no budget. Reports runs your
+  saved reports; building or changing one stays in the web app.
+- **Looks for the iPhone app:** More → Appearance offers Match the phone,
+  Light, Dark, and two looks of the app's own, AMOLED black and Sepia.
+- **The iPhone app lock:** WalletWeather offers once to lock itself with Face
+  ID or Touch ID (at first sign-in, or after this update if you're already
+  signed in), and you can change it in More. With it on, the app asks when it
+  opens and when you come back after a minute or more away.
+- The iPhone app now hides your numbers in the app switcher.
+- `GET /api/networth`, `GET /api/budgets/progress` and
+  `POST /api/saved-reports/{id}/run` take `today=`, so "this month" is the
+  phone's month rather than the server's.
+
+### Changed
+
+- The privacy policy now says the iPhone app keeps its own settings on the
+  phone (the look you picked and whether the lock is on), beside the sign-in.
 
 ## [1.53.0] — 2026-11-15
 

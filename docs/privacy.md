@@ -4,7 +4,7 @@ title: Privacy policy
 
 # WalletWeather privacy policy
 
-Last updated: November 14, 2026
+Last updated: November 15, 2026
 
 This policy covers the WalletWeather apps for iOS and Android and the
 WalletWeather web app. WalletWeather is self-hosted: the apps connect to a
@@ -31,8 +31,9 @@ email address and name. Google's privacy policy covers its part in that.
 ## What is kept on your device
 
 Only what the app needs to reconnect: the address of your server and the
-sign-in it was given. No balances or transactions are stored on the device.
-Removing the app removes both.
+sign-in it was given; and the app's own settings: the look you picked and
+whether the app lock is on. No balances or transactions are stored on the
+device. Removing the app removes all of it.
 
 ## Who is responsible for your data
 

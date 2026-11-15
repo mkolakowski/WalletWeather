@@ -155,7 +155,8 @@ public struct SavedReport: Sendable, Codable, Equatable, Identifiable {
     public let pinned: Bool
 }
 
-/// `POST /api/saved-reports/{id}/run`, as much as a pinned report shows.
+/// `POST /api/saved-reports/{id}/run`: a saved report's groups and totals, for
+/// a pinned report on the Dashboard and the Reports page under More.
 public struct ReportRun: Sendable, Codable, Equatable {
     public let rangeLabel: String
     public let groups: [Group]
@@ -166,12 +167,16 @@ public struct ReportRun: Sendable, Codable, Equatable {
         public let color: String?
         public let actualTotal: Money
         public let actualCount: Int
+        public let forecastTotal: Money
 
         public var id: String { name }
     }
 
     public struct Totals: Sendable, Codable, Equatable {
+        public let actualIncome: Money
+        public let actualSpending: Money
         public let actualNet: Money
+        public let forecastNet: Money
     }
 
     public var itemCount: Int { groups.reduce(0) { $0 + $1.actualCount } }

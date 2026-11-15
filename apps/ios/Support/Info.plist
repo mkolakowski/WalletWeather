@@ -38,6 +38,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSFaceIDUsageDescription</key>
+	<string>WalletWeather uses Face ID to unlock the app when you turn its lock on.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>WalletWeather connects to your WalletWeather server when it's on your home network.</string>
 	<key>UIApplicationSceneManifest</key>

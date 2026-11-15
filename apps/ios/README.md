@@ -6,7 +6,9 @@ WalletWeather server. It's being built in phases from
 (#87) gives it the Connect screen, sign-in and a read-only Dashboard; phase 2
 (#88) adds Forecast, with marking lines paid, adding and deleting
 transactions, and transaction search; phase 3 (#89) adds Bills & income, the
-Calendar and moving money between accounts. It isn't
+Calendar and moving money between accounts; phase 5 (#91) adds Net worth,
+Budgets and Reports under More, the looks (Match the phone, Light, Dark,
+AMOLED black, Sepia), the app lock and the app-switcher cover. It isn't
 on TestFlight or the App Store yet (phase 6); for now it's built from source
 and put on a phone from Xcode.
 
@@ -117,7 +119,9 @@ that's what iOS lets an app reach over plain HTTP.
 
 Only the sign-in: the server's address, the token and the Cloudflare sign-in,
 in the Keychain, on this device only (never in iCloud, never moved by a
-backup). Signing out deletes them. Balances and transactions aren't kept:
+backup). Signing out deletes them. The app's own settings (the look, whether
+the lock is on, and whether it was offered) are in its preferences
+(`UserDefaults`), and stay after signing out. Balances and transactions aren't kept:
 the app needs a connection. Phase 8 adds the choice to keep the last-known
 numbers.
 

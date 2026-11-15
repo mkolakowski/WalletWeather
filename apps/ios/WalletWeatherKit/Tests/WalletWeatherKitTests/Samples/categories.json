@@ -1,0 +1,67 @@
+[
+    {
+        "id": 2,
+        "name": "Dining",
+        "color": "#f0883e"
+    },
+    {
+        "id": 8,
+        "name": "Entertainment",
+        "color": "#e3b341"
+    },
+    {
+        "id": 1,
+        "name": "Groceries",
+        "color": "#3fb950"
+    },
+    {
+        "id": 7,
+        "name": "Healthcare",
+        "color": "#ff7b72"
+    },
+    {
+        "id": 11,
+        "name": "Income",
+        "color": "#3fb950"
+    },
+    {
+        "id": 6,
+        "name": "Insurance",
+        "color": "#2ea043"
+    },
+    {
+        "id": 13,
+        "name": "Other",
+        "color": "#8b949e"
+    },
+    {
+        "id": 5,
+        "name": "Rent/Mortgage",
+        "color": "#a371f7"
+    },
+    {
+        "id": 12,
+        "name": "Savings",
+        "color": "#d29922"
+    },
+    {
+        "id": 9,
+        "name": "Shopping",
+        "color": "#db61a2"
+    },
+    {
+        "id": 10,
+        "name": "Subscriptions",
+        "color": "#7c6be6"
+    },
+    {
+        "id": 3,
+        "name": "Transportation",
+        "color": "#58a6ff"
+    },
+    {
+        "id": 4,
+        "name": "Utilities",
+        "color": "#56d4dd"
+    }
+]

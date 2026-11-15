@@ -17,6 +17,7 @@ actual amount/date for that occurrence:
                      same-day lines up to and including this one
   recurring_id     — set when this row originates from a recurring template
   transaction_id   — set when a Transaction row backs this entry (so the UI can PATCH it)
+  category_id      — the line's category, so an edit can keep it (the iOS app, #88)
 """
 from datetime import date, timedelta
 from decimal import Decimal
@@ -158,6 +159,7 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
             "actual_date": displayed_actual_date,
             "description": t.description,
             "category": cat_name,
+            "category_id": t.category_id,
             "notes": t.notes,
             "forecast_amount": f_amt_float,
             "actual_amount": displayed_actual_amount,
@@ -212,6 +214,7 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
                 "actual_date": occ_date.isoformat(),       # default to forecast date
                 "description": desc,
                 "category": rec_cat,
+                "category_id": rec.category_id,
                 "notes": rec_notes,
                 "forecast_amount": amt_float,
                 "actual_amount": amt_float,                 # default to forecast amount
@@ -276,6 +279,7 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
             "actual_date": ev["actual_date"],
             "description": ev["description"],
             "category": ev["category"],
+            "category_id": ev["category_id"],
             "notes": ev["notes"],
             "forecast_amount": f,
             "forecast_balance": fbal_row,

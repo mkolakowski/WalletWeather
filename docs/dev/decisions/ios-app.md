@@ -139,3 +139,16 @@ Decisions made while planning [`Plans/ios-app.md`](../../../Plans/ios-app.md) (t
 - **A service token only:** no sign-in to carry, but one to make and paste per phone.
 
 **What was built:** the server hands it back, with the service token under Advanced as the alternative. `GET /app-sign-in/cloudflare` hands back only the Cloudflare token, for when it runs out (24 hours unless the Access application says otherwise). Telling Access's sign-in page from the server's own answer, and the `cf-access-token` header, follow mkplus's `CloudflareAccess` gateway. If the token handed back turns out not to be accepted, the transfer is the fallback, copied from mkplus. Cloudflare's "binding cookie" option, if switched on for the application, would refuse the handed-back token; it's off unless chosen.
+
+## 2026-11-15: marking paid, adding a transaction, and search results
+
+**Decided:** 2026-11-15, by Matthew, while starting phase 2 (#88). **Status:** accepted.
+
+**The questions:** the plan said what Forecast edits (mark paid with the real amount and date, undo, notes and category, add, delete) but not how they're done on a phone.
+
+- **Marking paid from the list:** swipe a line right to mark it paid as planned, and right again to undo; the editor is for a different amount or day. The other option was the editor only (one way to do it, one more tap per bill). A swiped line is dated its planned day, or today when that's still to come, so an early payment gets today and an old bill marked late keeps the day it was due.
+- **Income or spending when adding:** a Spending / Income switch over a plain amount, starting on Spending. The other option was a signed amount, as the web app's add row has, which means typing a minus on the number pad.
+- **A new transaction starts paid, dated today,** for recording something just spent; turning Paid off plans one ahead. The other option was planned, not yet paid.
+- **Tapping a search result opens its editor right there** (a sheet closed, the right half open). The other option was jumping to the line in Forecast, on its account and month.
+
+**What it changes:** phase 2 (#88). Found on the way: a line on an account shared for editing carries the owner's category, which the server refused when the line was saved with it, so server 1.52.0 lets a save keep the category a line already has.

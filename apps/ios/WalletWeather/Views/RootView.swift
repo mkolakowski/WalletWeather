@@ -4,7 +4,7 @@ import WalletWeatherKit
 /// The frame every page sits in: the five places of the web app's phone
 /// bar, in the system's own tab bar (which iOS stands down the right edge on
 /// the iPhone Duo, closed or open on its side), and the round button beside
-/// it kept for Search. A page's own actions sit in its top corner. Which
+/// it for Search. A page's own actions, such as +, sit in its top corner. Which
 /// place is open is kept per window, so closing or opening the Duo keeps it.
 struct RootView: View {
     enum Place: String { case dashboard, forecast, bills, calendar, more, search }
@@ -17,8 +17,7 @@ struct RootView: View {
                 DashboardView()
             }
             Tab("Forecast", systemImage: "chart.line.uptrend.xyaxis", value: .forecast) {
-                ComingSoonView(title: "Forecast", phase: "the next version",
-                               detail: "Each account's lines month by month, with marking what's been paid.")
+                ForecastView()
             }
             Tab("Bills & income", systemImage: "arrow.left.arrow.right", value: .bills) {
                 ComingSoonView(title: "Bills & income", phase: "a later version",
@@ -32,9 +31,11 @@ struct RootView: View {
                 MoreView()
             }
             Tab(value: .search, role: .search) {
-                ComingSoonView(title: "Search", phase: "the next version",
-                               detail: "Find transactions, then bills, accounts, categories and reports.")
+                SearchView()
             }
+        }
+        .onAppear {
+            if let debug = AppModel.debugSetting("WW_DEBUG_PLACE").flatMap(Place.init(rawValue:)) { place = debug }
         }
     }
 }

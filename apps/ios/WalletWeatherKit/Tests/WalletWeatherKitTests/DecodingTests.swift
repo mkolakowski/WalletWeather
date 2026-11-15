@@ -3,7 +3,8 @@ import Testing
 @testable import WalletWeatherKit
 
 /// The responses the app reads, decoded from samples recorded from the demo
-/// server (`DEMO_MODE=true`) at app 1.50.0. Re-record them when the server's
+/// server (`DEMO_MODE=true`) at app 1.50.0 (version, me, and the
+/// Forecast page's samples at 1.52.0). Re-record them when the server's
 /// shape tests (apps/server/tests/test_app_shapes.py) change.
 struct DecodingTests {
     func sample<T: Decodable>(_ name: String, as type: T.Type = T.self, status: Int = 200) throws -> T {
@@ -16,7 +17,7 @@ struct DecodingTests {
 
     @Test func version() throws {
         let v: ServerVersion = try sample("version")
-        #expect(v.appVersion == "1.50.0")
+        #expect(v.appVersion == "1.52.0")
         #expect(v.schemaVersion == "19")
     }
 

@@ -5,9 +5,10 @@ public enum AppInfo {
     /// The iOS app's own version (CHANGELOG.md tracks it beside the app,
     /// web and schema versions). Keep it equal to MARKETING_VERSION in the
     /// Xcode project.
-    public static let version = "0.1.2"
-    /// The first server version with the "sign in an app" page (#87).
-    public static let minimumServerVersion = "1.50.0"
+    public static let version = "0.2.0"
+    /// The first server version with what the Forecast page needs: each
+    /// line's category id and the token's access in `/api/me` (#88).
+    public static let minimumServerVersion = "1.52.0"
 }
 
 /// Compares `1.49.0`-style versions; nil for text that isn't one.
@@ -116,6 +117,52 @@ public final class APIClient: Sendable {
 
     public func runReport(_ id: Int) async throws(APIError) -> ReportRun {
         try await send("POST", "/api/saved-reports/\(id)/run", body: [String: String]())
+    }
+
+    // MARK: Forecast (#88)
+
+    /// One account's month of lines.
+    public func forecast(account: Int, month: YearMonth, today: LocalDay = .today()) async throws(APIError) -> ForecastMonth {
+        try await get("/api/accounts/\(account)/forecast",
+                      query: ["start": month.start.description, "end": month.end.description, "today": today.description])
+    }
+
+    /// The signed-in person's own categories.
+    public func categories() async throws(APIError) -> [TransactionCategory] {
+        try await get("/api/categories")
+    }
+
+    /// Saves a line: a new transaction for a projected line, the whole line
+    /// again for one that's saved already. The web app's editor does the same.
+    public func save(_ line: ForecastLine, draft: LineDraft, account: Int) async throws(APIError) {
+        let body = TransactionBody(line: line, draft: draft)
+        if let id = line.transactionId {
+            let _: EmptyAnswer = try await send("PATCH", "/api/transactions/\(id)", body: body)
+        } else {
+            let _: EmptyAnswer = try await send("POST", "/api/accounts/\(account)/transactions", body: body)
+        }
+    }
+
+    /// Adds a one-off transaction.
+    public func add(_ draft: NewTransactionDraft, account: Int) async throws(APIError) {
+        let _: EmptyAnswer = try await send("POST", "/api/accounts/\(account)/transactions", body: TransactionBody(new: draft))
+    }
+
+    /// Deletes a line. A saved transaction is deleted (one from a repeating
+    /// item also stops that date being projected again); a projected date
+    /// is skipped, leaving the repeating item and its other dates alone.
+    public func delete(_ line: ForecastLine) async throws(APIError) {
+        if let id = line.transactionId {
+            let _: EmptyAnswer = try await send("DELETE", "/api/transactions/\(id)", body: Optional<[String: String]>.none)
+        } else if let rec = line.recurringId, let day = line.plannedDate {
+            let _: EmptyAnswer = try await send("POST", "/api/recurring/\(rec)/skip", body: ["skip_date": day.description])
+        }
+    }
+
+    /// Transactions whose name or notes contain `text`, on every account
+    /// you can see, newest first.
+    public func searchTransactions(_ text: String, limit: Int = 100) async throws(APIError) -> TransactionSearch {
+        try await get("/api/transactions/search", query: ["q": text, "limit": String(limit)])
     }
 
     /// Ends this phone's token on the server, for Sign out (#145). A token

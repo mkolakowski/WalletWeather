@@ -69,7 +69,39 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.51.0** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.1.2**
+App version: **1.52.0** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.2.0**
+
+### Added
+
+- **The iPhone app's Forecast page** (iOS app 0.2.0, which needs server
+  1.52.0). Pick an account and page through its months; each line shows its
+  amount, planned and paid dates, category and both balances. Swipe a line
+  right to mark it paid as planned (dated its planned day, or today if you're
+  paying early), or right again to undo; swipe left to delete it (a date of a
+  repeating bill or paycheck is skipped, leaving the rest). Tap a line to mark
+  it paid at a different amount or on another day, or to change its category
+  and notes. **+** adds a one-off transaction, as spending or income, paid
+  today unless you turn Paid off. On an iPhone Duo held open, the balance
+  chart and the full table sit on the left and the tapped line's editor on
+  the right; before you tap one, the right half shows the month against plan,
+  what's still to come, what's past its date and not marked paid, the low and
+  the high, and what was paid differently from plan. Closing the Duo
+  mid-edit keeps the line open, with what you'd typed. A read-only account or
+  token shows no editing.
+- **Search in the iPhone app**: the round button beside the pages bar finds
+  transactions by name or notes on every account you can see, and tapping one
+  opens it to mark paid or change. Bills, accounts, categories and reports
+  come later.
+- `GET /api/me` now says what the API token in use may do (`token_access`:
+  `read`, `full` or `admin`, or null in a browser), and each line of
+  `GET /api/accounts/{id}/forecast` carries its `category_id`.
+
+### Fixed
+
+- Saving a line on an account someone shared with you for editing no longer
+  needs its category to be one of your own when you leave the category as it
+  was. Before, the line's category (the owner's) was refused, so the only way
+  to save was to clear it.
 
 ## [1.51.0] — 2026-11-15
 

@@ -47,6 +47,26 @@ final class AppModel {
 
     var client: APIClient? { connection.map { APIClient(connection: $0) } }
 
+    /// Whether this person may change lines on `account`: an account they
+    /// own or may edit, under a token that isn't read-only. Until `/api/me`
+    /// has said what the token may do, nothing is editable.
+    func canEdit(_ account: Account) -> Bool {
+        guard let me else { return false }
+        return account.canEdit && !me.isReadOnly
+    }
+
+    /// A Debug-only launch setting, for screenshots from the command line
+    /// (`SIMCTL_CHILD_<name>=…`): `WW_DEBUG_PLACE` (forecast, search, …),
+    /// `WW_DEBUG_OPEN_LINE` (a Forecast line's name, opened in the editor)
+    /// and `WW_DEBUG_SEARCH` (search text). Always nil in a Release build.
+    static func debugSetting(_ name: String) -> String? {
+        #if DEBUG
+        return ProcessInfo.processInfo.environment[name]
+        #else
+        return nil
+        #endif
+    }
+
     /// The phone's name for its token ("iPhone" unless iOS shares more).
     var deviceName: String { UIDevice.current.name }
 
@@ -285,5 +305,10 @@ final class AppModel {
 
     static func describe(_ error: APIError) -> String {
         error.title + ". " + error.message
+    }
+
+    static func describe(_ error: any Error) -> String {
+        if let error = error as? APIError { return describe(error) }
+        return error.localizedDescription
     }
 }

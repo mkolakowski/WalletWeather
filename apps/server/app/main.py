@@ -29,7 +29,7 @@ from urllib.parse import urlencode
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.51.0"
+APP_VERSION = "1.52.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,12 @@ APP_VERSION = "1.51.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.52.0 (2026-11-15, claude+mkolakowski): for the iOS app's Forecast (#88):
+#     /api/me gains token_access (read, full or admin for a token, null for
+#     a browser session); forecast rows gain category_id; saving a line that
+#     keeps its category no longer needs the category to be the saver's own
+#     (a shared account's line kept the owner's category only by being
+#     cleared before).
 # 1.51.0 (2026-11-15, claude+mkolakowski): DELETE /api/tokens/current (#145):
 #     a token, read-only too, may revoke itself (the iOS app's Sign out).
 # 1.50.0 (2026-11-15, claude+mkolakowski): signing in the iOS app (#87):
@@ -1195,8 +1201,13 @@ def _iso(dt: datetime | None) -> str | None:
 
 
 @app.get("/api/me")
-def me(user: User = Depends(current_user)):
+def me(request: Request, user: User = Depends(current_user)):
+    token = request.state.api_token
     return {"id": user.id, "email": user.email, "name": user.name,
+            # What this token may do (read, full or admin), or null when
+            # signed in through a browser: the iOS app hides editing under a
+            # read-only token (#88).
+            "token_access": token.access if token else None,
             "is_admin": is_admin(user),
             "theme_preference": user.theme_preference,
             "chart_position": user.chart_position,
@@ -2539,11 +2550,21 @@ def list_transactions(account_id: int, user: User = Depends(current_user), db: S
     ]
 
 
+def _keeps_recurring_category(db: Session, acc: Account, payload: "TransactionIn") -> bool:
+    """A line saved from a recurring item with the item's own category. On
+    an account shared with the saver, that category is the owner's, so it
+    can't be one of the saver's own; keeping it is still allowed (#88)."""
+    if payload.recurring_id is None:
+        return False
+    rec = db.get(RecurringTransaction, payload.recurring_id)
+    return bool(rec and rec.account_id == acc.id and rec.category_id == payload.category_id)
+
+
 @app.post("/api/accounts/{account_id}/transactions")
 def create_transaction(account_id: int, payload: TransactionIn,
                        user: User = Depends(current_user), db: Session = Depends(get_db)):
     acc = _own_account(db, user, account_id)
-    if payload.category_id is not None:
+    if payload.category_id is not None and not _keeps_recurring_category(db, acc, payload):
         _own_category(db, user, payload.category_id)
     t = Transaction(
         account_id=acc.id,
@@ -2583,7 +2604,9 @@ def update_transaction(tid: int, payload: TransactionIn,
     if not t:
         raise HTTPException(404)
     _account_with_perm(db, user, t.account_id, "edit")
-    if payload.category_id is not None:
+    # A category the line already has may be kept: on a shared account it's
+    # the owner's, not the saver's own (#88).
+    if payload.category_id is not None and payload.category_id != t.category_id:
         _own_category(db, user, payload.category_id)
     t.description = payload.description
     t.amount = Decimal(str(payload.amount))

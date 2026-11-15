@@ -3,7 +3,9 @@
 A native SwiftUI app for iPhone (iOS 26 and later) that signs in to your own
 WalletWeather server. It's being built in phases from
 [`Plans/ios-app.md`](../../Plans/ios-app.md) (tracking issue #93). Phase 1
-(#87) gives it the Connect screen, sign-in and a read-only Dashboard. It isn't
+(#87) gives it the Connect screen, sign-in and a read-only Dashboard; phase 2
+(#88) adds Forecast, with marking lines paid, adding and deleting
+transactions, and transaction search. It isn't
 on TestFlight or the App Store yet (phase 6); for now it's built from source
 and put on a phone from Xcode.
 
@@ -62,6 +64,18 @@ SIMCTL_CHILD_WW_DEBUG_TOKEN=ww_... \
 xcrun simctl launch booted net.iptater.walletweather
 ```
 
+Three more Debug-only settings put it where a screenshot needs it, with no
+taps: `SIMCTL_CHILD_WW_DEBUG_PLACE=forecast` (or `search`, `dashboard`, …)
+opens that page, `SIMCTL_CHILD_WW_DEBUG_OPEN_LINE=Rent` opens that Forecast
+line in the editor, and `SIMCTL_CHILD_WW_DEBUG_SEARCH=gro` fills in search.
+On this Mac the simulators are shared with other projects' sessions, so run
+simulator commands through mkplus's `Scripts/with-simulator.sh`.
+
+**Against a real server.** `LiveServerTests.swift` holds tests that run only
+when given a demo server and a throwaway token: `WW_LIVE_TOKEN` (signing out
+ends it) and `WW_LIVE_EDIT_TOKEN` (marks a line paid and undoes it, adds and
+deletes a one-off, on the demo's data).
+
 ## How it signs in
 
 1. **Sign in** on the Connect screen opens the server's `/app-sign-in` page
@@ -107,6 +121,22 @@ Signing out ends the token on the server first (`DELETE /api/tokens/current`:
 a token may revoke itself, and nothing else). If the server can't be reached,
 the app still signs out and says the token stays listed in Settings → API
 tokens until it's revoked there.
+
+## Changing a line
+
+The app changes lines the way the web app's editor does: a projected date of
+a repeating bill or paycheck is saved as a new transaction
+(`POST /api/accounts/{id}/transactions`), a line that's already saved is sent
+whole again (`PATCH /api/transactions/{id}`, which replaces every field, so
+the app sends the line's name, dates, amounts, category and notes each time
+and leaves its tags alone), a saved line is deleted with `DELETE`, and a
+projected date is skipped with `POST /api/recurring/{id}/skip`. Undoing
+"paid" keeps the line as a transaction at its planned amount, so its notes
+and category stay. Transfers are read-only in the app for now.
+
+Editing shows only on an account you own or may edit (`level` in
+`/api/accounts`), and nowhere under a read-only token (`token_access` in
+`/api/me`).
 
 ## The responses it reads
 

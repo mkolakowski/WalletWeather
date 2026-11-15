@@ -19,6 +19,11 @@ public struct Me: Sendable, Codable, Equatable {
     public let name: String?
     public let isAdmin: Bool
     public let noticeRequired: Bool
+    /// What the app's token may do: read, full or admin (server 1.52.0).
+    public let tokenAccess: String?
+
+    /// A read-only token: the app shows no editing anywhere.
+    public var isReadOnly: Bool { tokenAccess == "read" }
 }
 
 /// One of `GET /api/accounts`.

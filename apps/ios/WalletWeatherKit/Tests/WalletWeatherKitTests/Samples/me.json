@@ -2,6 +2,7 @@
     "id": 1,
     "email": "admin@demo.walletweather.local",
     "name": "Demo Admin",
+    "token_access": "full",
     "is_admin": true,
     "theme_preference": null,
     "chart_position": null,

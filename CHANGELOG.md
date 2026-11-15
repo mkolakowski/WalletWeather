@@ -67,6 +67,10 @@ same commit (or session) that introduces it.
 
 App version: **1.37.0** · Web version: **1.61.0** · Schema version: **14**
 
+## [1.37.0] — 2026-11-14
+
+App version: **1.37.0** · Web version: **1.61.0** · Schema version: **14**
+
 ### Changed
 
 - **Breaking: "+ Add transaction" opens a new line at the top of the Forecast
@@ -1424,7 +1428,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.36.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.37.0...HEAD
+[1.37.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.37.0
 [1.36.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.36.0
 [1.35.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.35.0
 [1.32.5]: https://github.com/mkolakowski/walletweather/releases/tag/v1.32.5

@@ -6,11 +6,11 @@ Tracking issue: #121
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Server: recurring items carry tags | #118 | Built in 1.40.0, not released |
+| 1. Server: recurring items carry tags | #118 | Released in v1.40.0, closed 2026-11-15 |
 | 2. Forecast: tags on repeating lines | #119 | Not started, waits for 1 |
 | 3. Bills & income: tag pickers | #120 | Not started, waits for 1 |
 
-- **Phase 1** — app 1.40.0, schema 15, built 2026-11-15, not released. Verified: 10 new API tests in `tests/test_recurring_tags.py` (53 pass in all); the migration run on a v14 database filled by the v14 test suite (24 recurring items): `recurring_tags` created with both foreign keys, nothing lost, the full suite passes on it.
+- **Phase 1** — app 1.40.0, schema 15, released 2026-11-15 (#123). Verified: 10 new API tests in `tests/test_recurring_tags.py` (53 pass in all); the migration run on a v14 database filled by the v14 test suite (24 recurring items): `recurring_tags` created with both foreign keys, nothing lost, the full suite passes on it.
 
 Sessions: may span — each phase ends with a release and your look on your own instance before the next starts.
 

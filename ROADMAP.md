@@ -149,10 +149,10 @@ Rate-limit failed logins by IP+username, and write significant events
 `audit_events` table viewable by admins. Cheap insurance.
 **Effort: small.**
 
-### 16. API tokens
-For users who want to script ingest (e.g., a cron job pushing CSVs from
+### ~~16. API tokens~~ ✅ **Shipped in v1.41.0.**
+~~For users who want to script ingest (e.g., a cron job pushing CSVs from
 their bank), a personal access token system avoids needing to share
-session cookies. **Effort: small.** Pairs naturally with item 4.
+session cookies. **Effort: small.** Pairs naturally with item 4.~~
 
 ---
 

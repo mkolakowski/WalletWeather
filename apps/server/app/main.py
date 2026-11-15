@@ -1,6 +1,8 @@
 """FastAPI application: local + Google auth, accounts, transactions, forecasting."""
+import hashlib
 import os
 import re
+import secrets
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -24,7 +26,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.40.0"
+APP_VERSION = "1.41.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -36,6 +38,10 @@ APP_VERSION = "1.40.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.41.0 (2026-11-15, claude+mkolakowski): API tokens (#42): `Authorization:
+#     Bearer <token>` works wherever the session cookie does; read/full/admin
+#     access; GET/POST/DELETE /api/tokens from a browser session only;
+#     schema 16 (api_tokens); web 1.63.0 (Settings → API tokens).
 # 1.40.0 (2026-11-15, claude+mkolakowski): recurring items carry tags (recurring_tags, schema 15): tag_ids on create/PATCH, tags in both recurring lists and on projected forecast rows; a line created from an item starts with its tags (#118).
 # 1.39.1 (2026-11-15, claude+mkolakowski): no server change; web 1.61.9 (Repeats dropdown only as wide as Bi-weekly, #116).
 # 1.39.0 (2026-11-14, claude+mkolakowski): no server change; web 1.61.8 (tag picker and Repeats/Tags headings in Forecast's add row, #114).
@@ -374,7 +380,7 @@ from .db import (
     init_db, get_db, User, Account, RecurringTransaction, Transaction, Category,
     AccountPermission, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
     Tag, TransactionTag, RecurringTag, TagRule, SavedReport, RecurringSkip,
-    SessionLocal, SCHEMA_VERSION,
+    ApiToken, SessionLocal, SCHEMA_VERSION,
 )
 from .forecast import build_forecast, actual_balance_as_of
 from .backup import export_user, import_user
@@ -580,7 +586,46 @@ def _email_ok(email: str) -> bool:
 
 
 # ---------- Auth ----------
-def current_user(request: Request, db: Session = Depends(get_db)) -> User:
+# A request is signed in by the session cookie (a browser) or by an API token
+# sent as `Authorization: Bearer <token>` (#42). With a token, the access it
+# was made with limits what it reaches:
+#   read   GET only (plus the report "run" POSTs, which change nothing)
+#   full   everything a signed-in user can do, except the Admin endpoints
+#   admin  full, plus the Admin endpoints while its owner is an admin
+# No token can list, create or revoke tokens: that needs a browser session.
+TOKEN_ACCESS_LEVELS = ("read", "full", "admin")
+TOKEN_PREFIX = "ww_"
+_READ_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _bearer_token(request: Request) -> str | None:
+    """The token from an `Authorization: Bearer` header, "" for a Bearer
+    header with nothing after it, None when there's no Bearer header."""
+    scheme, _, value = request.headers.get("authorization", "").partition(" ")
+    if scheme.lower() != "bearer":
+        return None
+    return value.strip()
+
+
+def _authenticate(request: Request, db: Session) -> User:
+    """The signed-in user, by API token or session. Sets
+    request.state.api_token to the token's row, or None for a session."""
+    request.state.api_token = None
+    token = _bearer_token(request)
+    if token is not None:
+        row = (db.query(ApiToken).filter_by(token_hash=_hash_token(token)).first()
+               if token else None)
+        if not row or row.revoked_at is not None:
+            raise HTTPException(status_code=401, detail="Invalid or revoked API token")
+        user = db.get(User, row.owner_id)
+        if not user or user.disabled:
+            raise HTTPException(status_code=401, detail="Invalid or revoked API token")
+        request.state.api_token = row
+        return user
     uid = request.session.get("uid")
     if not uid:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -594,13 +639,39 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> User:
     return user
 
 
+def current_user(request: Request, db: Session = Depends(get_db)) -> User:
+    user = _authenticate(request, db)
+    token = request.state.api_token
+    if token and token.access == "read" and request.method not in _READ_METHODS:
+        raise HTTPException(status_code=403, detail="This API token is read-only")
+    return user
+
+
+def current_reader(request: Request, db: Session = Depends(get_db)) -> User:
+    """Like current_user, but a read-only token passes on any method. Only
+    for POST endpoints that change nothing (running a report)."""
+    return _authenticate(request, db)
+
+
+def current_session_user(request: Request, db: Session = Depends(get_db)) -> User:
+    """Like current_user, but refuses API tokens: for managing tokens."""
+    if _bearer_token(request) is not None:
+        raise HTTPException(status_code=403,
+                            detail="API tokens can't manage tokens. Sign in in a browser.")
+    return current_user(request, db)
+
+
 def is_admin(user: User) -> bool:
     return bool(ADMIN_EMAILS) and user.email.lower() in ADMIN_EMAILS
 
 
-def current_admin(user: User = Depends(current_user)) -> User:
+def current_admin(request: Request, user: User = Depends(current_user)) -> User:
     if not is_admin(user):
         raise HTTPException(status_code=403, detail="Admin access required")
+    token = getattr(request.state, "api_token", None)
+    if token and token.access != "admin":
+        raise HTTPException(status_code=403,
+                            detail="Only an admin API token reaches the Admin endpoints")
     return user
 
 
@@ -786,6 +857,62 @@ def acknowledge_notice(user: User = Depends(current_user),
     return {"ok": True,
             "notice_required": False,
             "notice_acknowledged_at": _iso(user.notice_ack_at)}
+
+
+# ---------- API tokens (#42) ----------
+# Listed, made and revoked from a signed-in browser only (current_session_user).
+# The token is returned once, by POST, and only its SHA-256 is stored.
+class ApiTokenIn(BaseModel):
+    name: str = Field(max_length=80)
+    access: str
+
+
+def _token_json(t: ApiToken) -> dict:
+    return {"id": t.id, "name": t.name, "access": t.access,
+            "created_at": _iso(t.created_at), "revoked_at": _iso(t.revoked_at)}
+
+
+@app.get("/api/tokens")
+def list_tokens(user: User = Depends(current_session_user),
+                db: Session = Depends(get_db)):
+    """The caller's tokens, newest first, revoked ones included."""
+    rows = (db.query(ApiToken).filter_by(owner_id=user.id)
+            .order_by(ApiToken.created_at.desc(), ApiToken.id.desc()).all())
+    return [_token_json(t) for t in rows]
+
+
+@app.post("/api/tokens")
+def create_token(payload: ApiTokenIn, user: User = Depends(current_session_user),
+                 db: Session = Depends(get_db)):
+    """Make a token. The response is the only time `token` is shown."""
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(400, "Name is required")
+    if payload.access not in TOKEN_ACCESS_LEVELS:
+        raise HTTPException(400, "Access must be read, full or admin")
+    if payload.access == "admin" and not is_admin(user):
+        raise HTTPException(403, "Only an admin can make an admin token")
+    token = TOKEN_PREFIX + secrets.token_urlsafe(32)
+    row = ApiToken(owner_id=user.id, name=name, access=payload.access,
+                   token_hash=_hash_token(token))
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {**_token_json(row), "token": token}
+
+
+@app.delete("/api/tokens/{token_id}")
+def revoke_token(token_id: int, user: User = Depends(current_session_user),
+                 db: Session = Depends(get_db)):
+    """Revoke one of the caller's tokens. It stops working at once. Safe to
+    call again: the first revocation's time is kept."""
+    row = db.get(ApiToken, token_id)
+    if not row or row.owner_id != user.id:
+        raise HTTPException(404, "Token not found")
+    if row.revoked_at is None:
+        row.revoked_at = datetime.utcnow()
+        db.commit()
+    return _token_json(row)
 
 
 # ---------- Deleting your own user ----------
@@ -4199,7 +4326,7 @@ def _validate_report_params(params: dict) -> None:
 
 @app.post("/api/report/run")
 def run_report_inline(payload: ReportParamsIn,
-                      user: User = Depends(current_user),
+                      user: User = Depends(current_reader),
                       db: Session = Depends(get_db)):
     """Run a report from inline params. Used by the live editor so users
     can preview without saving."""
@@ -4291,7 +4418,7 @@ def delete_saved_report(report_id: int,
 
 @app.post("/api/saved-reports/{report_id}/run")
 def run_saved_report(report_id: int,
-                     user: User = Depends(current_user),
+                     user: User = Depends(current_reader),
                      db: Session = Depends(get_db)):
     r = _own_saved_report(db, user, report_id)
     try:

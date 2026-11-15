@@ -2275,6 +2275,36 @@
         </div>
         <div id="backupStatus" style="margin-top:10px;font-size:13px"></div>
       </div>
+      <div class="panel" data-settings-section="your-account" id="apiTokensPanel">
+        <h2>API tokens</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          A token lets a script or app use WalletWeather as you, sent as
+          <code>Authorization: Bearer &lt;token&gt;</code>. <strong>Read-only</strong> tokens can only look;
+          <strong>full access</strong> can change anything you can, except the Admin panel<span id="apiTokenAdminNote" class="hidden">;
+          <strong>admin</strong> also reaches the Admin panel, while you're an admin</span>.
+          No token can make or revoke tokens. Revoke one you no longer use, or that may have leaked.
+        </p>
+        <div id="apiTokensList" style="margin-bottom:14px;font-size:13px"><span style="color:var(--muted)">Loading…</span></div>
+        <div id="apiTokenNew" class="hidden" role="status" style="margin-bottom:14px;padding:10px 12px;border:1px solid var(--accent);border-radius:8px">
+          <div style="font-size:13px;margin-bottom:6px"><strong>Copy your new token now.</strong> It won't be shown again.</div>
+          <div class="row" style="align-items:center">
+            <div style="flex:1;min-width:0"><input id="apiTokenValue" readonly aria-label="New API token" style="width:100%;font-family:monospace" onfocus="this.select()"></div>
+            <div style="flex:0 0 auto"><button type="button" onclick="copyApiToken()">Copy</button></div>
+            <div style="flex:0 0 auto"><button type="button" class="ghost" onclick="document.getElementById('apiTokenNew').classList.add('hidden')">Done</button></div>
+          </div>
+        </div>
+        <div class="row">
+          <div><label for="apiTokenName">Name</label><input id="apiTokenName" placeholder="iPhone shortcut" maxlength="80"></div>
+          <div><label for="apiTokenAccess">Access</label>
+            <select id="apiTokenAccess">
+              <option value="read">Read-only</option>
+              <option value="full">Full access</option>
+            </select>
+          </div>
+          <div style="flex:0 0 auto"><button id="apiTokenCreateBtn" onclick="createApiToken()">Create token</button></div>
+        </div>
+      </div>
+
       <div class="panel" data-settings-section="your-account" id="deleteAccountPanel">
         <h2>Delete my account</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
@@ -2381,7 +2411,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.62.1";
+const WEB_VERSION = "1.63.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2392,6 +2422,7 @@ const WEB_VERSION = "1.62.1";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.63.0 (2026-11-15, claude+mkolakowski): (#42) Settings → Your account: an "API tokens" panel (loadApiTokens / createApiToken / copyApiToken / revokeApiToken) lists your tokens, makes one (name + Read-only / Full access, plus Admin added only for admins) and shows it once with Copy, and revokes.
 // 1.62.1 (2026-11-15, claude+mkolakowski): (#119) Tags on repeating lines: the add row's Tags picker stays enabled with Repeats and sends tag_ids with the recurring item; opening a projected line shows a Tags picker (line editor and the older editors) filled with its item's tags, and saving always sends the picker's array (so [] means none). Projected rows show their item's chips from the API.
 // 1.61.9 (2026-11-14, claude+mkolakowski): (#116) The add row's Repeats select (#addFreq) is width:auto, sized to Bi-weekly.
 // 1.61.8 (2026-11-14, claude+mkolakowski): (#114) Add row: Repeats select (colspan 2) and a Tags picker (addTags, colspan 2) under the balance columns; _setAddRowHeadings renames Δ Amt/Actual bal to Repeats/Tags (th-swap) while open; tags saved on one-off lines, picker disabled while Repeats is set. .add-repeat/.le-inl CSS removed.
@@ -3390,7 +3421,7 @@ function showPage(name, opts) {
   document.getElementById('navAdmin').classList.toggle('active', name==='admin');
   document.getElementById('navSettings').classList.toggle('active', name==='settings');
   _syncPhoneNav(name);
-  if (name === 'settings') { showSettingsSection(settingsSection, { noHash: true }); loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); loadDeleteAccount(); }
+  if (name === 'settings') { showSettingsSection(settingsSection, { noHash: true }); loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); loadApiTokens(); loadDeleteAccount(); }
   if (name === 'dashboard') loadDashboard();
   if (name === 'networth') loadNetworth();
   if (name === 'subscriptions') {
@@ -4755,6 +4786,62 @@ async function acknowledgeNotice() {
   }
   btn.disabled = false;
   init();
+}
+// Settings → "API tokens" (#42). The server shows a token once, in the POST
+// response; this keeps it on screen until "Done" or the next page load.
+const API_TOKEN_ACCESS_LABELS = { read: 'Read-only', full: 'Full access', admin: 'Admin' };
+async function loadApiTokens() {
+  const list = document.getElementById('apiTokensList');
+  if (!list) return;
+  const admin = !!(me && me.is_admin);
+  document.getElementById('apiTokenAdminNote').classList.toggle('hidden', !admin);
+  // The Admin choice exists only for admins (an <option hidden> still shows on iOS).
+  const sel = document.getElementById('apiTokenAccess');
+  const adminOpt = sel.querySelector('option[value="admin"]');
+  if (admin && !adminOpt) sel.add(new Option('Admin', 'admin'));
+  if (!admin && adminOpt) adminOpt.remove();
+  let rows;
+  try { rows = await api('/api/tokens'); }
+  catch { list.innerHTML = '<span style="color:var(--muted)">Could not load your tokens. Reload the page to try again.</span>'; return; }
+  if (!rows.length) { list.innerHTML = '<span style="color:var(--muted)">No tokens yet.</span>'; return; }
+  const day = iso => new Date(iso).toLocaleDateString();
+  list.innerHTML = '<ul style="list-style:none;margin:0;padding:0">' + rows.map(t => {
+    const revoked = !!t.revoked_at;
+    return '<li style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:6px 0;border-bottom:1px solid var(--border)' + (revoked ? ';color:var(--muted)' : '') + '">' +
+      '<strong style="flex:1 1 160px;min-width:0;overflow-wrap:anywhere">' + escapeHtml(t.name) + '</strong>' +
+      '<span>' + escapeHtml(API_TOKEN_ACCESS_LABELS[t.access] || t.access) + '</span>' +
+      '<span>' + (revoked ? 'Revoked ' + day(t.revoked_at) : 'Made ' + day(t.created_at)) + '</span>' +
+      (revoked ? '' : '<button type="button" class="ghost danger" onclick="revokeApiToken(' + t.id + ')">Revoke</button>') +
+      '</li>';
+  }).join('') + '</ul>';
+}
+async function createApiToken() {
+  const nameEl = document.getElementById('apiTokenName');
+  const name = nameEl.value.trim();
+  if (!name) { notify('Give the token a name, so you can tell it apart later.', 'error'); nameEl.focus(); return; }
+  const access = document.getElementById('apiTokenAccess').value;
+  const btn = document.getElementById('apiTokenCreateBtn');
+  btn.disabled = true;
+  let made;
+  try { made = await api('/api/tokens', { method: 'POST', body: JSON.stringify({ name, access }) }); }
+  catch (e) { notifyError('Could not create the token', e); return; }
+  finally { btn.disabled = false; }
+  nameEl.value = '';
+  document.getElementById('apiTokenValue').value = made.token;
+  document.getElementById('apiTokenNew').classList.remove('hidden');
+  document.getElementById('apiTokenValue').focus();
+  await loadApiTokens();
+}
+async function copyApiToken() {
+  const input = document.getElementById('apiTokenValue');
+  try { await navigator.clipboard.writeText(input.value); notify('Token copied.'); }
+  catch { input.focus(); input.select(); notify('Select the token and copy it by hand.', 'error'); }
+}
+async function revokeApiToken(id) {
+  if (!(await confirmDialog('Revoke this token? Anything using it stops working straight away.', { title: 'Revoke token', okLabel: 'Revoke', danger: true }))) return;
+  try { await api('/api/tokens/' + id, { method: 'DELETE' }); }
+  catch (e) { notifyError('Could not revoke the token', e); return; }
+  await loadApiTokens();
 }
 // Settings → "Delete my account". The server decides what deleting would
 // do (GET /api/me/deletion-check); this only shows it and asks to confirm.

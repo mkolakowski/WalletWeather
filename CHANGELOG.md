@@ -65,15 +65,31 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.40.0** · Web version: **1.62.1** · Schema version: **15**
+App version: **1.41.0** · Web version: **1.63.0** · Schema version: **16**
 
 ### Added
+
+- API tokens, for scripts and (later) the phone apps. Make one under
+  **Settings → Your account → API tokens**, give it a name and an access
+  level, and copy it: it's shown only once. Send it as
+  `Authorization: Bearer <token>` on any `/api/...` request. A **Read-only**
+  token can only look; **Full access** can do anything you can except the
+  Admin panel; **Admin** (offered only to admins) also reaches the Admin
+  panel, and stops reaching it the moment you're no longer an admin. Revoking
+  a token stops it at once. Tokens can't make or revoke tokens; that needs a
+  signed-in browser. The README's "Using the API with a token" has an example.
 
 - Tags now work on repeating lines in Forecast. The Tags picker on the new line
   stays available when you set Repeats, and the tags are saved with the
   repeating item. Its upcoming lines show those tags, opening one shows a Tags
   picker filled with them, and saving it keeps or changes them (clear them all
   and the line is saved with none).
+
+### Database
+
+- New `api_tokens` table (schema 16). Only a SHA-256 fingerprint of each token
+  is stored, never the token itself. It's created automatically on start;
+  nothing to do.
 
 ## [1.40.0] — 2026-11-15
 

@@ -7,10 +7,10 @@ Tracking issue: #44
 | Phase | Issue | State |
 | --- | --- | --- |
 | 1. Installable web app | #41 | Open |
-| 2. API tokens | #42 | Open (open question 2 settled 2026-11-15) |
+| 2. API tokens | #42 | Built in 1.41.0 (web 1.63.0, schema 16), not yet released |
 | 3. Token extras | #43 | Open (after phase 2) |
 
-Nothing shipped yet.
+Phase 2 built 2026-11-15 in app 1.41.0 / web 1.63.0 / schema 16, not yet released. Verified by 19 new API tests (71 in all pass) and, against a throwaway server, a token of each level used with `curl`: read-only refused on a write (403), full refused on `/api/admin/users` (403), admin allowed there, a revoked token refused at once (401).
 
 Sessions: may span — each phase ends with a release and your check on a phone before the next starts.
 

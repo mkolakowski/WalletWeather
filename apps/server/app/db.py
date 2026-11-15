@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "15"
+SCHEMA_VERSION = "16"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,9 @@ SCHEMA_VERSION = "15"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v16 (2026-11-15, claude+mkolakowski): add api_tokens — personal API
+#     tokens (owner, name, access read/full/admin, SHA-256 of the token,
+#     created/revoked dates). The token itself is never stored (#42).
 # v15 (2026-11-15, claude+mkolakowski): add recurring_tags, the tags on a
 #     recurring item (many-to-many, cascade from either side). Lines created
 #     from the item start with its tags (recurring-tags plan, #118).
@@ -544,6 +547,27 @@ class RecurringSkip(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ApiToken(Base):
+    """A personal API token (#42), sent as `Authorization: Bearer <token>`.
+
+    Only the SHA-256 of the token is kept: the token is shown once, when it's
+    made. `access` is 'read' (GET only), 'full' (anything a signed-in user can
+    do except the Admin endpoints and managing tokens) or 'admin' (full, plus
+    the Admin endpoints while the owner is in ADMIN_EMAILS). A revoked token
+    keeps its row, with `revoked_at` set. Rows go with their owner via the
+    DB-level ON DELETE CASCADE (no ORM relationship).
+    """
+    __tablename__ = "api_tokens"
+    id = Column(Integer, primary_key=True)
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"),
+                      nullable=False, index=True)
+    name = Column(String(80), nullable=False)
+    access = Column(String(10), nullable=False)
+    token_hash = Column(String(64), nullable=False, unique=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    revoked_at = Column(DateTime, nullable=True)
+
+
 def init_db():
     """Create missing tables, then apply in-place column migrations.
 
@@ -595,6 +619,8 @@ def init_db():
         # No backfill: existing users see the notice once too.
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS notice_ack_at TIMESTAMP",
         # v14 → v15: recurring_tags
+        # (Created by Base.metadata.create_all above — boundary marker only.)
+        # v15 → v16: api_tokens
         # (Created by Base.metadata.create_all above — boundary marker only.)
     ]
     with engine.begin() as conn:

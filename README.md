@@ -190,6 +190,50 @@ client; a running server documents them at `/docs`.
 
 **Stack:** FastAPI · SQLAlchemy · PostgreSQL 16 · bcrypt · Fernet (AES-128-CBC) · Vanilla JS · Docker
 
+## Using the API with a token
+
+Scripts and apps can call the same `/api/...` endpoints the web client uses
+(a running server lists them at `/docs`). Make a token under
+**Settings → Your account → API tokens** and copy it when it's shown; it
+isn't shown again. Then send it as a Bearer token:
+
+```bash
+curl -H "Authorization: Bearer ww_..." https://walletweather.example.com/api/accounts
+```
+
+Each token has an access level, chosen when it's made:
+
+| Access | Reaches |
+| --- | --- |
+| Read-only | `GET` requests (and running a report). Anything that changes data gets `403`. |
+| Full access | Everything you can do signed in, except the Admin endpoints (`/api/admin/*`, `403`). |
+| Admin | Full access plus `/api/admin/*`. Only admins can make one, and it gets `403` there as soon as its owner is no longer in `ADMIN_EMAILS`. |
+
+No token can list, make or revoke tokens (`/api/tokens` answers `403`); that
+needs a signed-in browser. A revoked token, or one whose owner is disabled,
+gets `401`. Only a SHA-256 fingerprint of each token is stored.
+
+**Behind Cloudflare Access.** If the server sits behind a Cloudflare Tunnel
+with Zero Trust rules, Cloudflare turns away a request that hasn't signed in
+to Cloudflare before WalletWeather sees the token. There are two ways
+through:
+
+- **A Cloudflare service token sent with the WalletWeather token.** Create a
+  service token in Zero Trust, allow it in the application's policy (a
+  *Service Auth* rule), and send its two headers alongside the Bearer token:
+
+  ```bash
+  curl -H "CF-Access-Client-Id: <id>.access" \
+       -H "CF-Access-Client-Secret: <secret>" \
+       -H "Authorization: Bearer ww_..." \
+       https://walletweather.example.com/api/accounts
+  ```
+
+- **An Access rule that lets `/api/*` through.** Add a separate Access
+  application for the `/api/` path with a *Bypass* policy, so the WalletWeather
+  token is the only check on the API. Simpler for scripts, but the API is
+  then reachable from the internet with nothing in front of it but the token.
+
 ## Tests
 
 The API tests live in `apps/server/tests/` and run against a real

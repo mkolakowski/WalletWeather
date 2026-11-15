@@ -9,11 +9,15 @@ struct WalletWeatherApp: App {
     var body: some Scene {
         WindowGroup {
             AppRoot()
-                .id(settings.look)  // every page reads its colours again
+                .id(settings.shownLook)  // every page reads its colours again
                 .environment(model)
                 .environment(settings)
                 .tint(Palette.accent)
-                .preferredColorScheme(settings.look.colorScheme)
+                .preferredColorScheme(settings.shownLook.colorScheme)
+                // Match the web app follows the theme saved on the server.
+                .onChange(of: model.me) { _, me in
+                    if let me { settings.serverTheme = me.themePreference }
+                }
                 .onOpenURL { model.open($0) }
                 .task { model.start() }
         }
@@ -102,7 +106,8 @@ extension AppRoot {
     }
 }
 
-/// Sepia's brown text; the system's text colours in every other look.
+/// The text colour of Sepia and the web themes; the system's text colours
+/// in every other look.
 private struct SepiaText: ViewModifier {
     func body(content: Content) -> some View {
         if let text = Palette.text { content.foregroundStyle(text) } else { content }

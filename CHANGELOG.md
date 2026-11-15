@@ -69,7 +69,16 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.54.1** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.5.0**
+App version: **1.54.1** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.6.0**
+
+### Added
+
+- **The web app's themes on the iPhone** (iOS app 0.6.0). More → Appearance
+  now offers Dracula, Solarized, Nord, Synthwave, Forest, Mint, Monokai and
+  Sunset beside Light, Dark, AMOLED black and Sepia, in the web app's colours.
+  **Match the web app** uses the theme saved in the web app's Settings, and
+  still applies when the app opens offline. Picking a look on the phone never
+  changes the web app.
 
 ## [1.54.1] — 2026-11-15
 

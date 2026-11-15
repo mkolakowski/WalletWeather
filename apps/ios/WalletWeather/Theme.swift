@@ -1,82 +1,166 @@
 import SwiftUI
 import UIKit
+import WalletWeatherKit
 
-/// The app's looks (More → Appearance, decided 2026-11-14): Match the phone,
-/// Light, Dark, and two of its own that aren't among the web app's themes,
-/// AMOLED black and Sepia, with the colours drawn in the mockups.
-enum Look: String, CaseIterable, Identifiable {
-    case system, light, dark, amoled, sepia
+/// The app's looks (More → Appearance): Match the phone, Match the web app,
+/// Light, Dark, two of its own that aren't among the web app's themes
+/// (AMOLED black and Sepia, with the colours drawn in the mockups; decided
+/// 2026-11-14), and the web app's other eight themes (phase 9, #102). The
+/// phone keeps its own choice; Match the web app follows the theme saved on
+/// the server, and choosing on the phone never changes the web app (decided
+/// 2026-11-15). The raw values are stored in the app's preferences.
+enum Look: Hashable, Identifiable {
+    case system, web, light, dark, amoled, sepia
+    case theme(WebTheme)
+
+    static let allCases: [Look] = [.system, .web, .light, .dark, .amoled, .sepia] + WebTheme.allCases.map(Look.theme)
+
+    init?(rawValue: String) {
+        switch rawValue {
+        case "system": self = .system
+        case "web": self = .web
+        case "light": self = .light
+        case "dark": self = .dark
+        case "amoled": self = .amoled
+        case "sepia": self = .sepia
+        default:
+            guard let theme = WebTheme(rawValue: rawValue) else { return nil }
+            self = .theme(theme)
+        }
+    }
+
+    var rawValue: String {
+        switch self {
+        case .system: "system"
+        case .web: "web"
+        case .light: "light"
+        case .dark: "dark"
+        case .amoled: "amoled"
+        case .sepia: "sepia"
+        case let .theme(theme): theme.rawValue
+        }
+    }
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .system: "Match the phone"
+        case .web: "Match the web app"
         case .light: "Light"
         case .dark: "Dark"
         case .amoled: "AMOLED black"
         case .sepia: "Sepia"
+        case let .theme(theme): theme.title
+        }
+    }
+
+    /// What Match the web app shows for the theme saved on the server.
+    static func matching(_ saved: ServerTheme) -> Look {
+        switch saved {
+        case .system: .system
+        case .light: .light
+        case .dark: .dark
+        case let .web(theme): .theme(theme)
         }
     }
 
     /// What the system draws its own parts in (bars, sheets, lists).
     var colorScheme: ColorScheme? {
         switch self {
-        case .system: nil
+        case .system, .web: nil
         case .light, .sepia: .light
         case .dark, .amoled: .dark
+        case let .theme(theme): theme.colors.isDark ? .dark : .light
         }
     }
 }
 
 /// WalletWeather's colours: the web app's default dark and light themes,
-/// and the mockups' AMOLED black and Sepia.
+/// the mockups' AMOLED black and Sepia, and the web app's other themes.
 enum Palette {
-    /// The look in use, set by the app root when the setting changes (the
-    /// root rebuilds the pages, so every colour is read again).
+    /// The look shown (Match the web app already resolved), set by the app
+    /// root when it changes (the root rebuilds the pages, so every colour is
+    /// read again).
     nonisolated(unsafe) static var look: Look = .system
 
+    /// A web theme's colours, when one is shown.
+    private static var theme: WebTheme.Colors? {
+        if case let .theme(theme) = look { return theme.colors }
+        return nil
+    }
+
     static var accent: Color {
+        if let theme { return hex(theme.accent) }
         switch look {
-        case .amoled: hex(0x58A6FF)
-        case .sepia: hex(0x9C4410)
-        default: dynamic(light: 0x0969DA, dark: 0x58A6FF)
+        case .amoled: return hex(0x58A6FF)
+        case .sepia: return hex(0x9C4410)
+        default: return dynamic(light: 0x0969DA, dark: 0x58A6FF)
         }
     }
 
     static var good: Color {
+        if let theme { return hex(theme.good) }
         switch look {
-        case .amoled: hex(0x3FB950)
-        case .sepia: hex(0x2F6B2F)
-        default: dynamic(light: 0x1A7F37, dark: 0x3FB950)
+        case .amoled: return hex(0x3FB950)
+        case .sepia: return hex(0x2F6B2F)
+        default: return dynamic(light: 0x1A7F37, dark: 0x3FB950)
         }
     }
 
     static var bad: Color {
+        if let theme { return hex(theme.bad) }
         switch look {
-        case .amoled: hex(0xFF7B72)
-        case .sepia: hex(0xA32A1C)
-        default: dynamic(light: 0xCF222E, dark: 0xF85149)
+        case .amoled: return hex(0xFF7B72)
+        case .sepia: return hex(0xA32A1C)
+        default: return dynamic(light: 0xCF222E, dark: 0xF85149)
         }
     }
 
     static var warn: Color {
+        if let theme { return hex(theme.warn) }
         switch look {
-        case .amoled: hex(0xF0883E)
-        case .sepia: hex(0x8A6D00)
-        default: dynamic(light: 0x9A6700, dark: 0xD29922)
+        case .amoled: return hex(0xF0883E)
+        case .sepia: return hex(0x8A6D00)
+        default: return dynamic(light: 0x9A6700, dark: 0xD29922)
         }
     }
 
-    /// The text colour for Sepia (brown); nil keeps the system's.
-    static var text: Color? { look == .sepia ? hex(0x3D2B1C) : nil }
+    /// The text colour for Sepia (brown) and the web themes; nil keeps the
+    /// system's.
+    static var text: Color? {
+        if let theme { return hex(theme.text) }
+        return look == .sepia ? hex(0x3D2B1C) : nil
+    }
 
-    /// Behind everything: black for AMOLED, tan for Sepia.
+    /// Behind everything: black for AMOLED, tan for Sepia, a web theme's own.
     static var page: Color {
+        if let theme { return hex(theme.page) }
         switch look {
-        case .amoled: .black
-        case .sepia: hex(0xEAD5B3)
-        default: Color(.systemGroupedBackground)
+        case .amoled: return .black
+        case .sepia: return hex(0xEAD5B3)
+        default: return Color(.systemGroupedBackground)
+        }
+    }
+
+    /// A card's solid colour (Reduce Transparency, Increase Contrast).
+    static var panel: Color {
+        if let theme { return hex(theme.panel) }
+        switch look {
+        case .amoled: return hex(0x101317)
+        case .sepia: return hex(0xFDF3E3)
+        default: return Color(.secondarySystemGroupedBackground)
+        }
+    }
+
+    /// A card's outline: AMOLED's, Sepia's and the web themes'; none for
+    /// light and dark.
+    static var outline: Color {
+        if let theme { return hex(theme.border) }
+        switch look {
+        case .amoled: return hex(0x2A3038)
+        case .sepia: return hex(0xCFAE82)
+        default: return .clear
         }
     }
 
@@ -124,6 +208,7 @@ struct PageBackground: View {
         switch Palette.look {
         case .amoled: 0.18
         case .sepia: 0.24
+        case .theme: 0.20
         default: scheme == .dark ? 0.30 : 0.22
         }
     }
@@ -155,6 +240,11 @@ struct Card: ViewModifier {
                     padded.glassEffect(.regular.tint(Palette.hex(0xFDF3E3).opacity(0.7)), in: shape)
                         .overlay(shape.strokeBorder(Palette.hex(0xCFAE82), lineWidth: 1))
                         .shadow(color: Color(red: 61 / 255, green: 43 / 255, blue: 28 / 255).opacity(0.14), radius: 3, y: 2)
+                case .theme:
+                    // The theme's panel colour under the glass, so text in
+                    // the theme's colour stays on the colour it was made for.
+                    padded.glassEffect(.regular.tint(Palette.panel.opacity(0.85)), in: shape)
+                        .overlay(shape.strokeBorder(Palette.outline, lineWidth: 1))
                 default:
                     padded.glassEffect(.regular, in: shape)
                 }
@@ -162,21 +252,8 @@ struct Card: ViewModifier {
         }
     }
 
-    private var solidFill: Color {
-        switch Palette.look {
-        case .amoled: Palette.hex(0x101317)
-        case .sepia: Palette.hex(0xFDF3E3)
-        default: Color(.secondarySystemGroupedBackground)
-        }
-    }
-
-    private var outline: Color {
-        switch Palette.look {
-        case .amoled: Palette.hex(0x2A3038)
-        case .sepia: Palette.hex(0xCFAE82)
-        default: .clear
-        }
-    }
+    private var solidFill: Color { Palette.panel }
+    private var outline: Color { Palette.outline }
 }
 
 extension View {

@@ -1,9 +1,11 @@
 import LocalAuthentication
 import Observation
 import SwiftUI
+import WalletWeatherKit
 
 /// The app's own settings, kept on this phone in its preferences (not the
-/// Keychain: they hold no money data): the look, and the app lock.
+/// Keychain: they hold no money data): the look (and, for Match the web app,
+/// the name of the theme saved on the server), and the app lock.
 ///
 /// The lock (decided 2026-11-14 and 2026-11-15): offered once, at first
 /// sign-in or after updating for someone already signed in; changeable in
@@ -15,9 +17,24 @@ final class AppSettings {
 
     var look: Look {
         didSet {
-            Palette.look = look
             defaults.set(look.rawValue, forKey: Keys.look)
+            Palette.look = shownLook
         }
+    }
+
+    /// The theme saved in the web app, for Match the web app: kept here so
+    /// it still applies when the app opens without a connection.
+    var serverTheme: String? {
+        didSet {
+            guard serverTheme != oldValue else { return }
+            defaults.set(serverTheme, forKey: Keys.serverTheme)
+            Palette.look = shownLook
+        }
+    }
+
+    /// The look on screen: Match the web app resolved to the server's theme.
+    var shownLook: Look {
+        look == .web ? .matching(ServerTheme(serverTheme)) : look
     }
 
     private(set) var lockEnabled: Bool {
@@ -36,20 +53,24 @@ final class AppSettings {
 
     private enum Keys {
         static let look = "appearance"
+        static let serverTheme = "appearance.web"
         static let lockEnabled = "lock.enabled"
         static let lockOffered = "lock.offered"
     }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        let saved = Look(rawValue: defaults.string(forKey: Keys.look) ?? "") ?? .system
+        // Debug only: `WW_DEBUG_LOOK=<look>` for screenshots in each look.
+        let debug = AppModel.debugSetting("WW_DEBUG_LOOK").flatMap(Look.init(rawValue:))
+        let saved = debug ?? Look(rawValue: defaults.string(forKey: Keys.look) ?? "") ?? .system
         look = saved
-        Palette.look = saved
+        serverTheme = defaults.string(forKey: Keys.serverTheme)
         let enabled = defaults.bool(forKey: Keys.lockEnabled)
         lockEnabled = enabled
         lockOffered = defaults.bool(forKey: Keys.lockOffered)
         // Locked from a fresh start, unless launched for screenshots.
         locked = enabled && AppModel.debugSetting("WW_DEBUG_SERVER") == nil
+        Palette.look = shownLook
     }
 
     // MARK: - The lock

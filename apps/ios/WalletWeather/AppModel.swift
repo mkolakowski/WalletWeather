@@ -107,7 +107,8 @@ final class AppModel {
     /// `WW_DEBUG_OPEN_LINE` (a Forecast line's or a bill's name, opened in
     /// the editor), `WW_DEBUG_SEARCH` (search text), and `WW_DEBUG_ACCOUNT`
     /// and `WW_DEBUG_DAY` (the Calendar's account and day), and
-    /// `WW_DEBUG_KEEP` (what the phone keeps). Always nil in a
+    /// `WW_DEBUG_KEEP` (what the phone keeps) and `WW_DEBUG_LOOK` (the
+    /// look). Always nil in a
     /// Release build.
     static func debugSetting(_ name: String) -> String? {
         #if DEBUG

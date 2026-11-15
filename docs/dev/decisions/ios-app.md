@@ -184,3 +184,13 @@ Decisions made while planning [`Plans/ios-app.md`](../../../Plans/ios-app.md) (t
 **Also settled in building it:** what's kept is the server's answer to each page's read requests (Dashboard, its charts and pinned reports, Forecast, Bills & income, Calendar, Net worth, Budgets, Reports, and the accounts and categories lists), keyed by the request without the phone's date, so yesterday's copy still answers today. Search, sign-in and edits are never kept. Each answer is a file in the app's own Application Support folder, written with complete file protection and left out of backups; at most 300 are kept, oldest out first. A new sign-in starts empty. Someone already signed in when this arrived stays on Nothing and isn't asked.
 
 **What it changes:** phase 8 (#101).
+
+## 2026-11-15: the web app's themes on the phone
+
+**Decided:** 2026-11-15, by Matthew, while starting phase 9 (#102). **Status:** accepted.
+
+**The decision:** the phone keeps its own look, and More → Appearance gains **Match the web app**, which uses the theme saved on the server (`theme_preference` in `/api/me`). Picking a look on the phone never changes the web app. The other options were the phone's own choice only (the phone and the web app can differ, with no way to follow it), and following the server both ways (picking a web theme on the phone saves it to the server; AMOLED black and Sepia would stay phone-only, since the server doesn't take them).
+
+**Also settled in building it:** the eight themes beyond Light and Dark use the web app's own colours (page, panel, border, text, accent, good, bad, warn); `WebThemeTests` checks them against `apps/web/index.html` and checks body text reaches 4.5:1 on each page and card colour. Cards are glass tinted with the theme's panel colour and outlined in its border colour. The server's theme is kept in the app's preferences, so Match the web app still applies offline. Light and Dark keep the system's own colours, as before.
+
+**What it changes:** phase 9 (#102).

@@ -21,6 +21,8 @@ public struct Me: Sendable, Codable, Equatable {
     public let noticeRequired: Bool
     /// What the app's token may do: read, full or admin (server 1.52.0).
     public let tokenAccess: String?
+    /// The theme saved in the web app, for "Match the web app" (#102).
+    public let themePreference: String?
 
     /// A read-only token: the app shows no editing anywhere.
     public var isReadOnly: Bool { tokenAccess == "read" }

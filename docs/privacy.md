@@ -31,7 +31,8 @@ email address and name. Google's privacy policy covers its part in that.
 ## What is kept on your device
 
 What the app needs to reconnect: the address of your server and the
-sign-in it was given; and the app's own settings: the look you picked,
+sign-in it was given; and the app's own settings: the look you picked (with
+the name of the theme saved on your server, for "Match the web app"),
 whether the app lock is on, and what the phone keeps.
 
 What the phone keeps is your choice, asked when you sign in and changeable in

@@ -257,11 +257,13 @@ Why: the session list on my phone is how I tell the threads apart.
   big.
 - Report outcomes faithfully: failing tests with their output, skipped steps
   named, and done-and-verified stated plainly, without hedging.
-- Never close an issue without asking. The one exception (decided
-  2026-11-14, #84): a release issue ("Release X.Y.Z") is closed by the
-  session once the GitHub Release is published and the "Build and push to
-  GHCR" run for it has passed, with a comment saying so. The issues for the
-  changes it shipped still wait for my OK.
+- Close an issue once its change is released (decided 2026-11-14, #97;
+  replaces #84): when the GitHub Release is published and its "Build and
+  push to GHCR" run has passed, close the release issue and every issue it
+  shipped, each with a comment naming the release. Work that ships without
+  a release (docs, tooling, plans) closes when it's pushed. I reopen an
+  issue if something's wrong. An issue whose work isn't finished stays
+  open. See `docs/dev/decisions/issue-closing.md`.
 - Don't offer choices where there's no real alternative (a plain
   confirmation of something this file already says to do), or
   mid-implementation when I've already chosen. A single obvious next step is
@@ -336,7 +338,8 @@ this and win where they differ. Without being asked, in this order:
    `(#<n>)` (never `Fixes #N` or another closing keyword: a push to the
    default branch would close it), comment on the issue when it lands (what
    was done, the version, how it was verified, and numbered "How to test"
-   steps when something I use changed), and ask me before closing it.
+   steps when something I use changed), and close it once its version is
+   released (see "The end of a turn").
 
 - No GitHub repo, `gh` can't reach it, or issues are off: skip it and say so
   once.
@@ -376,8 +379,8 @@ asked:
   kind (`enhancement`, `bug`, …). Create a missing label with
   `gh label create --force`.
 - **As phases land:** comment on the phase issue (with "How to test" steps),
-  tick it in the tracker, and ask me before closing it. Close the tracker,
-  again after asking, when the last phase is done.
+  tick it in the tracker, and close it once its release is out. Close the
+  tracker when the last phase's release is out.
 - **Presenting a plan:** end by offering to start its first phase and name the
   model to switch to for it. When a turn on a plan ends with choices, the
   first is the next open phase, marked "(Recommended)".
@@ -408,8 +411,8 @@ section, between `<!-- agents-and-tools:start -->` and
   the licensing rules.
 - **Rules that apply:** the ones that bind the work (shared-resource locks,
   layout locks, privacy decisions, the settings-toggle rule).
-- **Built but still open:** say so there: what's left, and "close it after
-  your OK".
+- **Built but still open:** say so there: what's left, and that it closes
+  when its release is out.
 - **Stale text:** when an issue has gone out of date, add a "Heads-up" line
   rather than leave it to mislead.
 

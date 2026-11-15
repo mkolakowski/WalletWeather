@@ -217,6 +217,29 @@
   .tag-dd-menu .tag-dd-sw { width:10px; height:10px; border-radius:3px; flex:0 0 auto; background:var(--muted); }
   .tag-dd-menu .tag-dd-empty { color:var(--muted); font-size:12px; padding:6px; }
 
+  /* Tables that don't fit wrap their rows (#82). _initTableWrap() adds
+     .tw-wrapped to any table wider than its space: the header hides, each
+     row's cells flow onto as many lines as needed, and each cell shows its
+     column's name (data-label, copied from the header). */
+  table.tw-wrapped, table.tw-wrapped > tbody { display:block; width:100%; }
+  table.tw-wrapped > thead { display:none; }
+  table.tw-wrapped > tbody > tr { display:flex; flex-wrap:wrap; align-items:flex-end; gap:6px 16px;
+                                  padding:8px 6px; border-bottom:1px solid var(--border); height:auto !important; }
+  table.tw-wrapped > tbody > tr > td { display:block; border:none !important; padding:0 !important;
+                                       flex:0 1 auto; min-width:0; max-width:100%; text-align:left; }
+  table.tw-wrapped > tbody > tr > td[colspan] { flex-basis:100%; }
+  table.tw-wrapped > tbody > tr > td[data-label]::before { content:attr(data-label); display:block; font-size:10px;
+      color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:1px; }
+  table.tw-wrapped td.notes-col { max-width:100%; }
+  /* An open line in a wrapped table: fields get room and show their own labels. */
+  table.tw-wrapped > tbody > tr.le-inline > td { flex:1 1 150px; }
+  table.tw-wrapped > tbody > tr.le-inline > td.le-notes { flex-basis:100%; }
+  table.tw-wrapped tr.le-inline .le-f > label { position:static; width:auto; height:auto; margin:0 0 2px;
+      overflow:visible; clip:auto; }
+  table.tw-wrapped tr.le-inline .le-f { width:auto; }
+  /* The headers that sort are hidden while wrapped, so the sort buttons show. */
+  .panel:has(table.tw-wrapped) .fc-sort { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:0 0 10px; }
+
   /* A visible focus ring for keyboard users (#55); mouse clicks don't show it. */
   :is(button, a, input, select, textarea, [tabindex]):focus-visible {
     outline:2px solid var(--accent); outline-offset:2px; }
@@ -2376,7 +2399,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.58.0";
+const WEB_VERSION = "1.59.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2387,6 +2410,7 @@ const WEB_VERSION = "1.58.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.59.0 (2026-11-14, claude+mkolakowski): (#82) Tables wrap when too wide: _initTableWrap() watches <main> (MutationObserver) and each table's container width (ResizeObserver); _twCheck() adds .tw-wrapped when a table overflows its container, and _twLabel() copies header names into each cell's data-label (open lines label themselves; button spacers ignored). Wrapped rows are flex rows; .fc-sort shows while a panel's table is wrapped. Forecast's phone card layout is exempt.
 // 1.58.0 (2026-11-14, claude+mkolakowski): (#81) Bills & income laid out like Forecast: #recAccountsBar tabs (All accounts first; syncRecAccountSelect/selectRecAccount/_markRecTabs replace the dropdown), #recActionsPanel, totals, #recAddPanel as a panel, then the table panel with fc-controls (Active/Archived, #recSpreadsheetBtn, pagination with Auto/All via _recEffectivePageSize) and #recSortBar. #recurringTable gets Forecast's column lines and compact cells. Spreadsheet mode (recSheetMode): every editable row uses renderEditRow(r, {sheet}) with Delete only; leaving a row saves it (saveRecurring(id, {sheet}) skips unchanged rows), and _scheduleRecSheetRefresh reloads once focus leaves the table.
 // 1.57.0 (2026-11-14, claude+mkolakowski): (#80) The Transactions page is Forecast's All accounts tab: #allAccountsView inside #pageAccounts, an .all-tab first in #accountsBar (forecastAllView, showAllAccountsView, _markForecastTabs), hash #forecast/all; showPage('transactions') and #transactions redirect there. Account tabs are matched by data-account-id, not position. navTransactions, its More entry and #pageTransactions are removed; the transfer form returns via _returnFromTransfer().
 // 1.56.6 (2026-11-14, claude+mkolakowski): (#79) Every page is full width: main has no max-width and a 40px gutter; showPage() always adds main.wide.
@@ -3394,6 +3418,77 @@ function showPage(name, opts) {
     }
   }
 }
+
+// ---------- Wrapping tables (#82) ----------
+// Every table in the app wraps its rows instead of scrolling sideways when
+// it's wider than the space it has. A table is checked when its container
+// changes width (ResizeObserver) and when its rows are redrawn
+// (MutationObserver on <main>). Forecast's own phone card layout is left
+// alone.
+const _twObserved = new WeakSet();
+const _twWidths = new WeakMap();
+function _twLabel(table) {
+  const heads = table.tHead ? [...table.tHead.rows[0].cells] : [];
+  if (!heads.length) return;
+  const names = [];
+  heads.forEach(th => {
+    const clone = th.cloneNode(true);
+    clone.querySelectorAll('.le-spacer, input, button').forEach(n => n.remove());
+    const name = clone.textContent.replace(/\s+/g, ' ').trim();
+    for (let k = 0; k < (th.colSpan || 1); k++) names.push(name);
+  });
+  [...table.tBodies].forEach(tb => [...tb.rows].forEach(tr => {
+    if (tr.classList.contains('le-inline')) return;   // fields label themselves
+    let col = 0;
+    [...tr.cells].forEach(td => {
+      const span = td.colSpan || 1;
+      const name = span === 1 ? names[col] : names.slice(col, col + span).filter(Boolean)[0];
+      if (name && span < names.length) td.dataset.label = name; else delete td.dataset.label;
+      col += span;
+    });
+  }));
+}
+function _twCheck(table) {
+  if (!table.isConnected || !table.offsetParent) return;
+  if (table.id === 'forecastTable' && _isPhoneLayout()) { table.classList.remove('tw-wrapped'); return; }
+  const host = table.parentElement;
+  const was = table.classList.contains('tw-wrapped');
+  table.classList.remove('tw-wrapped');
+  const tooWide = table.scrollWidth > host.clientWidth + 1;
+  table.classList.toggle('tw-wrapped', tooWide);
+  if (tooWide) _twLabel(table);
+  return was !== tooWide;
+}
+let _twTimer = null;
+function _twScan() {
+  clearTimeout(_twTimer);
+  _twTimer = setTimeout(() => {
+    document.querySelectorAll('main table').forEach(table => {
+      if (!_twObserved.has(table) && table.parentElement && window.ResizeObserver) {
+        _twObserved.add(table);
+        new ResizeObserver(entries => {
+          const w = Math.round(entries[0].contentRect.width);
+          if (_twWidths.get(table) === w) return;   // only width changes matter
+          _twWidths.set(table, w);
+          _twCheck(table);
+        }).observe(table.parentElement);
+      }
+      _twCheck(table);
+    });
+  }, 80);
+}
+function _initTableWrap() {
+  const main = document.querySelector('main');
+  if (!main) return;
+  new MutationObserver(muts => {
+    // Ignore the label/class changes this code makes itself.
+    if (muts.some(m => m.type === 'childList')) _twScan();
+  }).observe(main, { childList: true, subtree: true });
+  window.addEventListener('resize', _twScan);
+  _twScan();
+}
+document.addEventListener('DOMContentLoaded', _initTableWrap);
+if (document.readyState !== 'loading') _initTableWrap();
 
 // ---------- Phone navigation and Settings tabs (#54) ----------
 const MORE_PAGES = ['networth', 'reports', 'settings', 'admin'];

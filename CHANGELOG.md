@@ -65,7 +65,16 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.34.0** · Web version: **1.58.0** · Schema version: **14**
+App version: **1.35.0** · Web version: **1.59.0** · Schema version: **14**
+
+### Changed
+
+- **Tables wrap instead of scrolling sideways.** Whenever a table is wider than
+  the space it has, at any window size, its header hides and each row's
+  cells flow onto as many lines as they need, each with a small label naming
+  its column. Wide windows look as before. While a table is wrapped, the sort
+  buttons appear above Forecast and Bills & income, since the clickable
+  column headers are hidden. Forecast's phone layout is unchanged.
 
 ### Changed
 

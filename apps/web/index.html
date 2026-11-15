@@ -76,6 +76,43 @@
   button.ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
   button.ghost.active { background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
   button.danger { background:var(--bad); }
+  /* Line editor (#66): a line opened for editing on Forecast, Transactions or
+     Bills & income becomes a labelled form spanning the table. Pinned to the
+     visible width so every field stays on screen when the table scrolls
+     sideways. */
+  td.le-cell { padding:0 !important; background:color-mix(in srgb, var(--accent) 8%, transparent) !important; }
+  .line-editor { position:sticky; left:0; max-width:calc(100vw - 72px); box-sizing:border-box;
+                 display:flex; flex-wrap:wrap; gap:12px 18px; align-items:flex-start;
+                 padding:12px 14px; border-left:3px solid var(--accent); }
+  .line-editor .le-main { flex:1 1 560px; min-width:0; }
+  .line-editor .le-head { font-size:12px; color:var(--muted); margin:0 0 10px; }
+  .line-editor .le-head strong { color:var(--text); font-weight:600; }
+  .line-editor .le-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
+                          gap:10px 12px; align-items:end; }
+  .line-editor .le-grid > .le-wide { grid-column:span 2; }
+  .line-editor .le-grid > .hidden { display:none; }
+  .line-editor label { font-size:11px; margin:0 0 3px; }
+  .line-editor .le-grid input, .line-editor .le-grid select { width:100%; }
+  .line-editor .le-tags { margin-top:10px; display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
+  .line-editor .le-tags > label { margin:0; }
+  .line-editor .le-note { margin-top:10px; font-size:12px; color:var(--muted); }
+  .line-editor .le-status { color:var(--bad); font-size:12px; margin-top:8px; }
+  .line-editor .le-status:empty { display:none; }
+  .line-editor .le-actions { flex:0 0 120px; margin-left:auto; padding-top:24px;
+                             display:flex; flex-direction:column; gap:8px; }
+  .line-editor .le-actions button { width:100%; }
+  @media (max-width: 768px) {
+    .line-editor { position:static; max-width:none; padding:10px; }
+    .line-editor .le-grid { grid-template-columns:1fr 1fr; }
+    .line-editor .le-actions { flex:1 1 100%; flex-direction:row; padding-top:0; }
+    .line-editor .le-actions button { flex:1; width:auto; }
+    /* The Forecast phone layout styles open lines as a grid with a label
+       before each cell; the line editor is one cell and labels itself. */
+    #forecastTable:not(.sheet-mode) tbody tr.row-editing.le-row { display:block; padding:0; }
+    #forecastTable:not(.sheet-mode) tbody tr.row-editing.le-row > td { display:block; }
+    #forecastTable:not(.sheet-mode) tbody tr.row-editing.le-row > td::before { content:none !important; display:none; }
+  }
+
   /* A visible focus ring for keyboard users (#55); mouse clicks don't show it. */
   :is(button, a, input, select, textarea, [tabindex]):focus-visible {
     outline:2px solid var(--accent); outline-offset:2px; }
@@ -2213,7 +2250,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.53.1";
+const WEB_VERSION = "1.54.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2224,6 +2261,16 @@ const WEB_VERSION = "1.53.1";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.54.0 (2026-11-14, claude+mkolakowski): (#66) One line editor:
+//     _lineEditorHtml() builds a labelled form in a single spanning cell
+//     (.line-editor: .le-grid of fields, .le-tags, .le-note, .le-status,
+//     .le-actions Save/Cancel/Delete). Forecast's ✎ editor is now
+//     _renderForecastLineEditor() (inputs are .le-input with the same
+//     data-row-key/data-field, so _saveGridRow reads them; spreadsheet mode
+//     still uses _renderForecastGridRow), the Transactions editor
+//     (_renderTxnSearchEditRow, Enter/Escape via onTxnEditKey) and Bills &
+//     income's renderEditRow use it too. Mistakes go to the editor's status
+//     line (_lineEditorError). Phone CSS treats tr.le-row as one block.
 // 1.53.1 (2026-11-14, claude+mkolakowski): (#62) "Today" defaults use the
 //     local date (_isoDate): the transfer form and backup file name used
 //     toISOString(), and Add transaction / new account used valueAsDate,
@@ -5527,10 +5574,9 @@ function changeRecurringPage(delta) {
 }
 
 function renderEditRow(r) {
-  // One form panel across the whole row (the caller adds the select
-  // checkbox cell in front of it) instead of a control crammed into every
-  // column. Same fields and ids as before, plus a Withdraw/Deposit type so
-  // the amount is a plain positive number like on the add form.
+  // The open line is the shared labelled form (#66), across the 10 columns
+  // after the select-checkbox cell the caller puts in front of it. Field ids
+  // are the ones saveRecurring reads.
   const id = r.id;
   const catOptions = ['<option value="">— none —</option>']
     .concat(categories.map(c =>
@@ -5540,58 +5586,35 @@ function renderEditRow(r) {
     .map(([f, label]) => `<option value="${f}"${f===r.frequency?' selected':''}>${label}</option>`).join('');
   const isMonthly = r.frequency === 'monthly_day';
   const isWithdraw = Number(r.amount) < 0;
-  const skipNote = r.skipped_count
-    ? `<span style="font-size:12px;color:var(--muted)">${r.skipped_count} deleted date${r.skipped_count===1?'':'s'} ·
-         <a href="#" onclick="restoreRecurringSkips(${id});return false">Restore</a></span>`
+  const note = r.skipped_count
+    ? `${r.skipped_count} deleted date${r.skipped_count===1?'':'s'} ·
+       <a href="#" onclick="restoreRecurringSkips(${id});return false">Restore</a>`
     : '';
-  return `
-    <td colspan="10" style="background:var(--chip-bg)" onkeydown="onRecEditKey(event, ${id})">
-      <!-- The table scrolls sideways on narrow screens; pin the form to the
-           visible width so every field stays on screen. No effect on desktop. -->
-      <div style="position:sticky;left:0;max-width:calc(100vw - 72px)">
-      <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
-      <div style="flex:1 1 560px;min-width:0">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Account: <strong style="color:var(--text)">${escapeHtml(r.account_name || '')}</strong></div>
-      <div class="row">
-        <div class="span-full" style="flex:3 1 240px"><label for="editDesc_${id}">Description</label>
-          <input id="editDesc_${id}" value="${escapeAttr(r.description)}" style="width:100%"></div>
-        <div style="flex:1 1 150px"><label for="editCat_${id}">Category</label>
-          <select id="editCat_${id}" style="width:100%">${catOptions}</select></div>
-        <div style="flex:0 1 130px;min-width:110px"><label for="editType_${id}">Type</label>
-          <select id="editType_${id}" style="width:100%">
-            <option value="withdraw"${isWithdraw?' selected':''}>Expense</option>
-            <option value="deposit"${isWithdraw?'':' selected'}>Income</option>
-          </select></div>
-        <div style="flex:0 1 140px;min-width:120px"><label for="editAmt_${id}">Amount</label>
-          <input id="editAmt_${id}" type="number" step="0.01" min="0" value="${Math.abs(Number(r.amount))}" style="width:100%"></div>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <div style="flex:0 1 140px;min-width:120px"><label for="editFreq_${id}">Frequency</label>
-          <select id="editFreq_${id}" onchange="onEditFreqChange(${id})" style="width:100%">${freqOptions}</select></div>
-        <div id="editDayWrap_${id}" class="${isMonthly?'':'hidden'}" style="flex:0 1 110px;min-width:90px"><label for="editDay_${id}">Day of month</label>
-          <input id="editDay_${id}" type="number" min="1" max="31" value="${r.day_of_month||1}" style="width:100%"></div>
-        <div style="flex:0 1 170px;min-width:150px"><label id="editAnchorLabel_${id}" for="editAnchor_${id}">${isMonthly ? 'Start date (optional)' : 'Start date'}</label>
-          <input id="editAnchor_${id}" type="date" value="${r.anchor_date||''}" style="width:100%"></div>
-        <div style="flex:0 1 170px;min-width:150px"><label for="editEnd_${id}">Ends (optional)</label>
-          <input id="editEnd_${id}" type="date" value="${r.end_date||''}" style="width:100%"></div>
-        <div class="span-full" style="flex:3 1 220px"><label for="editNotes_${id}">Notes</label>
-          <input id="editNotes_${id}" maxlength="256" value="${escapeAttr(r.notes||'')}" style="width:100%"></div>
-      </div>
-      ${skipNote ? `<div style="margin-top:10px">${skipNote}</div>` : ''}
-      <div id="editStatus_${id}" role="alert" style="color:var(--bad);font-size:12px;margin-top:8px"></div>
-      </div>
-      <!-- Actions: stacked in a column on the far right. padding-top matches
-           the field labels' height so Save lines up with the first inputs;
-           margin-left:auto keeps the column on the right if it wraps below
-           the fields on a narrow screen. -->
-      <div style="flex:0 0 112px;margin-left:auto;padding-top:20px;display:flex;flex-direction:column;gap:8px">
-        <button style="width:100%" onclick="saveRecurring(${id})">Save</button>
-        <button class="ghost" style="width:100%" onclick="cancelEditRecurring()">Cancel</button>
-        <button class="danger" style="width:100%" onclick="delRecurring(${id})" title="Delete this recurring transaction">🗑 Delete</button>
-      </div>
-      </div>
-      </div>
-    </td>`;
+  return _lineEditorHtml({
+    colspan: 10,
+    head: `Editing <strong>${escapeHtml(r.description || 'recurring item')}</strong> · ${escapeHtml(r.account_name || '')}`,
+    fields: [
+      { label: 'Description', id: `editDesc_${id}`, wide: true, html: `<input id="editDesc_${id}" maxlength="120" value="${escapeAttr(r.description)}">` },
+      { label: 'Category', id: `editCat_${id}`, html: `<select id="editCat_${id}">${catOptions}</select>` },
+      { label: 'Type', id: `editType_${id}`, html: `<select id="editType_${id}">
+          <option value="withdraw"${isWithdraw?' selected':''}>Expense</option>
+          <option value="deposit"${isWithdraw?'':' selected'}>Income</option></select>` },
+      { label: 'Amount', id: `editAmt_${id}`, html: `<input id="editAmt_${id}" type="number" step="0.01" min="0" value="${Math.abs(Number(r.amount))}">` },
+      { label: 'Frequency', id: `editFreq_${id}`, html: `<select id="editFreq_${id}" onchange="onEditFreqChange(${id})">${freqOptions}</select>` },
+      { label: 'Day of month', id: `editDay_${id}`, wrapId: `editDayWrap_${id}`, hidden: !isMonthly,
+        html: `<input id="editDay_${id}" type="number" min="1" max="31" value="${r.day_of_month||1}">` },
+      { label: isMonthly ? 'Start date (optional)' : 'Start date', id: `editAnchor_${id}`, labelId: `editAnchorLabel_${id}`,
+        html: `<input id="editAnchor_${id}" type="date" value="${r.anchor_date||''}">` },
+      { label: 'Ends (optional)', id: `editEnd_${id}`, html: `<input id="editEnd_${id}" type="date" value="${r.end_date||''}">` },
+      { label: 'Notes', id: `editNotes_${id}`, wide: true, html: `<input id="editNotes_${id}" maxlength="256" value="${escapeAttr(r.notes||'')}">` },
+    ],
+    note,
+    statusId: `editStatus_${id}`,
+    onKey: `onRecEditKey(event, ${id})`,
+    actions: `<button onclick="saveRecurring(${id})" title="Save (Enter)">Save</button>
+              <button class="ghost" onclick="cancelEditRecurring()" title="Cancel (Esc)">Cancel</button>
+              <button class="danger" onclick="delRecurring(${id})" title="Delete this recurring item">🗑 Delete</button>`,
+  });
 }
 
 // Enter saves and Escape cancels from any field in the edit panel. Enter is
@@ -6162,9 +6185,9 @@ function renderForecast() {
       return;
     }
     if (editingForecastRowKey === rowKey && !ro) {
-      // Double-clicked line: same inline inputs as spreadsheet mode, one row only.
-      tr.innerHTML = _renderForecastGridRow(r, idx, { editing: true });
-      tr.classList.add('row-editing');
+      // Opened line (✎, double-click, or a tap on a phone): a labelled form.
+      tr.innerHTML = _renderForecastLineEditor(r);
+      tr.classList.add('row-editing', 'le-row');
       editingShown = true;
       tbody.appendChild(tr);
       return;
@@ -6228,7 +6251,7 @@ function renderForecast() {
   _editRowSnapshot = editingShown ? _forecastEditValues(tbody.querySelector('tr.row-editing')) : null;
   if (editingShown && _focusEditRow) {
     _focusEditRow = false;
-    const d = tbody.querySelector('tr.row-editing .grid-desc');
+    const d = tbody.querySelector('tr.row-editing [data-field="desc"]');
     if (d) { d.focus(); d.select(); }
   }
 
@@ -6342,7 +6365,7 @@ function wireForecastRowEditing() {
     // second tap of the double-tap that opened it doesn't count.
     const editing = e.target.closest('tr.row-editing');
     if (editing) {
-      if (e.target.closest('button, input, select, textarea, a, label, .tag-picker')) return;
+      if (e.target.closest('button, input, select, textarea, a, label, .tag-picker, .line-editor')) return;
       if (Date.now() - _editOpenedAt < 600) return;
       if (_forecastEditValues(editing) === _editRowSnapshot) cancelEditForecastRow();
       return;
@@ -6353,7 +6376,7 @@ function wireForecastRowEditing() {
     const tr = e.target.closest && e.target.closest('tr.row-editing');
     if (!tr) return;
     if (e.key === 'Escape') { e.preventDefault(); cancelEditForecastRow(); }
-    else if (e.key === 'Enter' && e.target.matches('input.grid-cell, select.grid-cell')) {
+    else if (e.key === 'Enter' && e.target.matches('input.grid-cell, select.grid-cell, input.le-input, select.le-input')) {
       e.preventDefault();
       saveEditedForecastRow(tr.dataset.rowKey);
     }
@@ -6368,12 +6391,13 @@ function cancelEditForecastRow() {
 // Delete button for a forecast row. Real transactions are deleted outright;
 // a projected recurring occurrence (no transaction yet) is skipped for that
 // one date, leaving the template and its other dates alone.
-function _forecastDeleteBtn(r, cls) {
+function _forecastDeleteBtn(r, cls, label) {
+  const text = label || '🗑';
   if (r.transaction_id) {
-    return `<button class="${cls} del-btn" title="Delete" onclick="deleteForecastRow(${r.transaction_id}, ${r.recurring_id ? 'true' : 'false'})">🗑</button>`;
+    return `<button class="${cls} del-btn" title="Delete" onclick="deleteForecastRow(${r.transaction_id}, ${r.recurring_id ? 'true' : 'false'})">${text}</button>`;
   }
   if (r.recurring_id && r.forecast_date) {
-    return `<button class="${cls} del-btn" title="Delete this occurrence" onclick="skipForecastOccurrence(${r.recurring_id}, '${r.forecast_date}')">🗑</button>`;
+    return `<button class="${cls} del-btn" title="Delete this occurrence" onclick="skipForecastOccurrence(${r.recurring_id}, '${r.forecast_date}')">${text}</button>`;
   }
   return '';
 }
@@ -6479,6 +6503,76 @@ async function saveForecastRowEdit(rowKey) {
   }
   editingForecastRowKey = null;
   await loadForecast();
+}
+
+// ---------- Line editor (#66) ----------
+// Builds the labelled form a line turns into while it's edited, the same on
+// Forecast, Transactions and Bills & income. `fields`: [{label, id, html,
+// wide, hidden, wrapId}]; `tags`: picker HTML or ''; `actions`: buttons HTML.
+function _lineEditorHtml({ colspan, head, fields, tags, note, statusId, actions, onKey }) {
+  const cells = fields.map(f =>
+    `<div${f.wrapId ? ` id="${f.wrapId}"` : ''} class="${[f.wide ? 'le-wide' : '', f.hidden ? 'hidden' : ''].join(' ').trim()}">
+       <label for="${f.id}"${f.labelId ? ` id="${f.labelId}"` : ''}>${f.label}</label>${f.html}</div>`).join('');
+  return `<td colspan="${colspan}" class="le-cell"${onKey ? ` onkeydown="${onKey}"` : ''}>
+    <div class="line-editor" role="group" aria-label="Edit line">
+      <div class="le-main">
+        ${head ? `<div class="le-head">${head}</div>` : ''}
+        <div class="le-grid">${cells}</div>
+        ${tags ? `<div class="le-tags"><label>Tags</label>${tags}</div>` : ''}
+        ${note ? `<div class="le-note">${note}</div>` : ''}
+        <div class="le-status" id="${statusId}" role="alert"></div>
+      </div>
+      <div class="le-actions">${actions}</div>
+    </div></td>`;
+}
+// A mistake in an open line editor: said under its fields, field focused.
+function _lineEditorError(statusId, msg, field) {
+  const st = document.getElementById(statusId);
+  if (st) st.textContent = msg; else notify(msg, 'error');
+  if (field) field.focus();
+}
+
+// The Forecast line editor (✎ or double-click). Its controls carry the same
+// data-row-key/data-field as spreadsheet cells, so _saveGridRow reads either;
+// the class is .le-input, not .grid-cell, so the spreadsheet listeners
+// (arrow keys, paste-fill, autosave on blur) leave it alone.
+function _renderForecastLineEditor(r) {
+  const rowKey = _forecastRowKey(r);
+  const k = escapeAttr(rowKey);
+  const catOptions = ['<option value="">— none —</option>']
+    .concat(categories.map(c =>
+      `<option value="${c.id}"${c.name===r.category?' selected':''}>${escapeHtml(c.name)}</option>`)).join('');
+  const inp = (field, type, val, extra) =>
+    `<input id="fcEdit_${field}" class="le-input" type="${type}" data-row-key="${k}" data-field="${field}"
+            value="${escapeAttr(val == null ? '' : String(val))}"${extra || ''}>`;
+  const balances = [
+    r.forecast_balance != null ? `forecast balance ${fmt(r.forecast_balance)}` : '',
+    r.actual_balance != null ? `actual balance ${fmt(r.actual_balance)}` : '',
+  ].filter(Boolean).join(' · ');
+  const head = `Editing <strong>${escapeHtml(r.description || 'line')}</strong>${balances ? ' · ' + balances : ''}`;
+  const note = (!r.transaction_id && r.recurring_id)
+    ? 'This date is projected from a recurring item. Saving records it as a real transaction; the recurring item is unchanged.'
+    : '';
+  return _lineEditorHtml({
+    colspan: 12,
+    head,
+    fields: [
+      { label: 'Description', id: 'fcEdit_desc', wide: true, html: inp('desc', 'text', r.description, ' maxlength="120"') },
+      { label: 'Category', id: 'fcEdit_cat', html: `<select id="fcEdit_cat" class="le-input" data-row-key="${k}" data-field="cat">${catOptions}</select>` },
+      { label: 'Forecast date', id: 'fcEdit_fdate', html: inp('fdate', 'date', r.forecast_date) },
+      { label: 'Actual date', id: 'fcEdit_adate', html: inp('adate', 'date', r.actual_date) },
+      { label: 'Forecast amount', id: 'fcEdit_famt', html: inp('famt', 'number', r.forecast_amount, ' step="0.01"') },
+      { label: 'Actual amount', id: 'fcEdit_aamt', html: inp('aamt', 'number', r.actual_amount, ' step="0.01"') },
+      { label: 'Notes', id: 'fcEdit_notes', wide: true, html: inp('notes', 'text', r.notes, ' maxlength="256"') },
+    ],
+    // Tags attach to saved transactions only; a projection has nothing yet.
+    tags: r.transaction_id ? renderTagPicker('editFcTags', (r.tags || []).map(t => t.id)) : '',
+    note,
+    statusId: 'fcEditStatus',
+    actions: `<button onclick="saveEditedForecastRow('${k}')" title="Save (Enter)">Save</button>
+              <button class="ghost" onclick="cancelEditForecastRow()" title="Cancel (Esc)">Cancel</button>
+              ${_forecastDeleteBtn(r, 'danger', '🗑 Delete')}`,
+  });
 }
 
 // --- Forecast "spreadsheet mode" ---------------------------------------
@@ -6607,7 +6701,7 @@ function _scheduleGridRowSave(rowKey) {
 }
 
 function _readGridRowValues(rowKey) {
-  const sel = (field) => document.querySelector(`.grid-cell[data-row-key="${rowKey}"][data-field="${field}"]`);
+  const sel = (field) => document.querySelector(`:is(.grid-cell, .le-input)[data-row-key="${rowKey}"][data-field="${field}"]`);
   const fdateEl = sel('fdate'), adateEl = sel('adate'), descEl = sel('desc'),
         catEl = sel('cat'), famtEl = sel('famt'), aamtEl = sel('aamt'), notesEl = sel('notes');
   return {
@@ -6632,8 +6726,9 @@ async function _saveGridRow(rowKey, opts) {
   // Autosave silently skips invalid states rather than alert()ing on every
   // blur — the user is mid-edit, not submitting a form. They'll notice on the
   // next refresh if a row never picked up their change.
-  if (!v.desc) { if (strict) notify('Description cannot be empty.', 'error'); return false; }
-  if (v.famt == null && v.aamt == null) { if (strict) notify('At least one amount is required.', 'error'); return false; }
+  const fieldEl = f => document.querySelector(`.le-input[data-row-key="${rowKey}"][data-field="${f}"]`);
+  if (!v.desc) { if (strict) _lineEditorError('fcEditStatus', 'Enter a description.', fieldEl('desc')); return false; }
+  if (v.famt == null && v.aamt == null) { if (strict) _lineEditorError('fcEditStatus', 'Enter a forecast or an actual amount.', fieldEl('famt')); return false; }
 
   const primaryAmt = v.aamt != null ? v.aamt : v.famt;
   const isActual = v.aamt != null;
@@ -7948,39 +8043,38 @@ let editingTxnSearchRowId = null;
 let _txnSearchRowsById = new Map();
 
 function _renderTxnSearchEditRow(r) {
-  // 9 <td>s, one per header column (checkbox, Date, Account, Description,
-  // Category, Tags, Amount, Status, Actions) — no colspans, since the
-  // columns already line up with what needs editing.
+  // The search table has 9 columns; the open line is one labelled form
+  // across all of them (#66). Field ids are the ones saveTxnRowEdit reads.
   const catOptions = ['<option value="">— none —</option>']
     .concat(categories.map(c =>
       `<option value="${c.id}"${c.id===r.category_id?' selected':''}>${escapeHtml(c.name)}</option>`
     )).join('');
-  const fAmtVal = r.forecast_amount != null ? r.forecast_amount : '';
-  const aAmtVal = r.amount != null ? r.amount : '';
-  const selectedTagIds = (r.tags || []).map(t => t.id);
-  return `<tr data-txn-id="${r.id}">
-    <td></td>
-    <td>
-      <label class="inline-label">Forecast date</label><input type="date" class="inline-edit date" id="editTxnFDate" value="${r.forecast_date||''}">
-      <label class="inline-label">Actual date</label><input type="date" class="inline-edit date" id="editTxnADate" value="${r.actual_date||''}">
-    </td>
-    <td style="color:var(--muted);font-size:12px">${escapeHtml(r.account_name||'')}</td>
-    <td><label class="inline-label">Description</label><input class="inline-edit" id="editTxnDesc" value="${escapeAttr(r.description||'')}" style="width:100%">
-      <div style="margin-top:6px"><label class="inline-label">Notes</label><input class="inline-edit" id="editTxnNotes" maxlength="256" value="${escapeAttr(r.notes||'')}" style="width:100%"></div>
-    </td>
-    <td><label class="inline-label">Category</label><select id="editTxnCat" style="width:100%">${catOptions}</select></td>
-    <td>${renderTagPicker('editTxnTags', selectedTagIds)}</td>
-    <td class="num">
-      <label class="inline-label">Forecast amt</label><input type="number" step="0.01" class="inline-edit" id="editTxnFAmt" value="${fAmtVal}" style="width:100%">
-      <label class="inline-label">Actual amt</label><input type="number" step="0.01" class="inline-edit" id="editTxnAAmt" value="${aAmtVal}" style="width:100%">
-    </td>
-    <td></td>
-    <td style="white-space:nowrap;vertical-align:bottom">
-      <button title="Save" onclick="saveTxnRowEdit(${r.id})">✓</button>
-      <button class="ghost" title="Cancel" onclick="cancelEditTxnRow()">✕</button>
-      <button class="danger" title="Delete" onclick="deleteTxnRow(${r.id})">🗑</button>
-    </td>
-  </tr>`;
+  const v = x => escapeAttr(x == null ? '' : String(x));
+  return `<tr data-txn-id="${r.id}" class="le-row">${_lineEditorHtml({
+    colspan: 9,
+    head: `Editing <strong>${escapeHtml(r.description || 'transaction')}</strong> · ${escapeHtml(r.account_name || '')}`,
+    fields: [
+      { label: 'Description', id: 'editTxnDesc', wide: true, html: `<input id="editTxnDesc" maxlength="120" value="${v(r.description)}">` },
+      { label: 'Category', id: 'editTxnCat', html: `<select id="editTxnCat">${catOptions}</select>` },
+      { label: 'Forecast date', id: 'editTxnFDate', html: `<input type="date" id="editTxnFDate" value="${v(r.forecast_date)}">` },
+      { label: 'Actual date', id: 'editTxnADate', html: `<input type="date" id="editTxnADate" value="${v(r.actual_date)}">` },
+      { label: 'Forecast amount', id: 'editTxnFAmt', html: `<input type="number" step="0.01" id="editTxnFAmt" value="${v(r.forecast_amount)}">` },
+      { label: 'Actual amount', id: 'editTxnAAmt', html: `<input type="number" step="0.01" id="editTxnAAmt" value="${v(r.amount)}">` },
+      { label: 'Notes', id: 'editTxnNotes', wide: true, html: `<input id="editTxnNotes" maxlength="256" value="${v(r.notes)}">` },
+    ],
+    tags: renderTagPicker('editTxnTags', (r.tags || []).map(t => t.id)),
+    statusId: 'editTxnStatus',
+    onKey: `onTxnEditKey(event, ${r.id})`,
+    actions: `<button onclick="saveTxnRowEdit(${r.id})" title="Save (Enter)">Save</button>
+              <button class="ghost" onclick="cancelEditTxnRow()" title="Cancel (Esc)">Cancel</button>
+              <button class="danger" onclick="deleteTxnRow(${r.id})">🗑 Delete</button>`,
+  })}</tr>`;
+}
+
+// Enter saves and Escape cancels from any field in the Transactions editor.
+function onTxnEditKey(ev, id) {
+  if (ev.key === 'Escape') { ev.preventDefault(); cancelEditTxnRow(); return; }
+  if (ev.key === 'Enter' && ev.target.tagName === 'INPUT') { ev.preventDefault(); saveTxnRowEdit(id); }
 }
 
 function startEditTxnRow(id) {
@@ -7990,6 +8084,8 @@ function startEditTxnRow(id) {
   if (row && tb) {
     const tr = tb.querySelector(`tr[data-txn-id="${id}"]`);
     if (tr) tr.outerHTML = _renderTxnSearchEditRow(row);
+    const d = document.getElementById('editTxnDesc');
+    if (d) { d.focus(); d.select(); }
   }
 }
 
@@ -8023,8 +8119,8 @@ async function saveTxnRowEdit(id) {
   const fAmt = fAmtRaw !== '' ? parseFloat(fAmtRaw) : null;
   const aAmt = aAmtRaw !== '' ? parseFloat(aAmtRaw) : null;
 
-  if (!desc) { notify('Description cannot be empty.', 'error'); return; }
-  if (aAmt == null && fAmt == null) { notify('At least one amount is required.', 'error'); return; }
+  if (!desc) return _lineEditorError('editTxnStatus', 'Enter a description.', document.getElementById('editTxnDesc'));
+  if (aAmt == null && fAmt == null) return _lineEditorError('editTxnStatus', 'Enter a forecast or an actual amount.', document.getElementById('editTxnFAmt'));
 
   const primaryAmt = aAmt != null ? aAmt : fAmt;
   const isActual = aAmt != null;

@@ -65,7 +65,21 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.29.1** · Web version: **1.53.1** · Schema version: **14**
+App version: **1.30.0** · Web version: **1.54.0** · Schema version: **14**
+
+### Changed
+
+- **Editing a line looks the same everywhere, and every field lines up.** On
+  Forecast, Transactions and Bills & income, a line you open for editing
+  becomes a labelled form across the table: description, category, dates,
+  amounts and notes in tidy rows, tags on their own row, and Save, Cancel and
+  Delete in the same place on all three pages. Before, Forecast's fields sat
+  at different heights in their columns, Notes had no label and Transactions
+  stacked two fields to a cell. Enter saves and Escape cancels on all three
+  (new on Transactions), and a mistake is shown under the fields with the
+  cursor put in the one to fix. A projected recurring date says that saving
+  records it as a real transaction. Spreadsheet mode still edits in the
+  cells, as before.
 
 ## [1.29.1] — 2026-11-14
 

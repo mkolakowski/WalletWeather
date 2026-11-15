@@ -65,7 +65,14 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.29.0** · Web version: **1.53.0** · Schema version: **14**
+App version: **1.29.1** · Web version: **1.53.1** · Schema version: **14**
+
+### Fixed
+
+- In the evening (from 7 PM Eastern, earlier further west), several date
+  fields filled in tomorrow's date instead of today's: the date on Add
+  transaction, Transfer money, and a new account's "As of" date, and the date
+  in a downloaded backup's file name. They now use the date on your device.
 
 ## [1.29.0] — 2026-11-14
 

@@ -1050,7 +1050,6 @@
       <button id="navDashboard" class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
       <button id="navNetworth" class="nav-btn" onclick="showPage('networth')">Net Worth</button>
       <button id="navAccounts" class="nav-btn" onclick="showPage('accounts')">Forecast</button>
-      <button id="navTransactions" class="nav-btn" onclick="showPage('transactions')">Transactions</button>
       <button id="navSubscriptions" class="nav-btn" onclick="showPage('subscriptions')">Bills &amp; income</button>
       <button id="navCalendar" class="nav-btn" onclick="showPage('calendar')">Calendar</button>
       <button id="navReports" class="nav-btn" onclick="showPage('reports')">Reports</button>
@@ -1707,12 +1706,11 @@
       </div><!-- /subviewForecast -->
 
     </div>
-    </div><!-- /pageAccounts -->
 
-    <!-- Transactions (#52): search every account, tag in bulk, and the
-         recent transfers list. Lived on the Forecast page until 1.32.0
-         removed its toggle and left it with no way in. -->
-    <div id="pageTransactions" class="hidden">
+    <!-- All accounts (#80): Forecast's first tab. Search every account, tag in
+         bulk, and the recent transfers list (the only place to edit or delete
+         a transfer). This was the separate Transactions page (#52). -->
+    <div id="allAccountsView" class="hidden">
       <div class="panel">
         <h2>Search transactions</h2>
         <div class="row">
@@ -1804,7 +1802,9 @@
           <div style="color:var(--muted);font-size:13px">Loading…</div>
         </div>
       </div>
-    </div><!-- /pageTransactions -->
+    </div><!-- /allAccountsView -->
+    </div><!-- /pageAccounts -->
+
 
     <div id="pageReports" class="hidden">
       <div class="reports-layout">
@@ -2272,7 +2272,6 @@
   <div id="moreBackdrop" class="more-backdrop hidden" onclick="toggleMoreSheet(false)"></div>
   <div id="moreSheet" class="more-sheet hidden" role="menu" aria-label="More pages">
     <button type="button" role="menuitem" data-nav="networth" onclick="showPage('networth')">Net Worth</button>
-    <button type="button" role="menuitem" data-nav="transactions" onclick="showPage('transactions')">Transactions</button>
     <button type="button" role="menuitem" data-nav="reports" onclick="showPage('reports')">Reports</button>
     <button type="button" role="menuitem" data-nav="settings" onclick="showPage('settings')">Settings</button>
     <button type="button" role="menuitem" data-nav="admin" id="moreAdmin" class="hidden" onclick="showPage('admin')">Admin</button>
@@ -2356,7 +2355,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.56.6";
+const WEB_VERSION = "1.57.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2367,6 +2366,7 @@ const WEB_VERSION = "1.56.6";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.57.0 (2026-11-14, claude+mkolakowski): (#80) The Transactions page is Forecast's All accounts tab: #allAccountsView inside #pageAccounts, an .all-tab first in #accountsBar (forecastAllView, showAllAccountsView, _markForecastTabs), hash #forecast/all; showPage('transactions') and #transactions redirect there. Account tabs are matched by data-account-id, not position. navTransactions, its More entry and #pageTransactions are removed; the transfer form returns via _returnFromTransfer().
 // 1.56.6 (2026-11-14, claude+mkolakowski): (#79) Every page is full width: main has no max-width and a 40px gutter; showPage() always adds main.wide.
 // 1.56.5 (2026-11-14, claude+mkolakowski): (#69) Number fields in an open
 //     line hide the browser's spin buttons and get a ▲▼ pair on the left
@@ -3296,6 +3296,9 @@ window.addEventListener('popstate', () => {
 
 function showPage(name, opts) {
   opts = opts || {};
+  // The Transactions page is now Forecast's All accounts tab (#80); old
+  // links and calls land there.
+  if (name === 'transactions') { name = 'accounts'; opts = Object.assign({}, opts, { sub: 'all' }); }
   toggleMoreSheet(false);
   // The part after the slash: which Settings section, which transfer.
   let sub = opts.sub || '';
@@ -3310,6 +3313,8 @@ function showPage(name, opts) {
       _pendingTransferOpen = { editId: null, preselectFromId: currentAccountId || null };
     }
     sub = (_pendingTransferOpen && _pendingTransferOpen.editId) ? String(_pendingTransferOpen.editId) : '';
+  } else if (name === 'accounts') {
+    sub = sub === 'all' ? 'all' : '';
   } else {
     sub = '';
   }
@@ -3326,7 +3331,6 @@ function showPage(name, opts) {
   // Every page is full width now (#79); main.wide is kept for anything that
   // still checks it.
   document.querySelector('main').classList.add('wide');
-  document.getElementById('pageTransactions').classList.toggle('hidden', name!=='transactions');
   document.getElementById('pageSubscriptions').classList.toggle('hidden', name!=='subscriptions');
   document.getElementById('pageCalendar').classList.toggle('hidden', name!=='calendar');
   document.getElementById('pageImport').classList.toggle('hidden', name!=='import');
@@ -3339,9 +3343,7 @@ function showPage(name, opts) {
   // 'import' is reached from the Forecast page, 'transfer' from Forecast or
   // Transactions — keep the page it came from lit.
   document.getElementById('navAccounts').classList.toggle('active',
-    name==='accounts' || name==='import' || (name==='transfer' && _transferReturnPage==='accounts'));
-  document.getElementById('navTransactions').classList.toggle('active',
-    name==='transactions' || (name==='transfer' && _transferReturnPage==='transactions'));
+    name==='accounts' || name==='import' || name==='transfer');
   document.getElementById('navSubscriptions').classList.toggle('active', name==='subscriptions');
   document.getElementById('navCalendar').classList.toggle('active', name==='calendar');
   document.getElementById('navReports').classList.toggle('active', name==='reports');
@@ -3364,20 +3366,20 @@ function showPage(name, opts) {
     // If a caller (e.g. jumping from Subscriptions or the Dashboard's
     // "rest of this month" widget) preselected an account, re-render
     // accountView so the summary/forecast/recurring panels match it.
-    if (currentAccountId && accounts.some(a => a.id === currentAccountId)) {
+    if (sub === 'all') showAllAccountsView({ noHash: true });
+    else if (currentAccountId && accounts.some(a => a.id === currentAccountId)) {
       selectAccount(currentAccountId);
     }
   }
-  if (name === 'transactions') initAccountsExtras();
 }
 
 // ---------- Phone navigation and Settings tabs (#54) ----------
-const MORE_PAGES = ['networth', 'transactions', 'reports', 'settings', 'admin'];
+const MORE_PAGES = ['networth', 'reports', 'settings', 'admin'];
 // Which navigation entry a page lights up: Import belongs to Forecast,
 // Transfer to whichever page opened it.
 function _navKeyFor(name) {
   if (name === 'import') return 'accounts';
-  if (name === 'transfer') return _transferReturnPage;
+  if (name === 'transfer') return 'accounts';
   return name;
 }
 function _syncPhoneNav(name) {
@@ -4827,33 +4829,51 @@ async function loadAccounts() {
   bar.innerHTML = '';
   bar.setAttribute('role', 'tablist');
   bar.setAttribute('aria-label', 'Accounts');
+  // Arrow keys move between tabs (All accounts included) and open the one
+  // they land on.
+  const tabKeys = (el, open) => (ev) => {
+    const tabs = [...bar.querySelectorAll('.account-tab')];
+    const i = tabs.indexOf(el);
+    let j = null;
+    if (ev.key === 'ArrowRight') j = (i + 1) % tabs.length;
+    else if (ev.key === 'ArrowLeft') j = (i - 1 + tabs.length) % tabs.length;
+    else if (ev.key === 'Home') j = 0;
+    else if (ev.key === 'End') j = tabs.length - 1;
+    else if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); open(); return; }
+    if (j === null) return;
+    ev.preventDefault();
+    tabs[j].focus();
+    tabs[j].click();
+  };
+  if (accounts.length) {
+    // All accounts (#80): cross-account search, bulk tagging, transfers.
+    const all = document.createElement('div');
+    all.className = 'account-tab all-tab' + (forecastAllView ? ' active' : '');
+    all.dataset.all = '1';
+    all.textContent = 'All accounts';
+    all.setAttribute('role', 'tab');
+    all.setAttribute('aria-selected', String(forecastAllView));
+    all.tabIndex = forecastAllView ? 0 : -1;
+    all.onclick = () => showAllAccountsView();
+    all.onkeydown = tabKeys(all, () => showAllAccountsView());
+    bar.appendChild(all);
+  }
   accounts.forEach(a => {
     const el = document.createElement('div');
-    el.className = 'account-tab' + (a.id===currentAccountId?' active':'');
+    el.className = 'account-tab' + (a.id===currentAccountId && !forecastAllView ?' active':'');
+    el.dataset.accountId = String(a.id);
     el.innerHTML = _accountTabHtml(a);
     // Reachable and usable from the keyboard (#55): Tab to the selected
     // account, arrow keys between accounts, Enter or Space to open one.
     el.setAttribute('role', 'tab');
-    el.setAttribute('aria-selected', String(a.id === currentAccountId));
-    el.tabIndex = a.id === currentAccountId ? 0 : -1;
+    const on = a.id === currentAccountId && !forecastAllView;
+    el.setAttribute('aria-selected', String(on));
+    el.tabIndex = on ? 0 : -1;
     el.onclick = () => selectAccount(a.id);
-    el.onkeydown = (ev) => {
-      const tabs = [...bar.querySelectorAll('.account-tab')];
-      const i = tabs.indexOf(el);
-      let j = null;
-      if (ev.key === 'ArrowRight') j = (i + 1) % tabs.length;
-      else if (ev.key === 'ArrowLeft') j = (i - 1 + tabs.length) % tabs.length;
-      else if (ev.key === 'Home') j = 0;
-      else if (ev.key === 'End') j = tabs.length - 1;
-      else if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); selectAccount(a.id); return; }
-      if (j === null) return;
-      ev.preventDefault();
-      tabs[j].focus();
-      selectAccount(accounts[j].id);
-    };
+    el.onkeydown = tabKeys(el, () => selectAccount(a.id));
     bar.appendChild(el);
   });
-  if (!accounts.some(a => a.id === currentAccountId) && bar.firstElementChild) bar.firstElementChild.tabIndex = 0;
+  if (![...bar.children].some(t => t.tabIndex === 0) && bar.firstElementChild) bar.firstElementChild.tabIndex = 0;
   document.getElementById('accountsNoAccount').classList.toggle('hidden', accounts.length > 0);
   syncRecAccountSelect();
   if (accounts.length && !currentAccountId) selectAccount(accounts[0].id);
@@ -4875,7 +4895,7 @@ function _updateAccountTabBalance(accountId, balance) {
   const i = accounts.findIndex(x => x.id === accountId);
   if (i < 0 || typeof balance !== 'number') return;
   accounts[i].current_balance = balance;
-  const tab = document.querySelectorAll('.account-tab')[i];
+  const tab = document.querySelector(`#accountsBar .account-tab[data-account-id="${accountId}"]`);
   if (tab) tab.innerHTML = _accountTabHtml(accounts[i]);
 }
 
@@ -4924,14 +4944,36 @@ async function createAccount() {
   await loadAccounts();
 }
 
-async function selectAccount(id) {
-  currentAccountId = id;
-  document.querySelectorAll('.account-tab').forEach((el,i)=>{
-    const on = accounts[i].id === id;
+// Forecast's tabs: one account, or All accounts (#80).
+let forecastAllView = false;
+function _markForecastTabs() {
+  document.querySelectorAll('#accountsBar .account-tab').forEach(el => {
+    const on = el.dataset.all ? forecastAllView
+             : (!forecastAllView && el.dataset.accountId === String(currentAccountId));
     el.classList.toggle('active', on);
     el.setAttribute('aria-selected', String(on));
     el.tabIndex = on ? 0 : -1;
   });
+}
+function showAllAccountsView(opts) {
+  opts = opts || {};
+  forecastAllView = true;
+  _markForecastTabs();
+  document.getElementById('accountView').classList.add('hidden');
+  document.getElementById('allAccountsView').classList.remove('hidden');
+  if (!opts.noHash && !document.getElementById('pageAccounts').classList.contains('hidden')
+      && location.hash !== '#forecast/all') {
+    history.pushState({ page: 'accounts' }, '', '#forecast/all');
+  }
+  initAccountsExtras();
+}
+
+async function selectAccount(id) {
+  currentAccountId = id;
+  forecastAllView = false;
+  _markForecastTabs();
+  document.getElementById('allAccountsView').classList.add('hidden');
+  if (location.hash === '#forecast/all') history.replaceState({ page: 'accounts' }, '', '#forecast');
   document.getElementById('accountView').classList.remove('hidden');
   // Hide the add transaction toggle entirely on read-only accounts
   const ro = isCurrentAccountReadOnly();
@@ -8521,10 +8563,11 @@ async function loadRecentTransfers() {
 }
 
 // Page the transfer form returns to: 'accounts' (Forecast) or 'transactions'.
+// Where the transfer form returns: Forecast's All accounts tab or an account.
 let _transferReturnPage = 'accounts';
 function openTransferPage(transferId) {
-  _transferReturnPage = document.getElementById('pageTransactions').classList.contains('hidden')
-    ? 'accounts' : 'transactions';
+  _transferReturnPage = (forecastAllView && !document.getElementById('pageAccounts').classList.contains('hidden'))
+    ? 'accounts-all' : 'accounts';
   _pendingTransferOpen = {
     editId: transferId ? Number(transferId) : null,
     preselectFromId: currentAccountId || null,
@@ -8642,8 +8685,12 @@ function updateTransferBalances() {
   paintBal(toBal,   toAcc,   hasAmt ?  amt : 0);
 }
 
+function _returnFromTransfer() {
+  if (_transferReturnPage === 'accounts-all') showPage('accounts', { sub: 'all' });
+  else showPage('accounts');
+}
 function transferPageBack() {
-  showPage(_transferReturnPage);
+  _returnFromTransfer();
 }
 
 async function submitTransfer() {
@@ -8672,7 +8719,7 @@ async function submitTransfer() {
     await loadAccounts();
     // Back to the page the form was opened from; showPage() refreshes the
     // forecast (Forecast) or Recent transfers (Transactions) on its own.
-    showPage(_transferReturnPage);
+    _returnFromTransfer();
   } catch (e) {
     err.textContent = errText(e); err.classList.remove('hidden');
   }
@@ -8692,7 +8739,7 @@ async function deleteTransfer(id) {
     // If we're on the transfer page editing this one, bounce back.
     const onTransferPage = !document.getElementById('pageTransfer').classList.contains('hidden');
     if (onTransferPage) {
-      showPage(_transferReturnPage);
+      _returnFromTransfer();
     } else if (currentAccountId) {
       await selectAccount(currentAccountId);
     }

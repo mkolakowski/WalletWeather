@@ -65,7 +65,17 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.32.6** · Web version: **1.56.6** · Schema version: **14**
+App version: **1.33.0** · Web version: **1.57.0** · Schema version: **14**
+
+### Changed
+
+- **Breaking: the Transactions page is now Forecast's "All accounts" tab.**
+  Forecast's row of account tabs starts with All accounts, which holds
+  everything the Transactions page had: searching all your accounts, tagging
+  many results at once, and the recent transfers list where you edit, delete
+  or make a transfer. The Transactions button is gone from the top bar and
+  the phone's More menu. Old links to `#transactions` open the new tab, and
+  editing a transfer from it brings you back to it.
 
 ### Changed
 

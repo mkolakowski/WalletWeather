@@ -65,7 +65,14 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.38.0** · Web version: **1.61.7** · Schema version: **14**
+App version: **1.38.0** · Web version: **1.61.8** · Schema version: **14**
+
+### Added
+
+- Forecast's new line has a Tags picker again, next to Repeats. Tags are saved
+  with one-off lines; the picker is greyed out while Repeats is set, since
+  recurring items don't carry tags. While the line is open, the balance
+  headings above read "Repeats" and "Tags".
 
 ## [1.38.0] — 2026-11-14
 

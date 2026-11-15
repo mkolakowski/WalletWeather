@@ -149,23 +149,13 @@
   tr.le-inline .le-step button { flex:1; min-height:0; padding:0; margin:0; border:none; border-radius:3px;
                                  background:transparent; color:var(--muted); font-size:7px; line-height:1; cursor:pointer; }
   tr.le-inline .le-step button:hover { background:var(--chip-bg); color:var(--text); }
-  /* The add-a-line row (#94): Repeats and its fields sit in one line with
-     small inline labels (the columns above don't describe them). */
-  tr.fc-addrow .add-repeat { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-  /* Its width doesn't count toward the columns it spans (#98): with no
-     intrinsic width it fills the cell the other lines size, so changing
-     Repeats never moves a column. */
-  tr.fc-addrow .add-repeat { width:0; min-width:100%; }
-  tr.fc-addrow .le-f.le-inl { display:flex; align-items:center; gap:4px; width:auto !important; min-width:0; }
-  tr.fc-addrow .le-f.le-inl.hidden { display:none; }
-  tr.fc-addrow .le-f.le-inl > label { position:static !important; width:auto !important; height:auto !important;
-      clip:auto !important; overflow:visible !important; margin:0 !important; font-size:11px; color:var(--muted); }
-  tr.fc-addrow .le-f.le-inl select { width:auto; padding-left:4px; padding-right:2px; }
-  tr.fc-addrow .le-f.le-inl input[type=date] { width:auto; }
   tr.fc-addrow input:disabled { opacity:.45; }
   /* Headings the add row renames while Repeats is on (#107). */
   .th-swap { display:inline-grid; justify-items:start; }
   th.num .th-swap { justify-items:end; }
+  :is(th[data-key="diff_amount"], th[data-key="actual_balance"]).th-swapped { text-align:left; }
+  :is(th[data-key="diff_amount"], th[data-key="actual_balance"]).th-swapped .th-swap { justify-items:start; }
+  tr.fc-addrow .tag-dd-btn:disabled { opacity:.45; cursor:default; }
   .th-swap > span { grid-area:1 / 1; white-space:nowrap; }
   .th-swap > .th-size, th.th-swapped .th-swap > .th-main { visibility:hidden; }
   #addToggle.active { box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
@@ -178,7 +168,7 @@
       grid-row:auto !important; padding:0 !important; background:none !important; box-shadow:none;
       white-space:normal !important; font-size:13px !important; }
     #forecastTable:not(.sheet-mode) tbody tr.fc-addrow > td::before { content:none !important; display:none !important; }
-    #forecastTable:not(.sheet-mode) tbody tr.fc-addrow > td:is(:nth-child(1), :nth-child(7), :nth-child(8)) { grid-column:1 / -1 !important; }
+    #forecastTable:not(.sheet-mode) tbody tr.fc-addrow > td:is(:nth-child(1), :nth-child(9)) { grid-column:1 / -1 !important; }
   }
   /* Notes + buttons share a cell; the Notes field fills up to Save. */
   tr.le-inline .le-notes-wrap { display:flex; align-items:center; gap:8px; }
@@ -1729,10 +1719,10 @@
           <th class="sortable" data-key="category">Category</th>
           <th class="sortable num" data-key="forecast_amount"><span class="th-swap"><span class="th-main">Forecast amt</span><span class="th-alt" aria-hidden="true"></span><span class="th-size" aria-hidden="true">Amount</span></span></th>
           <th class="sortable num" data-key="actual_amount"><span class="th-swap"><span class="th-main">Actual amt</span><span class="th-alt" aria-hidden="true"></span></span></th>
-          <th class="sortable num" data-key="diff_amount">Δ Amt</th>
-          <th class="sortable num" data-key="forecast_balance">Forecast bal</th>
-          <th class="sortable num" data-key="actual_balance">Actual bal</th>
-          <th class="sortable num" data-key="diff_balance">Δ Bal</th>
+          <th class="sortable num" data-key="diff_amount"><span class="th-swap"><span class="th-main">Δ Amt</span><span class="th-alt" aria-hidden="true"></span><span class="th-size" aria-hidden="true">Repeats</span></span></th>
+          <th class="sortable num" data-key="forecast_balance"><span class="th-swap"><span class="th-main">Forecast bal</span><span class="th-alt" aria-hidden="true"></span></span></th>
+          <th class="sortable num" data-key="actual_balance"><span class="th-swap"><span class="th-main">Actual bal</span><span class="th-alt" aria-hidden="true"></span><span class="th-size" aria-hidden="true">Tags</span></span></th>
+          <th class="sortable num" data-key="diff_balance"><span class="th-swap"><span class="th-main">Δ Bal</span><span class="th-alt" aria-hidden="true"></span></span></th>
           <th>Notes</th>
           <th><span class="le-spacer" aria-hidden="true"><button tabindex="-1">Save</button><button tabindex="-1">🗑 Delete</button><button tabindex="-1">Cancel</button></span></th>
         </tr></thead><tbody></tbody></table>
@@ -2390,7 +2380,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.61.7";
+const WEB_VERSION = "1.61.8";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2401,6 +2391,7 @@ const WEB_VERSION = "1.61.7";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.61.8 (2026-11-14, claude+mkolakowski): (#114) Add row: Repeats select (colspan 2) and a Tags picker (addTags, colspan 2) under the balance columns; _setAddRowHeadings renames Δ Amt/Actual bal to Repeats/Tags (th-swap) while open; tags saved on one-off lines, picker disabled while Repeats is set. .add-repeat/.le-inl CSS removed.
 // 1.61.7 (2026-11-14, claude+mkolakowski): (#110) Bills & income add form: Repeats (Weekly/Bi-weekly/Monthly) with a required Start date (defaults to today); Monthly's day_of_month comes from it; recAddDay and onRecAddFreqChange are removed. Edit rows keep Day of month.
 // 1.61.6 (2026-11-14, claude+mkolakowski): (#109) Add row: one Repeats select (addFreq: None/Weekly/Bi-weekly/Monthly) replaces the checkbox, Every and Day; Monthly's day_of_month comes from the start date, which every repeat now needs; Forecast date heading reads Start date.
 // 1.61.5 (2026-11-14, claude+mkolakowski): (#107) With Repeats on, _setAddHeadings (replaces _setAddEndsHeading) also renames Forecast date to Starts / Starts (optional) by Every, Forecast amt to Amount and blanks Actual amt. Those four headings use .th-swap (name, .th-alt, invisible .th-size of the longest) so their width never changes.
@@ -6251,7 +6242,6 @@ function _buildAddRow() {
   tr.className = 'le-row le-inline fc-addrow';
   const catOptions = '<option value="">— none —</option>' +
     (categories || []).map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-  const inlineField = (label, id, html, opts) => _leField(label, id, html, opts).replace('class="le-f', 'class="le-f le-inl');
   tr.innerHTML = [
     _leTd(_leField('Description', 'addDesc', '<input id="addDesc" maxlength="120" placeholder="New line: description">')
           + '<div class="le-status" id="addFormStatus" role="status"></div>'),
@@ -6264,11 +6254,13 @@ function _buildAddRow() {
     _leTd(_leField('Category', 'addCat', `<select id="addCat">${catOptions}</select>`)),
     _leTd(_leField('Forecast amt', 'addFAmt', _leNum('<input id="addFAmt" type="number" step="0.01" placeholder="-0.00">')), { cls: 'num' }),
     _leTd(_leField('Actual amt', 'addAAmt', _leNum('<input id="addAAmt" type="number" step="0.01" placeholder="-0.00">')), { cls: 'num' }),
-    _leTd(`<div class="add-repeat">
-        ${inlineField('Repeats', 'addFreq', `<select id="addFreq" onchange="onAddRepeatToggle()">
-            <option value="">None</option><option value="weekly">Weekly</option>
-            <option value="biweekly">Bi-weekly</option><option value="monthly_day">Monthly</option></select>`)}
-      </div>`, { colspan: 4 }),
+    // Repeats and Tags each take two of the balance columns, whose headings
+    // name them while the row is open (#114). Recurring items hold no tags,
+    // so the picker is greyed out while Repeats is set.
+    _leTd(_leField('Repeats', 'addFreq', `<select id="addFreq" onchange="onAddRepeatToggle()">
+        <option value="">None</option><option value="weekly">Weekly</option>
+        <option value="biweekly">Bi-weekly</option><option value="monthly_day">Monthly</option></select>`), { colspan: 2 }),
+    _leTd(_leField('Tags', 'addTags_btn', renderTagPicker('addTags', [])), { colspan: 2 }),
     _leNotesActionsTd(_leField('Notes', 'addNotes', '<input id="addNotes" maxlength="256" placeholder="Notes">'),
       `<button onclick="submitAddForm()" title="Save (Enter)">Save</button>
        <button class="ghost" onclick="submitAddForm(true)" title="Save, then start another line with the same dates and category">+ Another</button>
@@ -6292,6 +6284,7 @@ function toggleAddForm(show) {
     tbody.insertBefore(_addRowEl, tbody.firstChild);
   }
   document.getElementById('addToggle').classList.add('active');
+  _setAddRowHeadings(true);
   const d = document.getElementById('addDesc');
   if (d) d.focus();
 }
@@ -6316,8 +6309,21 @@ function _setAddHeadings(rec) {
     alt.textContent = rec ? text() : '';
   });
 }
+// While the row is open, the balance headings name the Repeats and Tags
+// fields under them (#114).
+const _ADD_ROW_HEADINGS = { diff_amount: 'Repeats', forecast_balance: '', actual_balance: 'Tags', diff_balance: '' };
+function _setAddRowHeadings(open) {
+  Object.entries(_ADD_ROW_HEADINGS).forEach(([key, text]) => {
+    const th = document.querySelector(`#forecastTable thead th[data-key="${key}"]`);
+    const alt = th && th.querySelector('.th-alt');
+    if (!alt) return;
+    th.classList.toggle('th-swapped', !!open);
+    alt.textContent = open ? text : '';
+  });
+}
 function closeAddRow() {
   _setAddHeadings(false);
+  _setAddRowHeadings(false);
   if (_addRowEl) { _addRowEl.remove(); _addRowEl = null; }
   const b = document.getElementById('addToggle');
   if (b) b.classList.remove('active');
@@ -6332,6 +6338,9 @@ function onAddRepeatToggle() {
   document.getElementById('addEndWrap').classList.toggle('hidden', !rec);
   _setAddHeadings(rec);
   document.getElementById('addAAmt').disabled = rec;
+  const tagBtn = document.getElementById('addTags_btn');
+  tagBtn.disabled = rec;
+  tagBtn.title = rec ? 'Recurring items have no tags; tags go on one-off lines' : 'Tags';
   document.getElementById('addFDate').title = rec ? 'Start date' : '';
 }
 function _addFormError(msg, fieldId) {
@@ -6375,6 +6384,8 @@ async function submitAddForm(addAnother) {
       category_id: catVal ? parseInt(catVal, 10) : null, notes,
     };
     if (fAmt != null) body.forecast_amount = fAmt;
+    const tagIds = readTagPick('addTags');
+    if (tagIds.length) body.tag_ids = tagIds;
     try {
       await api(`/api/accounts/${currentAccountId}/transactions`, { method: 'POST', body: JSON.stringify(body) });
     } catch (e) { notifyError('Could not save', e); return; }

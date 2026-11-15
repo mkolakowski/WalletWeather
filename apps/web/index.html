@@ -2042,6 +2042,17 @@
       </div>
 
       <div class="panel">
+        <h2>API tokens</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Every user's API tokens. Revoke one that may have leaked, or whose owner no longer needs it:
+          it stops working at once. Tokens are never shown here, only who made them and when they were last used.
+        </p>
+        <div id="adminTokensList" style="overflow-x:auto">
+          <div style="color:var(--muted);padding:8px">Loading…</div>
+        </div>
+      </div>
+
+      <div class="panel">
         <h2>All permissions</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           Admin override: modify permissions on any account regardless of your own access level.
@@ -2335,6 +2346,14 @@
               <option value="full">Full access</option>
             </select>
           </div>
+          <div><label for="apiTokenExpiry">Expires</label>
+            <select id="apiTokenExpiry">
+              <option value="30">In 30 days</option>
+              <option value="90" selected>In 90 days</option>
+              <option value="365">In a year</option>
+              <option value="never">Never</option>
+            </select>
+          </div>
           <div style="flex:0 0 auto"><button id="apiTokenCreateBtn" onclick="createApiToken()">Create token</button></div>
         </div>
       </div>
@@ -2445,7 +2464,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.65.1";
+const WEB_VERSION = "1.66.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2456,6 +2475,7 @@ const WEB_VERSION = "1.65.1";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.66.0 (2026-11-15, claude+mkolakowski): (#43) API tokens: Settings gets an Expires select (30 days / 90 days default / a year / Never) sent as expires_in_days, and each token line shows made, expires/expired and last used (apiTokenDetails). Admin page: an "API tokens" panel (loadAdminTokens / adminRevokeToken) lists everyone's tokens with Revoke.
 // 1.65.1 (2026-11-15, claude+mkolakowski): (#127) Add row: Repeats and Tags share one colspan-4 cell (.add-rt; Repeats --add-rep-w wide, Tags fills the rest, no column line between); while open the four balance headings stay (no width change) but lose the lines between them (.th-open-merge) and the first reads Repeats with Tags (.ah-tags) over the picker's start.
 // 1.65.0 (2026-11-15, claude+mkolakowski): (#41) Installable: <link rel="manifest"> (use-credentials), theme-color, PNG apple-touch-icon, /sw.js registered on load; #offline card (showOffline) when /api/me fails with a network error, with Try again (reload).
 // 1.64.0 (2026-11-15, claude+mkolakowski): (#120) Bills & income tag pickers: the add form has a Tags picker (#recAddTagsWrap, rendered on open; tag_ids sent on create); each edit row puts a Tags picker (editRecTags_<id>) in the Description cell and saveRecurring always sends its array; the read view shows chips under the description (.row-tag-chips); spreadsheet mode compares tags before saving; onRecEditKey leaves keys inside .tag-dd to the picker.
@@ -4846,26 +4866,37 @@ async function loadApiTokens() {
   try { rows = await api('/api/tokens'); }
   catch { list.innerHTML = '<span style="color:var(--muted)">Could not load your tokens. Reload the page to try again.</span>'; return; }
   if (!rows.length) { list.innerHTML = '<span style="color:var(--muted)">No tokens yet.</span>'; return; }
-  const day = iso => new Date(iso).toLocaleDateString();
   list.innerHTML = '<ul style="list-style:none;margin:0;padding:0">' + rows.map(t => {
-    const revoked = !!t.revoked_at;
-    return '<li style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:6px 0;border-bottom:1px solid var(--border)' + (revoked ? ';color:var(--muted)' : '') + '">' +
+    const dead = !!t.revoked_at || t.expired;
+    return '<li style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:6px 0;border-bottom:1px solid var(--border)' + (dead ? ';color:var(--muted)' : '') + '">' +
       '<strong style="flex:1 1 160px;min-width:0;overflow-wrap:anywhere">' + escapeHtml(t.name) + '</strong>' +
       '<span>' + escapeHtml(API_TOKEN_ACCESS_LABELS[t.access] || t.access) + '</span>' +
-      '<span>' + (revoked ? 'Revoked ' + day(t.revoked_at) : 'Made ' + day(t.created_at)) + '</span>' +
-      (revoked ? '' : '<button type="button" class="ghost danger" onclick="revokeApiToken(' + t.id + ')">Revoke</button>') +
+      '<span>' + escapeHtml(apiTokenDetails(t)) + '</span>' +
+      (t.revoked_at ? '' : '<button type="button" class="ghost danger" onclick="revokeApiToken(' + t.id + ')">Revoke</button>') +
       '</li>';
   }).join('') + '</ul>';
+}
+// "Made 11/15/2026 · Expires 2/13/2027 · Last used 11/15/2026, 1:02 AM" for a
+// token row from /api/tokens or /api/admin/tokens (the same words in both lists).
+function apiTokenDetails(t) {
+  const day = iso => new Date(iso).toLocaleDateString();
+  const parts = ['Made ' + day(t.created_at)];
+  if (t.revoked_at) parts.push('Revoked ' + day(t.revoked_at));
+  else if (t.expired) parts.push('Expired ' + day(t.expires_at));
+  else parts.push(t.expires_at ? 'Expires ' + day(t.expires_at) : 'Never expires');
+  parts.push(t.last_used_at ? 'Last used ' + new Date(t.last_used_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' }) : 'Never used');
+  return parts.join(' · ');
 }
 async function createApiToken() {
   const nameEl = document.getElementById('apiTokenName');
   const name = nameEl.value.trim();
   if (!name) { notify('Give the token a name, so you can tell it apart later.', 'error'); nameEl.focus(); return; }
   const access = document.getElementById('apiTokenAccess').value;
+  const exp = document.getElementById('apiTokenExpiry').value;
   const btn = document.getElementById('apiTokenCreateBtn');
   btn.disabled = true;
   let made;
-  try { made = await api('/api/tokens', { method: 'POST', body: JSON.stringify({ name, access }) }); }
+  try { made = await api('/api/tokens', { method: 'POST', body: JSON.stringify({ name, access, expires_in_days: exp === 'never' ? null : Number(exp) }) }); }
   catch (e) { notifyError('Could not create the token', e); return; }
   finally { btn.disabled = false; }
   nameEl.value = '';
@@ -7815,6 +7846,7 @@ async function importBackup() {
 function loadAdminPage() {
   loadAdminAppTitle();
   loadAdminUsers();
+  loadAdminTokens();
   loadAdminPermissions();
   loadAdminBackupConfig();
   loadAdminBackups();
@@ -7903,6 +7935,39 @@ async function loadAdminUsers() {
   } catch (e) {
     wrap.innerHTML = `<div style="color:var(--bad)">Error: ${escapeHtml(errText(e))}</div>`;
   }
+}
+
+// Admin → "API tokens" (#43): everyone's tokens, with Revoke.
+let adminTokenRows = [];   // looked up by id on Revoke: a token's name is user-typed, so it never goes into an onclick string
+async function loadAdminTokens() {
+  const wrap = document.getElementById('adminTokensList');
+  try {
+    const tokens = adminTokenRows = await api('/api/admin/tokens');
+    if (!tokens.length) { wrap.innerHTML = '<div style="color:var(--muted)">No tokens yet.</div>'; return; }
+    const rows = tokens.map(t => {
+      const dead = !!t.revoked_at || t.expired;
+      return `<tr${dead ? ' style="color:var(--muted)"' : ''}>
+        <td>${escapeHtml(t.owner_email)}</td>
+        <td>${escapeHtml(t.name)}</td>
+        <td>${escapeHtml(API_TOKEN_ACCESS_LABELS[t.access] || t.access)}</td>
+        <td style="font-size:12px">${escapeHtml(apiTokenDetails(t))}</td>
+        <td style="white-space:nowrap">${t.revoked_at ? '' : `<button class="ghost danger" onclick="adminRevokeToken(${t.id})">Revoke</button>`}</td>
+      </tr>`;
+    }).join('');
+    wrap.innerHTML = `<table><thead><tr>
+      <th>Owner</th><th>Name</th><th>Access</th><th>Made / expires / last used</th><th></th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+  } catch (e) {
+    wrap.innerHTML = `<div style="color:var(--bad)">Error: ${escapeHtml(errText(e))}</div>`;
+  }
+}
+async function adminRevokeToken(id) {
+  const t = adminTokenRows.find(x => x.id === id);
+  if (!t) return;
+  if (!(await confirmDialog(`Revoke ${t.owner_email}'s token "${t.name}"? Anything using it stops working straight away.`, { title: 'Revoke token', okLabel: 'Revoke', danger: true }))) return;
+  try { await api('/api/admin/tokens/' + id, { method: 'DELETE' }); }
+  catch (e) { notifyError('Could not revoke the token', e); return; }
+  await loadAdminTokens();
 }
 
 async function adminToggleDisable(uid, disabled) {

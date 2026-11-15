@@ -188,3 +188,151 @@ def test_a_token_wins_over_a_session_cookie(client, registered):
                     headers={"Authorization": f"Bearer {made['token']}"},
                     json={"name": "Nope", "starting_balance": 0, "starting_date": "2026-01-01"})
     assert r.status_code == 403
+
+
+# ---------- Expiry and last used (#43) ----------
+
+def set_token_times(token_id, **fields):
+    """Set columns on a token row directly (the API only moves them forward
+    in real time)."""
+    from app.db import ApiToken, SessionLocal
+    db = SessionLocal()
+    try:
+        row = db.get(ApiToken, token_id)
+        for k, v in fields.items():
+            setattr(row, k, v)
+        db.commit()
+    finally:
+        db.close()
+
+
+def test_a_token_made_without_expiry_never_expires(client, registered):
+    made = make_token(client)
+    assert made["expires_at"] is None and made["expired"] is False
+    assert made["last_used_at"] is None
+
+
+@pytest.mark.parametrize("days", [30, 90, 365])
+def test_expiry_is_that_many_days_ahead(client, registered, days):
+    from datetime import datetime, timedelta
+    r = client.post("/api/tokens", json={"name": "x", "access": "read",
+                                         "expires_in_days": days})
+    assert r.status_code == 200, r.text
+    expires = datetime.fromisoformat(r.json()["expires_at"].rstrip("Z"))
+    assert abs(expires - (datetime.utcnow() + timedelta(days=days))) < timedelta(minutes=1)
+    assert r.json()["expired"] is False
+
+
+@pytest.mark.parametrize("days", [0, 7, -1, 366])
+def test_an_expiry_that_isnt_offered_is_refused(client, registered, days):
+    r = client.post("/api/tokens", json={"name": "x", "access": "read",
+                                         "expires_in_days": days})
+    assert r.status_code == 400
+    assert client.get("/api/tokens").json() == []
+
+
+def test_an_expired_token_is_refused_and_listed_as_expired(app_started, client, registered):
+    from datetime import datetime, timedelta
+    made = make_token(client)
+    tok = bearer(app_started, made["token"])
+    assert tok.get("/api/accounts").status_code == 200
+
+    set_token_times(made["id"], expires_at=datetime.utcnow() - timedelta(seconds=1))
+    r = tok.get("/api/accounts")
+    assert r.status_code == 401 and "expired" in r.json()["detail"]
+    [listed] = client.get("/api/tokens").json()
+    assert listed["expired"] is True and listed["revoked_at"] is None
+
+
+def test_a_token_works_until_it_expires(app_started, client, registered):
+    from datetime import datetime, timedelta
+    made = make_token(client)
+    set_token_times(made["id"], expires_at=datetime.utcnow() + timedelta(hours=1))
+    assert bearer(app_started, made["token"]).get("/api/accounts").status_code == 200
+
+
+def test_last_used_is_set_on_use_and_not_rewritten_within_a_minute(
+        app_started, client, registered):
+    from datetime import datetime, timedelta
+    made = make_token(client)
+    tok = bearer(app_started, made["token"])
+    assert client.get("/api/tokens").json()[0]["last_used_at"] is None
+
+    assert tok.get("/api/accounts").status_code == 200
+    first = client.get("/api/tokens").json()[0]["last_used_at"]
+    assert first
+    # A second request straight away leaves it alone.
+    assert tok.get("/api/accounts").status_code == 200
+    assert client.get("/api/tokens").json()[0]["last_used_at"] == first
+    # Once it's over a minute old, the next request moves it forward.
+    set_token_times(made["id"], last_used_at=datetime.utcnow() - timedelta(minutes=5))
+    old = client.get("/api/tokens").json()[0]["last_used_at"]
+    assert tok.get("/api/accounts").status_code == 200
+    assert client.get("/api/tokens").json()[0]["last_used_at"] > old
+
+
+def test_a_refused_token_does_not_count_as_used(app_started, client, registered):
+    made = make_token(client)
+    client.delete(f"/api/tokens/{made['id']}")
+    assert bearer(app_started, made["token"]).get("/api/accounts").status_code == 401
+    assert client.get("/api/tokens").json()[0]["last_used_at"] is None
+
+
+# ---------- Admin panel: everyone's tokens (#43) ----------
+
+def test_an_admin_lists_every_users_tokens(app_started, client, admin_user):
+    other = TestClient(app_started)
+    o = other.post("/api/auth/register",
+                   json={"email": unique_email(), "password": "correct-horse-battery"})
+    other_email = o.json()["email"]
+    theirs = make_token(other, "full", "their script")
+    mine = make_token(client, "read", "my script")
+
+    r = client.get("/api/admin/tokens")
+    assert r.status_code == 200
+    by_id = {t["id"]: t for t in r.json()}
+    assert by_id[theirs["id"]]["owner_email"] == other_email
+    assert by_id[theirs["id"]]["name"] == "their script"
+    assert by_id[mine["id"]]["owner_email"] == admin_user["email"]
+    for t in by_id.values():
+        assert "token" not in t and "token_hash" not in t
+        assert {"access", "created_at", "expires_at", "last_used_at",
+                "revoked_at", "expired", "owner_id"} <= set(t)
+
+
+def test_an_admin_revokes_another_users_token_at_once(app_started, client, admin_user):
+    other = TestClient(app_started)
+    other.post("/api/auth/register",
+               json={"email": unique_email(), "password": "correct-horse-battery"})
+    theirs = make_token(other, "full")
+    tok = bearer(app_started, theirs["token"])
+    assert tok.get("/api/accounts").status_code == 200
+
+    r = client.delete(f"/api/admin/tokens/{theirs['id']}")
+    assert r.status_code == 200 and r.json()["revoked_at"]
+    assert tok.get("/api/accounts").status_code == 401
+    assert other.get("/api/tokens").json()[0]["revoked_at"] == r.json()["revoked_at"]
+    assert client.delete(f"/api/admin/tokens/{theirs['id']}").json()["revoked_at"] == r.json()["revoked_at"]
+
+
+def test_admin_token_endpoints_refuse_a_non_admin_and_an_unknown_token(client, registered):
+    assert client.get("/api/admin/tokens").status_code == 403
+    assert client.delete("/api/admin/tokens/1").status_code == 403
+
+
+def test_revoking_an_unknown_token_as_admin_is_404(client, admin_user):
+    assert client.delete("/api/admin/tokens/999999999").status_code == 404
+
+
+def test_admin_token_endpoints_need_a_session(client):
+    assert client.get("/api/admin/tokens").status_code == 401
+
+
+@pytest.mark.parametrize("access", ["read", "full", "admin"])
+def test_no_token_manages_tokens_through_the_admin_endpoints(
+        app_started, client, admin_user, access):
+    made = make_token(client, access)
+    tok = bearer(app_started, made["token"])
+    assert tok.get("/api/admin/tokens").status_code == 403
+    assert tok.delete(f"/api/admin/tokens/{made['id']}").status_code == 403
+    assert client.get("/api/tokens").json()[0]["revoked_at"] is None

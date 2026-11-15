@@ -211,8 +211,13 @@ Each token has an access level, chosen when it's made:
 | Admin | Full access plus `/api/admin/*`. Only admins can make one, and it gets `403` there as soon as its owner is no longer in `ADMIN_EMAILS`. |
 
 No token can list, make or revoke tokens (`/api/tokens` answers `403`); that
-needs a signed-in browser. A revoked token, or one whose owner is disabled,
-gets `401`. Only a SHA-256 fingerprint of each token is stored.
+needs a signed-in browser. A revoked or expired token, or one whose owner is
+disabled, gets `401`. Only a SHA-256 fingerprint of each token is stored.
+
+A token can expire: choose 30 days, 90 days, a year or never when you make it
+(over the API, `"expires_in_days": 30`, `90` or `365`; leave it out for never).
+Settings shows each token's expiry and when it was last used, and an admin
+can see and revoke everyone's tokens on the Admin page.
 
 **Behind Cloudflare Access.** If the server sits behind a Cloudflare Tunnel
 with Zero Trust rules, Cloudflare turns away a request that hasn't signed in

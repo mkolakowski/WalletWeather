@@ -26,7 +26,7 @@ from pathlib import Path
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.42.0"
+APP_VERSION = "1.43.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -38,6 +38,10 @@ APP_VERSION = "1.42.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.43.0 (2026-11-15, claude+mkolakowski): token extras (#43): expiry chosen
+#     at creation (30/90/365 days or never), last-used time, GET
+#     /api/admin/tokens and DELETE /api/admin/tokens/{id} (browser only);
+#     schema 17; web 1.66.0.
 # 1.42.0 (2026-11-15, claude+mkolakowski): installable web app (#41):
 #     /manifest.webmanifest (named after the app title) and /sw.js routes;
 #     web 1.65.0 (icons, service worker, offline notice).
@@ -599,6 +603,11 @@ def _email_ok(email: str) -> bool:
 TOKEN_ACCESS_LEVELS = ("read", "full", "admin")
 TOKEN_PREFIX = "ww_"
 _READ_METHODS = {"GET", "HEAD", "OPTIONS"}
+# Expiry choices when a token is made (#43); leaving it out means never.
+TOKEN_EXPIRY_DAYS = (30, 90, 365)
+# last_used_at is written at most this often, so a busy script doesn't turn
+# every request into a database write.
+TOKEN_LAST_USED_EVERY = timedelta(minutes=1)
 
 
 def _hash_token(token: str) -> str:
@@ -624,9 +633,15 @@ def _authenticate(request: Request, db: Session) -> User:
                if token else None)
         if not row or row.revoked_at is not None:
             raise HTTPException(status_code=401, detail="Invalid or revoked API token")
+        now = datetime.utcnow()
+        if row.expires_at is not None and row.expires_at <= now:
+            raise HTTPException(status_code=401, detail="API token expired")
         user = db.get(User, row.owner_id)
         if not user or user.disabled:
             raise HTTPException(status_code=401, detail="Invalid or revoked API token")
+        if row.last_used_at is None or now - row.last_used_at >= TOKEN_LAST_USED_EVERY:
+            row.last_used_at = now
+            db.commit()
         request.state.api_token = row
         return user
     uid = request.session.get("uid")
@@ -666,6 +681,15 @@ def current_session_user(request: Request, db: Session = Depends(get_db)) -> Use
 
 def is_admin(user: User) -> bool:
     return bool(ADMIN_EMAILS) and user.email.lower() in ADMIN_EMAILS
+
+
+def current_session_admin(request: Request, db: Session = Depends(get_db)) -> User:
+    """An admin signed in through a browser session. Refuses every API token,
+    admin ones too: managing tokens needs a browser (#42, #43)."""
+    user = current_session_user(request, db)
+    if not is_admin(user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
 
 
 def current_admin(request: Request, user: User = Depends(current_user)) -> User:
@@ -868,11 +892,15 @@ def acknowledge_notice(user: User = Depends(current_user),
 class ApiTokenIn(BaseModel):
     name: str = Field(max_length=80)
     access: str
+    # 30, 90 or 365; left out (or null) means the token never expires.
+    expires_in_days: int | None = None
 
 
 def _token_json(t: ApiToken) -> dict:
     return {"id": t.id, "name": t.name, "access": t.access,
-            "created_at": _iso(t.created_at), "revoked_at": _iso(t.revoked_at)}
+            "created_at": _iso(t.created_at), "revoked_at": _iso(t.revoked_at),
+            "expires_at": _iso(t.expires_at), "last_used_at": _iso(t.last_used_at),
+            "expired": t.expires_at is not None and t.expires_at <= datetime.utcnow()}
 
 
 @app.get("/api/tokens")
@@ -895,9 +923,13 @@ def create_token(payload: ApiTokenIn, user: User = Depends(current_session_user)
         raise HTTPException(400, "Access must be read, full or admin")
     if payload.access == "admin" and not is_admin(user):
         raise HTTPException(403, "Only an admin can make an admin token")
+    if payload.expires_in_days is not None and payload.expires_in_days not in TOKEN_EXPIRY_DAYS:
+        raise HTTPException(400, "Expiry must be 30, 90 or 365 days, or left out for never")
     token = TOKEN_PREFIX + secrets.token_urlsafe(32)
+    expires_at = (datetime.utcnow() + timedelta(days=payload.expires_in_days)
+                  if payload.expires_in_days else None)
     row = ApiToken(owner_id=user.id, name=name, access=payload.access,
-                   token_hash=_hash_token(token))
+                   token_hash=_hash_token(token), expires_at=expires_at)
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -916,6 +948,34 @@ def revoke_token(token_id: int, user: User = Depends(current_session_user),
         row.revoked_at = datetime.utcnow()
         db.commit()
     return _token_json(row)
+
+
+# Admin panel (#43): every user's tokens, and revoking any of them. Browser
+# session only, like the caller's own token endpoints (current_session_admin).
+@app.get("/api/admin/tokens")
+def admin_list_tokens(user: User = Depends(current_session_admin),
+                      db: Session = Depends(get_db)):
+    """All tokens, newest first, with their owner's email."""
+    rows = (db.query(ApiToken, User)
+            .join(User, User.id == ApiToken.owner_id)
+            .order_by(ApiToken.created_at.desc(), ApiToken.id.desc()).all())
+    return [{**_token_json(t), "owner_id": u.id, "owner_email": u.email}
+            for (t, u) in rows]
+
+
+@app.delete("/api/admin/tokens/{token_id}")
+def admin_revoke_token(token_id: int, user: User = Depends(current_session_admin),
+                       db: Session = Depends(get_db)):
+    """Revoke anyone's token. It stops working at once; safe to repeat."""
+    row = db.get(ApiToken, token_id)
+    if not row:
+        raise HTTPException(404, "Token not found")
+    if row.revoked_at is None:
+        row.revoked_at = datetime.utcnow()
+        db.commit()
+    owner = db.get(User, row.owner_id)
+    return {**_token_json(row), "owner_id": row.owner_id,
+            "owner_email": owner.email if owner else None}
 
 
 # ---------- Deleting your own user ----------

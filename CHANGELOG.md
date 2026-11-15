@@ -65,7 +65,25 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.42.0** · Web version: **1.65.1** · Schema version: **16**
+App version: **1.43.0** · Web version: **1.66.0** · Schema version: **17**
+
+### Added
+
+- API tokens can expire. When you make one under **Settings → Your account →
+  API tokens**, pick 30 days, 90 days (pre-selected), a year or Never; an
+  expired token is refused with `401` and shows as expired in the list. Over
+  the API, `POST /api/tokens` takes `expires_in_days` (30, 90 or 365), and
+  leaving it out still means the token never expires, so existing scripts and
+  tokens carry on as before.
+- Each token in Settings now shows when it was made, when it expires and when
+  it was last used (or "Never used"), so an unused or forgotten token is easy
+  to spot. The last-used time is updated at most once a minute.
+- Admins can see and revoke everyone's API tokens. The Admin page has an **API
+  tokens** panel listing each token's owner, name, access, expiry and last
+  use (never the token itself), with **Revoke**; a revoked token stops working
+  at once. As with your own tokens, this needs a signed-in browser: no API
+  token, admin ones included, can list or revoke tokens
+  (`GET /api/admin/tokens`, `DELETE /api/admin/tokens/{id}`).
 
 ### Changed
 
@@ -75,6 +93,12 @@ App version: **1.42.0** · Web version: **1.65.1** · Schema version: **16**
   fields, with no lines between the four columns they sit over, and the
   remaining column lines match the new line's. No column moves when the line
   opens.
+
+### Database
+
+- Two new columns on `api_tokens`, `expires_at` and `last_used_at` (schema 17).
+  They're added automatically on start; nothing to do. Tokens made before this
+  never expire.
 
 ## [1.42.0] — 2026-11-15
 

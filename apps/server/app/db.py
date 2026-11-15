@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "16"
+SCHEMA_VERSION = "17"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,8 @@ SCHEMA_VERSION = "16"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v17 (2026-11-15, claude+mkolakowski): add api_tokens.expires_at (NULL =
+#     never expires) and api_tokens.last_used_at (NULL = never used) (#43).
 # v16 (2026-11-15, claude+mkolakowski): add api_tokens — personal API
 #     tokens (owner, name, access read/full/admin, SHA-256 of the token,
 #     created/revoked dates). The token itself is never stored (#42).
@@ -566,6 +568,10 @@ class ApiToken(Base):
     token_hash = Column(String(64), nullable=False, unique=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     revoked_at = Column(DateTime, nullable=True)
+    # NULL = never expires. A token past this time gets 401 (#43).
+    expires_at = Column(DateTime, nullable=True)
+    # When the token last signed a request in; written at most once a minute.
+    last_used_at = Column(DateTime, nullable=True)
 
 
 def init_db():
@@ -622,6 +628,10 @@ def init_db():
         # (Created by Base.metadata.create_all above — boundary marker only.)
         # v15 → v16: api_tokens
         # (Created by Base.metadata.create_all above — boundary marker only.)
+        # v16 → v17: token expiry and last-used time. Existing tokens never
+        # expire and show as never used until their next request.
+        "ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP",
+        "ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS last_used_at TIMESTAMP",
     ]
     with engine.begin() as conn:
         for sql in migrations:

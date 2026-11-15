@@ -67,6 +67,10 @@ same commit (or session) that introduces it.
 
 App version: **1.41.0** · Web version: **1.63.0** · Schema version: **16**
 
+## [1.41.0] — 2026-11-15
+
+App version: **1.41.0** · Web version: **1.63.0** · Schema version: **16**
+
 ### Added
 
 - API tokens, for scripts and (later) the phone apps. Make one under
@@ -1560,7 +1564,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.40.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.41.0...HEAD
+[1.41.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.41.0
 [1.40.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.40.0
 [1.39.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.39.1
 [1.39.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.39.0

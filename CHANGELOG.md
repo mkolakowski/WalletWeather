@@ -65,7 +65,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.37.5** · Web version: **1.61.6** · Schema version: **14**
+App version: **1.37.5** · Web version: **1.61.7** · Schema version: **14**
 
 ### Changed
 
@@ -74,6 +74,11 @@ App version: **1.37.5** · Web version: **1.61.6** · Schema version: **14**
   anything but None and the date column becomes "Start date": Monthly repeats
   on that date's day of the month, Weekly and Bi-weekly count from it. A
   start date is now needed for Monthly too.
+- **Breaking:** Bills & income's add form works the same way: a Repeats
+  dropdown (Weekly, Bi-weekly, Monthly) and a Start date that starts as
+  today, with no Day of month box. Monthly repeats on the start date's day of
+  the month, and a start date is now needed for every new item. Editing an
+  existing item is unchanged, Day of month included.
 
 ## [1.37.5] — 2026-11-14
 

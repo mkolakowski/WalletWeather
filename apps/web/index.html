@@ -1242,16 +1242,16 @@
               <select id="recAddCat"></select></div>
           </div>
           <div class="row" style="margin-top:8px">
-            <div style="flex:0 1 160px;min-width:130px"><label for="recAddFreq">Frequency</label>
-              <select id="recAddFreq" onchange="onRecAddFreqChange()">
-                <option value="monthly_day">Monthly</option>
-                <option value="biweekly">Biweekly</option>
+            <!-- Like Forecast's add row (#110): Monthly repeats on the start
+                 date's day of the month, so there's no Day of month box. -->
+            <div style="flex:0 1 140px;min-width:120px"><label for="recAddFreq">Repeats</label>
+              <select id="recAddFreq">
                 <option value="weekly">Weekly</option>
+                <option value="biweekly">Bi-weekly</option>
+                <option value="monthly_day" selected>Monthly</option>
               </select></div>
-            <div id="recAddDayWrap" style="flex:0 1 110px;min-width:90px"><label for="recAddDay">Day of month</label>
-              <input id="recAddDay" type="number" min="1" max="31" value="1"></div>
-            <div style="flex:0 1 170px;min-width:150px"><label for="recAddAnchor" id="recAddAnchorLabel"
-                 title="No occurrences are projected before this date">Start date (optional)</label>
+            <div style="flex:0 1 170px;min-width:150px"><label for="recAddAnchor"
+                 title="The first date it falls on; nothing is projected before it. Monthly repeats on this day of the month.">Start date</label>
               <input id="recAddAnchor" type="date"></div>
             <div style="flex:0 1 170px;min-width:150px"><label for="recAddEnd">Ends (optional)</label>
               <input id="recAddEnd" type="date"></div>
@@ -2390,7 +2390,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.61.6";
+const WEB_VERSION = "1.61.7";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2401,6 +2401,7 @@ const WEB_VERSION = "1.61.6";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.61.7 (2026-11-14, claude+mkolakowski): (#110) Bills & income add form: Repeats (Weekly/Bi-weekly/Monthly) with a required Start date (defaults to today); Monthly's day_of_month comes from it; recAddDay and onRecAddFreqChange are removed. Edit rows keep Day of month.
 // 1.61.6 (2026-11-14, claude+mkolakowski): (#109) Add row: one Repeats select (addFreq: None/Weekly/Bi-weekly/Monthly) replaces the checkbox, Every and Day; Monthly's day_of_month comes from the start date, which every repeat now needs; Forecast date heading reads Start date.
 // 1.61.5 (2026-11-14, claude+mkolakowski): (#107) With Repeats on, _setAddHeadings (replaces _setAddEndsHeading) also renames Forecast date to Starts / Starts (optional) by Every, Forecast amt to Amount and blanks Actual amt. Those four headings use .th-swap (name, .th-alt, invisible .th-size of the longest) so their width never changes.
 // 1.61.4 (2026-11-14, claude+mkolakowski): (#105) The Actual date heading reads Ends while the add row has Repeats on (_setAddEndsHeading, reset in closeAddRow); the .le-notch label is removed.
@@ -5844,14 +5845,9 @@ function toggleRecAddForm(show) {
     categories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
   catSel.value = keep;
   document.getElementById('recAddStatus').textContent = '';
-  onRecAddFreqChange();
+  const anchor = document.getElementById('recAddAnchor');
+  if (!anchor.value) anchor.value = _isoDate(new Date());
   document.getElementById('recAddDesc').focus();
-}
-
-function onRecAddFreqChange() {
-  const monthly = document.getElementById('recAddFreq').value === 'monthly_day';
-  document.getElementById('recAddDayWrap').classList.toggle('hidden', !monthly);
-  document.getElementById('recAddAnchorLabel').textContent = monthly ? 'Start date (optional)' : 'Start date';
 }
 
 async function submitRecAddForm() {
@@ -5861,8 +5857,8 @@ async function submitRecAddForm() {
   const desc = val('recAddDesc').trim();
   const rawAmt = parseFloat(val('recAddAmt'));
   const freq = val('recAddFreq');
-  const day = parseInt(val('recAddDay'), 10);
   const anchor = val('recAddAnchor') || null;
+  const day = anchor ? parseInt(anchor.slice(8, 10), 10) : null;
   const showErr = (msg, fieldId) => {
     status.style.color = 'var(--bad)';
     status.textContent = msg;
@@ -5871,8 +5867,7 @@ async function submitRecAddForm() {
   if (!accountId) return showErr('Pick an account.', 'recAddAccount');
   if (!desc) return showErr('Enter a description.', 'recAddDesc');
   if (isNaN(rawAmt) || rawAmt <= 0) return showErr('Enter an amount above zero.', 'recAddAmt');
-  if (freq === 'monthly_day' && !(day >= 1 && day <= 31)) return showErr('Day of month must be between 1 and 31.', 'recAddDay');
-  if (freq !== 'monthly_day' && !anchor) return showErr('Weekly and biweekly items need a start date.', 'recAddAnchor');
+  if (!anchor) return showErr('Enter a start date.', 'recAddAnchor');
   const catVal = val('recAddCat');
   const body = {
     description: desc,
@@ -5895,7 +5890,6 @@ async function submitRecAddForm() {
   ['recAddDesc', 'recAddAmt', 'recAddAnchor', 'recAddEnd', 'recAddNotes'].forEach(id => {
     document.getElementById(id).value = '';
   });
-  document.getElementById('recAddDay').value = '1';
   toggleRecAddForm(false);
   await loadRecurring();
 }

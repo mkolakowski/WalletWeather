@@ -13,7 +13,7 @@ Tracking issue: #93
 | 5. The other pages and app settings | #91 | Released in 1.54.0 (2026-11-15; iOS 0.4.0); waiting on your phone check |
 | 6. TestFlight and the App Store | #92 | Open (waits on legal-risk phase 5, #49) |
 | 7. More ways to sign in | #100 | Open (after phase 1; email and password after phone-path phase 3, #43) |
-| 8. Kept on the phone | #101 | Built 2026-11-15 (iOS 0.5.0), not released; no simulator check yet |
+| 8. Kept on the phone | #101 | Released in 1.54.1 (2026-11-15; iOS 0.5.0); no simulator check (install hung); waiting on your phone check |
 | 9. The web app's themes | #102 | Open (after phase 5) |
 | 10. Search everything | #112 | Open (after phases 3 and 5, and #111: one search on the server and in the web app) |
 
@@ -25,7 +25,7 @@ Phase 3 built on 2026-11-15: server 1.53.0 (`next_date` and `next_dates` on `/ap
 
 Phase 5 built on 2026-11-15: server 1.54.0 (`today=` on Net worth, Budgets and report runs) and the iOS app 0.4.0 (Net worth, Budgets and Reports under More; Appearance with AMOLED black and Sepia; the app lock, asking after a minute away; the app-switcher cover). Verified by the server tests (`tests/test_app_more.py`), `swift test` on samples recorded from the demo server (with three budgets added), and a live test against it. No simulator screenshots: the Duo simulator hangs on install. Released in v1.54.0 the same day.
 
-Phase 8 built on 2026-11-15: iOS app 0.5.0 only, no server change (the set-up question "What should this phone keep?" after each sign-in, More → This phone → Keep on this phone, kept answers in `Application Support/Kept` with complete file protection and out of backups, the "Offline · as loaded …" bar on each page, sign-out back to Nothing). Its two choices are in `docs/dev/decisions/ios-app.md` ("kept numbers after signing out, and when they show"); `docs/privacy.md` updated. Verified by `swift test` (68 tests, 9 new in `KeptTests.swift`: the key, saving and deleting everything, left out of backups, the limit, answering offline, a slow or missing server, other problems not hidden, nothing kept without the choice, search and edits never kept) and a Debug build. The simulator check hung on install again, so the "no numbers left in the simulator's storage" part of Done when is covered by the tests, not seen on a device yet.
+Phase 8 built on 2026-11-15: iOS app 0.5.0 only, no server change (the set-up question "What should this phone keep?" after each sign-in, More → This phone → Keep on this phone, kept answers in `Application Support/Kept` with complete file protection and out of backups, the "Offline · as loaded …" bar on each page, sign-out back to Nothing). Its two choices are in `docs/dev/decisions/ios-app.md` ("kept numbers after signing out, and when they show"); `docs/privacy.md` updated. Verified by `swift test` (68 tests, 9 new in `KeptTests.swift`: the key, saving and deleting everything, left out of backups, the limit, answering offline, a slow or missing server, other problems not hidden, nothing kept without the choice, search and edits never kept) and a Debug build. The simulator check hung on install again, so the "no numbers left in the simulator's storage" part of Done when is covered by the tests, not seen on a device yet. Released in v1.54.1 the same day.
 
 Written 2026-11-14 from a review of the app at 1.35.0 (web 1.59.0, schema 14). Until now the only notes on a native app were `apps/ios/README.md` and the "ready for native apps later" goal of `Plans/phone-path.md`.
 

@@ -7,12 +7,13 @@ Tracking issue: #56
 | Phase | Issue | State |
 | --- | --- | --- |
 | 1. Bills & income page | #51 | Released in v1.25.0, waiting on your check |
-| 2. Forecast editing and lost features | #52 | Open |
+| 2. Forecast editing and lost features | #52 | Released in v1.26.0, waiting on your check |
 | 3. Messages and dialogs | #53 | Open |
 | 4. Navigation and Settings layout | #54 | Open |
 | 5. Polish: wording, keyboard, filters | #55 | Open |
 
 - **Phase 1** — app 1.25.0, web 1.49.0, released 2026-11-14 (#59). Verified: 7 new API tests for `GET /api/recurring` (43 pass); the page driven in jsdom against a demo copy (filter, totals, add, edit on another account, Select all monthly → bulk bar, Archived, a read-only shared account). Not yet seen in a real browser: screenshots were blocked in that session, so your look on desktop and phone is the check.
+- **Phase 2** — app 1.26.0 (no server change), web 1.50.0, released 2026-11-14 (#60). Verified: 43 API tests pass; the page driven in jsdom against a demo copy (✎ opens a line with Delete inside; Save and add another keeps date and category; Transactions page search, bulk tag bar, transfer Edit / Save / Back returning to Transactions, and to Forecast when opened there; a read-only viewer gets no ✎). Not yet seen in a real browser.
 
 Sessions: may span — each phase ends with a release and your look on your own instance (desktop and phone) before the next starts.
 

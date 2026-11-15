@@ -76,6 +76,26 @@
   button.ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
   button.ghost.active { background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
   button.danger { background:var(--bad); }
+  /* In-page messages (notify) and dialogs (confirmDialog / promptDialog), #53. */
+  .app-toasts { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:1000;
+                display:flex; flex-direction:column; gap:8px; width:min(520px, calc(100vw - 32px));
+                pointer-events:none; }
+  .app-toast { pointer-events:auto; display:flex; align-items:flex-start; gap:10px;
+               background:var(--panel); color:var(--text); border:1px solid var(--border);
+               border-left:4px solid var(--accent); border-radius:8px; padding:10px 12px;
+               font-size:13px; line-height:1.4; box-shadow:0 6px 24px rgba(0,0,0,.35); white-space:pre-line; }
+  .app-toast.ok { border-left-color:var(--good); }
+  .app-toast.error { border-left-color:var(--bad); }
+  .app-toast .msg { flex:1; min-width:0; overflow-wrap:anywhere; }
+  .app-toast button { background:transparent; color:var(--muted); border:none; padding:0 2px; font-size:14px; line-height:1; }
+  dialog.app-dialog { background:var(--panel); color:var(--text); border:1px solid var(--border);
+                      border-radius:10px; padding:18px; width:min(460px, calc(100vw - 32px)); }
+  dialog.app-dialog::backdrop { background:rgba(0,0,0,.5); }
+  dialog.app-dialog h3 { margin:0 0 8px; font-size:15px; }
+  dialog.app-dialog .dlg-msg { font-size:13px; line-height:1.5; color:var(--text); white-space:pre-line; margin:0 0 12px; }
+  dialog.app-dialog input { width:100%; box-sizing:border-box; }
+  dialog.app-dialog .dlg-err { color:var(--bad); font-size:12px; min-height:16px; margin-top:4px; }
+  dialog.app-dialog .dlg-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
   input, select { background:var(--bg-deep); border:1px solid var(--border); color:var(--text);
                   padding:7px 10px; border-radius:6px; font:inherit; }
   label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
@@ -2049,6 +2069,25 @@
   </main>
 </div>
 
+<!-- In-page messages and dialogs (#53), used in place of the browser's
+     alert/confirm/prompt. -->
+<div id="appToasts" class="app-toasts" role="status" aria-live="polite"></div>
+<dialog id="appDialog" class="app-dialog" aria-labelledby="appDialogTitle">
+  <form method="dialog" id="appDialogForm">
+    <h3 id="appDialogTitle"></h3>
+    <div id="appDialogMsg" class="dlg-msg"></div>
+    <div id="appDialogField" class="hidden">
+      <label id="appDialogLabel" for="appDialogInput"></label>
+      <input id="appDialogInput" autocomplete="off">
+      <div id="appDialogErr" class="dlg-err" role="alert"></div>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="ghost" id="appDialogCancel" value="cancel">Cancel</button>
+      <button type="submit" id="appDialogOk" value="ok">OK</button>
+    </div>
+  </form>
+</dialog>
+
 <!-- Global footer — sits outside #login and #app so it's visible on every
      screen (including the auth screen). Values populated by applyVersionFooter
      once /api/auth/config returns. -->
@@ -2088,7 +2127,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.50.0";
+const WEB_VERSION = "1.51.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2099,6 +2138,15 @@ const WEB_VERSION = "1.50.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.51.0 (2026-11-14, claude+mkolakowski): (#53) Every alert/confirm/prompt
+//     is replaced: notify()/notifyError() show messages in #appToasts;
+//     confirmDialog() and promptDialog() share <dialog id="appDialog">
+//     (danger confirms put the red button last with Cancel focused; prompts
+//     can validate before closing). errText(e) turns api() errors (FastAPI
+//     detail strings or validation lists, HTML pages, network failures) into
+//     sentences; every displayed e.message now goes through it. Add
+//     transaction (_addFormError) and the recurring edit row (#editStatus_N)
+//     show mistakes next to the form and focus the field.
 // 1.50.0 (2026-11-14, claude+mkolakowski): (#52) (1) New Transactions page
 //     (#pageTransactions, nav #navTransactions, hash #transactions) holds
 //     what was #subviewSearch: cross-account search, bulk tagging and Recent
@@ -2758,6 +2806,133 @@ async function api(path, opts={}) {
   return res.json();
 }
 
+// ---------- In-page messages and dialogs (#53) ----------
+// errText(e): a sentence for an error thrown by api() or fetch(). The server
+// answers with {"detail": "..."} or, for a bad request body, a list of
+// field problems; neither should reach the screen as raw JSON.
+function errText(e) {
+  const raw = (e && e.message) || String(e || '');
+  if (raw === 'auth') return 'You were signed out. Sign in and try again.';
+  if (e instanceof TypeError || /Failed to fetch|NetworkError|Load failed/i.test(raw)) {
+    return 'Could not reach the server. Check your connection and try again.';
+  }
+  let detail;
+  try { detail = JSON.parse(raw).detail; } catch { detail = undefined; }
+  if (typeof detail === 'string') return detail.endsWith('.') ? detail : detail + '.';
+  if (detail && typeof detail.message === 'string') return detail.message;
+  if (Array.isArray(detail) && detail.length) {
+    const parts = detail.slice(0, 3).map(d => {
+      const field = (d.loc || []).filter(x => x !== 'body' && typeof x === 'string').pop();
+      const label = field ? field.replace(/_/g, ' ') : 'a field';
+      return `${label}: ${(d.msg || 'invalid').replace(/^Value error, /, '')}`;
+    });
+    return 'Some fields need fixing — ' + parts.join('; ') + '.';
+  }
+  if (!raw || raw.trim().startsWith('<') || raw.length > 200) return 'Something went wrong on the server. Try again.';
+  return raw;
+}
+
+// notify(message, kind): a short message at the bottom of the screen.
+// kind is 'ok', 'error' or 'info'. Errors stay longer and can be dismissed.
+function notify(message, kind) {
+  kind = kind || 'info';
+  const host = document.getElementById('appToasts');
+  if (!host) return;
+  const el = document.createElement('div');
+  el.className = 'app-toast ' + kind;
+  el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+  el.innerHTML = `<span class="msg"></span><button type="button" aria-label="Dismiss">✕</button>`;
+  el.querySelector('.msg').textContent = message;
+  el.querySelector('button').onclick = () => el.remove();
+  host.appendChild(el);
+  while (host.children.length > 3) host.firstElementChild.remove();
+  setTimeout(() => el.remove(), kind === 'error' ? 9000 : 4500);
+}
+
+// notifyError(what, e): "<what>: <readable reason>", unless the user was
+// signed out (the sign-in screen already says so).
+function notifyError(what, e) {
+  if (e && e.message === 'auth') return;
+  notify(`${what}: ${errText(e)}`, 'error');
+}
+
+// One <dialog> serves confirmDialog and promptDialog; each call resolves when
+// it closes. A danger confirm puts the destructive button last and starts
+// with Cancel focused, so Enter never deletes by accident.
+let _dialogResolve = null;
+// Browsers without <dialog> support get the same box, opened by attribute.
+function _closeAppDialog(dlg) {
+  if (typeof dlg.close === 'function') { if (dlg.open) dlg.close(); }
+  else dlg.removeAttribute('open');
+}
+function _openAppDialog(o) {
+  const dlg = document.getElementById('appDialog');
+  if (_dialogResolve) { _dialogResolve(null); _dialogResolve = null; }
+  _closeAppDialog(dlg);
+  document.getElementById('appDialogTitle').textContent = o.title || '';
+  const msgEl = document.getElementById('appDialogMsg');
+  msgEl.textContent = o.message || '';
+  msgEl.classList.toggle('hidden', !o.message);
+  const field = document.getElementById('appDialogField');
+  const input = document.getElementById('appDialogInput');
+  const errEl = document.getElementById('appDialogErr');
+  field.classList.toggle('hidden', !o.input);
+  errEl.textContent = '';
+  if (o.input) {
+    document.getElementById('appDialogLabel').textContent = o.input.label || '';
+    input.type = o.input.type || 'text';
+    input.value = o.input.value || '';
+    input.maxLength = o.input.maxLength || 524288;
+  }
+  const ok = document.getElementById('appDialogOk');
+  ok.textContent = o.okLabel || 'OK';
+  ok.className = o.danger ? 'danger' : '';
+  const cancel = document.getElementById('appDialogCancel');
+  return new Promise(resolve => {
+    _dialogResolve = resolve;
+    const finish = (val) => {
+      if (_dialogResolve !== resolve) return;
+      _dialogResolve = null;
+      _closeAppDialog(dlg);
+      resolve(val);
+    };
+    cancel.onclick = () => finish(null);
+    dlg.oncancel = (ev) => { ev.preventDefault(); finish(null); };
+    dlg.onkeydown = (ev) => { if (ev.key === 'Escape') { ev.preventDefault(); finish(null); } };
+    document.getElementById('appDialogForm').onsubmit = (ev) => {
+      ev.preventDefault();
+      if (o.input) {
+        const v = input.value;
+        const problem = o.input.validate ? o.input.validate(v) : '';
+        if (problem) { errEl.textContent = problem; input.focus(); return; }
+        finish(v);
+      } else {
+        finish(true);
+      }
+    };
+    if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open', '');
+    if (o.input) { input.focus(); input.select(); }
+    else (o.danger ? cancel : ok).focus();
+  });
+}
+
+// confirmDialog(message, {title, okLabel, danger}) → true or false.
+async function confirmDialog(message, opts) {
+  opts = opts || {};
+  const r = await _openAppDialog({ title: opts.title || 'Are you sure?', message,
+                                   okLabel: opts.okLabel || 'OK', danger: !!opts.danger });
+  return r === true;
+}
+
+// promptDialog(label, value, {title, okLabel, type, validate, message})
+// → the text entered, or null if cancelled.
+async function promptDialog(label, value, opts) {
+  opts = opts || {};
+  return _openAppDialog({ title: opts.title || '', message: opts.message || '', okLabel: opts.okLabel || 'Save',
+                          input: { label, value: value || '', type: opts.type, maxLength: opts.maxLength,
+                                   validate: opts.validate } });
+}
+
 // Top-level nav tabs get their own URL hash so a refresh (or the browser's
 // back/forward buttons) lands back on the same tab. 'import'/'transfer' are
 // contextual sub-flows off the Forecast page (they lean on state like
@@ -2924,7 +3099,7 @@ async function loadPinnedReports() {
       data = await api(`/api/saved-reports/${r.id}/run`, { method: 'POST', body: '{}' });
     } catch (e) {
       const body = document.getElementById('pinnedRptBody-' + r.id);
-      if (body) body.innerHTML = `<div style="color:var(--bad);font-size:12px">Run failed: ${escapeHtml(e.message)}</div>`;
+      if (body) body.innerHTML = `<div style="color:var(--bad);font-size:12px">Run failed: ${escapeHtml(errText(e))}</div>`;
       return;
     }
     renderPinnedReport(r.id, data);
@@ -2981,7 +3156,7 @@ async function loadDashboard() {
     dashboardCards = cards;
     dashboardCharts = charts;
   } catch (e) {
-    grid.innerHTML = `<div style="color:var(--bad);grid-column:1/-1;text-align:center;padding:20px">Could not load dashboard: ${escapeHtml(e.message)}</div>`;
+    grid.innerHTML = `<div style="color:var(--bad);grid-column:1/-1;text-align:center;padding:20px">Could not load dashboard: ${escapeHtml(errText(e))}</div>`;
     return;
   }
   renderDashboard();
@@ -3136,7 +3311,7 @@ async function onDashboardWindowChange(w) {
     dashboardCharts = await api('/api/dashboard/charts?window=' + encodeURIComponent(w));
   } catch (e) {
     // Keep the existing render but surface the error in the range label.
-    document.getElementById('dashWindowRange').textContent = 'Error: ' + e.message;
+    document.getElementById('dashWindowRange').textContent = 'Error: ' + errText(e);
     return;
   }
   renderDashboard();
@@ -3404,7 +3579,7 @@ async function initReportsPage() {
     ]);
   } catch (e) {
     document.getElementById('reportRailList').innerHTML =
-      `<div style="color:var(--bad)">Could not load: ${escapeHtml(e.message)}</div>`;
+      `<div style="color:var(--bad)">Could not load: ${escapeHtml(errText(e))}</div>`;
     return;
   }
   reportSaved = saved;
@@ -3603,7 +3778,7 @@ async function runReportPreview() {
   try {
     data = await api('/api/report/run', { method: 'POST', body: JSON.stringify(params) });
   } catch (e) {
-    body.innerHTML = `<div style="color:var(--bad)">Run failed: ${escapeHtml(e.message)}</div>`;
+    body.innerHTML = `<div style="color:var(--bad)">Run failed: ${escapeHtml(errText(e))}</div>`;
     return;
   }
   reportLastResult = data;
@@ -3737,7 +3912,7 @@ async function saveCurrentReport() {
       reportCurrent.id = r.id;
     }
   } catch (e) {
-    alert('Save failed: ' + e.message); return;
+    notifyError('Save failed', e); return;
   }
   reportDirty = false;
   // Reload list so a new report appears or the renamed one updates.
@@ -3752,7 +3927,8 @@ async function saveCurrentReportAs() {
   if (!reportCurrent) return;
   // Force a new id by clearing it, then save. Fresh name suggested.
   const oldName = (document.getElementById('reportNameInput').value || '').trim();
-  const proposed = prompt('Save as — name for the new report:', oldName ? oldName + ' (copy)' : 'New report');
+  const proposed = ((await promptDialog('Name for the new report', oldName ? oldName + ' (copy)' : 'New report',
+    { title: 'Save as', maxLength: 120 })) || '').trim();
   if (!proposed) return;
   document.getElementById('reportNameInput').value = proposed;
   reportCurrent = { id: null, name: proposed,
@@ -3763,11 +3939,11 @@ async function saveCurrentReportAs() {
 
 async function deleteCurrentReport() {
   if (!reportCurrent || !reportCurrent.id) return;
-  if (!confirm(`Delete the report "${reportCurrent.name}"?`)) return;
+  if (!(await confirmDialog(`Delete the report "${reportCurrent.name}"?`, { title: 'Delete report', okLabel: 'Delete', danger: true }))) return;
   try {
     await api('/api/saved-reports/' + reportCurrent.id, { method: 'DELETE' });
   } catch (e) {
-    alert('Delete failed: ' + e.message); return;
+    notifyError('Delete failed', e); return;
   }
   reportSaved = reportSaved.filter(r => r.id !== reportCurrent.id);
   reportCurrent = null;
@@ -3878,7 +4054,7 @@ async function loadPermissions() {
   try {
     data = await api('/api/permissions');
   } catch (e) {
-    container.innerHTML = `<div style="color:var(--bad)">Could not load permissions: ${escapeHtml(e.message)}</div>`;
+    container.innerHTML = `<div style="color:var(--bad)">Could not load permissions: ${escapeHtml(errText(e))}</div>`;
     return;
   }
   if (!data.accounts.length) {
@@ -3949,7 +4125,7 @@ async function setPermission(accountId, userId, level) {
     status.style.color = 'var(--good)';
     setTimeout(() => { status.textContent = ''; }, 2000);
   } catch (e) {
-    status.textContent = 'Save failed: ' + e.message;
+    status.textContent = 'Save failed: ' + errText(e);
     status.style.color = 'var(--bad)';
     // Reload to revert the dropdown to its actual server-side value
     await loadPermissions();
@@ -4043,7 +4219,7 @@ async function submitDeleteAccount(hasPassword) {
   const fail = msg => { err.textContent = msg; err.classList.remove('hidden'); };
   err.classList.add('hidden');
   if (!value) { fail(hasPassword ? 'Enter your password.' : 'Type your email address.'); return; }
-  if (!confirm('Delete your account and everything only you own? This can\'t be undone.')) return;
+  if (!(await confirmDialog('Delete your account and everything only you own? This can\'t be undone.', { title: 'Delete your account', okLabel: 'Delete my account', danger: true }))) return;
   const btn = document.getElementById('deleteAccountBtn');
   btn.disabled = true;
   let res;
@@ -4349,7 +4525,7 @@ async function createCategory() {
   try {
     await api('/api/categories', {method:'POST', body: JSON.stringify({name, color})});
   } catch (e) {
-    alert('Could not create category: ' + e.message);
+    notifyError('Could not create category', e);
     return;
   }
   document.getElementById('newCatName').value = '';
@@ -4357,7 +4533,7 @@ async function createCategory() {
 }
 
 async function delCategory(id) {
-  if (!confirm('Delete this category? Transactions using it will keep the label cleared.')) return;
+  if (!(await confirmDialog('Delete this category? Transactions using it will keep the label cleared.', { title: 'Delete category', okLabel: 'Delete', danger: true }))) return;
   await api('/api/categories/'+id, {method:'DELETE'});
   await loadCategories();
   if (currentAccountId) {
@@ -4400,7 +4576,7 @@ async function createTag() {
   try {
     await api('/api/tags', {method:'POST', body: JSON.stringify({name, color})});
   } catch (e) {
-    alert('Could not create tag: ' + e.message);
+    notifyError('Could not create tag', e);
     return;
   }
   document.getElementById('newTagName').value = '';
@@ -4410,12 +4586,12 @@ async function createTag() {
 async function renameTag(id) {
   const t = (tags || []).find(x => x.id === id);
   if (!t) return;
-  const next = prompt('Rename tag:', t.name);
+  const next = await promptDialog('Tag name', t.name, { title: 'Rename tag', okLabel: 'Rename', maxLength: 60 });
   if (!next || next.trim() === '' || next.trim() === t.name) return;
   try {
     await api('/api/tags/'+id, {method:'PATCH', body: JSON.stringify({name: next.trim(), color: t.color || null})});
   } catch (e) {
-    alert('Could not rename: ' + e.message);
+    notifyError('Could not rename', e);
     return;
   }
   await loadTags();
@@ -4423,11 +4599,11 @@ async function renameTag(id) {
 }
 
 async function delTag(id) {
-  if (!confirm('Delete this tag? It will be removed from every transaction that uses it. This cannot be undone.')) return;
+  if (!(await confirmDialog('Delete this tag? It will be removed from every transaction that uses it. This cannot be undone.', { title: 'Delete tag', okLabel: 'Delete', danger: true }))) return;
   try {
     await api('/api/tags/'+id, {method:'DELETE'});
   } catch (e) {
-    alert('Could not delete: ' + e.message);
+    notifyError('Could not delete', e);
     return;
   }
   await loadTags();
@@ -4445,7 +4621,7 @@ async function loadTagRules() {
   } catch (e) {
     tagRulesCache = [];
     document.getElementById('tagRulesList').innerHTML =
-      `<span style="color:var(--bad)">Could not load: ${escapeHtml(e.message)}</span>`;
+      `<span style="color:var(--bad)">Could not load: ${escapeHtml(errText(e))}</span>`;
     return;
   }
   populateTagRuleForm();
@@ -4553,7 +4729,7 @@ async function saveTagRule() {
       status.textContent = 'Created.';
     }
   } catch (e) {
-    status.textContent = 'Save failed: ' + e.message; return;
+    status.textContent = 'Save failed: ' + errText(e); return;
   }
   resetTagRuleForm();
   await loadTagRules();
@@ -4571,17 +4747,17 @@ async function toggleTagRule(id) {
   try {
     await api('/api/tag-rules/' + id, {method:'PATCH', body: JSON.stringify(body)});
   } catch (e) {
-    alert('Could not toggle: ' + e.message); return;
+    notifyError('Could not toggle', e); return;
   }
   await loadTagRules();
 }
 
 async function deleteTagRule(id) {
-  if (!confirm('Delete this auto-tag rule? Existing tags on transactions are not removed.')) return;
+  if (!(await confirmDialog('Delete this auto-tag rule? Existing tags on transactions are not removed.', { title: 'Delete rule', okLabel: 'Delete', danger: true }))) return;
   try {
     await api('/api/tag-rules/' + id, {method:'DELETE'});
   } catch (e) {
-    alert('Could not delete: ' + e.message); return;
+    notifyError('Could not delete', e); return;
   }
   await loadTagRules();
 }
@@ -4589,14 +4765,14 @@ async function deleteTagRule(id) {
 async function backfillTagRules() {
   const btn = document.getElementById('tagRuleBackfillBtn');
   const status = document.getElementById('tagRulesStatus');
-  if (!confirm('Replay every active rule across all your existing transactions? Tags already attached are left alone.')) return;
+  if (!(await confirmDialog('Replay every active rule across all your existing transactions? Tags already attached are left alone.', { title: 'Apply rules to existing transactions', okLabel: 'Apply rules', danger: false }))) return;
   btn.disabled = true;
   status.textContent = 'Running…';
   try {
     const r = await api('/api/tag-rules/backfill', {method:'POST'});
     status.textContent = `Scanned ${r.transactions_scanned} transactions, attached ${r.tags_added} tag${r.tags_added===1?'':'s'}.`;
   } catch (e) {
-    status.textContent = 'Backfill failed: ' + e.message;
+    status.textContent = 'Backfill failed: ' + errText(e);
   } finally {
     btn.disabled = false;
   }
@@ -5060,13 +5236,13 @@ async function runRecBulkUpdate() {
   }
   if (!changes.length) { status.textContent = 'Fill in at least one field to change.'; return; }
   const n = _recSelected.size;
-  if (!confirm(`Update ${n} recurring transaction${n===1?'':'s'}?\n\n• ${changes.join('\n• ')}`)) return;
+  if (!(await confirmDialog(`Update ${n} recurring transaction${n===1?'':'s'}?\n\n• ${changes.join('\n• ')}`, { title: 'Update recurring items', okLabel: 'Update', danger: false }))) return;
   status.textContent = 'Applying…';
   let resp;
   try {
     resp = await api('/api/recurring/bulk-update', {method:'POST', body: JSON.stringify(body)});
   } catch (e) {
-    status.textContent = 'Failed: ' + e.message;
+    status.textContent = 'Failed: ' + errText(e);
     return;
   }
   resetRecBulkFields();
@@ -5082,7 +5258,7 @@ async function runRecBulkDelete() {
   const status = document.getElementById('recBulkStatus');
   const n = _recSelected.size;
   if (n === 0) { status.textContent = 'No rows selected.'; return; }
-  if (!confirm(`Delete ${n} recurring transaction template${n===1?'':'s'}? Past actuals already logged against them will remain, but no new occurrences will be projected.`)) return;
+  if (!(await confirmDialog(`Delete ${n} recurring transaction template${n===1?'':'s'}? Past actuals already logged against them will remain, but no new occurrences will be projected.`, { title: 'Delete recurring items', okLabel: 'Delete', danger: true }))) return;
   status.textContent = 'Deleting…';
   let resp;
   try {
@@ -5090,7 +5266,7 @@ async function runRecBulkDelete() {
       method:'POST', body: JSON.stringify({ recurring_ids: [..._recSelected] }),
     });
   } catch (e) {
-    status.textContent = 'Failed: ' + e.message;
+    status.textContent = 'Failed: ' + errText(e);
     return;
   }
   _recSelected.clear();
@@ -5163,6 +5339,7 @@ function renderEditRow(r) {
           <input id="editNotes_${id}" maxlength="256" value="${escapeAttr(r.notes||'')}" style="width:100%"></div>
       </div>
       ${skipNote ? `<div style="margin-top:10px">${skipNote}</div>` : ''}
+      <div id="editStatus_${id}" role="alert" style="color:var(--bad);font-size:12px;margin-top:8px"></div>
       </div>
       <!-- Actions: stacked in a column on the far right. padding-top matches
            the field labels' height so Save lines up with the first inputs;
@@ -5230,22 +5407,20 @@ async function saveRecurring(id) {
     notes: document.getElementById(`editNotes_${id}`).value.trim() || null,
     active: true,
   };
-  if (!body.description || isNaN(body.amount)) {
-    alert('Description and amount are required.');
-    return;
-  }
-  if (freq === 'monthly_day' && !(day >= 1 && day <= 31)) {
-    alert('Day of month must be between 1 and 31.');
-    return;
-  }
-  if (freq !== 'monthly_day' && !body.anchor_date) {
-    alert('Weekly and biweekly recurring transactions need a start date.');
-    return;
-  }
+  // Mistakes are shown in the edit row, and the field gets the focus.
+  const fieldErr = (msg, field) => {
+    document.getElementById(`editStatus_${id}`).textContent = msg;
+    const el = document.getElementById(`${field}_${id}`);
+    if (el) el.focus();
+  };
+  if (!body.description) return fieldErr('Enter a description.', 'editDesc');
+  if (isNaN(body.amount)) return fieldErr('Enter an amount.', 'editAmt');
+  if (freq === 'monthly_day' && !(day >= 1 && day <= 31)) return fieldErr('Day of month must be between 1 and 31.', 'editDay');
+  if (freq !== 'monthly_day' && !body.anchor_date) return fieldErr('Weekly and biweekly items need a start date.', 'editAnchor');
   try {
     await api('/api/recurring/'+id, {method:'PATCH', body: JSON.stringify(body)});
   } catch (e) {
-    alert('Could not save: ' + e.message);
+    notifyError('Could not save', e);
     return;
   }
   editingRecId = null;
@@ -5254,11 +5429,11 @@ async function saveRecurring(id) {
 }
 
 async function delRecurring(id) {
-  if (!confirm('Delete this recurring transaction template? Past actuals already logged against it will remain, but no new occurrences will be projected.')) return;
+  if (!(await confirmDialog('Delete this recurring transaction template? Past actuals already logged against it will remain, but no new occurrences will be projected.', { title: 'Delete recurring item', okLabel: 'Delete', danger: true }))) return;
   try {
     await api('/api/recurring/'+id, {method:'DELETE'});
   } catch (e) {
-    alert('Could not delete: ' + e.message);
+    notifyError('Could not delete', e);
     return;
   }
   editingRecId = null;
@@ -5308,8 +5483,18 @@ function onRecToggle() {
   document.getElementById('addStatus').disabled = isRec;
 }
 
+// A mistake on the Add transaction form: said next to its buttons, with the
+// field focused.
+function _addFormError(msg, fieldId) {
+  const st = document.getElementById('addFormStatus');
+  st.style.color = 'var(--bad)';
+  st.textContent = msg;
+  if (fieldId) document.getElementById(fieldId).focus();
+}
+
 async function submitAddForm(addAnother) {
-  document.getElementById('addFormStatus').textContent = '';
+  const _st = document.getElementById('addFormStatus');
+  _st.textContent = ''; _st.style.color = 'var(--muted)';
   const isRec = document.getElementById('addRecToggle').checked;
   const desc = document.getElementById('addDesc').value.trim();
   const type = document.getElementById('addType').value;
@@ -5318,10 +5503,8 @@ async function submitAddForm(addAnother) {
   const catVal = document.getElementById('addCat').value;
   const notesVal = document.getElementById('addNotes').value.trim();
 
-  if (!desc || isNaN(signedAmt)) {
-    alert('Description and amount are required.');
-    return;
-  }
+  if (!desc) return _addFormError('Enter a description.', 'addDesc');
+  if (isNaN(signedAmt)) return _addFormError('Enter an amount.', 'addAmt');
 
   if (isRec) {
     const f = document.getElementById('addFreq').value;
@@ -5337,22 +5520,18 @@ async function submitAddForm(addAnother) {
       notes: notesVal || null,
     };
     if (f !== 'monthly_day' && !body.anchor_date) {
-      alert('Weekly and biweekly recurring transactions need a start date.');
-      return;
+      return _addFormError('Weekly and biweekly recurring transactions need a start date.', 'addAnchor');
     }
     try {
       await api(`/api/accounts/${currentAccountId}/recurring`, {method:'POST', body: JSON.stringify(body)});
     } catch (e) {
-      alert('Could not save: ' + e.message);
+      notifyError('Could not save', e);
       return;
     }
   } else {
     const kind = document.getElementById('addStatus').value;
     const d = document.getElementById('addDate').value;
-    if (!d) {
-      alert('Date is required for one-time transactions.');
-      return;
-    }
+    if (!d) return _addFormError('Enter a date.', 'addDate');
     const body = {
       description: desc,
       amount: signedAmt,
@@ -5365,7 +5544,7 @@ async function submitAddForm(addAnother) {
     try {
       await api(`/api/accounts/${currentAccountId}/transactions`, {method:'POST', body: JSON.stringify(body)});
     } catch (e) {
-      alert('Could not save: ' + e.message);
+      notifyError('Could not save', e);
       return;
     }
   }
@@ -5374,7 +5553,8 @@ async function submitAddForm(addAnother) {
     // Keep the date, type, category, status and recurring settings; clear
     // what differs from one entry to the next.
     ['addDesc', 'addAmt', 'addNotes'].forEach(id => { document.getElementById(id).value = ''; });
-    document.getElementById('addFormStatus').textContent = `Saved “${desc}”. Add the next one.`;
+    _st.style.color = 'var(--good)';
+    _st.textContent = `Saved “${desc}”. Add the next one.`;
     document.getElementById('addDesc').focus();
     await loadForecast();
     return;
@@ -5963,11 +6143,11 @@ async function deleteForecastRow(tid, fromRecurring) {
   const msg = fromRecurring
     ? "Delete this transaction? This cannot be undone. Its recurring transaction stays, but this date won't be projected again (restore it from the recurring transaction's edit row)."
     : 'Delete this transaction? This cannot be undone.';
-  if (!confirm(msg)) return;
+  if (!(await confirmDialog(msg, { title: 'Delete transaction', okLabel: 'Delete', danger: true }))) return;
   try {
     await api('/api/transactions/' + tid, { method: 'DELETE' });
   } catch (e) {
-    alert('Could not delete: ' + e.message);
+    notifyError('Could not delete', e);
     return;
   }
   editingForecastRowKey = null;
@@ -5976,11 +6156,11 @@ async function deleteForecastRow(tid, fromRecurring) {
 }
 
 async function skipForecastOccurrence(recId, dateStr) {
-  if (!confirm(`Delete this occurrence on ${dateStr}? The recurring transaction keeps its other dates — only this one is removed. You can restore deleted dates from the recurring transaction's edit row.`)) return;
+  if (!(await confirmDialog(`Delete this occurrence on ${dateStr}? The recurring transaction keeps its other dates — only this one is removed. You can restore deleted dates from the recurring transaction's edit row.`, { title: 'Delete this date', okLabel: 'Delete', danger: true }))) return;
   try {
     await api(`/api/recurring/${recId}/skip`, { method: 'POST', body: JSON.stringify({ skip_date: dateStr }) });
   } catch (e) {
-    alert('Could not delete: ' + e.message);
+    notifyError('Could not delete', e);
     return;
   }
   editingForecastRowKey = null;
@@ -5988,11 +6168,11 @@ async function skipForecastOccurrence(recId, dateStr) {
 }
 
 async function restoreRecurringSkips(recId) {
-  if (!confirm('Restore every deleted date for this recurring transaction? They will be projected in the forecast again.')) return;
+  if (!(await confirmDialog('Restore every deleted date for this recurring transaction? They will be projected in the forecast again.', { title: 'Restore deleted dates', okLabel: 'Restore', danger: false }))) return;
   try {
     await api(`/api/recurring/${recId}/skips`, { method: 'DELETE' });
   } catch (e) {
-    alert('Could not restore: ' + e.message);
+    notifyError('Could not restore', e);
     return;
   }
   await Promise.all([loadForecast(), loadRecurring()]);
@@ -6011,8 +6191,8 @@ async function saveForecastRowEdit(rowKey) {
   const fAmt = fAmtRaw !== '' ? parseFloat(fAmtRaw) : null;
   const aAmt = aAmtRaw !== '' ? parseFloat(aAmtRaw) : null;
 
-  if (!desc) { alert('Description cannot be empty.'); return; }
-  if (aAmt == null && fAmt == null) { alert('At least one amount is required.'); return; }
+  if (!desc) { notify('Description cannot be empty.', 'error'); return; }
+  if (aAmt == null && fAmt == null) { notify('At least one amount is required.', 'error'); return; }
 
   // The canonical "amount" stored on the transaction is the actual amount if
   // the row has one (or the forecast amount otherwise).
@@ -6055,7 +6235,7 @@ async function saveForecastRowEdit(rowKey) {
       });
     }
   } catch (e) {
-    alert('Could not save row: ' + e.message);
+    notifyError('Could not save row', e);
     return;
   }
   editingForecastRowKey = null;
@@ -6213,8 +6393,8 @@ async function _saveGridRow(rowKey, opts) {
   // Autosave silently skips invalid states rather than alert()ing on every
   // blur — the user is mid-edit, not submitting a form. They'll notice on the
   // next refresh if a row never picked up their change.
-  if (!v.desc) { if (strict) alert('Description cannot be empty.'); return false; }
-  if (v.famt == null && v.aamt == null) { if (strict) alert('At least one amount is required.'); return false; }
+  if (!v.desc) { if (strict) notify('Description cannot be empty.', 'error'); return false; }
+  if (v.famt == null && v.aamt == null) { if (strict) notify('At least one amount is required.', 'error'); return false; }
 
   const primaryAmt = v.aamt != null ? v.aamt : v.famt;
   const isActual = v.aamt != null;
@@ -6250,7 +6430,7 @@ async function _saveGridRow(rowKey, opts) {
     }
   } catch (e) {
     console.error('Grid row save failed:', e);
-    if (strict) alert('Could not save row: ' + e.message);
+    if (strict) notifyError('Could not save row', e);
     return false;
   }
   if (!strict) _scheduleGridRefresh();
@@ -6316,7 +6496,7 @@ async function loadManageAccounts() {
     // Include archived so the management view sees everything
     list = await api('/api/accounts?include_archived=true');
   } catch (e) {
-    wrap.innerHTML = `<div style="color:var(--bad)">Could not load accounts: ${escapeHtml(e.message)}</div>`;
+    wrap.innerHTML = `<div style="color:var(--bad)">Could not load accounts: ${escapeHtml(errText(e))}</div>`;
     return;
   }
   if (!list.length) {
@@ -6361,14 +6541,14 @@ async function setAccountArchived(id, archived) {
   const msg = archived
     ? 'Archive this account? It will be hidden from the Dashboard and Forecast page but its data is preserved.'
     : 'Unarchive this account? It will reappear on the Dashboard and Forecast page.';
-  if (!confirm(msg)) return;
+  if (!(await confirmDialog(msg, { title: archived ? 'Archive account' : 'Unarchive account', okLabel: archived ? 'Archive' : 'Unarchive', danger: false }))) return;
   try {
     await api('/api/accounts/' + id, {
       method: 'PATCH',
       body: JSON.stringify({archived}),
     });
   } catch (e) {
-    alert('Could not update account: ' + e.message);
+    notifyError('Could not update account', e);
     return;
   }
   // Refresh everywhere the account list matters
@@ -6387,7 +6567,7 @@ async function renameAccount(id) {
   const list = await api('/api/accounts?include_archived=true');
   const a = (list || []).find(x => x.id === id);
   if (!a) return;
-  const next = prompt('Rename account:', a.name);
+  const next = await promptDialog('Account name', a.name, { title: 'Rename account', okLabel: 'Rename' });
   if (!next || next.trim() === '' || next.trim() === a.name) return;
   try {
     await api('/api/accounts/' + id, {
@@ -6395,7 +6575,7 @@ async function renameAccount(id) {
       body: JSON.stringify({name: next.trim()}),
     });
   } catch (e) {
-    alert('Could not rename account: ' + e.message);
+    notifyError('Could not rename account', e);
     return;
   }
   await loadManageAccounts();
@@ -6407,12 +6587,12 @@ async function deleteAccountUI(id) {
   const list = await api('/api/accounts?include_archived=true');
   const a = (list || []).find(x => x.id === id);
   const name = a ? a.name : 'this account';
-  if (!confirm(`Delete "${name}"? This permanently removes the account and every transaction, ` +
-               'recurring template, and transfer tied to it. This cannot be undone.')) return;
+  if (!(await confirmDialog(`Delete "${name}"? This permanently removes the account and every transaction, ` +
+               'recurring template, and transfer tied to it. This cannot be undone.', { title: 'Delete account', okLabel: 'Delete', danger: true }))) return;
   try {
     await api('/api/accounts/' + id, { method: 'DELETE' });
   } catch (e) {
-    alert('Could not delete account: ' + e.message);
+    notifyError('Could not delete account', e);
     return;
   }
   if (currentAccountId === id) currentAccountId = null;
@@ -6436,7 +6616,7 @@ async function loadExportAccounts() {
       `<label><input type="checkbox" class="export-acct" value="${a.id}" checked> ${escapeHtml(a.name)}</label>`
     ).join('');
   } catch (e) {
-    wrap.innerHTML = `<span style="color:var(--bad)">Could not load accounts: ${escapeHtml(e.message)}</span>`;
+    wrap.innerHTML = `<span style="color:var(--bad)">Could not load accounts: ${escapeHtml(errText(e))}</span>`;
   }
 }
 
@@ -6465,7 +6645,7 @@ async function exportBackup() {
     status.textContent = `Exported ${selected.length} account(s).`;
     status.style.color = 'var(--good)';
   } catch (e) {
-    status.textContent = 'Export failed: ' + e.message;
+    status.textContent = 'Export failed: ' + errText(e);
     status.style.color = 'var(--bad)';
   }
 }
@@ -6499,7 +6679,7 @@ async function onImportFileChosen() {
     status.style.color = 'var(--muted)';
   } catch (e) {
     wrap.classList.add('hidden');
-    status.textContent = 'Could not read file: ' + e.message;
+    status.textContent = 'Could not read file: ' + errText(e);
     status.style.color = 'var(--bad)';
   }
 }
@@ -6520,7 +6700,7 @@ async function importBackup() {
     return;
   }
   if (mode === 'replace') {
-    if (!confirm('Replace mode will DELETE all your current accounts and transactions before importing. This cannot be undone. Continue?')) return;
+    if (!(await confirmDialog('Replace mode will DELETE all your current accounts and transactions before importing. This cannot be undone. Continue?', { title: 'Replace your data', okLabel: 'Replace and restore', danger: true }))) return;
   }
   status.textContent = 'Importing...';
   status.style.color = 'var(--muted)';
@@ -6545,7 +6725,7 @@ async function importBackup() {
     await loadAccounts();
     await loadExportAccounts();  // refresh in case new accounts now exist
   } catch (e) {
-    status.textContent = 'Import failed: ' + e.message;
+    status.textContent = 'Import failed: ' + errText(e);
     status.style.color = 'var(--bad)';
   }
 }
@@ -6568,7 +6748,7 @@ async function loadAdminAppTitle() {
     input.placeholder = data.default || 'WalletWeather';
     status.textContent = '';
   } catch (e) {
-    status.textContent = 'Failed to load: ' + e.message;
+    status.textContent = 'Failed to load: ' + errText(e);
   }
 }
 
@@ -6588,7 +6768,7 @@ async function saveAppTitle() {
     applyAppTitle(data.app_title);
     status.textContent = 'Saved.';
   } catch (e) {
-    status.textContent = 'Save failed: ' + e.message;
+    status.textContent = 'Save failed: ' + errText(e);
   }
 }
 
@@ -6602,7 +6782,7 @@ async function resetAppTitle() {
     document.getElementById('adminAppTitle').value = '';
     status.textContent = 'Reset to default.';
   } catch (e) {
-    status.textContent = 'Reset failed: ' + e.message;
+    status.textContent = 'Reset failed: ' + errText(e);
   }
 }
 
@@ -6640,47 +6820,48 @@ async function loadAdminUsers() {
       <th>Email</th><th>Name</th><th>Auth</th><th>Accounts</th><th>Created</th><th></th>
     </tr></thead><tbody>${rows}</tbody></table>`;
   } catch (e) {
-    wrap.innerHTML = `<div style="color:var(--bad)">Error: ${escapeHtml(e.message)}</div>`;
+    wrap.innerHTML = `<div style="color:var(--bad)">Error: ${escapeHtml(errText(e))}</div>`;
   }
 }
 
 async function adminToggleDisable(uid, disabled) {
   const action = disabled ? 'disable' : 'enable';
-  if (!confirm(`${disabled ? 'Disable' : 'Enable'} this user? ${disabled ? 'They will be logged out and unable to sign in.' : 'They will be able to sign in again.'}`)) return;
+  if (!(await confirmDialog(`${disabled ? 'Disable' : 'Enable'} this user? ${disabled ? 'They will be logged out and unable to sign in.' : 'They will be able to sign in again.'}`, { title: disabled ? 'Disable user' : 'Enable user', okLabel: disabled ? 'Disable' : 'Enable', danger: disabled }))) return;
   try {
     await api('/api/admin/users/' + uid, {
       method: 'PATCH',
       body: JSON.stringify({disabled}),
     });
   } catch (e) {
-    alert('Failed: ' + e.message);
+    notifyError('That didn’t work', e);
     return;
   }
   await loadAdminUsers();
 }
 
 async function adminResetPassword(uid) {
-  const pw = prompt('Enter new password (min 8 characters):');
+  const pw = await promptDialog('New password (8 characters or more)', '', {
+    title: 'Reset password', okLabel: 'Reset password', type: 'password',
+    validate: v => v.length < 8 ? 'The password needs at least 8 characters.' : '' });
   if (!pw) return;
-  if (pw.length < 8) { alert('Password must be at least 8 characters.'); return; }
   try {
     await api('/api/admin/users/' + uid, {
       method: 'PATCH',
       body: JSON.stringify({new_password: pw}),
     });
-    alert('Password reset successfully.');
+    notify('Password reset. Tell the user their new password.', 'ok');
   } catch (e) {
-    alert('Failed: ' + e.message);
+    notifyError('That didn’t work', e);
   }
 }
 
 async function adminDeleteUser(uid, email) {
-  if (!confirm(`Permanently delete user "${email}" and everything only they own (accounts, transactions, categories)? Accounts that have another owner are kept. This cannot be undone.`)) return;
+  if (!(await confirmDialog(`Permanently delete user "${email}" and everything only they own (accounts, transactions, categories)? Accounts that have another owner are kept. This cannot be undone.`, { title: 'Delete user', okLabel: 'Delete', danger: true }))) return;
   let res;
   try {
     res = await fetch('/api/admin/users/' + uid, {method: 'DELETE'});
   } catch {
-    alert('Could not reach the server. Nothing was deleted.');
+    notify('Could not reach the server. Nothing was deleted.', 'error');
     return;
   }
   if (!res.ok) {
@@ -6688,12 +6869,12 @@ async function adminDeleteUser(uid, email) {
     try { detail = (await res.json()).detail; } catch {}
     if (res.status === 409 && detail && detail.blocking_accounts) {
       // The user is the only owner of accounts other people can see.
-      alert(detail.message + '\n\n' + detail.blocking_accounts.map(a =>
+      notify(detail.message + '\n\n' + detail.blocking_accounts.map(a =>
         '• ' + a.name + ': shared with ' +
         a.shared_with.map(s => s.email + ' (' + s.level + ')').join(', ')).join('\n') +
-        '\n\nChange these under All permissions below, then try again. Nothing was deleted.');
+        '\n\nChange these under All permissions below, then try again. Nothing was deleted.', 'error');
     } else {
-      alert('Failed: ' + (typeof detail === 'string' ? detail : res.status));
+      notify('Could not delete the user: ' + (typeof detail === 'string' ? detail : `the server answered ${res.status}.`), 'error');
     }
     return;
   }
@@ -6737,7 +6918,7 @@ async function loadAdminPermissions() {
     html += '</tbody></table>';
     container.innerHTML = html;
   } catch (e) {
-    container.innerHTML = `<div style="color:var(--bad)">Error: ${escapeHtml(e.message)}</div>`;
+    container.innerHTML = `<div style="color:var(--bad)">Error: ${escapeHtml(errText(e))}</div>`;
   }
 }
 
@@ -6754,7 +6935,7 @@ async function adminSetPerm(accountId, userId, level) {
     status.style.color = 'var(--good)';
     setTimeout(() => { status.textContent = ''; }, 2000);
   } catch (e) {
-    status.textContent = 'Failed: ' + e.message;
+    status.textContent = 'Failed: ' + errText(e);
     status.style.color = 'var(--bad)';
     await loadAdminPermissions();
   }
@@ -6794,7 +6975,7 @@ async function saveBackupConfig() {
     status.textContent = 'Schedule saved.';
     status.style.color = 'var(--good)';
   } catch (e) {
-    status.textContent = 'Failed: ' + e.message;
+    status.textContent = 'Failed: ' + errText(e);
     status.style.color = 'var(--bad)';
   }
 }
@@ -6809,7 +6990,7 @@ async function triggerBackupNow() {
     status.style.color = 'var(--good)';
     await loadAdminBackups();
   } catch (e) {
-    status.textContent = 'Failed: ' + e.message;
+    status.textContent = 'Failed: ' + errText(e);
     status.style.color = 'var(--bad)';
   }
 }
@@ -6840,7 +7021,7 @@ async function loadAdminBackups() {
       <th>File</th><th>Size</th><th>Date</th><th></th>
     </tr></thead><tbody>${rows}</tbody></table>`;
   } catch (e) {
-    wrap.innerHTML = `<div style="color:var(--bad)">Error: ${escapeHtml(e.message)}</div>`;
+    wrap.innerHTML = `<div style="color:var(--bad)">Error: ${escapeHtml(errText(e))}</div>`;
   }
 }
 
@@ -6849,16 +7030,16 @@ function downloadAdminBackup(filename) {
 }
 
 async function restoreAdminBackup(filename) {
-  if (!confirm(`Restore from "${filename}"?\n\nThis will REPLACE all data for all users present in the backup. This cannot be undone.\n\nAre you sure?`)) return;
+  if (!(await confirmDialog(`Restore from "${filename}"?\n\nThis will REPLACE all data for all users present in the backup. This cannot be undone.\n\nAre you sure?`, { title: 'Restore system backup', okLabel: 'Restore', danger: true }))) return;
   const wrap = document.getElementById('adminBackupsList');
   try {
     const res = await api(`/api/admin/backups/restore/${encodeURIComponent(filename)}`, {
       method: 'POST',
     });
-    alert(`Restore complete: ${res.restored.users} user(s), ${res.restored.accounts} account(s).`);
+    notify(`Restore complete: ${res.restored.users} user(s), ${res.restored.accounts} account(s).`, 'ok');
     await loadAdminPage();
   } catch (e) {
-    alert('Restore failed: ' + e.message);
+    notifyError('Restore failed', e);
   }
 }
 
@@ -6883,7 +7064,7 @@ async function loadNetworth() {
   try {
     data = await api('/api/networth?window=' + encodeURIComponent(networthWindow));
   } catch (e) {
-    summary.innerHTML = `<div class="stat" style="grid-column:1/-1;color:var(--bad)">Could not load: ${escapeHtml(e.message)}</div>`;
+    summary.innerHTML = `<div class="stat" style="grid-column:1/-1;color:var(--bad)">Could not load: ${escapeHtml(errText(e))}</div>`;
     return;
   }
   document.getElementById('networthRange').textContent = `${data.label} · ${data.start} → ${data.end}`;
@@ -7048,7 +7229,7 @@ async function loadCalendar() {
     calendarState.dailyBalances = data.daily_balances || null;
     loading.textContent = '';
   } catch (e) {
-    loading.textContent = 'Could not load calendar: ' + e.message;
+    loading.textContent = 'Could not load calendar: ' + errText(e);
     calendarState.events = [];
     calendarState.dailyBalances = null;
   }
@@ -7439,7 +7620,7 @@ async function runTxnSearch() {
   try {
     data = await api('/api/transactions/search?' + params.toString());
   } catch (e) {
-    status.textContent = 'Search failed: ' + e.message;
+    status.textContent = 'Search failed: ' + errText(e);
     return;
   }
   status.textContent = `${data.total} match${data.total===1?'':'es'}` + (data.total > data.results.length ? ` (showing first ${data.results.length})` : '');
@@ -7554,11 +7735,11 @@ function cancelEditTxnRow() {
 }
 
 async function deleteTxnRow(id) {
-  if (!confirm('Delete this transaction? This cannot be undone.')) return;
+  if (!(await confirmDialog('Delete this transaction? This cannot be undone.', { title: 'Delete transaction', okLabel: 'Delete', danger: true }))) return;
   try {
     await api('/api/transactions/' + id, { method: 'DELETE' });
   } catch (e) {
-    alert('Could not delete: ' + e.message);
+    notifyError('Could not delete', e);
     return;
   }
   editingTxnSearchRowId = null;
@@ -7578,8 +7759,8 @@ async function saveTxnRowEdit(id) {
   const fAmt = fAmtRaw !== '' ? parseFloat(fAmtRaw) : null;
   const aAmt = aAmtRaw !== '' ? parseFloat(aAmtRaw) : null;
 
-  if (!desc) { alert('Description cannot be empty.'); return; }
-  if (aAmt == null && fAmt == null) { alert('At least one amount is required.'); return; }
+  if (!desc) { notify('Description cannot be empty.', 'error'); return; }
+  if (aAmt == null && fAmt == null) { notify('At least one amount is required.', 'error'); return; }
 
   const primaryAmt = aAmt != null ? aAmt : fAmt;
   const isActual = aAmt != null;
@@ -7599,7 +7780,7 @@ async function saveTxnRowEdit(id) {
   try {
     await api('/api/transactions/' + id, { method: 'PATCH', body: JSON.stringify(body) });
   } catch (e) {
-    alert('Could not save row: ' + e.message);
+    notifyError('Could not save row', e);
     return;
   }
   editingTxnSearchRowId = null;
@@ -7695,7 +7876,7 @@ async function runBulkTag(action) {
       method: 'POST', body: JSON.stringify(body),
     });
   } catch (e) {
-    status.textContent = 'Failed: ' + e.message;
+    status.textContent = 'Failed: ' + errText(e);
     return;
   }
   status.textContent = `${action === 'add' ? 'Applied' : 'Removed'} on ${resp.applied}`
@@ -7719,7 +7900,7 @@ async function loadRecentTransfers() {
   try {
     data = await api('/api/transfers?limit=20');
   } catch (e) {
-    wrap.innerHTML = `<div style="color:var(--bad)">Could not load: ${escapeHtml(e.message)}</div>`;
+    wrap.innerHTML = `<div style="color:var(--bad)">Could not load: ${escapeHtml(errText(e))}</div>`;
     return;
   }
   _transfersCacheById = {};
@@ -7874,7 +8055,7 @@ async function submitTransfer() {
     // forecast (Forecast) or Recent transfers (Transactions) on its own.
     showPage(_transferReturnPage);
   } catch (e) {
-    err.textContent = e.message; err.classList.remove('hidden');
+    err.textContent = errText(e); err.classList.remove('hidden');
   }
 }
 
@@ -7885,7 +8066,7 @@ async function deleteTransferFromPage() {
 }
 
 async function deleteTransfer(id) {
-  if (!confirm('Delete this transfer? Both legs will be removed and balances adjusted.')) return;
+  if (!(await confirmDialog('Delete this transfer? Both legs will be removed and balances adjusted.', { title: 'Delete transfer', okLabel: 'Delete', danger: true }))) return;
   try {
     await api('/api/transfers/' + id, { method: 'DELETE' });
     loadRecentTransfers();
@@ -7897,7 +8078,7 @@ async function deleteTransfer(id) {
       await selectAccount(currentAccountId);
     }
   } catch (e) {
-    alert('Delete failed: ' + e.message);
+    notifyError('Delete failed', e);
   }
 };
 
@@ -7969,7 +8150,7 @@ function initImportPage() {
 }
 
 function downloadImportTemplate() {
-  if (!_importAccountId) { alert('Pick a target account first.'); return; }
+  if (!_importAccountId) { notify('Pick a target account first.', 'error'); return; }
   window.location.href = '/api/accounts/' + _importAccountId + '/import/template';
 }
 
@@ -7981,7 +8162,7 @@ async function onImportCsvFile() {
 }
 
 async function runImportPreview() {
-  if (!_importAccountId) { alert('Pick a target account first.'); return; }
+  if (!_importAccountId) { notify('Pick a target account first.', 'error'); return; }
   const csv_text = document.getElementById('importCsvText').value;
   if (!csv_text.trim()) {
     const err = document.getElementById('importPageError');
@@ -7997,7 +8178,7 @@ async function runImportPreview() {
     });
   } catch (e) {
     const err = document.getElementById('importPageError');
-    err.textContent = 'Preview failed: ' + e.message; err.classList.remove('hidden'); return;
+    err.textContent = 'Preview failed: ' + errText(e); err.classList.remove('hidden'); return;
   }
   document.getElementById('importPageError').classList.add('hidden');
   _importPreviewMapping = data.mapping;
@@ -8051,11 +8232,11 @@ async function runImportPreview() {
 }
 
 async function runImportCommit() {
-  if (!_importAccountId) { alert('Pick a target account first.'); return; }
+  if (!_importAccountId) { notify('Pick a target account first.', 'error'); return; }
   const csv_text = document.getElementById('importCsvText').value;
   const default_category_id = document.getElementById('importDefaultCat').value || null;
   const skip_duplicates = document.getElementById('importSkipDupes').checked;
-  if (!_importPreviewMapping) { alert('Run Preview first.'); return; }
+  if (!_importPreviewMapping) { notify('Run Preview first.', 'error'); return; }
   const body = JSON.stringify({
     csv_text, has_header: _importPreviewHasHeader,
     mapping: _importPreviewMapping,
@@ -8070,15 +8251,15 @@ async function runImportCommit() {
     const recurringNote = data.recurring_linked
       ? ` (${data.recurring_linked} linked to recurring templates — ${data.recurring_created||0} newly created)`
       : '';
-    alert(`Imported ${data.inserted} transaction(s)${recurringNote} out of ${data.total_rows} rows. ` +
-          `Skipped duplicates: ${data.duplicates_skipped}.`);
+    notify(`Imported ${data.inserted} transaction(s)${recurringNote} out of ${data.total_rows} rows. ` +
+          `Skipped duplicates: ${data.duplicates_skipped}.`, 'ok');
     // Navigate back to the account we imported into so the new rows are visible.
     const acctId = _importAccountId;
     showPage('accounts');
     if (acctId) await selectAccount(acctId);
   } catch (e) {
     const err = document.getElementById('importPageError');
-    err.textContent = 'Commit failed: ' + e.message; err.classList.remove('hidden');
+    err.textContent = 'Commit failed: ' + errText(e); err.classList.remove('hidden');
   }
 }
 
@@ -8092,7 +8273,7 @@ async function loadBudgets() {
   try {
     data = await api('/api/budgets/progress?window=' + encodeURIComponent(win));
   } catch (e) {
-    wrap.innerHTML = `<div style="color:var(--bad)">Could not load: ${escapeHtml(e.message)}</div>`;
+    wrap.innerHTML = `<div style="color:var(--bad)">Could not load: ${escapeHtml(errText(e))}</div>`;
     return;
   }
   document.getElementById('budgetWindowRange').textContent = `${data.label} · ${data.start} → ${data.end}`;
@@ -8149,21 +8330,21 @@ async function loadBudgets() {
 }
 async function saveBudget(category_id, amount) {
   const v = parseFloat(amount);
-  if (!isFinite(v) || v < 0) { alert('Enter a non-negative amount.'); return; }
+  if (!isFinite(v) || v < 0) { notify('Enter a non-negative amount.', 'error'); return; }
   try {
     await api('/api/budgets', {
       method: 'POST',
       body: JSON.stringify({ category_id, amount: v, period: 'monthly' }),
     });
     loadBudgets();
-  } catch (e) { alert('Save failed: ' + e.message); }
+  } catch (e) { notifyError('Save failed', e); }
 }
 async function deleteBudget(category_id) {
-  if (!confirm('Clear this budget?')) return;
+  if (!(await confirmDialog('Clear this budget?', { title: 'Clear budget', okLabel: 'Clear', danger: true }))) return;
   try {
     await api('/api/budgets/' + category_id, { method: 'DELETE' });
     loadBudgets();
-  } catch (e) { alert('Delete failed: ' + e.message); }
+  } catch (e) { notifyError('Delete failed', e); }
 }
 
 init();

@@ -65,7 +65,27 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.26.0** · Web version: **1.50.0** · Schema version: **14**
+App version: **1.27.0** · Web version: **1.51.0** · Schema version: **14**
+
+### Changed
+
+- **No more browser pop-ups.** Confirmations, messages and the few places that
+  asked you to type something now appear inside the app in its own style.
+  - Before anything is deleted or replaced, a dialog says what will be lost.
+    Its Delete (or Replace, Restore, Clear) button is red and last, and
+    Cancel starts selected, so pressing Enter never deletes by accident.
+    Escape cancels.
+  - Saves, failures and results (an import, a restore, a password reset)
+    show as a short message at the bottom of the screen.
+  - Renaming an account or a tag, "Save as" for a report and an admin's
+    password reset use a small form in the app instead of the browser's
+    text box. A password that's too short is pointed out before anything is
+    sent.
+- **Errors read as sentences.** When the server refuses something, you see its
+  reason ("A category with that name already exists.") instead of raw text
+  such as `{"detail": …}`, and a lost connection says so.
+- **Mistakes on the Add transaction and recurring edit forms are shown next to
+  the form**, with the cursor put in the field that needs fixing.
 
 ## [1.26.0] — 2026-11-14
 

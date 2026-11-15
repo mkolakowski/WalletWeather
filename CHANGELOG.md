@@ -65,7 +65,18 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.44.0** · Web version: **1.66.0** · Schema version: **18**
+App version: **1.44.0** · Web version: **1.67.0** · Schema version: **18**
+
+### Changed
+
+- Bills & income's table now uses Forecast's column layout: Description,
+  Start date, Ends, Category, Amount, Account, Repeats, Monthly, Yearly, Tags
+  and Notes, with the ✎ at the end of the Notes cell as on Forecast. Start date
+  and Ends have their own columns (and Start date sorts), Repeats just says
+  Weekly, Bi-weekly or Monthly (with the day when the start date doesn't
+  give it), and an item's tags moved from under its description into the Tags
+  column. Rows are as short as Forecast's, and opening one to edit no longer
+  changes its height or moves any column.
 
 ## [1.44.0] — 2026-11-15
 

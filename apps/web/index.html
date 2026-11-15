@@ -117,14 +117,14 @@
     table#txnSearchTable thead th:nth-child(5) { width:150px; }
     table#txnSearchTable thead th:nth-child(6) { width:160px; }
     table#txnSearchTable thead th:is(:nth-child(7), :nth-child(8)) { width:110px; }
-    table#recurringTable thead th:nth-child(3) { width:120px; }
-    table#recurringTable thead th:nth-child(4) { width:150px; }
-    table#recurringTable thead th:nth-child(5) { width:110px; }
-    table#recurringTable thead th:nth-child(6) { width:96px; }
-    table#recurringTable thead th:nth-child(7) { width:142px; }
-    table#recurringTable thead th:nth-child(8) { width:150px; }
-    table#recurringTable thead th:nth-child(9) { width:142px; }
-    table#recurringTable thead th:nth-child(10) { width:200px; }
+    /* Bills & income uses Forecast's widths, one column over for the select
+       checkbox (#128): dates 142, Category 150, Amount and Account 120,
+       Repeats like an amount, Tags a little wider, Notes 240 like Forecast. */
+    table#recurringTable thead th:is(:nth-child(3), :nth-child(4)) { width:142px; }
+    table#recurringTable thead th:nth-child(5) { width:150px; }
+    table#recurringTable thead th:is(:nth-child(6), :nth-child(7), :nth-child(8)) { width:120px; }
+    table#recurringTable thead th:nth-child(11) { width:140px; }
+    table#recurringTable thead th:nth-child(12) { width:240px; }
   }
   /* The ✎ (and read-only badge) sit at the right end of the row. */
   :is(#forecastTable, #recurringTable, #txnSearchTable) tbody tr:not(.le-inline):not(.today-marker) > td:last-child { text-align:right; }
@@ -201,12 +201,12 @@
   #forecastTable thead th:nth-child(11),
   #forecastTable tbody tr:not(.le-inline) > td:nth-child(11),
   #forecastTable tbody tr.le-inline > td.le-notes { border-right:none; }
-  #forecastTable td.notes-edit { overflow:visible; }
-  #forecastTable td.notes-edit .notes-wrap { display:flex; align-items:center; gap:8px; }
-  #forecastTable td.notes-edit .notes-text { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  :is(#forecastTable, #recurringTable) td.notes-edit { overflow:visible; }
+  :is(#forecastTable, #recurringTable) td.notes-edit .notes-wrap { display:flex; align-items:center; gap:8px; }
+  :is(#forecastTable, #recurringTable) td.notes-edit .notes-text { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
                                              white-space:nowrap; text-align:left; }
-  #forecastTable td.notes-edit.muted .notes-text { color:var(--muted); }
-  #forecastTable td.notes-edit button { flex:0 0 auto; }
+  :is(#forecastTable, #recurringTable) td.notes-edit.muted .notes-text { color:var(--muted); }
+  :is(#forecastTable, #recurringTable) td.notes-edit button { flex:0 0 auto; }
   @media (min-width: 769px) {
     /* Same height open or closed (#69): on desktop the open line has no
        visible labels (each field is under its column heading; the label
@@ -219,7 +219,8 @@
     tr.le-inline .le-ro { padding-bottom:0; }
     tr.le-inline input, tr.le-inline select, tr.le-inline .tag-dd-btn { height:30px; min-height:30px; padding-top:2px; padding-bottom:2px; }
     #forecastTable tbody tr:not(.today-marker):not(.week-divider) { height:34px; }
-    :is(#txnSearchTable, #recurringTable) tbody tr { height:38px; }
+    #txnSearchTable tbody tr { height:38px; }
+    #recurringTable tbody tr { height:34px; }
   }
   @media (max-width: 768px) {
     /* Forecast on a phone: the open line is a two-column stacked form. */
@@ -350,8 +351,28 @@
   #forecastSpreadsheetBtn:not(.active), #recSpreadsheetBtn:not(.active) { border:1px solid var(--muted); }
   /* Bills & income's table looks like Forecast's (#81): column lines and
      compact cells. */
-  #recurringTable th, #recurringTable td { border-right:1px solid var(--border); padding:4px 6px; }
+  #recurringTable th, #recurringTable td { border-right:1px solid var(--border); padding:4px 5px; }
   #recurringTable th:last-child, #recurringTable td:last-child { border-right:none; }
+  /* An open row's Notes field takes no width of its own (it fills what's left
+     beside the buttons), so opening a row never moves a column (#128). */
+  #recurringTable tr.le-inline .le-notes-wrap > .le-f { flex:1 1 0; width:0; }
+  /* …and the Notes + buttons cell counts for no width either, like the read
+     row's Notes cell: the buttons' room is already held by the header's
+     invisible copy of them (.le-spacer). */
+  #recurringTable:not(.tw-wrapped) tr.le-inline > td.le-notes { max-width:0; }
+  /* Compact rows like Forecast's (#128): short cells, so a row is one line
+     whenever there's room (cells wrap only when the window is narrow, as on
+     Forecast); tags take only their column's width and clip at its edge; the
+     ✎ is compact; Notes and the ✎ share one cell (.notes-edit). */
+  #recurringTable td button { padding:3px 8px; }
+  #recurringTable td.rec-tags-td { max-width:0; overflow:hidden; }
+  #recurringTable .rec-sizer { height:0; overflow:hidden; visibility:hidden; pointer-events:none; }
+  /* The select checkbox keeps its own size in an open row (the open row's
+     30px input height made the row taller than a closed one). */
+  #recurringTable tr.le-inline .rec-row-cb { width:auto; height:auto; min-height:0; vertical-align:middle; margin:0; }
+  table.tw-wrapped#recurringTable .rec-sizer { display:none; }
+  #recurringTable .rec-tags { display:flex; gap:4px; overflow:hidden; white-space:nowrap; }
+  #recurringTable thead th:nth-child(12) { border-right:none; }
   /* The balance pair is plain text (no input boxes), so keep a little air. */
   #forecastTable tr:not(.fc-editing) > :nth-child(8) { padding-right:6px; }
   #forecastTable tr:not(.fc-editing) > :nth-child(9) { padding-left:6px; }
@@ -1331,11 +1352,12 @@
         <div id="recSortBar" class="fc-sort" role="group" aria-label="Sort by">
           <span class="fc-sort-l">Sort</span>
           <button class="ghost" data-key="description">Name</button>
-          <button class="ghost" data-key="account_name">Account</button>
+          <button class="ghost" data-key="anchor_date">Start date</button>
           <button class="ghost" data-key="category_name">Category</button>
           <button class="ghost" data-key="amount">Amount</button>
+          <button class="ghost" data-key="account_name">Account</button>
+          <button class="ghost" data-key="when">Repeats</button>
           <button class="ghost" data-key="monthly">Monthly</button>
-          <button class="ghost" data-key="when">Frequency</button>
         </div>
         <!-- Bulk edit bar — appears once at least one row is checked.
              Blank fields are left unchanged; Apply sends only the filled
@@ -1393,14 +1415,20 @@
                    onclick="toggleAllRecSelection(this.checked)"
                    title="Select all on this page" aria-label="Select all on this page">
           </th>
+          <!-- Forecast's column grid (#128): Description, the two dates,
+               Category, the two amount-width columns (Amount, Account), the
+               four computed-width ones (Repeats, Monthly, Yearly, Tags),
+               Notes, buttons. -->
           <th class="sortable" data-key="description">Description</th>
-          <th class="sortable" data-key="account_name">Account</th>
+          <th class="sortable" data-key="anchor_date">Start date</th>
+          <th class="sortable" data-key="end_date">Ends</th>
           <th class="sortable" data-key="category_name">Category</th>
           <th class="sortable num" data-key="amount">Amount</th>
+          <th class="sortable" data-key="account_name">Account</th>
+          <th class="sortable" data-key="when">Repeats</th>
           <th class="sortable num" data-key="monthly">Monthly</th>
           <th class="sortable num" data-key="yearly">Yearly</th>
-          <th class="sortable" data-key="when">Frequency</th>
-          <th class="sortable" data-key="end_date">Ends</th>
+          <th>Tags</th>
           <th>Notes</th>
           <th><span class="le-spacer" aria-hidden="true"><button tabindex="-1">Save</button><button tabindex="-1">🗑 Delete</button><button tabindex="-1">Cancel</button></span></th>
         </tr></thead><tbody></tbody></table>
@@ -2464,7 +2492,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.66.0";
+const WEB_VERSION = "1.67.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2475,6 +2503,7 @@ const WEB_VERSION = "1.66.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.67.0 (2026-11-15, claude+mkolakowski): (#128) Bills & income on Forecast's column grid: Description | Start date | Ends | Category | Amount | Account | Repeats (recRepeatLabel replaces subsFrequencyLabel) | Monthly | Yearly | Tags | Notes+✎ (.notes-edit, colspan 2) | spacer; widths like Forecast's, 34px one-line rows (only the description wraps), tags in their own column (.rec-tags), edit rows in the same column order; Start date sorts (anchor_date).
 // 1.66.0 (2026-11-15, claude+mkolakowski): (#43) API tokens: Settings gets an Expires select (30 days / 90 days default / a year / Never) sent as expires_in_days, and each token line shows made, expires/expired and last used (apiTokenDetails). Admin page: an "API tokens" panel (loadAdminTokens / adminRevokeToken) lists everyone's tokens with Revoke.
 // 1.65.1 (2026-11-15, claude+mkolakowski): (#127) Add row: Repeats and Tags share one colspan-4 cell (.add-rt; Repeats --add-rep-w wide, Tags fills the rest, no column line between); while open the four balance headings stay (no width change) but lose the lines between them (.th-open-merge) and the first reads Repeats with Tags (.ah-tags) over the picker's start.
 // 1.65.0 (2026-11-15, claude+mkolakowski): (#41) Installable: <link rel="manifest"> (use-credentials), theme-color, PNG apple-touch-icon, /sw.js registered on load; #offline card (showOffline) when /api/me fails with a network error, with Try again (reload).
@@ -5809,7 +5838,7 @@ async function loadRecurring() {
     if (e.message === 'auth') return;
     recurringData = []; recurringTotals = null;
     document.querySelector('#recurringTable tbody').innerHTML =
-      `<tr><td colspan="11" style="color:var(--bad);text-align:center;padding:16px">
+      `<tr><td colspan="13" style="color:var(--bad);text-align:center;padding:16px">
         Could not load bills and income. Try again in a moment.</td></tr>`;
     return;
   }
@@ -5857,6 +5886,33 @@ function renderRecSummary(archived) {
       <div class="d">${fmt(t.net_yearly)} a year</div></div>`;
 }
 
+// One read row's cells after the select checkbox, on Forecast's column grid
+// (#128). An open row keeps an invisible copy of these (renderRecurring), so
+// opening one never changes a column's width.
+function _recReadCells(r, ro) {
+  // Forecast's columns (#128): the dates have their own columns, Repeats
+  // is short, tags sit in their own column, and Notes + ✎ share a cell.
+  const muted = '<span style="color:var(--muted)">—</span>';
+  const perMonth = v => v == null ? '—' : `<span class="${v>=0?'pos':'neg'}">${fmt(v)}</span>`;
+  const tagCell = (r.tags && r.tags.length) ? `<div class="rec-tags">${renderTagChips(r.tags)}</div>` : muted;
+  const editBit = ro
+    ? '<span class="ro-badge" title="You can view this account but not change it">read only</span>'
+    : `<button class="ghost" onclick="startEditRecurring(${r.id})" title="Edit or delete this item" aria-label="Edit ${escapeAttr(r.description)}">✎</button>`;
+  return `<td class="rec-desc">${escapeHtml(r.description)}</td>
+    <td>${r.anchor_date || muted}</td>
+    <td>${r.end_date || muted}</td>
+    <td>${subsCategoryCell(r)}</td>
+    <td class="num ${r.amount>=0?'pos':'neg'}">${fmt(r.amount)}</td>
+    <td>${escapeHtml(r.account_name || '')}</td>
+    <td>${recRepeatLabel(r)}</td>
+    <td class="num">${perMonth(r.monthly)}</td>
+    <td class="num">${perMonth(r.yearly)}</td>
+    <td class="rec-tags-td">${tagCell}</td>
+    <td colspan="2" class="notes-col notes-edit${r.notes ? '' : ' muted'}"><div class="notes-wrap">
+      <span class="notes-text"${r.notes ? ` title="${escapeAttr(r.notes)}"` : ''}>${r.notes ? escapeHtml(r.notes) : '—'}</span>
+      ${editBit}</div></td>`;
+}
+
 function renderRecurring() {
   const unsorted = recurringData;
   const archived = recView === 'archived';
@@ -5870,7 +5926,7 @@ function renderRecurring() {
       ? 'Create an account first in Settings → Accounts, then add its bills and income here.'
       : (archived ? 'No ended bills or income.'
                   : 'No bills or income yet. Use “+ Add recurring” to add one.');
-    tbody.innerHTML = `<tr><td colspan="11" style="color:var(--muted);text-align:center;padding:16px">${msg}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="13" style="color:var(--muted);text-align:center;padding:16px">${msg}</td></tr>`;
     document.getElementById('recurringPagination').classList.add('hidden');
     _recPageIds = [];
     refreshRecBulkBar();
@@ -5948,30 +6004,19 @@ function renderRecurring() {
     if ((editingRecId === r.id || recSheetMode) && !ro) {
       tr.innerHTML = cbCell + renderEditRow(r, { sheet: recSheetMode });
       tr.className = 'le-row le-inline';
+      // Invisible, zero-height copy of the read row in each cell: the columns
+      // keep exactly the widths they have with the row closed (#128).
+      const ghost = document.createElement('tr');
+      ghost.innerHTML = cbCell + _recReadCells(r, ro);
+      [...tr.cells].forEach((td, n) => {
+        const g = ghost.cells[n];
+        // Notes and Tags take no width of their own in the read row either.
+        if (g && n > 0 && !g.classList.contains('notes-col') && !g.classList.contains('rec-tags-td'))
+          td.insertAdjacentHTML('beforeend', `<div class="rec-sizer" aria-hidden="true">${g.innerHTML}</div>`);
+      });
       tr.onkeydown = (ev) => onRecEditKey(ev, r.id);
     } else {
-      const ends = r.end_date || '—';
-      const cat = subsCategoryCell(r);
-      const notesCell = r.notes
-        ? `<span title="${escapeAttr(r.notes)}" style="cursor:help">📝</span>`
-        : '<span style="color:var(--muted)">—</span>';
-      const actionsCell = ro
-        ? '<td><span class="ro-badge" title="You can view this account but not change it">read only</span></td>'
-        : `<td style="white-space:nowrap">
-          <button class="ghost" onclick="startEditRecurring(${r.id})" title="Edit" aria-label="Edit ${escapeAttr(r.description)}">✎</button>
-        </td>`;
-      const perMonth = v => v == null ? '—' : `<span class="${v>=0?'pos':'neg'}">${fmt(v)}</span>`;
-      const tagBits = (r.tags && r.tags.length)
-        ? `<div class="row-tag-chips">${renderTagChips(r.tags)}</div>` : '';
-      tr.innerHTML = `${cbCell}<td>${escapeHtml(r.description)}${tagBits}</td>
-        <td>${escapeHtml(r.account_name || '')}</td>
-        <td>${cat}</td>
-        <td class="num ${r.amount>=0?'pos':'neg'}">${fmt(r.amount)}</td>
-        <td class="num">${perMonth(r.monthly)}</td>
-        <td class="num">${perMonth(r.yearly)}</td>
-        <td>${subsFrequencyLabel(r)}</td><td>${ends}</td>
-        <td>${notesCell}</td>
-        ${actionsCell}`;
+      tr.innerHTML = cbCell + _recReadCells(r, ro);
     }
     tbody.appendChild(tr);
   });
@@ -6226,16 +6271,14 @@ function changeRecurringPage(delta) {
 
 function renderEditRow(r, opts) {
   const sheet = !!(opts && opts.sheet);
-  // One cell per column after the select checkbox the caller adds (10):
-  // Description (+ restore deleted dates), Account (type; the account isn't
-  // editable), Category, Amount, Monthly (day of month), Yearly (start date),
-  // Frequency, Ends, Notes, buttons. Field ids are the ones saveRecurring reads.
+  // One cell per column after the select checkbox the caller adds; field ids
+  // are the ones saveRecurring reads.
   const id = r.id;
   const catOptions = ['<option value="">— none —</option>']
     .concat(categories.map(c =>
       `<option value="${c.id}"${c.id===r.category_id?' selected':''}>${escapeHtml(c.name)}</option>`
     )).join('');
-  const freqOptions = Object.entries({monthly_day:'Monthly', biweekly:'Biweekly', weekly:'Weekly'})
+  const freqOptions = Object.entries({weekly:'Weekly', biweekly:'Bi-weekly', monthly_day:'Monthly'})
     .map(([f, label]) => `<option value="${f}"${f===r.frequency?' selected':''}>${label}</option>`).join('');
   const isMonthly = r.frequency === 'monthly_day';
   const isWithdraw = Number(r.amount) < 0;
@@ -6243,22 +6286,28 @@ function renderEditRow(r, opts) {
     ? `<small>${r.skipped_count} deleted date${r.skipped_count===1?'':'s'} ·
        <a href="#" onclick="restoreRecurringSkips(${id});return false">Restore</a></small>`
     : '';
+  // Same columns as the read row (#128): Description | Start date | Ends |
+  // Category | Amount | Account (type) | Repeats | Monthly (day of month) |
+  // Yearly (nothing to edit) | Tags | Notes + buttons.
   return [
     _leTd(_leField('Description', `editDesc_${id}`, `<input id="editDesc_${id}" maxlength="120" value="${escapeAttr(r.description)}">`)
-          + _leField('Tags', `editRecTags_${id}_btn`, renderTagPicker(`editRecTags_${id}`, (r.tags || []).map(t => t.id)))
           + (skipNote ? `<div class="le-ro">${skipNote}</div>` : '')
           + `<div class="le-status" id="editStatus_${id}" role="alert"></div>`),
+    _leTd(_leField(isMonthly ? 'Start date (optional)' : 'Start date', `editAnchor_${id}`,
+               `<input id="editAnchor_${id}" type="date" value="${r.anchor_date||''}">`, { labelId: `editAnchorLabel_${id}` })),
+    _leTd(_leField('Ends (optional)', `editEnd_${id}`, `<input id="editEnd_${id}" type="date" title="Ends (optional)" value="${r.end_date||''}">`)),
+    _leTd(_leField('Category', `editCat_${id}`, `<select id="editCat_${id}">${catOptions}</select>`)),
+    _leTd(_leField('Amount', `editAmt_${id}`, _leNum(`<input id="editAmt_${id}" type="number" step="0.01" min="0" value="${Math.abs(Number(r.amount))}">`)), { cls: 'num' }),
     _leTd(_leField('Type', `editType_${id}`, `<select id="editType_${id}">
           <option value="withdraw"${isWithdraw?' selected':''}>Expense</option>
           <option value="deposit"${isWithdraw?'':' selected'}>Income</option></select>`)),
-    _leTd(_leField('Category', `editCat_${id}`, `<select id="editCat_${id}">${catOptions}</select>`)),
-    _leTd(_leField('Amount', `editAmt_${id}`, _leNum(`<input id="editAmt_${id}" type="number" step="0.01" min="0" value="${Math.abs(Number(r.amount))}">`)), { cls: 'num' }),
+    _leTd(_leField('Repeats', `editFreq_${id}`, `<select id="editFreq_${id}" onchange="onEditFreqChange(${id})">${freqOptions}</select>`)),
+    // Monthly and Yearly are number columns, as in the read row, so the
+    // invisible copy of the read row measures the same (#128).
     _leTd(_leField('Day of month', `editDay_${id}`, _leNum(`<input id="editDay_${id}" type="number" min="1" max="31" value="${r.day_of_month||1}">`),
-               { wrapId: `editDayWrap_${id}`, hidden: !isMonthly })),
-    _leTd(_leField(isMonthly ? 'Start date (optional)' : 'Start date', `editAnchor_${id}`,
-               `<input id="editAnchor_${id}" type="date" value="${r.anchor_date||''}">`, { labelId: `editAnchorLabel_${id}` })),
-    _leTd(_leField('Frequency', `editFreq_${id}`, `<select id="editFreq_${id}" onchange="onEditFreqChange(${id})">${freqOptions}</select>`)),
-    _leTd(_leField('Ends (optional)', `editEnd_${id}`, `<input id="editEnd_${id}" type="date" title="Ends (optional)" value="${r.end_date||''}">`)),
+               { wrapId: `editDayWrap_${id}`, hidden: !isMonthly }), { cls: 'num' }),
+    _leTd('', { cls: 'num' }),
+    _leTd(_leField('Tags', `editRecTags_${id}_btn`, renderTagPicker(`editRecTags_${id}`, (r.tags || []).map(t => t.id)))),
     _leNotesActionsTd(_leField('Notes', `editNotes_${id}`, `<input id="editNotes_${id}" maxlength="256" placeholder="Notes" value="${escapeAttr(r.notes||'')}">`),
       sheet ? `<button class="danger" onclick="delRecurring(${id})" title="Delete this recurring item">🗑 Delete</button>` :
       `<button onclick="saveRecurring(${id})" title="Save (Enter)">Save</button>
@@ -8283,17 +8332,17 @@ function onNetworthWindowChange(w) {
 
 // ---------- Bills & income: shared cell formatters ----------
 // Frequency and category cells for the Bills & income table.
-function subsFrequencyLabel(item) {
+// Repeats column (#128): the start date has its own column, so only the
+// cadence is shown, plus a monthly item's day when the start date doesn't
+// already say it (no start date, or one on another day).
+function recRepeatLabel(item) {
   if (item.frequency === 'monthly_day') {
-    const base = item.day_of_month ? `Monthly · day ${item.day_of_month}` : 'Monthly';
-    return item.anchor_date ? `${base} · from ${item.anchor_date}` : base;
+    const d = item.day_of_month;
+    const sameDay = d && item.anchor_date && parseInt(item.anchor_date.slice(8, 10), 10) === d;
+    return (d && !sameDay) ? `<span title="Monthly, on day ${d}">Monthly · ${d}</span>` : 'Monthly';
   }
-  if (item.frequency === 'biweekly') {
-    return item.anchor_date ? `Biweekly · from ${item.anchor_date}` : 'Biweekly';
-  }
-  if (item.frequency === 'weekly') {
-    return item.anchor_date ? `Weekly · from ${item.anchor_date}` : 'Weekly';
-  }
+  if (item.frequency === 'biweekly') return 'Bi-weekly';
+  if (item.frequency === 'weekly') return 'Weekly';
   return item.frequency || '—';
 }
 function subsCategoryCell(item) {

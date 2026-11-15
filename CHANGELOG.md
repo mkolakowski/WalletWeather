@@ -65,7 +65,14 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.32.5** · Web version: **1.56.5** · Schema version: **14**
+App version: **1.32.6** · Web version: **1.56.6** · Schema version: **14**
+
+### Changed
+
+- **Every page uses the full width of your window**, the way Forecast already
+  did: Dashboard, Net Worth, Bills & income, Calendar, Reports, Settings,
+  Admin, Import and Transfer no longer sit in a narrower column in the middle
+  on a wide screen. Phones are unchanged.
 
 ## [1.32.5] — 2026-11-14
 

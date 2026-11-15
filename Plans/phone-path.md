@@ -6,11 +6,11 @@ Tracking issue: #44
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Installable web app | #41 | Built in 1.42.0 (web 1.65.0), not yet released |
+| 1. Installable web app | #41 | Released in 1.42.0 (web 1.65.0) |
 | 2. API tokens | #42 | Released in 1.41.0 (web 1.63.0, schema 16) |
 | 3. Token extras | #43 | Open (after phase 2) |
 
-Phase 1 built 2026-11-15 in app 1.42.0 / web 1.65.0, not yet released. Verified by 7 new route tests (78 in all pass), the service worker exercised in Node with stand-in browser APIs (`/api` and `/auth` left alone, page cached online and served offline, a Cloudflare redirect passed through and not cached), and the routes checked on a throwaway server. Not yet tried on a phone.
+Phase 1 released 2026-11-15 in v1.42.0 (web 1.65.0; release issue #126). Verified by 7 new route tests (78 in all pass), the service worker exercised in Node with stand-in browser APIs (`/api` and `/auth` left alone, page cached online and served offline, a Cloudflare redirect passed through and not cached), and the routes checked on a throwaway server. Not yet tried on a phone.
 
 Phase 2 released 2026-11-15 in v1.41.0 (web 1.63.0, schema 16; release issue #124). Verified by 19 new API tests (71 in all pass) and, against a throwaway server, a token of each level used with `curl`: read-only refused on a write (403), full refused on `/api/admin/users` (403), admin allowed there, a revoked token refused at once (401).
 

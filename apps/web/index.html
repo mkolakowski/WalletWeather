@@ -2271,7 +2271,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.55.0";
+const WEB_VERSION = "1.55.1";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2282,6 +2282,8 @@ const WEB_VERSION = "1.55.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.55.1 (2026-11-14, claude+mkolakowski): (#66) Line editor buttons are
+//     Save, Delete, Cancel (Cancel and Delete swapped), on all three pages.
 // 1.55.0 (2026-11-14, claude+mkolakowski): (#68) renderTagPicker() is now a
 //     dropdown (.tag-dd): a button with the chosen tags' chips opens a
 //     position:fixed checkbox list (_placeTagMenu) with a filter box past six
@@ -5699,8 +5701,8 @@ function renderEditRow(r) {
     statusId: `editStatus_${id}`,
     onKey: `onRecEditKey(event, ${id})`,
     actions: `<button onclick="saveRecurring(${id})" title="Save (Enter)">Save</button>
-              <button class="ghost" onclick="cancelEditRecurring()" title="Cancel (Esc)">Cancel</button>
-              <button class="danger" onclick="delRecurring(${id})" title="Delete this recurring item">🗑 Delete</button>`,
+              <button class="danger" onclick="delRecurring(${id})" title="Delete this recurring item">🗑 Delete</button>
+              <button class="ghost" onclick="cancelEditRecurring()" title="Cancel (Esc)">Cancel</button>`,
   });
 }
 
@@ -6660,8 +6662,8 @@ function _renderForecastLineEditor(r) {
     note,
     statusId: 'fcEditStatus',
     actions: `<button onclick="saveEditedForecastRow('${k}')" title="Save (Enter)">Save</button>
-              <button class="ghost" onclick="cancelEditForecastRow()" title="Cancel (Esc)">Cancel</button>
-              ${_forecastDeleteBtn(r, 'danger', '🗑 Delete')}`,
+              ${_forecastDeleteBtn(r, 'danger', '🗑 Delete')}
+              <button class="ghost" onclick="cancelEditForecastRow()" title="Cancel (Esc)">Cancel</button>`,
   });
 }
 
@@ -8157,8 +8159,8 @@ function _renderTxnSearchEditRow(r) {
     statusId: 'editTxnStatus',
     onKey: `onTxnEditKey(event, ${r.id})`,
     actions: `<button onclick="saveTxnRowEdit(${r.id})" title="Save (Enter)">Save</button>
-              <button class="ghost" onclick="cancelEditTxnRow()" title="Cancel (Esc)">Cancel</button>
-              <button class="danger" onclick="deleteTxnRow(${r.id})">🗑 Delete</button>`,
+              <button class="danger" onclick="deleteTxnRow(${r.id})">🗑 Delete</button>
+              <button class="ghost" onclick="cancelEditTxnRow()" title="Cancel (Esc)">Cancel</button>`,
   })}</tr>`;
 }
 

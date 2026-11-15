@@ -65,7 +65,13 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.31.0** · Web version: **1.55.0** · Schema version: **14**
+App version: **1.31.1** · Web version: **1.55.1** · Schema version: **14**
+
+### Changed
+
+- When a line is open for editing on Forecast, Transactions or Bills &
+  income, its buttons now read Save, Delete, Cancel: Cancel and Delete have
+  swapped places.
 
 ## [1.31.0] — 2026-11-14
 

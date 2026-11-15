@@ -65,7 +65,13 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.37.3** · Web version: **1.61.3** · Schema version: **14**
+App version: **1.37.3** · Web version: **1.61.4** · Schema version: **14**
+
+### Changed
+
+- While Repeats is ticked on Forecast's new line, the Actual date column
+  heading reads "Ends", naming the end date field under it. It goes back to
+  "Actual date" when you untick Repeats or close the line.
 
 ## [1.37.3] — 2026-11-14
 

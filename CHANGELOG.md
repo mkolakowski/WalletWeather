@@ -67,6 +67,10 @@ same commit (or session) that introduces it.
 
 App version: **1.40.0** · Web version: **1.61.9** · Schema version: **15**
 
+## [1.40.0] — 2026-11-15
+
+App version: **1.40.0** · Web version: **1.61.9** · Schema version: **15**
+
 ### Added
 
 - Bills and income items can carry tags. Projected lines on Forecast show
@@ -1532,7 +1536,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.39.1...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.40.0...HEAD
+[1.40.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.40.0
 [1.39.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.39.1
 [1.39.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.39.0
 [1.38.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.38.0

@@ -211,6 +211,12 @@ A SwiftUI app for iPhone that signs in to your own server with an API token
 and Calendar, with two-pane layouts on the iPhone Duo's inner screen. Planned
 in `Plans/ios-app.md` (#93). **Effort: large.**
 
+### 27. Offline editing in the iOS app
+Make changes in the iOS app without a connection and have them sync later.
+The server has no sync today, so this needs endpoints for queued changes and
+rules for when the phone and the server disagree. It builds on the app's
+"Last-known numbers" choice (`Plans/ios-app.md`, phase 8). **Effort: large.**
+
 ---
 
 ## What's already in good shape (don't re-prioritize these)

@@ -6,14 +6,21 @@ Tracking issue: #93
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Connect and Dashboard | #87 | Open (waits on phone-path phase 2, #42, and open questions 1 to 7) |
+| 1. Connect and Dashboard | #87 | Open (waits on phone-path phase 2, #42). Bigger since 2026-11-14: the sign-in sheet and Cloudflare sign-in are in it |
 | 2. Forecast | #88 | Open (after phase 1; open questions 8 and 9) |
 | 3. Bills & income and Calendar | #89 | Open (after phase 2) |
 | 4. The Duo's big screen | #90 | Open (after phase 3) |
 | 5. The other pages and app settings | #91 | Open (after phase 2; open questions 9 and 10) |
 | 6. TestFlight and the App Store | #92 | Open (waits on legal-risk phase 5, #49, and open questions 11 and 12) |
+| 7. More ways to sign in | #100 | Open (after phase 1; email and password after phone-path phase 3, #43) |
+| 8. Kept on the phone | #101 | Open (after phase 5; open question 13) |
+| 9. The web app's themes | #102 | Open (after phase 5) |
 
 Nothing built yet. Written 2026-11-14 from a review of the app at 1.35.0 (web 1.59.0, schema 14). Until now the only notes on a native app were `apps/ios/README.md` and the "ready for native apps later" goal of `Plans/phone-path.md`.
+
+Open questions 1 to 7 were settled on 2026-11-14 (`docs/dev/decisions/ios-app.md`), which made phase 1 bigger and added phases 7 to 9.
+
+Order: phases 1, 2, 3 and 5 in turn; then 4, 7, 8 and 9 in any order; 6 whenever you want it on TestFlight.
 
 Mockups: <https://claude.ai/artifact/4P7y4vUZww5xJGAq1TPKcc> (a private page; drawn from this plan, not screenshots of a build).
 
@@ -23,29 +30,33 @@ Sessions: may span — each phase ends with a build on your phone and your check
 
 | Phase | Main session | Subagents | Why |
 | --- | --- | --- | --- |
-| 1. Connect and Dashboard | Opus | Sonnet: record the sample responses and write the decoding tests | Sets what everything else sits in: sign-in, the API client, and the layout that changes when the Duo opens. |
+| 1. Connect and Dashboard | Opus | Sonnet: record the sample responses, and write the decoding tests and the tests for the new sign-in endpoints | Sets what everything else sits in: sign-in through the sheet and Cloudflare, the API client, and the layout that changes when the Duo opens. |
 | 2. Forecast | Opus | Sonnet: tests for the editing calls | The page used most, and the first with editing and two panes. |
 | 3. Bills & income and Calendar | Sonnet | none | Follows phase 2's list, editor and two-pane patterns. |
 | 4. The Duo's big screen | Opus | none | New system features (the hinge, Split View, a second window) that have to be tried in the simulator before they're designed. |
 | 5. The other pages and app settings | Sonnet | Haiku: list the response fields each page reads | Read-only pages on patterns already built. |
 | 6. TestFlight and the App Store | Sonnet | none | Packaging and paperwork; most steps are yours. |
+| 7. More ways to sign in | Sonnet | none | Two additions on phase 1's sign-in. Switch to Opus if a QR generator has to be chosen and licence-checked. |
+| 8. Kept on the phone | Opus | Sonnet: tests that nothing is left behind | A privacy decision: what is stored, how it's protected, and when it's deleted. |
+| 9. The web app's themes | Sonnet | none | Ten palettes applied to screens already built. |
 
 ## Open questions
 
-Each has a working assumption, and the mockups are drawn to those assumptions.
+Questions 1 to 7 were settled on 2026-11-14: the answers are below and the reasoning is in [`docs/dev/decisions/ios-app.md`](../docs/dev/decisions/ios-app.md). The rest each have a working assumption, and the mockups are drawn to those.
 
-1. **How does the app sign in?** (blocks phase 1) It holds an API token (phone-path phase 2, #42), never your password. The choices for getting the token onto the phone: (a) create it in the web app's Settings on the phone and tap "Open in WalletWeather", with paste as the fallback; (b) a QR code shown in Settings and scanned by the app, which needs a QR generator added to the server (a new dependency to licence-check); (c) type your email and password into the app (phone-path phase 3; it needs login rate limiting first and can't cover Google-only accounts); (d) a web sign-in sheet inside the app that handles local, Google and Cloudflare sign-in at once (the most server work). Working assumption: (a) first, and (c) when phone-path phase 3 lands.
-2. **How does the app get past Cloudflare Access?** (blocks using phase 1 away from home, not building it) This is phone-path's open question 1. Working assumption: the Connect screen has two optional fields for a Cloudflare service token, kept in the Keychain and sent with every request; an Access rule that lets `/api/*` through would need nothing in the app.
-3. **Is anything kept on the phone?** (blocks phase 1) phone-path decided the installed web app stores no balances or transactions. The choices here: (a) the same: only the server's address and the token, in the Keychain, and offline the app says so; (b) also keep the last pages loaded (encrypted by iOS while the phone is locked), so the app opens to the last-known numbers offline, marked with their age; (c) offline editing that syncs later (large, and the server has no sync). Widgets and bill reminders need at least (b). Working assumption: (a).
-4. **Plain `http://` on the home network?** (blocks phase 1) iOS refuses plain http unless an app allows it, and the README's quick start runs the server at `http://localhost:8300`. The choices: allow http for local-network addresses only, with a warning on the Connect screen; or https only. Working assumption: local addresses only, with the warning.
-5. **Oldest iOS?** (blocks phase 1) iOS 26 and later, with the Duo layouts switching on under iOS 27.1; or iOS 27.1 only (less code, newest phones only). Working assumption: iOS 26 and later.
-6. **How does it look?** (blocks phase 1) Follow the phone's light and dark setting with WalletWeather's own colours (blue accent, green for money in, red for money out) on the system's bars, lists and sheets; or carry over the web app's ten themes and the theme choice saved on the server. Working assumption: system light and dark; the mockups show dark.
-7. **Where do the pages go on the open Duo?** (blocks phase 1) The system's bar down the right edge, which is what iOS does by default and leaves the most room for two panes; or a sidebar on the left listing every page, with no "More", which takes about a quarter of the width. Working assumption: the right-edge bar. The mockups show both.
+1. ~~**How does the app sign in?**~~ All four ways, with the web sign-in sheet first: the sheet, the "Open in WalletWeather" link and paste in phase 1; the QR code and email and password in phase 7.
+2. ~~**How does the app get past Cloudflare Access?**~~ The app signs in to Cloudflare itself by default, and takes a service token as the alternative. Both are in phase 1. Carrying the Cloudflare sign-in from the sheet to the app's own requests isn't proven yet, so it's tried first.
+3. ~~**Is anything kept on the phone?**~~ Each person chooses, asked once at set-up: Nothing (the default) or Last-known numbers. That's phase 8; until then the app keeps nothing. Offline editing is roadmap item 27.
+4. ~~**Plain `http://` on the home network?**~~ Home-network addresses only, with a warning on the Connect screen.
+5. ~~**Oldest iOS?**~~ iOS 26 and later; the Duo layouts switch on under iOS 27.1.
+6. ~~**How does it look?**~~ The system's light and dark with WalletWeather's colours; the web app's ten themes come later, in phase 9.
+7. ~~**Where do the pages go on the open Duo?**~~ The system's bar down the right edge. The sidebar isn't built.
 8. **What does the second pane hold on the open Duo?** (blocks phases 2 and 3) Working assumption, as drawn: Dashboard, accounts beside charts; Forecast, the full table beside the open line's editor; Bills & income, the list beside the editor; Calendar, the month beside the tapped day's lines.
 9. **How much can be edited from the phone?** (blocks phases 2, 3 and 5) Working assumption: the day-to-day edits are in the app (mark a line as paid with its real amount and date, add, change or delete a transaction, add, change or skip a bill, move money between accounts), and set-up stays on the web (accounts, categories, tags and rules, budgets, sharing, CSV import, building reports, backups, the Admin pages, deleting your account).
 10. **Does the app lock?** (blocks phase 5) Ask for Touch ID or Face ID when the app opens: off unless switched on, on from the start, or offered once at first sign-in. Working assumption: offered once at first sign-in and changeable in the app's settings. The numbers are always hidden in the app switcher.
 11. **How does Apple's reviewer get in?** (blocks phase 6) App Store review needs a working sign-in, and no public demo is planned (`Plans/legal-risk.md`). The choices: sample data built into the app behind "Try the demo" on the Connect screen (no server needed, and anyone can try the app before setting one up); a temporary demo server for each review; or stay on TestFlight for your own devices and skip the public listing. Working assumption: built-in sample data.
 12. **iPad and Mac?** (blocks phase 6) The open-Duo layouts are driven by width, so they would carry over to an iPad with little work. Working assumption: iPhone only for now.
+13. **Do the kept numbers go into the phone's backups?** (blocks phase 8) What "Last-known numbers" keeps could be left out of iCloud and computer backups, or included so a restored phone opens with them. Working assumption: left out.
 
 ## The plan
 
@@ -59,6 +70,15 @@ Each has a working assumption, and the mockups are drawn to those assumptions.
 - The name is cleared before any store listing (legal-risk phase 5, #49).
 - No new copyleft code. This plan goes further: no third-party packages at all.
 
+**Decided 2026-11-14** ([the decision pages](../docs/dev/decisions/ios-app.md)):
+- Four ways to sign in, the web sign-in sheet first; then the "Open in WalletWeather" link with paste, a QR code, and email and password.
+- Past Cloudflare Access by signing in to Cloudflare in the app, with a service token as the alternative.
+- What the phone keeps is each person's choice at set-up: Nothing by default, or Last-known numbers.
+- Plain `http://` for home-network addresses only, with a warning.
+- iOS 26 and later.
+- The system's light and dark; the web app's ten themes later.
+- On the open Duo, the system's bar down the right edge.
+
 **What the review found** (app 1.35.0, web 1.59.0, schema 14):
 - **The web app's phone layout already says what a phone needs.** A bar with Dashboard, Forecast, Bills & income, Calendar and More (usability phase 4); Forecast lines as cards that open to edit; Transactions folded into Forecast (1.32.6); Bills & income working like Forecast (1.34.0). The native app keeps that shape, so the two feel like one product.
 - **The server does the arithmetic.** `GET /api/accounts/{id}/forecast` returns every line with its forecast and actual amounts and both running balances; `/api/dashboard`, `/api/dashboard/charts`, `/api/calendar`, `/api/networth`, `/api/budgets/progress` and `/api/subscriptions` return numbers ready to show. The app draws; it doesn't forecast.
@@ -71,7 +91,7 @@ Each has a working assumption, and the mockups are drawn to those assumptions.
 - **Money data is encrypted on the server, and the privacy policy says nothing about data kept on a phone:** one reason for the "nothing kept on the phone" assumption (open question 3).
 
 **How it's built:**
-- SwiftUI, one app for every iPhone. Layout follows the width the system reports (compact or regular), never the device model or which way it's turned, as Apple asks for the Duo.
+- SwiftUI, one app for every iPhone on iOS 26 and later. Layout follows the width the system reports (compact or regular), never the device model or which way it's turned, as Apple asks for the Duo.
 - `apps/ios/WalletWeather.xcodeproj` for the app, and `apps/ios/WalletWeatherKit`, a local Swift package for everything with no screen: the API client, the models, money and date formatting. The package is tested with `swift test`, with no simulator.
 - System frameworks only: SwiftUI, Swift Charts, the Keychain, LocalAuthentication. Nothing to add to the licence list.
 - The system's own tab bar, navigation, lists and sheets, so iOS places and adapts them in each way the Duo can be held.
@@ -81,7 +101,7 @@ Each has a working assumption, and the mockups are drawn to those assumptions.
 **The iPhone Duo** (from Apple's "Prepare your app for iPhone Duo" tech talk and write-ups of its companion talks; the last three points are from write-ups only and are checked in the simulator in phases 1 and 4):
 - A 5.4-inch front screen and a 7.6-inch inner screen of the same shape, iOS 27, Touch ID in the side button, two apps side by side on the inner screen. Xcode 27.1 on this Mac has an iPhone Duo simulator that opens, closes, turns and half-folds.
 - Closed, it reports a compact width like any iPhone. Open, it reports a regular width and height however it's turned. The standard split layout collapses to one column when the phone closes and comes back when it opens.
-- The system's bars stand down the right edge when the Duo is closed and when it's open on its side, and run along the bottom when it's open and upright. A sidebar on the inner screen is something an app opts in to (open question 7).
+- The system's bars stand down the right edge when the Duo is closed and when it's open on its side, and run along the bottom when it's open and upright. A sidebar on the inner screen is something an app opts in to, and this app doesn't.
 - The margins the system keeps clear aren't the same on each side, so nothing is centred by assuming they are.
 - The fold is reported as closed, partly open or open, with its angle.
 - A second window of the same app can be opened on the inner screen only.
@@ -96,26 +116,30 @@ Each has a working assumption, and the mockups are drawn to those assumptions.
 7. **Half open, like a small laptop:** the chart above the fold, the number pad below it (phase 4).
 8. **Closing it keeps your place:** a line open in the right pane becomes a sheet on the front screen, with what you'd typed.
 
-**Out of scope:** the Android app; an Apple Watch app; widgets, bill reminders and anything else that needs data kept on the phone or a way for the server to reach it; Siri and Shortcuts; signing up for an account inside the app; more than one server at a time; and everything open question 9 leaves on the web.
+**Out of scope:** the Android app; an Apple Watch app; widgets and bill reminders (they need phase 8's kept numbers first, or a way for the server to reach the phone); offline editing (roadmap item 27); Siri and Shortcuts; signing up for an account inside the app; more than one server at a time; and everything open question 9 leaves on the web.
 
 ### Phase 1: Connect and Dashboard
 
-Depends on phone-path phase 2 (#42, API tokens) and open questions 1 to 7.
+Depends on phone-path phase 2 (#42, API tokens). The biggest phase: it may take two sessions, sign-in first.
 
-- `apps/ios/WalletWeather.xcodeproj`: a SwiftUI app for iPhone, written by the session and built from the command line. Its version starts at 0.1.0, `CHANGELOG.md` gains an iOS version beside the other three, and the release routine in `CLAUDE.md` gains it too.
+- `apps/ios/WalletWeather.xcodeproj`: a SwiftUI app for iPhone (iOS 26 and later), written by the session and built from the command line. Its version starts at 0.1.0, `CHANGELOG.md` gains an iOS version beside the other three, and the release routine in `CLAUDE.md` gains it too.
 - `apps/ios/WalletWeatherKit`: the API client, the models and the formatting, tested with `swift test` against sample responses recorded from the demo server.
-- The Connect screen: the server's address, then the token (open question 1) and the optional Cloudflare fields (open question 2). The token is kept in the Keychain, on this device only and never in iCloud. Signing out removes it.
+- **Tried first, because it's the least certain part:** signing in through the system's sign-in sheet and carrying the Cloudflare sign-in over to the app's own requests. Google refuses to sign in inside an app's own web view, so the sheet has to be the system's, and the system's sheet doesn't share its Cloudflare session with the app. If there's no clean way to hand it over, you're told before anything else is built, and the service token is the way through until there is.
+- The Connect screen: the server's address, then **Sign in**, which opens the server's own sign-in page in the system's sheet (Cloudflare first when it's in front, then your email and password or Google) and comes back signed in. Under "Other ways": the "Open in WalletWeather" link beside a new token in the web app's Settings, and pasting a token. Under "Advanced": the two fields for a Cloudflare service token.
+- Plain `http://` is accepted for home-network addresses only, with a warning on the Connect screen.
+- The token is kept in the Keychain, on this device only and never in iCloud. Signing out removes it. Nothing else is kept on the phone (phase 8 adds the choice).
 - The Important notice at first sign-in, as the web app shows it.
 - A server check on connecting: a server older than the app needs gets a plain message, not a broken screen.
-- The frame every page sits in: the five places of the web app's phone bar, one column when the Duo is closed or on any other iPhone, two panes when it's open.
+- The frame every page sits in: the five places of the web app's phone bar, one column when the Duo is closed or on any other iPhone, two panes when it's open. The system's own bar, which iOS stands down the right edge on the Duo.
+- Light and dark, following the phone, with WalletWeather's colours.
 - Dashboard, read-only: the account cards (balance today, forecast and actual month-end, the month's low and high with their dates), "rest of this month", the charts with the Month / 30 days / 90 days switch, and pinned reports. Open Duo: accounts on the left half, charts on the right.
 - No connection, a slow server, an expired token and an expired Cloudflare session each get their own plain message with a retry.
-- Server: shape tests for `/api/version`, `/api/me`, `/api/accounts`, `/api/dashboard` and `/api/dashboard/charts`. No new endpoints beyond #42, unless open question 1 picks the QR code or the sign-in sheet.
+- Server, on top of #42: a "sign in an app" page that asks you to confirm and hands the app a code that works once, and an endpoint that swaps the code for a token named after the phone, so it shows and can be revoked in Settings; the "Open in WalletWeather" link in Settings. Tests for each new endpoint, and shape tests for `/api/version`, `/api/me`, `/api/accounts`, `/api/dashboard` and `/api/dashboard/charts`. The app and web versions bump.
 - `apps/ios/README.md` is rewritten for how the app is really built and run.
 
-**You:** in person, once: pick your signing team in Xcode so a build can go on your phone. Then connect the app to your server and look at the Dashboard with the Duo closed and open.
+**You:** in person, once: pick your signing team in Xcode so a build can go on your phone. Then sign in on your phone through Cloudflare, with no service token entered, and look at the Dashboard with the Duo closed and open.
 
-**Done when:** `swift test` and the server tests pass; the phase issue has simulator screenshots of the Connect screen and the Dashboard on the Duo (closed, open on its side, open upright) and on a regular iPhone; on your phone the app connects to your server and shows your real accounts; closing and opening the Duo keeps your place.
+**Done when:** `swift test` and the server tests pass; the phase issue has simulator screenshots of the Connect screen and the Dashboard on the Duo (closed, open on its side, open upright) and on a regular iPhone; on your phone the Sign in button takes you from nothing to your real accounts without typing a token; the phone's token shows in the web app's Settings and revoking it signs the phone out; closing and opening the Duo keeps your place.
 
 ### Phase 2: Forecast
 
@@ -164,7 +188,7 @@ Depends on phase 3. Each part is tried in the Duo simulator first and kept only 
 Depends on phase 2 and open questions 9 and 10.
 
 - Under More, read-only: Net worth (the total, its chart, each account), Budgets (spent against each budget this month) and Reports (run a saved report; building one stays on the web).
-- The app's settings: the server and who's signed in, Sign out, appearance (open question 6), the app lock (open question 10), "Open the web app" for everything that stays there, the Important notice, and the versions of the app and the server.
+- The app's settings: the server and who's signed in, Sign out, appearance (light, dark or the phone's setting), the app lock (open question 10), "Open the web app" for everything that stays there, the Important notice, and the versions of the app and the server.
 - The numbers are hidden when the app shows in the app switcher.
 - The Admin pages stay on the web: an admin sees nothing extra in the app.
 - Server: shape tests for `/api/networth`, `/api/budgets/progress` and the saved-report endpoints the app calls.
@@ -178,7 +202,7 @@ Depends on phase 2 and open questions 9 and 10.
 Waits on legal-risk phase 5 (#49, the name) and open questions 11 and 12.
 
 - The app icon (from `favicon.svg`), the launch screen, the privacy manifest, and the App Privacy answers ("no data collected").
-- `docs/privacy.md` read against what the app really does (the token in the Keychain, and anything open question 3 added) and updated first if it needs it.
+- `docs/privacy.md` read against what the app really does (the token in the Keychain, and what phase 8 keeps if it has shipped) and updated first if it needs it.
 - The way in for Apple's reviewer (open question 11).
 - A TestFlight build for your own devices first; the public listing only after your check.
 - The store's text and screenshots, with the Duo closed and open.
@@ -187,3 +211,39 @@ Waits on legal-risk phase 5 (#49, the name) and open questions 11 and 12.
 **You:** join the Apple Developer Program if you haven't (a yearly fee); finish #49's name search; create the app's record in App Store Connect; press Submit. If the session is to upload builds, its App Store Connect key goes in a gitignored file.
 
 **Done when:** the TestFlight build runs on your phone against your server; for the store, Apple has approved it.
+
+### Phase 7: More ways to sign in
+
+Depends on phase 1; the email and password part also on phone-path phase 3 (#43). Each part can ship on its own.
+
+- **QR code:** the web app's Settings shows a code beside a new token and the app scans it with the camera, which is handy when Settings is open on a computer. Something has to draw the code: a small generator added to the server (licence-checked, and listed in `THIRD_PARTY_NOTICES.md`) or one written for the page. Chosen when the phase starts.
+- **Email and password:** typed into the app and swapped for a token by `POST /api/auth/token` (phone-path phase 3, which needs login rate limiting first). Not offered to accounts that only sign in with Google.
+- The Connect screen lists all four ways, the sign-in sheet first.
+
+**You:** sign in each new way once, and revoke each token afterwards.
+
+**Done when:** tests pass; each way signs in on your phone; the camera is asked for only when you choose the QR code.
+
+### Phase 8: Kept on the phone
+
+Depends on phase 5 (the app's settings) and open question 13.
+
+- Set-up asks once what this phone keeps: **Nothing** (the default: the app needs a connection, as before) or **Last-known numbers** (the app opens without a connection to the pages it last loaded, each marked with when it was loaded). The choice can be changed in the app's settings, and people who already have the app stay on Nothing until they change it.
+- What's kept can't be read while the phone is locked, and is deleted on signing out or on switching back to Nothing.
+- Editing still needs a connection.
+- `docs/privacy.md` and the App Privacy answers are updated before this ships: the numbers stay on the phone, so nothing is collected, but the policy has to say what's stored.
+
+**You:** choose Last-known numbers, load the Dashboard, switch on airplane mode and open the app again. Then sign out and check that nothing opens.
+
+**Done when:** tests pass; with no connection the app shows the last pages with their age; after signing out or choosing Nothing, the app's storage in the simulator holds no numbers.
+
+### Phase 9: The web app's themes
+
+Depends on phase 5.
+
+- The web app's ten themes in the app, beside "Match the phone".
+- Whether the app follows the theme saved on the server or keeps its own choice is asked when the phase starts.
+
+**You:** look at each page in the themes you use, closed and open.
+
+**Done when:** every page has been checked in each theme, closed and open, and its text is readable in each.

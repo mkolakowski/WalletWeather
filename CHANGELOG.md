@@ -65,7 +65,15 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.37.4** · Web version: **1.61.4** · Schema version: **14**
+App version: **1.37.4** · Web version: **1.61.5** · Schema version: **14**
+
+### Changed
+
+- While Repeats is ticked on Forecast's new line, more column headings now
+  name what the fields hold: Forecast date reads "Starts" (or "Starts
+  (optional)" when Every is Month), Forecast amt reads "Amount", and Actual
+  amt is blank since it isn't used. They go back when you untick Repeats or
+  close the line, and the columns don't move when they change.
 
 ## [1.37.4] — 2026-11-14
 

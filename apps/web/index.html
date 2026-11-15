@@ -167,6 +167,11 @@
   tr.fc-addrow .le-f.le-inl input[type=number] { width:42px; padding-left:4px; padding-right:4px; }
   tr.fc-addrow .le-f.le-inl input[type=date] { width:auto; }
   tr.fc-addrow input:disabled { opacity:.45; }
+  /* Headings the add row renames while Repeats is on (#107). */
+  .th-swap { display:inline-grid; justify-items:start; }
+  th.num .th-swap { justify-items:end; }
+  .th-swap > span { grid-area:1 / 1; white-space:nowrap; }
+  .th-swap > .th-size, th.th-swapped .th-swap > .th-main { visibility:hidden; }
   #addToggle.active { box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
   @media (max-width: 768px) {
     /* Phone: the add row is a stacked two-column form, overriding the read
@@ -1723,11 +1728,11 @@
         <div style="overflow-x:auto">
         <table id="forecastTable"><thead><tr>
           <th class="sortable" data-key="description">Description</th>
-          <th class="sortable" data-key="forecast_date">Forecast date</th>
-          <th class="sortable" data-key="actual_date">Actual date</th>
+          <th class="sortable" data-key="forecast_date"><span class="th-swap"><span class="th-main">Forecast date</span><span class="th-alt" aria-hidden="true"></span><span class="th-size" aria-hidden="true">Starts (optional)</span></span></th>
+          <th class="sortable" data-key="actual_date"><span class="th-swap"><span class="th-main">Actual date</span><span class="th-alt" aria-hidden="true"></span><span class="th-size" aria-hidden="true">Ends</span></span></th>
           <th class="sortable" data-key="category">Category</th>
-          <th class="sortable num" data-key="forecast_amount">Forecast amt</th>
-          <th class="sortable num" data-key="actual_amount">Actual amt</th>
+          <th class="sortable num" data-key="forecast_amount"><span class="th-swap"><span class="th-main">Forecast amt</span><span class="th-alt" aria-hidden="true"></span><span class="th-size" aria-hidden="true">Amount</span></span></th>
+          <th class="sortable num" data-key="actual_amount"><span class="th-swap"><span class="th-main">Actual amt</span><span class="th-alt" aria-hidden="true"></span></span></th>
           <th class="sortable num" data-key="diff_amount">Δ Amt</th>
           <th class="sortable num" data-key="forecast_balance">Forecast bal</th>
           <th class="sortable num" data-key="actual_balance">Actual bal</th>
@@ -2389,7 +2394,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.61.4";
+const WEB_VERSION = "1.61.5";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2400,6 +2405,7 @@ const WEB_VERSION = "1.61.4";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.61.5 (2026-11-14, claude+mkolakowski): (#107) With Repeats on, _setAddHeadings (replaces _setAddEndsHeading) also renames Forecast date to Starts / Starts (optional) by Every, Forecast amt to Amount and blanks Actual amt. Those four headings use .th-swap (name, .th-alt, invisible .th-size of the longest) so their width never changes.
 // 1.61.4 (2026-11-14, claude+mkolakowski): (#105) The Actual date heading reads Ends while the add row has Repeats on (_setAddEndsHeading, reset in closeAddRow); the .le-notch label is removed.
 // 1.61.3 (2026-11-14, claude+mkolakowski): (#103) Add row: Ends moves into the Actual date cell (_lePair with addADateWrap; shown when Repeats is on, with a .le-notch label on desktop); the Repeats cell keeps Repeats/Every/Day with a narrower Day box, so it fits one line from ~1440px.
 // 1.61.2 (2026-11-14, claude+mkolakowski): (#98) The add row's Repeats block (.add-repeat) has width:0; min-width:100%, so showing Every/Day/Ends no longer re-sizes the table's auto-layout columns.
@@ -6299,14 +6305,29 @@ function toggleAddForm(show) {
   const d = document.getElementById('addDesc');
   if (d) d.focus();
 }
-// While Repeats is on, the Actual date column holds Ends, and its heading
-// says so (#105).
-function _setAddEndsHeading(on) {
-  const th = document.querySelector('#forecastTable thead th[data-key="actual_date"]');
-  if (th) th.textContent = on ? 'Ends' : 'Actual date';
+// While Repeats is on, the headings name what the add row's fields hold
+// (#105, #107): Starts (optional for Month), Ends, Amount, and nothing over
+// the unused actual amount. rec false puts the usual headings back.
+const _ADD_REPEAT_HEADINGS = {
+  forecast_date: m => m ? 'Starts (optional)' : 'Starts',
+  actual_date: () => 'Ends',
+  forecast_amount: () => 'Amount',
+  actual_amount: () => '',
+};
+// Each heading stacks its usual name, the shown alternative and an
+// invisible copy of the longest one (.th-swap), so it's as wide either way
+// and a narrow table's columns don't move when the names change.
+function _setAddHeadings(rec, monthly) {
+  Object.entries(_ADD_REPEAT_HEADINGS).forEach(([key, text]) => {
+    const th = document.querySelector(`#forecastTable thead th[data-key="${key}"]`);
+    const alt = th && th.querySelector('.th-alt');
+    if (!alt) return;
+    th.classList.toggle('th-swapped', !!rec);
+    alt.textContent = rec ? text(monthly) : '';
+  });
 }
 function closeAddRow() {
-  _setAddEndsHeading(false);
+  _setAddHeadings(false);
   if (_addRowEl) { _addRowEl.remove(); _addRowEl = null; }
   const b = document.getElementById('addToggle');
   if (b) b.classList.remove('active');
@@ -6320,7 +6341,7 @@ function onAddRepeatToggle() {
   document.getElementById('addDayWrap').classList.toggle('hidden', !rec || !monthly);
   document.getElementById('addADateWrap').classList.toggle('hidden', rec);
   document.getElementById('addEndWrap').classList.toggle('hidden', !rec);
-  _setAddEndsHeading(rec);
+  _setAddHeadings(rec, monthly);
   document.getElementById('addAAmt').disabled = rec;
   document.getElementById('addFDate').title = rec ? (monthly ? 'Start date (optional)' : 'Start date') : '';
   if (rec && monthly) {

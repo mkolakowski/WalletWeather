@@ -65,7 +65,22 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.35.0** · Web version: **1.59.0** · Schema version: **14**
+App version: **1.36.0** · Web version: **1.60.0** · Schema version: **14**
+
+### Changed
+
+- **Forecast's account actions sit with the table's controls.** The "Account
+  actions" panel above the summary cards is gone; "+ Add transaction",
+  "⇄ Transfer" and "⬆ Import CSV" are now at the start of the row of table
+  controls (View, Month, Spreadsheet mode, Per page), under the cards.
+
+### Added
+
+- **"↻ Add recurring" on Forecast** opens Bills & income on that account with
+  the add form already open.
+- **A ⋯ menu for the account on Forecast** with Rename (owners), Archive
+  (owners and editors) and "Export a backup of this account", which until now
+  were only in Settings → Accounts and Backup.
 
 ## [1.35.0] — 2026-11-14
 

@@ -362,6 +362,17 @@
      dropdown), Spreadsheet mode centred in the space between the groups,
      pagination pinned right. */
   .fc-controls { display:flex; align-items:center; gap:12px 16px; flex-wrap:wrap; margin-bottom:14px; }
+  /* Account actions in the controls row (#85), set apart by a divider. */
+  .fc-actions { display:flex; align-items:center; gap:6px; flex-wrap:wrap; position:relative;
+                padding-right:16px; border-right:1px solid var(--border); }
+  .fc-actions button { padding:6px 12px; font-size:13px; white-space:nowrap; }
+  .acct-menu { position:absolute; top:calc(100% + 4px); right:16px; z-index:60; min-width:240px;
+               display:flex; flex-direction:column; padding:6px; background:var(--panel);
+               border:1px solid var(--border); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,.35); }
+  .acct-menu.hidden { display:none; }
+  .acct-menu button { background:transparent; color:var(--text); border:none; text-align:left;
+                      padding:8px 10px; border-radius:6px; font-size:13px; }
+  .acct-menu button:hover, .acct-menu button:focus-visible { background:var(--chip-bg); }
   .fc-left, .fc-right { flex:0 1 auto; display:flex; align-items:center; gap:10px 14px; flex-wrap:wrap; }
   .fc-right { justify-content:flex-end; }
   .fc-center { flex:1 1 auto; display:flex; justify-content:center; }
@@ -618,9 +629,10 @@
   @media (max-width: 768px) {
     .accounts-bar { flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px; }
     .account-tab { flex:0 0 auto; white-space:nowrap; }
-    #accountView > .panel:first-child h2 { display:none; }
-    #accountView > .panel:first-child .row { align-items:stretch; }
-    #accountView > .panel:first-child button { height:100%; padding:8px 6px; font-size:12px; }
+    .fc-actions { border-right:none; padding-right:0; padding-bottom:10px; border-bottom:1px solid var(--border); }
+    .fc-actions button { flex:1 1 auto; padding:8px 6px; font-size:12px; }
+    .fc-actions #acctMenuBtn { flex:0 0 auto; padding:8px 12px; }
+    .acct-menu { right:0; }
 
     #summary { gap:6px; }
     #summary .stat { padding:8px 10px; }
@@ -1576,15 +1588,6 @@
     </div>
 
     <div id="accountView" class="hidden">
-      <div class="panel">
-        <h2>Account actions</h2>
-        <div class="row">
-          <div style="flex:0 0 auto"><button id="addToggle" onclick="toggleAddForm(true)">+ Add transaction</button></div>
-          <div style="flex:0 0 auto"><button class="ghost" onclick="openTransferPage()">⇄ Transfer money</button></div>
-          <div style="flex:0 0 auto"><button class="ghost" onclick="openImportPage(currentAccountId)">⬆ Import CSV</button></div>
-        </div>
-      </div>
-
       <div class="summary" id="summary"></div>
 
       <div id="subviewForecast">
@@ -1648,6 +1651,23 @@
 
       <div class="panel">
         <div class="fc-controls">
+          <!-- Account actions (#85): part of the table's controls, under the
+               summary cards. Buttons that change data hide on read-only
+               accounts (selectAccount). -->
+          <div class="fc-actions" role="group" aria-label="Account actions">
+            <button id="addToggle" onclick="toggleAddForm(true)">+ Add transaction</button>
+            <button class="ghost" onclick="openTransferPage()">⇄ Transfer</button>
+            <button class="ghost" id="importBtn" onclick="openImportPage(currentAccountId)">⬆ Import CSV</button>
+            <button class="ghost" id="addRecurringBtn" onclick="addRecurringForAccount()"
+                    title="Add a recurring bill or income to this account (opens Bills &amp; income)">↻ Add recurring</button>
+            <button class="ghost" id="acctMenuBtn" aria-haspopup="menu" aria-expanded="false"
+                    onclick="toggleAccountMenu()" title="More for this account" aria-label="More for this account">⋯</button>
+            <div id="acctMenu" class="acct-menu hidden" role="menu" aria-label="This account">
+              <button type="button" role="menuitem" id="acctMenuRename" onclick="acctMenuDo('rename')">Rename…</button>
+              <button type="button" role="menuitem" id="acctMenuArchive" onclick="acctMenuDo('archive')">Archive…</button>
+              <button type="button" role="menuitem" onclick="acctMenuDo('export')">Export a backup of this account</button>
+            </div>
+          </div>
           <div class="fc-left">
             <div class="ctl">
               <label for="forecastMode">View</label>
@@ -2399,7 +2419,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.59.0";
+const WEB_VERSION = "1.60.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2410,6 +2430,7 @@ const WEB_VERSION = "1.59.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.60.0 (2026-11-14, claude+mkolakowski): (#85) Forecast's Account actions panel is gone; its buttons are .fc-actions at the start of the table's .fc-controls row, plus ↻ Add recurring (addRecurringForAccount: Bills & income filtered to the account, add form open) and a ⋯ menu (#acctMenu: rename, archive, export this account's backup; items by access level). Add/Import/Add recurring hide on read-only accounts.
 // 1.59.0 (2026-11-14, claude+mkolakowski): (#82) Tables wrap when too wide: _initTableWrap() watches <main> (MutationObserver) and each table's container width (ResizeObserver); _twCheck() adds .tw-wrapped when a table overflows its container, and _twLabel() copies header names into each cell's data-label (open lines label themselves; button spacers ignored). Wrapped rows are flex rows; .fc-sort shows while a panel's table is wrapped. Forecast's phone card layout is exempt.
 // 1.58.0 (2026-11-14, claude+mkolakowski): (#81) Bills & income laid out like Forecast: #recAccountsBar tabs (All accounts first; syncRecAccountSelect/selectRecAccount/_markRecTabs replace the dropdown), #recActionsPanel, totals, #recAddPanel as a panel, then the table panel with fc-controls (Active/Archived, #recSpreadsheetBtn, pagination with Auto/All via _recEffectivePageSize) and #recSortBar. #recurringTable gets Forecast's column lines and compact cells. Spreadsheet mode (recSheetMode): every editable row uses renderEditRow(r, {sheet}) with Delete only; leaving a row saves it (saveRecurring(id, {sheet}) skips unchanged rows), and _scheduleRecSheetRefresh reloads once focus leaves the table.
 // 1.57.0 (2026-11-14, claude+mkolakowski): (#80) The Transactions page is Forecast's All accounts tab: #allAccountsView inside #pageAccounts, an .all-tab first in #accountsBar (forecastAllView, showAllAccountsView, _markForecastTabs), hash #forecast/all; showPage('transactions') and #transactions redirect there. Account tabs are matched by data-account-id, not position. navTransactions, its More entry and #pageTransactions are removed; the transfer form returns via _returnFromTransfer().
@@ -3489,6 +3510,63 @@ function _initTableWrap() {
 }
 document.addEventListener('DOMContentLoaded', _initTableWrap);
 if (document.readyState !== 'loading') _initTableWrap();
+
+// ---------- Forecast account actions (#85) ----------
+// ↻ Add recurring: Bills & income, filtered to this account, add form open.
+async function addRecurringForAccount() {
+  recFilterAccount = String(currentAccountId || '');
+  showPage('subscriptions');
+  await loadRecurring();
+  toggleRecAddForm(true);
+}
+function toggleAccountMenu(show) {
+  const menu = document.getElementById('acctMenu');
+  const btn = document.getElementById('acctMenuBtn');
+  if (!menu || !btn) return;
+  if (show === undefined) show = menu.classList.contains('hidden');
+  if (show) {
+    const level = currentAccountLevel();
+    document.getElementById('acctMenuRename').classList.toggle('hidden', level !== 'owner');
+    document.getElementById('acctMenuArchive').classList.toggle('hidden', !(level === 'owner' || level === 'edit'));
+  }
+  menu.classList.toggle('hidden', !show);
+  btn.setAttribute('aria-expanded', String(show));
+  if (show) { const first = menu.querySelector('button:not(.hidden)'); if (first) first.focus(); }
+}
+async function acctMenuDo(what) {
+  toggleAccountMenu(false);
+  const id = currentAccountId;
+  if (!id) return;
+  if (what === 'rename') return renameAccount(id);
+  if (what === 'archive') return setAccountArchived(id, true);
+  if (what === 'export') {
+    try {
+      const res = await fetch('/api/backup/export?account_ids=' + encodeURIComponent(String(id)));
+      if (!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const acc = accounts.find(x => x.id === id);
+      const slug = ((acc && acc.name) || 'account').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      a.href = url; a.download = `walletweather-${slug}-${_isoDate(new Date())}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      notify('Backup downloaded. It isn’t encrypted, so keep it somewhere safe.', 'ok');
+    } catch (e) { notifyError('Could not export the backup', e); }
+  }
+}
+document.addEventListener('click', (ev) => {
+  const menu = document.getElementById('acctMenu');
+  if (!menu || menu.classList.contains('hidden')) return;
+  if (ev.target.closest && ev.target.closest('#acctMenu, #acctMenuBtn')) return;
+  toggleAccountMenu(false);
+});
+document.addEventListener('keydown', (ev) => {
+  const menu = document.getElementById('acctMenu');
+  if (ev.key === 'Escape' && menu && !menu.classList.contains('hidden')) {
+    toggleAccountMenu(false); document.getElementById('acctMenuBtn').focus();
+  }
+});
 
 // ---------- Phone navigation and Settings tabs (#54) ----------
 const MORE_PAGES = ['networth', 'reports', 'settings', 'admin'];
@@ -5132,6 +5210,9 @@ async function selectAccount(id) {
   // Hide the add transaction toggle entirely on read-only accounts
   const ro = isCurrentAccountReadOnly();
   document.getElementById('addToggle').classList.toggle('hidden', ro);
+  document.getElementById('addRecurringBtn').classList.toggle('hidden', ro);
+  document.getElementById('importBtn').classList.toggle('hidden', ro);
+  toggleAccountMenu(false);
   document.getElementById('addFormPanel').classList.add('hidden');
   await loadCategories();
   await loadForecast();

@@ -120,8 +120,17 @@ final class AppModel {
         #endif
     }
 
-    /// The phone's name for its token ("iPhone" unless iOS shares more).
-    var deviceName: String { UIDevice.current.name }
+    /// The name this phone's token is given when signing in through the
+    /// sheet, shown in the web app's Settings → API tokens (#155). iOS only
+    /// tells apps "iPhone" for the name the person gave the phone, so it
+    /// starts as the model ("iPhone 16 Pro Max") and can be changed on the
+    /// Connect screen. Kept in memory only.
+    var phoneName = DeviceModel.current
+
+    var deviceName: String {
+        let typed = phoneName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return typed.isEmpty ? DeviceModel.current : typed
+    }
 
     // MARK: - Starting
 

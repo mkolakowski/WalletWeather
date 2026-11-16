@@ -42,6 +42,17 @@ struct ConnectView: View {
                         .padding(12)
                         .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
                         .accessibilityLabel("Server address")
+                    VStack(alignment: .leading, spacing: 4) {
+                        TextField("Name for this phone", text: $model.phoneName)
+                            .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled()
+                            .submitLabel(.done)
+                            .padding(12)
+                            .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                            .accessibilityLabel("Name for this phone")
+                        Text("Shown beside this phone's sign-in in the web app's Settings → API tokens.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                     if homeHTTP {
                         Label("This address uses plain http://, so anyone on your home network could read what the app sends. Use https:// if your server has it.",
                               systemImage: "exclamationmark.triangle.fill")

@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "21"
+SCHEMA_VERSION = "22"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,8 @@ SCHEMA_VERSION = "21"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v22 (2026-11-16, claude+mkolakowski): blank category and tag colours that
+#     aren't hex colours (#183). New ones are checked as they come in.
 # v21 (2026-11-15, claude+mkolakowski): add remembered_browsers — browsers
 #     that skip the two-factor code for 30 days (two-factor phase 3, #167).
 #     Only the SHA-256 of each browser's cookie is kept.
@@ -754,6 +756,11 @@ def init_db():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_last_step BIGINT",
         # v20 → v21: remembered_browsers
         # (Created by Base.metadata.create_all above — boundary marker only.)
+        # v21 → v22: a colour is a hex colour or nothing (#183).
+        "UPDATE categories SET color = NULL "
+        "WHERE color IS NOT NULL AND color !~ '^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$'",
+        "UPDATE tags SET color = NULL "
+        "WHERE color IS NOT NULL AND color !~ '^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$'",
     ]
     with engine.begin() as conn:
         for sql in migrations:

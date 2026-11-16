@@ -66,6 +66,7 @@ All configuration is via environment variables in `.env`:
 | `ENCRYPTION_KEY` | Yes | — | Fernet key for field encryption. **Losing this means data loss.** |
 | `APP_BASE_URL` | No | `http://localhost:8300` | Public URL (used for OAuth redirect) |
 | `ALLOW_REGISTRATION` | No | `true` | Set `false` to lock out new signups |
+| `REGISTRATION_CODE` | No | *(none)* | A code people must type to register with a password. Set one on any instance other people can reach |
 | `ALLOWED_EMAILS` | No | — | Comma-separated allowlist for registration |
 | `ADMIN_EMAILS` | No | — | Comma-separated admin emails (enables Admin panel) |
 | `GOOGLE_CLIENT_ID` | No | — | Google OAuth client ID |
@@ -285,6 +286,7 @@ workflow).
 - Backup exports are **unencrypted JSON** — store them somewhere safe
 - Session cookies use the `SESSION_SECRET` for signing
 - Admin access is controlled by the `ADMIN_EMAILS` environment variable, not by database state — an admin cannot be created from the UI
+- Registering with a password doesn't prove who owns the address. So an address in `ADMIN_EMAILS` can only be registered while the instance has no users (register yours first); after that an admin adds it under Admin → User management. On an instance other people can reach, set `REGISTRATION_CODE` or turn `ALLOW_REGISTRATION` off
 
 ### What the encryption does and doesn't cover
 

@@ -69,7 +69,43 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.61.1** · Web version: **1.78.0** · Schema version: **21** · iOS version: **0.16.0**
+App version: **1.62.0** · Web version: **1.79.0** · Schema version: **22** · iOS version: **0.16.0**
+
+### Security
+
+These come from a security review of the server (#178). Update if other
+people can reach your instance.
+
+- **Colours can no longer carry anything but a colour:** a category's or
+  tag's colour could be any text, and the web app wrote it into the page
+  as it was. Someone you share an account with could have
+  used that to run their own script in your browser. A colour is now a hex
+  colour (like `#58a6ff`) or nothing, wherever it comes in, an imported
+  backup included, and the web app checks again before using one. (#183)
+- **Breaking: an administrator's address can't be registered by whoever
+  types it first.** Registering with a password doesn't prove you own the
+  address, so anyone could register an address listed in `ADMIN_EMAILS`
+  before its owner and become an administrator. Now such an address can be
+  registered only while the instance has no users at all (so set yours up
+  first on a new install). After that, an administrator adds it under
+  Admin → User management. Addresses in the demo's own domain
+  (`@demo.walletweather.local`) can't be registered either. (#183)
+- **A registration code:** set `REGISTRATION_CODE` in `.env` and the sign-up
+  form asks for it, so only people you gave it to can make a user. Use it,
+  or `ALLOW_REGISTRATION=false`, on any instance strangers can reach. With
+  a code set, Google sign-in makes new users only for addresses on
+  `ALLOWED_EMAILS`. (#183)
+- **Required two-factor can't be sidestepped:** when an admin requires
+  two-factor sign-in, a user who hadn't set it up yet could reach the rest
+  of the app with a specially written request. The hold now goes by the
+  address the request was really sent to. (#183)
+- **A line can only belong to a bill on its own account:** a transaction
+  could name any recurring item, including one on an account its maker
+  couldn't see, and deleting that line struck the date from the other
+  person's bill. Marking a bill paid also accepted any category, which
+  showed its name. Both are now refused with 404. (#183)
+- **Google sign-in needs a verified address:** an address Google hasn't
+  verified no longer signs in, links to or creates a user. (#183)
 
 ### Added
 
@@ -85,6 +121,16 @@ App version: **1.61.1** · Web version: **1.78.0** · Schema version: **21** · 
   dates of the numbers it keeps. The privacy policy now also mentions the
   demo, the tab bar and Getting started settings, and that a sign-in is named
   after the phone. (iOS 0.16.0)
+- **Add a user from the Admin panel:** Admin → User management has an Add a
+  user form (email, optional name, a password you pass on). It works with
+  registration switched off and needs no registration code
+  (`POST /api/admin/users`, logged as `user_created`). (#183)
+
+### Database
+
+- **Schema 22:** category and tag colours that aren't hex colours are
+  blanked when the server starts; those categories and tags show without a
+  colour until you pick one again. (#183)
 
 ## [1.61.1] — 2026-11-16
 

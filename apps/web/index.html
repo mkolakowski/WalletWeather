@@ -1162,6 +1162,11 @@
       <input id="suEmail" type="email" autocomplete="email">
       <label for="suPass">Password (8+ characters)</label>
       <input id="suPass" type="password" autocomplete="new-password">
+      <div id="suCodeWrap" class="hidden">
+        <label for="suCode">Registration code</label>
+        <input id="suCode" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Whoever runs this instance gives it out.</div>
+      </div>
       <button onclick="doSignup()" style="width:100%;margin-top:12px">Create account</button>
     </div>
 
@@ -2111,6 +2116,19 @@
         <div id="adminUsersList" style="overflow-x:auto">
           <div style="color:var(--muted);padding:8px">Loading…</div>
         </div>
+        <h3 style="margin:16px 0 4px;font-size:14px">Add a user</h3>
+        <p style="color:var(--muted);margin:0 0 8px;font-size:13px">
+          Makes a user with a password you pass on to them; they can change it in Settings.
+          It works with registration switched off, and it's the only way to add another
+          administrator's address: nobody can register one for themselves.
+        </p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+          <div><label for="adminNewEmail">Email</label><input id="adminNewEmail" type="email" autocomplete="off"></div>
+          <div><label for="adminNewName">Name (optional)</label><input id="adminNewName" type="text" autocomplete="off"></div>
+          <div><label for="adminNewPass">Password (8+ characters)</label><input id="adminNewPass" type="password" autocomplete="new-password"></div>
+          <button onclick="adminAddUser()">Add user</button>
+        </div>
+        <div id="adminNewStatus" style="margin-top:8px;font-size:12px"></div>
       </div>
 
       <div class="panel">
@@ -2648,7 +2666,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.78.0";
+const WEB_VERSION = "1.79.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2659,6 +2677,7 @@ const WEB_VERSION = "1.78.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.79.0 (2026-11-16, claude+mkolakowski): (#183) Security fixes from the review. Colours from the server are written into the page only when they are hex colours (safeColor at each place, scrubColors on every api() answer). The sign-up form shows a Registration code field (#suCode) when /api/auth/config says registration_code_required. Admin → User management gets Add a user (#adminNewEmail, #adminNewName, #adminNewPass → POST /api/admin/users).
 // 1.78.0 (2026-11-15, claude+mkolakowski): (#169) A code for sensitive actions. With two-factor on, Change password (#pwCode), Create token (#apiTokenCode) and Delete my account (#deleteAccountCode) get a "Code from your authenticator app" field and send it as code; shown only when me.two_factor_enabled. /app-sign-in's Allow step asks too.
 // 1.77.0 (2026-11-15, claude+mkolakowski): (#168) Two-factor sign-in required by an admin. A user /api/me says two_factor_setup_required gets only a set-up screen after sign-in (#tfaGate, showTwoFactorGate, which borrows the Settings panel #twoFactorPanel) until it's on; a request the server holds back for it reloads into that screen (api()). Admin → "Two-factor sign-in" panel (#adminTwoFactor, loadAdminTwoFactor, saveAdminTwoFactor) switches the requirement and counts who still has to set it up.
 // 1.76.0 (2026-11-15, claude+mkolakowski): (#167) Remember this browser. The sign-in code step gets a "Don't ask on this browser for 30 days" tick box (#siRemember, sent as remember to /api/auth/login/two-factor). Settings → Two-factor sign-in lists remembered browsers when it's on (#tfaBrowsers, loadRememberedBrowsers) with Forget on each and Forget all.
@@ -3455,7 +3474,25 @@ async function api(path, opts={}) {
     if (res.status === 403 && text.includes('requires two-factor sign-in') && !inTwoFactorGate()) location.reload();
     throw new Error(text);
   }
-  return res.json();
+  return scrubColors(await res.json());
+}
+
+// A colour from the server goes into style="" and fill="" in the markup, so
+// it's a hex colour or it's nothing (#183). The server checks them too;
+// this is the page not taking its word for it. safeColor is for the places
+// a colour is written out; scrubColors blanks every "...color" field of an
+// answer that isn't one, so no new place can forget.
+const _HEX_COLOR = /^#[0-9a-f]{3}(?:[0-9a-f]{3})?$/i;
+function safeColor(c) { return (typeof c === 'string' && _HEX_COLOR.test(c)) ? c : null; }
+function scrubColors(v) {
+  if (Array.isArray(v)) { for (const x of v) scrubColors(x); }
+  else if (v && typeof v === 'object') {
+    for (const k of Object.keys(v)) {
+      if (/color$/i.test(k)) { if (typeof v[k] === 'string') v[k] = safeColor(v[k]); }
+      else scrubColors(v[k]);
+    }
+  }
+  return v;
 }
 
 // ---------- In-page messages and dialogs (#53) ----------
@@ -4210,7 +4247,7 @@ function renderPinnedReport(id, d) {
   const top = (d.groups || []).slice().sort((a,b)=>Math.abs(b.actual_total)-Math.abs(a.actual_total)).slice(0,5);
   const chartHostId = 'pinnedRptChart-' + id;
   body.innerHTML = `${summary}<div id="${chartHostId}"></div>`;
-  const slices = top.map(g => ({label: g.name, value: Math.abs(g.actual_total), color: g.color}))
+  const slices = top.map(g => ({label: g.name, value: Math.abs(g.actual_total), color: safeColor(g.color)}))
                     .filter(s => s.value > 0);
   if (slices.length) renderBarChart(chartHostId, slices);
   else document.getElementById(chartHostId).innerHTML = '<div style="color:var(--muted);font-size:12px">No data.</div>';
@@ -4492,7 +4529,7 @@ function renderDonut(categories) {
   const rest = sorted.slice(TOP_N);
   const slices = top.map(c => ({
     name: c.name, value: c.spending_actual,
-    color: c.color || paletteColor(c.name),
+    color: safeColor(c.color) || paletteColor(c.name),
   }));
   if (rest.length) {
     slices.push({
@@ -4900,8 +4937,8 @@ function renderReportResult(d) {
     const rows = d.groups.map(g => {
       const diff = g.actual_total - g.forecast_total;
       const diffCls = Math.abs(diff) < 0.005 ? 'diff-zero' : (diff > 0 ? 'diff-pos' : 'diff-neg');
-      const swatch = g.color
-        ? `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${g.color};margin-right:6px;vertical-align:middle"></span>`
+      const swatch = safeColor(g.color)
+        ? `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${safeColor(g.color)};margin-right:6px;vertical-align:middle"></span>`
         : '';
       return `<tr>
         <td>${swatch}${escapeHtml(g.name)}</td>
@@ -4942,7 +4979,7 @@ function renderReportChart(d, hostId, headingId) {
   // a pie of magnitudes — distinct from a stacked-positive/negative
   // breakdown — so we just take |actual_total|.
   const slices = d.groups
-    .map(g => ({ label: g.name, value: Math.abs(g.actual_total), color: g.color }))
+    .map(g => ({ label: g.name, value: Math.abs(g.actual_total), color: safeColor(g.color) }))
     .filter(s => s.value > 0);
   if (heading) heading.textContent = ct === 'pie' ? 'Pie' : 'Bar chart';
   if (!slices.length) {
@@ -5885,6 +5922,7 @@ async function init() {
     window._googleEnabled = !!cfg.google_enabled;  // showSigninCode puts the button back
     if (cfg.google_enabled) document.getElementById('googleWrap').classList.remove('hidden');
     if (!cfg.registration_enabled) document.getElementById('tabSignup').classList.add('hidden');
+    if (cfg.registration_code_required) document.getElementById('suCodeWrap').classList.remove('hidden');
     if (cfg.demo_mode && cfg.demo_email && cfg.demo_password) {
       window._demoCreds = { email: cfg.demo_email, password: cfg.demo_password };
       document.getElementById('demoEmail').textContent = cfg.demo_email;
@@ -6032,7 +6070,8 @@ async function doSignup() {
   try {
     const res = await fetch('/api/auth/register', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({name, email, password})
+      body: JSON.stringify({name, email, password,
+                            registration_code: document.getElementById('suCode').value.trim() || null})
     });
     if (!res.ok) {
       const err = await res.json().catch(()=>({detail:'Registration failed'}));
@@ -6249,7 +6288,7 @@ async function loadCategories() {
     list.innerHTML = '<span style="color:var(--muted)">No categories yet. Add one below to tag your transactions.</span>';
   } else {
     list.innerHTML = categories.map(c =>
-      `<span class="cat-pill" style="${c.color?`background:${c.color}22;color:${c.color}`:''};margin-right:6px;padding:4px 10px">
+      `<span class="cat-pill" style="${safeColor(c.color)?`background:${safeColor(c.color)}22;color:${safeColor(c.color)}`:''};margin-right:6px;padding:4px 10px">
         ${escapeHtml(c.name)}
         <a href="#" onclick="delCategory(${c.id});return false" style="color:inherit;margin-left:6px;text-decoration:none">×</a>
       </span>`
@@ -6306,7 +6345,7 @@ async function loadTags() {
     list.innerHTML = '<span style="color:var(--muted)">No tags yet. Add one below to start labelling transactions across categories.</span>';
   } else {
     list.innerHTML = tags.map(t =>
-      `<span class="tag-pill" style="${t.color?`background:${t.color}22;color:${t.color};border-color:${t.color}55`:''};margin-right:6px;padding:4px 10px">
+      `<span class="tag-pill" style="${safeColor(t.color)?`background:${safeColor(t.color)}22;color:${safeColor(t.color)};border-color:${safeColor(t.color)}55`:''};margin-right:6px;padding:4px 10px">
         ${escapeHtml(t.name)}
         <a href="#" onclick="renameTag(${t.id});return false" style="color:inherit;margin-left:6px;text-decoration:none"
            title="Rename">✎</a>
@@ -6417,7 +6456,7 @@ function renderTagRulesList() {
         </td>
         <td>${r.category_name ? escapeHtml(r.category_name) : '<span style="color:var(--muted)">— any —</span>'}</td>
         <td>${r.tag_name
-          ? `<span class="tag-pill" style="${r.tag_color?`background:${r.tag_color}22;color:${r.tag_color};border-color:${r.tag_color}55`:''}">${escapeHtml(r.tag_name)}</span>`
+          ? `<span class="tag-pill" style="${safeColor(r.tag_color)?`background:${safeColor(r.tag_color)}22;color:${safeColor(r.tag_color)};border-color:${safeColor(r.tag_color)}55`:''}">${escapeHtml(r.tag_name)}</span>`
           : '<span style="color:var(--bad)">(missing tag)</span>'}</td>
         <td style="text-align:center">${r.active ? 'Yes' : '<span style="color:var(--muted)">No</span>'}</td>
         <td style="text-align:right">
@@ -6534,7 +6573,7 @@ async function backfillTagRules() {
 function renderTagChips(tagList) {
   if (!tagList || !tagList.length) return '<span style="color:var(--muted)">—</span>';
   return tagList.map(t => {
-    const style = t.color ? `background:${t.color}22;color:${t.color};border-color:${t.color}55` : '';
+    const style = safeColor(t.color) ? `background:${safeColor(t.color)}22;color:${safeColor(t.color)};border-color:${safeColor(t.color)}55` : '';
     return `<span class="tag-pill" style="${style}" title="${escapeAttr(t.name)}">${escapeHtml(t.name)}</span>`;
   }).join(' ');
 }
@@ -6554,7 +6593,7 @@ function renderTagPicker(inputId, selectedIds) {
   const opts = all.length
     ? all.map(t => `<label class="tag-dd-opt" data-name="${escapeAttr((t.name || '').toLowerCase())}">
       <input type="checkbox" value="${t.id}"${selected.has(t.id) ? ' checked' : ''} onchange="_tagDropdownChanged('${inputId}')">
-      <span class="tag-dd-sw"${t.color ? ` style="background:${escapeAttr(t.color)}"` : ''}></span>${escapeHtml(t.name)}</label>`).join('')
+      <span class="tag-dd-sw"${safeColor(t.color) ? ` style="background:${escapeAttr(safeColor(t.color))}"` : ''}></span>${escapeHtml(t.name)}</label>`).join('')
     : '<div class="tag-dd-empty">No tags yet. Add them in Settings → Categories &amp; tags.</div>';
   const filter = all.length > 6
     ? `<input type="search" class="tag-dd-filter" placeholder="Filter tags" aria-label="Filter tags" oninput="_filterTagDropdown(this)">` : '';
@@ -7727,7 +7766,7 @@ function changeForecastPage(delta) {
 function categoryColorByName(name) {
   if (!name) return null;
   const c = (categories || []).find(x => x.name === name);
-  return c ? c.color : null;
+  return c ? safeColor(c.color) : null;
 }
 
 // True when the Forecast page uses its phone layout (cards instead of table
@@ -9017,6 +9056,22 @@ async function adminRevokeToken(id) {
   await loadAdminTokens();
 }
 
+async function adminAddUser() {
+  const st = document.getElementById('adminNewStatus');
+  const email = document.getElementById('adminNewEmail').value.trim();
+  const name = document.getElementById('adminNewName').value.trim();
+  const password = document.getElementById('adminNewPass').value;
+  st.style.color = 'var(--bad)';
+  if (!email || password.length < 8) { st.textContent = 'An email and a password of 8 or more characters are needed.'; return; }
+  try {
+    const made = await api('/api/admin/users', { method: 'POST', body: JSON.stringify({email, name: name || null, password}) });
+    for (const id of ['adminNewEmail', 'adminNewName', 'adminNewPass']) document.getElementById(id).value = '';
+    st.style.color = 'var(--good)';
+    st.textContent = `Added ${made.email}${made.is_admin ? ' (an administrator)' : ''}. Pass the password on to them.`;
+  } catch (e) { st.textContent = errText(e); return; }
+  await loadAdminUsers();
+}
+
 async function adminToggleDisable(uid, disabled) {
   const action = disabled ? 'disable' : 'enable';
   if (!(await confirmDialog(`${disabled ? 'Disable' : 'Enable'} this user? ${disabled ? 'They will be logged out and unable to sign in.' : 'They will be able to sign in again.'}`, { title: disabled ? 'Disable user' : 'Enable user', okLabel: disabled ? 'Disable' : 'Enable', danger: disabled }))) return;
@@ -9627,7 +9682,7 @@ function renderCalendar() {
     const net = cellEvents.reduce((s, ev) => s + (ev.amount || 0), 0);
 
     const pills = shown.map(ev => {
-      const colorSource = ev.category_color || null;
+      const colorSource = safeColor(ev.category_color) || null;
       const cls = ev.transfer_id != null ? 'transfer'
                 : (ev.amount >= 0 ? 'income' : 'spend');
       const style = colorSource
@@ -9723,7 +9778,7 @@ function renderCalendarDay(iso) {
       : (ev.is_actual_real ? '<span class="pill actual">Cleared</span>'
                            : '<span class="pill">Forecast</span>');
     const catCell = ev.category_name
-      ? `<span class="cat-pill" style="${ev.category_color?`background:${ev.category_color}22;color:${ev.category_color}`:''}">${escapeHtml(ev.category_name)}</span>`
+      ? `<span class="cat-pill" style="${safeColor(ev.category_color)?`background:${safeColor(ev.category_color)}22;color:${safeColor(ev.category_color)}`:''}">${escapeHtml(ev.category_name)}</span>`
       : '<span style="color:var(--muted)">—</span>';
     const srcHint = ev.recurring_id != null
       ? ' <span class="cal-src-hint" title="From a recurring template">⟳</span>' : '';
@@ -10548,7 +10603,7 @@ async function loadBudgets() {
     <div></div><div>Category</div><div class="num" style="text-align:right">Spent</div><div>Progress</div><div class="num" style="text-align:right">Budget</div><div></div>
   </div>`;
   html += data.rows.map(r => {
-    const sw = r.category_color ? `style="background:${r.category_color}"` : '';
+    const sw = safeColor(r.category_color) ? `style="background:${safeColor(r.category_color)}"` : '';
     const pct = r.budget > 0 ? Math.min(100, (r.spend / r.budget) * 100) : 0;
     let cls = '';
     if (r.over) cls = 'over';

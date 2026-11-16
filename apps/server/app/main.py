@@ -29,7 +29,7 @@ from urllib.parse import urlencode
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.61.1"
+APP_VERSION = "1.62.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,16 @@ APP_VERSION = "1.61.1"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.62.0 (2026-11-16, claude+mkolakowski): security fixes from the review
+#     (#183). A colour is a hex colour or nothing (categories, tags, backup
+#     import; schema v22 blanks the rest). POST /api/auth/register takes
+#     "registration_code" when REGISTRATION_CODE is set
+#     (/api/auth/config: registration_code_required), and refuses the demo's
+#     domain and, once the instance has a user, an ADMIN_EMAILS address:
+#     new POST /api/admin/users adds a user instead. Google sign-in needs a
+#     verified address. A line's recurring_id must be on its own account,
+#     "mark paid" checks category_id, and the two-factor hold goes by the
+#     routed path.
 # 1.61.1 (2026-11-16, claude+mkolakowski): no server change; the release
 #     that holds the iPhone app 0.15.0 (#177), which landed just after v1.61.0
 #     was tagged (#181).
@@ -498,6 +508,10 @@ APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8300")
 ALLOWED_EMAILS = {e.strip().lower() for e in os.environ.get("ALLOWED_EMAILS", "").split(",") if e.strip()}
 ALLOW_REGISTRATION = os.environ.get("ALLOW_REGISTRATION", "true").lower() == "true"
 ADMIN_EMAILS = {e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()}
+# Registering with a password proves nothing about who owns the address, so
+# (decided 2026-11-16, #183) an instance can ask for a code only the people
+# it's meant for were given. Empty means no code is asked for.
+REGISTRATION_CODE = os.environ.get("REGISTRATION_CODE", "").strip()
 BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", "/data/backups"))
 
 # Login rate limiting (login-limits phase 1, #132). TRUST_PROXY_HEADERS makes
@@ -830,7 +844,9 @@ def must_set_up_two_factor(db: Session, user: User) -> bool:
 
 
 def _hold_for_two_factor(request: Request, db: Session, user: User) -> None:
-    if (request.method, request.url.path) in TWO_FACTOR_SETUP_OPEN:
+    # The path the request was routed by. request.url is rebuilt from the
+    # Host header, which the caller writes (#183).
+    if (request.method, request.scope.get("path")) in TWO_FACTOR_SETUP_OPEN:
         return
     if must_set_up_two_factor(db, user):
         raise HTTPException(status_code=403, detail=TWO_FACTOR_SETUP_MESSAGE)
@@ -982,6 +998,8 @@ class RegisterIn(BaseModel):
     email: str
     password: str = Field(min_length=8, max_length=128)
     name: str | None = None
+    # Needed when the instance sets REGISTRATION_CODE (#183).
+    registration_code: str | None = Field(default=None, max_length=200)
 
 
 class LoginIn(BaseModel):
@@ -1015,6 +1033,8 @@ def auth_config(db: Session = Depends(get_db)):
     return {
         "google_enabled": GOOGLE_ENABLED,
         "registration_enabled": ALLOW_REGISTRATION,
+        # The sign-up form shows a code field when this is true (#183).
+        "registration_code_required": bool(REGISTRATION_CODE),
         "demo_mode": DEMO_MODE,
         "demo_email": DEMO_ADMIN_EMAIL if DEMO_MODE else None,
         "demo_password": DEMO_ADMIN_PASSWORD if DEMO_MODE else None,
@@ -1042,19 +1062,51 @@ def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db
         raise HTTPException(400, "Invalid email")
     if ALLOWED_EMAILS and email not in ALLOWED_EMAILS:
         raise HTTPException(403, "This email is not authorized for this app")
+    _check_registration_code(payload.registration_code)
+    _refuse_reserved_address(db, email)
     if db.query(User).filter_by(email=email).first():
         raise HTTPException(409, "An account with that email already exists")
-    user = User(
-        email=email,
-        name=payload.name or email.split("@")[0],
-        password_hash=hash_password(payload.password),
-    )
+    user = _create_password_user(db, email, payload.name, payload.password)
+    request.session["uid"] = user.id
+    return {"id": user.id, "email": user.email}
+
+
+# Registering proves nothing about who owns an address (#183, decided
+# 2026-11-16): the code keeps strangers out, and the addresses that carry
+# power here can't be claimed by whoever types them first.
+RESERVED_ADDRESS_MESSAGE = ("This address can't be registered here. "
+                            "Ask an administrator to add it.")
+
+
+def _check_registration_code(code: str | None) -> None:
+    if not REGISTRATION_CODE:
+        return
+    given = (code or "").strip().encode("utf-8")
+    if not secrets.compare_digest(given, REGISTRATION_CODE.encode("utf-8")):
+        raise HTTPException(403, "That registration code isn't right. "
+                                 "Ask whoever runs this instance for it.")
+
+
+def _refuse_reserved_address(db: Session, email: str) -> None:
+    """Addresses nobody may register for themselves: the demo's own domain
+    (its users skip the notice and required two-factor, and are deleted at
+    the next start), and an administrator's address once the instance has a
+    user. The first user of a new instance may be its administrator; after
+    that an administrator adds the others (POST /api/admin/users)."""
+    if is_demo_email(email):
+        raise HTTPException(403, RESERVED_ADDRESS_MESSAGE)
+    if email in ADMIN_EMAILS and db.query(User.id).first() is not None:
+        raise HTTPException(403, RESERVED_ADDRESS_MESSAGE)
+
+
+def _create_password_user(db: Session, email: str, name: str | None, password: str) -> User:
+    user = User(email=email, name=(name or "").strip() or email.split("@")[0],
+                password_hash=hash_password(password))
     db.add(user)
     db.commit()
     db.refresh(user)
     seed_default_categories(db, user)
-    request.session["uid"] = user.id
-    return {"id": user.id, "email": user.email}
+    return user
 
 
 def _password_sign_in(db: Session, request: Request, email_in: str, password: str,
@@ -1383,6 +1435,10 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
     email = (info.get("email") or "").lower()
     if not sub or not email:
         raise HTTPException(400, "Google did not return an identity")
+    # Only an address Google has checked may match, link to or create a
+    # user here (#183).
+    if info.get("email_verified") is not True:
+        raise HTTPException(403, "Google hasn't verified this email address")
     if ALLOWED_EMAILS and email not in ALLOWED_EMAILS:
         raise HTTPException(403, "This email is not authorized for this app")
     # Match by google_sub first, then by email (link existing local account)
@@ -1395,6 +1451,14 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
         else:
             if not ALLOW_REGISTRATION:
                 raise HTTPException(403, "Registration is disabled")
+            # There's nowhere to type a registration code on the way back
+            # from Google, so where one is asked for, Google makes new
+            # users only for addresses on the allow-list (#183).
+            if REGISTRATION_CODE and email not in ALLOWED_EMAILS:
+                raise HTTPException(403, "Registration here needs a code. Register with "
+                                         "an email and password, then sign in with Google.")
+            if is_demo_email(email):
+                raise HTTPException(403, RESERVED_ADDRESS_MESSAGE)
             user = User(google_sub=sub, email=email, name=info.get("name"))
             db.add(user)
             is_new = True
@@ -2210,6 +2274,21 @@ class TagIn(BaseModel):
     color: str | None = None
 
 
+# A colour is written into the page's markup, so it's a hex colour or
+# nothing (#183). Checked wherever one comes in, a backup included.
+_HEX_COLOR = re.compile(r"#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?")
+
+
+def clean_color(value: str | None) -> str | None:
+    """`value` as a hex colour, None for none; 400 for anything else."""
+    value = (value or "").strip()
+    if not value:
+        return None
+    if not _HEX_COLOR.fullmatch(value):
+        raise HTTPException(400, "A colour must be a hex colour, like #58a6ff")
+    return value
+
+
 # ---------- Categories ----------
 DEFAULT_CATEGORIES = [
     ("Groceries",      "#3fb950"),
@@ -2262,7 +2341,7 @@ def create_category(payload: CategoryIn, user: User = Depends(current_user), db:
     existing = db.query(Category).filter_by(owner_id=user.id, name=name).first()
     if existing:
         raise HTTPException(409, "A category with that name already exists")
-    cat = Category(owner_id=user.id, name=name, color=payload.color)
+    cat = Category(owner_id=user.id, name=name, color=clean_color(payload.color))
     db.add(cat)
     db.commit()
     db.refresh(cat)
@@ -2274,7 +2353,7 @@ def update_category(cat_id: int, payload: CategoryIn,
                     user: User = Depends(current_user), db: Session = Depends(get_db)):
     cat = _own_category(db, user, cat_id)
     cat.name = payload.name.strip()
-    cat.color = payload.color
+    cat.color = clean_color(payload.color)
     db.commit()
     return {"ok": True}
 
@@ -2406,7 +2485,7 @@ def create_tag(payload: TagIn, user: User = Depends(current_user),
     existing = db.query(Tag).filter_by(owner_id=user.id, name=name).first()
     if existing:
         raise HTTPException(409, "A tag with that name already exists")
-    tag = Tag(owner_id=user.id, name=name, color=payload.color)
+    tag = Tag(owner_id=user.id, name=name, color=clean_color(payload.color))
     db.add(tag)
     db.commit()
     db.refresh(tag)
@@ -2428,7 +2507,7 @@ def update_tag(tag_id: int, payload: TagIn,
     if clash:
         raise HTTPException(409, "A tag with that name already exists")
     tag.name = name
-    tag.color = payload.color
+    tag.color = clean_color(payload.color)
     db.commit()
     return {"ok": True, "id": tag.id, "name": tag.name, "color": tag.color}
 
@@ -3176,6 +3255,11 @@ def _keeps_recurring_category(db: Session, acc: Account, payload: "TransactionIn
 def create_transaction(account_id: int, payload: TransactionIn,
                        user: User = Depends(current_user), db: Session = Depends(get_db)):
     acc = _own_account(db, user, account_id)
+    # A line belongs to a recurring item on its own account, or to none (#183).
+    if payload.recurring_id is not None:
+        rec = db.get(RecurringTransaction, payload.recurring_id)
+        if not rec or rec.account_id != acc.id:
+            raise HTTPException(404, "Recurring item not found")
     if payload.category_id is not None and not _keeps_recurring_category(db, acc, payload):
         _own_category(db, user, payload.category_id)
     t = Transaction(
@@ -3312,6 +3396,10 @@ def upsert_forecast_actual(account_id: int, payload: ForecastActualIn,
     rec = db.get(RecurringTransaction, payload.recurring_id)
     if not rec or rec.account_id != acc.id:
         raise HTTPException(404, "Recurring template not found")
+    # The item's own category may be kept (on a shared account it's the
+    # owner's); any other must be the caller's (#183).
+    if payload.category_id is not None and payload.category_id != rec.category_id:
+        _own_category(db, user, payload.category_id)
     fc_amt = payload.forecast_amount if payload.forecast_amount is not None else float(rec.amount)
     actual_amt = payload.actual_amount if payload.actual_amount is not None else fc_amt
     t = Transaction(
@@ -5900,6 +5988,34 @@ def admin_list_users(user: User = Depends(current_admin), db: Session = Depends(
     return out
 
 
+class AdminUserIn(BaseModel):
+    email: str = Field(max_length=320)
+    password: str = Field(min_length=8, max_length=128)
+    name: str | None = Field(default=None, max_length=255)
+
+
+@app.post("/api/admin/users")
+def admin_create_user(payload: AdminUserIn, request: Request,
+                      user: User = Depends(current_admin), db: Session = Depends(get_db)):
+    """Add a user with a password the admin passes on to them (#183). This
+    is how an administrator's address gets its user once the instance has
+    one: nobody can register it for themselves. Works with registration
+    switched off, and needs no registration code."""
+    email = payload.email.strip().lower()
+    if not _email_ok(email):
+        raise HTTPException(400, "Invalid email")
+    if is_demo_email(email):
+        raise HTTPException(400, "That address belongs to the demo.")
+    if ALLOWED_EMAILS and email not in ALLOWED_EMAILS:
+        raise HTTPException(400, "That address isn't on ALLOWED_EMAILS. Add it there first.")
+    if db.query(User).filter_by(email=email).first():
+        raise HTTPException(409, "An account with that email already exists")
+    created = _create_password_user(db, email, payload.name, payload.password)
+    record_event(db, "user_created", request, user=user, detail=audit_target(user, created.id))
+    return {"id": created.id, "email": created.email, "name": created.name,
+            "is_admin": is_admin(created)}
+
+
 @app.patch("/api/admin/users/{uid}")
 def admin_update_user(uid: int, payload: AdminUserPatchIn, request: Request,
                       user: User = Depends(current_admin), db: Session = Depends(get_db)):
@@ -6157,7 +6273,7 @@ def admin_download_backup(filename: str, request: Request,
 AUDIT_EVENT_TYPES = (
     "login", "login_failed", "login_blocked",
     "password_changed", "password_reset",
-    "user_disabled", "user_enabled", "user_deleted",
+    "user_created", "user_disabled", "user_enabled", "user_deleted",
     "permission_changed", "app_title_changed", "backup_settings_changed",
     "backup_made", "backup_downloaded", "backup_restored",
     "backup_exported", "backup_imported",

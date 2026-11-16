@@ -4,6 +4,7 @@ The export decrypts all Fernet-protected fields so the backup is portable and
 restorable even if the encryption key is lost. The caller is responsible for
 protecting the resulting file — it contains sensitive financial data.
 """
+import re
 from datetime import date, datetime
 from decimal import Decimal
 from sqlalchemy.orm import Session
@@ -18,6 +19,13 @@ from .db import (
 BACKUP_VERSION = 4
 TAG_NAME_MAX = 60          # Tag.name's column size
 TAG_RULE_PATTERN_MAX = 120
+_HEX_COLOR = re.compile(r"#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?")
+
+
+def _color(value) -> str | None:
+    """A backup's colour if it is a hex colour, otherwise none: a file can
+    be edited by hand, and colours end up in the page's markup (#183)."""
+    return value if isinstance(value, str) and _HEX_COLOR.fullmatch(value) else None
 
 
 def _tag_names(db: Session, link, key: str, ids: list[int]) -> dict[int, list[str]]:
@@ -174,7 +182,7 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
         name = str(c_data.get("name", "")).strip()
         if not name or name in cat_by_name:
             continue
-        cat = Category(owner_id=user.id, name=name, color=c_data.get("color"))
+        cat = Category(owner_id=user.id, name=name, color=_color(c_data.get("color")))
         db.add(cat)
         db.flush()
         cat_by_name[name] = cat
@@ -189,7 +197,7 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
         if not name:
             return None
         if name not in tag_by_name:
-            tag = Tag(owner_id=user.id, name=name, color=color)
+            tag = Tag(owner_id=user.id, name=name, color=_color(color))
             db.add(tag)
             db.flush()
             tag_by_name[name] = tag

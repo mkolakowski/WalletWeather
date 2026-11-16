@@ -111,6 +111,33 @@ struct KeptBar: View {
     }
 }
 
+/// The bar over every page in the demo (#92): that the numbers are
+/// samples, and the way back to the Connect screen.
+struct DemoBar: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Label {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Demo · sample numbers").font(.subheadline.weight(.semibold))
+                    Text("Nothing you change here is saved.").font(.caption).foregroundStyle(.secondary)
+                }
+            } icon: {
+                Image(systemName: "sparkles")
+            }
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: 0)
+            Button("Leave") { model.leaveDemo() }
+                .buttonStyle(.glass)
+                .accessibilityHint("Goes back to the Connect screen")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 14).padding(.vertical, 8)
+        .glassEffect(.regular, in: .rect(cornerRadius: 14))
+    }
+}
+
 extension View {
     /// The kept-numbers bar at the top of a page, while it shows them.
     func keptBar(_ tracker: KeptTracker) -> some View {

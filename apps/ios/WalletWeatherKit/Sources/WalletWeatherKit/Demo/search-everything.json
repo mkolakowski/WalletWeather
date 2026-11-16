@@ -1,0 +1,424 @@
+{
+    "query": "e",
+    "transactions": {
+        "total": 7,
+        "results": [
+            {
+                "id": 1,
+                "description": "Grocery store",
+                "date": "2026-11-13",
+                "amount": -87.42,
+                "forecast_amount": -87.42,
+                "actual_date": "2026-11-13",
+                "forecast_date": "2026-11-13",
+                "is_actual": true,
+                "account_id": 1,
+                "account_name": "Checking",
+                "category_id": 1,
+                "category_name": "Groceries",
+                "recurring_id": null,
+                "transfer_id": null,
+                "notes": null
+            },
+            {
+                "id": 7,
+                "description": "Coffee shop",
+                "date": "2026-11-12",
+                "amount": -8.5,
+                "forecast_amount": -8.5,
+                "actual_date": "2026-11-12",
+                "forecast_date": "2026-11-12",
+                "is_actual": true,
+                "account_id": 3,
+                "account_name": "Credit Card",
+                "category_id": 2,
+                "category_name": "Dining",
+                "recurring_id": null,
+                "transfer_id": null,
+                "notes": null
+            },
+            {
+                "id": 8,
+                "description": "Ride share",
+                "date": "2026-11-10",
+                "amount": -22.4,
+                "forecast_amount": -22.4,
+                "actual_date": "2026-11-10",
+                "forecast_date": "2026-11-10",
+                "is_actual": true,
+                "account_id": 3,
+                "account_name": "Credit Card",
+                "category_id": 3,
+                "category_name": "Transportation",
+                "recurring_id": null,
+                "transfer_id": null,
+                "notes": null
+            },
+            {
+                "id": 2,
+                "description": "Organic market",
+                "date": "2026-11-06",
+                "amount": -54.91,
+                "forecast_amount": -54.91,
+                "actual_date": "2026-11-06",
+                "forecast_date": "2026-11-06",
+                "is_actual": true,
+                "account_id": 1,
+                "account_name": "Checking",
+                "category_id": 1,
+                "category_name": "Groceries",
+                "recurring_id": null,
+                "transfer_id": null,
+                "notes": null
+            },
+            {
+                "id": 5,
+                "description": "Department store",
+                "date": "2026-11-04",
+                "amount": -72.18,
+                "forecast_amount": -72.18,
+                "actual_date": "2026-11-04",
+                "forecast_date": "2026-11-04",
+                "is_actual": true,
+                "account_id": 1,
+                "account_name": "Checking",
+                "category_id": 9,
+                "category_name": "Shopping",
+                "recurring_id": null,
+                "transfer_id": null,
+                "notes": null
+            },
+            {
+                "id": 9,
+                "description": "Movie theater",
+                "date": "2026-11-03",
+                "amount": -28.0,
+                "forecast_amount": -28.0,
+                "actual_date": "2026-11-03",
+                "forecast_date": "2026-11-03",
+                "is_actual": true,
+                "account_id": 3,
+                "account_name": "Credit Card",
+                "category_id": 8,
+                "category_name": "Entertainment",
+                "recurring_id": null,
+                "transfer_id": null,
+                "notes": null
+            },
+            {
+                "id": 3,
+                "description": "Warehouse club",
+                "date": "2026-10-30",
+                "amount": -142.33,
+                "forecast_amount": -142.33,
+                "actual_date": "2026-10-30",
+                "forecast_date": "2026-10-30",
+                "is_actual": true,
+                "account_id": 1,
+                "account_name": "Checking",
+                "category_id": 1,
+                "category_name": "Groceries",
+                "recurring_id": null,
+                "transfer_id": null,
+                "notes": null
+            }
+        ]
+    },
+    "recurring": {
+        "total": 6,
+        "results": [
+            {
+                "id": 3,
+                "description": "Electric",
+                "amount": -85.0,
+                "frequency": "monthly_day",
+                "day_of_month": 12,
+                "anchor_date": null,
+                "end_date": null,
+                "category_id": 4,
+                "category_name": "Utilities",
+                "notes": null,
+                "active": true,
+                "expired": false,
+                "monthly": -85.0,
+                "yearly": -1020.0,
+                "monthly_cost": 85.0,
+                "yearly_cost": 1020.0,
+                "skipped_count": 0,
+                "tags": [],
+                "account_id": 1,
+                "account_name": "Checking",
+                "account_level": "owner",
+                "category_color": "#56d4dd",
+                "next_date": "2026-12-12",
+                "next_dates": [
+                    "2026-12-12",
+                    "2027-01-12",
+                    "2027-02-12",
+                    "2027-03-12",
+                    "2027-04-12",
+                    "2027-05-12"
+                ]
+            },
+            {
+                "id": 4,
+                "description": "Internet",
+                "amount": -59.99,
+                "frequency": "monthly_day",
+                "day_of_month": 18,
+                "anchor_date": null,
+                "end_date": null,
+                "category_id": 4,
+                "category_name": "Utilities",
+                "notes": null,
+                "active": true,
+                "expired": false,
+                "monthly": -59.99,
+                "yearly": -719.88,
+                "monthly_cost": 59.99,
+                "yearly_cost": 719.88,
+                "skipped_count": 0,
+                "tags": [],
+                "account_id": 1,
+                "account_name": "Checking",
+                "account_level": "owner",
+                "category_color": "#56d4dd",
+                "next_date": "2026-11-18",
+                "next_dates": [
+                    "2026-11-18",
+                    "2026-12-18",
+                    "2027-01-18",
+                    "2027-02-18",
+                    "2027-03-18",
+                    "2027-04-18"
+                ]
+            },
+            {
+                "id": 1,
+                "description": "Paycheck",
+                "amount": 2800.0,
+                "frequency": "biweekly",
+                "day_of_month": null,
+                "anchor_date": "2026-11-12",
+                "end_date": null,
+                "category_id": 11,
+                "category_name": "Income",
+                "notes": null,
+                "active": true,
+                "expired": false,
+                "monthly": 6066.67,
+                "yearly": 72800.0,
+                "monthly_cost": null,
+                "yearly_cost": null,
+                "skipped_count": 0,
+                "tags": [],
+                "account_id": 1,
+                "account_name": "Checking",
+                "account_level": "owner",
+                "category_color": "#3fb950",
+                "next_date": "2026-11-26",
+                "next_dates": [
+                    "2026-11-26",
+                    "2026-12-10",
+                    "2026-12-24",
+                    "2027-01-07",
+                    "2027-01-21",
+                    "2027-02-04"
+                ]
+            },
+            {
+                "id": 7,
+                "description": "Phone bill",
+                "amount": -65.0,
+                "frequency": "monthly_day",
+                "day_of_month": 20,
+                "anchor_date": null,
+                "end_date": null,
+                "category_id": 4,
+                "category_name": "Utilities",
+                "notes": null,
+                "active": true,
+                "expired": false,
+                "monthly": -65.0,
+                "yearly": -780.0,
+                "monthly_cost": 65.0,
+                "yearly_cost": 780.0,
+                "skipped_count": 0,
+                "tags": [],
+                "account_id": 3,
+                "account_name": "Credit Card",
+                "account_level": "owner",
+                "category_color": "#56d4dd",
+                "next_date": "2026-11-20",
+                "next_dates": [
+                    "2026-11-20",
+                    "2026-12-20",
+                    "2027-01-20",
+                    "2027-02-20",
+                    "2027-03-20",
+                    "2027-04-20"
+                ]
+            },
+            {
+                "id": 2,
+                "description": "Rent",
+                "amount": -1650.0,
+                "frequency": "monthly_day",
+                "day_of_month": 1,
+                "anchor_date": null,
+                "end_date": null,
+                "category_id": 5,
+                "category_name": "Rent/Mortgage",
+                "notes": null,
+                "active": true,
+                "expired": false,
+                "monthly": -1650.0,
+                "yearly": -19800.0,
+                "monthly_cost": 1650.0,
+                "yearly_cost": 19800.0,
+                "skipped_count": 0,
+                "tags": [],
+                "account_id": 1,
+                "account_name": "Checking",
+                "account_level": "owner",
+                "category_color": "#a371f7",
+                "next_date": "2026-12-01",
+                "next_dates": [
+                    "2026-12-01",
+                    "2027-01-01",
+                    "2027-02-01",
+                    "2027-03-01",
+                    "2027-04-01",
+                    "2027-05-01"
+                ]
+            },
+            {
+                "id": 6,
+                "description": "Streaming service",
+                "amount": -15.49,
+                "frequency": "monthly_day",
+                "day_of_month": 15,
+                "anchor_date": null,
+                "end_date": null,
+                "category_id": 10,
+                "category_name": "Subscriptions",
+                "notes": null,
+                "active": true,
+                "expired": false,
+                "monthly": -15.49,
+                "yearly": -185.88,
+                "monthly_cost": 15.49,
+                "yearly_cost": 185.88,
+                "skipped_count": 0,
+                "tags": [],
+                "account_id": 1,
+                "account_name": "Checking",
+                "account_level": "owner",
+                "category_color": "#7c6be6",
+                "next_date": "2026-11-15",
+                "next_dates": [
+                    "2026-11-15",
+                    "2026-12-15",
+                    "2027-01-15",
+                    "2027-02-15",
+                    "2027-03-15",
+                    "2027-04-15"
+                ]
+            }
+        ]
+    },
+    "accounts": {
+        "total": 2,
+        "results": [
+            {
+                "id": 1,
+                "name": "Checking",
+                "current_balance": 4854.97,
+                "level": "owner"
+            },
+            {
+                "id": 3,
+                "name": "Credit Card",
+                "current_balance": -955.48,
+                "level": "owner"
+            }
+        ]
+    },
+    "categories": {
+        "total": 8,
+        "results": [
+            {
+                "id": 8,
+                "name": "Entertainment",
+                "color": "#e3b341",
+                "transaction_count": 1
+            },
+            {
+                "id": 1,
+                "name": "Groceries",
+                "color": "#3fb950",
+                "transaction_count": 3
+            },
+            {
+                "id": 7,
+                "name": "Healthcare",
+                "color": "#ff7b72",
+                "transaction_count": 1
+            },
+            {
+                "id": 11,
+                "name": "Income",
+                "color": "#3fb950",
+                "transaction_count": 0
+            },
+            {
+                "id": 6,
+                "name": "Insurance",
+                "color": "#2ea043",
+                "transaction_count": 0
+            },
+            {
+                "id": 13,
+                "name": "Other",
+                "color": "#8b949e",
+                "transaction_count": 0
+            },
+            {
+                "id": 5,
+                "name": "Rent/Mortgage",
+                "color": "#a371f7",
+                "transaction_count": 0
+            },
+            {
+                "id": 4,
+                "name": "Utilities",
+                "color": "#56d4dd",
+                "transaction_count": 0
+            }
+        ]
+    },
+    "tags": {
+        "total": 0,
+        "results": []
+    },
+    "reports": {
+        "total": 3,
+        "results": [
+            {
+                "id": 1,
+                "name": "This month's spending",
+                "pinned": true
+            },
+            {
+                "id": 2,
+                "name": "Income year-to-date",
+                "pinned": false
+            },
+            {
+                "id": 4,
+                "name": "Spending by account this month",
+                "pinned": false
+            }
+        ]
+    }
+}

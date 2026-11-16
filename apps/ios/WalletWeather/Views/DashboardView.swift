@@ -95,7 +95,7 @@ struct DashboardView: View {
 
     @ViewBuilder
     private func accountsColumn(_ dashboard: Dashboard) -> some View {
-        if settings.showsStartCard {
+        if settings.showsStartCard && !model.isDemo {
             GettingStartedCard { startTask = $0 }
         }
         if dashboard.cards.isEmpty {

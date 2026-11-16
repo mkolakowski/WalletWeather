@@ -100,6 +100,33 @@ final class AppModel {
         return APIClient(connection: connection, keeper: keep == .lastKnown ? kept : nil, observer: observer)
     }
 
+    /// "Try the demo" (#92): the app on its built-in sample numbers.
+    var isDemo: Bool { connection?.isDemo == true }
+
+    /// Opens the demo: no server, nothing saved in the Keychain and nothing
+    /// kept, and none of a sign-in's set-up (the notice, what to keep, the
+    /// lock).
+    func tryDemo() {
+        connectError = nil
+        connectNotice = nil
+        askKeep = false
+        connection = Demo.connection
+        me = nil
+        generation += 1
+        phase = .ready
+        Task { await refreshMe() }
+    }
+
+    /// Leaves the demo for the Connect screen, keeping what was typed there.
+    func leaveDemo() {
+        guard isDemo else { return }
+        connection = nil
+        me = nil
+        serverVersion = nil
+        generation += 1
+        phase = .connect
+    }
+
     /// Whether this person may change lines on `account`: an account they
     /// own or may edit, under a token that isn't read-only. Until `/api/me`
     /// has said what the token may do, nothing is editable.
@@ -115,7 +142,8 @@ final class AppModel {
     /// and `WW_DEBUG_DAY` (the Calendar's account and day), and
     /// `WW_DEBUG_KEEP` (what the phone keeps), `WW_DEBUG_LOOK` (the look),
     /// and `WW_DEBUG_CONFIRM`, `WW_DEBUG_COMPARE` and `WW_DEBUG_NEW_WINDOW`
-    /// (Forecast's To confirm, Compare, and a second window on a page).
+    /// (Forecast's To confirm, Compare, and a second window on a page), and
+    /// `WW_DEBUG_DEMO=1` (open in the demo).
     /// Always nil in a
     /// Release build.
     static func debugSetting(_ name: String) -> String? {
@@ -151,6 +179,11 @@ final class AppModel {
             connection = Connection(server: server, token: token)
             phase = .ready
             Task { await refreshMe() }
+            return
+        }
+        // `WW_DEBUG_DEMO=1` opens in the demo (#92).
+        if env["WW_DEBUG_DEMO"] == "1" {
+            tryDemo()
             return
         }
         // `WW_DEBUG_ADDRESS` opens on the Connect screen whatever the Keychain

@@ -1,0 +1,29 @@
+[
+    {
+        "id": 1,
+        "name": "Checking",
+        "starting_balance": 4250.0,
+        "starting_date": "2026-08-17",
+        "current_balance": 4854.97,
+        "archived": false,
+        "level": "owner"
+    },
+    {
+        "id": 2,
+        "name": "Savings",
+        "starting_balance": 18500.0,
+        "starting_date": "2026-08-17",
+        "current_balance": 18500.0,
+        "archived": false,
+        "level": "owner"
+    },
+    {
+        "id": 3,
+        "name": "Credit Card",
+        "starting_balance": -842.33,
+        "starting_date": "2026-08-17",
+        "current_balance": -955.48,
+        "archived": false,
+        "level": "owner"
+    }
+]

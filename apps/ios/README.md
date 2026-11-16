@@ -11,9 +11,10 @@ Budgets and Reports under More, the looks (Match the phone, Light, Dark,
 AMOLED black, Sepia), the app lock and the app-switcher cover; phase 7
 (#100) adds email and password and QR-code sign-in; phase 10 (#112) makes
 Search find everything through the server's `/api/search` (server 1.56.0;
-an older server searches transactions only). It isn't
-on TestFlight or the App Store yet (phase 6); for now it's built from source
-and put on a phone from Xcode.
+an older server searches transactions only). It works with a server on
+1.54.0 or later. It isn't on TestFlight or the App Store yet (phase 6, #92);
+for now it's built from source and put on a phone from Xcode. **Try the
+demo** on the Connect screen opens it on sample numbers with no server.
 
 Changes in this folder don't trigger the container build.
 
@@ -26,6 +27,8 @@ Changes in this folder don't trigger the container build.
 | `WalletWeather/` | The app: screens, the sign-in sheet, the Keychain. |
 | `WalletWeatherKit/` | A local Swift package with everything that has no screen: the API client, the models, and money and date formatting. |
 | `WalletWeatherKit/Tests/WalletWeatherKitTests/Samples/` | Responses recorded from the demo server, which the tests decode. |
+| `WalletWeatherKit/Sources/WalletWeatherKit/Demo/` | The samples "Try the demo" answers from (copies of the test samples), built into the app. |
+| `WalletWeather/PrivacyInfo.xcprivacy` | The privacy manifest: no tracking, no data collected, and why the app reads its settings and file dates. |
 | `Config/Base.xcconfig` | Shared build settings. It reads `Config/Signing.local.xcconfig` if it's there. |
 
 The app uses system frameworks only (SwiftUI, Swift Charts, the Keychain,
@@ -145,10 +148,10 @@ that's what iOS lets an app reach over plain HTTP.
 Only the sign-in: the server's address, the token and the Cloudflare sign-in,
 in the Keychain, on this device only (never in iCloud, never moved by a
 backup). Signing out deletes them. The app's own settings (the look, whether
-the lock is on, and whether it was offered) are in its preferences
-(`UserDefaults`), and stay after signing out. Balances and transactions aren't kept:
-the app needs a connection. Phase 8 adds the choice to keep the last-known
-numbers.
+the lock is on and whether it was offered, the tab bar, Getting started and
+what the phone keeps) are in its preferences (`UserDefaults`), and stay after
+signing out. Balances and transactions are kept only when the person chooses
+Last-known numbers (phase 8, `KeptResponses`); signing out deletes them.
 
 Signing out ends the token on the server first (`DELETE /api/tokens/current`:
 a token may revoke itself, and nothing else). If the server can't be reached,
@@ -185,6 +188,31 @@ re-record the samples from a demo server (`DEMO_MODE=true`) and run
 The app checks `GET /api/version` when it connects. A server older than
 `AppInfo.minimumServerVersion` (in `WalletWeatherKit`) gets a plain message.
 
+## Try the demo
+
+**Try the demo** on the Connect screen (#92) opens the app on sample numbers,
+with no server, for Apple's reviewer and anyone curious. The demo's
+`Connection` points at `https://demo.walletweather.invalid` (an address that
+can't exist), and `APIClient` answers it from
+`WalletWeatherKit/Sources/WalletWeatherKit/Demo/` instead of the network
+(`Demo.swift`). Decided 2026-11-16:
+
+- **Read-only.** Editors open as usual; saving says "The demo doesn't save
+  changes" (`APIError.demoReadOnly`). Running a saved report still works.
+- **A bar on every page,** "Demo · sample numbers", with **Leave** back to
+  the Connect screen.
+- **No set-up:** no Important notice, no "What should this phone keep?", no
+  lock offer, no Getting started card, nothing kept and nothing in the
+  Keychain.
+- **Dates follow the calendar.** The samples were recorded in November 2026;
+  every date moves by whole months to the month asked for, so each month
+  looks like the recorded one. Forecast and the Calendar on the accounts the
+  samples weren't recorded on are built from the Calendar's lines.
+
+`DemoTests` sends every page's request to the demo and decodes the answers
+with the real models. When the test samples are re-recorded, copy the same
+files into `Demo/` and run `swift test`.
+
 ## Before listing in the App Store
 
 - The store asks for a privacy policy URL. It is
@@ -192,6 +220,8 @@ The app checks `GET /api/version` when it connects. A server older than
   `docs/privacy.md`). Read it against what the app really does before
   submitting, and update it first if the app stores or sends anything it
   doesn't mention.
+- The privacy manifest, `WalletWeather/PrivacyInfo.xcprivacy`, says the same
+  as the policy: no tracking, no data collected.
 - The App Privacy questions (the "nutrition label"): the honest answer today
   is that no data is collected, because the app talks only to the user's own
   server. Last-known numbers (phase 8) stay on the phone and are never sent

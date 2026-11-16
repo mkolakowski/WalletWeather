@@ -88,6 +88,21 @@ struct ConnectView: View {
                 }
                 .card()
 
+                // Try the demo (#92): no server needed, for Apple's reviewer
+                // and anyone curious.
+                VStack(alignment: .leading, spacing: 8) {
+                    Button(action: model.tryDemo) {
+                        Label("Try the demo", systemImage: "sparkles")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.glass)
+                    .disabled(model.busy)
+                    Text("Sample numbers built into the app, so you can look around before setting up a server. Nothing you change is saved.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                .card()
+
                 DisclosureGroup("Other ways to sign in", isExpanded: $showOtherWays) {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Email and password").font(.subheadline.weight(.semibold))

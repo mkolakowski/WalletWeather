@@ -49,6 +49,9 @@ struct AppRoot: View {
                 NoticeView()
             case .ready:
                 RootView(start: start)
+                    .safeAreaInset(edge: .top, spacing: 0) {
+                        if model.isDemo { DemoBar().padding(.horizontal, 16).padding(.bottom, 6) }
+                    }
             }
         }
         .modifier(SepiaText())
@@ -64,7 +67,7 @@ struct AppRoot: View {
         // then the lock (offered once: at first sign-in, or after updating
         // for someone already signed in).
         .task(id: model.me?.id) {
-            guard model.phase == .ready, model.me != nil else { return }
+            guard model.phase == .ready, model.me != nil, !model.isDemo else { return }
             if model.askKeep {
                 askingKeep = true
             } else if settings.shouldOfferLock {

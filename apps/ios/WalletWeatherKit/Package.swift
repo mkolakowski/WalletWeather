@@ -11,7 +11,8 @@ let package = Package(
         .library(name: "WalletWeatherKit", targets: ["WalletWeatherKit"]),
     ],
     targets: [
-        .target(name: "WalletWeatherKit"),
+        // Demo: the samples "Try the demo" answers from (#92).
+        .target(name: "WalletWeatherKit", resources: [.copy("Demo")]),
         .testTarget(
             name: "WalletWeatherKitTests",
             dependencies: ["WalletWeatherKit"],

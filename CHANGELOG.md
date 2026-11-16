@@ -69,7 +69,22 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.61.1** · Web version: **1.78.0** · Schema version: **21** · iOS version: **0.15.0**
+App version: **1.61.1** · Web version: **1.78.0** · Schema version: **21** · iOS version: **0.16.0**
+
+### Added
+
+- **Try the demo in the iPhone app:** the Connect screen has a Try the demo
+  button under Sign in. It opens the app on sample numbers built into it, so
+  you can look around every page before setting up a server, and it's how
+  Apple's reviewer will get in. A bar at the top of each page says it's the
+  demo, with Leave to go back. Editors open as usual, but nothing you change
+  is saved. The demo connects to nothing and keeps nothing on the phone.
+  (iOS 0.16.0)
+- **A privacy manifest in the iPhone app:** it tells Apple the app does no
+  tracking and collects no data, and why it reads its own settings and the
+  dates of the numbers it keeps. The privacy policy now also mentions the
+  demo, the tab bar and Getting started settings, and that a sign-in is named
+  after the phone. (iOS 0.16.0)
 
 ## [1.61.1] — 2026-11-16
 

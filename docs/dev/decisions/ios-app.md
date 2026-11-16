@@ -227,3 +227,19 @@ Decisions made while planning [`Plans/ios-app.md`](../../../Plans/ios-app.md) (t
 
 **What it changes:** no code change. Phase 4's Done when still asks for each part to work every way the Duo can be held, so it waits on a try on the phone, the side-by-side second window above all (the system's Split View, which the simulator check couldn't drive).
 
+
+## 2026-11-16: how Try the demo behaves
+
+**Decided:** 2026-11-16, by Matthew. **Status:** accepted.
+
+**The question:** phase 6 (#92) puts "Try the demo" on the Connect screen: sample numbers built into the app, for Apple's reviewer and anyone curious (decided 2026-11-14, above). Three things were open: what editing does in the demo, how someone sees they're in it and leaves, and where the button goes and which set-up steps the demo goes through.
+
+**The decision:**
+
+- **Read-only, with a note.** Editors, swipes and + open as usual, but saving says "The demo doesn't save changes. Connect your server to edit." The other options were edits that last until leaving the demo (the forecast's sums rebuilt inside the app, much bigger and riskier) and hiding editing (the reviewer would never see it).
+- **A bar on every page:** "Demo · sample numbers", with **Leave** back to the Connect screen, where the Offline bar goes. The other options were Settings only, or both.
+- **Below Sign in, skipping set-up:** its own card under the server card. The demo skips the Important notice, "What should this phone keep?", the lock offer and the Getting started card, keeps nothing and saves nothing in the Keychain. The other options were the same button showing the Getting started card, or a plain link at the bottom.
+
+**How it's built (not asked; routine):** the demo's connection points at an address that can't exist (`demo.walletweather.invalid`), and `APIClient` answers it from copies of the test samples. The samples were recorded in November 2026, so each answer's dates move by whole months to the month asked for. Forecast and the Calendar on the accounts the samples weren't recorded on are built from the Calendar's lines.
+
+**What it changes:** phase 6 (#92), iOS 0.16.0. See `apps/ios/README.md`, "Try the demo".

@@ -5,7 +5,7 @@ public enum AppInfo {
     /// The iOS app's own version (CHANGELOG.md tracks it beside the app,
     /// web and schema versions). Keep it equal to MARKETING_VERSION in the
     /// Xcode project.
-    public static let version = "0.15.0"
+    public static let version = "0.16.0"
     /// The first server version with what the app's pages need: the
     /// phone's date on Net worth, Budgets and Reports (#91), on top of each
     /// bill's next dates (#89) and the Forecast's (#88).
@@ -60,11 +60,13 @@ public final class APIClient: Sendable {
     /// How long a request may take before the server counts as slow.
     public static let timeout: TimeInterval = 20
 
-    public init(connection: Connection, session: URLSession = APIClient.makeSession(),
+    /// The demo's connection (`Demo`) answers from the samples built into
+    /// the app and keeps nothing, whatever `session` and `keeper` say.
+    public init(connection: Connection, session: URLSession? = nil,
                 keeper: KeptResponses? = nil, observer: KeptObserver? = nil) {
         self.connection = connection
-        self.session = session
-        self.keeper = keeper
+        self.session = connection.isDemo ? Demo.makeSession() : session ?? APIClient.makeSession()
+        self.keeper = connection.isDemo ? nil : keeper
         self.observer = observer
     }
 
@@ -270,6 +272,7 @@ public final class APIClient: Sendable {
 
     func send<T: Decodable, B: Encodable>(_ method: String, _ path: String, query: [String: String] = [:],
                                           body: B?, keep: Bool = false) async throws(APIError) -> T {
+        if connection.isDemo, !Demo.allows(method, path) { throw .demoReadOnly }
         let key = keep ? KeptResponses.key(server: connection.server, method: method, path: path, query: query) : nil
         var request = URLRequest(url: ServerAddress.url(connection.server, path, query: query),
                                  cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: Self.timeout)

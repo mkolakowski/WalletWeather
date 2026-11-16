@@ -34,6 +34,8 @@ public enum APIError: Error, Sendable, Equatable {
     case server(status: Int, detail: String)
     /// The server's answer wasn't what the app expected.
     case unexpectedResponse(String)
+    /// A change tried in the demo, which saves nothing (#92).
+    case demoReadOnly
 
     public var title: String {
         switch self {
@@ -50,6 +52,7 @@ public enum APIError: Error, Sendable, Equatable {
         case .notWalletWeather: "That isn't a WalletWeather server"
         case .server: "The server said no"
         case .unexpectedResponse: "Something went wrong"
+        case .demoReadOnly: "This is the demo"
         }
     }
 
@@ -79,6 +82,8 @@ public enum APIError: Error, Sendable, Equatable {
             detail.hasSuffix(".") ? detail : detail + "."
         case .unexpectedResponse:
             "The server's answer wasn't what this app expected. Check that the server is up to date, then try again."
+        case .demoReadOnly:
+            "The demo doesn't save changes. Connect your server to edit."
         }
     }
 

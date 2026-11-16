@@ -7,11 +7,11 @@ Tracking issue: #190
 | Phase | Issue | State |
 | --- | --- | --- |
 | 1. One user reaching another, and who may register | #183 | Released in 1.62.0 (web 1.79.0, schema 22) |
-| 2. Limits on what's accepted | #185 | Built as 1.63.0, not released |
-| 3. Sessions that can be ended | #186 | Built as 1.66.0 (web 1.81.0, schema 23), not released |
-| 4. The browser's side | #187 | Built as 1.64.0 (web 1.80.0), not released |
-| 5. Dependencies and the image | #188 | Built as 1.65.0, not released |
-| 6. Sharing and sign-in limits | #189 | Built as 1.67.0 (web 1.82.0, schema 24), not released; WW-SEC-17 accepted as a known limit |
+| 2. Limits on what's accepted | #185 | Built as 1.63.0, released in 1.67.1 |
+| 3. Sessions that can be ended | #186 | Built as 1.66.0 (web 1.81.0, schema 23), released in 1.67.1 |
+| 4. The browser's side | #187 | Built as 1.64.0 (web 1.80.0), released in 1.67.1 |
+| 5. Dependencies and the image | #188 | Built as 1.65.0, released in 1.67.1 |
+| 6. Sharing and sign-in limits | #189 | Built as 1.67.0 (web 1.82.0, schema 24), released in 1.67.1; WW-SEC-17 accepted as a known limit |
 
 Planned 2026-11-16, from the security review of the server (#178).
 
@@ -27,7 +27,7 @@ Phase 3 built 2026-11-16 as app 1.66.0 (web 1.81.0, schema 23), on your choice t
 
 Phase 6 built 2026-11-16 as app 1.67.0 (web 1.82.0, schema 24), on your choices the same day. Verified by 12 new tests (527 pass in all, none left as expected failures) and a headless browser run of two users: invite, the notice after sign-in, accept, the owner changing the level, the invitee leaving, and Sign out my other browsers (13 checks pass). WW-SEC-17 isn't built: see open question 5.
 
-Phases 2 to 6 wait for one release (your choice, same page).
+Phases 2 to 6 were released together as 1.67.1 on 2026-11-16 (your choice, same page), with two ordinary bug fixes (#182, #191). The plan is complete: 18 findings fixed, one accepted.
 
 Sessions: may span — six releases, and four answers of yours between them.
 
@@ -66,18 +66,18 @@ Sessions: may span — six releases, and four answers of yours between them.
 | WW-SEC-05 | ~~Marking a bill paid accepted any category id~~ | Low | 1, fixed |
 | WW-SEC-10 | ~~The demo's reserved domain could be registered~~ | Low | 1, fixed |
 | WW-SEC-13 | ~~Google sign-in didn't require a verified address, and linked to a user whose password someone else might know~~ | Low | 1, fixed; 6, built |
-| WW-SEC-09 | ~~No upper limits: long names are a 500 or are stored, request bodies and the forecast window can be any size~~ | Medium | 2, built |
-| WW-SEC-11 | ~~NaN and Infinity amounts, and unknown frequencies, are stored and break the pages that show them~~ | Low | 2, built |
-| WW-SEC-12 | ~~The server starts with an empty or placeholder `SESSION_SECRET`~~ | Low | 2, built |
-| WW-SEC-03 | ~~A session can't be ended from elsewhere; a password change leaves other browsers signed in~~ | Medium | 3, built |
-| WW-SEC-07 | ~~Writes from another site's page are stopped only by the cookie's `SameSite=Lax`~~ | Medium | 4, built |
-| WW-SEC-08 | ~~No security headers; the API's documentation pages are public~~ | Low | 4, built |
-| WW-SEC-15 | ~~starlette, authlib, cryptography and python-multipart carry known advisories~~ | Medium | 5, built |
-| WW-SEC-19 | ~~Images and Actions pinned by tag; Compose runs the web service with default privileges~~ | Low | 5, built (Compose hardened; digest pins left out, see Status) |
-| WW-SEC-06 | ~~Any user can list every user's email and name, and share an account to anyone~~ | Medium | 6, built |
-| WW-SEC-16 | ~~The sign-in limit is per email and address only; registration has none~~ | Low | 6, built |
+| WW-SEC-09 | ~~No upper limits: long names are a 500 or are stored, request bodies and the forecast window can be any size~~ | Medium | 2, fixed |
+| WW-SEC-11 | ~~NaN and Infinity amounts, and unknown frequencies, are stored and break the pages that show them~~ | Low | 2, fixed |
+| WW-SEC-12 | ~~The server starts with an empty or placeholder `SESSION_SECRET`~~ | Low | 2, fixed |
+| WW-SEC-03 | ~~A session can't be ended from elsewhere; a password change leaves other browsers signed in~~ | Medium | 3, fixed |
+| WW-SEC-07 | ~~Writes from another site's page are stopped only by the cookie's `SameSite=Lax`~~ | Medium | 4, fixed |
+| WW-SEC-08 | ~~No security headers; the API's documentation pages are public~~ | Low | 4, fixed |
+| WW-SEC-15 | ~~starlette, authlib, cryptography and python-multipart carry known advisories~~ | Medium | 5, fixed |
+| WW-SEC-19 | ~~Images and Actions pinned by tag; Compose runs the web service with default privileges~~ | Low | 5, fixed (Compose hardened; digest pins left out, see Status) |
+| WW-SEC-06 | ~~Any user can list every user's email and name, and share an account to anyone~~ | Medium | 6, fixed |
+| WW-SEC-16 | ~~The sign-in limit is per email and address only; registration has none~~ | Low | 6, fixed |
 | WW-SEC-17 | The Cloudflare token hand-back to the app isn't tied to the app that asked | Low | accepted, a known limit in `SECURITY.md` |
-| WW-SEC-18 | ~~An editor can share an owner's account onward~~ | Low | 6, built |
+| WW-SEC-18 | ~~An editor can share an owner's account onward~~ | Low | 6, fixed |
 
 **Out of scope:** encrypted backups and self-serve password reset (roadmap items; `SECURITY.md` lists them as known limits), HTTPS-only cookies (the app is served over plain HTTP on home networks), a content security policy (the web app is one file of inline script, so a useful one needs that split first).
 

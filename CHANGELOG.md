@@ -71,6 +71,10 @@ same commit (or session) that introduces it.
 
 App version: **1.67.1** · Web version: **1.82.0** · Schema version: **24** · iOS version: **0.16.0**
 
+## [1.67.1] — 2026-11-16
+
+App version: **1.67.1** · Web version: **1.82.0** · Schema version: **24** · iOS version: **0.16.0**
+
 ### Security
 
 More from the security review (plan: `Plans/security-fixes.md`, #190).
@@ -2422,7 +2426,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.62.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.67.1...HEAD
+[1.67.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.67.1
 [1.62.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.62.0
 [1.61.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.61.1
 [1.61.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.61.0

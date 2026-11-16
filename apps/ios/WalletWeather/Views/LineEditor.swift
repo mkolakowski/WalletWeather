@@ -120,7 +120,9 @@ struct LineEditor: View {
             }
             .scrollContentBackground(.hidden)
             .background { if !embedded { PageBackground().ignoresSafeArea() } }
-            .contentMargins(.leading, embedded ? 12 : 0, for: .scrollContent)
+            // Clear of the fold in the open Duo's pane; the usual margins in a
+            // sheet (a zero here ran the rows into the screen's edge, #161).
+            .contentMargins(.leading, embedded ? 12 : nil, for: .scrollContent)
             .disabled(saving)
             .alert("Couldn't save", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
                 Button("OK", role: .cancel) {}
@@ -156,24 +158,33 @@ struct LineEditor: View {
         }
     }
 
+    /// Paid, with the actual amount and date always showing (#161), filled in
+    /// with the planned ones until changed. Changing either marks it paid;
+    /// the switch undoes that.
     private var paidSection: some View {
         Section {
             Toggle("Paid", isOn: $open.draft.paid.animation())
-            if open.draft.paid {
-                LabeledContent(line.plannedAmount.isNegative ? "Real amount spent" : "Real amount received") {
-                    TextField("0.00", text: $open.draft.amountText)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                        .monospacedDigit()
-                        .accessibilityLabel("Real amount")
-                }
-                DatePicker("Paid on", selection: dayBinding(\.paidOn), displayedComponents: .date)
+            LabeledContent("Actual amount") {
+                TextField("0.00", text: Binding(get: { open.draft.amountText }, set: {
+                    open.draft.amountText = $0
+                    open.draft.paid = true
+                }))
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .monospacedDigit()
+                .accessibilityLabel("Actual amount")
             }
+            DatePicker("Actual date", selection: Binding(get: { open.draft.paidOn.date }, set: {
+                open.draft.paidOn = LocalDay.today(now: $0)
+                open.draft.paid = true
+            }), displayedComponents: .date)
         } footer: {
             if open.draft.paid, let problem = open.draft.problem {
                 Text(problem).foregroundStyle(Palette.bad)
             } else if !open.draft.paid && line.isPaid {
                 Text("Saving marks it not paid: it goes back to its planned amount and date.")
+            } else if !open.draft.paid {
+                Text("Not paid yet. Changing the actual amount or date marks it paid.")
             }
         }
     }

@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.54.2** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.8.0**
+App version: **1.54.2** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.8.1**
 
 ### Added
 
@@ -83,6 +83,9 @@ App version: **1.54.2** · Web version: **1.72.0** · Schema version: **19** · 
 
 ### Changed
 
+- The iPhone app's line editor always shows **Actual amount** and **Actual
+  date**, filled in with the planned ones. Changing either marks the line
+  paid; the Paid switch undoes that. (iOS app 0.8.1)
 - The iPhone app's More page is made of cards like the other pages, in every
   look, instead of a plain settings list.
 
@@ -133,6 +136,8 @@ App version: **1.54.2** · Web version: **1.72.0** · Schema version: **19** · 
 
 ### Fixed
 
+- The iPhone app's line editor, opened as a sheet, no longer runs its rows
+  into the left edge of the screen.
 - In the iPhone app's Sepia look, Delete, End… and Sign out were drawn in
   the brown text colour instead of red. They're red again, in every look.
 - In the iPhone app with Last-known numbers, a page that was never loaded no

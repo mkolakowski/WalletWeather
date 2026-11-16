@@ -6,7 +6,7 @@ Tracking issue: #198
 
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
-| 1. Encrypted backups | Server, Web | #193 | Built in 1.68.0 (web 1.83.0), waiting for its release and your try |
+| 1. Encrypted backups | Server, Web | #193 | Released in 1.68.0 (2026-11-16); waiting for your try |
 | 2. Connect a bank and Sync now | Server, Web | #194 | Not started |
 | 3. Daily sync and its status | Server, Web | #195 | Not started |
 | 4. Bills matched automatically | Server, Web | #196 | Not started; its question is settled |

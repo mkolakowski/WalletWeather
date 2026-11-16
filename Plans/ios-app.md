@@ -15,7 +15,7 @@ Tracking issue: #93
 | 7. More ways to sign in | #100 | Released in 1.55.0 (2026-11-15; web 1.73.0, iOS 0.9.0); waiting on your phone check |
 | 8. Kept on the phone | #101 | Released in 1.54.1 (2026-11-15; iOS 0.5.0); simulator check passed later that day (one fix, in iOS 0.6.0); waiting on your phone check |
 | 9. The web app's themes | #102 | Released in 1.54.2 (2026-11-15; iOS 0.6.0); every page checked in the simulator in all eight themes, closed and open; waiting on your look |
-| 10. Search everything | #112 | Built 2026-11-15 (iOS 0.10.0, on #111: server 1.56.0, web 1.74.0), not released yet; waiting on your phone check |
+| 10. Search everything | #112 | Released in 1.56.0 (2026-11-15; web 1.74.0, iOS 0.10.0, with #111); waiting on your phone check |
 
 Phase 1 built on 2026-11-15: server 1.50.0 (the "sign in an app" page and its two endpoints, `current_balance` on the Dashboard, schema 19), web 1.72.0 (the "Open in WalletWeather" button) and the iOS app 0.1.0 (Connect, sign-in, the Important notice, the frame and the Dashboard). Verified by the server tests (pytest, all passing), `swift test` in `apps/ios/WalletWeatherKit` against samples recorded from the demo server, and simulator screenshots on the Duo (closed, open on its side, open upright) and an iPhone 17, which found two layout bugs fixed in iOS 0.1.1; released in v1.50.0 the same day. The Cloudflare part waits on your phone (see `docs/dev/decisions/ios-app.md`, "how the Cloudflare sign-in reaches the app").
 

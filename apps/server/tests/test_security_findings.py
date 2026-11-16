@@ -92,35 +92,3 @@ def test_you_dont_see_the_addresses_of_people_you_share_nothing_with(app_started
     c, _ = register(app_started)
     make_account(c)
     assert stranger["email"] not in c.get("/api/permissions").text
-
-
-# ---------- WW-SEC-07 and -08: the browser's side ----------
-
-@finding("WW-SEC-07", "a write from another site's page is only stopped by the cookie's SameSite")
-def test_a_write_that_says_it_comes_from_another_site_is_refused(app_started):
-    c, _ = register(app_started)
-    r = c.post("/api/accounts", headers={"Origin": "https://evil.example"},
-               json={"name": "x", "starting_balance": 0, "starting_date": TODAY})
-    assert r.status_code == 403
-    # The app's own page still works.
-    r = c.post("/api/accounts", headers={"Origin": "http://testserver"},
-               json={"name": "x", "starting_balance": 0, "starting_date": TODAY})
-    assert r.status_code == 200
-
-
-@finding("WW-SEC-08", "no security headers are sent")
-def test_pages_and_answers_carry_the_security_headers(app_started):
-    c, _ = register(app_started)
-    for path in ("/", "/app-sign-in", "/api/me"):
-        h = c.get(path).headers
-        assert h.get("x-content-type-options") == "nosniff", path
-        assert (h.get("x-frame-options", "").upper() in ("DENY", "SAMEORIGIN")
-                or "frame-ancestors" in h.get("content-security-policy", "")), path
-        assert h.get("referrer-policy"), path
-    assert "no-store" in c.get("/api/me").headers.get("cache-control", "")
-
-
-@finding("WW-SEC-08", "the API's own documentation pages are public")
-@pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
-def test_the_api_docs_arent_served_to_strangers(app_started, path):
-    assert TestClient(app_started).get(path).status_code in (401, 403, 404)

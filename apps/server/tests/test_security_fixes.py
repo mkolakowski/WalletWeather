@@ -1,5 +1,5 @@
 """Fixes from the 2026-11-16 security review (#178), each guarded by the test
-that failed before it (#183 in 1.62.0, #185 in 1.63.0). The ids (WW-SEC-01 ...) are the
+that failed before it (#183 in 1.62.0, #185 in 1.63.0, #187 in 1.64.0). The ids (WW-SEC-01 ...) are the
 review's.
 """
 import os
@@ -534,3 +534,104 @@ def test_a_long_enough_session_secret_starts_the_server():
     done = subprocess.run([sys.executable, "-c", "import app.main"], cwd=SERVER_DIR, env=env,
                           capture_output=True, text=True, timeout=60)
     assert done.returncode == 0, done.stderr[-300:]
+
+
+# ---------- WW-SEC-07 and -08: the browser's side ----------
+
+def test_a_write_that_says_it_comes_from_another_site_is_refused(app_started):
+    c, _ = register(app_started)
+    r = c.post("/api/accounts", headers={"Origin": "https://evil.example"},
+               json={"name": "x", "starting_balance": 0, "starting_date": TODAY})
+    assert r.status_code == 403
+    # The app's own page still works.
+    r = c.post("/api/accounts", headers={"Origin": "http://testserver"},
+               json={"name": "x", "starting_balance": 0, "starting_date": TODAY})
+    assert r.status_code == 200
+
+
+def test_pages_and_answers_carry_the_security_headers(app_started):
+    c, _ = register(app_started)
+    for path in ("/", "/app-sign-in", "/api/me"):
+        h = c.get(path).headers
+        assert h.get("x-content-type-options") == "nosniff", path
+        assert (h.get("x-frame-options", "").upper() in ("DENY", "SAMEORIGIN")
+                or "frame-ancestors" in h.get("content-security-policy", "")), path
+        assert h.get("referrer-policy"), path
+    assert "no-store" in c.get("/api/me").headers.get("cache-control", "")
+
+
+@pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
+def test_the_api_docs_arent_served_to_strangers(app_started, path):
+    assert TestClient(app_started).get(path).status_code in (401, 403, 404)
+
+
+# ---------- More on WW-SEC-07: which writes are refused ----------
+
+ACCOUNT = {"name": "x", "starting_balance": 0, "starting_date": TODAY}
+
+
+@pytest.mark.parametrize("headers,status", [
+    ({}, 200),                                                    # scripts, the native app
+    ({"Origin": "http://testserver"}, 200),
+    ({"Origin": "HTTP://TESTSERVER/"}, 200),
+    ({"Origin": "https://testserver"}, 200),                      # HTTPS ends at a proxy
+    ({"Origin": "http://localhost:8300"}, 200),                   # APP_BASE_URL
+    ({"Origin": "https://wallet.example.test", "X-Forwarded-Host": "wallet.example.test"}, 200),
+    ({"Origin": "https://evil.example"}, 403),
+    ({"Origin": "http://testserver.evil.example"}, 403),
+    ({"Origin": "http://other.testserver"}, 403),                 # another app on the domain
+    ({"Origin": "null"}, 403),
+    ({"Sec-Fetch-Site": "cross-site"}, 403),
+    ({"Sec-Fetch-Site": "same-site"}, 403),
+    ({"Sec-Fetch-Site": "same-origin"}, 200),
+    ({"Sec-Fetch-Site": "none"}, 200),
+])
+def test_which_writes_count_as_another_sites(app_started, headers, status):
+    c, _ = register(app_started)
+    r = c.post("/api/accounts", json=ACCOUNT, headers=headers)
+    assert r.status_code == status, r.text
+    if status == 403:
+        assert "another site" in r.json()["detail"]
+        assert c.get("/api/accounts").json() == []
+
+
+def test_a_trusted_origin_from_the_settings_is_let_through(app_started, monkeypatch):
+    from app import main
+    c, _ = register(app_started)
+    headers = {"Origin": "https://wallet.example.test"}
+    assert c.post("/api/accounts", json=ACCOUNT, headers=headers).status_code == 403
+    monkeypatch.setattr(main, "TRUSTED_ORIGINS", {"https://wallet.example.test"})
+    assert c.post("/api/accounts", json=ACCOUNT, headers=headers).status_code == 200
+
+
+def test_reads_and_api_tokens_arent_judged_by_origin(app_started):
+    c, _ = register(app_started)
+    evil = {"Origin": "https://evil.example"}
+    assert c.get("/api/accounts", headers=evil).status_code == 200
+    token = c.post("/api/tokens", json={"name": "t", "access": "full"}).json()["token"]
+    r = TestClient(app_started).post("/api/accounts", json=ACCOUNT,
+                                     headers={**evil, "Authorization": "Bearer " + token})
+    assert r.status_code == 200
+
+
+@pytest.mark.parametrize("method,path", [("POST", "/auth/logout"), ("DELETE", "/api/me"),
+                                         ("PUT", "/api/admin/two-factor"),
+                                         ("PATCH", "/api/me/preferences"),
+                                         ("POST", "/api/admin/backups/restore/x")])
+def test_every_kind_of_write_is_covered(app_started, method, path):
+    c, _ = register(app_started)
+    r = c.request(method, path, json={}, headers={"Origin": "https://evil.example"})
+    assert r.status_code == 403 and "another site" in r.json()["detail"]
+    assert c.get("/api/me").status_code == 200           # still signed in
+
+
+def test_the_headers_are_on_errors_and_static_files_too(app_started):
+    c = TestClient(app_started)
+    for path in ("/api/me", "/nope", "/static/sw.js", "/api/auth/config", "/manifest.webmanifest"):
+        h = c.get(path).headers
+        assert h["x-content-type-options"] == "nosniff", path
+        assert h["x-frame-options"] == "DENY", path
+        assert "frame-ancestors 'none'" in h["content-security-policy"], path
+    # The page and the service worker keep their own caching rule.
+    assert c.get("/").headers["cache-control"] == "no-cache"
+    assert "no-store" in c.get("/api/auth/config").headers["cache-control"]

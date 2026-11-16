@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.63.0** · Web version: **1.79.0** · Schema version: **22** · iOS version: **0.16.0**
+App version: **1.64.0** · Web version: **1.80.0** · Schema version: **22** · iOS version: **0.16.0**
 
 ### Security
 
@@ -95,6 +95,22 @@ More from the security review (plan: `Plans/security-fixes.md`, #190).
   weekly, biweekly or monthly, with a start date (weekly, biweekly) or a
   day of the month from 1 to 31 (monthly). One saved without was never
   projected, and a day of 0 broke the forecast. (#185)
+- **Breaking: changes made from another site's page are refused.** A page
+  on another address, including another app on the same home domain, could
+  ask your browser to make a change here while you were signed in; only the
+  cookie's settings stood in the way. The server now answers 403 to any
+  change a browser says comes from elsewhere. If you reach the app through
+  a reverse proxy that rewrites the `Host` header, set `APP_BASE_URL` to
+  the address you open (or list addresses in `TRUSTED_ORIGINS`), or saving
+  will be refused with a message saying so. API tokens, scripts and the
+  iPhone app are unaffected. (#187)
+- **The usual security headers:** pages and answers can no longer be shown
+  inside another site's frame, browsers are told not to guess file types or
+  pass the address on to other sites, and answers about you aren't kept in
+  any cache. (#187)
+- **The API's built-in documentation pages are off:** `/docs`, `/redoc` and
+  `/openapi.json` described every route to anyone who asked. The README
+  documents the API. (#187)
 
 ## [1.62.0] — 2026-11-16
 

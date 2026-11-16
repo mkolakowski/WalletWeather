@@ -8,7 +8,7 @@ import secrets
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 # =============================================================================
 # APP VERSION (web / backend application version)
@@ -29,7 +29,7 @@ from urllib.parse import urlencode
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.63.0"
+APP_VERSION = "1.64.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,14 @@ APP_VERSION = "1.63.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.64.0 (2026-11-16, claude+mkolakowski): the browser's side
+#     (security-fixes phase 4, #187). A POST, PUT, PATCH or DELETE that a
+#     browser says comes from another site is answered 403 (Origin compared
+#     with the Host, X-Forwarded-Host, APP_BASE_URL and TRUSTED_ORIGINS;
+#     requests with an API token or no Origin are untouched). Every answer
+#     carries X-Content-Type-Options, X-Frame-Options, Referrer-Policy and a
+#     small Content-Security-Policy; /api and /auth answers are no-store.
+#     /docs, /redoc and /openapi.json are gone.
 # 1.63.0 (2026-11-16, claude+mkolakowski): limits on what's accepted
 #     (security-fixes phase 2, #185). Names, descriptions and passwords have
 #     maximum lengths (422 past them); a request body over MAX_BODY_MB
@@ -573,7 +581,16 @@ GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
 GOOGLE_ENABLED = bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
 
-app = FastAPI(title="WalletWeather")
+# Other addresses the web app is opened at, besides APP_BASE_URL and
+# whatever Host the request names: comma-separated origins, like
+# "https://wallet.example.com" (security-fixes phase 4, #187).
+TRUSTED_ORIGINS = {o.strip().lower().rstrip("/")
+                   for o in os.environ.get("TRUSTED_ORIGINS", "").split(",") if o.strip()}
+TRUSTED_ORIGINS.add(APP_BASE_URL.strip().lower().rstrip("/"))
+
+# The API's own documentation pages are off: they described every route to
+# anyone who asked (#187). README.md documents the API.
+app = FastAPI(title="WalletWeather", docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, same_site="lax", https_only=False)
 
 
@@ -630,6 +647,78 @@ class BodyLimitMiddleware:
 
 
 app.add_middleware(BodyLimitMiddleware, max_bytes=MAX_BODY_BYTES)
+
+
+_WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+SECURITY_HEADERS = [
+    (b"x-content-type-options", b"nosniff"),
+    # Never inside another site's frame: the "Allow" button on the app
+    # sign-in page mustn't be clickable through one.
+    (b"x-frame-options", b"DENY"),
+    (b"content-security-policy", b"frame-ancestors 'none'; base-uri 'self'; object-src 'none'"),
+    (b"referrer-policy", b"same-origin"),
+]
+OTHER_SITE_MESSAGE = (
+    "This request came from a page on another site, so it was refused. If "
+    "that's WalletWeather's own address, set APP_BASE_URL (or TRUSTED_ORIGINS) "
+    "in .env to the address you open it at.")
+
+
+def _from_another_site(headers: dict[bytes, bytes]) -> bool:
+    """True when a browser says this write was started by a page that isn't
+    the app's own. The session cookie's SameSite=Lax already stops other
+    sites; this also stops other apps on the same domain, which Lax doesn't.
+
+    Not judged: a request signed by an API token (a page on another site
+    can't attach one), and one with no Origin or Sec-Fetch-Site at all (the
+    native app, scripts)."""
+    if headers.get(b"authorization", b"")[:7].lower() == b"bearer ":
+        return False
+    origin = headers.get(b"origin", b"").decode("latin-1").strip().lower().rstrip("/")
+    if origin:
+        if origin in TRUSTED_ORIGINS:
+            return False
+        origin_host = urlsplit(origin).netloc
+        own_hosts = {headers.get(name, b"").decode("latin-1").strip().lower()
+                     for name in (b"host", b"x-forwarded-host")}
+        return not origin_host or origin_host not in own_hosts
+    return headers.get(b"sec-fetch-site", b"").decode("latin-1").strip().lower() in (
+        "cross-site", "same-site")
+
+
+class BrowserGuardMiddleware:
+    """Refuses writes started by another site's page, and puts the security
+    headers on every answer (security-fixes phase 4, #187)."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        private = scope["path"].startswith(("/api/", "/auth/"))
+
+        async def send_with_headers(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers") or [])
+                present = {name.lower() for name, _ in headers}
+                headers += [h for h in SECURITY_HEADERS if h[0] not in present]
+                # Answers about a user aren't for any cache to keep.
+                if private and b"cache-control" not in present:
+                    headers.append((b"cache-control", b"no-store"))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        if scope["method"] in _WRITE_METHODS and _from_another_site(dict(scope["headers"])):
+            body = json.dumps({"detail": OTHER_SITE_MESSAGE}).encode()
+            await send_with_headers({"type": "http.response.start", "status": 403,
+                                     "headers": [(b"content-type", b"application/json"),
+                                                 (b"content-length", str(len(body)).encode())]})
+            return await send({"type": "http.response.body", "body": body})
+        await self.app(scope, receive, send_with_headers)
+
+
+app.add_middleware(BrowserGuardMiddleware)
 
 oauth = None
 if GOOGLE_ENABLED:

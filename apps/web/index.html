@@ -2666,7 +2666,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.79.0";
+const WEB_VERSION = "1.80.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2677,6 +2677,7 @@ const WEB_VERSION = "1.79.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.80.0 (2026-11-16, claude+mkolakowski): (#187) drain(res) lets go of an answer whose body is never read (a 401 in api(), sign-out, the two preference saves): API answers are no-store now, and Chrome keeps such a request open until its body is read or dropped.
 // 1.79.0 (2026-11-16, claude+mkolakowski): (#183) Security fixes from the review. Colours from the server are written into the page only when they are hex colours (safeColor at each place, scrubColors on every api() answer). The sign-up form shows a Registration code field (#suCode) when /api/auth/config says registration_code_required. Admin → User management gets Add a user (#adminNewEmail, #adminNewName, #adminNewPass → POST /api/admin/users).
 // 1.78.0 (2026-11-15, claude+mkolakowski): (#169) A code for sensitive actions. With two-factor on, Change password (#pwCode), Create token (#apiTokenCode) and Delete my account (#deleteAccountCode) get a "Code from your authenticator app" field and send it as code; shown only when me.two_factor_enabled. /app-sign-in's Allow step asks too.
 // 1.77.0 (2026-11-15, claude+mkolakowski): (#168) Two-factor sign-in required by an admin. A user /api/me says two_factor_setup_required gets only a set-up screen after sign-in (#tfaGate, showTwoFactorGate, which borrows the Settings panel #twoFactorPanel) until it's on; a request the server holds back for it reloads into that screen (api()). Admin → "Two-factor sign-in" panel (#adminTwoFactor, loadAdminTwoFactor, saveAdminTwoFactor) switches the requirement and counts who still has to set it up.
@@ -3445,6 +3446,7 @@ async function onThemeChange(event) {
       body: JSON.stringify({ theme_preference: choice }),
     });
     if (res.ok && me) me.theme_preference = choice;
+    drain(res);
   } catch { /* network hiccup — user can retry; we don't cache locally */ }
 }
 // Re-apply when system preference changes, if the user picked "system".
@@ -3461,12 +3463,17 @@ if (window.matchMedia) {
 // tomorrow during the evening in the Americas.
 const _TODAY_AWARE = /^\/api\/(accounts(\/\d+\/forecast)?|recurring)(\?|$)/;
 
+// Let go of an answer whose body nobody will read. The server marks API
+// answers no-store (#187), and a browser keeps such a request open until
+// its body is read or dropped.
+function drain(res) { try { if (res && res.body && !res.bodyUsed) res.body.cancel().catch(() => {}); } catch {} }
+
 async function api(path, opts={}) {
   if (!opts.method && _TODAY_AWARE.test(path)) {
     path += (path.includes('?') ? '&' : '?') + 'today=' + _isoDate(new Date());
   }
   const res = await fetch(path, { headers:{'Content-Type':'application/json'}, ...opts });
-  if (res.status===401) { showLogin(); throw new Error('auth'); }
+  if (res.status===401) { drain(res); showLogin(); throw new Error('auth'); }
   if (!res.ok) {
     const text = await res.text();
     // An admin started requiring two-factor sign-in while this page was open
@@ -4482,11 +4489,11 @@ async function onChartPositionChange(event) {
     renderDashboard();
   }
   try {
-    await fetch('/api/me/preferences', {
+    drain(await fetch('/api/me/preferences', {
       method: 'PATCH',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ chart_position: pos }),
-    });
+    }));
   } catch { /* network hiccup — server-side will catch up on next change */ }
 }
 
@@ -8597,7 +8604,7 @@ function wireRecurringSort() {
 }
 
 async function logout() {
-  await fetch('/auth/logout', {method:'POST'});
+  drain(await fetch('/auth/logout', {method:'POST'}));
   location.reload();
 }
 

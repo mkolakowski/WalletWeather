@@ -66,6 +66,7 @@ All configuration is via environment variables in `.env`:
 | `ENCRYPTION_KEY` | Yes | — | Fernet key for field encryption. **Losing this means data loss.** |
 | `APP_BASE_URL` | No | `http://localhost:8300` | Public URL (used for OAuth redirect) |
 | `ALLOW_REGISTRATION` | No | `true` | Set `false` to lock out new signups |
+| `TRUSTED_ORIGINS` | No | *(none)* | Other addresses you open the app at, comma-separated (`https://wallet.example.com`). Only needed when a reverse proxy rewrites the `Host` header |
 | `MAX_BODY_MB` | No | `25` | The largest request the server accepts, in megabytes. Raise it if a backup of yours is too big to import |
 | `REGISTRATION_CODE` | No | *(none)* | A code people must type to register with a password. Set one on any instance other people can reach |
 | `ALLOWED_EMAILS` | No | — | Comma-separated allowlist for registration |

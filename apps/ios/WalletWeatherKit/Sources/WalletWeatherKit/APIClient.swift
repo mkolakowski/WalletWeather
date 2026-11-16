@@ -5,7 +5,7 @@ public enum AppInfo {
     /// The iOS app's own version (CHANGELOG.md tracks it beside the app,
     /// web and schema versions). Keep it equal to MARKETING_VERSION in the
     /// Xcode project.
-    public static let version = "0.10.0"
+    public static let version = "0.11.0"
     /// The first server version with what the app's pages need: the
     /// phone's date on Net worth, Budgets and Reports (#91), on top of each
     /// bill's next dates (#89) and the Forecast's (#88).
@@ -239,11 +239,20 @@ public final class APIClient: Sendable {
     /// #100): `POST /api/auth/token`, under the server's sign-in rate limit.
     /// A wrong email or password, or an account that signs in only with
     /// Google (it has no password), comes back as `.wrongPassword`.
-    public func signIn(email: String, password: String, deviceName: String,
+    ///
+    /// An account with two-factor sign-in on answers `.twoFactorCodeNeeded`
+    /// (#166): ask for the code from the authenticator app (or a recovery
+    /// code) and call again with the same email and password and `code`.
+    public func signIn(email: String, password: String, deviceName: String, code: String? = nil,
                        access: String = "full") async throws(APIError) -> IssuedToken {
-        struct Body: Encodable { let email, password, name, access: String }
+        struct Body: Encodable {
+            let email, password, name, access: String
+            let code: String?  // left out of the request when nil
+        }
+        let typedCode = code?.trimmingCharacters(in: .whitespacesAndNewlines)
         let body = Body(email: email.trimmingCharacters(in: .whitespacesAndNewlines), password: password,
-                        name: String(deviceName.prefix(80)), access: access)
+                        name: String(deviceName.prefix(80)), access: access,
+                        code: typedCode?.isEmpty == false ? typedCode : nil)
         do {
             return try await send("POST", "/api/auth/token", body: body)
         } catch .tokenRevoked, .tokenExpired {
@@ -313,7 +322,8 @@ public final class APIClient: Sendable {
     static func decode<T: Decodable>(_ type: T.Type, data: Data, response: HTTPURLResponse,
                                      path: String) throws(APIError) -> T {
         if CloudflareAccess.isChallenge(response, body: data) { throw .cloudflareSignInNeeded }
-        let detail = (try? JSONDecoder().decode(ServerError.self, from: data))?.detail
+        let said = try? JSONDecoder().decode(ServerError.self, from: data)
+        let detail = said?.detail
         switch response.statusCode {
         case 200..<300:
             break
@@ -325,6 +335,7 @@ public final class APIClient: Sendable {
         case 300..<400:
             throw .notWalletWeather
         default:
+            if let detail, said?.twoFactorRequired == true { throw .twoFactorCodeNeeded(detail) }
             if let detail { throw .server(status: response.statusCode, detail: detail) }
             if response.statusCode == 404 { throw .notWalletWeather }
             throw .server(status: response.statusCode, detail: "The server answered with an error (\(response.statusCode))")

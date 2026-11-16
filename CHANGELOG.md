@@ -69,10 +69,18 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.58.0** · Web version: **1.76.0** · Schema version: **21** · iOS version: **0.10.0**
+App version: **1.59.0** · Web version: **1.76.0** · Schema version: **21** · iOS version: **0.11.0**
 
 ### Added
 
+- **The iPhone app's email and password sign-in takes a two-factor code:**
+  if your account has two-factor sign-in on, a Code field appears under the
+  password after the first try. Type the code from your authenticator app
+  (or a recovery code) and sign in again. It needs server 1.59.0 or later;
+  with an older server, use Sign in (the browser sheet) as before. For
+  scripts: `POST /api/auth/token` takes an optional `code`, and answers 403
+  with `"two_factor_required": true` when one is needed or wrong.
+  (app 1.59.0, iOS app 0.11.0)
 - **Remember this browser for two-factor sign-in:** the code step now has a
   "Don't ask on this browser for 30 days" tick box. Tick it, and for the next
   30 days your email and password alone sign you in on that browser; other

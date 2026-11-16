@@ -22,6 +22,10 @@ public enum APIError: Error, Sendable, Equatable {
     /// Signing in with an email and password was refused: the email or
     /// password is wrong, or the account signs in only with Google.
     case wrongPassword
+    /// The email and password were right, and the account has two-factor
+    /// sign-in on: a code is needed, or the one sent was wrong. Carries the
+    /// server's sentence (#166).
+    case twoFactorCodeNeeded(String)
     /// The server is older than this app needs.
     case serverTooOld(found: String, needed: String)
     /// Something answered, but not a WalletWeather server.
@@ -41,6 +45,7 @@ public enum APIError: Error, Sendable, Equatable {
         case .tokenExpired: "Your sign-in has ended"
         case .tokenRevoked: "You've been signed out"
         case .wrongPassword: "That didn't sign in"
+        case .twoFactorCodeNeeded: "A code is needed"
         case .serverTooOld: "Your server needs an update"
         case .notWalletWeather: "That isn't a WalletWeather server"
         case .server: "The server said no"
@@ -70,7 +75,7 @@ public enum APIError: Error, Sendable, Equatable {
             "This app needs WalletWeather \(needed) or later, and your server runs \(found). Update the server, then try again."
         case .notWalletWeather:
             "Something answered at that address, but it isn't WalletWeather. Check the address."
-        case let .server(_, detail):
+        case let .server(_, detail), let .twoFactorCodeNeeded(detail):
             detail.hasSuffix(".") ? detail : detail + "."
         case .unexpectedResponse:
             "The server's answer wasn't what this app expected. Check that the server is up to date, then try again."

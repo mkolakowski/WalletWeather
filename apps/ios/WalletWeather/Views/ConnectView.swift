@@ -10,6 +10,9 @@ struct ConnectView: View {
     @State private var pastedToken = ""
     @State private var email = ""
     @State private var password = ""
+    /// The two-factor code, asked for once the server says it's needed (#166).
+    @State private var code = ""
+    @FocusState private var codeFocused: Bool
     @State private var showScanner = false
     /// The way last tried, so its problem shows beside its own button.
     @State private var lastWay: Way = .sheet
@@ -101,6 +104,20 @@ struct ConnectView: View {
                             .onSubmit { signInWithPassword() }
                             .padding(12)
                             .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                        if model.needsTwoFactorCode {
+                            TextField("Code", text: $code)
+                                .textContentType(.oneTimeCode)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .focused($codeFocused)
+                                .submitLabel(.go)
+                                .onSubmit { signInWithPassword() }
+                                .padding(12)
+                                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                                .accessibilityLabel("Two-factor code")
+                            Text("This account has two-factor sign-in on. Type the code from your authenticator app, or one of your recovery codes.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
                         Button("Sign in with email and password", action: signInWithPassword)
                             .buttonStyle(.glass)
                             .disabled(model.busy)
@@ -173,6 +190,11 @@ struct ConnectView: View {
         .sheet(isPresented: $showScanner) {
             QRScanSheet { url in model.open(url) }
         }
+        // Another account: the code field goes until the server asks again.
+        .onChange(of: email) {
+            model.needsTwoFactorCode = false
+            code = ""
+        }
         .task { debugStart() }
     }
 
@@ -217,8 +239,14 @@ struct ConnectView: View {
     private func signInWithPassword() {
         lastWay = .password
         Task {
-            await model.signIn(email: email, password: password, serviceToken: serviceToken)
-            if model.phase != .connect { password = "" }
+            await model.signIn(email: email, password: password,
+                               code: model.needsTwoFactorCode ? code : nil, serviceToken: serviceToken)
+            if model.phase != .connect {
+                password = ""
+                code = ""
+            } else if model.needsTwoFactorCode {
+                codeFocused = true
+            }
         }
     }
 

@@ -29,7 +29,7 @@ from urllib.parse import urlencode
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.58.0"
+APP_VERSION = "1.59.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,11 @@ APP_VERSION = "1.58.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.59.0 (2026-11-15, claude+mkolakowski): POST /api/auth/token takes an
+#     optional "code" (#166): for a user with two-factor sign-in on, no code
+#     or a wrong one answers 403 with "two_factor_required": true, and a
+#     right code or a recovery code makes the token. Tests in
+#     tests/test_two_factor.py.
 # 1.58.0 (2026-11-15, claude+mkolakowski): remember this browser (#167,
 #     schema 21): POST /api/auth/login/two-factor takes "remember": true and
 #     sets a 30-day cookie; POST /api/auth/login skips the code for a
@@ -1237,6 +1242,10 @@ class AppTokenIn(BaseModel):
     name: str = Field(max_length=80)
     access: str
     expires_in_days: int | None = APP_TOKEN_DEFAULT_DAYS
+    # For a user with two-factor sign-in on (#166): the code from their
+    # authenticator app, or a recovery code. Sent with the email and password
+    # again once the first try was answered with two_factor_required.
+    code: str | None = Field(default=None, max_length=40)
 
 
 @app.post("/api/auth/token")
@@ -1252,11 +1261,26 @@ def app_token(payload: AppTokenIn, request: Request, db: Session = Depends(get_d
     _check_expiry(payload.expires_in_days)
     user = _password_sign_in(db, request, payload.email, payload.password, "token")
     if user.totp_enabled_at is not None:
-        # This endpoint takes no code yet (two-factor phase 2, #166). The
-        # browser sign-in page does, and ends with a token all the same.
-        record_event(db, "two_factor_asked", request, user=user, detail="token; refused")
-        raise HTTPException(403, "This account has two-factor sign-in on. "
-                                 "Sign in through the browser instead.")
+        # The password was right, and that's half of it (#166). Both answers
+        # below carry two_factor_required so an app can show a code field;
+        # the sentence is for apps from before it existed.
+        def code_needed(detail: str) -> JSONResponse:
+            return JSONResponse({"detail": detail, "two_factor_required": True}, status_code=403)
+        if not (payload.code or "").strip():
+            record_event(db, "two_factor_asked", request, user=user, detail="token")
+            return code_needed("This account has two-factor sign-in on. Type the code from your "
+                               "authenticator app, or sign in through the browser.")
+        wait = _code_retry_after(db, user)
+        if wait:
+            _refuse_blocked(db, request, wait, user.email, user=user)
+        how = _use_two_factor_code(db, user, payload.code)
+        if not how:
+            record_event(db, "login_failed", request, user=user, detail="token; " + WRONG_CODE)
+            return code_needed(WRONG_CODE_MESSAGE)
+        if how == "recovery code":
+            record_event(db, "recovery_code_used", request, user=user,
+                         detail=f"{_recovery_codes_left(db, user)} left")
+        record_event(db, "login", request, user=user, detail="token; " + how)
     token, row = _make_token(db, user, name, payload.access, payload.expires_in_days)
     record_event(db, "token_created", request, user=user,
                  detail=f"token #{row.id}, {row.access}; by sign-in")

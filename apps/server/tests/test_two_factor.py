@@ -275,15 +275,85 @@ def test_a_right_password_does_not_clear_the_wrong_codes(client, registered, lim
     assert password_step(client, registered).status_code == 429
 
 
-def test_the_app_token_sign_in_is_refused(client, registered, limits):
-    turn_on(client, registered)
+# ---------- The apps' password sign-in, POST /api/auth/token (#166) ----------
+
+def app_token(client, user, **extra):
     client.cookies.clear()
-    r = client.post("/api/auth/token", json={
-        "email": registered["email"], "password": registered["password"],
-        "name": "phone", "access": "full"})
+    return client.post("/api/auth/token", json={
+        "email": user["email"], "password": user["password"],
+        "name": "phone", "access": "full", **extra})
+
+
+def test_the_app_sign_in_asks_for_a_code(client, registered, limits):
+    turn_on(client, registered)
+    for extra in ({}, {"code": None}, {"code": "  "}):
+        r = app_token(client, registered, **extra)
+        assert r.status_code == 403
+        body = r.json()
+        assert body["two_factor_required"] is True and "token" not in body
+        assert "two-factor" in body["detail"]
+    assert events(registered["email"])[-1] == ("two_factor_asked", "token")
+
+
+def test_the_app_sign_in_takes_a_code(app_started, client, registered, limits):
+    secret, _ = turn_on(client, registered)
+    r = app_token(client, registered, code=fresh_code(registered["email"], secret))
+    assert r.status_code == 200
+    body = r.json()
+    assert body["token"].startswith("ww_") and body["access"] == "full"
+    assert body["user"] == {"id": registered["id"], "email": registered["email"]}
+    assert events(registered["email"])[-2:] == [
+        ("login", "token; code"), ("token_created", f"token #{body['id']}, full; by sign-in")]
+    # The token works, and no session cookie came with it.
+    assert client.get("/api/me").status_code == 401
+    phone = TestClient(app_started)
+    me = phone.get("/api/me", headers={"Authorization": "Bearer " + body["token"]})
+    assert me.status_code == 200 and me.json()["two_factor_enabled"] is True
+
+
+def test_the_app_sign_in_refuses_a_wrong_or_used_code(client, registered, limits):
+    secret, _ = turn_on(client, registered)
+    r = app_token(client, registered, code=wrong_code(secret))
     assert r.status_code == 403
-    assert "two-factor" in r.json()["detail"] and "token" not in r.json()
-    assert events(registered["email"])[-1] == ("two_factor_asked", "token; refused")
+    assert r.json()["two_factor_required"] is True and "token" not in r.json()
+    assert "isn't right" in r.json()["detail"]
+    assert events(registered["email"])[-1] == ("login_failed", "token; wrong code")
+    code = fresh_code(registered["email"], secret)
+    assert app_token(client, registered, code=code).status_code == 200
+    assert app_token(client, registered, code=code).status_code == 403
+
+
+def test_the_app_sign_in_takes_a_recovery_code_once(client, registered, limits):
+    _, codes = turn_on(client, registered)
+    assert app_token(client, registered, code=codes[0]).status_code == 200
+    kinds = events(registered["email"])
+    assert ("recovery_code_used", "9 left") in kinds and ("login", "token; recovery code") in kinds
+    assert app_token(client, registered, code=codes[0]).status_code == 403
+
+
+def test_the_app_sign_in_checks_the_password_before_the_code(client, registered, limits):
+    secret, _ = turn_on(client, registered)
+    r = app_token(client, {**registered, "password": "not-my-password"},
+                  code=fresh_code(registered["email"], secret))
+    assert r.status_code == 401 and "two_factor_required" not in r.json()
+
+
+def test_wrong_codes_at_the_app_sign_in_reach_the_limit(client, registered, limits):
+    secret, _ = turn_on(client, registered)
+    for _ in range(5):
+        assert app_token(client, registered, code=wrong_code(secret)).status_code == 403
+    r = app_token(client, registered, code=fresh_code(registered["email"], secret))
+    assert r.status_code == 429 and int(r.headers["Retry-After"]) > 0
+    # One count for the user: the web sign-in's code step is blocked too.
+    limits.TRUST_PROXY_HEADERS = True
+    there = {"cf-connecting-ip": "198.51.100.7"}
+    assert password_step(client, registered, headers=there).status_code == 200
+    assert code_step(client, fresh_code(registered["email"], secret), headers=there).status_code == 429
+
+
+def test_the_app_sign_in_ignores_a_code_without_two_factor(client, registered, limits):
+    r = app_token(client, registered, code="123456")
+    assert r.status_code == 200 and r.json()["token"].startswith("ww_")
 
 
 def test_users_without_it_sign_in_as_before(client, registered, limits):

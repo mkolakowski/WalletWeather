@@ -209,4 +209,12 @@ public struct IssuedToken: Sendable, Codable, Equatable {
 /// `{"detail": "..."}`, the server's error answer.
 struct ServerError: Decodable {
     let detail: String
+    /// Set on the password sign-in's answer when the account has two-factor
+    /// sign-in on and a code is missing or wrong (#166).
+    let twoFactorRequired: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case detail
+        case twoFactorRequired = "two_factor_required"
+    }
 }

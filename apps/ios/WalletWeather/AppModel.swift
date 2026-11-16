@@ -39,6 +39,9 @@ final class AppModel {
     /// Something the Connect screen should say that isn't a problem (why a
     /// token may still be listed after signing out).
     var connectNotice: String?
+    /// The email and password sign-in found two-factor sign-in on: the
+    /// Connect screen shows a code field until the sign-in is through (#166).
+    var needsTwoFactorCode = false
     /// The server address typed last, kept in memory only.
     var typedAddress = ""
     var pendingLink: PendingLink?
@@ -235,7 +238,11 @@ final class AppModel {
     /// An email and password, swapped for this phone's token. Behind
     /// Cloudflare Access the sheet signs in to Cloudflare first, unless a
     /// service token is given under Advanced.
-    func signIn(email: String, password: String, serviceToken: CloudflareCredential?) async {
+    ///
+    /// With two-factor sign-in on, the first try comes back asking for a
+    /// code (`needsTwoFactorCode`); the next sends it with the same email
+    /// and password.
+    func signIn(email: String, password: String, code: String? = nil, serviceToken: CloudflareCredential?) async {
         connectError = nil
         connectNotice = nil
         let address: ServerAddress
@@ -259,12 +266,19 @@ final class AppModel {
                 try await APIClient(connection: candidate).checkServer()
             }
             let issued = try await APIClient(connection: candidate)
-                .signIn(email: email, password: password, deviceName: deviceName)
+                .signIn(email: email, password: password, deviceName: deviceName, code: code)
             candidate.token = issued.token
+        } catch APIError.twoFactorCodeNeeded(let detail) {
+            // The first answer only asks for the code; after that it's about
+            // the code that was sent.
+            if needsTwoFactorCode { connectError = detail }
+            needsTwoFactorCode = true
+            return
         } catch {
             connectError = Self.describe(error)
             return
         }
+        needsTwoFactorCode = false
         await finishSignIn(candidate)
     }
 

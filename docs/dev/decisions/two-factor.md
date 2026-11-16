@@ -54,5 +54,5 @@ Decisions made while planning and building [`Plans/two-factor.md`](../../../Plan
 - "Require it for everyone" covers users with a password. Google-only users aren't asked.
 - All four actions ask for a current code (or a recovery code): changing the password, deleting your own account, making an API token (admin and app tokens alike, since a token skips the code afterwards), and switching two-factor off.
 
-**What it changes:** nothing already built. Phases 3, 4 and 5 are built on these answers, which were the plan's working assumptions; no phase grows or shrinks.
+**What it changes:** nothing already built. Phases 3 and 4 are built on these answers, which were their working assumptions. Phase 5 grows a little: the plan named only admin tokens, and app tokens (the iOS app's sign-in) now ask for a code too.
 

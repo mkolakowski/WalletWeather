@@ -56,3 +56,13 @@ Decisions made while planning and building [`Plans/two-factor.md`](../../../Plan
 
 **What it changes:** nothing already built. Phases 3 and 4 are built on these answers, which were their working assumptions. Phase 5 grows a little: the plan named only admin tokens, and app tokens (the iOS app's sign-in) now ask for a code too.
 
+
+## 2026-11-15: remembered browsers are named from the browser
+
+**Decided:** 2026-11-15, while building phase 3 (#167), then confirmed by Matthew. **Status:** accepted.
+
+**The question:** Settings lists remembered browsers so they can be forgotten one by one, which needs some way to tell them apart.
+
+**Options considered:** a short name worked out from the browser's user-agent ("Safari on iPhone"), storing only that name; no name, each listed by the date it was remembered.
+
+**The decision:** the short name. The user-agent string itself is never stored, as with the sign-in log (decided for login-limits). `PRIVACY.md` lists the name with the rest of what a remembered browser keeps.

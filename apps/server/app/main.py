@@ -29,7 +29,7 @@ from urllib.parse import urlencode
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.62.0"
+APP_VERSION = "1.63.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,14 @@ APP_VERSION = "1.62.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.63.0 (2026-11-16, claude+mkolakowski): limits on what's accepted
+#     (security-fixes phase 2, #185). Names, descriptions and passwords have
+#     maximum lengths (422 past them); a request body over MAX_BODY_MB
+#     (default 25) is a 413; the forecast and report windows stop at ten
+#     years; amounts must be finite and within a trillion; a recurring item
+#     needs a known frequency with its day of the month or start date; the
+#     server won't start with SESSION_SECRET empty, under 16 characters or
+#     left as the template's.
 # 1.62.0 (2026-11-16, claude+mkolakowski): security fixes from the review
 #     (#183). A colour is a hex colour or nothing (categories, tags, backup
 #     import; schema v22 blanks the rest). POST /api/auth/register takes
@@ -486,11 +494,15 @@ APP_VERSION = "1.62.0"
 import bcrypt
 from fastapi import FastAPI, Depends, HTTPException, Request, status, Response
 from fastapi.responses import RedirectResponse, JSONResponse, FileResponse
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr, Field
+from typing import Annotated
+
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 from .db import (
     init_db, get_db, User, Account, RecurringTransaction, Transaction, Category,
@@ -504,6 +516,17 @@ from .forecast import build_forecast, actual_balance_as_of, upcoming_dates
 from .backup import export_user, import_user
 
 SECRET_KEY = os.environ["SESSION_SECRET"]
+# The session cookie is only as good as this secret: anyone who can guess it
+# can sign a cookie for any user. Refuse to start on one that's empty, short
+# or still the template's (security-fixes phase 2, #185).
+if len(SECRET_KEY) < 16 or SECRET_KEY == "replace_with_random_string":
+    raise RuntimeError(
+        "SESSION_SECRET is empty, shorter than 16 characters, or still the "
+        "placeholder from .env.example. Set it to a long random string: "
+        'python -c "import secrets; print(secrets.token_urlsafe(48))"')
+# The largest request body accepted, in megabytes (#185). The default leaves
+# room for a backup import; nothing else comes close.
+MAX_BODY_BYTES = max(1, int(os.environ.get("MAX_BODY_MB", "25"))) * 1024 * 1024
 APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8300")
 ALLOWED_EMAILS = {e.strip().lower() for e in os.environ.get("ALLOWED_EMAILS", "").split(",") if e.strip()}
 ALLOW_REGISTRATION = os.environ.get("ALLOW_REGISTRATION", "true").lower() == "true"
@@ -552,6 +575,61 @@ GOOGLE_ENABLED = bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
 
 app = FastAPI(title="WalletWeather")
 app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY, same_site="lax", https_only=False)
+
+
+class BodyLimitMiddleware:
+    """Refuse a request body over MAX_BODY_BYTES with 413 (#185): by its
+    Content-Length before any of it is read, and by counting for a body
+    sent without one. Past the limit the app is told the body has ended
+    and whatever it answers is replaced by the 413."""
+
+    def __init__(self, app, max_bytes: int):
+        self.app, self.max_bytes = app, max_bytes
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        async def refuse():
+            body = json.dumps({"detail": "That request is too large "
+                               f"(over {self.max_bytes // (1024 * 1024)} MB)."}).encode()
+            await send({"type": "http.response.start", "status": 413,
+                        "headers": [(b"content-type", b"application/json"),
+                                    (b"content-length", str(len(body)).encode()),
+                                    (b"connection", b"close")]})
+            await send({"type": "http.response.body", "body": body})
+
+        declared = dict(scope.get("headers") or []).get(b"content-length", b"")
+        if declared.isdigit() and int(declared) > self.max_bytes:
+            return await refuse()
+        seen, too_large, started = 0, False, False
+
+        async def counted_receive():
+            nonlocal seen, too_large
+            if too_large:
+                return {"type": "http.disconnect"}
+            message = await receive()
+            if message["type"] == "http.request":
+                seen += len(message.get("body") or b"")
+                if seen > self.max_bytes:
+                    too_large = True
+                    return {"type": "http.request", "body": b"", "more_body": False}
+            return message
+
+        async def guarded_send(message):
+            nonlocal started
+            if too_large and not started:
+                return          # dropped: the 413 below is the answer
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+
+        await self.app(scope, counted_receive, guarded_send)
+        if too_large and not started:
+            await refuse()
+
+
+app.add_middleware(BodyLimitMiddleware, max_bytes=MAX_BODY_BYTES)
 
 oauth = None
 if GOOGLE_ENABLED:
@@ -993,18 +1071,58 @@ def _refuse_blocked(db: Session, request: Request, wait: int, email: str,
         headers={"Retry-After": str(wait)})
 
 
+# ---------- Limits on what's accepted (security-fixes phase 2, #185) ----------
+# A password that's typed back for checking: far longer than any real one
+# (new ones stop at 128), short enough to cost nothing.
+PASSWORD_CHECK_MAX = 1024
+EMAIL_MAX = 320              # users.email's column
+USER_NAME_MAX = 255          # users.name's column
+ACCOUNT_NAME_MAX = 120
+DESCRIPTION_MAX = 500
+CATEGORY_NAME_MAX = 80       # categories.name's column
+# A day's forecast is cheap, a few million of them isn't.
+FORECAST_MAX_DAYS = 3660
+# An amount is a real number of a size money comes in: never NaN or
+# Infinity, which every page showing the account would then choke on.
+Money = Annotated[float, Field(ge=-1e12, le=1e12, allow_inf_nan=False)]
+RECURRING_FREQUENCIES = ("monthly_day", "weekly", "biweekly")
+
+
+def _check_window(start: date, end: date) -> None:
+    if end < start:
+        raise HTTPException(400, "end must be on or after start")
+    if (end - start).days > FORECAST_MAX_DAYS:
+        raise HTTPException(400, f"The window can't be longer than {FORECAST_MAX_DAYS} days")
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error(request: Request, exc: RequestValidationError):
+    """FastAPI's own 422, except that a value JSON can't carry (NaN,
+    Infinity) is given as text: the stock handler answers 500 on those,
+    while trying to quote the bad input back (#185)."""
+    def clean(value):
+        if isinstance(value, float) and not math.isfinite(value):
+            return str(value)
+        if isinstance(value, dict):
+            return {k: clean(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [clean(v) for v in value]
+        return value
+    return JSONResponse({"detail": clean(jsonable_encoder(exc.errors()))}, status_code=422)
+
+
 # ---------- Local auth schemas ----------
 class RegisterIn(BaseModel):
-    email: str
+    email: str = Field(max_length=EMAIL_MAX)
     password: str = Field(min_length=8, max_length=128)
-    name: str | None = None
+    name: str | None = Field(default=None, max_length=USER_NAME_MAX)
     # Needed when the instance sets REGISTRATION_CODE (#183).
     registration_code: str | None = Field(default=None, max_length=200)
 
 
 class LoginIn(BaseModel):
-    email: str
-    password: str
+    email: str = Field(max_length=EMAIL_MAX)
+    password: str = Field(max_length=PASSWORD_CHECK_MAX)
 
 
 # --- App title (admin-customizable) -----------------------------------------
@@ -1349,8 +1467,8 @@ APP_TOKEN_DEFAULT_DAYS = 90
 
 
 class AppTokenIn(BaseModel):
-    email: str
-    password: str
+    email: str = Field(max_length=EMAIL_MAX)
+    password: str = Field(max_length=PASSWORD_CHECK_MAX)
     name: str = Field(max_length=80)
     access: str
     expires_in_days: int | None = APP_TOKEN_DEFAULT_DAYS
@@ -1794,7 +1912,7 @@ def admin_revoke_token(token_id: int, request: Request,
 
 # ---------- Changing your own password (#133) ----------
 class PasswordChangeIn(BaseModel):
-    current_password: str
+    current_password: str = Field(max_length=PASSWORD_CHECK_MAX)
     new_password: str = Field(..., min_length=8, max_length=128)
     # A current code, for a user with two-factor on (#169).
     code: str | None = Field(default=None, max_length=40)
@@ -1828,11 +1946,11 @@ def change_password(payload: PasswordChangeIn, request: Request,
 # on or off, or shows new recovery codes, asks for the password again, so a
 # browser left signed in can't be used to lock its owner out.
 class TwoFactorSetupIn(BaseModel):
-    password: str
+    password: str = Field(max_length=PASSWORD_CHECK_MAX)
 
 
 class TwoFactorConfirmIn(BaseModel):
-    password: str
+    password: str = Field(max_length=PASSWORD_CHECK_MAX)
     code: str = Field(max_length=40)
 
 
@@ -2101,8 +2219,8 @@ def deletion_check(user: User = Depends(current_user), db: Session = Depends(get
 class DeleteMeIn(BaseModel):
     # A user with a password confirms with it. A Google-only user has none,
     # and confirms by typing their email address.
-    password: str | None = None
-    confirm_email: str | None = None
+    password: str | None = Field(default=None, max_length=PASSWORD_CHECK_MAX)
+    confirm_email: str | None = Field(default=None, max_length=EMAIL_MAX)
     # A current code, for a user with two-factor on (#169).
     code: str | None = Field(default=None, max_length=40)
 
@@ -2228,16 +2346,16 @@ NOTES_MAX_LEN = 256  # shared cap for transaction/recurring notes, incl. CSV imp
 
 
 class AccountIn(BaseModel):
-    name: str
-    starting_balance: float
+    name: str = Field(max_length=ACCOUNT_NAME_MAX)
+    starting_balance: Money
     starting_date: date
 
 
 class RecurringIn(BaseModel):
-    description: str
-    amount: float  # signed: negative = withdraw
+    description: str = Field(max_length=DESCRIPTION_MAX)
+    amount: Money  # signed: negative = withdraw
     frequency: str  # 'monthly_day' | 'weekly' | 'biweekly'
-    day_of_month: int | None = None
+    day_of_month: int | None = Field(default=None, ge=1, le=31)
     anchor_date: date | None = None
     end_date: date | None = None
     category_id: int | None = None
@@ -2245,15 +2363,26 @@ class RecurringIn(BaseModel):
     active: bool = True
     # Tags (#118): None leaves them as they are, [] clears them. Lines created
     # from the item start with these tags.
-    tag_ids: list[int] | None = None
+    tag_ids: list[int] | None = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def _one_the_forecast_can_run(self):
+        """A known frequency, with what it needs to produce dates (#185)."""
+        if self.frequency not in RECURRING_FREQUENCIES:
+            raise ValueError("frequency must be monthly_day, weekly or biweekly")
+        if self.frequency == "monthly_day" and self.day_of_month is None:
+            raise ValueError("a monthly item needs day_of_month")
+        if self.frequency != "monthly_day" and self.anchor_date is None:
+            raise ValueError("a weekly or biweekly item needs anchor_date, its first date")
+        return self
 
 
 class TransactionIn(BaseModel):
-    description: str
-    amount: float
+    description: str = Field(max_length=DESCRIPTION_MAX)
+    amount: Money
     forecast_date: date | None = None
     actual_date: date | None = None
-    forecast_amount: float | None = None
+    forecast_amount: Money | None = None
     is_actual: bool = False
     recurring_id: int | None = None
     category_id: int | None = None
@@ -2261,17 +2390,17 @@ class TransactionIn(BaseModel):
     # Optional tag ids to attach to the transaction. None means "don't
     # touch tags" on update; an empty list means "clear all tags". On
     # create, None is treated as empty.
-    tag_ids: list[int] | None = None
+    tag_ids: list[int] | None = Field(default=None, max_length=200)
 
 
 class CategoryIn(BaseModel):
-    name: str
-    color: str | None = None
+    name: str = Field(max_length=CATEGORY_NAME_MAX)
+    color: str | None = Field(default=None, max_length=20)
 
 
 class TagIn(BaseModel):
-    name: str
-    color: str | None = None
+    name: str = Field(max_length=200)   # the routes answer 400 past TAG_NAME_MAX
+    color: str | None = Field(default=None, max_length=20)
 
 
 # A colour is written into the page's markup, so it's a hex colour or
@@ -2821,7 +2950,7 @@ def create_account(payload: AccountIn, user: User = Depends(current_user), db: S
 
 class AccountPatchIn(BaseModel):
     archived: bool | None = None
-    name: str | None = None
+    name: str | None = Field(default=None, max_length=ACCOUNT_NAME_MAX)
 
 
 @app.patch("/api/accounts/{account_id}")
@@ -3145,7 +3274,7 @@ class RecurringBulkUpdateIn(BaseModel):
     """
     recurring_ids: list[int] = Field(..., min_length=1, max_length=1000)
     category_id:  int | None = None
-    amount_abs:   float | None = Field(default=None, ge=0)
+    amount_abs:   float | None = Field(default=None, ge=0, le=1e12, allow_inf_nan=False)
     day_of_month: int | None = Field(default=None, ge=1, le=31)
     anchor_date:  date | None = None
     end_date:     date | None = None
@@ -3351,10 +3480,10 @@ class ForecastActualIn(BaseModel):
     transaction_id: int | None = None
     recurring_id: int | None = None
     forecast_date: date | None = None
-    forecast_amount: float | None = None
-    description: str | None = None
+    forecast_amount: Money | None = None
+    description: str | None = Field(default=None, max_length=DESCRIPTION_MAX)
     category_id: int | None = None
-    actual_amount: float | None = None
+    actual_amount: Money | None = None
     actual_date: date | None = None
     notes: str | None = Field(default=None, max_length=256)
 
@@ -3427,6 +3556,11 @@ def forecast(account_id: int, days: int = 90,
              start: date | None = None, end: date | None = None,
              today: date | None = None,
              user: User = Depends(current_user), db: Session = Depends(get_db)):
+    # The window is checked before anything is looked up (#185).
+    if not 0 <= days <= FORECAST_MAX_DAYS:
+        raise HTTPException(400, f"days must be 0 to {FORECAST_MAX_DAYS}")
+    if start is not None and end is not None:
+        _check_window(start, end)
     acc = _account_with_perm(db, user, account_id, "read")
     today = _viewer_today(today)
     if start is None or end is None:
@@ -3750,7 +3884,7 @@ TRANSFER_DESC_MAX = 120
 class TransferIn(BaseModel):
     from_account_id: int
     to_account_id: int
-    amount: float = Field(..., gt=0)
+    amount: float = Field(..., gt=0, le=1e12, allow_inf_nan=False)
     transfer_date: date
     description: str = Field(default=TRANSFER_DESC_DEFAULT, max_length=TRANSFER_DESC_MAX)
     notes: str | None = Field(default=None, max_length=256)
@@ -3913,8 +4047,8 @@ def delete_transfer(transfer_id: int,
 # ---------- Budgets per category ----------
 class BudgetIn(BaseModel):
     category_id: int
-    amount: float = Field(..., ge=0)
-    period: str = Field(default="monthly")
+    amount: float = Field(..., ge=0, le=1e12, allow_inf_nan=False)
+    period: str = Field(default="monthly", max_length=20)
 
 
 ALLOWED_BUDGET_PERIODS = {"monthly"}
@@ -4454,6 +4588,8 @@ def _parse_csv_amount(raw: str | None) -> float | None:
         v = float(s)
     except ValueError:
         return None
+    if not math.isfinite(v) or abs(v) > 1e12:
+        return None   # "nan", "inf" and absurd sizes aren't amounts (#185)
     return -v if neg else v
 
 
@@ -4494,7 +4630,7 @@ def _parse_csv_rows(csv_text: str, has_header: bool, mapping: dict | None,
     reader = csv.reader(_csvio.StringIO(csv_text))
     rows = list(reader)
     if not rows:
-        return [], []
+        return [], [], [], mapping or {}
     if has_header:
         headers, body = rows[0], rows[1:]
     else:
@@ -4508,11 +4644,11 @@ def _parse_csv_rows(csv_text: str, has_header: bool, mapping: dict | None,
     for idx, row in enumerate(body):
         def cell(key):
             i = mapping.get(key)
-            if i is None or i >= len(row):
+            if i is None or not 0 <= i < len(row):
                 return None
             return row[i]
         d = _parse_csv_date(cell("date"))
-        desc = (cell("description") or "").strip() or "(no description)"
+        desc = (cell("description") or "").strip()[:DESCRIPTION_MAX] or "(no description)"
         amt: float | None = None
         if sign_convention == "debit_credit":
             deb = _parse_csv_amount(cell("debit")) or 0.0
@@ -4652,14 +4788,14 @@ def _resolve_recurring_groups(rows: list[dict],
 class CSVPreviewIn(BaseModel):
     csv_text: str
     has_header: bool = True
-    mapping: dict | None = None
+    mapping: dict[str, int | None] | None = None
     sign_convention: str = "amount"
 
 
 class CSVCommitIn(BaseModel):
     csv_text: str
     has_header: bool = True
-    mapping: dict
+    mapping: dict[str, int | None]
     sign_convention: str = "amount"
     default_category_id: int | None = None
     skip_duplicates: bool = True
@@ -5289,6 +5425,8 @@ def _resolve_report_range(params: dict, today: date | None = None) -> tuple[date
         try:
             start = date.fromisoformat(params["start"])
             end = date.fromisoformat(params["end"])
+            if not 0 <= (end - start).days <= FORECAST_MAX_DAYS:
+                raise ValueError("window out of range")   # falls back below (#185)
             label = f"{start.isoformat()} → {end.isoformat()}"
         except Exception:
             start = date(today.year, today.month, 1)
@@ -5481,6 +5619,7 @@ def report(start: date | None = None, end: date | None = None,
         else:
             end = date(today.year, today.month + 1, 1) - timedelta(days=1)
 
+    _check_window(start, end)
     # Pick accounts the user can read
     visible = _user_visible_accounts(db, user)
     if account_id is not None:

@@ -1,9 +1,13 @@
 """Fixes from the 2026-11-16 security review (#178), each guarded by the test
-that failed before it (#183, 1.62.0). The ids (WW-SEC-01 ...) are the
+that failed before it (#183 in 1.62.0, #185 in 1.63.0). The ids (WW-SEC-01 ...) are the
 review's.
 """
+import os
+import subprocess
+import sys
 import uuid
 from datetime import date
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,6 +16,7 @@ from conftest import unique_email
 
 PASSWORD = "correct-horse-battery"
 TODAY = date.today().isoformat()
+SERVER_DIR = Path(__file__).resolve().parent.parent
 REFUSED = (400, 403, 404, 409, 413, 422)
 # What a colour field could carry into a page that puts it inside an
 # attribute: 20 characters, the column's size.
@@ -333,3 +338,199 @@ def test_with_a_code_set_google_makes_new_users_only_from_the_allow_list(
     monkeypatch.setattr(main, "ALLOWED_EMAILS", {address})
     r = c.get("/auth/callback", follow_redirects=False)
     assert r.status_code in (302, 307) and c.get("/api/me").json()["email"] == address
+
+
+# ---------- WW-SEC-09: no upper limits ----------
+
+def test_a_forecast_window_has_an_upper_limit(app_started):
+    # Checked with a signed-in user who has no such account, so today's
+    # answer (404, after the window was accepted) costs nothing to get.
+    c, _ = register(app_started)
+    assert c.get("/api/accounts/999999999/forecast", params={"days": 4_000_000}).status_code in (400, 422)
+    r = c.get("/api/accounts/999999999/forecast", params={"start": "0001-01-01", "end": "9999-12-31"})
+    assert r.status_code in (400, 422)
+
+
+@pytest.mark.parametrize("what", ["user name", "account name", "category name", "description",
+                                  "recurring description"])
+def test_a_very_long_name_is_refused_politely(app_started, what):
+    long = "x" * 5000
+    c, _ = register(app_started)
+    acc = make_account(c)
+    if what == "user name":
+        r = TestClient(app_started, raise_server_exceptions=False).post(
+            "/api/auth/register", json={"email": unique_email(), "password": PASSWORD, "name": long})
+    elif what == "account name":
+        r = c.post("/api/accounts", json={"name": long, "starting_balance": 0, "starting_date": TODAY})
+    elif what == "category name":
+        r = c.post("/api/categories", json={"name": long})
+    elif what == "description":
+        r = c.post(f"/api/accounts/{acc}/transactions", json={"description": long, "amount": -1})
+    else:
+        r = c.post(f"/api/accounts/{acc}/recurring", json={
+            "description": long, "amount": -1, "frequency": "weekly", "anchor_date": TODAY})
+    assert r.status_code in (400, 413, 422), r.status_code
+
+
+def test_a_huge_request_is_refused(app_started):
+    body = '{"email": "a@example.test", "password": "' + "x" * (32 * 1024 * 1024) + '"}'
+    r = TestClient(app_started, raise_server_exceptions=False).post(
+        "/api/auth/login", content=body, headers={"Content-Type": "application/json"})
+    assert r.status_code == 413
+
+
+# ---------- WW-SEC-11: values that break the pages that show them ----------
+
+@pytest.mark.parametrize("amount", ["NaN", "Infinity", "-Infinity", "1e400"])
+def test_an_amount_must_be_a_real_number(app_started, amount):
+    c, _ = register(app_started)
+    acc = make_account(c)
+    r = c.post(f"/api/accounts/{acc}/transactions",
+               content='{"description": "x", "amount": %s}' % amount,
+               headers={"Content-Type": "application/json"})
+    listing = c.get(f"/api/accounts/{acc}/transactions")
+    assert r.status_code in (400, 422)
+    assert listing.status_code == 200
+
+
+@pytest.mark.parametrize("fields", [
+    {"frequency": "hourly", "anchor_date": TODAY},
+    {"frequency": "monthly_day", "day_of_month": 99},
+    {"frequency": "monthly_day", "day_of_month": 0},
+    {"frequency": "monthly_day"},
+    {"frequency": "weekly"},
+])
+def test_a_recurring_item_must_be_one_the_forecast_can_run(app_started, fields):
+    c, _ = register(app_started)
+    acc = make_account(c)
+    r = c.post(f"/api/accounts/{acc}/recurring",
+               json={"description": "x", "amount": -1, **fields})
+    forecast = c.get(f"/api/accounts/{acc}/forecast")
+    assert r.status_code in (400, 422)
+    assert forecast.status_code == 200
+
+
+# ---------- WW-SEC-12: secrets left as the template has them ----------
+
+@pytest.mark.parametrize("secret", ["replace_with_random_string", "short", ""])
+def test_the_server_wont_start_with_a_guessable_session_secret(secret):
+    env = {**os.environ, "SESSION_SECRET": secret}
+    done = subprocess.run([sys.executable, "-c", "import app.main"], cwd=SERVER_DIR, env=env,
+                          capture_output=True, text=True, timeout=60)
+    assert done.returncode != 0
+    assert "SESSION_SECRET" in done.stderr
+
+
+# ---------- More on WW-SEC-09 and -11: the limits themselves ----------
+
+def test_a_request_without_a_length_is_counted_and_refused(app_started, monkeypatch):
+    """A body sent in pieces has no Content-Length to go by."""
+    from app import main
+    limiter = next(m for m in app_started.user_middleware if m.cls is main.BodyLimitMiddleware)
+    assert limiter.kwargs["max_bytes"] == main.MAX_BODY_BYTES == 25 * 1024 * 1024
+
+    def pieces():
+        yield b'{"email": "a@example.test", "password": "'
+        for _ in range(27):
+            yield b"x" * (1024 * 1024)
+        yield b'"}'
+    r = TestClient(app_started, raise_server_exceptions=False).post(
+        "/api/auth/login", content=pieces(), headers={"Content-Type": "application/json"})
+    assert r.status_code == 413 and "too large" in r.json()["detail"]
+
+
+def test_an_ordinary_import_is_well_under_the_limit(app_started):
+    c, _ = register(app_started)
+    acc = make_account(c)
+    rows = "".join(f"2026-01-{d:02d},Shop {d},-{d}.50\n" for d in range(1, 29)) * 40
+    r = c.post(f"/api/accounts/{acc}/import/preview",
+               json={"csv_text": "Date,Description,Amount\n" + rows})
+    assert r.status_code == 200 and r.json()["row_count"] == 28 * 40
+
+
+@pytest.mark.parametrize("params,status", [
+    ({"days": 3660}, 200), ({"days": 0}, 200), ({"days": 3661}, 400), ({"days": -1}, 400),
+    ({"start": "2026-01-01", "end": "2025-12-31"}, 400),
+    ({"start": "2026-01-01", "end": "2036-01-08"}, 200),
+    ({"start": "2026-01-01", "end": "2036-01-10"}, 400),
+])
+def test_the_forecast_window_stops_at_ten_years(app_started, params, status):
+    c, _ = register(app_started)
+    acc = make_account(c)
+    assert c.get(f"/api/accounts/{acc}/forecast", params=params).status_code == status
+
+
+def test_a_report_over_too_long_a_window_is_refused_or_falls_back(app_started):
+    c, _ = register(app_started)
+    make_account(c)
+    assert c.get("/api/report", params={"start": "0001-01-01", "end": "9999-12-31"}).status_code == 400
+    r = c.post("/api/report/run", json={"range_mode": "custom", "start": "0001-01-01",
+                                        "end": "9999-12-31"})
+    assert r.status_code == 200 and r.json()["start"].startswith(TODAY[:8])   # this month
+
+
+@pytest.mark.parametrize("amount", ["1e13", "-1e13"])
+def test_an_amount_past_a_trillion_is_refused(app_started, amount):
+    c, _ = register(app_started)
+    acc = make_account(c)
+    r = c.post(f"/api/accounts/{acc}/transactions",
+               content='{"description": "x", "amount": %s}' % amount,
+               headers={"Content-Type": "application/json"})
+    assert r.status_code == 422
+
+
+@pytest.mark.parametrize("path,body", [
+    ("/api/accounts", {"name": "x", "starting_balance": "NaN", "starting_date": TODAY}),
+    ("/api/budgets", {"category_id": 1, "amount": "Infinity"}),
+    ("/api/transfers", {"from_account_id": 1, "to_account_id": 2, "amount": "Infinity",
+                        "transfer_date": TODAY}),
+])
+def test_other_amounts_must_be_real_numbers_too(app_started, path, body):
+    c, _ = register(app_started)
+    raw = "{" + ", ".join(
+        f'"{k}": {v if k in ("amount", "starting_balance") else repr(v).replace(chr(39), chr(34))}'
+        for k, v in body.items()) + "}"
+    r = c.post(path, content=raw, headers={"Content-Type": "application/json"})
+    assert r.status_code == 422, r.text
+
+
+def test_a_csv_cant_bring_in_an_amount_that_isnt_a_number(app_started):
+    c, _ = register(app_started)
+    acc = make_account(c)
+    csv_text = "Date,Description,Amount\n2026-01-01,a,nan\n2026-01-02,b,inf\n2026-01-03,c,-4.50\n"
+    r = c.post(f"/api/accounts/{acc}/import/commit", json={
+        "csv_text": csv_text, "mapping": {"date": 0, "description": 1, "amount": 2}})
+    assert r.status_code == 200 and r.json()["inserted"] == 1
+    assert c.get(f"/api/accounts/{acc}/transactions").status_code == 200
+    # An empty file, and a mapping that isn't column numbers, are answers, not errors.
+    r = c.post(f"/api/accounts/{acc}/import/commit", json={"csv_text": "", "mapping": {}})
+    assert r.status_code == 200 and r.json()["inserted"] == 0
+    r = c.post(f"/api/accounts/{acc}/import/commit",
+               json={"csv_text": csv_text, "mapping": {"date": "first"}})
+    assert r.status_code == 422
+
+
+def test_a_backup_cant_bring_in_an_amount_that_isnt_a_number(app_started):
+    c, _ = register(app_started)
+    account = {"name": "Imported", "starting_balance": 0, "starting_date": TODAY,
+               "recurring": [{"description": "odd", "amount": -1, "frequency": "hourly",
+                              "day_of_month": 0}],
+               "transactions": [{"description": "x", "amount": "NaN", "actual_date": TODAY}]}
+    r = c.post("/api/backup/import", json={"mode": "merge",
+                                           "payload": {"version": 4, "accounts": [account]}})
+    assert r.status_code == 400 and "Not an amount" in r.json()["detail"]
+    assert c.get("/api/accounts").json() == []          # nothing was half-imported
+    # An old backup's odd recurring item still restores, and the forecast runs.
+    account["transactions"][0]["amount"] = -2
+    r = c.post("/api/backup/import", json={"mode": "merge",
+                                           "payload": {"version": 4, "accounts": [account]}})
+    assert r.status_code == 200, r.text
+    acc = c.get("/api/accounts").json()[0]["id"]
+    assert c.get(f"/api/accounts/{acc}/forecast").status_code == 200
+
+
+def test_a_long_enough_session_secret_starts_the_server():
+    env = {**os.environ, "SESSION_SECRET": "x" * 16}
+    done = subprocess.run([sys.executable, "-c", "import app.main"], cwd=SERVER_DIR, env=env,
+                          capture_output=True, text=True, timeout=60)
+    assert done.returncode == 0, done.stderr[-300:]

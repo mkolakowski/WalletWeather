@@ -7,7 +7,7 @@ Tracking issue: #190
 | Phase | Issue | State |
 | --- | --- | --- |
 | 1. One user reaching another, and who may register | #183 | Released in 1.62.0 (web 1.79.0, schema 22) |
-| 2. Limits on what's accepted | #185 | Not started |
+| 2. Limits on what's accepted | #185 | Built as 1.63.0, not released |
 | 3. Sessions that can be ended | #186 | Not started; waits on open question 1 |
 | 4. The browser's side | #187 | Not started |
 | 5. Dependencies and the image | #188 | Not started |
@@ -16,6 +16,8 @@ Tracking issue: #190
 Planned 2026-11-16, from the security review of the server (#178).
 
 Phase 1 built and released 2026-11-16 as app 1.62.0 (web 1.79.0, schema 22), before this plan was published: its two findings were rated high, and `SECURITY.md` keeps those private until fixed. Verified by `apps/server/tests/test_security_fixes.py` (the tests that failed before each fix; 443 pass in all) and a headless browser run of sign-up, Add a user and colours against a throwaway server (12 checks pass).
+
+Phase 2 built 2026-11-16 as app 1.63.0 (web and schema unchanged). Verified by its tests moving from `test_security_findings.py` to `test_security_fixes.py` with their markers off, and 11 more on the limits themselves (480 pass in all).
 
 Sessions: may span — six releases, and four answers of yours between them.
 
@@ -53,9 +55,9 @@ Sessions: may span — six releases, and four answers of yours between them.
 | WW-SEC-05 | ~~Marking a bill paid accepted any category id~~ | Low | 1, fixed |
 | WW-SEC-10 | ~~The demo's reserved domain could be registered~~ | Low | 1, fixed |
 | WW-SEC-13 | ~~Google sign-in didn't require a verified address~~ (linking to an existing password: open question 4) | Low | 1, fixed; rest in 6 |
-| WW-SEC-09 | No upper limits: long names are a 500 or are stored, request bodies and the forecast window can be any size | Medium | 2 |
-| WW-SEC-11 | NaN and Infinity amounts, and unknown frequencies, are stored and break the pages that show them | Low | 2 |
-| WW-SEC-12 | The server starts with an empty or placeholder `SESSION_SECRET` | Low | 2 |
+| WW-SEC-09 | ~~No upper limits: long names are a 500 or are stored, request bodies and the forecast window can be any size~~ | Medium | 2, built |
+| WW-SEC-11 | ~~NaN and Infinity amounts, and unknown frequencies, are stored and break the pages that show them~~ | Low | 2, built |
+| WW-SEC-12 | ~~The server starts with an empty or placeholder `SESSION_SECRET`~~ | Low | 2, built |
 | WW-SEC-03 | A session can't be ended from elsewhere; a password change leaves other browsers signed in | Medium | 3 |
 | WW-SEC-07 | Writes from another site's page are stopped only by the cookie's `SameSite=Lax` | Medium | 4 |
 | WW-SEC-08 | No security headers; the API's documentation pages are public | Low | 4 |

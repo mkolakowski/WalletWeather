@@ -133,6 +133,35 @@ def _rec_desc_for(txn: Transaction) -> str | None:
     return None
 
 
+def _amount(value) -> Decimal:
+    """A backup's number as an amount: finite and of a size money comes in
+    (security-fixes phase 2, #185). A file can be edited by hand."""
+    try:
+        d = Decimal(str(value))
+    except Exception:
+        raise ValueError(f"Not an amount: {value!r}")
+    if not d.is_finite() or abs(d) > Decimal("1e12"):
+        raise ValueError(f"Not an amount: {value!r}")
+    return d
+
+
+def _text(value, limit: int) -> str:
+    return str(value if value is not None else "")[:limit]
+
+
+def _frequency(value) -> str:
+    """Kept as written, cut to the column's size: the forecast projects
+    nothing for a frequency it doesn't know, so an old backup still restores."""
+    return str(value or "monthly_day")[:20]
+
+
+def _day_of_month(value):
+    """A day the forecast can use, or none (it then projects nothing)."""
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 31:
+        return None
+    return value
+
+
 def _parse_date(s):
     if not s:
         return None
@@ -179,7 +208,7 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
     for c in db.query(Category).filter_by(owner_id=user.id).all():
         cat_by_name[c.name] = c
     for c_data in payload.get("categories", []):
-        name = str(c_data.get("name", "")).strip()
+        name = str(c_data.get("name", "")).strip()[:80]
         if not name or name in cat_by_name:
             continue
         cat = Category(owner_id=user.id, name=name, color=_color(c_data.get("color")))
@@ -230,7 +259,7 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
     for acc_data in payload["accounts"]:
         if not isinstance(acc_data, dict):
             raise ValueError("Each account must be an object")
-        acc_name = str(acc_data.get("name", "Imported account"))
+        acc_name = _text(acc_data.get("name", "Imported account"), 120)
         if name_filter is not None and acc_name not in name_filter:
             continue
         acc = Account(
@@ -238,7 +267,7 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
             starting_date=_parse_date(acc_data["starting_date"]) or date.today(),
         )
         acc.name = acc_name
-        acc.starting_balance = Decimal(str(acc_data.get("starting_balance", 0)))
+        acc.starting_balance = _amount(acc_data.get("starting_balance", 0))
         db.add(acc)
         db.flush()
         # The importing user becomes the owner of every restored account.
@@ -252,15 +281,15 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
             cat_name = r_data.get("category_name")
             rec = RecurringTransaction(
                 account_id=acc.id,
-                frequency=str(r_data.get("frequency", "monthly_day")),
-                day_of_month=r_data.get("day_of_month"),
+                frequency=_frequency(r_data.get("frequency", "monthly_day")),
+                day_of_month=_day_of_month(r_data.get("day_of_month")),
                 anchor_date=_parse_date(r_data.get("anchor_date")),
                 end_date=_parse_date(r_data.get("end_date")),
                 active=bool(r_data.get("active", True)),
                 category_id=cat_by_name[cat_name].id if cat_name and cat_name in cat_by_name else None,
             )
-            rec.description = str(r_data.get("description", ""))
-            rec.amount = Decimal(str(r_data.get("amount", 0)))
+            rec.description = _text(r_data.get("description", ""), 500)
+            rec.amount = _amount(r_data.get("amount", 0))
             db.add(rec)
             db.flush()
             for sd in {_parse_date(x) for x in r_data.get("skipped_dates") or []} - {None}:
@@ -279,10 +308,10 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
                 is_actual=bool(t_data.get("is_actual", False)),
                 category_id=cat_by_name[cat_name].id if cat_name and cat_name in cat_by_name else None,
             )
-            t.description = str(t_data.get("description", ""))
-            t.amount = Decimal(str(t_data.get("amount", 0)))
+            t.description = _text(t_data.get("description", ""), 500)
+            t.amount = _amount(t_data.get("amount", 0))
             if t_data.get("forecast_amount") is not None:
-                t.forecast_amount = Decimal(str(t_data["forecast_amount"]))
+                t.forecast_amount = _amount(t_data["forecast_amount"])
             rec_desc = t_data.get("recurring_description")
             if rec_desc and rec_desc in rec_by_desc:
                 t.recurring_id = rec_by_desc[rec_desc].id

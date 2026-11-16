@@ -69,7 +69,32 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.62.0** · Web version: **1.79.0** · Schema version: **22** · iOS version: **0.16.0**
+App version: **1.63.0** · Web version: **1.79.0** · Schema version: **22** · iOS version: **0.16.0**
+
+### Security
+
+More from the security review (plan: `Plans/security-fixes.md`, #190).
+
+- **Breaking: the server won't start with a guessable `SESSION_SECRET`.**
+  Anyone who knows that secret can sign themselves in as any user, and the
+  server used to start with it empty or left as `.env.example` has it. It
+  now refuses to start when the secret is empty, shorter than 16 characters
+  or still `replace_with_random_string`, and says so in its log. Check your
+  `.env` before updating. (#185)
+- **Upper limits on what's accepted:** names, descriptions and passwords
+  have maximum lengths (a description 500 characters, an account name 120),
+  a request over 25 MB is refused (`MAX_BODY_MB` in `.env` changes that),
+  and a forecast or report can't span more than ten years. Before, a very
+  long name at sign-up was a server error and a request could be any size.
+  (#185)
+- **Amounts must be real numbers:** `NaN` and `Infinity` were accepted as
+  amounts, from the API, a CSV or a backup, and every page showing that
+  account then failed. They're refused now, as is an amount past a
+  trillion. (#185)
+- **A bill needs a schedule the forecast can run:** a recurring item must be
+  weekly, biweekly or monthly, with a start date (weekly, biweekly) or a
+  day of the month from 1 to 31 (monthly). One saved without was never
+  projected, and a day of 0 broke the forecast. (#185)
 
 ## [1.62.0] — 2026-11-16
 

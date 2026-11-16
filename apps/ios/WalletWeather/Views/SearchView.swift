@@ -287,6 +287,7 @@ struct SearchView: View {
         if found?.value == nil { found = .loading }
         do {
             found = .loaded(try await client.search(query))
+            settings.start.done.insert(.search)  // Getting started (#177)
         } catch {
             found = .failed(error)
         }

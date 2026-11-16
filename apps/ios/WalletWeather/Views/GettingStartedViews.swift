@@ -2,7 +2,8 @@ import SwiftUI
 import WalletWeatherKit
 
 // Getting started (#175): a card on the Dashboard with things worth doing
-// once, and the guided sheet for its first task, the tab bar.
+// once, and a sheet for each task: the tab bar (#175), then the lock, the
+// look, marking a bill paid and Search (#177).
 
 /// The card at the top of the Dashboard: each task with a tick once done,
 /// and a close button. It goes for good once every task is done or it's
@@ -16,7 +17,8 @@ struct GettingStartedCard: View {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Getting started").font(.headline)
-                    Text(settings.start.left.count == 1 ? "One thing to try" : "\(settings.start.left.count) things to try")
+                    let left = settings.start.left(among: settings.startTasks, alsoDone: settings.startAlsoDone).count
+                    Text(left == 1 ? "One thing to try" : "\(left) things to try")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -29,8 +31,8 @@ struct GettingStartedCard: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Close Getting started")
             }
-            ForEach(StartTask.allCases) { task in
-                let done = settings.start.done.contains(task)
+            ForEach(settings.startTasks) { task in
+                let done = settings.start.isDone(task, alsoDone: settings.startAlsoDone)
                 Button { open(task) } label: {
                     HStack(spacing: 12) {
                         Image(systemName: done ? "checkmark.circle.fill" : task.symbol)
@@ -180,5 +182,170 @@ private struct BarPreview: View {
         .foregroundStyle(lit ? Palette.accent : .primary)
         .scaleEffect(lit ? 1.08 : 1)
         .frame(maxWidth: .infinity)
+    }
+}
+
+/// The sheet for a Getting started task, from its row on the card.
+struct StartTaskSheet: View {
+    let task: StartTask
+
+    var body: some View {
+        switch task {
+        case .tabBar: TabBarTour()
+        case .lock: LockTaskSheet()
+        case .look: LookTaskSheet()
+        case .markPaid: MarkPaidTaskSheet()
+        case .search: SearchTaskSheet()
+        }
+    }
+}
+
+/// A task's sheet: a few lines of what it's for, then its controls, with
+/// Done in the corner.
+private struct TaskSheetFrame<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) { content }
+                    .padding(.horizontal, 16).padding(.bottom, 24)
+            }
+            .background(PageBackground().ignoresSafeArea())
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        }
+    }
+}
+
+/// Lock the app: the same switch as Settings → This phone. Turning it on
+/// asks for Face ID once, and ticks the task.
+private struct LockTaskSheet: View {
+    @Environment(AppSettings.self) private var settings
+
+    var body: some View {
+        let biometry = settings.biometryName ?? "Face ID"
+        TaskSheetFrame(title: "Lock the app") {
+            Text("With the lock on, WalletWeather asks for \(biometry) when it opens, and when you come back after a minute away. The numbers are hidden in the app switcher either way.")
+            Toggle("Lock with \(biometry)", isOn: Binding(
+                get: { settings.lockEnabled },
+                set: { on in Task { await settings.setLock(on) } }))
+                .padding(.vertical, 6)
+                .card()
+            Text("You can change this any time in Settings.")
+                .font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 4)
+        }
+    }
+}
+
+/// Choose a look: every look, applied as it's picked. Keep this look
+/// ticks the task, Match the phone included.
+private struct LookTaskSheet: View {
+    @Environment(AppSettings.self) private var settings
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        TaskSheetFrame(title: "Choose a look") {
+            Text("Pick one and the app changes straight away. Match the web app uses the theme you chose in the web app's Settings.")
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(Look.allCases.enumerated()), id: \.element) { index, look in
+                    if index > 0 { Divider() }
+                    Button { settings.look = look } label: {
+                        HStack {
+                            Text(look.title)
+                            Spacer()
+                            if settings.look == look {
+                                Image(systemName: "checkmark").foregroundStyle(Palette.accent)
+                            }
+                        }
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(settings.look == look ? .isSelected : [])
+                }
+            }
+            .card()
+            Button {
+                settings.start.done.insert(.look)
+                dismiss()
+            } label: {
+                Text("Keep this look").frame(maxWidth: .infinity).padding(.vertical, 4)
+            }
+            .buttonStyle(.glassProminent)
+            Text("You can change it any time in Settings → Appearance.")
+                .font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 4)
+        }
+    }
+}
+
+/// Mark a bill paid: what To confirm is, then Forecast opened on it: in its
+/// tab when Forecast is in the bar, otherwise inside this sheet. The task
+/// ticks the first time a line is marked paid.
+private struct MarkPaidTaskSheet: View {
+    @Environment(AppSettings.self) private var settings
+    @Environment(\.barOnSide) private var barOnSide
+    @Environment(\.openPlace) private var openPlace
+    @Environment(\.dismiss) private var dismiss
+    @SceneStorage("forecast.confirming") private var confirming = false
+
+    var body: some View {
+        TaskSheetFrame(title: "Mark a bill paid") {
+            Text("Forecast's **To confirm** list holds the bills and income due up to today that haven't been marked yet. When one has gone through your bank:")
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Tap Paid as planned, or swipe the line to the right.", systemImage: "hand.draw")
+                Label("Or type what it really came to beside it, and tap Paid.", systemImage: "keyboard")
+            }
+            .card()
+            if TabPage.shown(settings.tabs, onSide: barOnSide).contains(.forecast) {
+                Button {
+                    confirming = true
+                    dismiss()
+                    openPlace(.forecast)
+                } label: {
+                    Text("Open To confirm").frame(maxWidth: .infinity).padding(.vertical, 4)
+                }
+                .buttonStyle(.glassProminent)
+            } else {
+                NavigationLink {
+                    TabPage.forecast.view(embedded: true)
+                } label: {
+                    Text("Open To confirm").frame(maxWidth: .infinity).padding(.vertical, 4)
+                }
+                .buttonStyle(.glassProminent)
+                .simultaneousGesture(TapGesture().onEnded { confirming = true })
+            }
+            Text("Only people who can change an account see To confirm.")
+                .font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 4)
+        }
+    }
+}
+
+/// Try Search: what it finds, then the Search tab.
+private struct SearchTaskSheet: View {
+    @Environment(\.openPlace) private var openPlace
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        TaskSheetFrame(title: "Try Search") {
+            Text("The magnifying glass at the end of the tab bar searches everything on every account you can see:")
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Transactions, and bills and income", systemImage: "arrow.left.arrow.right")
+                Label("Accounts, categories and tags", systemImage: "tag")
+                Label("Saved reports", systemImage: "doc.text.magnifyingglass")
+            }
+            .card()
+            Text("Tap a result to open it: a transaction or bill in its editor, an account in Forecast, a category or tag as its transactions.")
+            Button {
+                dismiss()
+                openPlace(.search)
+            } label: {
+                Text("Search now").frame(maxWidth: .infinity).padding(.vertical, 4)
+            }
+            .buttonStyle(.glassProminent)
+        }
     }
 }

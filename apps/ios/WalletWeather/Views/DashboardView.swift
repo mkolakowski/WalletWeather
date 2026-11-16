@@ -12,7 +12,7 @@ struct DashboardView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(\.horizontalSizeClass) private var sizeClass
     @SceneStorage("dashboard.window") private var window: ChartWindow = .month
-    @State private var touring = false
+    @State private var startTask: StartTask?
 
     @State private var summary: Loadable<Dashboard> = .loading
     @State private var charts: Loadable<DashboardCharts> = .loading
@@ -53,8 +53,13 @@ struct DashboardView: View {
         }
         .task(id: model.generation) { await load() }
         .task(id: window) { await loadCharts() }
-        .sheet(isPresented: $touring) { TabBarTour() }
-        .onAppear { if AppModel.debugSetting("WW_DEBUG_START") == "tour" { touring = true } }
+        .sheet(item: $startTask) { StartTaskSheet(task: $0) }
+        .onAppear {
+            // Debug only: `WW_DEBUG_START=tour` (or a task's name) opens its sheet.
+            if let debug = AppModel.debugSetting("WW_DEBUG_START") {
+                startTask = debug == "tour" ? .tabBar : StartTask(rawValue: debug)
+            }
+        }
     }
 
     // MARK: - Layouts
@@ -90,12 +95,8 @@ struct DashboardView: View {
 
     @ViewBuilder
     private func accountsColumn(_ dashboard: Dashboard) -> some View {
-        if settings.start.showsCard {
-            GettingStartedCard { task in
-                switch task {
-                case .tabBar: touring = true
-                }
-            }
+        if settings.showsStartCard {
+            GettingStartedCard { startTask = $0 }
         }
         if dashboard.cards.isEmpty {
             ContentUnavailableView("No accounts yet", systemImage: "building.columns",

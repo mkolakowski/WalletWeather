@@ -9,6 +9,7 @@ import WalletWeatherKit
 /// paid as planned, or back to undo; + in the top corner adds a one-off.
 struct ForecastView: View {
     @Environment(AppModel.self) private var model
+    @Environment(AppSettings.self) private var settings
     @Environment(\.horizontalSizeClass) private var sizeClass
     @SceneStorage("forecast.account") private var accountId = 0
     @SceneStorage("forecast.month") private var monthText = ""
@@ -276,7 +277,9 @@ struct ForecastView: View {
         guard let account else { return }
         let draft = amount.map { LineDraft.paid(line, amountText: $0, today: .today()) }
             ?? .paidAsPlanned(line, today: .today())
-        await change(line) { try await $0.save(line, draft: draft, account: account.id) }
+        if await change(line, { try await $0.save(line, draft: draft, account: account.id) }) {
+            settings.start.done.insert(.markPaid)  // Getting started (#177)
+        }
     }
 
     private var emptyMonth: some View {
@@ -323,20 +326,29 @@ struct ForecastView: View {
 
     private func markPaid(_ line: ForecastLine) {
         guard let account else { return }
-        Task { await change(line) { try await $0.save(line, draft: .paidAsPlanned(line, today: .today()), account: account.id) } }
+        Task {
+            if await change(line, { try await $0.save(line, draft: .paidAsPlanned(line, today: .today()), account: account.id) }) {
+                settings.start.done.insert(.markPaid)  // Getting started (#177)
+            }
+        }
     }
 
     /// A change made from the list (a swipe, a delete). If that line is
     /// open in the editor, the editor closes: what it held is out of date.
-    private func change(_ line: ForecastLine, _ action: (APIClient) async throws -> Void) async {
-        guard let client = model.client else { return }
+    /// True when the server took it.
+    @discardableResult
+    private func change(_ line: ForecastLine, _ action: (APIClient) async throws -> Void) async -> Bool {
+        guard let client = model.client else { return false }
+        var done = false
         do {
             try await action(client)
+            done = true
         } catch {
             problem = AppModel.describe(error)
         }
         if open?.id == line.id { open = nil }
         await loadMonth()
+        return done
     }
 
     private func deleteTitle(_ line: ForecastLine) -> String {

@@ -73,7 +73,7 @@ App version: **1.61.0** · Web version: **1.78.0** · Schema version: **21** · 
 
 ## [1.61.0] — 2026-11-16
 
-App version: **1.61.0** · Web version: **1.78.0** · Schema version: **21** · iOS version: **0.14.0**
+App version: **1.61.0** · Web version: **1.78.0** · Schema version: **21** · iOS version: **0.15.0**
 
 ### Added
 
@@ -85,6 +85,14 @@ App version: **1.61.0** · Web version: **1.78.0** · Schema version: **21** · 
   changed the bar in Settings → Tab bar. The card goes for good once every
   task is done, or when you close it. It shows on new sign-ins, and once
   after updating if you're already signed in. (iOS 0.13.0)
+- **Four more Getting started tasks in the iPhone app:** Lock the app (only
+  on a phone with Face ID or Touch ID), Choose a look, Mark a bill paid and
+  Try Search. Each opens a short sheet that explains it and takes you there.
+  Each ticks itself once you've done it: the lock turned on, a look picked
+  (or Keep this look), a line marked paid in Forecast, a first search. One
+  you've already done, like the lock being on, starts ticked. If you'd
+  already finished the tab bar task, the card comes back once for the new
+  ones. (iOS 0.15.0)
 - **Admins can require two-factor sign-in:** Admin → Two-factor sign-in has
   a "Require two-factor sign-in" switch, with a count of the users who
   haven't set it up yet. Once it's on, everyone who signs in with a password

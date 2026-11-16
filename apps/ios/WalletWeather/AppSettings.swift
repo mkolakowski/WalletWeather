@@ -19,6 +19,7 @@ final class AppSettings {
         didSet {
             defaults.set(look.rawValue, forKey: Keys.look)
             Palette.look = shownLook
+            start.done.insert(.look)
         }
     }
 
@@ -30,6 +31,22 @@ final class AppSettings {
             start.done.insert(.tabBar)
         }
     }
+
+    /// The Getting started tasks this phone offers (#177): the lock only
+    /// with Face ID, Touch ID or Optic ID set up.
+    var startTasks: [StartTask] {
+        StartTask.allCases.filter { $0 != .lock || biometryName != nil }
+    }
+
+    /// Tasks done before the card knew of them: the lock on, a look chosen.
+    var startAlsoDone: Set<StartTask> {
+        var done: Set<StartTask> = []
+        if lockEnabled { done.insert(.lock) }
+        if look != .system { done.insert(.look) }
+        return done
+    }
+
+    var showsStartCard: Bool { start.showsCard(among: startTasks, alsoDone: startAlsoDone) }
 
     /// The Getting started card on the Dashboard (#175): kept per phone.
     var start: GettingStarted {
@@ -131,7 +148,10 @@ final class AppSettings {
             lockEnabled = false
             return
         }
-        if await authenticate(reason: "Turn on the lock for WalletWeather") { lockEnabled = true }
+        if await authenticate(reason: "Turn on the lock for WalletWeather") {
+            lockEnabled = true
+            start.done.insert(.lock)
+        }
     }
 
     func unlock() async {

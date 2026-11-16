@@ -1,6 +1,7 @@
 /// The pages that can sit in the tab bar, and which do (#158): chosen in
-/// More → This phone → Tab bar. More and Search are always there; up to
-/// `maxInBar` pages fit beside them, and the rest are listed in More.
+/// Settings → This phone → Tab bar. Settings and Search are always there; up
+/// to `maxInBar` pages fit beside them, and the rest are listed at the top of
+/// Settings (#174).
 public enum TabPage: String, CaseIterable, Identifiable, Sendable {
     case dashboard, forecast, bills, calendar, netWorth, budgets, reports
 
@@ -18,7 +19,7 @@ public enum TabPage: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// The SF Symbol for its tab and its row in More.
+    /// The SF Symbol for its tab and its row in Settings.
     public var symbol: String {
         switch self {
         case .dashboard: "gauge.with.dots.needle.67percent"
@@ -31,16 +32,19 @@ public enum TabPage: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// The bar as it came: the web app's phone bar.
-    public static let defaultBar: [TabPage] = [.dashboard, .forecast, .bills, .calendar]
+    /// The bar as it comes (#174): the web app's phone bar without Calendar,
+    /// which is the first page people swap in.
+    public static let defaultBar: [TabPage] = [.dashboard, .forecast, .bills]
 
-    /// Pages beside More and Search: more would send the rest of the bar
-    /// into iOS's own overflow.
-    public static let maxInBar = 4
+    /// Pages beside Settings and Search (#174): iOS shows five buttons in a
+    /// bar along the bottom, Search included, and tucks any more into a More
+    /// list of its own. Four pages did that on an iPhone held upright.
+    public static let maxInBar = 3
 
     /// The bar from its stored form (raw values joined by commas): unknown
-    /// and repeated pages are dropped and it's cut to `maxInBar`; nothing
-    /// stored means the default. An empty string is a bar with only More.
+    /// and repeated pages are dropped and it's cut to `maxInBar` (a bar of
+    /// four saved before #174 keeps its first three); nothing stored means
+    /// the default. An empty string is a bar with only Settings and Search.
     public static func bar(from stored: String?) -> [TabPage] {
         guard let stored else { return defaultBar }
         var seen = Set<TabPage>()
@@ -52,8 +56,17 @@ public enum TabPage: String, CaseIterable, Identifiable, Sendable {
         bar.map(\.rawValue).joined(separator: ",")
     }
 
-    /// The pages not in the bar, in their usual order: what More lists.
+    /// The pages not in the bar, in their usual order: what Settings lists.
     public static func notIn(_ bar: [TabPage]) -> [TabPage] {
         allCases.filter { !bar.contains($0) }
+    }
+
+    /// The bar with `page` in the place of `old`, keeping the order; the
+    /// bar as it was when `old` isn't in it or `page` already is.
+    public static func swapping(_ old: TabPage, for page: TabPage, in bar: [TabPage]) -> [TabPage] {
+        guard let index = bar.firstIndex(of: old), !bar.contains(page) else { return bar }
+        var swapped = bar
+        swapped[index] = page
+        return swapped
     }
 }

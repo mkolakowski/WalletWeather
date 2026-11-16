@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 import WalletWeatherKit
 
-/// The app's looks (More → Appearance): Match the phone, Match the web app,
+/// The app's looks (Settings → Appearance): Match the phone, Match the web app,
 /// Light, Dark, two of its own that aren't among the web app's themes
 /// (AMOLED black and Sepia, with the colours drawn in the mockups; decided
 /// 2026-11-14), and the web app's other eight themes (phase 9, #102). The

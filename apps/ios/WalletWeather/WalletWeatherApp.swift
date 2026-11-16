@@ -75,13 +75,13 @@ struct AppRoot: View {
             Button("Last-known numbers") { answerKeep(.lastKnown) }
             Button("Nothing", role: .cancel) { answerKeep(.nothing) }
         } message: {
-            Text("With last-known numbers, WalletWeather still opens when your server can't be reached, showing the pages you last loaded and when they were loaded. They can't be read while the phone is locked, stay out of backups, and are deleted when you sign out. With nothing, the app needs a connection. You can change this in More.")
+            Text("With last-known numbers, WalletWeather still opens when your server can't be reached, showing the pages you last loaded and when they were loaded. They can't be read while the phone is locked, stay out of backups, and are deleted when you sign out. With nothing, the app needs a connection. You can change this in Settings.")
         }
         .alert("Lock WalletWeather with \(settings.biometryName ?? "Face ID")?", isPresented: $offeringLock) {
             Button("Lock with \(settings.biometryName ?? "Face ID")") { Task { await settings.setLock(true) } }
             Button("Not now", role: .cancel) { settings.lockOffered = true }
         } message: {
-            Text("It asks when you open the app, and when you come back after a minute away. You can change this in More.")
+            Text("It asks when you open the app, and when you come back after a minute away. You can change this in Settings.")
         }
         .animation(.default, value: model.phase)
         .alert(model.pendingLink.map { "Connect to \($0.host)?" } ?? "",

@@ -9,7 +9,7 @@ import WalletWeatherKit
 ///
 /// The lock (decided 2026-11-14 and 2026-11-15): offered once, at first
 /// sign-in or after updating for someone already signed in; changeable in
-/// More. When on, it asks for Face ID or Touch ID (or the passcode) when the
+/// Settings. When on, it asks for Face ID or Touch ID (or the passcode) when the
 /// app starts and when it comes back after a minute or more away.
 @MainActor @Observable
 final class AppSettings {
@@ -22,7 +22,7 @@ final class AppSettings {
         }
     }
 
-    /// The pages in the tab bar beside More and Search, in order (#158).
+    /// The pages in the tab bar beside Settings and Search, in order (#158).
     var tabs: [TabPage] {
         didSet { defaults.set(TabPage.stored(tabs), forKey: Keys.tabs) }
     }

@@ -7,13 +7,16 @@ extension EnvironmentValues {
     @Entry var openPlace: @MainActor (RootView.Place) -> Void = { _ in }
 }
 
-/// The frame every page sits in: the pages chosen for the tab bar (#158; at
-/// first the web app's phone bar), then More, in the system's own tab bar
-/// (which iOS stands down the right edge on the iPhone Duo, closed or open
-/// on its side), and the round button beside it for Search. A page's own
-/// actions, such as +, sit in its top corner. Which place is open is kept
-/// per window, so closing or opening the Duo keeps it.
+/// The frame every page sits in: the pages chosen for the tab bar (#158;
+/// three, #174), then Settings, in the system's own tab bar (which iOS
+/// stands down the right edge on the iPhone Duo, closed or open on its
+/// side), and the round button beside it for Search. Five in all, so iOS
+/// never adds a More of its own. A page's own actions, such as +, sit in its
+/// top corner. Which place is open is kept per window, so closing or opening
+/// the Duo keeps it.
 struct RootView: View {
+    /// `more` is the Settings tab: it keeps its old name, since windows
+    /// and scene storage already hold it (#174).
     enum Place: String, Codable, Hashable {
         case dashboard, forecast, bills, calendar, netWorth, budgets, reports, more, search
 
@@ -35,15 +38,15 @@ struct RootView: View {
                     page.view(embedded: false)
                 }
             }
-            Tab("More", systemImage: "ellipsis.circle", value: .more) {
-                MoreView()
+            Tab("Settings", systemImage: "gearshape", value: .more) {
+                SettingsView()
             }
             Tab(value: .search, role: .search) {
                 SearchView()
             }
         }
         .environment(\.openPlace) { place = $0 }
-        // A page taken out of the bar while open: More, where it's listed now.
+        // A page taken out of the bar while open: Settings, where it's listed now.
         .onChange(of: settings.tabs) { _, tabs in
             if let page = place.page, !tabs.contains(page) { place = .more }
         }

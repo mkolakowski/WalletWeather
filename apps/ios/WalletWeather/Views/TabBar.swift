@@ -4,13 +4,13 @@ import WalletWeatherKit
 // Choosing the tab bar's pages (#158).
 
 extension EnvironmentValues {
-    /// The page is pushed inside More's navigation rather than standing in
+    /// The page is pushed inside Settings' navigation rather than standing in
     /// its own tab, so it doesn't start a navigation stack of its own.
     @Entry var embeddedPage = false
 }
 
 /// A page's own navigation stack, left out when the page is pushed from
-/// More (a stack inside a stack breaks navigation).
+/// Settings (a stack inside a stack breaks navigation).
 struct PageStack<Content: View>: View {
     @Environment(\.embeddedPage) private var embedded
     @ViewBuilder let content: Content
@@ -21,7 +21,7 @@ struct PageStack<Content: View>: View {
 }
 
 extension TabPage {
-    /// The page itself: in its tab (with its own stack), or pushed from More.
+    /// The page itself: in its tab (with its own stack), or pushed from Settings.
     @ViewBuilder
     func view(embedded: Bool) -> some View {
         switch self {
@@ -36,47 +36,78 @@ extension TabPage {
     }
 }
 
-/// More → This phone → Tab bar: the pages in the bar (drag to reorder,
-/// switch off to move into More), then the others (switch on to add, while
-/// there's room). More and Search always stay.
+/// Settings → This phone → Tab bar: the pages in the bar (drag to reorder,
+/// Swap for another page, or delete to move it into Settings), then the
+/// others (Add while there's room, or Swap in for a page in the bar, #174).
+/// Settings and Search always stay.
 struct TabBarSettingsView: View {
     @Environment(AppSettings.self) private var settings
 
     var body: some View {
+        let others = TabPage.notIn(settings.tabs)
+        let full = settings.tabs.count >= TabPage.maxInBar
         List {
             Group {
                 Section {
                     if settings.tabs.isEmpty {
-                        Text("Only More and Search.").foregroundStyle(.secondary)
+                        Text("Only Settings and Search.").foregroundStyle(.secondary)
                     }
                     ForEach(settings.tabs) { page in
-                        Toggle(isOn: Binding(get: { true }, set: { if !$0 { settings.tabs.removeAll { $0 == page } } })) {
+                        HStack {
                             Label(page.title, systemImage: page.symbol)
+                            Spacer()
+                            if !others.isEmpty {
+                                Menu {
+                                    ForEach(others) { other in
+                                        Button(other.title, systemImage: other.symbol) {
+                                            settings.tabs = TabPage.swapping(page, for: other, in: settings.tabs)
+                                        }
+                                    }
+                                } label: {
+                                    Text("Swap")
+                                }
+                                .accessibilityLabel("Swap \(page.title) for another page")
+                            }
                         }
                     }
                     .onMove { settings.tabs.move(fromOffsets: $0, toOffset: $1) }
+                    .onDelete { settings.tabs.remove(atOffsets: $0) }
                 } header: {
                     Text("In the tab bar")
                 } footer: {
-                    Text("Drag to change the order. More and Search are always in the bar, and up to \(TabPage.maxInBar) pages fit beside them.")
+                    Text("Drag to change the order, Swap to put another page in that place, or delete to move a page into Settings. Settings and Search are always in the bar, and up to \(TabPage.maxInBar) pages fit beside them.")
                 }
                 Section {
-                    let others = TabPage.notIn(settings.tabs)
                     if others.isEmpty {
                         Text("Every page is in the tab bar.").foregroundStyle(.secondary)
                     }
                     ForEach(others) { page in
-                        Toggle(isOn: Binding(get: { false }, set: { if $0 { settings.tabs.append(page) } })) {
+                        HStack {
                             Label(page.title, systemImage: page.symbol)
+                            Spacer()
+                            if !full {
+                                Button("Add") { settings.tabs.append(page) }
+                                    .accessibilityLabel("Add \(page.title) to the tab bar")
+                            } else {
+                                Menu {
+                                    ForEach(settings.tabs) { old in
+                                        Button("In place of \(old.title)", systemImage: old.symbol) {
+                                            settings.tabs = TabPage.swapping(old, for: page, in: settings.tabs)
+                                        }
+                                    }
+                                } label: {
+                                    Text("Swap in")
+                                }
+                                .accessibilityLabel("Swap \(page.title) into the tab bar")
+                            }
                         }
-                        .disabled(settings.tabs.count >= TabPage.maxInBar)
+                        .moveDisabled(true)
+                        .deleteDisabled(true)
                     }
                 } header: {
-                    Text("In More")
+                    Text("In Settings")
                 } footer: {
-                    if settings.tabs.count >= TabPage.maxInBar {
-                        Text("The tab bar is full. Switch a page off above to make room.")
-                    }
+                    Text("These are listed at the top of Settings.")
                 }
                 Section {
                     Button("Back to the usual tab bar") { settings.tabs = TabPage.defaultBar }

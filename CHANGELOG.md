@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.60.0** · Web version: **1.77.0** · Schema version: **21** · iOS version: **0.11.0**
+App version: **1.60.0** · Web version: **1.77.0** · Schema version: **21** · iOS version: **0.12.0**
 
 ### Added
 
@@ -84,6 +84,15 @@ App version: **1.60.0** · Web version: **1.77.0** · Schema version: **21** · 
 
 ### Changed
 
+- **Breaking: the iPhone app's More tab is now Settings, and the tab bar
+  holds three pages:** with four pages, More and Search, an iPhone held
+  upright had more buttons than iOS shows, so iOS added a second More page
+  of its own. Now the bar is three pages, Settings (a gear) and Search. It
+  comes with Dashboard, Forecast and Bills & income. Calendar, Net worth,
+  Budgets and Reports are listed at the top of Settings under Other pages.
+  Settings → Tab bar has a Swap button on each page to put another page in
+  its place. A bar of four you chose before keeps its first three. (iOS
+  0.12.0)
 - **While two-factor is required, a user who hasn't set it up can't use
   their API tokens or the iPhone app either:** every request answers "This
   instance requires two-factor sign-in. Set it up in Settings in a browser

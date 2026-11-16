@@ -1,13 +1,14 @@
 import SwiftUI
 import WalletWeatherKit
 
-/// More: the pages not in the tab bar (#158; at first Net worth, Budgets and
-/// Reports, read-only); this phone's settings (the look, the lock, what it
-/// keeps and the tab bar); and the server: who's signed in, the web app for
-/// everything set up there, the Important notice, the versions and Sign out.
-/// Its sections are cards like the other pages' (#159). An admin sees
-/// nothing extra here: the Admin pages stay on the web.
-struct MoreView: View {
+/// Settings, the tab that was More until #174: the pages not in the tab bar
+/// (#158; Calendar, Net worth, Budgets and Reports as it comes), and nothing
+/// that's already in the bar; this phone's settings (the look, the lock,
+/// what it keeps and the tab bar); and the server: who's signed in, the web
+/// app for everything set up there, the Important notice, the versions and
+/// Sign out. Its sections are cards like the other pages' (#159). An admin
+/// sees nothing extra here: the Admin pages stay on the web.
+struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(AppSettings.self) private var settings
     @State private var confirmSignOut = false
@@ -20,6 +21,7 @@ struct MoreView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     let pages = TabPage.notIn(settings.tabs)
                     if !pages.isEmpty {
+                        SectionTitle("Other pages")
                         VStack(alignment: .leading, spacing: 0) {
                             ForEach(Array(pages.enumerated()), id: \.element) { index, page in
                                 if index > 0 { Divider() }
@@ -57,7 +59,8 @@ struct MoreView: View {
                         Divider()
                         NavigationLink { TabBarSettingsView() } label: {
                             MoreRow { Text("Tab bar") } trailing: {
-                                Text(settings.tabs == TabPage.defaultBar ? "Usual" : "\(settings.tabs.count) pages")
+                                Text(settings.tabs == TabPage.defaultBar ? "Usual" : settings.tabs.map(\.title).joined(separator: ", "))
+                                    .lineLimit(1)
                                     .foregroundStyle(.secondary)
                                 Chevron()
                             }
@@ -121,7 +124,7 @@ struct MoreView: View {
                 .padding(.horizontal, 16).padding(.bottom, 24)
             }
             .background(PageBackground().ignoresSafeArea())
-            .navigationTitle("More")
+            .navigationTitle("Settings")
             .toolbar { NewWindowItem(place: .more) }
             .confirmationDialog("Sign out of WalletWeather on this phone?", isPresented: $confirmSignOut,
                                 titleVisibility: .visible) {
@@ -576,7 +579,7 @@ private struct Chevron: View {
     }
 }
 
-/// A heading over a More card.
+/// A heading over a Settings card.
 private struct SectionTitle: View {
     let text: String
     init(_ text: String) { self.text = text }

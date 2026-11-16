@@ -29,7 +29,7 @@ from urllib.parse import urlencode
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.61.0"
+APP_VERSION = "1.61.1"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,9 @@ APP_VERSION = "1.61.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.61.1 (2026-11-16, claude+mkolakowski): no server change; the release
+#     that holds the iPhone app 0.15.0 (#177), which landed just after v1.61.0
+#     was tagged (#181).
 # 1.61.0 (2026-11-15, claude+mkolakowski): a code for sensitive actions
 #     (#169): for a user with two-factor on, POST /api/me/password,
 #     DELETE /api/me, POST /api/tokens and POST /api/app-sign-in take a

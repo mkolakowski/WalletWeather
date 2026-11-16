@@ -131,7 +131,8 @@ use the instance. The README explicitly flags one of them.
 The README confirms backups are unencrypted. Given the rest of the app uses
 Fernet at rest, an encrypted-export option (or just "use the same Fernet
 key on restore") closes that loop. **Effort: small.** Wrap the existing
-backup file in Fernet on the way out.
+backup file in Fernet on the way out. Planned as phase 1 of
+`Plans/bank-sync.md`.
 
 ### 13. Password reset
 There's no self-serve flow today. Even a token-based "admin can issue a
@@ -237,7 +238,8 @@ that returns matches grouped by kind (#111). **Effort: medium.**
 Pull transactions from the bank on a schedule instead of uploading a CSV
 (item 4), land them through the same import path with the provider's
 transaction id for de-duplication, and apply the auto-tag rules (item 8).
-Two providers were looked at (#163), and which to build is undecided:
+Two providers were looked at (#163). Decided 2026-11-16: SimpleFIN Bridge,
+planned in `Plans/bank-sync.md`; Plaid is not planned:
 
 - **SimpleFIN Bridge:** the user pays for it themselves and pastes one token
   into the app, and the server polls. No approval, no third-party script, no
@@ -258,7 +260,8 @@ Either one stores a long-lived, read-only bank token, so encrypted backups
 limits"), the README's security notes, `.env.example` and the first-login
 notice would all change, and disconnecting a bank or deleting a user has to
 remove the connection at the provider. How pending bank rows meet the
-forecast and "To confirm" is an open design question. Needs a plan.
+forecast and "To confirm" is an open design question. Planned in
+`Plans/bank-sync.md`, with encrypted backups as its first phase.
 **Effort: large.**
 
 ---

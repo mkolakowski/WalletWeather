@@ -28,6 +28,8 @@ get "/api/dashboard?today=$TODAY" dashboard
 get "/api/dashboard/charts?window=month&today=$TODAY" charts-month
 get "/api/dashboard/charts?window=90d&today=$TODAY" charts-90d
 get /api/saved-reports saved-reports
+# Search across everything (#111, #112): "e" finds something in every group the demo has.
+get "/api/search?q=e&today=$TODAY" search-everything
 curl -fsS -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{}' \
   "$BASE/api/saved-reports/1/run" | json > "$OUT/report-run.json"
 curl -sS -H "Authorization: Bearer ww_not-a-token" "$BASE/api/me" > "$OUT/error-revoked.json"

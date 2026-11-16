@@ -8,7 +8,10 @@ WalletWeather server. It's being built in phases from
 transactions, and transaction search; phase 3 (#89) adds Bills & income, the
 Calendar and moving money between accounts; phase 5 (#91) adds Net worth,
 Budgets and Reports under More, the looks (Match the phone, Light, Dark,
-AMOLED black, Sepia), the app lock and the app-switcher cover. It isn't
+AMOLED black, Sepia), the app lock and the app-switcher cover; phase 7
+(#100) adds email and password and QR-code sign-in; phase 10 (#112) makes
+Search find everything through the server's `/api/search` (server 1.56.0;
+an older server searches transactions only). It isn't
 on TestFlight or the App Store yet (phase 6); for now it's built from source
 and put on a phone from Xcode.
 
@@ -71,7 +74,9 @@ Three more Debug-only settings put it where a screenshot needs it, with no
 taps: `SIMCTL_CHILD_WW_DEBUG_PLACE=forecast` (or `search`, `dashboard`, …)
 opens that page, `SIMCTL_CHILD_WW_DEBUG_OPEN_LINE=Rent` opens that Forecast
 line (or that bill, on Bills & income) in the editor,
-`SIMCTL_CHILD_WW_DEBUG_SEARCH=gro` fills in search, and on the Calendar
+`SIMCTL_CHILD_WW_DEBUG_SEARCH=gro` fills in search (with
+`SIMCTL_CHILD_WW_DEBUG_SEARCH_OPEN=transaction`, `bill`, `category`,
+`report` or `account` opening its first result of that kind), and on the Calendar
 `SIMCTL_CHILD_WW_DEBUG_ACCOUNT=Checking` picks an account and
 `SIMCTL_CHILD_WW_DEBUG_DAY=2026-11-11` a day.
 On this Mac the simulators are shared with other projects' sessions, so run

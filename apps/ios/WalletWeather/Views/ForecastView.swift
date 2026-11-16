@@ -77,6 +77,14 @@ struct ForecastView: View {
         }
         .task(id: model.generation) { await loadAll() }
         .task(id: "\(accountId)/\(monthText)") { await loadMonth() }
+        // An account chosen in Search (#112): this month of it.
+        .onChange(of: model.forecastRequest, initial: true) { _, request in
+            guard let request else { return }
+            accountId = request
+            monthText = ""
+            confirming = false
+            model.forecastRequest = nil
+        }
     }
 
     // MARK: - Layout

@@ -151,7 +151,7 @@ public struct DashboardCharts: Sendable, Codable, Equatable {
 }
 
 /// One of `GET /api/saved-reports`.
-public struct SavedReport: Sendable, Codable, Equatable, Identifiable {
+public struct SavedReport: Sendable, Codable, Hashable, Identifiable {
     public let id: Int
     public let name: String
     public let pinned: Bool

@@ -42,6 +42,9 @@ final class AppModel {
     /// The server address typed last, kept in memory only.
     var typedAddress = ""
     var pendingLink: PendingLink?
+    /// An account Search asked Forecast to show (#112); Forecast takes it
+    /// and clears it.
+    var forecastRequest: Int?
 
     private let sheet = SignInSheet()
 

@@ -69,9 +69,18 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.56.0** · Web version: **1.74.0** · Schema version: **19** · iOS version: **0.9.0**
+App version: **1.56.0** · Web version: **1.74.0** · Schema version: **19** · iOS version: **0.10.0**
 
 ### Added
+
+- **Search everything in the iPhone app:** the round search button now finds
+  transactions, bills and income, accounts, categories, tags and saved
+  reports, grouped by kind. Tap a result to open it where it lives: a
+  transaction or a bill in its editor, an account in Forecast, a category or
+  tag as its transactions, a report run. On the open iPhone Duo the results
+  stay on the left and what you tap opens on the right. With a server older
+  than 1.56.0 it still searches transactions, and says an update finds the
+  rest. Nothing about a search is kept on the phone. (iOS app 0.10.0)
 
 - **Search everything from the top bar:** type in the search box to find
   transactions, bills and income, accounts, categories, tags and saved

@@ -2,67 +2,73 @@ import Foundation
 import Testing
 @testable import WalletWeatherKit
 
-/// Signing in with an email and password (ios-app phase 7, #100): what the
-/// app sends to `POST /api/auth/token`, and how the server's answers read.
-/// Requests go to a stand-in server (`StubServer`), never the network.
-@Suite(.serialized)
-struct PasswordSignInTests {
-    let client = APIClient(connection: Connection(server: URL(string: "https://ww.example.com")!),
-                           session: StubServer.session())
+/// Every suite that uses `StubServer` sits in here, so they run one test at
+/// a time and never share the stand-in server.
+@Suite(.serialized) enum StubServerSuites {}
 
-    @Test func sendsTheEmailPasswordAndPhoneName() async throws {
-        let sample = try Data(contentsOf: try #require(Bundle.module.url(forResource: "token", withExtension: "json",
-                                                                         subdirectory: "Samples")))
-        StubServer.answer(200, sample)
-        let issued = try await client.signIn(email: "  Me@Example.com \n", password: "pa ss",
-                                             deviceName: String(repeating: "x", count: 100))
-        #expect(issued.token == "ww_sample-token-not-real")
-        let request = try #require(StubServer.lastRequest)
-        #expect(request.httpMethod == "POST")
-        #expect(request.url?.path == "/api/auth/token")
-        #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
-        let body = try #require(StubServer.lastBody.flatMap { try JSONSerialization.jsonObject(with: $0) as? [String: String] })
-        #expect(body["email"] == "Me@Example.com")  // trimmed; the server lowercases
-        #expect(body["password"] == "pa ss")          // never trimmed
-        #expect(body["name"] == String(repeating: "x", count: 80))
-        #expect(body["access"] == "full")
-    }
+extension StubServerSuites {
+    /// Signing in with an email and password (ios-app phase 7, #100): what
+    /// the app sends to `POST /api/auth/token`, and how the server's answers
+    /// read. Requests go to a stand-in server, never the network.
+    @Suite struct PasswordSignInTests {
+        let client = APIClient(connection: Connection(server: URL(string: "https://ww.example.com")!),
+                               session: StubServer.session())
 
-    @Test func aRefusedPasswordIsItsOwnError() async {
-        StubServer.answer(401, Data(#"{"detail":"Invalid email or password"}"#.utf8))
-        await #expect(throws: APIError.wrongPassword) {
-            _ = try await client.signIn(email: "me@example.com", password: "wrong", deviceName: "iPhone")
+        @Test func sendsTheEmailPasswordAndPhoneName() async throws {
+            let sample = try Data(contentsOf: try #require(Bundle.module.url(forResource: "token", withExtension: "json",
+                                                                             subdirectory: "Samples")))
+            StubServer.answer(200, sample)
+            let issued = try await client.signIn(email: "  Me@Example.com \n", password: "pa ss",
+                                                 deviceName: String(repeating: "x", count: 100))
+            #expect(issued.token == "ww_sample-token-not-real")
+            let request = try #require(StubServer.lastRequest)
+            #expect(request.httpMethod == "POST")
+            #expect(request.url?.path == "/api/auth/token")
+            #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+            let body = try #require(StubServer.lastBody.flatMap { try JSONSerialization.jsonObject(with: $0) as? [String: String] })
+            #expect(body["email"] == "Me@Example.com")  // trimmed; the server lowercases
+            #expect(body["password"] == "pa ss")          // never trimmed
+            #expect(body["name"] == String(repeating: "x", count: 80))
+            #expect(body["access"] == "full")
         }
-        #expect(APIError.wrongPassword.message.contains("Google"))
-    }
 
-    @Test func tooManyTriesSaysHowLongToWait() async {
-        StubServer.answer(429, Data(#"{"detail":"Too many failed sign-ins. Try again in 15 minutes."}"#.utf8))
-        await #expect(throws: APIError.server(status: 429, detail: "Too many failed sign-ins. Try again in 15 minutes.")) {
-            _ = try await client.signIn(email: "me@example.com", password: "wrong", deviceName: "iPhone")
+        @Test func aRefusedPasswordIsItsOwnError() async {
+            StubServer.answer(401, Data(#"{"detail":"Invalid email or password"}"#.utf8))
+            await #expect(throws: APIError.wrongPassword) {
+                _ = try await client.signIn(email: "me@example.com", password: "wrong", deviceName: "iPhone")
+            }
+            #expect(APIError.wrongPassword.message.contains("Google"))
         }
-    }
 
-    @Test func aDisabledAccountSaysSo() async {
-        StubServer.answer(403, Data(#"{"detail":"Account disabled"}"#.utf8))
-        await #expect(throws: APIError.server(status: 403, detail: "Account disabled")) {
-            _ = try await client.signIn(email: "me@example.com", password: "right", deviceName: "iPhone")
+        @Test func tooManyTriesSaysHowLongToWait() async {
+            StubServer.answer(429, Data(#"{"detail":"Too many failed sign-ins. Try again in 15 minutes."}"#.utf8))
+            await #expect(throws: APIError.server(status: 429, detail: "Too many failed sign-ins. Try again in 15 minutes.")) {
+                _ = try await client.signIn(email: "me@example.com", password: "wrong", deviceName: "iPhone")
+            }
+        }
+
+        @Test func aDisabledAccountSaysSo() async {
+            StubServer.answer(403, Data(#"{"detail":"Account disabled"}"#.utf8))
+            await #expect(throws: APIError.server(status: 403, detail: "Account disabled")) {
+                _ = try await client.signIn(email: "me@example.com", password: "right", deviceName: "iPhone")
+            }
         }
     }
 }
 
-/// Answers every request with the one answer set last, and remembers the
-/// request. Only for suites that run one test at a time.
+/// Answers requests with the answers set, in turn (the last one repeats),
+/// and remembers every request. Only for suites that run one test at a time.
 final class StubServer: URLProtocol, @unchecked Sendable {
-    nonisolated(unsafe) static var status = 200
-    nonisolated(unsafe) static var body = Data()
-    nonisolated(unsafe) static var lastRequest: URLRequest?
+    nonisolated(unsafe) static var answers: [(status: Int, body: Data)] = []
+    nonisolated(unsafe) static var requests: [URLRequest] = []
     nonisolated(unsafe) static var lastBody: Data?
+    static var lastRequest: URLRequest? { requests.last }
 
-    static func answer(_ status: Int, _ body: Data) {
-        Self.status = status
-        Self.body = body
-        lastRequest = nil
+    static func answer(_ status: Int, _ body: Data) { answer([(status, body)]) }
+
+    static func answer(_ list: [(status: Int, body: Data)]) {
+        answers = list
+        requests = []
         lastBody = nil
     }
 
@@ -76,7 +82,8 @@ final class StubServer: URLProtocol, @unchecked Sendable {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
-        Self.lastRequest = request
+        Self.requests.append(request)
+        let (status, body) = Self.answers.count > 1 ? Self.answers.removeFirst() : (Self.answers.first ?? (200, Data()))
         // URLSession hands a protocol the body as a stream.
         if let stream = request.httpBodyStream {
             stream.open()
@@ -92,10 +99,10 @@ final class StubServer: URLProtocol, @unchecked Sendable {
         } else {
             Self.lastBody = request.httpBody
         }
-        let response = HTTPURLResponse(url: request.url!, statusCode: Self.status, httpVersion: "HTTP/1.1",
+        let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1",
                                        headerFields: ["Content-Type": "application/json"])!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: Self.body)
+        client?.urlProtocol(self, didLoad: body)
         client?.urlProtocolDidFinishLoading(self)
     }
 

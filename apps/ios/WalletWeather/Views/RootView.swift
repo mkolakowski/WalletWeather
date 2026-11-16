@@ -1,6 +1,12 @@
 import SwiftUI
 import WalletWeatherKit
 
+extension EnvironmentValues {
+    /// Switches this window to another place, as Search does to show an
+    /// account in Forecast (#112).
+    @Entry var openPlace: @MainActor (RootView.Place) -> Void = { _ in }
+}
+
 /// The frame every page sits in: the pages chosen for the tab bar (#158; at
 /// first the web app's phone bar), then More, in the system's own tab bar
 /// (which iOS stands down the right edge on the iPhone Duo, closed or open
@@ -36,6 +42,7 @@ struct RootView: View {
                 SearchView()
             }
         }
+        .environment(\.openPlace) { place = $0 }
         // A page taken out of the bar while open: More, where it's listed now.
         .onChange(of: settings.tabs) { _, tabs in
             if let page = place.page, !tabs.contains(page) { place = .more }

@@ -26,6 +26,17 @@ database with real data. The `Tests` workflow runs them on every pull
 request and push to `main`. Why: one command that works without a local
 Python, and the same tests in CI.
 
+**Security checks** (decided 2026-11-16, #179, #180):
+`apps/server/tests/test_security_guards.py` pins who can reach what. A new
+route needs a sign-in dependency or a line on that file's `PUBLIC` list with
+the reason, a new Admin route needs `current_admin`, and a new module on its
+forbidden list needs a reason there, each in the commit that adds it.
+`/cve-scan` (`.claude/skills/cve-scan/`, this project's own skill) re-checks
+the pinned packages, images and Actions against known CVEs and says which
+apply; run it before a release that bumps dependencies. Why: an endpoint
+without its sign-in check, or a package with a known hole, is found by the
+check rather than by someone looking.
+
 **Session titles start with `WW: `** (decided 2026-11-15, #136): every
 session title in this project begins with `WW: `, ahead of what the
 "Session titles" block below puts there, e.g. `WW: #132: login-limits: 1/3:

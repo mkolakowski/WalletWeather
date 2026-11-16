@@ -41,6 +41,7 @@ struct DashboardView: View {
             .keptBar(kept)
             .background(PageBackground().ignoresSafeArea())
             .navigationTitle("Dashboard")
+            .toolbar { NewWindowItem(place: .dashboard) }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Refresh", systemImage: "arrow.clockwise") { Task { await load() } }

@@ -69,9 +69,24 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.54.1** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.6.0**
+App version: **1.54.1** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.7.0**
 
 ### Added
+
+- **To confirm, on the iPhone's Forecast** (iOS app 0.7.0): a switch beside
+  All lines narrows the month to the lines due up to today and not yet paid,
+  each with **Paid as planned** and a box for the amount it really came to.
+  It's made for ticking lines off with your bank's app open beside
+  WalletWeather on the iPhone Duo's inner screen, and works on any iPhone.
+- **Compare, on the open iPhone Duo:** a Compare button on Forecast puts two
+  accounts, or one account in two months, side by side, one in each half,
+  lined up by day of the month so both sides scroll together.
+- **Half open like a small laptop,** the iPhone Duo's Forecast puts the
+  chart and lines above the fold and the open line (or the month's summary)
+  below it, on the half that lies on the table.
+- **A second WalletWeather window:** the app can now have more than one
+  window, and Open in new window in each page's menu on the inner screen
+  opens one on that page.
 
 - **The web app's themes on the iPhone** (iOS app 0.6.0). More → Appearance
   now offers Dracula, Solarized, Nord, Synthwave, Forest, Mint, Monokai and

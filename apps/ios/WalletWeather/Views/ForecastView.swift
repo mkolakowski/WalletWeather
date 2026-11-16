@@ -12,6 +12,9 @@ struct ForecastView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @SceneStorage("forecast.account") private var accountId = 0
     @SceneStorage("forecast.month") private var monthText = ""
+    /// The "To confirm" switch (#90): only the lines due up to today and
+    /// not yet paid, each with Paid as planned and a box for another amount.
+    @SceneStorage("forecast.confirming") private var confirming = false
 
     @State private var accounts: Loadable<[Account]> = .loading
     @State private var month: Loadable<ForecastMonth> = .loading
@@ -24,6 +27,7 @@ struct ForecastView: View {
     @State private var moveDraft = MoveMoneyDraft(today: .today())
     @State private var pendingDelete: ForecastLine?
     @State private var problem: String?
+    @State private var comparing = false
 
     private var shownMonth: YearMonth { YearMonth(monthText) ?? YearMonth(.today()) }
     private var account: Account? {
@@ -39,12 +43,19 @@ struct ForecastView: View {
                 .keptBar(kept)
                 .background(PageBackground().ignoresSafeArea())
                 .navigationTitle("Forecast")
+                .toolbar { NewWindowItem(place: .forecast) }
                 .toolbar { toolbar }
         }
         .lineEditorSheet($open, categories: categories) { await loadMonth() }
         .sheet(isPresented: $adding) {
             if let account {
                 AddTransactionSheet(account: account, categories: categories, draft: $newDraft) { await loadMonth() }
+            }
+        }
+        .fullScreenCover(isPresented: $comparing) {
+            if let account {
+                CompareView(accounts: accounts.value ?? [], left: .init(accountId: account.id, month: shownMonth),
+                            right: .init(accountId: account.id, month: shownMonth.previous))
             }
         }
         .sheet(isPresented: $moving) {
@@ -95,17 +106,22 @@ struct ForecastView: View {
             Group {
                 Section {
                     header(data)
+                    confirmSwitch(data)
                 }
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                 Section {
-                    if data.rows.isEmpty { emptyMonth }
-                    ForEach(data.rows) { line in
-                        Button { openLine(line) } label: { LineCard(line: line, today: .today()) }
-                            .buttonStyle(.plain)
-                            .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onUndo: undoPaid,
-                                                 onDelete: { pendingDelete = $0 }))
+                    if showingConfirm {
+                        confirmRows(data)
+                    } else {
+                        if data.rows.isEmpty { emptyMonth }
+                        ForEach(data.rows) { line in
+                            Button { openLine(line) } label: { LineCard(line: line, today: .today()) }
+                                .buttonStyle(.plain)
+                                .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onUndo: undoPaid,
+                                                     onDelete: { pendingDelete = $0 }))
+                        }
                     }
                 }
                 .listRowBackground(Color.clear)
@@ -121,20 +137,57 @@ struct ForecastView: View {
 
     /// The open Duo: chart and table on the left, the editor or the
     /// month's summary on the right, meeting at the fold with nothing to
-    /// read or tap on it.
+    /// read or tap on it. Half open like a small laptop (#90), the fold runs
+    /// across: the chart and table above it, the editor below, on the half
+    /// that lies on the table.
     private func twoPanes(_ data: ForecastMonth) -> some View {
-        HStack(spacing: 0) {
-            List {
-                Group {
-                    Section {
-                        header(data)
+        GeometryReader { proxy in
+            if let fold = Self.tabletopFold(proxy) {
+                VStack(spacing: 0) {
+                    listPane(data).frame(height: max(0, fold.minY))
+                    Color.clear.frame(height: fold.height)
+                    sidePane(data).frame(maxHeight: .infinity)
+                }
+            } else {
+                HStack(spacing: 0) {
+                    listPane(data).frame(maxWidth: .infinity)
+                    sidePane(data).frame(maxWidth: .infinity)
+                }
+            }
+        }
+    }
+
+    /// The fold when the Duo is half open with it running across (like a
+    /// laptop on a table), in this view's space; nil otherwise (iOS 27.1's
+    /// division region).
+    static func tabletopFold(_ proxy: GeometryProxy) -> CGRect? {
+        if #available(iOS 27.1, *) {
+            return proxy.reservedRegions(kind: .division)
+                .first { $0.isActive && $0.frame.width > $0.frame.height }?.frame
+        }
+        return nil
+    }
+
+    private func listPane(_ data: ForecastMonth) -> some View {
+        List {
+            Group {
+                Section {
+                    header(data)
+                    if !showingConfirm {
                         ForecastChart(data: data, month: shownMonth)
                             .card()
                     }
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 28))
-                    Section {
+                    confirmSwitch(data)
+                }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 28))
+                Section {
+                    if showingConfirm {
+                        confirmRows(data)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 28))
+                    } else {
                         if data.rows.isEmpty { emptyMonth } else { LineTableHeader().listRowSeparator(.hidden) }
                         ForEach(data.rows) { line in
                             Button { openLine(line) } label: {
@@ -145,34 +198,75 @@ struct ForecastView: View {
                                                  onDelete: { pendingDelete = $0 }))
                         }
                     }
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 28))
                 }
-                .listRowBackground(Palette.row)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 28))
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .refreshable { await loadMonth() }
-            .frame(maxWidth: .infinity)
+            .listRowBackground(Palette.row)
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .refreshable { await loadMonth() }
+    }
 
-            Group {
-                if let binding = Binding($open) {
-                    LineEditor(open: binding, categories: categories, embedded: true, onClose: { open = nil }) { await loadMonth() }
-                        .id(binding.wrappedValue.id)
-                } else {
-                    ScrollView {
-                        MonthSummaryView(month: shownMonth, data: data, onOpen: openLine)
-                            .padding(.leading, 28).padding(.trailing, 16).padding(.bottom, 24)
-                    }
+    @ViewBuilder
+    private func sidePane(_ data: ForecastMonth) -> some View {
+        Group {
+            if let binding = Binding($open) {
+                LineEditor(open: binding, categories: categories, embedded: true, onClose: { open = nil }) { await loadMonth() }
+                    .id(binding.wrappedValue.id)
+            } else {
+                ScrollView {
+                    MonthSummaryView(month: shownMonth, data: data, onOpen: openLine)
+                        .padding(.leading, 28).padding(.trailing, 16).padding(.bottom, 24)
                 }
             }
-            .frame(maxWidth: .infinity)
         }
     }
 
     private func header(_ data: ForecastMonth) -> some View {
         MonthHeader(accounts: accounts.value ?? [], account: account, month: shownMonth, data: data,
                     onSwitch: switchAccount, onMove: move)
+    }
+
+    // MARK: - To confirm (#90)
+
+    private var showingConfirm: Bool { confirming && editable }
+
+    /// All lines, or only those to confirm; shown when this person may
+    /// change the account.
+    @ViewBuilder
+    private func confirmSwitch(_ data: ForecastMonth) -> some View {
+        if editable {
+            let count = data.toConfirm(today: .today()).count
+            Picker("Show", selection: $confirming) {
+                Text("All lines").tag(false)
+                Text(count > 0 ? "To confirm (\(count))" : "To confirm").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .padding(.vertical, 2)
+        }
+    }
+
+    @ViewBuilder
+    private func confirmRows(_ data: ForecastMonth) -> some View {
+        let lines = data.toConfirm(today: .today())
+        if lines.isEmpty {
+            Text(shownMonth.start > .today() ? "Nothing to confirm yet in \(shownMonth.label)." : "Everything up to today is confirmed.")
+                .font(.callout).foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity).padding(.vertical, 24)
+        }
+        ForEach(lines) { line in
+            ConfirmRow(line: line) { amount in await confirm(line, amount: amount) }
+        }
+    }
+
+    /// Paid as planned (no amount), or paid at the amount typed.
+    private func confirm(_ line: ForecastLine, amount: String?) async {
+        guard let account else { return }
+        let draft = amount.map { LineDraft.paid(line, amountText: $0, today: .today()) }
+            ?? .paidAsPlanned(line, today: .today())
+        await change(line) { try await $0.save(line, draft: draft, account: account.id) }
     }
 
     private var emptyMonth: some View {
@@ -183,6 +277,12 @@ struct ForecastView: View {
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
+        // Compare (#90): only with room for two sides, the open Duo.
+        if sizeClass == .regular, account != nil {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Compare", systemImage: "rectangle.split.2x1") { comparing = true }
+            }
+        }
         if editable {
             AddMenu(addTitle: "Add transaction", canMove: editableAccounts.count > 1, onAdd: {
                 newDraft = NewTransactionDraft(today: shownMonth.contains(.today()) ? .today() : shownMonth.start)
@@ -253,6 +353,8 @@ struct ForecastView: View {
         }
         categories = (try? await client.categories()) ?? []
         await loadMonth()
+        if AppModel.debugSetting("WW_DEBUG_CONFIRM") != nil { confirming = true }
+        if AppModel.debugSetting("WW_DEBUG_COMPARE") != nil { comparing = true }
         if let name = AppModel.debugSetting("WW_DEBUG_OPEN_LINE"),
            let line = month.value?.rows.first(where: { $0.description == name }) { openLine(line) }
     }

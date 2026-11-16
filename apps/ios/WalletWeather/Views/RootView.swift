@@ -7,9 +7,13 @@ import WalletWeatherKit
 /// it for Search. A page's own actions, such as +, sit in its top corner. Which
 /// place is open is kept per window, so closing or opening the Duo keeps it.
 struct RootView: View {
-    enum Place: String { case dashboard, forecast, bills, calendar, more, search }
+    enum Place: String, Codable, Hashable { case dashboard, forecast, bills, calendar, more, search }
 
+    /// The page a new window was opened on (#90); nil for the first window.
+    var start: Place?
     @SceneStorage("place") private var place: Place = .dashboard
+    @State private var started = false
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         TabView(selection: $place) {
@@ -33,6 +37,12 @@ struct RootView: View {
             }
         }
         .onAppear {
+            if let start, !started { place = start }
+            // Debug only: `WW_DEBUG_NEW_WINDOW=<place>` opens a second window.
+            if start == nil, !started, let second = AppModel.debugSetting("WW_DEBUG_NEW_WINDOW").flatMap(Place.init(rawValue:)) {
+                openWindow(value: second)
+            }
+            started = true
             if let debug = AppModel.debugSetting("WW_DEBUG_PLACE").flatMap(Place.init(rawValue:)) { place = debug }
         }
     }

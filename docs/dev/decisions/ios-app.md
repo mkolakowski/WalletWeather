@@ -194,3 +194,15 @@ Decisions made while planning [`Plans/ios-app.md`](../../../Plans/ios-app.md) (t
 **Also settled in building it:** the eight themes beyond Light and Dark use the web app's own colours (page, panel, border, text, accent, good, bad, warn); `WebThemeTests` checks them against `apps/web/index.html` and checks body text reaches 4.5:1 on each page and card colour. Cards are glass tinted with the theme's panel colour and outlined in its border colour. The server's theme is kept in the app's preferences, so Match the web app still applies offline. Light and Dark keep the system's own colours, as before.
 
 **What it changes:** phase 9 (#102).
+
+## 2026-11-15: Compare, confirming beside another app, and a second window
+
+**Decided:** 2026-11-15, by Matthew, while starting phase 4 (#90). **Status:** accepted.
+
+- **Compare opens from a button on Forecast**, shown only with room for two sides (the open Duo), and opens on this month beside last month of the same account; each side picks its account and month. The other options were a Compare page under More (one more tap, away from the Forecast it compares) and a switch in Forecast's second pane (less obvious).
+- **Confirming lines is a "To confirm" switch on Forecast**, beside All lines, on every screen: the lines due up to today and not yet paid, each with Paid as planned and a box for another amount. The other options were its own page under More, and switching to it by itself whenever the app has half the inner screen, which goes against Apple's guidance not to tie a feature to how the phone is held.
+- **A second window opens through the system's own ways and an "Open in new window" item** in each page's menu on the inner screen. The other options were the system's ways only (hard to find) and leaving the second window out.
+
+**Also found in building it:** iOS 27.1's only fold readings are `UIHingeInteraction` (the hinge's angle and status) and the *division* reserved region (`GeometryProxy.reservedRegions(kind: .division)`), which says where the fold runs and whether it's folded; the half-open layout uses the second. On the Duo the system shows a second window as "2 Views Open" in the toolbar rather than splitting the screen by itself.
+
+**What it changes:** phase 4 (#90). Which parts stay is Matthew's call after trying them on the Duo.

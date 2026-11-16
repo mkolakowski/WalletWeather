@@ -83,6 +83,7 @@ struct MoreView: View {
             .scrollContentBackground(.hidden)
             .background(PageBackground().ignoresSafeArea())
             .navigationTitle("More")
+            .toolbar { NewWindowItem(place: .more) }
             .confirmationDialog("Sign out of WalletWeather on this phone?", isPresented: $confirmSignOut,
                                 titleVisibility: .visible) {
                 Button("Sign out", role: .destructive) { Task { await model.signOutEndingToken() } }

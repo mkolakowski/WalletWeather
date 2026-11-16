@@ -35,6 +35,7 @@ struct CalendarView: View {
                 .keptBar(kept)
                 .background(PageBackground().ignoresSafeArea())
                 .navigationTitle("Calendar")
+                .toolbar { NewWindowItem(place: .calendar) }
                 .toolbar {
                     if !editableAccounts.isEmpty {
                         AddMenu(addTitle: "Add transaction", canMove: editableAccounts.count > 1, onAdd: {

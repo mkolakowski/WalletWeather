@@ -34,6 +34,7 @@ struct BillsView: View {
                 .keptBar(kept)
                 .background(PageBackground().ignoresSafeArea())
                 .navigationTitle("Bills & income")
+                .toolbar { NewWindowItem(place: .bills) }
                 .toolbar {
                     if !editableAccounts.isEmpty {
                         AddMenu(addTitle: "Add bill or income", canMove: editableAccounts.count > 1,

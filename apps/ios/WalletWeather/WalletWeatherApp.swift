@@ -7,8 +7,10 @@ struct WalletWeatherApp: App {
     @State private var settings = AppSettings()
 
     var body: some Scene {
-        WindowGroup {
-            AppRoot()
+        // Each window opens on a page of its own: nil for the first, the page
+        // asked for by "Open in new window" (#90).
+        WindowGroup(for: RootView.Place.self) { $start in
+            AppRoot(start: start)
                 .id(settings.shownLook)  // every page reads its colours again
                 .environment(model)
                 .environment(settings)
@@ -28,6 +30,7 @@ struct WalletWeatherApp: App {
 /// the lock screen over it when locked, and a cover whenever the app isn't
 /// in front, so the app switcher shows no numbers.
 struct AppRoot: View {
+    var start: RootView.Place?
     @Environment(AppModel.self) private var model
     @Environment(AppSettings.self) private var settings
     @Environment(\.scenePhase) private var scenePhase
@@ -45,7 +48,7 @@ struct AppRoot: View {
             case .notice:
                 NoticeView()
             case .ready:
-                RootView()
+                RootView(start: start)
             }
         }
         .modifier(SepiaText())

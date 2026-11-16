@@ -12,7 +12,7 @@ Tracking issue: #93
 | 4. The Duo's big screen | #90 | All four parts released in 1.54.2 (2026-11-15; iOS 0.7.0); waiting on your choice of which to keep |
 | 5. The other pages and app settings | #91 | Released in 1.54.0 (2026-11-15; iOS 0.4.0); waiting on your phone check |
 | 6. TestFlight and the App Store | #92 | Open (waits on legal-risk phase 5, #49) |
-| 7. More ways to sign in | #100 | Built 2026-11-15 (web 1.73.0, iOS 0.9.0), not released yet; waiting on your phone check |
+| 7. More ways to sign in | #100 | Released in 1.55.0 (2026-11-15; web 1.73.0, iOS 0.9.0); waiting on your phone check |
 | 8. Kept on the phone | #101 | Released in 1.54.1 (2026-11-15; iOS 0.5.0); simulator check passed later that day (one fix, in iOS 0.6.0); waiting on your phone check |
 | 9. The web app's themes | #102 | Released in 1.54.2 (2026-11-15; iOS 0.6.0); every page checked in the simulator in all eight themes, closed and open; waiting on your look |
 | 10. Search everything | #112 | Open (after phases 3 and 5, and #111: one search on the server and in the web app) |

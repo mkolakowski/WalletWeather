@@ -30,7 +30,7 @@ struct CalendarView: View {
     private var selected: LocalDay? { LocalDay(dayText).flatMap { shownMonth.contains($0) ? $0 : nil } }
 
     var body: some View {
-        NavigationStack {
+        PageStack {
             content
                 .keptBar(kept)
                 .background(PageBackground().ignoresSafeArea())

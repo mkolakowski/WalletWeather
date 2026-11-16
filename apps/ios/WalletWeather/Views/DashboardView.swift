@@ -23,7 +23,7 @@ struct DashboardView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        PageStack {
             Group {
                 switch summary {
                 case .loading:

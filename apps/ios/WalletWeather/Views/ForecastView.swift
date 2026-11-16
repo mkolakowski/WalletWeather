@@ -38,7 +38,7 @@ struct ForecastView: View {
     private var editableAccounts: [Account] { (accounts.value ?? []).filter(model.canEdit) }
 
     var body: some View {
-        NavigationStack {
+        PageStack {
             content
                 .keptBar(kept)
                 .background(PageBackground().ignoresSafeArea())

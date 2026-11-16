@@ -22,6 +22,11 @@ final class AppSettings {
         }
     }
 
+    /// The pages in the tab bar beside More and Search, in order (#158).
+    var tabs: [TabPage] {
+        didSet { defaults.set(TabPage.stored(tabs), forKey: Keys.tabs) }
+    }
+
     /// The theme saved in the web app, for Match the web app: kept here so
     /// it still applies when the app opens without a connection.
     var serverTheme: String? {
@@ -54,6 +59,7 @@ final class AppSettings {
     private enum Keys {
         static let look = "appearance"
         static let serverTheme = "appearance.web"
+        static let tabs = "tabs"
         static let lockEnabled = "lock.enabled"
         static let lockOffered = "lock.offered"
     }
@@ -65,6 +71,8 @@ final class AppSettings {
         let saved = debug ?? Look(rawValue: defaults.string(forKey: Keys.look) ?? "") ?? .system
         look = saved
         serverTheme = defaults.string(forKey: Keys.serverTheme)
+        // Debug only: `WW_DEBUG_TABS=forecast,netWorth` for screenshots.
+        tabs = TabPage.bar(from: AppModel.debugSetting("WW_DEBUG_TABS") ?? defaults.string(forKey: Keys.tabs))
         let enabled = defaults.bool(forKey: Keys.lockEnabled)
         lockEnabled = enabled
         lockOffered = defaults.bool(forKey: Keys.lockOffered)

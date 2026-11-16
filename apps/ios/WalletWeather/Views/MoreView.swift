@@ -1,10 +1,12 @@
 import SwiftUI
 import WalletWeatherKit
 
-/// More: Net worth, Budgets and Reports (read-only); this phone's settings
-/// (the look and the lock); and the server: who's signed in, the web app for
+/// More: the pages not in the tab bar (#158; at first Net worth, Budgets and
+/// Reports, read-only); this phone's settings (the look, the lock, what it
+/// keeps and the tab bar); and the server: who's signed in, the web app for
 /// everything set up there, the Important notice, the versions and Sign out.
-/// An admin sees nothing extra here: the Admin pages stay on the web.
+/// Its sections are cards like the other pages' (#159). An admin sees
+/// nothing extra here: the Admin pages stay on the web.
 struct MoreView: View {
     @Environment(AppModel.self) private var model
     @Environment(AppSettings.self) private var settings
@@ -14,43 +16,73 @@ struct MoreView: View {
     var body: some View {
         @Bindable var settings = settings
         NavigationStack {
-            List {
-                Group {
-                    Section {
-                        NavigationLink { NetWorthView() } label: { Label("Net worth", systemImage: "chart.line.uptrend.xyaxis.circle") }
-                        NavigationLink { BudgetsView() } label: { Label("Budgets", systemImage: "chart.bar.doc.horizontal") }
-                        NavigationLink { ReportsView() } label: { Label("Reports", systemImage: "doc.text.magnifyingglass") }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    let pages = TabPage.notIn(settings.tabs)
+                    if !pages.isEmpty {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(pages.enumerated()), id: \.element) { index, page in
+                                if index > 0 { Divider() }
+                                NavigationLink { page.view(embedded: true) } label: {
+                                    MoreRow { Label(page.title, systemImage: page.symbol) } trailing: { Chevron() }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .card()
                     }
-                    Section {
-                        Picker("Appearance", selection: $settings.look) {
-                            ForEach(Look.allCases) { Text($0.title).tag($0) }
+
+                    SectionTitle("This phone")
+                    VStack(alignment: .leading, spacing: 0) {
+                        MoreRow { Text("Appearance") } trailing: {
+                            Picker("Appearance", selection: $settings.look) {
+                                ForEach(Look.allCases) { Text($0.title).tag($0) }
+                            }
+                            .labelsHidden()
                         }
                         if let biometry = settings.biometryName {
+                            Divider()
                             Toggle("Lock with \(biometry)", isOn: Binding(
                                 get: { settings.lockEnabled },
                                 set: { on in Task { await settings.setLock(on) } }))
+                                .padding(.vertical, 8)
                         }
-                        Picker("Keep on this phone", selection: Binding(get: { model.keep }, set: { model.setKeep($0) })) {
-                            ForEach(KeepChoice.allCases) { Text($0.title).tag($0) }
+                        Divider()
+                        MoreRow { Text("Keep on this phone") } trailing: {
+                            Picker("Keep on this phone", selection: Binding(get: { model.keep }, set: { model.setKeep($0) })) {
+                                ForEach(KeepChoice.allCases) { Text($0.title).tag($0) }
+                            }
+                            .labelsHidden()
                         }
-                    } header: {
-                        Text("This phone")
-                    } footer: {
-                        VStack(alignment: .leading, spacing: 6) {
-                            if settings.biometryName != nil {
-                                Text("With the lock on, WalletWeather asks when it opens and when you come back after a minute away. The numbers are hidden in the app switcher either way.")
-                            } else {
-                                Text("The numbers are hidden in the app switcher. Set up Face ID or Touch ID in the phone's Settings to lock the app too.")
+                        Divider()
+                        NavigationLink { TabBarSettingsView() } label: {
+                            MoreRow { Text("Tab bar") } trailing: {
+                                Text(settings.tabs == TabPage.defaultBar ? "Usual" : "\(settings.tabs.count) pages")
+                                    .foregroundStyle(.secondary)
+                                Chevron()
                             }
-                            switch model.keep {
-                            case .nothing:
-                                Text("No numbers are kept on this phone, so the app needs a connection to your server.")
-                            case .lastKnown:
-                                Text("The pages you last loaded are kept on this phone, so they still open, marked with their age, when your server can't be reached. They can't be read while the phone is locked, stay out of iCloud and computer backups, and are deleted when you sign out or choose Nothing.")
-                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .card()
+                    VStack(alignment: .leading, spacing: 6) {
+                        if settings.biometryName != nil {
+                            Text("With the lock on, WalletWeather asks when it opens and when you come back after a minute away. The numbers are hidden in the app switcher either way.")
+                        } else {
+                            Text("The numbers are hidden in the app switcher. Set up Face ID or Touch ID in the phone's Settings to lock the app too.")
+                        }
+                        switch model.keep {
+                        case .nothing:
+                            Text("No numbers are kept on this phone, so the app needs a connection to your server.")
+                        case .lastKnown:
+                            Text("The pages you last loaded are kept on this phone, so they still open, marked with their age, when your server can't be reached. They can't be read while the phone is locked, stay out of iCloud and computer backups, and are deleted when you sign out or choose Nothing.")
                         }
                     }
-                    Section("Your server") {
+                    .font(.footnote).foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
+
+                    SectionTitle("Your server")
+                    VStack(alignment: .leading, spacing: 0) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(model.connection?.host ?? "")
                             if let me = model.me {
@@ -58,29 +90,36 @@ struct MoreView: View {
                                     .font(.footnote).foregroundStyle(.secondary)
                             }
                         }
+                        .padding(.vertical, 8)
                         if let cf = model.connection?.cloudflare {
-                            LabeledContent("Cloudflare", value: cloudflareText(cf))
+                            Divider()
+                            MoreRow { Text("Cloudflare") } trailing: { Text(cloudflareText(cf)).foregroundStyle(.secondary) }
                         }
                         if let server = model.connection?.server {
+                            Divider()
                             Link(destination: server) {
-                                LabeledContent("Open the web app") {
-                                    Text("accounts, categories, import").font(.footnote)
+                                MoreRow { Text("Open the web app").foregroundStyle(Palette.accent) } trailing: {
+                                    Text("accounts, categories, import").font(.footnote).foregroundStyle(.secondary)
                                 }
                             }
                         }
-                        Button("Important notice") { showingNotice = true }
-                        Button("Sign out", role: .destructive) { confirmSignOut = true }
-                            .foregroundStyle(Palette.bad)  // kept red under a look's own text colour
-                            .disabled(model.busy)
+                        Divider()
+                        Button { showingNotice = true } label: {
+                            MoreRow { Text("Important notice").foregroundStyle(Palette.accent) } trailing: { EmptyView() }
+                        }
+                        Divider()
+                        Button(role: .destructive) { confirmSignOut = true } label: {
+                            MoreRow { Text("Sign out").foregroundStyle(Palette.bad) } trailing: { EmptyView() }
+                        }
+                        .disabled(model.busy)
                     }
-                    Section {
-                    } footer: {
-                        Text("WalletWeather \(AppInfo.version), server \(model.serverVersion?.appVersion ?? "…"). Accounts, categories, budgets, sharing, imports, building reports and backups are set up in the web app. Signing out ends this phone's token on your server, then removes it, the server's address and any kept numbers from the phone.")
-                    }
+                    .card()
+                    Text("WalletWeather \(AppInfo.version), server \(model.serverVersion?.appVersion ?? "…"). Accounts, categories, budgets, sharing, imports, building reports and backups are set up in the web app. Signing out ends this phone's token on your server, then removes it, the server's address and any kept numbers from the phone.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                        .padding(.horizontal, 4)
                 }
-                .listRowBackground(Palette.row)
+                .padding(.horizontal, 16).padding(.bottom, 24)
             }
-            .scrollContentBackground(.hidden)
             .background(PageBackground().ignoresSafeArea())
             .navigationTitle("More")
             .toolbar { NewWindowItem(place: .more) }
@@ -509,5 +548,40 @@ struct ReportResult: View {
     private func load() async {
         guard let client = model.client(kept) else { return }
         do { run = .loaded(try await client.runReport(report.id)) } catch { run = .failed(error); kept.clear() }
+    }
+}
+
+// MARK: - More's rows
+
+/// One row of a More card: what it is on the left, its value or action on
+/// the right, tall enough to tap.
+private struct MoreRow<Leading: View, Trailing: View>: View {
+    @ViewBuilder let leading: Leading
+    @ViewBuilder let trailing: Trailing
+
+    var body: some View {
+        HStack(spacing: 8) {
+            leading
+            Spacer(minLength: 8)
+            trailing
+        }
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
+    }
+}
+
+private struct Chevron: View {
+    var body: some View {
+        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+    }
+}
+
+/// A heading over a More card.
+private struct SectionTitle: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text).font(.headline).padding(.horizontal, 4).padding(.top, 6)
     }
 }

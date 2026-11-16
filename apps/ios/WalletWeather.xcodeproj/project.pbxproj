@@ -27,18 +27,22 @@
 		B9DF71AA4970ECC6F0927401 /* LineEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A91553B7086BC583359B4E5F /* LineEditor.swift */; };
 		BB489358CA96FB9596EE2902 /* ForecastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 067F8A5A4984B672631E4818 /* ForecastView.swift */; };
 		CA8A6A4039A2495FB3EC052F /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 354C1F47B2C105A157D90B7C /* AppModel.swift */; };
+		D13FCDB6E06382F99755241E /* TabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 145D05F53CFC95EA650B720C /* TabBar.swift */; };
+		D5D57BB1E4FEEC41226F4577 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 56BAA46087C2B76E94F0EE25 /* Assets.xcassets */; };
 		DA2C662A3F9E9B07C17BFC68 /* BillsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D0553102CA76CF6F2551892 /* BillsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		067F8A5A4984B672631E4818 /* ForecastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastView.swift; sourceTree = "<group>"; };
 		13149321E10C325276768DD5 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		145D05F53CFC95EA650B720C /* TabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBar.swift; sourceTree = "<group>"; };
 		319D4205BFCC35DC6757600B /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		354C1F47B2C105A157D90B7C /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		38A0E0386259C1431BB7F2D1 /* WalletWeather.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = WalletWeather.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3FF8DF9E3C8A01A950E0D995 /* NoticeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoticeView.swift; sourceTree = "<group>"; };
 		4EF6456B5FCCB4251D23495E /* LoadState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadState.swift; sourceTree = "<group>"; };
 		4F10AF2509F0101D7139AD73 /* MoveMoneySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveMoneySheet.swift; sourceTree = "<group>"; };
+		56BAA46087C2B76E94F0EE25 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8612988B4A68458DECAB4745 /* MoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreView.swift; sourceTree = "<group>"; };
 		8C093F3234CB4BC473C55E68 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
 		8D0553102CA76CF6F2551892 /* BillsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillsView.swift; sourceTree = "<group>"; };
@@ -101,6 +105,7 @@
 				3FF8DF9E3C8A01A950E0D995 /* NoticeView.swift */,
 				ABF20F601A1EB2143ABA37C6 /* RootView.swift */,
 				BDE64033EF7589F61FD10A90 /* SearchView.swift */,
+				145D05F53CFC95EA650B720C /* TabBar.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -110,6 +115,7 @@
 			children = (
 				354C1F47B2C105A157D90B7C /* AppModel.swift */,
 				AAC7A791EEE3C72BA42ED155 /* AppSettings.swift */,
+				56BAA46087C2B76E94F0EE25 /* Assets.xcassets */,
 				D477F5ED78FD4EA9DBFD3630 /* Keychain.swift */,
 				A5B7EE513A73A7A19A6F7A07 /* SignInSheet.swift */,
 				13149321E10C325276768DD5 /* Theme.swift */,
@@ -145,6 +151,7 @@
 			buildConfigurationList = B961D19CE649F25CD2CA7866 /* Build configuration list for PBXNativeTarget "WalletWeather" */;
 			buildPhases = (
 				48D82C6FF4726598A82F6F9E /* Sources */,
+				7DB0EB2A67DD238FE45315BD /* Resources */,
 				9412EC8149402ED5322C86F1 /* Frameworks */,
 			);
 			buildRules = (
@@ -195,6 +202,17 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		7DB0EB2A67DD238FE45315BD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D5D57BB1E4FEEC41226F4577 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		48D82C6FF4726598A82F6F9E /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -218,6 +236,7 @@
 				B29B4373B3A526BF9E85393F /* RootView.swift in Sources */,
 				80669495013A8E87A3743E59 /* SearchView.swift in Sources */,
 				1B91942AA2AD6B61B89A0CA2 /* SignInSheet.swift in Sources */,
+				D13FCDB6E06382F99755241E /* TabBar.swift in Sources */,
 				7F55D88A9F9D45F195025027 /* Theme.swift in Sources */,
 				34B3D211AEFC9C768C051569 /* WalletWeatherApp.swift in Sources */,
 			);

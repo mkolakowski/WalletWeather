@@ -29,7 +29,7 @@ struct BillsView: View {
     private var account: Account? { accounts.first { $0.id == accountId } }
 
     var body: some View {
-        NavigationStack {
+        PageStack {
             content
                 .keptBar(kept)
                 .background(PageBackground().ignoresSafeArea())

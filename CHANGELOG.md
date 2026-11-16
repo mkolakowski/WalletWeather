@@ -69,7 +69,15 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.54.2** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.7.0**
+App version: **1.54.2** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.7.1**
+
+### Changed
+
+- The iPhone app now names its sign-in after the phone's model ("iPhone 16
+  Pro Max") instead of just "iPhone", and the Connect screen has a **Name for
+  this phone** field to change it before signing in. That name is what the
+  web app's Settings → API tokens shows. (iOS only tells apps the name you
+  gave your phone with a permission from Apple, so the model is the default.)
 
 ## [1.54.2] — 2026-11-15
 

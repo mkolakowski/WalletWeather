@@ -6,7 +6,7 @@ Tracking issue: #170
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Set up, sign in with a code, recovery | #165 | Built 2026-11-15 (app 1.57.0, web 1.75.0, schema 20); not released |
+| 1. Set up, sign in with a code, recovery | #165 | Released in 1.57.0 (web 1.75.0, schema 20) |
 | 2. A code in the iOS app's sign-in | #166 | Open, after phase 1 |
 | 3. Remember this browser | #167 | Open, after phase 1 |
 | 4. Admin: require it for everyone | #168 | Open, after phase 1 |
@@ -14,7 +14,7 @@ Tracking issue: #170
 
 Planned 2026-11-15.
 
-Phase 1 built 2026-11-15 as app 1.57.0 (web 1.75.0, schema 20). Verified by 21 new tests in `test_two_factor.py` (263 in all pass), the codes against the standard's published values among them. The screens were driven in a headless browser against a throwaway server (set-up, the QR code decoded back to its link, the code step, a recovery code, the app sign-in page, new recovery codes, the admin switch-off: 19 checks pass). Not released, and not yet tried on your instance with a real authenticator app.
+Phase 1 built 2026-11-15 as app 1.57.0 (web 1.75.0, schema 20). Verified by 21 new tests in `test_two_factor.py` (263 in all pass), the codes against the standard's published values among them. The screens were driven in a headless browser against a throwaway server (set-up, the QR code decoded back to its link, the code step, a recovery code, the app sign-in page, new recovery codes, the admin switch-off: 19 checks pass). Released 2026-11-15 in v1.57.0 (release issue #172). Not yet tried on your instance with a real authenticator app.
 
 Sessions: may span — each phase ends with a release and your try on your own instance with a real authenticator app before the next starts.
 

@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.64.0** · Web version: **1.80.0** · Schema version: **22** · iOS version: **0.16.0**
+App version: **1.65.0** · Web version: **1.80.0** · Schema version: **22** · iOS version: **0.16.0**
 
 ### Security
 
@@ -111,6 +111,18 @@ More from the security review (plan: `Plans/security-fixes.md`, #190).
 - **The API's built-in documentation pages are off:** `/docs`, `/redoc` and
   `/openapi.json` described every route to anyone who asked. The README
   documents the API. (#187)
+- **Updated libraries with known security advisories:** the web framework
+  (FastAPI 0.163.1 with Starlette 1.10.0), the Google sign-in library
+  (Authlib 1.9.8) and the cryptography library (50.0.2) were behind fixes
+  for 38 published advisories between them. Few could be reached in the
+  way WalletWeather uses them, but one could (see 1.62.0's note on required
+  two-factor). Two libraries nothing used, python-multipart and
+  APScheduler, are no longer in the image. If you use Google sign-in, try
+  it once after updating. (#188)
+- **A tighter container:** `docker-compose.yml` now runs the app with a
+  read-only file system (it writes only to the backups volume), no Linux
+  capabilities and no way to gain privileges. Copy those lines into your
+  own compose file if you keep one. (#188)
 
 ## [1.62.0] — 2026-11-16
 

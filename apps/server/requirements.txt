@@ -1,12 +1,13 @@
-fastapi==0.115.0
+fastapi==0.163.1
+# FastAPI's own web layer, pinned by name so its advisories are answered on
+# purpose (security-fixes phase 5, #188).
+starlette==1.10.0
 uvicorn[standard]==0.32.0
 sqlalchemy==2.0.35
 psycopg[binary]==3.2.3
-authlib==1.3.2
+authlib==1.9.8
 itsdangerous==2.2.0
-cryptography==43.0.1
+cryptography==50.0.2
 bcrypt==4.2.0
-python-multipart==0.0.12
 httpx==0.27.2
 pydantic==2.9.2
-APScheduler==3.10.4

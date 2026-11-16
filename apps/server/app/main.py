@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.64.0"
+APP_VERSION = "1.65.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,10 @@ APP_VERSION = "1.64.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.65.0 (2026-11-16, claude+mkolakowski): dependencies (security-fixes
+#     phase 5, #188): fastapi 0.163.1 with starlette 1.10.0, authlib 1.9.8,
+#     cryptography 50.0.2; python-multipart and APScheduler, which nothing
+#     called, are gone. No change to what the API does.
 # 1.64.0 (2026-11-16, claude+mkolakowski): the browser's side
 #     (security-fixes phase 4, #187). A POST, PUT, PATCH or DELETE that a
 #     browser says comes from another site is answered 403 (Origin compared

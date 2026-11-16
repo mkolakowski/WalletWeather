@@ -56,6 +56,16 @@ services:
       - "8300:8000"
     volumes:
       - backup_data:/data/backups
+    # The app only ever writes to the backups volume, so it gets nothing
+    # else: a read-only file system, no Linux capabilities and no way to
+    # gain privileges (security-fixes phase 5, #188).
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   db_data:

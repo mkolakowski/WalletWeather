@@ -10,7 +10,7 @@ package's `.dist-info` folder under
 
 The web client (`apps/web`) contains no third-party code, fonts or images.
 
-Checked on 2026-11-14 against WalletWeather 1.22.2 by installing
+Checked on 2026-11-16 against WalletWeather 1.65.0 by installing
 `apps/server/requirements.txt` in a clean `python:3.12-slim` container.
 Packages marked "direct" are pinned in that file; the others are pulled in
 by them and their versions can move between builds.
@@ -34,16 +34,16 @@ used as published, unmodified.
 
 | Package | Licence | |
 | --- | --- | --- |
+| annotated-doc | MIT | |
 | annotated-types | MIT | |
 | anyio | MIT | |
-| APScheduler 3.10.4 | MIT | direct |
-| Authlib 1.3.2 | BSD-3-Clause | direct |
+| Authlib 1.9.8 | BSD-3-Clause | direct |
 | bcrypt 4.2.0 | Apache-2.0 | direct |
 | certifi | MPL-2.0 | see above |
 | cffi | MIT-0 | |
 | click | BSD-3-Clause | |
-| cryptography 43.0.1 | Apache-2.0 or BSD-3-Clause | direct |
-| fastapi 0.115.0 | MIT | direct |
+| cryptography 50.0.2 | Apache-2.0 or BSD-3-Clause | direct |
+| fastapi 0.163.1 | MIT | direct |
 | greenlet | MIT and PSF-2.0 | |
 | h11 | MIT | |
 | httpcore | BSD-3-Clause | |
@@ -51,19 +51,18 @@ used as published, unmodified.
 | httpx 0.27.2 | BSD-3-Clause | direct |
 | idna | BSD-3-Clause | |
 | itsdangerous 2.2.0 | BSD-3-Clause | direct |
+| joserfc | BSD-3-Clause | |
+| opentelemetry-api | Apache-2.0 | |
 | psycopg, psycopg-binary 3.2.3 | LGPL-3.0 | direct, see above |
 | pycparser | BSD-3-Clause | |
 | pydantic 2.9.2, pydantic_core | MIT | direct |
 | python-dotenv | BSD-3-Clause | |
-| python-multipart 0.0.12 | Apache-2.0 | direct |
-| pytz | MIT | |
 | PyYAML | MIT | |
-| six | MIT | |
 | sniffio | MIT or Apache-2.0 | |
 | SQLAlchemy 2.0.35 | MIT | direct |
-| starlette | BSD-3-Clause | |
+| starlette 1.10.0 | BSD-3-Clause | direct |
 | typing_extensions | PSF-2.0 | |
-| tzlocal | MIT | |
+| typing-inspection | MIT | |
 | uvicorn 0.32.0 | BSD-3-Clause | direct |
 | uvloop | MIT or Apache-2.0 | |
 | watchfiles | MIT | |

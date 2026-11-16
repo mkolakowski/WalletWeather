@@ -10,7 +10,7 @@ Tracking issue: #190
 | 2. Limits on what's accepted | #185 | Built as 1.63.0, not released |
 | 3. Sessions that can be ended | #186 | Not started; waits on open question 1 |
 | 4. The browser's side | #187 | Built as 1.64.0 (web 1.80.0), not released |
-| 5. Dependencies and the image | #188 | Not started |
+| 5. Dependencies and the image | #188 | Built as 1.65.0, not released |
 | 6. Sharing and sign-in limits | #189 | Not started; waits on open questions 2 to 4 |
 
 Planned 2026-11-16, from the security review of the server (#178).
@@ -20,6 +20,8 @@ Phase 1 built and released 2026-11-16 as app 1.62.0 (web 1.79.0, schema 22), bef
 Phase 2 built 2026-11-16 as app 1.63.0 (web and schema unchanged). Verified by its tests moving from `test_security_findings.py` to `test_security_fixes.py` with their markers off, and 11 more on the limits themselves (480 pass in all).
 
 Phase 4 built 2026-11-16 as app 1.64.0 (web 1.80.0). Verified by its tests with their markers off and 24 more (507 pass in all), and a headless browser run: the web app signs in and saves as before with no script errors, a write from another site's page plants nothing, and the app sign-in page refuses to be framed. The browser run found that Chrome keeps a `no-store` request open until its body is read, so the web app now lets go of the answers it doesn't read.
+
+Phase 5 built 2026-11-16 as app 1.65.0. Verified by the whole suite on the new libraries (507 pass, the licence check among them), `/cve-scan`'s script end to end (0 advisories in 35 packages, down from 38 in 4), and the real image run under the hardened Compose file in a throwaway project: it starts, registers a user, saves and writes a backup with a read-only file system and no capabilities. Left out on purpose: pinning images and Actions by digest. Nothing here runs on a schedule to move a pin forward, so a pinned base image would stop picking up its own security patches at each release build, which is worse than the risk it removes.
 
 Sessions: may span — six releases, and four answers of yours between them.
 
@@ -63,8 +65,8 @@ Sessions: may span — six releases, and four answers of yours between them.
 | WW-SEC-03 | A session can't be ended from elsewhere; a password change leaves other browsers signed in | Medium | 3 |
 | WW-SEC-07 | ~~Writes from another site's page are stopped only by the cookie's `SameSite=Lax`~~ | Medium | 4, built |
 | WW-SEC-08 | ~~No security headers; the API's documentation pages are public~~ | Low | 4, built |
-| WW-SEC-15 | starlette, authlib, cryptography and python-multipart carry known advisories | Medium | 5 |
-| WW-SEC-19 | Images and Actions pinned by tag; Compose runs the web service with default privileges | Low | 5 |
+| WW-SEC-15 | ~~starlette, authlib, cryptography and python-multipart carry known advisories~~ | Medium | 5, built |
+| WW-SEC-19 | ~~Images and Actions pinned by tag; Compose runs the web service with default privileges~~ | Low | 5, built (Compose hardened; digest pins left out, see Status) |
 | WW-SEC-06 | Any user can list every user's email and name, and share an account to anyone | Medium | 6 |
 | WW-SEC-16 | The sign-in limit is per email and address only; registration has none | Low | 6 |
 | WW-SEC-17 | The Cloudflare token hand-back to the app isn't tied to the app that asked | Low | 6 |

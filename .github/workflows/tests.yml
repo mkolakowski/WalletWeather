@@ -49,3 +49,25 @@ jobs:
         env:
           TEST_DATABASE_URL: postgresql+psycopg://walletweather:walletweather@localhost:5432/walletweather_test
         run: pytest
+
+  # Fails when a pinned package, or anything it pulls in, has a published
+  # security advisory (security-fixes phase 5, #188). When it fails on a
+  # change that didn't touch requirements.txt, a new advisory came out:
+  # run /cve-scan to see whether it applies, then update the package.
+  advisories:
+    name: Known advisories
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/server
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Check requirements.txt against the advisory databases
+        run: |
+          pip install pip-audit==2.7.3
+          pip-audit -r requirements.txt

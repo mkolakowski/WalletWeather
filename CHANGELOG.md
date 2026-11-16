@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.54.1** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.7.0**
+App version: **1.54.2** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.7.0**
+
+## [1.54.2] — 2026-11-15
+
+App version: **1.54.2** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.7.0**
 
 ### Added
 
@@ -87,7 +91,6 @@ App version: **1.54.1** · Web version: **1.72.0** · Schema version: **19** · 
 - **A second WalletWeather window:** the app can now have more than one
   window, and Open in new window in each page's menu on the inner screen
   opens one on that page.
-
 - **The web app's themes on the iPhone** (iOS app 0.6.0). More → Appearance
   now offers Dracula, Solarized, Nord, Synthwave, Forest, Mint, Monokai and
   Sunset beside Light, Dark, AMOLED black and Sepia, in the web app's colours.
@@ -1989,7 +1992,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.54.1...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.54.2...HEAD
+[1.54.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.54.2
 [1.54.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.54.1
 [1.54.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.54.0
 [1.53.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.53.0

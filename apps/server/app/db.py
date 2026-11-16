@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "22"
+SCHEMA_VERSION = "23"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,9 @@ SCHEMA_VERSION = "22"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v23 (2026-11-16, claude+mkolakowski): add users.session_epoch — raised to
+#     sign a user out of every browser at once (#186). Existing sessions
+#     carry no number and count as 0, so nobody is signed out by the update.
 # v22 (2026-11-16, claude+mkolakowski): blank category and tag colours that
 #     aren't hex colours (#183). New ones are checked as they come in.
 # v21 (2026-11-15, claude+mkolakowski): add remembered_browsers — browsers
@@ -168,6 +171,8 @@ class User(Base):
     # When the user acknowledged the "Important notice" (the disclaimer shown
     # once after sign-in). NULL means not yet. Demo users are never asked.
     notice_ack_at = Column(DateTime, nullable=True)
+    # A session is good only while it carries this number (#186).
+    session_epoch = Column(Integer, nullable=False, default=0, server_default="0")
     # Two-factor sign-in (#165). The authenticator key, encrypted like the
     # financial fields; it's there from the start of set-up, and two-factor is
     # on only once totp_enabled_at is set. totp_last_step is the last
@@ -761,6 +766,8 @@ def init_db():
         "WHERE color IS NOT NULL AND color !~ '^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$'",
         "UPDATE tags SET color = NULL "
         "WHERE color IS NOT NULL AND color !~ '^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$'",
+        # v22 → v23: users.session_epoch (#186)
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS session_epoch INTEGER NOT NULL DEFAULT 0",
     ]
     with engine.begin() as conn:
         for sql in migrations:

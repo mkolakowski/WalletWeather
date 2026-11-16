@@ -67,6 +67,7 @@ MUST_BE_SESSION_ONLY = {
     ("GET", "/api/tokens"), ("POST", "/api/tokens"), ("DELETE", "/api/tokens/{token_id}"),
     ("GET", "/api/admin/tokens"), ("DELETE", "/api/admin/tokens/{token_id}"),
     ("POST", "/api/me/password"),
+    ("POST", "/api/me/sessions/end-others"),
     ("POST", "/api/me/two-factor/setup"), ("POST", "/api/me/two-factor/enable"),
     ("POST", "/api/me/two-factor/disable"), ("POST", "/api/me/two-factor/recovery-codes"),
     ("GET", "/api/me/remembered-browsers"), ("DELETE", "/api/me/remembered-browsers"),

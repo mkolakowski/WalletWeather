@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.65.0** · Web version: **1.80.0** · Schema version: **22** · iOS version: **0.16.0**
+App version: **1.66.0** · Web version: **1.81.0** · Schema version: **23** · iOS version: **0.16.0**
 
 ### Security
 
@@ -123,6 +123,21 @@ More from the security review (plan: `Plans/security-fixes.md`, #190).
   read-only file system (it writes only to the backups volume), no Linux
   capabilities and no way to gain privileges. Copy those lines into your
   own compose file if you keep one. (#188)
+- **Changing your password signs out your other browsers:** a session
+  used to stay good for two weeks whatever happened, so a browser someone
+  else was signed in on survived a password change. Now a password change,
+  and switching two-factor sign-in on or off, signs out every browser but
+  the one you're using, and Settings → Change password has a
+  **Sign out my other browsers** button that does only that. Apps and
+  scripts signed in with an API token keep working. When an administrator
+  resets someone's password, that user's browsers are signed out and
+  their API tokens stop too. Nobody is signed out by the update itself.
+  (#186)
+
+### Database
+
+- **Schema 23:** `users.session_epoch`, the number a session has to carry
+  to still count. (#186)
 
 ## [1.62.0] — 2026-11-16
 

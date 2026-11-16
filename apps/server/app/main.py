@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.65.0"
+APP_VERSION = "1.66.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,12 @@ APP_VERSION = "1.65.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.66.0 (2026-11-16, claude+mkolakowski): sessions that can be ended
+#     (security-fixes phase 3, #186). users.session_epoch (schema v23) is
+#     kept in the session cookie and checked on every request. Changing the
+#     password, an admin's reset, and switching two-factor on or off raise
+#     it, signing out the user's other browsers; an admin's reset also
+#     revokes the user's API tokens. New POST /api/me/sessions/end-others.
 # 1.65.0 (2026-11-16, claude+mkolakowski): dependencies (security-fixes
 #     phase 5, #188): fastapi 0.163.1 with starlette 1.10.0, authlib 1.9.8,
 #     cryptography 50.0.2; python-multipart and APScheduler, which nothing
@@ -972,12 +978,38 @@ def _authenticate(request: Request, db: Session) -> User:
     user = db.get(User, uid)
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    if request.session.get("v", 0) != (user.session_epoch or 0):
+        # Signed out from elsewhere: the password changed, or "sign out my
+        # other browsers" (#186).
+        request.session.clear()
+        raise HTTPException(status_code=401, detail="Not authenticated")
     if user.disabled:
         # Disabled users get logged out cleanly
         request.session.clear()
         raise HTTPException(status_code=403, detail="Account disabled")
     _hold_for_two_factor(request, db, user)
     return user
+
+
+# ---------- Sessions that can be ended (security-fixes phase 3, #186) ----------
+# The session cookie is signed, not stored, so there's nothing on the server
+# to delete when a session should end. Instead each user has a number,
+# session_epoch; a session carries the number it was started under, and a
+# session with an old number is no session. Raising the number signs out
+# every browser at once. Decided 2026-11-16 (docs/dev/decisions/
+# security-fixes.md): a password change ends the user's other browser
+# sessions and leaves their API tokens; an admin's reset ends both.
+def _start_session(request: Request, user: User) -> None:
+    request.session["uid"] = user.id
+    request.session["v"] = user.session_epoch or 0
+
+
+def _end_other_sessions(request: Request | None, user: User) -> None:
+    """Sign `user` out everywhere; the caller commits. With `request` (the
+    user's own), that one browser stays signed in."""
+    user.session_epoch = (user.session_epoch or 0) + 1
+    if request is not None:
+        request.session["v"] = user.session_epoch
 
 
 # ---------- Two-factor sign-in required by an admin (#168) ----------
@@ -1278,7 +1310,7 @@ def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db
     if db.query(User).filter_by(email=email).first():
         raise HTTPException(409, "An account with that email already exists")
     user = _create_password_user(db, email, payload.name, payload.password)
-    request.session["uid"] = user.id
+    _start_session(request, user)
     return {"id": user.id, "email": user.email}
 
 
@@ -1362,7 +1394,7 @@ def local_login(payload: LoginIn, request: Request, db: Session = Depends(get_db
         # A browser the user asked not to be asked on (#167): the password
         # is enough here until the remembering runs out or is forgotten.
         request.session.clear()
-        request.session["uid"] = user.id
+        _start_session(request, user)
         record_event(db, "login", request, user=user, detail="password; remembered browser")
         return {"id": user.id, "email": user.email}
     if user.totp_enabled_at is not None:
@@ -1373,7 +1405,7 @@ def local_login(payload: LoginIn, request: Request, db: Session = Depends(get_db
         request.session["2fa_at"] = int(time.time())
         record_event(db, "two_factor_asked", request, user=user, detail="password")
         return {"two_factor_required": True}
-    request.session["uid"] = user.id
+    _start_session(request, user)
     return {"id": user.id, "email": user.email}
 
 
@@ -1536,7 +1568,7 @@ def local_login_two_factor(payload: TwoFactorSignInIn, request: Request, respons
         record_event(db, "login_failed", request, user=user, detail="password; " + WRONG_CODE)
         raise HTTPException(401, "That code isn't right. Check your authenticator app and try again.")
     request.session.clear()
-    request.session["uid"] = user.id
+    _start_session(request, user)
     left = _recovery_codes_left(db, user)
     if how == "recovery code":
         record_event(db, "recovery_code_used", request, user=user, detail=f"{left} left")
@@ -1683,7 +1715,7 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
         seed_default_categories(db, user)
     record_event(db, "login", request, user=user, email=email,
                  detail="google; new user" if is_new else "google")
-    request.session["uid"] = user.id
+    _start_session(request, user)
     return RedirectResponse(_safe_next(request.session.pop("next", None)) or "/")
 
 
@@ -2027,10 +2059,23 @@ def change_password(payload: PasswordChangeIn, request: Request,
         raise HTTPException(403, "That password is incorrect.")
     _confirm_code_for(db, request, user, payload.code, "password change")
     user.password_hash = hash_password(payload.new_password)
-    # A new password forgets every remembered browser (#167).
+    # A new password forgets every remembered browser (#167) and signs out
+    # every other one (#186).
     _forget_browsers(db, user)
+    _end_other_sessions(request, user)
     db.commit()
     record_event(db, "password_changed", request, user=user)
+    return {"ok": True}
+
+
+@app.post("/api/me/sessions/end-others")
+def end_other_sessions(request: Request, user: User = Depends(current_session_user),
+                       db: Session = Depends(get_db)):
+    """Sign the caller out of every browser but this one (#186). API tokens
+    are separate: they're listed, and revoked, in Settings."""
+    _end_other_sessions(request, user)
+    db.commit()
+    record_event(db, "sessions_ended", request, user=user, detail="own other browsers")
     return {"ok": True}
 
 
@@ -2150,6 +2195,8 @@ def two_factor_enable(payload: TwoFactorCodeIn, request: Request,
     user.totp_enabled_at = datetime.utcnow()
     user.totp_last_step = step
     codes = _new_recovery_codes(db, user)
+    # Browsers signed in before it was on didn't give a code (#186).
+    _end_other_sessions(request, user)
     db.commit()
     record_event(db, "two_factor_enabled", request, user=user)
     return {"two_factor_enabled": True, "recovery_codes": codes}
@@ -2171,6 +2218,7 @@ def two_factor_disable(payload: TwoFactorConfirmIn, request: Request,
                        db: Session = Depends(get_db)):
     """Switch two-factor off, confirmed with the password and a code."""
     _confirm_two_factor(db, request, user, payload, "two-factor off")
+    _end_other_sessions(request, user)
     _clear_two_factor(db, user)
     record_event(db, "two_factor_disabled", request, user=user,
                  detail=audit_target(user, user.id))
@@ -6266,6 +6314,11 @@ def admin_update_user(uid: int, payload: AdminUserPatchIn, request: Request,
     if payload.new_password is not None:
         target.password_hash = hash_password(payload.new_password)
         _forget_browsers(db, target)  # a new password forgets them (#167)
+        # A reset is for an account that may be in the wrong hands: every
+        # browser of theirs is signed out and their API tokens stop (#186).
+        _end_other_sessions(request if target.id == user.id else None, target)
+        (db.query(ApiToken).filter(ApiToken.owner_id == target.id, ApiToken.revoked_at.is_(None))
+         .update({ApiToken.revoked_at: datetime.utcnow()}, synchronize_session=False))
         events.append("password_reset")
     if payload.two_factor is False and target.totp_enabled_at is not None:
         _clear_two_factor(db, target)
@@ -6504,7 +6557,7 @@ def admin_download_backup(filename: str, request: Request,
 # Every event record_event writes. The Admin panel's filter offers these.
 AUDIT_EVENT_TYPES = (
     "login", "login_failed", "login_blocked",
-    "password_changed", "password_reset",
+    "password_changed", "password_reset", "sessions_ended",
     "user_created", "user_disabled", "user_enabled", "user_deleted",
     "permission_changed", "app_title_changed", "backup_settings_changed",
     "backup_made", "backup_downloaded", "backup_restored",

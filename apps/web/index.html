@@ -2493,6 +2493,11 @@
           <div id="changePasswordError" class="auth-error hidden"></div>
           <div style="margin-top:12px"><button id="changePasswordBtn" type="submit">Change password</button></div>
         </form>
+        <p style="color:var(--muted);margin:16px 0 8px;font-size:13px">
+          Changing your password signs you out of every other browser. To do only that,
+          without changing it:
+        </p>
+        <button class="ghost" id="endOtherSessionsBtn" onclick="endOtherSessions()">Sign out my other browsers</button>
       </div>
 
       <div class="panel" data-settings-section="your-account" id="twoFactorPanel">
@@ -2666,7 +2671,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.80.0";
+const WEB_VERSION = "1.81.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2677,6 +2682,7 @@ const WEB_VERSION = "1.80.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.81.0 (2026-11-16, claude+mkolakowski): (#186) Settings → Change password gets "Sign out my other browsers" (#endOtherSessionsBtn → POST /api/me/sessions/end-others), and the password-changed notice says the other browsers were signed out.
 // 1.80.0 (2026-11-16, claude+mkolakowski): (#187) drain(res) lets go of an answer whose body is never read (a 401 in api(), sign-out, the two preference saves): API answers are no-store now, and Chrome keeps such a request open until its body is read or dropped.
 // 1.79.0 (2026-11-16, claude+mkolakowski): (#183) Security fixes from the review. Colours from the server are written into the page only when they are hex colours (safeColor at each place, scrubColors on every api() answer). The sign-up form shows a Registration code field (#suCode) when /api/auth/config says registration_code_required. Admin → User management gets Add a user (#adminNewEmail, #adminNewName, #adminNewPass → POST /api/admin/users).
 // 1.78.0 (2026-11-15, claude+mkolakowski): (#169) A code for sensitive actions. With two-factor on, Change password (#pwCode), Create token (#apiTokenCode) and Delete my account (#deleteAccountCode) get a "Code from your authenticator app" field and send it as code; shown only when me.two_factor_enabled. /app-sign-in's Allow step asks too.
@@ -5659,7 +5665,15 @@ async function changePassword(ev) {
     return;
   } finally { btn.disabled = false; }
   document.getElementById('changePasswordForm').reset();
-  notify('Password changed.');
+  notify('Password changed. Your other browsers were signed out.');
+}
+// Settings → "Sign out my other browsers" (#186). This browser stays in;
+// apps and scripts signed in with an API token aren't touched.
+async function endOtherSessions() {
+  if (!(await confirmDialog('Sign out every other browser you\'re signed in on? This one stays signed in. Apps using an API token aren\'t affected.', { title: 'Sign out other browsers', okLabel: 'Sign them out' }))) return;
+  try { await api('/api/me/sessions/end-others', { method: 'POST' }); }
+  catch (e) { notifyError('That didn’t work', e); return; }
+  notify('Your other browsers were signed out.');
 }
 // Settings → "Two-factor sign-in" (#165). One of four views shows: a note
 // for a Google-only user, "off" (start set-up), the set-up step (QR code,

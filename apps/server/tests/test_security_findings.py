@@ -56,34 +56,6 @@ REFUSED = (400, 403, 404, 409, 413, 422)
 NOT_A_COLOUR = '"onclick=eval(name) '
 
 
-# ---------- WW-SEC-03: sessions can't be ended from elsewhere ----------
-
-@finding("WW-SEC-03", "a password change leaves the user's other sessions signed in")
-def test_changing_the_password_signs_out_other_browsers(app_started):
-    here, user = register(app_started)
-    there = TestClient(app_started)
-    r = there.post("/api/auth/login", json={"email": user["email"], "password": PASSWORD})
-    assert r.status_code == 200 and there.get("/api/me").status_code == 200
-    r = here.post("/api/me/password", json={"current_password": PASSWORD,
-                                            "new_password": "a-brand-new-password"})
-    assert r.status_code == 200, r.text
-    assert there.get("/api/me").status_code == 401
-
-
-@finding("WW-SEC-03", "an admin's password reset leaves the user's sessions signed in")
-def test_an_admins_password_reset_signs_the_user_out(app_started):
-    from app import main
-    admin, admin_user = register(app_started)
-    stolen, user = register(app_started)       # a session someone else holds
-    main.ADMIN_EMAILS.add(admin_user["email"])
-    try:
-        r = admin.patch(f"/api/admin/users/{user['id']}", json={"new_password": "reset-by-admin-1"})
-        assert r.status_code == 200, r.text
-    finally:
-        main.ADMIN_EMAILS.discard(admin_user["email"])
-    assert stolen.get("/api/me").status_code == 401
-
-
 # ---------- WW-SEC-06: everyone's address ----------
 
 @finding("WW-SEC-06", "the Permissions panel lists every user's email and name", design=True)

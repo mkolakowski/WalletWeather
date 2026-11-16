@@ -1,5 +1,5 @@
 """Fixes from the 2026-11-16 security review (#178), each guarded by the test
-that failed before it (#183 in 1.62.0, #185 in 1.63.0, #187 in 1.64.0). The ids (WW-SEC-01 ...) are the
+that failed before it (#183 in 1.62.0, #185 in 1.63.0, #187 in 1.64.0, #186 in 1.66.0). The ids (WW-SEC-01 ...) are the
 review's.
 """
 import os
@@ -635,3 +635,117 @@ def test_the_headers_are_on_errors_and_static_files_too(app_started):
     # The page and the service worker keep their own caching rule.
     assert c.get("/").headers["cache-control"] == "no-cache"
     assert "no-store" in c.get("/api/auth/config").headers["cache-control"]
+
+
+# ---------- WW-SEC-03: sessions can't be ended from elsewhere ----------
+
+def test_changing_the_password_signs_out_other_browsers(app_started):
+    here, user = register(app_started)
+    there = TestClient(app_started)
+    r = there.post("/api/auth/login", json={"email": user["email"], "password": PASSWORD})
+    assert r.status_code == 200 and there.get("/api/me").status_code == 200
+    r = here.post("/api/me/password", json={"current_password": PASSWORD,
+                                            "new_password": "a-brand-new-password"})
+    assert r.status_code == 200, r.text
+    assert there.get("/api/me").status_code == 401
+
+
+def test_an_admins_password_reset_signs_the_user_out(app_started):
+    from app import main
+    admin, admin_user = register(app_started)
+    stolen, user = register(app_started)       # a session someone else holds
+    main.ADMIN_EMAILS.add(admin_user["email"])
+    try:
+        r = admin.patch(f"/api/admin/users/{user['id']}", json={"new_password": "reset-by-admin-1"})
+        assert r.status_code == 200, r.text
+    finally:
+        main.ADMIN_EMAILS.discard(admin_user["email"])
+    assert stolen.get("/api/me").status_code == 401
+
+
+# ---------- More on WW-SEC-03: what ends, and what doesn't ----------
+
+def _second_browser(app, user):
+    c = TestClient(app)
+    r = c.post("/api/auth/login", json={"email": user["email"], "password": PASSWORD})
+    assert r.status_code == 200 and c.get("/api/me").status_code == 200
+    return c
+
+
+def test_the_browser_that_changed_the_password_stays_in_and_tokens_keep_working(app_started):
+    here, user = register(app_started)
+    token = here.post("/api/tokens", json={"name": "app", "access": "read"}).json()["token"]
+    r = here.post("/api/me/password", json={"current_password": PASSWORD,
+                                            "new_password": "a-brand-new-password"})
+    assert r.status_code == 200
+    assert here.get("/api/me").status_code == 200
+    bearer = {"Authorization": "Bearer " + token}
+    assert TestClient(app_started).get("/api/me", headers=bearer).status_code == 200
+    # And a new sign-in with the new password is a good session.
+    again = TestClient(app_started)
+    assert again.post("/api/auth/login", json={"email": user["email"],
+                                               "password": "a-brand-new-password"}).status_code == 200
+    assert again.get("/api/me").status_code == 200
+
+
+def test_sign_out_my_other_browsers(app_started):
+    here, user = register(app_started)
+    there = _second_browser(app_started, user)
+    token = here.post("/api/tokens", json={"name": "app", "access": "read"}).json()["token"]
+    r = here.post("/api/me/sessions/end-others")
+    assert r.status_code == 200 and r.json() == {"ok": True}
+    assert there.get("/api/me").status_code == 401
+    assert there.get("/api/accounts").status_code == 401
+    assert here.get("/api/me").status_code == 200
+    bearer = {"Authorization": "Bearer " + token}
+    assert TestClient(app_started).get("/api/me", headers=bearer).status_code == 200
+
+
+def test_ending_other_sessions_needs_a_browser_session(app_started):
+    c, _ = register(app_started)
+    assert TestClient(app_started).post("/api/me/sessions/end-others").status_code == 401
+    token = c.post("/api/tokens", json={"name": "app", "access": "full"}).json()["token"]
+    r = TestClient(app_started).post("/api/me/sessions/end-others",
+                                     headers={"Authorization": "Bearer " + token})
+    assert r.status_code == 403
+
+
+def test_an_admins_reset_also_ends_the_users_tokens(app_started, admin):
+    c, _ = admin
+    theirs, user = register(app_started)
+    token = theirs.post("/api/tokens", json={"name": "app", "access": "full"}).json()["token"]
+    bearer = {"Authorization": "Bearer " + token}
+    assert TestClient(app_started).get("/api/me", headers=bearer).status_code == 200
+    r = c.patch(f"/api/admin/users/{user['id']}", json={"new_password": "reset-by-admin-1"})
+    assert r.status_code == 200
+    assert TestClient(app_started).get("/api/me", headers=bearer).status_code == 401
+    assert theirs.get("/api/me").status_code == 401
+    assert c.get("/api/me").status_code == 200           # the admin is untouched
+
+
+def test_switching_two_factor_on_signs_out_browsers_that_never_gave_a_code(app_started):
+    import time
+    from app import twofactor
+    here, user = register(app_started)
+    there = _second_browser(app_started, user)
+    secret = here.post("/api/me/two-factor/setup", json={"password": PASSWORD}).json()["secret"]
+    code = twofactor.code_at(secret, twofactor.current_step(time.time()))
+    assert here.post("/api/me/two-factor/enable", json={"code": code}).status_code == 200
+    assert there.get("/api/me").status_code == 401
+    assert here.get("/api/me").json()["two_factor_enabled"] is True
+
+
+def test_a_session_from_before_the_update_still_works(app_started):
+    """A cookie with no number counts as 0, so updating signs nobody out."""
+    import base64, json
+    import itsdangerous
+    from app import main
+    _, user = register(app_started)
+    signer = itsdangerous.TimestampSigner(main.SECRET_KEY)
+    old = signer.sign(base64.b64encode(json.dumps({"uid": user["id"]}).encode())).decode()
+    c = TestClient(app_started)
+    c.cookies.set("session", old)
+    assert c.get("/api/me").json()["email"] == user["email"]
+    here = _second_browser(app_started, user)
+    assert here.post("/api/me/sessions/end-others").status_code == 200
+    assert c.get("/api/me").status_code == 401

@@ -2346,7 +2346,12 @@
             <div style="flex:1;min-width:0"><input id="apiTokenValue" readonly aria-label="New API token" style="width:100%;font-family:monospace" onfocus="this.select()"></div>
             <div style="flex:0 0 auto"><button type="button" onclick="copyApiToken()">Copy</button></div>
             <div id="apiTokenOpenAppWrap" class="hidden" style="flex:0 0 auto"><button type="button" id="apiTokenOpenApp">Open in WalletWeather</button></div>
-            <div style="flex:0 0 auto"><button type="button" class="ghost" onclick="document.getElementById('apiTokenNew').classList.add('hidden')">Done</button></div>
+            <div id="apiTokenQrWrap" class="hidden" style="flex:0 0 auto"><button type="button" id="apiTokenQrBtn" onclick="toggleApiTokenQr()" aria-expanded="false" aria-controls="apiTokenQr">Show QR code</button></div>
+            <div style="flex:0 0 auto"><button type="button" class="ghost" onclick="hideNewApiToken()">Done</button></div>
+          </div>
+          <div id="apiTokenQr" class="hidden" style="margin-top:10px">
+            <div id="apiTokenQrCode" style="width:220px;max-width:100%;line-height:0;border-radius:6px;overflow:hidden"></div>
+            <div style="font-size:12px;color:var(--muted);margin-top:6px">Scan it with the WalletWeather app on your iPhone (Connect → Other ways to sign in → Scan a QR code), or with the phone's Camera. Anyone who can see it can use the token.</div>
           </div>
         </div>
         <div class="row">
@@ -2492,7 +2497,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.72.0";
+const WEB_VERSION = "1.73.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2503,6 +2508,7 @@ const WEB_VERSION = "1.72.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.73.0 (2026-11-15, claude+mkolakowski): (#100) Settings → API tokens: a new token gets a "Show QR code" button (#apiTokenQrBtn) off an iPhone, drawing its walletweather://connect link as a QR code for the iOS app to scan. The QR encoder (qrMatrix, qrSvg) is written for the page; Done (hideNewApiToken) clears the code and the token.
 // 1.72.0 (2026-11-15, claude+mkolakowski): (#87) Settings → API tokens: on an iPhone, a new token gets an "Open in WalletWeather" button (#apiTokenOpenApp) beside Copy, which opens walletweather://connect?server=…&token=… in the iOS app. New page apps/web/app-sign-in.html (served at /app-sign-in) for signing in the iOS app.
 // 1.71.0 (2026-11-15, claude+mkolakowski): (#134) Admin page: an "Audit log" panel (loadAdminAudit) lists /api/admin/audit newest first, with an Event select, an "Email contains" search and Load more; "user #7" in a detail shows that user's email while they exist; every value is escaped.
 // 1.70.0 (2026-11-15, claude+mkolakowski): (#133) Settings → Your account: a "Change password" panel (loadChangePassword / changePassword) posts the current and new password to /api/me/password; a Google-only user (me.has_password false) sees a note instead.
@@ -4940,10 +4946,235 @@ async function createApiToken() {
   // (ios-app phase 1, #87). The app asks before it connects.
   const appLink = 'walletweather://connect?' + new URLSearchParams({ server: location.origin, token: made.token });
   document.getElementById('apiTokenOpenApp').onclick = () => { location.href = appLink; };
-  document.getElementById('apiTokenOpenAppWrap').classList.toggle('hidden', !/iPhone/.test(navigator.userAgent));
+  const onIPhone = /iPhone/.test(navigator.userAgent);
+  document.getElementById('apiTokenOpenAppWrap').classList.toggle('hidden', !onIPhone);
+  // Off an iPhone, the same link as a QR code the app scans (ios-app phase 7,
+  // #100), drawn only when asked for: anyone who can see it can use it.
+  apiTokenQrLink = appLink;
+  setApiTokenQr(false);
+  document.getElementById('apiTokenQrWrap').classList.toggle('hidden', onIPhone);
   document.getElementById('apiTokenNew').classList.remove('hidden');
   document.getElementById('apiTokenValue').focus();
   await loadApiTokens();
+}
+// --- QR code (ios-app phase 7, #100) ----------------------------------------
+// Draws a QR code for a new API token's walletweather://connect link, so the
+// iPhone app (or the phone's Camera) can scan it from a computer's screen.
+// Written for the page from the QR code standard (ISO/IEC 18004), decided
+// 2026-11-15 (docs/dev/decisions/ios-app.md): byte mode, error correction
+// level M, the smallest version that fits, and the mask with the lowest
+// penalty. qrMatrix(text) gives rows of booleans (true = dark); qrSvg(text)
+// an SVG with the four-module quiet zone, always dark on white.
+const QR_ECC_PER_BLOCK_M = [0, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26, 30, 22, 22, 24, 24, 28, 28, 26, 26, 26,
+  26, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28];
+const QR_BLOCKS_M = [0, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5, 5, 8, 9, 9, 10, 10, 11, 13, 14, 16,
+  17, 17, 18, 20, 21, 23, 25, 26, 28, 29, 31, 33, 35, 37, 38, 40, 43, 45, 47, 49];
+function qrRawModules(ver) {
+  // Modules left for data and error correction once the fixed patterns are drawn.
+  let n = (16 * ver + 128) * ver + 64;
+  if (ver >= 2) {
+    const align = Math.floor(ver / 7) + 2;
+    n -= (25 * align - 10) * align - 55;
+    if (ver >= 7) n -= 36;
+  }
+  return n;
+}
+function qrDataCodewords(ver) {
+  return Math.floor(qrRawModules(ver) / 8) - QR_ECC_PER_BLOCK_M[ver] * QR_BLOCKS_M[ver];
+}
+function qrAlignmentPositions(ver, size) {
+  if (ver === 1) return [];
+  const count = Math.floor(ver / 7) + 2;
+  const step = Math.floor((ver * 8 + count * 3 + 5) / (count * 4 - 4)) * 2;
+  const out = [6];
+  for (let pos = size - 7; out.length < count; pos -= step) out.splice(1, 0, pos);
+  return out;
+}
+// Reed-Solomon over GF(256) with the polynomial x^8 + x^4 + x^3 + x^2 + 1.
+function qrGfMul(a, b) {
+  let r = 0;
+  for (let i = 7; i >= 0; i--) {
+    r = (r << 1) ^ ((r >>> 7) * 0x11D);
+    r ^= ((b >>> i) & 1) * a;
+  }
+  return r;
+}
+function qrRsDivisor(degree) {
+  const out = new Array(degree).fill(0);
+  out[degree - 1] = 1;
+  let root = 1;
+  for (let i = 0; i < degree; i++) {
+    for (let j = 0; j < degree; j++) {
+      out[j] = qrGfMul(out[j], root);
+      if (j + 1 < degree) out[j] ^= out[j + 1];
+    }
+    root = qrGfMul(root, 0x02);
+  }
+  return out;
+}
+function qrRsRemainder(data, divisor) {
+  const out = new Array(divisor.length).fill(0);
+  for (const b of data) {
+    const factor = b ^ out.shift();
+    out.push(0);
+    divisor.forEach((d, i) => { out[i] ^= qrGfMul(d, factor); });
+  }
+  return out;
+}
+function qrMatrix(text) {
+  const bytes = Array.from(new TextEncoder().encode(text));
+  let ver = 1;
+  for (; ver <= 40; ver++) {
+    if (4 + (ver < 10 ? 8 : 16) + bytes.length * 8 <= qrDataCodewords(ver) * 8) break;
+  }
+  if (ver > 40) throw new Error('Too long for a QR code');
+  // The bit stream: byte mode, the length, the bytes, then padding.
+  const capacity = qrDataCodewords(ver) * 8;
+  const bits = [];
+  const put = (value, count) => { for (let i = count - 1; i >= 0; i--) bits.push((value >>> i) & 1); };
+  put(4, 4);
+  put(bytes.length, ver < 10 ? 8 : 16);
+  bytes.forEach(b => put(b, 8));
+  put(0, Math.min(4, capacity - bits.length));
+  put(0, (8 - bits.length % 8) % 8);
+  for (let pad = 0xEC; bits.length < capacity; pad ^= 0xEC ^ 0x11) put(pad, 8);
+  const data = [];
+  for (let i = 0; i < bits.length; i += 8) data.push(bits.slice(i, i + 8).reduce((a, b) => (a << 1) | b, 0));
+  // Split into blocks, add each block's error correction, and interleave.
+  const blockCount = QR_BLOCKS_M[ver];
+  const eccLen = QR_ECC_PER_BLOCK_M[ver];
+  const rawCodewords = Math.floor(qrRawModules(ver) / 8);
+  const shortBlocks = blockCount - rawCodewords % blockCount;
+  const shortLen = Math.floor(rawCodewords / blockCount) - eccLen;
+  const divisor = qrRsDivisor(eccLen);
+  const blocks = [];
+  for (let i = 0, k = 0; i < blockCount; i++) {
+    const part = data.slice(k, k += shortLen + (i < shortBlocks ? 0 : 1));
+    blocks.push({ data: part, ecc: qrRsRemainder(part, divisor) });
+  }
+  const codewords = [];
+  for (let i = 0; i <= shortLen; i++) blocks.forEach(b => { if (i < b.data.length) codewords.push(b.data[i]); });
+  for (let i = 0; i < eccLen; i++) blocks.forEach(b => codewords.push(b.ecc[i]));
+
+  const size = ver * 4 + 17;
+  const grid = Array.from({ length: size }, () => new Array(size).fill(false));
+  const fixed = Array.from({ length: size }, () => new Array(size).fill(false));
+  const set = (x, y, dark) => { grid[y][x] = dark; fixed[y][x] = true; };
+  for (let i = 0; i < size; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+  for (const [cx, cy] of [[3, 3], [size - 4, 3], [3, size - 4]]) {
+    for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+      const x = cx + dx, y = cy + dy, ring = Math.max(Math.abs(dx), Math.abs(dy));
+      if (x >= 0 && x < size && y >= 0 && y < size) set(x, y, ring !== 2 && ring !== 4);
+    }
+  }
+  const align = qrAlignmentPositions(ver, size);
+  align.forEach((ax, i) => align.forEach((ay, j) => {
+    const last = align.length - 1;
+    if ((i === 0 && j === 0) || (i === 0 && j === last) || (i === last && j === 0)) return;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(ax + dx, ay + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1);
+  }));
+  const drawFormat = mask => {
+    const value = (0 << 3) | mask;  // level M is 00
+    let rem = value;
+    for (let i = 0; i < 10; i++) rem = (rem << 1) ^ ((rem >>> 9) * 0x537);
+    const f = ((value << 10) | rem) ^ 0x5412;
+    const bit = i => ((f >>> i) & 1) === 1;
+    for (let i = 0; i <= 5; i++) set(8, i, bit(i));
+    set(8, 7, bit(6)); set(8, 8, bit(7)); set(7, 8, bit(8));
+    for (let i = 9; i < 15; i++) set(14 - i, 8, bit(i));
+    for (let i = 0; i < 8; i++) set(size - 1 - i, 8, bit(i));
+    for (let i = 8; i < 15; i++) set(8, size - 15 + i, bit(i));
+    set(8, size - 8, true);
+  };
+  drawFormat(0);  // reserves its modules before the data goes in
+  if (ver >= 7) {
+    let rem = ver;
+    for (let i = 0; i < 12; i++) rem = (rem << 1) ^ ((rem >>> 11) * 0x1F25);
+    const v = (ver << 12) | rem;
+    for (let i = 0; i < 18; i++) {
+      const dark = ((v >>> i) & 1) === 1, a = size - 11 + i % 3, b = Math.floor(i / 3);
+      set(a, b, dark); set(b, a, dark);
+    }
+  }
+  // The codewords, two columns at a time, zigzagging up and down from the right.
+  let n = 0;
+  for (let right = size - 1; right >= 1; right -= 2) {
+    if (right === 6) right = 5;
+    for (let vert = 0; vert < size; vert++) for (let j = 0; j < 2; j++) {
+      const x = right - j, y = ((right + 1) & 2) === 0 ? size - 1 - vert : vert;
+      if (!fixed[y][x] && n < codewords.length * 8) {
+        grid[y][x] = ((codewords[n >>> 3] >>> (7 - (n & 7))) & 1) === 1;
+        n++;
+      }
+    }
+  }
+  const masks = [
+    (x, y) => (x + y) % 2 === 0, (x, y) => y % 2 === 0, (x, y) => x % 3 === 0, (x, y) => (x + y) % 3 === 0,
+    (x, y) => (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0, (x, y) => x * y % 2 + x * y % 3 === 0,
+    (x, y) => (x * y % 2 + x * y % 3) % 2 === 0, (x, y) => ((x + y) % 2 + x * y % 3) % 2 === 0,
+  ];
+  const applyMask = m => {
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (!fixed[y][x] && masks[m](x, y)) grid[y][x] = !grid[y][x];
+  };
+  const penalty = () => {
+    let score = 0, dark = 0;
+    const lines = [];
+    for (let i = 0; i < size; i++) { lines.push(grid[i]); lines.push(grid.map(r => r[i])); }
+    const finderLike = [true, false, true, true, true, false, true];
+    for (const line of lines) {
+      for (let i = 0, run = 1; i < size; i++) {
+        if (i > 0 && line[i] === line[i - 1]) run++; else run = 1;
+        if (run === 5) score += 3; else if (run > 5) score += 1;
+      }
+      for (let i = 0; i + 7 <= size; i++) {
+        if (!finderLike.every((d, k) => line[i + k] === d)) continue;
+        const lightRun = from => { for (let k = from; k < from + 4; k++) if (k >= 0 && k < size && line[k]) return false; return true; };
+        if (lightRun(i - 4)) score += 40;
+        if (lightRun(i + 7)) score += 40;
+      }
+    }
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      if (grid[y][x]) dark++;
+      if (x + 1 < size && y + 1 < size && grid[y][x] === grid[y][x + 1] && grid[y][x] === grid[y + 1][x] && grid[y][x] === grid[y + 1][x + 1]) score += 3;
+    }
+    const total = size * size;
+    return score + (Math.ceil(Math.abs(dark * 20 - total * 10) / total) - 1) * 10;
+  };
+  let best = 0, bestScore = Infinity;
+  for (let m = 0; m < 8; m++) {
+    applyMask(m); drawFormat(m);
+    const s = penalty();
+    if (s < bestScore) { best = m; bestScore = s; }
+    applyMask(m);  // masking twice undoes it
+  }
+  applyMask(best); drawFormat(best);
+  return grid;
+}
+function qrSvg(text) {
+  const grid = qrMatrix(text), quiet = 4, size = grid.length + quiet * 2;
+  let path = '';
+  grid.forEach((row, y) => row.forEach((dark, x) => { if (dark) path += `M${x + quiet} ${y + quiet}h1v1h-1z`; }));
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges" role="img" aria-label="QR code for the new token">`
+    + `<rect width="${size}" height="${size}" fill="#fff"/><path d="${path}" fill="#000"/></svg>`;
+}
+// --- end QR code ---------------------------------------------------------------
+let apiTokenQrLink = '';
+function setApiTokenQr(show) {
+  const box = document.getElementById('apiTokenQrCode');
+  box.innerHTML = show && apiTokenQrLink ? qrSvg(apiTokenQrLink) : '';
+  document.getElementById('apiTokenQr').classList.toggle('hidden', !show);
+  const btn = document.getElementById('apiTokenQrBtn');
+  btn.textContent = show ? 'Hide QR code' : 'Show QR code';
+  btn.setAttribute('aria-expanded', String(show));
+}
+function toggleApiTokenQr() {
+  setApiTokenQr(document.getElementById('apiTokenQr').classList.contains('hidden'));
+}
+function hideNewApiToken() {
+  setApiTokenQr(false);
+  apiTokenQrLink = '';
+  document.getElementById('apiTokenValue').value = '';
+  document.getElementById('apiTokenNew').classList.add('hidden');
 }
 async function copyApiToken() {
   const input = document.getElementById('apiTokenValue');

@@ -5,7 +5,7 @@ public enum AppInfo {
     /// The iOS app's own version (CHANGELOG.md tracks it beside the app,
     /// web and schema versions). Keep it equal to MARKETING_VERSION in the
     /// Xcode project.
-    public static let version = "0.8.1"
+    public static let version = "0.9.0"
     /// The first server version with what the app's pages need: the
     /// phone's date on Net worth, Budgets and Reports (#91), on top of each
     /// bill's next dates (#89) and the Forecast's (#88).
@@ -233,6 +233,23 @@ public final class APIClient: Sendable {
     /// Swaps the sign-in sheet's one-time code for this phone's token.
     public func swapSignInCode(_ code: String, verifier: String) async throws(APIError) -> IssuedToken {
         try await send("POST", "/api/app-sign-in/token", body: ["code": code, "code_verifier": verifier])
+    }
+
+    /// Swaps an email and password for this phone's token (ios-app phase 7,
+    /// #100): `POST /api/auth/token`, under the server's sign-in rate limit.
+    /// A wrong email or password, or an account that signs in only with
+    /// Google (it has no password), comes back as `.wrongPassword`.
+    public func signIn(email: String, password: String, deviceName: String,
+                       access: String = "full") async throws(APIError) -> IssuedToken {
+        struct Body: Encodable { let email, password, name, access: String }
+        let body = Body(email: email.trimmingCharacters(in: .whitespacesAndNewlines), password: password,
+                        name: String(deviceName.prefix(80)), access: access)
+        do {
+            return try await send("POST", "/api/auth/token", body: body)
+        } catch .tokenRevoked, .tokenExpired {
+            // A 401 here is about the password, not a token.
+            throw .wrongPassword
+        }
     }
 
     // MARK: - Requests

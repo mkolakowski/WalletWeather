@@ -38,6 +38,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>WalletWeather uses the camera to scan the sign-in QR code from your WalletWeather server's Settings, only when you choose to.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>WalletWeather uses Face ID to unlock the app when you turn its lock on.</string>
 	<key>NSLocalNetworkUsageDescription</key>

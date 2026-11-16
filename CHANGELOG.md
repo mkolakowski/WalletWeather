@@ -69,7 +69,28 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.54.3** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.8.1**
+App version: **1.54.3** · Web version: **1.73.0** · Schema version: **19** · iOS version: **0.9.0**
+
+### Added
+
+- **Sign in to the iPhone app with your email and password:** the Connect
+  screen's **Other ways to sign in** now starts with an email and password
+  form, for accounts that have a password. It makes the phone's token the
+  same way the Sign in button does (full access, 90 days, listed in Settings
+  → API tokens), and counts toward the same limit on failed sign-ins. If you
+  sign in with Google, use Sign in instead. (iOS app 0.9.0)
+- **Sign in to the iPhone app with a QR code:** in the web app's Settings →
+  API tokens on a computer, a new token now has a **Show QR code** button.
+  Choose **Scan a QR code** under Other ways to sign in on the phone and
+  point it at the screen. The app asks for the camera only then, and asks
+  before it connects. The phone's Camera app can open the code too. The code
+  shows only when you ask for it and goes away with Done, since anyone who
+  can see it can use the token. (web 1.73.0)
+
+### Changed
+
+- On the iPhone app's Connect screen, a problem signing in now shows beside
+  the way you tried, instead of always at the top.
 
 ## [1.54.3] — 2026-11-15
 

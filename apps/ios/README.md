@@ -80,7 +80,9 @@ simulator commands through mkplus's `Scripts/with-simulator.sh`.
 **Against a real server.** `LiveServerTests.swift` holds tests that run only
 when given a demo server and a throwaway token: `WW_LIVE_TOKEN` (signing out
 ends it) and `WW_LIVE_EDIT_TOKEN` (marks a line paid and undoes it, adds and
-deletes a one-off, on the demo's data).
+deletes a one-off, on the demo's data). `WW_LIVE_EMAIL` and
+`WW_LIVE_PASSWORD` sign in with an email and password and end the token
+straight away.
 
 ## How it signs in
 
@@ -106,10 +108,28 @@ deletes a one-off, on the demo's data).
    application, would stop this. A Cloudflare service token under
    **Advanced** stands in for it.
 
-The other ways in are the **Open in WalletWeather** button beside a new token
-in the web app's Settings (on an iPhone), which opens
-`walletweather://connect?server=…&token=…` (the app asks before it
-connects), and pasting a token.
+The other ways in, under **Other ways to sign in** (#100):
+
+- **Email and password**, swapped for a token at `POST /api/auth/token`
+  (full access, 90 days, named after the phone), under the server's sign-in
+  rate limit. Behind Cloudflare the sheet signs in to Cloudflare first. An
+  account that signs in only with Google has no password, so it gets the
+  wrong-password message, which points to Sign in.
+- **Scan a QR code:** the web app's Settings → API tokens draws a new
+  token's `walletweather://connect?server=…&token=…` link as a QR code
+  (Show QR code, off an iPhone; the encoder is written for the page). The
+  app scans it with VisionKit's `DataScannerViewController`, asking for the
+  camera only then, and the phone's Camera app can open it too.
+- The **Open in WalletWeather** button beside a new token in the web app's
+  Settings (on an iPhone), which opens the same link.
+- **Pasting a token.**
+
+A link, scanned or opened, always asks "Connect to …?" before it's used.
+
+Debug builds take launch settings for checking the Connect screen in the
+simulator: `WW_DEBUG_ADDRESS` (opens on Connect with that address),
+`WW_DEBUG_OTHER_WAYS`, `WW_DEBUG_SCAN`, and `WW_DEBUG_EMAIL` with
+`WW_DEBUG_PASSWORD` (signs in with them).
 
 Plain `http://` is accepted only for home-network addresses (`localhost`, a
 name with no dots, `.local`, private IP addresses), with a warning, because

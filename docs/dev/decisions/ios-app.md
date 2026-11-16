@@ -206,3 +206,13 @@ Decisions made while planning [`Plans/ios-app.md`](../../../Plans/ios-app.md) (t
 **Also found in building it:** iOS 27.1's only fold readings are `UIHingeInteraction` (the hinge's angle and status) and the *division* reserved region (`GeometryProxy.reservedRegions(kind: .division)`), which says where the fold runs and whether it's folded; the half-open layout uses the second. On the Duo the system shows a second window as "2 Views Open" in the toolbar rather than splitting the screen by itself.
 
 **What it changes:** phase 4 (#90). Which parts stay is Matthew's call after trying them on the Duo.
+
+## 2026-11-15: the QR code, and where email and password go
+
+**Decided:** 2026-11-15, by Matthew, while starting phase 7 (#100). **Status:** accepted.
+
+- **The QR code is drawn by code written for the page**, in `apps/web/index.html`: no new package or licence entry, and the token never leaves the browser. It holds the same `walletweather://connect?server=…&token=…` link as the Open in WalletWeather button, so the phone's own Camera app can open it too. The other options were `segno` on the server (a Python package, BSD-3; the token-making response would carry an SVG) and a vendored MIT JavaScript library.
+- **The code shows behind a "Show QR code" button** beside Copy, on computers and tablets (an iPhone keeps Open in WalletWeather), and goes away with Done, since anyone who can see the screen could scan it. The other options were showing it straight away off an iPhone, and showing it everywhere.
+- **Email and password go first under "Other ways to sign in"** on the Connect screen, then Scan a QR code, the Open in WalletWeather note and Paste a token; Sign in (the sheet) stays the main way. The other option was a card of its own under Sign in. The app can't tell beforehand whether an account signs in only with Google (the server answers those like a wrong password), so the form is always there and a refused sign-in adds a pointer to the Sign in button.
+
+**What it changes:** phase 7 (#100).

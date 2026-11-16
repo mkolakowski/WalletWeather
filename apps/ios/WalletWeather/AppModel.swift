@@ -147,6 +147,12 @@ final class AppModel {
             Task { await refreshMe() }
             return
         }
+        // `WW_DEBUG_ADDRESS` opens on the Connect screen whatever the Keychain
+        // holds (ConnectView's debug settings, #100).
+        if env["WW_DEBUG_ADDRESS"] != nil {
+            phase = .connect
+            return
+        }
         #endif
         guard let saved = Keychain.loadConnection() else {
             phase = .connect
@@ -219,6 +225,44 @@ final class AppModel {
         default:
             connectError = "The sign-in didn't come back as expected. Try again."
         }
+    }
+
+    // MARK: - Signing in with an email and password (#100)
+
+    /// An email and password, swapped for this phone's token. Behind
+    /// Cloudflare Access the sheet signs in to Cloudflare first, unless a
+    /// service token is given under Advanced.
+    func signIn(email: String, password: String, serviceToken: CloudflareCredential?) async {
+        connectError = nil
+        connectNotice = nil
+        let address: ServerAddress
+        do { address = try ServerAddress.parse(typedAddress) } catch {
+            connectError = error.localizedDescription
+            return
+        }
+        guard !email.trimmingCharacters(in: .whitespaces).isEmpty, !password.isEmpty else {
+            connectError = "Type the email and password you sign in to the web app with."
+            return
+        }
+        busy = true
+        defer { busy = false }
+        var candidate = Connection(server: address.url, cloudflare: serviceToken)
+        do {
+            do {
+                try await APIClient(connection: candidate).checkServer()
+            } catch .cloudflareSignInNeeded {
+                guard let cf = await signInToCloudflare(server: candidate.server) else { return }
+                candidate.cloudflare = .session(token: cf)
+                try await APIClient(connection: candidate).checkServer()
+            }
+            let issued = try await APIClient(connection: candidate)
+                .signIn(email: email, password: password, deviceName: deviceName)
+            candidate.token = issued.token
+        } catch {
+            connectError = Self.describe(error)
+            return
+        }
+        await finishSignIn(candidate)
     }
 
     // MARK: - Signing in with a token

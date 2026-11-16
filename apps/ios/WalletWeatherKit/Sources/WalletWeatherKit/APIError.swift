@@ -19,6 +19,9 @@ public enum APIError: Error, Sendable, Equatable {
     case tokenExpired
     /// The token was revoked in Settings, or isn't known.
     case tokenRevoked
+    /// Signing in with an email and password was refused: the email or
+    /// password is wrong, or the account signs in only with Google.
+    case wrongPassword
     /// The server is older than this app needs.
     case serverTooOld(found: String, needed: String)
     /// Something answered, but not a WalletWeather server.
@@ -37,6 +40,7 @@ public enum APIError: Error, Sendable, Equatable {
         case .cloudflareSignInNeeded: "Sign in to Cloudflare"
         case .tokenExpired: "Your sign-in has ended"
         case .tokenRevoked: "You've been signed out"
+        case .wrongPassword: "That didn't sign in"
         case .serverTooOld: "Your server needs an update"
         case .notWalletWeather: "That isn't a WalletWeather server"
         case .server: "The server said no"
@@ -60,6 +64,8 @@ public enum APIError: Error, Sendable, Equatable {
             "This phone's sign-in has run out. Sign in again to carry on."
         case .tokenRevoked:
             "This phone's token was revoked in Settings, or no longer works. Sign in again to carry on."
+        case .wrongPassword:
+            "The email or password isn't right. If you sign in with Google, use the Sign in button above instead."
         case let .serverTooOld(found, needed):
             "This app needs WalletWeather \(needed) or later, and your server runs \(found). Update the server, then try again."
         case .notWalletWeather:

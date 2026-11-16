@@ -49,6 +49,10 @@ the app's settings:
 
 Removing the app removes all of it.
 
+The app asks for the camera only when you choose **Scan a QR code** to sign
+in. It looks for the QR code and nothing else: no picture is kept or sent
+anywhere.
+
 ## Who is responsible for your data
 
 Whoever runs the server you connect to. If that's you, your data never

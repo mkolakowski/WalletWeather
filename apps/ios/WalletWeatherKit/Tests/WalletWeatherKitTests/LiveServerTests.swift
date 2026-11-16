@@ -144,3 +144,41 @@ struct LiveMoreTests {
         }
     }
 }
+
+/// Email and password sign-in (#100) against a real server, only when one is
+/// given (a demo server: its admin login is public):
+///   WW_LIVE_SERVER=http://localhost:8300 WW_LIVE_EMAIL=… WW_LIVE_PASSWORD=… swift test
+/// The token it makes is ended straight away. The wrong-password try counts
+/// toward the server's sign-in limit for that email.
+@Suite(.enabled(if: ProcessInfo.processInfo.environment["WW_LIVE_PASSWORD"] != nil), .serialized)
+struct LivePasswordSignInTests {
+    let server: URL
+    let email: String
+    let password: String
+
+    init() throws {
+        let env = ProcessInfo.processInfo.environment
+        server = try #require(env["WW_LIVE_SERVER"].flatMap(URL.init(string:)))
+        email = try #require(env["WW_LIVE_EMAIL"])
+        password = try #require(env["WW_LIVE_PASSWORD"])
+    }
+
+    @Test func signsInAndEndsTheToken() async throws {
+        let issued = try await APIClient(connection: Connection(server: server))
+            .signIn(email: email.uppercased(), password: password, deviceName: "Live test phone")
+        #expect(issued.name == "Live test phone")
+        #expect(issued.access == "full")
+        #expect(issued.expiresAt != nil)
+        let client = APIClient(connection: Connection(server: server, token: issued.token))
+        #expect(try await client.me().email == email.lowercased())
+        try await client.endToken()
+        await #expect(throws: APIError.tokenRevoked) { _ = try await client.me() }
+    }
+
+    @Test func aWrongPasswordIsRefused() async {
+        await #expect(throws: APIError.wrongPassword) {
+            _ = try await APIClient(connection: Connection(server: server))
+                .signIn(email: email, password: password + "-wrong", deviceName: "Live test phone")
+        }
+    }
+}

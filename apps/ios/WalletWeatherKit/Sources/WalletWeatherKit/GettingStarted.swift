@@ -16,7 +16,7 @@ public enum StartTask: String, CaseIterable, Identifiable, Sendable {
 
     public var detail: String {
         switch self {
-        case .tabBar: "Swap Calendar, Net worth, Budgets or Reports into the bar at the bottom."
+        case .tabBar: "Swap Calendar, Net worth, Budgets or Reports into the tab bar."
         }
     }
 

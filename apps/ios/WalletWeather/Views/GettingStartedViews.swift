@@ -60,6 +60,7 @@ struct GettingStartedCard: View {
 /// → Tab bar does the same and can reorder.
 struct TabBarTour: View {
     @Environment(AppSettings.self) private var settings
+    @Environment(\.barOnSide) private var barOnSide
     @Environment(\.dismiss) private var dismiss
     @State private var draft: [TabPage] = []
     @State private var lastChanged: TabPage?
@@ -68,13 +69,15 @@ struct TabBarTour: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("The bar at the bottom holds \(TabPage.maxInBar) pages, beside Settings and Search. Put the ones you use most there: swap any of them for Calendar, Net worth, Budgets or Reports.")
+                    Text(barOnSide
+                         ? "The tab bar down the side holds \(TabPage.maxInBar) pages here, beside Settings and Search (\(TabPage.maxAtBottom) along the bottom or on a short screen). Put the ones you use most there: swap any of them for another page."
+                         : "The bar at the bottom holds \(TabPage.maxAtBottom) pages, beside Settings and Search. Put the ones you use most there: swap any of them for another page.")
 
-                    BarPreview(pages: draft, highlighted: lastChanged)
+                    BarPreview(pages: TabPage.shown(draft, onSide: barOnSide), highlighted: lastChanged)
                         .padding(.vertical, 4)
 
                     VStack(alignment: .leading, spacing: 0) {
-                        ForEach(0..<TabPage.maxInBar, id: \.self) { place in
+                        ForEach(0..<max(TabPage.room(onSide: barOnSide), draft.count), id: \.self) { place in
                             if place > 0 { Divider() }
                             row(at: place)
                         }
@@ -112,7 +115,12 @@ struct TabBarTour: View {
             Text("\(place + 1)").font(.footnote.monospacedDigit()).foregroundStyle(.secondary).frame(width: 18)
             if place < draft.count {
                 let page = draft[place]
-                Label(page.title, systemImage: page.symbol)
+                VStack(alignment: .leading, spacing: 2) {
+                    Label(page.title, systemImage: page.symbol)
+                    if place >= TabPage.room(onSide: barOnSide) {
+                        Text("Shows when the bar has room: down the side of a tall screen").font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
                 Spacer(minLength: 8)
                 Menu {
                     ForEach(others) { other in

@@ -14,15 +14,21 @@ struct TabPageTests {
         #expect(TabPage.bar(from: "") == [])
     }
 
-    @Test func dropsUnknownAndRepeatedAndCapsAtThree() {
-        #expect(TabPage.maxInBar == 3)
+    @Test func dropsUnknownAndRepeatedAndCapsAtFour() {
+        #expect(TabPage.maxInBar == 4)
         #expect(TabPage.bar(from: "forecast,weather,forecast,bills") == [.forecast, .bills])
         #expect(TabPage.bar(from: "dashboard,forecast,bills,calendar,budgets").count == TabPage.maxInBar)
     }
 
-    /// A bar of four saved before #174 keeps its first three, in order.
-    @Test func anOldBarOfFourKeepsItsFirstThree() {
-        #expect(TabPage.bar(from: "calendar,netWorth,forecast,dashboard") == [.calendar, .netWorth, .forecast])
+    /// Three along the bottom, four down the side: a fourth page waits while
+    /// the bar is along the bottom, and a bar saved before #174 keeps all four.
+    @Test func showsThreeAtTheBottomAndFourDownTheSide() {
+        let bar = TabPage.bar(from: "calendar,netWorth,forecast,dashboard")
+        #expect(bar == [.calendar, .netWorth, .forecast, .dashboard])
+        #expect(TabPage.shown(bar, onSide: false) == [.calendar, .netWorth, .forecast])
+        #expect(TabPage.shown(bar, onSide: true) == bar)
+        #expect(TabPage.room(onSide: false) == 3)
+        #expect(TabPage.shown(TabPage.defaultBar, onSide: true) == TabPage.defaultBar)
     }
 
     @Test func swappingKeepsThePlace() {

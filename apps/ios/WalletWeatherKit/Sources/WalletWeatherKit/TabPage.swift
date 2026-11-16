@@ -1,7 +1,8 @@
 /// The pages that can sit in the tab bar, and which do (#158): chosen in
-/// Settings → This phone → Tab bar. Settings and Search are always there; up
-/// to `maxInBar` pages fit beside them, and the rest are listed at the top of
-/// Settings (#174).
+/// Settings → This phone → Tab bar. Settings and Search are always there;
+/// three pages fit beside them when the bar is along the bottom and four when
+/// it runs down the side (as on the iPhone Duo), and the rest are listed at
+/// the top of Settings (#174).
 public enum TabPage: String, CaseIterable, Identifiable, Sendable {
     case dashboard, forecast, bills, calendar, netWorth, budgets, reports
 
@@ -36,15 +37,28 @@ public enum TabPage: String, CaseIterable, Identifiable, Sendable {
     /// which is the first page people swap in.
     public static let defaultBar: [TabPage] = [.dashboard, .forecast, .bills]
 
-    /// Pages beside Settings and Search (#174): iOS shows five buttons in a
-    /// bar along the bottom, Search included, and tucks any more into a More
-    /// list of its own. Four pages did that on an iPhone held upright.
-    public static let maxInBar = 3
+    /// Pages beside Settings and Search in a bar along the bottom (#174): iOS
+    /// shows five buttons there, Search included, and tucks any more into a
+    /// More list of its own. Four pages did that on an iPhone held upright.
+    public static let maxAtBottom = 3
+
+    /// Pages beside Settings and Search in a bar down the side of the
+    /// screen, which has room for six buttons: the most a bar can hold.
+    public static let maxInBar = 4
+
+    /// How many pages fit where the bar is now.
+    public static func room(onSide: Bool) -> Int { onSide ? maxInBar : maxAtBottom }
+
+    /// The pages the bar shows where it is now: a fourth page waits, listed
+    /// in Settings, while the bar is along the bottom.
+    public static func shown(_ bar: [TabPage], onSide: Bool) -> [TabPage] {
+        Array(bar.prefix(room(onSide: onSide)))
+    }
 
     /// The bar from its stored form (raw values joined by commas): unknown
-    /// and repeated pages are dropped and it's cut to `maxInBar` (a bar of
-    /// four saved before #174 keeps its first three); nothing stored means
-    /// the default. An empty string is a bar with only Settings and Search.
+    /// and repeated pages are dropped and it's cut to `maxInBar`; nothing
+    /// stored means the default. An empty string is a bar with only Settings
+    /// and Search.
     public static func bar(from stored: String?) -> [TabPage] {
         guard let stored else { return defaultBar }
         var seen = Set<TabPage>()

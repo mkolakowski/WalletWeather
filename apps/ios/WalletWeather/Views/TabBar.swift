@@ -39,13 +39,17 @@ extension TabPage {
 /// Settings → This phone → Tab bar: the pages in the bar (drag to reorder,
 /// Swap for another page, or delete to move it into Settings), then the
 /// others (Add while there's room, or Swap in for a page in the bar, #174).
-/// Settings and Search always stay.
+/// Settings and Search always stay. Room is three pages with the bar along
+/// the bottom and four down the side; a fourth page saved down the side is
+/// kept, marked, while the bar is along the bottom.
 struct TabBarSettingsView: View {
     @Environment(AppSettings.self) private var settings
+    @Environment(\.barOnSide) private var barOnSide
 
     var body: some View {
         let others = TabPage.notIn(settings.tabs)
-        let full = settings.tabs.count >= TabPage.maxInBar
+        let room = TabPage.room(onSide: barOnSide)
+        let full = settings.tabs.count >= room
         List {
             Group {
                 Section {
@@ -54,7 +58,12 @@ struct TabBarSettingsView: View {
                     }
                     ForEach(settings.tabs) { page in
                         HStack {
-                            Label(page.title, systemImage: page.symbol)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Label(page.title, systemImage: page.symbol)
+                                if let index = settings.tabs.firstIndex(of: page), index >= room {
+                                    Text("Shows when the bar has room: down the side of a tall screen").font(.footnote).foregroundStyle(.secondary)
+                                }
+                            }
                             Spacer()
                             if !others.isEmpty {
                                 Menu {
@@ -75,7 +84,7 @@ struct TabBarSettingsView: View {
                 } header: {
                     Text("In the tab bar")
                 } footer: {
-                    Text("Drag to change the order, Swap to put another page in that place, or delete to move a page into Settings. Settings and Search are always in the bar, and up to \(TabPage.maxInBar) pages fit beside them.")
+                    Text("Drag to change the order, Swap to put another page in that place, or delete to move a page into Settings. Settings and Search are always in the bar. Beside them fit \(TabPage.maxAtBottom) pages, or \(TabPage.maxInBar) when the bar runs down the side of a tall screen, as on the iPhone Duo.")
                 }
                 Section {
                     if others.isEmpty {

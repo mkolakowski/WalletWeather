@@ -11,6 +11,7 @@ import WalletWeatherKit
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(AppSettings.self) private var settings
+    @Environment(\.barOnSide) private var barOnSide
     @State private var confirmSignOut = false
     @State private var showingNotice = false
 
@@ -19,7 +20,7 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    let pages = TabPage.notIn(settings.tabs)
+                    let pages = TabPage.notIn(TabPage.shown(settings.tabs, onSide: barOnSide))
                     if !pages.isEmpty {
                         SectionTitle("Other pages")
                         VStack(alignment: .leading, spacing: 0) {

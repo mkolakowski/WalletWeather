@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.61.0** · Web version: **1.78.0** · Schema version: **21** · iOS version: **0.13.0**
+App version: **1.61.0** · Web version: **1.78.0** · Schema version: **21** · iOS version: **0.14.0**
 
 ### Added
 
@@ -92,15 +92,18 @@ App version: **1.61.0** · Web version: **1.78.0** · Schema version: **21** · 
 
 ### Changed
 
-- **Breaking: the iPhone app's More tab is now Settings, and the tab bar
-  holds three pages:** with four pages, More and Search, an iPhone held
-  upright had more buttons than iOS shows, so iOS added a second More page
-  of its own. Now the bar is three pages, Settings (a gear) and Search. It
-  comes with Dashboard, Forecast and Bills & income. Calendar, Net worth,
-  Budgets and Reports are listed at the top of Settings under Other pages.
-  Settings → Tab bar has a Swap button on each page to put another page in
-  its place. A bar of four you chose before keeps its first three. (iOS
-  0.12.0)
+- **Breaking: the iPhone app's More tab is now Settings, and a tab bar
+  along the bottom holds three pages:** with four pages, More and Search, an
+  iPhone held upright had more buttons than iOS shows, so iOS added a second
+  More page of its own. Now the bar is three pages, Settings (a gear) and
+  Search. Where the bar runs down the side of a tall screen, as on the
+  iPhone Duo closed upright or open on its side, it holds a fourth page.
+  Along the bottom, or with the closed Duo on its side, the fourth page
+  waits in Settings. The bar comes with Dashboard, Forecast and Bills &
+  income. The pages not in the bar are listed at the top of Settings under
+  Other pages. Settings → Tab bar has a Swap button on each page to put
+  another page in its place. A bar of four you chose before is kept, and
+  shows its first three along the bottom. (iOS 0.12.0, 0.14.0)
 - **Breaking:** **With two-factor sign-in on, a few things now ask for a
   code from your authenticator app (or a recovery code) every time:**
   changing your password, deleting your account, making an API token, and

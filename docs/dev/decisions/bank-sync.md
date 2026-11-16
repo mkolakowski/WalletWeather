@@ -19,4 +19,23 @@ Decisions made while planning and building [`Plans/bank-sync.md`](../../../Plans
 
 **Why:** SimpleFIN needs no provider approval, no script from another site and no public address, which Plaid does. The token reads bank transactions, so it shouldn't sit in a file anyone can read. A small first release tries the real bank early.
 
-**What it changes:** roadmap item 12 becomes phase 1 of this plan, and item 29 is built on SimpleFIN only. Plaid is out of scope. What's still open (what unlocks an encrypted backup, who may connect, how close a match is) is in the plan's open questions.
+**What it changes:** roadmap item 12 becomes phase 1 of this plan, and item 29 is built on SimpleFIN only. Plaid is out of scope. The plan's open questions were settled the same day, below.
+
+## 2026-11-16: the plan's eight open questions
+
+**Decided:** 2026-11-16, by Matthew. **Status:** accepted.
+
+**The questions and what was chosen** (the first option listed is the one chosen):
+
+1. **What unlocks an encrypted backup:** a passphrase typed at export and import; not the server's `ENCRYPTION_KEY`; not a choice of either at each export. Scheduled backups take theirs from `BACKUP_PASSPHRASE` in `.env`.
+2. **Whether plain backups stay:** no, backups are encrypted only; not both kinds side by side.
+3. **Who may connect a bank:** nobody until an admin switches it on in Admin, off by default; not a `.env` setting; not every user always.
+4. **How far back the first sync reaches:** a start date picked per account, defaulting to today; not all 90 days with a preview; not today only.
+5. **Pending bank transactions:** wait until posted; not shown as unpaid lines.
+6. **How close a match is:** settable per bill, starting at 5 days and 10%; not one fixed rule of 5 days and 10%; not 3 days and the exact amount.
+7. **Shared accounts:** only the owner links an account to a bank; not anyone with edit access.
+8. **A fresh code:** with two-factor on, connecting and disconnecting each ask for one; not connecting only; not none.
+
+**Why:** a passphrase restores on any server, where the server's key would lose the backups with the `.env`. The admin switch keeps `PRIVACY.md`'s "nothing leaves the server unless the operator chooses". A start date keeps a balance from moving by surprise. Posted-only means a line never changes after it arrives.
+
+**What it changes:** phase 1 drops the plain backup as a choice, which raised the plan's question 9 (the readable "Download my data" copy, old plain files still importing, and the schedule needing `BACKUP_PASSPHRASE`), built on stated assumptions. Phase 4 gains two settings on every bill and a schema version, and phase 5 adds them to the iOS bill editor.

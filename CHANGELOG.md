@@ -71,6 +71,10 @@ same commit (or session) that introduces it.
 
 App version: **1.70.0** · Web version: **1.85.0** · Schema version: **26** · iOS version: **0.16.0**
 
+## [1.70.0] — 2026-11-16
+
+App version: **1.70.0** · Web version: **1.85.0** · Schema version: **26** · iOS version: **0.16.0**
+
 ### Added
 
 - Bank sync now runs by itself about once a day for everyone with a bank connected; Settings → Bank sync says when the next one is due, and Sync now still works any time. A failed sync is tried again about 6 hours later, and if SimpleFIN stops accepting your connection the tab says so and the daily sync waits until you connect again. The Dashboard shows a warning when bank sync has been failing for more than a day. A daily sync and Sync now never run at the same moment, and both count toward the 20 syncs a day. (#195)
@@ -2473,7 +2477,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.69.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.70.0...HEAD
+[1.70.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.70.0
 [1.69.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.69.0
 [1.68.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.68.1
 [1.68.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.68.0

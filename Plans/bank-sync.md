@@ -12,7 +12,7 @@ Tracking issue: #198
 | 4. Bills matched automatically | Server, Web | #196 | Not started; its question is settled |
 | 5. Status and Sync now in the iOS app | iOS | #197 | Not started |
 
-Planned 2026-11-16. Open questions 1 to 8 settled the same day; question 9 holds what followed from them.
+Planned 2026-11-16. Open questions 1 to 8 settled the same day; question 9 holds what followed from them. Added the same day at your ask: a sync log for the account's owner (phase 3) and a list of unmatched synced lines with matching by hand (phase 4).
 
 Sessions: may span — each phase ends with a release and your try on your own instance before the next starts, and phase 2 needs your own SimpleFIN subscription.
 
@@ -23,7 +23,7 @@ Sessions: may span — each phase ends with a release and your try on your own i
 | 1. Encrypted backups | Server, Web | Opus | Sonnet: write the endpoint tests once the file format is settled | A new file format that has to restore years from now, and the key handling has to be right the first time. |
 | 2. Connect a bank and Sync now | Server, Web | Opus | Sonnet: tests against a stand-in SimpleFIN; Haiku: find every place a transaction is created or exported | The server's first call out to another service, a new stored secret, a schema version and the guard against a pasted token pointing somewhere else. |
 | 3. Daily sync and its status | Server, Web | Sonnet | none | Follows the backup scheduler's pattern in `main.py`; the calls and the tables exist by then. |
-| 4. Bills matched automatically | Server, Web | Opus | Sonnet: tests for the matching cases | Changes what the forecast shows as paid; a wrong match moves real numbers, so the rules and the undo need care. |
+| 4. Bills matched automatically | Server, Web | Opus | Sonnet: tests for the matching cases; Sonnet: the Unmatched list's screen once its endpoints exist | Changes what the forecast shows as paid; a wrong match moves real numbers, so the rules, matching by hand and the undo need care. |
 | 5. Status and Sync now in the iOS app | iOS | Sonnet | none | One row and one button on an existing screen and two fields in the bill editor, against endpoints that exist. |
 
 ## Open questions
@@ -37,6 +37,7 @@ Sessions: may span — each phase ends with a release and your try on your own i
 7. ~~**Shared accounts.**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-sync.md)): only an account's owner can link it to a bank account.
 8. ~~**A fresh code for connecting?**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-sync.md)): yes, with two-factor on, connecting and disconnecting each ask for a fresh code, in a browser session only.
 9. **The readable copy, old backups and the schedule, now that backups are encrypted only.** Blocks nothing; phase 1 is built on these assumptions unless you say otherwise. Assumed: (a) each user keeps a readable "Download my data" JSON, as `PRIVACY.md` promises; it isn't offered as a backup and never holds the bank connection. (b) Plain backup files made before this version still import. (c) The scheduled backup and the admin's full-system backup won't run without `BACKUP_PASSPHRASE` in `.env`, and Admin says so instead of quietly writing a plain file.
+10. **How long the sync log is kept, and what a line in it shows.** Blocks nothing; phase 3 is built on this unless you say otherwise. Assumed: kept as long as the audit log (`AUDIT_RETENTION_DAYS`, 180 days by default); each sync shows when it ran, whether by schedule or Sync now, and how many lines came in, were skipped as already there, matched a bill or were left unmatched, with the lines themselves a tap away.
 
 ## The plan
 
@@ -51,7 +52,7 @@ Sessions: may span — each phase ends with a release and your try on your own i
 - **The iOS app gets status and a Sync now button.** Connecting a bank stays in the web app.
 - **Done means** API tests in CI, then a release and your try on your own instance, phase by phase, as the two-factor plan did.
 
-**Out of scope:** Plaid; bank-supplied categories (SimpleFIN gives none; the auto-tag rules do that work); connecting a bank from the iOS app; comparing the bank's balance with yours; investments and loans; moving money; more than one SimpleFIN connection per user.
+**Out of scope:** Plaid; bank-supplied categories (SimpleFIN gives none; the auto-tag rules do that work); connecting a bank from the iOS app; the sync log and the Unmatched list in the iOS app (web only for now); comparing the bank's balance with yours; investments and loans; moving money; more than one SimpleFIN connection per user.
 
 **What's there today:**
 
@@ -106,12 +107,13 @@ Sessions: may span — each phase ends with a release and your try on your own i
 
 - A background check, like the backup scheduler's, that syncs each connected user about once a day, well inside SimpleFIN's limit, and never at the same moment as a Sync now.
 - Settings shows when the last sync ran, how many lines it brought in and, when it failed, why and what to do (a revoked token asks you to connect again). The Dashboard shows a small warning when sync has been failing for more than a day.
+- **A sync log, for the account's owner:** on each linked account, a list of its syncs, newest first: when, by schedule or Sync now, how many lines came in, how many were skipped as already there, and any error in plain words; opening one shows the lines it brought in. Only the account's owner sees it, not the people it's shared with (open question 10 for how long it's kept).
 - Sync now refuses, with the time to wait, when pressing it again would go over SimpleFIN's limit.
 - Posted transactions only; pending ones wait until the bank posts them.
 - A status endpoint an API token may read, and Sync now allowed to a token with write access, ready for phase 5.
-- Tests: the scheduler syncs a due user and skips one synced recently; a failure is recorded and doesn't stop other users' syncs; the limit is kept; the status endpoint's shape; a read-only token can't Sync now.
+- Tests: the scheduler syncs a due user and skips one synced recently; a failure is recorded and doesn't stop other users' syncs; the limit is kept; the status endpoint's shape; the sync log's shape, and that someone the account is shared with can't read it; a read-only token can't Sync now.
 
-**You:** leave it running for a few days and check the lines arrive each day by themselves.
+**You:** leave it running for a few days, check the lines arrive each day by themselves, and read the sync log against what arrived.
 
 **Done when:** the tests pass in CI, the version is released, and your instance has synced by itself on three days running.
 
@@ -122,11 +124,13 @@ Sessions: may span — each phase ends with a release and your try on your own i
 - When a synced row lands in an account, the server looks for a planned bill or income line that isn't paid yet and is close in date and amount: within that bill's own days and amount settings, the same account and direction, the nearest date winning and a tie left unmatched. A match marks that line paid with the bank's date and amount, as marking it paid by hand does, instead of adding a second line.
 - **Per bill:** each bill and income line has two match settings, days either side and how far the amount may differ, starting at 5 days and 10%, in the web client's bill editor and on `/api/recurring`. A schema version adds them.
 - A matched line says it was matched by bank sync, and can be un-matched: the bill goes back to planned and the bank row becomes its own paid line, and that pair isn't matched again.
-- Unmatched rows land as new paid lines, as in phase 2.
+- Unmatched rows land as new paid lines, as in phase 2, and are kept on an **Unmatched** list for the account: every synced line that didn't match a bill, with a count on the account so you know there's something to look at.
+- **Match by hand:** from an unmatched line, pick one of the account's planned lines that isn't paid yet (bills, income and one-off planned lines, nearest in date first, whatever the bill's settings say). That line is marked paid with the bank's date and amount and the separate line goes away. "Leave as its own line" takes it off the list. A match made by hand can be un-matched like any other.
+- The sync log (phase 3) gains how many lines matched and how many didn't.
 - The forecast's response says which lines were matched, so the web client can show it.
-- Tests: an exact match; a late bill at a slightly different amount; two candidates (left unmatched); a bill's own settings are used, and their limits checked; an already-paid bill is never matched twice; un-match and no re-match; a transfer leg isn't matched to a bill; the forecast response's new field.
+- Tests: an exact match; a late bill at a slightly different amount; two candidates (left unmatched); a bill's own settings are used, and their limits checked; an already-paid bill is never matched twice; un-match and no re-match; a transfer leg isn't matched to a bill; the Unmatched list's shape; a match by hand, to a line outside the bill's settings too; a line already paid can't be picked; "leave as its own line"; another user's line can't be matched; the forecast response's new field.
 
-**You:** watch a month of real bills on your instance: which matched, which didn't, and whether any match was wrong.
+**You:** watch a month of real bills on your instance: which matched, which didn't, and whether any match was wrong; match one from the Unmatched list by hand.
 
 **Done when:** the tests pass in CI, the version is released, and you've seen your real bills marked paid by a sync, with one un-matched by hand.
 

@@ -39,3 +39,11 @@ Decisions made while planning and building [`Plans/bank-sync.md`](../../../Plans
 **Why:** a passphrase restores on any server, where the server's key would lose the backups with the `.env`. The admin switch keeps `PRIVACY.md`'s "nothing leaves the server unless the operator chooses". A start date keeps a balance from moving by surprise. Posted-only means a line never changes after it arrives.
 
 **What it changes:** phase 1 drops the plain backup as a choice, which raised the plan's question 9 (the readable "Download my data" copy, old plain files still importing, and the schedule needing `BACKUP_PASSPHRASE`), built on stated assumptions. Phase 4 gains two settings on every bill and a schema version, and phase 5 adds them to the iOS bill editor.
+
+## 2026-11-16: a sync log and matching by hand
+
+**Decided:** 2026-11-16, by Matthew (asked for while the plan was being written). **Status:** accepted.
+
+**The decision:** the account's owner can read a log of each sync (phase 3), and synced lines that matched no bill are kept on an Unmatched list, from which one can be matched by hand to a planned line that isn't paid yet (phase 4).
+
+**What it changes:** phases 3 and 4 are bigger. Both are web only; the iOS app doesn't get them in this plan. How long the log is kept is the plan's open question 10.

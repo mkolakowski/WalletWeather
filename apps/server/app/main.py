@@ -3586,35 +3586,44 @@ def search_everything(q: str = "", limit: int = SEARCH_GROUP_LIMIT,
         if not hit(t.description, t.notes):
             continue
         day = t.actual_date or t.forecast_date
+        # The fields of /api/transactions/search's rows, so the iOS app opens
+        # a result in its line editor, plus `date` (the actual or planned day).
         txns.append({
             "id": t.id, "description": t.description or "",
             "date": day.isoformat() if day else None,
-            "amount": float(t.amount), "is_actual": t.is_actual,
+            "amount": float(t.amount),
+            "forecast_amount": float(t.forecast_amount) if t.forecast_amount is not None else None,
+            "actual_date": t.actual_date.isoformat() if t.actual_date else None,
+            "forecast_date": t.forecast_date.isoformat() if t.forecast_date else None,
+            "is_actual": t.is_actual,
             "account_id": t.account_id, "account_name": acc_names.get(t.account_id),
             "category_id": t.category_id,
             "category_name": t.category.name if t.category else None,
             "recurring_id": t.recurring_id, "transfer_id": t.transfer_id,
+            "notes": t.notes or None,
         })
 
     # Bills and income: those still running first, then ended ones; by name.
+    # Each as /api/recurring's items, so the iOS app opens it in its editor.
     recs = [(a, r) for a in accounts for r in a.recurring if hit(r.description, r.notes)]
     upcoming = _recurring_upcoming(db, [r for _, r in recs], today)
+    skip_counts = _recurring_skip_counts(db, [r.id for _, r in recs])
+    tags_by_rec = _tags_for_recurring(db, [r.id for _, r in recs])
     levels = dict(db.query(AccountPermission.account_id, AccountPermission.level)
                   .filter(AccountPermission.user_id == user.id,
                           AccountPermission.account_id.in_(visible_ids)))
     bills = []
     for a, r in recs:
         nexts = upcoming.get(r.id, [])
-        bills.append({
-            "id": r.id, "description": r.description, "amount": float(r.amount),
-            "frequency": r.frequency,
-            "next_date": nexts[0].isoformat() if nexts else None,
-            "expired": r.end_date is not None and r.end_date < today,
+        row = _recurring_row(r, today, skip_counts, tags_by_rec)
+        row.update({
             "account_id": a.id, "account_name": a.name,
             "account_level": levels.get(a.id, "read"),
-            "category_id": r.category_id,
-            "category_name": r.category.name if r.category else None,
+            "category_color": r.category.color if r.category else None,
+            "next_date": nexts[0].isoformat() if nexts else None,
+            "next_dates": [d.isoformat() for d in nexts],
         })
+        bills.append(row)
     bills.sort(key=lambda b: (b["expired"], b["description"].casefold(), b["id"]))
 
     found_accounts = sorted(
@@ -3644,7 +3653,7 @@ def search_everything(q: str = "", limit: int = SEARCH_GROUP_LIMIT,
                           "transaction_count": tag_counts.get(t.id, 0)} for t in tags),
                         key=lambda x: (x["name"].casefold(), x["id"]))
 
-    reports = [{"id": r.id, "name": r.name}
+    reports = [{"id": r.id, "name": r.name, "pinned": bool(r.pinned)}
                for r in (db.query(SavedReport).filter_by(owner_id=user.id)
                          .order_by(SavedReport.sort_order.asc(), SavedReport.id.asc()))
                if hit(r.name)]

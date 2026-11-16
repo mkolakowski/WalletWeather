@@ -65,15 +65,25 @@ def test_finds_each_kind_with_the_fields_clients_read(owner):
 
     [t] = body["transactions"]["results"]
     has(t, {"id": int, "description": str, "date": str, "amount": NUM, "is_actual": bool,
+            "forecast_amount": (int, float, type(None)), "actual_date": OPT_STR,
+            "forecast_date": OPT_STR, "notes": OPT_STR,
             "account_id": int, "account_name": str, "category_id": OPT_INT,
             "category_name": OPT_STR, "recurring_id": OPT_INT, "transfer_id": OPT_INT})
+    assert (t["actual_date"], t["notes"], t["forecast_amount"]) == (TODAY.isoformat(), "weekly shop", -40)
     assert (t["description"], t["date"], t["amount"]) == ("Harbor Market", TODAY.isoformat(), -40)
     assert (t["account_id"], t["category_id"]) == (owner["acc"], owner["cat"])
 
     [b] = body["recurring"]["results"]
+    # The same fields as /api/recurring's items.
     has(b, {"id": int, "description": str, "amount": NUM, "frequency": str,
-            "next_date": OPT_STR, "expired": bool, "account_id": int, "account_name": str,
-            "account_level": str, "category_id": OPT_INT, "category_name": OPT_STR})
+            "day_of_month": OPT_INT, "anchor_date": OPT_STR, "end_date": OPT_STR,
+            "notes": OPT_STR, "active": bool, "monthly": (int, float, type(None)),
+            "next_date": OPT_STR, "next_dates": list, "expired": bool,
+            "account_id": int, "account_name": str, "account_level": str,
+            "category_id": OPT_INT, "category_name": OPT_STR, "category_color": OPT_STR})
+    listed = next(i for i in owner["c"].get(f"/api/recurring?today={TODAY}").json()["items"]
+                  if i["id"] == owner["bill"])
+    assert set(listed) <= set(b) and all(b[k] == listed[k] for k in listed)
     assert (b["id"], b["amount"], b["expired"], b["account_level"]) == (owner["bill"], -900, False, "owner")
     assert b["next_date"] is not None and b["next_date"].endswith("-28")
 
@@ -90,7 +100,7 @@ def test_finds_each_kind_with_the_fields_clients_read(owner):
     assert (tag["id"], tag["transaction_count"]) == (owner["tag"], 1)
 
     [rep] = body["reports"]["results"]
-    has(rep, {"id": int, "name": str})
+    has(rep, {"id": int, "name": str, "pinned": bool})
     assert rep["name"] == "Harbor spending"
 
 

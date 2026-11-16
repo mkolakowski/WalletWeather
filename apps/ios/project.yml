@@ -76,4 +76,6 @@ targets:
         # The bundle ID is what keeps the phone's Keychain sign-in: never change it.
         PRODUCT_BUNDLE_IDENTIFIER: net.iptater.walletweather
         PRODUCT_NAME: WalletWeather
+        # The app icon (#156), with dark and tinted versions.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO

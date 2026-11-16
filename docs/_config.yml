@@ -1,6 +1,37 @@
 # GitHub Pages settings for the public pages in this folder (the store
-# privacy policy, the bank sync guide). Developer notes under dev/ are left out of the site.
+# privacy policy, the bank sync guide). Developer notes under dev/ are left
+# out of the site.
 title: WalletWeather
 description: A self-hosted personal finance forecasting app
+
+# The Just the Docs theme (MIT, https://just-the-docs.com), chosen 2026-11-16
+# (#204). GitHub Pages fetches it at build time; nothing of it is committed
+# here. Pinned: move the tag on purpose.
+remote_theme: just-the-docs/just-the-docs@v0.12.0
+plugins:
+  - jekyll-remote-theme
+
+color_scheme: light
+search_enabled: true
+heading_anchors: true
+back_to_top: true
+back_to_top_text: "Back to top"
+aux_links:
+  "WalletWeather on GitHub": "https://github.com/mkolakowski/WalletWeather"
+aux_links_new_tab: true
+footer_content: "WalletWeather is self-hosted: the people who write it never see your instance or its data."
+
+# Callouts used in the pages: {: .note }, {: .important }, {: .warning }
+callouts:
+  note:
+    title: Note
+    color: purple
+  important:
+    title: Before you start
+    color: blue
+  warning:
+    title: Warning
+    color: red
+
 exclude:
   - dev

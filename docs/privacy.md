@@ -1,5 +1,6 @@
 ---
 title: Privacy policy
+nav_order: 3
 ---
 
 # WalletWeather privacy policy

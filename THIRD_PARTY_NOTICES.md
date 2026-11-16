@@ -83,3 +83,6 @@ package, `libpq5` (PostgreSQL License).
 - **PostgreSQL** (`postgres:16-alpine`) is pulled by Docker Compose from
   Docker Hub as its own image; WalletWeather doesn't redistribute it.
 - **pytest** (MIT) is used for tests only and isn't installed in the image.
+- **Just the Docs** (MIT, v0.12.0) is the theme of the project site built
+  from `docs/` by GitHub Pages, fetched at build time; it isn't in this
+  repository or the image.

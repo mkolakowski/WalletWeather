@@ -1,24 +1,31 @@
 ---
 title: Set up bank sync
+nav_order: 2
 ---
 
 # Set up bank sync
+{: .no_toc }
 
-Bank sync brings transactions into WalletWeather straight from your bank,
-instead of uploading a CSV file. It works through
-[SimpleFIN Bridge](https://bridge.simplefin.org/), a service you subscribe
-to yourself (about $15 a year). SimpleFIN reads your bank's transactions and
-balances. It can't move money.
+Bring transactions into WalletWeather straight from your bank, instead of
+uploading a CSV file.
+{: .fs-6 .fw-300 }
 
-This page has two parts:
+Bank sync works through [SimpleFIN Bridge](https://bridge.simplefin.org/), a
+service you subscribe to yourself (about $15 a year). SimpleFIN reads your
+bank's transactions and balances. It can't move money.
 
-1. [For the person who runs the server](#for-the-person-who-runs-the-server):
-   switching bank sync on. Done once.
-2. [For each person who wants their bank connected](#connect-your-bank):
-   connecting, matching accounts and syncing.
+{: .important }
+> - **WalletWeather 1.69.0 or later.** The version is in the app's footer.
+> - **An admin switches bank sync on** once for the server ([below](#for-the-person-who-runs-the-server)).
+> - **Each person connects their own bank** with their own SimpleFIN
+>   subscription ([Connect your bank](#connect-your-bank)).
 
-You need **WalletWeather 1.69.0 or later**. The version is shown in the
-app's footer.
+<details open markdown="block">
+  <summary>On this page</summary>
+  {: .text-delta }
+1. TOC
+{:toc}
+</details>
 
 ## For the person who runs the server
 
@@ -81,6 +88,7 @@ stay until their users disconnect.
 3. Make a **setup token** for a new app and copy it. It's a long line of
    letters and numbers.
 
+{: .note }
 A setup token works **once**. If connecting fails after the token was
 accepted, or you connect again later, make a new one.
 
@@ -114,6 +122,7 @@ Press **Save matches**.
 Press **Sync now**. The message says how many lines came in and how many
 were already there.
 
+{: .note }
 Today, syncing happens only when you press **Sync now**. Syncing by itself
 once a day comes in a later release.
 
@@ -143,8 +152,9 @@ once a day comes in a later release.
 matches. Lines already brought in stay. With two-factor sign-in on, it asks
 for a code.
 
-That stops WalletWeather asking. To stop SimpleFIN reading your bank too,
-disable the app's access at [SimpleFIN Bridge](https://bridge.simplefin.org/).
+{: .warning }
+Disconnecting stops WalletWeather asking. To stop SimpleFIN reading your bank
+too, disable the app's access at [SimpleFIN Bridge](https://bridge.simplefin.org/).
 
 Deleting your WalletWeather user removes your connection too.
 

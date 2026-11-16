@@ -45,8 +45,12 @@ server it runs on:
   is matched to and from what date, when the last sync ran and how it went,
   and the times of the last day's calls to SimpleFIN (to stay within its
   limit). Each line it brings in is stored like any other, plus a hash of
-  the bank's own id for it. Disconnecting deletes the connection and the
-  matches; the lines stay.
+  the bank's own id for it and which sync brought it in. A sync log for
+  each matched account (when each sync ran, by schedule or by hand, how
+  many lines came in or were already there, and any error), readable by
+  the account's owner only and deleted after `AUDIT_RETENTION_DAYS` like
+  the audit log. Disconnecting deletes the connection and the matches; the
+  lines stay.
 - **Logs:** the web server's access log, which records the address and path
   of each request, goes to the container's output. The app also keeps a
   sign-in log in the database: each sign-in, failed sign-in and blocked
@@ -83,7 +87,8 @@ Nothing, with two exceptions the operator chooses:
   that user only, the server calls SimpleFIN (only the hosts in
   `SIMPLEFIN_HOSTS`): once to claim the token they paste, then each time
   they sync, asking for their bank accounts and posted transactions since a
-  date. Nothing about them goes the other way except that request and the
+  date, about once a day by itself and whenever they press Sync now.
+  Nothing about them goes the other way except that request and the
   credentials SimpleFIN issued. SimpleFIN and their bank see that the
   connection is used, and when; SimpleFIN's own privacy policy covers its
   side. Users who don't connect a bank cause no calls at all.

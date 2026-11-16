@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.69.0"
+APP_VERSION = "1.70.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,13 @@ APP_VERSION = "1.69.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.70.0 (2026-11-16, claude+mkolakowski): the daily bank sync and its log
+#     (bank-sync phase 3, #195). _bank_scheduler_loop runs run_due_bank_syncs
+#     every 30 minutes (due 23h30 after the last try, 6h after a failure, never
+#     while needs_reconnect); a per-user lock keeps it apart from Sync now.
+#     GET /api/bank/status (any token), POST /api/bank/sync now takes write
+#     tokens, GET /api/accounts/{id}/bank-syncs[/{run_id}] (owner only).
+#     Runs are pruned with the audit log. Schema 26.
 # 1.69.0 (2026-11-16, claude+mkolakowski): bank sync with SimpleFIN
 #     (bank-sync phase 2, #194). GET /api/bank, POST /api/bank/connect
 #     {token, code?}, PUT /api/bank/links {links: [{ref, account_id,
@@ -563,7 +570,7 @@ from .db import (
     AccountPermission, AccountInvitation, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
     Tag, TransactionTag, RecurringTag, TagRule, SavedReport, RecurringSkip,
     ApiToken, AuditEvent, AppSignInCode, RecoveryCode, RememberedBrowser, SessionLocal,
-    BankConnection, BankAccountLink, encrypt_str, decrypt_str, SCHEMA_VERSION,
+    BankConnection, BankAccountLink, BankSyncRun, encrypt_str, decrypt_str, SCHEMA_VERSION,
 )
 from . import twofactor
 from . import simplefin
@@ -833,6 +840,8 @@ def _startup():
     # Start the backup scheduler daemon thread
     t = threading.Thread(target=_backup_scheduler_loop, daemon=True)
     t.start()
+    # The daily bank sync (#195).
+    threading.Thread(target=_bank_scheduler_loop, daemon=True).start()
     # Demo-reset daemon: on an instance running in DEMO_MODE, check hourly
     # whether the demo data has drifted from its post-seed fingerprint, and
     # wipe + reseed only if something has been edited.
@@ -888,6 +897,8 @@ def prune_audit_events(db: Session, now: datetime | None = None) -> int:
     cutoff = (now or datetime.utcnow()) - timedelta(days=max(1, AUDIT_RETENTION_DAYS))
     gone = (db.query(AuditEvent).filter(AuditEvent.created_at < cutoff)
             .delete(synchronize_session=False))
+    # The bank sync log is kept as long (#195; the plan's question 10).
+    db.query(BankSyncRun).filter(BankSyncRun.run_at < cutoff).delete(synchronize_session=False)
     db.commit()
     return gone
 
@@ -4076,6 +4087,7 @@ def _bank_status(db: Session, user: User) -> dict:
             "synced_through": link.synced_through.isoformat() if link and link.synced_through else None,
         })
     wait = _bank_call_wait(conn, now)
+    out.update(_bank_short_status(db, user))
     out.update({
         "connected_at": conn.created_at.isoformat() + "Z",
         "accounts": accounts,
@@ -4198,7 +4210,31 @@ def bank_set_links(body: BankLinksIn, request: Request,
     return _bank_status(db, user)
 
 
-def _bank_sync(db: Session, user: User, conn: BankConnection, request: Request | None) -> dict:
+# One sync per user at a time (#195): the daily sync and a Sync now never run
+# together. The server is one process (the Dockerfile's uvicorn), so a lock
+# in memory is enough.
+_bank_sync_locks: dict[int, threading.Lock] = {}
+_bank_sync_locks_guard = threading.Lock()
+
+
+def _bank_lock(user_id: int) -> threading.Lock:
+    with _bank_sync_locks_guard:
+        return _bank_sync_locks.setdefault(user_id, threading.Lock())
+
+
+def _bank_sync(db: Session, user: User, conn: BankConnection, request: Request | None,
+               trigger: str = "manual") -> dict:
+    lock = _bank_lock(user.id)
+    if not lock.acquire(blocking=False):
+        raise HTTPException(409, "A sync is already running. Try again in a minute.")
+    try:
+        return _bank_sync_locked(db, user, conn, request, trigger)
+    finally:
+        lock.release()
+
+
+def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Request | None,
+                      trigger: str) -> dict:
     links = db.query(BankAccountLink).filter_by(connection_id=conn.id).all()
     if not links:
         raise HTTPException(400, "Match at least one bank account to one of your accounts first.")
@@ -4225,20 +4261,29 @@ def _bank_sync(db: Session, user: User, conn: BankConnection, request: Request |
         data = simplefin.fetch_accounts(decrypt_str(conn.access_url_enc), start=start)
     except simplefin.SimpleFINError as e:
         conn.last_sync_at, conn.last_sync_ok, conn.last_sync_status = now, False, str(e)[:300]
+        if e.revoked:
+            conn.needs_reconnect = True
+        for l in links:   # the failure shows in each account's sync log
+            db.add(BankSyncRun(user_id=user.id, account_id=l.account_id, run_at=now,
+                               trigger=trigger, error=str(e)[:300]))
         db.commit()
         record_event(db, "bank_sync_failed", request, user=user,
-                     detail="revoked" if e.revoked else f"HTTP {e.status}")
+                     detail=("revoked" if e.revoked else f"HTTP {e.status}") + f", {trigger}")
         raise HTTPException(e.status, str(e))
     if data["accounts"]:
         _set_bank_listing(conn, data["accounts"])
-    by_ref = {l.bank_account_ref: l for l in links}
+    by_account = {bank_account_ref(a["id"]): a for a in data["accounts"]}
     added = skipped = 0
-    for bank_acc in data["accounts"]:
-        link = by_ref.get(bank_account_ref(bank_acc["id"]))
-        if link is None:
-            continue
+    for link in links:
         acc = db.get(Account, link.account_id)
         if acc is None:
+            continue
+        run = BankSyncRun(user_id=user.id, account_id=acc.id, run_at=now, trigger=trigger)
+        db.add(run)
+        db.flush()
+        bank_acc = by_account.get(link.bank_account_ref)
+        if bank_acc is None:
+            run.error = "SimpleFIN didn't list this bank account this time."
             continue
         refs = {r for (r,) in db.query(Transaction.bank_ref)
                 .filter(Transaction.account_id == acc.id, Transaction.bank_ref.isnot(None))}
@@ -4258,42 +4303,175 @@ def _bank_sync(db: Session, user: User, conn: BankConnection, request: Request |
                 continue
             ref = bank_txn_ref(bank_acc["id"], tx["id"])
             if ref in refs:
-                skipped += 1
+                run.skipped += 1
                 continue
             refs.add(ref)
             key = (tx["date"], round(float(tx["amount"]), 2), tx["description"].strip().lower())
             if unclaimed.get(key):
                 unclaimed[key].pop().bank_ref = ref
-                skipped += 1
+                run.skipped += 1
                 continue
             t = Transaction(account_id=acc.id, actual_date=tx["date"], forecast_date=tx["date"],
-                            is_actual=True, bank_ref=ref)
+                            is_actual=True, bank_ref=ref, bank_sync_run_id=run.id)
             t.description = tx["description"]
             t.amount = tx["amount"]
             db.add(t)
             db.flush()
             _apply_tag_rules(db, user, t)
-            added += 1
+            run.added += 1
+        added, skipped = added + run.added, skipped + run.skipped
         link.synced_through = today
     status = f"{added} new line{'' if added == 1 else 's'}, {skipped} already here"
     if data["messages"]:
         status += ". SimpleFIN said: " + "; ".join(data["messages"])
     conn.last_sync_at, conn.last_sync_ok, conn.last_sync_status = now, True, status[:300]
+    conn.last_ok_at, conn.needs_reconnect = now, False
     db.commit()
-    record_event(db, "bank_sync_run", request, user=user, detail=f"{added} added, {skipped} skipped")
+    record_event(db, "bank_sync_run", request, user=user,
+                 detail=f"{added} added, {skipped} skipped, {trigger}")
     return {"added": added, "skipped": skipped, "messages": data["messages"]}
 
 
 @app.post("/api/bank/sync")
-def bank_sync_now(request: Request, user: User = Depends(current_session_user),
+def bank_sync_now(request: Request, user: User = Depends(current_user),
                   db: Session = Depends(get_db)):
-    """Bring in new posted lines from every matched bank account."""
+    """Bring in new posted lines from every matched bank account. A token
+    with write access may (#195, for the iOS app); a read-only one may not."""
     _bank_allowed(db, user)
     conn = _bank_connection(db, user)
     if not conn:
         raise HTTPException(404, "No bank is connected.")
-    result = _bank_sync(db, user, conn, request)
-    return {**result, "status": _bank_status(db, user)}
+    result = _bank_sync(db, user, conn, request, trigger="manual")
+    return {**result, "status": _bank_short_status(db, user)}
+
+
+# ---------- The daily sync (#195) ----------
+# Each connected user is synced about once a day: due 23½ hours after the
+# last try (the check runs every 30 minutes), 6 hours after a failure, and
+# not at all once SimpleFIN has stopped accepting the connection, until the
+# user connects again. A user over the daily call limit waits.
+BANK_SYNC_EVERY = timedelta(hours=23, minutes=30)
+BANK_RETRY_AFTER_FAILURE = timedelta(hours=6)
+BANK_FAILING_WARN_AFTER = timedelta(days=1)
+
+
+def bank_sync_due(db: Session, conn: BankConnection, now: datetime) -> bool:
+    if conn.needs_reconnect or _bank_call_wait(conn, now):
+        return False
+    if not db.query(BankAccountLink).filter_by(connection_id=conn.id).first():
+        return False
+    if conn.last_sync_at is None:
+        return True
+    gap = BANK_RETRY_AFTER_FAILURE if conn.last_sync_ok is False else BANK_SYNC_EVERY
+    return now - conn.last_sync_at >= gap
+
+
+def run_due_bank_syncs(db: Session, now: datetime | None = None) -> dict:
+    """Sync every connected user who is due. One user's failure is recorded
+    on their connection and doesn't stop the others."""
+    out = {"synced": 0, "failed": 0}
+    if not bank_sync_enabled(db):
+        return out
+    now = now or datetime.utcnow()
+    for conn in db.query(BankConnection).order_by(BankConnection.id).all():
+        user = db.get(User, conn.user_id)
+        if user is None or user.disabled or is_demo_email(user.email) or not bank_sync_due(db, conn, now):
+            continue
+        try:
+            _bank_sync(db, user, conn, None, trigger="schedule")
+            out["synced"] += 1
+        except Exception:
+            db.rollback()
+            out["failed"] += 1
+    return out
+
+
+def _bank_scheduler_loop():
+    """Background daemon: every 30 minutes, run the daily syncs that are due."""
+    while True:
+        time.sleep(1800)
+        db = SessionLocal()
+        try:
+            run_due_bank_syncs(db)
+        except Exception:
+            pass   # tried again in 30 minutes
+        finally:
+            db.close()
+
+
+def _bank_short_status(db: Session, user: User) -> dict:
+    """What an app needs to show the sync's state (#195): no bank account
+    names, nothing about the connection itself."""
+    conn = _bank_connection(db, user)
+    out = {"enabled": bank_sync_enabled(db), "connected": conn is not None}
+    if not conn:
+        return out
+    now = datetime.utcnow()
+    linked = [l.account_id for l in db.query(BankAccountLink).filter_by(connection_id=conn.id)]
+    failing_since = None
+    if conn.last_sync_ok is False:
+        failing_since = conn.last_ok_at or conn.created_at
+    next_at = None
+    if linked and not conn.needs_reconnect and bank_sync_enabled(db):
+        gap = BANK_RETRY_AFTER_FAILURE if conn.last_sync_ok is False else BANK_SYNC_EVERY
+        next_at = max(now, (conn.last_sync_at + gap) if conn.last_sync_at else now)
+        wait = _bank_call_wait(conn, now)
+        if wait:
+            next_at = max(next_at, now + timedelta(seconds=wait))
+    iso = lambda d: d.isoformat() + "Z" if d else None
+    out.update({
+        "linked_account_ids": linked,
+        "last_sync_at": iso(conn.last_sync_at),
+        "last_sync_ok": conn.last_sync_ok,
+        "last_sync_status": conn.last_sync_status,
+        "last_ok_at": iso(conn.last_ok_at),
+        "needs_reconnect": bool(conn.needs_reconnect),
+        "failing_since": iso(failing_since),
+        "failing_over_a_day": bool(failing_since and now - failing_since > BANK_FAILING_WARN_AFTER),
+        "next_sync_at": iso(next_at),
+        "syncs_left_today": max(0, BANK_CALLS_PER_DAY - len(_bank_calls(conn, now))),
+        "sync_wait_seconds": _bank_call_wait(conn, now),
+    })
+    return out
+
+
+@app.get("/api/bank/status")
+def bank_short_status(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """The sync's state, for the Dashboard and apps; an API token may read it."""
+    return _bank_short_status(db, user)
+
+
+# ---------- The sync log (#195) ----------
+def _sync_log_account(db: Session, user: User, account_id: int) -> Account:
+    # The owner only, not the people the account is shared with; 404 like
+    # every account check.
+    return _account_with_perm(db, user, account_id, "owner")
+
+
+@app.get("/api/accounts/{account_id}/bank-syncs")
+def bank_sync_log(account_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """This account's syncs, newest first (the last 200)."""
+    acc = _sync_log_account(db, user, account_id)
+    runs = (db.query(BankSyncRun).filter_by(account_id=acc.id, user_id=user.id)
+            .order_by(BankSyncRun.run_at.desc(), BankSyncRun.id.desc()).limit(200).all())
+    return [{"id": r.id, "run_at": r.run_at.isoformat() + "Z", "trigger": r.trigger,
+             "added": r.added, "skipped": r.skipped, "error": r.error} for r in runs]
+
+
+@app.get("/api/accounts/{account_id}/bank-syncs/{run_id}")
+def bank_sync_log_lines(account_id: int, run_id: int, user: User = Depends(current_user),
+                        db: Session = Depends(get_db)):
+    """The lines one sync brought in that are still there."""
+    acc = _sync_log_account(db, user, account_id)
+    run = db.get(BankSyncRun, run_id)
+    if run is None or run.account_id != acc.id or run.user_id != user.id:
+        raise HTTPException(404, "Sync not found")
+    rows = (db.query(Transaction).filter_by(account_id=acc.id, bank_sync_run_id=run.id)
+            .order_by(Transaction.actual_date, Transaction.id).all())
+    return {"id": run.id, "run_at": run.run_at.isoformat() + "Z", "trigger": run.trigger,
+            "added": run.added, "skipped": run.skipped, "error": run.error,
+            "lines": [{"id": t.id, "date": (t.actual_date or t.forecast_date).isoformat(),
+                       "description": t.description, "amount": float(t.amount)} for t in rows]}
 
 
 class BankDisconnectIn(BaseModel):

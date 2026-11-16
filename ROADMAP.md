@@ -257,8 +257,8 @@ planned in `Plans/bank-sync.md`; Plaid is not planned:
   internet.
 
 **Progress:** phase 1 (encrypted backups) shipped in 1.68.0; phase 2
-(connect a bank and Sync now) in 1.69.0 (#194). The daily sync, matching
-bills and the iOS part follow.
+(connect a bank and Sync now) in 1.69.0 (#194); phase 3 (the daily sync
+and its log) in 1.70.0 (#195). Matching bills and the iOS part follow.
 
 Either one stores a long-lived, read-only bank token, so encrypted backups
 (item 12) and two-factor sign-in (item 14) should come first. `PRIVACY.md`

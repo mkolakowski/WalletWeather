@@ -69,7 +69,17 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.69.0** · Web version: **1.84.0** · Schema version: **25** · iOS version: **0.16.0**
+App version: **1.70.0** · Web version: **1.85.0** · Schema version: **26** · iOS version: **0.16.0**
+
+### Added
+
+- Bank sync now runs by itself about once a day for everyone with a bank connected; Settings → Bank sync says when the next one is due, and Sync now still works any time. A failed sync is tried again about 6 hours later, and if SimpleFIN stops accepting your connection the tab says so and the daily sync waits until you connect again. The Dashboard shows a warning when bank sync has been failing for more than a day. A daily sync and Sync now never run at the same moment, and both count toward the 20 syncs a day. (#195)
+- A sync log for each matched account (Settings → Bank sync → Sync log): every sync, newest first, whether it ran by itself or by Sync now, how many lines came in and how many were already there, and any error; Show lines lists what a sync brought in. Only the account's owner sees it, and entries are kept as long as the audit log (180 days unless changed). (#195)
+- For apps and scripts: `GET /api/bank/status` gives the sync's state and can be read with any API token, and `POST /api/bank/sync` (Sync now) works with a token that has write access. (#195)
+
+### Database
+
+- Schema 26: a table for the sync log, two columns on bank connections (the last sync that worked, and whether it needs connecting again), and a column on transactions naming the sync that brought a line in. Added on start-up. (#195)
 
 ## [1.69.0] — 2026-11-16
 

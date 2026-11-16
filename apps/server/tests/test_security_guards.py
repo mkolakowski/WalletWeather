@@ -74,10 +74,10 @@ MUST_BE_SESSION_ONLY = {
     ("DELETE", "/api/me/remembered-browsers/{browser_id}"),
     ("POST", "/api/app-sign-in"),
     ("PUT", "/api/admin/two-factor"),
-    # Bank sync (#194): connecting holds a bank's credentials; phase 3 opens
-    # status and Sync now to tokens.
+    # Bank sync (#194): connecting holds a bank's credentials. Sync now and
+    # GET /api/bank/status are open to tokens since phase 3 (#195).
     ("GET", "/api/bank"), ("POST", "/api/bank/connect"), ("PUT", "/api/bank/links"),
-    ("POST", "/api/bank/sync"), ("POST", "/api/bank/disconnect"),
+    ("POST", "/api/bank/disconnect"),
     ("PUT", "/api/admin/bank-sync"),
 }
 

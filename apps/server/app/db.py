@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "25"
+SCHEMA_VERSION = "26"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,11 @@ SCHEMA_VERSION = "25"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v26 (2026-11-16, claude+mkolakowski): daily bank sync and its log
+#     (bank-sync phase 3, #195). New table bank_sync_runs (one row per
+#     linked account per sync, for its owner's sync log);
+#     bank_connections.last_ok_at and .needs_reconnect;
+#     transactions.bank_sync_run_id, the sync that brought a line in.
 # v25 (2026-11-16, claude+mkolakowski): bank sync (bank-sync phase 2, #194).
 #     New tables bank_connections (a user's SimpleFIN access address,
 #     encrypted) and bank_account_links (a bank account matched to one of
@@ -381,6 +386,8 @@ class Transaction(Base):
     # sha256 of the bank's account and transaction ids (#194), so it's found
     # without decrypting every row and is never brought in twice.
     bank_ref = Column(String(64), nullable=True)
+    # The sync that brought it in, for the sync log (#195).
+    bank_sync_run_id = Column(Integer, ForeignKey("bank_sync_runs.id", ondelete="SET NULL"), nullable=True)
 
     account = relationship("Account", back_populates="transactions")
     category = relationship("Category")
@@ -627,6 +634,10 @@ class BankConnection(Base):
     # When each call to SimpleFIN's /accounts was made in the last day (JSON
     # list of ISO times): Bridge disables a token that asks too often.
     calls_json = Column(Text, nullable=False, default="[]")
+    # The last sync that worked (#195), and whether SimpleFIN has stopped
+    # accepting the connection, which stops the daily sync until reconnected.
+    last_ok_at = Column(DateTime, nullable=True)
+    needs_reconnect = Column(Boolean, nullable=False, default=False)
 
 
 class BankAccountLink(Base):
@@ -642,6 +653,21 @@ class BankAccountLink(Base):
     synced_through = Column(Date, nullable=True)
     __table_args__ = (UniqueConstraint("connection_id", "bank_account_ref", name="uq_bank_link_ref"),
                       UniqueConstraint("connection_id", "account_id", name="uq_bank_link_account"))
+
+
+class BankSyncRun(Base):
+    """One sync of one linked account (#195): the owner's sync log. Kept as
+    long as the audit log (AUDIT_RETENTION_DAYS)."""
+    __tablename__ = "bank_sync_runs"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    account_id = Column(Integer, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
+    run_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    trigger = Column(String(10), nullable=False)    # 'schedule' | 'manual'
+    added = Column(Integer, nullable=False, default=0)
+    skipped = Column(Integer, nullable=False, default=0)
+    error = Column(String(300), nullable=True)
+    __table_args__ = (Index("ix_bank_sync_runs_account_run", "account_id", "run_at"),)
 
 
 class ApiToken(Base):
@@ -761,6 +787,12 @@ def init_db():
     from sqlalchemy import text
     Base.metadata.create_all(engine)
     migrations = [
+        # v25 → v26: daily bank sync and its log (#195). bank_sync_runs comes
+        # from create_all.
+        "ALTER TABLE bank_connections ADD COLUMN IF NOT EXISTS last_ok_at TIMESTAMP",
+        "ALTER TABLE bank_connections ADD COLUMN IF NOT EXISTS needs_reconnect BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS bank_sync_run_id INTEGER "
+        "REFERENCES bank_sync_runs(id) ON DELETE SET NULL",
         # v24 → v25: bank sync (#194). The two tables come from create_all.
         "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS bank_ref VARCHAR(64)",
         "CREATE INDEX IF NOT EXISTS ix_transactions_account_bank_ref "

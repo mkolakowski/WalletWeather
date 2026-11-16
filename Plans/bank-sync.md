@@ -8,9 +8,11 @@ Tracking issue: #198
 | --- | --- | --- | --- |
 | 1. Encrypted backups | Server, Web | #193 | Released in 1.68.0 (2026-11-16); BACKUP_PASSPHRASE wiring fixed in 1.68.1 (#200) |
 | 2. Connect a bank and Sync now | Server, Web | #194 | Released in 1.69.0 (2026-11-16); waiting for your try |
-| 3. Daily sync and its status | Server, Web | #195 | Not started |
+| 3. Daily sync and its status | Server, Web | #195 | Built in 1.70.0 (web 1.85.0, schema 26), waiting for its release and your try |
 | 4. Bills matched automatically | Server, Web | #196 | Not started; its question is settled |
 | 5. Status and Sync now in the iOS app | iOS | #197 | Not started |
+
+Phase 3 built 2026-11-16 in 1.70.0: API tests in `apps/server/tests/test_bank_sync_daily.py` (the scheduler called with chosen times), the screens driven in a headless browser. Built on open question 10's assumption (the log kept like the audit log). The daily rhythm (23½ hours, 6 hours after a failure, none while the connection needs remaking) was set in building, not asked.
 
 Phase 2 built 2026-11-16 in 1.69.0: API tests in `apps/server/tests/test_bank_sync.py` against a stand-in SimpleFIN, and the screens driven in a headless browser against the same stand-in. SimpleFIN's protocol was checked that day: v2 puts the bank's name on a "connection" and has no payee or memo; Bridge allows 90 days per request. The Settings tab, the 90-day limit and the 20-a-day guard were your calls ([decision](../docs/dev/decisions/bank-sync.md)).
 

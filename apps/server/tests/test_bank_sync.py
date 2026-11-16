@@ -430,13 +430,16 @@ def test_with_the_switch_off_everything_but_disconnect_is_refused(connected, fak
     assert c.post("/api/bank/disconnect", json={}).status_code == 200
 
 
-def test_an_api_token_cannot_use_bank_sync(app_started, fake, switched_on):
+def test_an_api_token_cannot_connect_or_manage(app_started, fake, switched_on):
+    """Sync now and the short status are open to tokens since phase 3 (#195),
+    tested in test_bank_sync_daily.py; connecting and matching aren't."""
     c, u = register(app_started)
     tok = c.post("/api/tokens", json={"name": "t", "access": "full", "expires_in_days": 30}).json()["token"]
     bearer = TestClient(app_started, headers={"Authorization": f"Bearer {tok}"})
     assert bearer.get("/api/bank").status_code == 403
     assert bearer.post("/api/bank/connect", json={"token": fake.token()}).status_code == 403
-    assert bearer.post("/api/bank/sync").status_code == 403
+    assert bearer.put("/api/bank/links", json={"links": []}).status_code == 403
+    assert bearer.post("/api/bank/disconnect", json={}).status_code == 403
     assert fake.requests == []
 
 

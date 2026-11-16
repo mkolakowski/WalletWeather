@@ -15,7 +15,7 @@ service you subscribe to yourself (about $15 a year). SimpleFIN reads your
 bank's transactions and balances. It can't move money.
 
 {: .important }
-> - **WalletWeather 1.69.0 or later.** The version is in the app's footer.
+> - **WalletWeather 1.69.0 or later**, 1.70.0 for the daily sync and the sync log. The version is in the app's footer.
 > - **An admin switches bank sync on** once for the server ([below](#for-the-person-who-runs-the-server)).
 > - **Each person connects their own bank** with their own SimpleFIN
 >   subscription ([Connect your bank](#connect-your-bank)).
@@ -119,12 +119,28 @@ Press **Save matches**.
 
 ### Sync
 
-Press **Sync now**. The message says how many lines came in and how many
-were already there.
+Press **Sync now** for the first sync. The message says how many lines came
+in and how many were already there.
 
-{: .note }
-Today, syncing happens only when you press **Sync now**. Syncing by itself
-once a day comes in a later release.
+After that, WalletWeather syncs by itself **about once a day** (from 1.70.0);
+the tab says when the next one is due. **Sync now** still works whenever you
+want one sooner.
+
+### Read the sync log
+
+Each matched bank account has a **Sync log** button: every sync of that
+account, newest first, whether it ran by itself (Daily) or by **Sync now**,
+how many lines came in, how many were already there, and any error. **Show
+lines** lists the lines a sync brought in. Only you, the account's owner, see
+it; people you share the account with don't. Entries are kept as long as the
+server keeps its audit log (180 days unless its admin changed it).
+
+### If sync keeps failing
+
+The Dashboard shows a warning when bank sync has been failing for more than a
+day, or when SimpleFIN no longer accepts the connection. The daily sync
+retries a failed sync about 6 hours later, and stops altogether once
+SimpleFIN has stopped accepting the connection, until you connect again.
 
 ## What a sync does
 
@@ -169,7 +185,8 @@ Deleting your WalletWeather user removes your connection too.
 | *Couldn't reach SimpleFIN* | SimpleFIN may be down, or the server can't reach it: see "Make sure the server can reach SimpleFIN". |
 | *SimpleFIN says your subscription needs paying* | Renew at SimpleFIN Bridge, then sync again. |
 | *SimpleFIN no longer accepts this connection* | It was disabled at SimpleFIN or ran out. Disconnect, make a new setup token and connect again. |
-| *Bank sync has asked SimpleFIN 20 times in the last 24 hours* | Wait for the time it gives. |
+| *Bank sync has asked SimpleFIN 20 times in the last 24 hours* | Wait for the time it gives. The daily sync counts toward the 20 too. |
+| *A sync is already running* | The daily sync was running at that moment. Try again in a minute. |
 | *Match at least one bank account to one of your accounts first* | Pick an account for at least one bank account and press Save matches. |
 | Sync says *0 new lines* the first time | The "Bring in from" date is today, so only new transactions come in. Move it back and Save matches. |
 | A bank account is missing from the list | Check it's linked at SimpleFIN Bridge, then press Sync now. The list is refreshed on each sync. |
@@ -181,7 +198,9 @@ Deleting your WalletWeather user removes your connection too.
   server's `ENCRYPTION_KEY` and is never shown in the app or written to a
   log. The server also keeps your bank accounts' names (encrypted), your
   matches, how the last sync went, and the times of the last day's syncs.
-  Each synced line carries a fingerprint of the bank's id for it.
+  Each synced line carries a fingerprint of the bank's id for it, and which
+  sync brought it in. The sync log (when, how many, any error) is kept as
+  long as the audit log.
 - **In backups:** encrypted backups (Settings → Backup, and the system
   backups) carry the connection, so a restore keeps it. The readable
   "Download my data" copy never does.

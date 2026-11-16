@@ -69,7 +69,25 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.55.0** · Web version: **1.73.0** · Schema version: **19** · iOS version: **0.9.0**
+App version: **1.56.0** · Web version: **1.74.0** · Schema version: **19** · iOS version: **0.9.0**
+
+### Added
+
+- **Search everything from the top bar:** type in the search box to find
+  transactions, bills and income, accounts, categories, tags and saved
+  reports at once, grouped by kind. Each result shows one detail (a
+  transaction's date, amount and account; a bill's amount and next date; an
+  account's balance; how many transactions carry a category or tag). Choosing
+  one opens it where it lives: a transaction or bill in its editor, an
+  account in Forecast, a category or tag as its transactions, a report run.
+  When the bar has no room, and on a phone, it's a magnifier that opens a
+  full-width search. Search only finds what you can see. The server's new
+  `GET /api/search` does the searching. (web 1.74.0)
+
+### Fixed
+
+- Forecast's Search transactions no longer shows an older search's results
+  when two searches overlap.
 
 ## [1.55.0] — 2026-11-15
 

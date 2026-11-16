@@ -29,7 +29,7 @@ from urllib.parse import urlencode
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.55.0"
+APP_VERSION = "1.56.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,10 @@ APP_VERSION = "1.55.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.56.0 (2026-11-15, claude+mkolakowski): GET /api/search (#111): one search
+#     across transactions, bills and income, accounts, categories, tags and
+#     saved reports, grouped by kind with each group's count; only what the
+#     caller may see. Tests in tests/test_search.py.
 # 1.55.0 (2026-11-15, claude+mkolakowski): no server change; the release
 #     that ships web 1.73.0 (Show QR code) and the iOS app 0.9.0, email and
 #     password and QR sign-in (#100, #164).
@@ -3531,6 +3535,129 @@ def search_transactions(q: str | None = None,
         r["tags"] = tags_by_txn.get(r["id"], [])
     return {"total": total, "results": page,
             "limit": limit, "offset": offset}
+
+
+# ---------- Search across everything (#111) ----------
+# One search for the web app's top bar and the iOS app (ios-app phase 10,
+# #112): transactions, bills and income, accounts, categories, tags and saved
+# reports, each group as {total, results}. Matching is a case-insensitive
+# "contains" on names (and descriptions and notes for transactions and bills),
+# done in Python because they're encrypted at rest. Each group holds only
+# what the caller may see: the accounts they can read (archived ones left
+# out, as on the Dashboard), and their own categories, tags and reports.
+# Decided 2026-11-15 (docs/dev/decisions/search.md): each result carries its
+# name and one detail, and tags are a group of their own.
+SEARCH_GROUP_LIMIT = 20
+SEARCH_GROUP_LIMIT_MAX = 100
+
+
+def _search_group(rows: list[dict], limit: int) -> dict:
+    return {"total": len(rows), "results": rows[:limit]}
+
+
+@app.get("/api/search")
+def search_everything(q: str = "", limit: int = SEARCH_GROUP_LIMIT,
+                      today: date | None = None,
+                      user: User = Depends(current_user),
+                      db: Session = Depends(get_db)):
+    """Everything matching `q`, grouped by kind, up to `limit` per group
+    (1-100) with each group's full count. An empty `q` finds nothing."""
+    today = _viewer_today(today)
+    limit = max(1, min(limit, SEARCH_GROUP_LIMIT_MAX))
+    needle = q.strip().casefold()
+    groups = ("transactions", "recurring", "accounts", "categories", "tags", "reports")
+    if not needle:
+        return {"query": "", **{g: {"total": 0, "results": []} for g in groups}}
+
+    def hit(*texts: str | None) -> bool:
+        return any(t and needle in t.casefold() for t in texts)
+
+    accounts = _user_visible_accounts(db, user)
+    acc_by_id = {a.id: a for a in accounts}
+    acc_names = {a.id: a.name for a in accounts}
+    visible_ids = list(acc_by_id) or [0]
+
+    # Transactions: newest first, as /api/transactions/search.
+    txns = []
+    for t in (db.query(Transaction).filter(Transaction.account_id.in_(visible_ids))
+              .order_by(Transaction.actual_date.desc().nullslast(),
+                        Transaction.forecast_date.desc().nullslast(),
+                        Transaction.id.desc())):
+        if not hit(t.description, t.notes):
+            continue
+        day = t.actual_date or t.forecast_date
+        txns.append({
+            "id": t.id, "description": t.description or "",
+            "date": day.isoformat() if day else None,
+            "amount": float(t.amount), "is_actual": t.is_actual,
+            "account_id": t.account_id, "account_name": acc_names.get(t.account_id),
+            "category_id": t.category_id,
+            "category_name": t.category.name if t.category else None,
+            "recurring_id": t.recurring_id, "transfer_id": t.transfer_id,
+        })
+
+    # Bills and income: those still running first, then ended ones; by name.
+    recs = [(a, r) for a in accounts for r in a.recurring if hit(r.description, r.notes)]
+    upcoming = _recurring_upcoming(db, [r for _, r in recs], today)
+    levels = dict(db.query(AccountPermission.account_id, AccountPermission.level)
+                  .filter(AccountPermission.user_id == user.id,
+                          AccountPermission.account_id.in_(visible_ids)))
+    bills = []
+    for a, r in recs:
+        nexts = upcoming.get(r.id, [])
+        bills.append({
+            "id": r.id, "description": r.description, "amount": float(r.amount),
+            "frequency": r.frequency,
+            "next_date": nexts[0].isoformat() if nexts else None,
+            "expired": r.end_date is not None and r.end_date < today,
+            "account_id": a.id, "account_name": a.name,
+            "account_level": levels.get(a.id, "read"),
+            "category_id": r.category_id,
+            "category_name": r.category.name if r.category else None,
+        })
+    bills.sort(key=lambda b: (b["expired"], b["description"].casefold(), b["id"]))
+
+    found_accounts = sorted(
+        ({"id": a.id, "name": a.name,
+          "current_balance": round(_current_balance(db, a, today), 2),
+          "level": levels.get(a.id, "read")}
+         for a in accounts if hit(a.name)),
+        key=lambda x: (x["name"].casefold(), x["id"]))
+
+    # Categories and tags: the caller's own, with how many transactions on
+    # the accounts they can see carry each.
+    cats = [c for c in db.query(Category).filter_by(owner_id=user.id) if hit(c.name)]
+    cat_counts = dict(db.query(Transaction.category_id, func.count(Transaction.id))
+                      .filter(Transaction.account_id.in_(visible_ids),
+                              Transaction.category_id.in_([c.id for c in cats] or [0]))
+                      .group_by(Transaction.category_id))
+    found_cats = sorted(({"id": c.id, "name": c.name, "color": c.color,
+                          "transaction_count": cat_counts.get(c.id, 0)} for c in cats),
+                        key=lambda x: (x["name"].casefold(), x["id"]))
+    tags = [t for t in db.query(Tag).filter_by(owner_id=user.id) if hit(t.name)]
+    tag_counts = dict(db.query(TransactionTag.tag_id, func.count(TransactionTag.transaction_id))
+                      .join(Transaction, Transaction.id == TransactionTag.transaction_id)
+                      .filter(Transaction.account_id.in_(visible_ids),
+                              TransactionTag.tag_id.in_([t.id for t in tags] or [0]))
+                      .group_by(TransactionTag.tag_id))
+    found_tags = sorted(({"id": t.id, "name": t.name, "color": t.color,
+                          "transaction_count": tag_counts.get(t.id, 0)} for t in tags),
+                        key=lambda x: (x["name"].casefold(), x["id"]))
+
+    reports = [{"id": r.id, "name": r.name}
+               for r in (db.query(SavedReport).filter_by(owner_id=user.id)
+                         .order_by(SavedReport.sort_order.asc(), SavedReport.id.asc()))
+               if hit(r.name)]
+
+    return {
+        "query": q.strip(),
+        "transactions": _search_group(txns, limit),
+        "recurring": _search_group(bills, limit),
+        "accounts": _search_group(found_accounts, limit),
+        "categories": _search_group(found_cats, limit),
+        "tags": _search_group(found_tags, limit),
+        "reports": _search_group(reports, limit),
+    }
 
 
 # ---------- Bulk tag operations ----------

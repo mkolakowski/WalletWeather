@@ -474,6 +474,38 @@
              padding:6px 14px; border-radius:6px; font-weight:500; font-size:13px; cursor:pointer; }
   .nav-btn:hover { color:var(--text); }
   .nav-btn.active { background:var(--bg-deep); color:var(--accent); border-color:var(--border); }
+  /* Search across everything (#111): a box in the top bar when there's room
+     beside the page buttons; otherwise (.compact, set by _fitGlobalSearch, and
+     always on a phone) a magnifier that opens a full-width box (decided
+     2026-11-15, docs/dev/decisions/search.md). */
+  .gsearch { position:relative; flex:1 1 0; display:flex; justify-content:flex-start; margin:0 16px; min-width:0; }
+  .gsearch .gsearch-open { display:none; }
+  .gsearch-box { display:flex; align-items:center; gap:6px; width:100%; max-width:340px; }
+  .gsearch-box input { width:100%; }
+  .gsearch-close { display:none; }
+  .gsearch-results { position:absolute; top:calc(100% + 8px); left:0; width:min(480px, 92vw); max-height:70vh;
+                     overflow-y:auto; z-index:950; background:var(--panel); border:1px solid var(--border);
+                     border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,.35); padding:6px; }
+  .gsearch-group h3 { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase;
+                      letter-spacing:.05em; margin:8px 8px 4px; }
+  .gsearch-item { display:flex; width:100%; justify-content:space-between; align-items:baseline; gap:12px;
+                  background:transparent; border:none; color:var(--text); text-align:left; padding:8px 10px;
+                  border-radius:6px; font-size:14px; cursor:pointer; }
+  .gsearch-item:hover, .gsearch-item:focus-visible { background:var(--chip-bg); outline:none; }
+  .gsearch-item .gs-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .gsearch-item .gs-detail { color:var(--muted); font-size:12px; white-space:nowrap; flex:0 0 auto; font-variant-numeric:tabular-nums; }
+  .gsearch-more { color:var(--accent); font-size:12px; }
+  .gsearch-empty { color:var(--muted); font-size:13px; padding:12px 10px; }
+  .gsearch.compact { flex:0 0 auto; justify-content:flex-end; margin:0 8px 0 auto; }
+  .gsearch.compact .gsearch-open { display:inline-flex; }
+  .gsearch.compact .gsearch-box { display:none; }
+  .gsearch.compact.open { position:fixed; top:0; left:0; right:0; z-index:960; margin:0; padding:10px 12px;
+                          background:var(--panel); border-bottom:1px solid var(--border); display:block; }
+  .gsearch.compact.open .gsearch-open { display:none; }
+  .gsearch.compact.open .gsearch-box { display:flex; max-width:none; }
+  .gsearch.compact.open .gsearch-close { display:inline-flex; }
+  .gsearch.compact.open .gsearch-results { position:fixed; top:58px; left:0; right:0; bottom:0; width:auto; max-height:none;
+                                           border-radius:0; border:none; border-top:1px solid var(--border); box-shadow:none; }
   .tab.small { padding:4px 10px; font-size:12px; }
   .backup-subhead { font-size:12px; font-weight:600; color:var(--muted);
                     text-transform:uppercase; letter-spacing:.05em; margin:0 0 10px; }
@@ -601,7 +633,7 @@
   @media (max-width: 768px) {
     /* The header keeps only the title; pages are reached from the bar at the
        bottom of the screen (four pages and More). */
-    header > div { display:none; }
+    header > div:not(#gsearch) { display:none; }
     body { padding-bottom:calc(64px + env(safe-area-inset-bottom)); }
     .bottom-nav { display:grid; grid-template-columns:repeat(5, 1fr); position:fixed; left:0; right:0; bottom:0;
                   z-index:900; background:var(--panel); border-top:1px solid var(--border);
@@ -1168,6 +1200,18 @@
 <div id="app" class="hidden">
   <header>
     <h1 data-app-title>WalletWeather</h1>
+    <div id="gsearch" class="gsearch" role="search">
+      <button type="button" class="icon-btn gsearch-open" aria-label="Search" title="Search" onclick="openGlobalSearch()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+      </button>
+      <div class="gsearch-box">
+        <input id="gsearchInput" type="search" placeholder="Search everything…" autocomplete="off"
+               aria-label="Search everything" aria-controls="gsearchResults" aria-expanded="false">
+        <button type="button" class="ghost gsearch-close" onclick="closeGlobalSearch()" aria-label="Close search">Close</button>
+      </div>
+      <div id="gsearchResults" class="gsearch-results hidden" aria-live="polite"></div>
+    </div>
     <div>
       <button id="navDashboard" class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
       <button id="navNetworth" class="nav-btn" onclick="showPage('networth')">Net Worth</button>
@@ -2497,7 +2541,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.73.0";
+const WEB_VERSION = "1.74.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2508,6 +2552,7 @@ const WEB_VERSION = "1.73.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.74.0 (2026-11-15, claude+mkolakowski): (#111) Search across everything: a box in the top bar (#gsearch; a magnifier opening a full-width box when the bar has no room, always on a phone: _fitGlobalSearch) calls GET /api/search and lists transactions, bills and income, accounts, categories, tags and reports, each with one detail; a result opens where it lives (openGlobalSearchResult): a transaction or bill in its editor, an account in Forecast, a category or tag as its transactions, a report run.
 // 1.73.0 (2026-11-15, claude+mkolakowski): (#100) Settings → API tokens: a new token gets a "Show QR code" button (#apiTokenQrBtn) off an iPhone, drawing its walletweather://connect link as a QR code for the iOS app to scan. The QR encoder (qrMatrix, qrSvg) is written for the page; Done (hideNewApiToken) clears the code and the token.
 // 1.72.0 (2026-11-15, claude+mkolakowski): (#87) Settings → API tokens: on an iPhone, a new token gets an "Open in WalletWeather" button (#apiTokenOpenApp) beside Copy, which opens walletweather://connect?server=…&token=… in the iOS app. New page apps/web/app-sign-in.html (served at /app-sign-in) for signing in the iOS app.
 // 1.71.0 (2026-11-15, claude+mkolakowski): (#134) Admin page: an "Audit log" panel (loadAdminAudit) lists /api/admin/audit newest first, with an Event select, an "Email contains" search and Load more; "user #7" in a detail shows that user's email while they exist; every value is escaped.
@@ -3539,6 +3584,219 @@ function showPage(name, opts) {
     else if (currentAccountId && accounts.some(a => a.id === currentAccountId)) {
       selectAccount(currentAccountId);
     }
+  }
+}
+
+// ---------- Search across everything (#111) ----------
+// The top bar's search: GET /api/search, results grouped by kind, each
+// opening where it lives. Decided 2026-11-15 (docs/dev/decisions/search.md):
+// a magnifier opens a full-width box on narrow screens, each result shows
+// its name and one detail, and tags are their own group.
+const GSEARCH_GROUPS = [
+  ['transactions', 'Transactions'], ['recurring', 'Bills & income'], ['accounts', 'Accounts'],
+  ['categories', 'Categories'], ['tags', 'Tags'], ['reports', 'Reports'],
+];
+let _gsearchTimer = null, _gsearchSeq = 0, _gsearchLast = null;
+function _gsDay(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function _gsCount(n) { return n === 1 ? '1 transaction' : `${n} transactions`; }
+function _gsDetail(kind, r) {
+  switch (kind) {
+    case 'transactions': return [_gsDay(r.date), fmt(r.amount), r.account_name].filter(Boolean).join(' · ');
+    case 'recurring': return [fmt(r.amount), r.expired ? 'Ended' : (r.next_date ? 'Next ' + _gsDay(r.next_date) : '')].filter(Boolean).join(' · ');
+    case 'accounts': return fmt(r.current_balance);
+    case 'categories': case 'tags': return _gsCount(r.transaction_count);
+    default: return '';
+  }
+}
+// The box shows in the bar only with room for it beside the title and the
+// page buttons (their width depends on the email shown and the Admin button);
+// otherwise, and always on a phone, it's the magnifier.
+function _fitGlobalSearch() {
+  const box = document.getElementById('gsearch');
+  const header = box.parentElement, nav = box.nextElementSibling, title = header.querySelector('h1');
+  const cs = getComputedStyle(header);
+  // The buttons' width on one line (they wrap when squeezed), and the title's.
+  const navWidth = nav.offsetParent ? [...nav.children].filter(el => el.offsetParent)
+    .reduce((w, el) => { const m = getComputedStyle(el); return w + el.offsetWidth + parseFloat(m.marginLeft) + parseFloat(m.marginRight) + 4; }, 0) : 0;
+  const range = document.createRange();
+  range.selectNodeContents(title);
+  const free = header.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+    - range.getBoundingClientRect().width - navWidth - 40;
+  const compact = window.innerWidth <= 768 || free < 200;
+  if (compact !== box.classList.contains('compact')) {
+    box.classList.toggle('compact', compact);
+    if (!compact) box.classList.remove('open');
+  }
+}
+window.addEventListener('resize', _fitGlobalSearch);
+new ResizeObserver(_fitGlobalSearch).observe(document.querySelector('#gsearch + div'));
+_fitGlobalSearch();
+function openGlobalSearch() {
+  const box = document.getElementById('gsearch');
+  box.classList.add('open');
+  const input = document.getElementById('gsearchInput');
+  input.focus();
+  input.select();
+  if (input.value.trim()) _showGsearchResults(true);
+}
+function closeGlobalSearch() {
+  document.getElementById('gsearch').classList.remove('open');
+  _showGsearchResults(false);
+}
+function _showGsearchResults(show) {
+  document.getElementById('gsearchResults').classList.toggle('hidden', !show);
+  document.getElementById('gsearchInput').setAttribute('aria-expanded', String(show));
+}
+async function runGlobalSearch() {
+  const q = document.getElementById('gsearchInput').value.trim();
+  const seq = ++_gsearchSeq;
+  if (!q) { _gsearchLast = null; _showGsearchResults(false); return; }
+  let body;
+  try { body = await api('/api/search?' + new URLSearchParams({ q, today: _isoDate(new Date()) })); }
+  catch (e) { if (seq === _gsearchSeq) renderGlobalSearch(null, q); return; }
+  if (seq !== _gsearchSeq) return;  // a newer search has started
+  _gsearchLast = body;
+  renderGlobalSearch(body, q);
+}
+function renderGlobalSearch(body, q) {
+  const out = document.getElementById('gsearchResults');
+  if (!body) {
+    out.innerHTML = '<div class="gsearch-empty">Search isn\'t working right now. Try again in a moment.</div>';
+  } else if (GSEARCH_GROUPS.every(([k]) => !body[k].total)) {
+    out.innerHTML = `<div class="gsearch-empty">Nothing matches “${escapeHtml(q)}”.</div>`;
+  } else {
+    out.innerHTML = GSEARCH_GROUPS.filter(([k]) => body[k].total).map(([k, title]) => {
+      const g = body[k];
+      const rows = g.results.map((r, i) => {
+        const name = k === 'transactions' || k === 'recurring' ? r.description : r.name;
+        return `<button type="button" class="gsearch-item" data-gs-kind="${k}" data-gs-index="${i}">
+          <span class="gs-name">${escapeHtml(name || '')}</span><span class="gs-detail">${escapeHtml(_gsDetail(k, r))}</span></button>`;
+      }).join('');
+      const more = k === 'transactions' && g.total > g.results.length
+        ? `<button type="button" class="gsearch-item gsearch-more" data-gs-kind="more-transactions">Show all ${g.total} in Search transactions</button>` : '';
+      return `<div class="gsearch-group" role="group" aria-label="${escapeHtml(title)}"><h3>${escapeHtml(title)} (${g.total})</h3>${rows}${more}</div>`;
+    }).join('');
+  }
+  _showGsearchResults(true);
+}
+document.getElementById('gsearchInput').addEventListener('input', () => {
+  clearTimeout(_gsearchTimer);
+  _gsearchTimer = setTimeout(runGlobalSearch, 220);
+});
+document.getElementById('gsearchInput').addEventListener('focus', () => {
+  if (_gsearchLast && document.getElementById('gsearchInput').value.trim()) _showGsearchResults(true);
+});
+document.getElementById('gsearch').addEventListener('keydown', (ev) => {
+  const items = [...document.querySelectorAll('#gsearchResults .gsearch-item')];
+  const input = document.getElementById('gsearchInput');
+  if (ev.key === 'Escape') { ev.preventDefault(); closeGlobalSearch(); input.blur(); return; }
+  if (ev.key === 'Enter' && ev.target === input) {
+    ev.preventDefault();
+    clearTimeout(_gsearchTimer);
+    if (items.length && _gsearchLast) items[0].click(); else runGlobalSearch();
+    return;
+  }
+  if (ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
+  if (!items.length) return;
+  ev.preventDefault();
+  const i = items.indexOf(document.activeElement);
+  if (ev.key === 'ArrowDown') (items[i + 1] || items[0]).focus();
+  else if (i <= 0) input.focus();
+  else items[i - 1].focus();
+});
+document.getElementById('gsearchResults').addEventListener('click', (ev) => {
+  const b = ev.target.closest('.gsearch-item');
+  if (!b || !_gsearchLast) return;
+  const kind = b.dataset.gsKind;
+  closeGlobalSearch();
+  if (kind === 'more-transactions') {
+    _openTxnSearchWith({ q: document.getElementById('gsearchInput').value.trim() });
+    return;
+  }
+  openGlobalSearchResult(kind, _gsearchLast[kind].results[Number(b.dataset.gsIndex)]);
+});
+// Clicking elsewhere closes the results (the box keeps its text).
+document.addEventListener('mousedown', (ev) => {
+  const box = document.getElementById('gsearch');
+  if (box && !box.contains(ev.target)) closeGlobalSearch();
+});
+async function _waitFor(cond, ms = 6000) {
+  for (let waited = 0; waited < ms; waited += 50) {
+    if (cond()) return true;
+    await new Promise(r => setTimeout(r, 50));
+  }
+  return cond();
+}
+function _selectOrAdd(id, value, label) {
+  const sel = document.getElementById(id);
+  if (!sel) return;
+  if (value == null || value === '') { sel.value = ''; return; }
+  if (![...sel.options].some(o => o.value === String(value))) {
+    const o = document.createElement('option');
+    o.value = value; o.textContent = label || String(value);
+    sel.appendChild(o);
+  }
+  sel.value = String(value);
+}
+// Forecast → All accounts' "Search transactions", filtered as given.
+async function _openTxnSearchWith(f) {
+  showPage('accounts', { sub: 'all' });
+  editingTxnSearchRowId = null;
+  document.getElementById('txnSearchQ').value = f.q || '';
+  _selectOrAdd('txnSearchAccount', f.account_id, f.account_name);
+  _selectOrAdd('txnSearchCategory', f.category_id, f.category_name);
+  _selectOrAdd('txnSearchTag', f.tag_id, f.tag_name);
+  document.getElementById('txnSearchKind').value = '';
+  document.getElementById('txnSearchFrom').value = f.date || '';
+  document.getElementById('txnSearchTo').value = f.date || '';
+  document.getElementById('txnSearchMin').value = '';
+  document.getElementById('txnSearchMax').value = '';
+  await runTxnSearch();
+  document.getElementById('allAccountsView').scrollIntoView({ block: 'start' });
+}
+async function openGlobalSearchResult(kind, r) {
+  if (!r) return;
+  if (kind === 'transactions') {
+    // The transaction alone in Search transactions, open to edit when it can be.
+    await _openTxnSearchWith({ q: r.description, account_id: r.account_id, account_name: r.account_name, date: r.date });
+    const tr = document.querySelector(`#txnSearchTable tr[data-txn-id="${r.id}"]`);
+    if (tr) {
+      if (tr.querySelector('button[onclick^="startEditTxnRow"]')) startEditTxnRow(r.id);
+      else tr.scrollIntoView({ block: 'center' });
+    }
+  } else if (kind === 'recurring') {
+    recFilterAccount = '';
+    recView = r.expired ? 'archived' : 'active';
+    document.getElementById('recTabActive').classList.toggle('active', !r.expired);
+    document.getElementById('recTabArchived').classList.toggle('active', r.expired);
+    showPage('subscriptions');
+    await loadRecurring();
+    // Find the page of the list it's on, then open it to edit if it can be.
+    let tr = null;
+    for (let page = 0; page < 200 && !tr; page++) {
+      recurringPage = page;
+      renderRecurring();
+      tr = document.querySelector(`#recurringTable tr[data-rec-id="${r.id}"]`);
+      if (!tr && recurringPage < page) break;  // past the last page
+    }
+    if (tr && _recRowEditable(r)) startEditRecurring(r.id);
+    else if (tr) tr.scrollIntoView({ block: 'center' });
+  } else if (kind === 'accounts') {
+    currentAccountId = r.id;
+    if (!accounts.some(a => a.id === r.id)) await loadAccounts();
+    showPage('accounts');
+    selectAccount(r.id);
+  } else if (kind === 'categories') {
+    await _openTxnSearchWith({ category_id: r.id, category_name: r.name });
+  } else if (kind === 'tags') {
+    await _openTxnSearchWith({ tag_id: r.id, tag_name: r.name });
+  } else if (kind === 'reports') {
+    showPage('reports');
+    if (await _waitFor(() => reportSaved.some(x => x.id === r.id))) selectSavedReport(r.id);
   }
 }
 
@@ -9184,6 +9442,7 @@ function resetTxnSearch() {
   document.getElementById('txnSearchKind').value = '';
   runTxnSearch();
 }
+let _txnSearchSeq = 0;
 async function runTxnSearch() {
   const q = document.getElementById('txnSearchQ').value.trim();
   const acc = document.getElementById('txnSearchAccount').value;
@@ -9207,13 +9466,17 @@ async function runTxnSearch() {
   params.set('limit', '500');
   const status = document.getElementById('txnSearchStatus');
   status.textContent = 'Searching…';
+  // Only the newest search shows: opening this view starts one, and the top
+  // bar's search (#111) starts another with its filters straight after.
+  const seq = ++_txnSearchSeq;
   let data;
   try {
     data = await api('/api/transactions/search?' + params.toString());
   } catch (e) {
-    status.textContent = 'Search failed: ' + errText(e);
+    if (seq === _txnSearchSeq) status.textContent = 'Search failed: ' + errText(e);
     return;
   }
+  if (seq !== _txnSearchSeq) return;
   status.textContent = `${data.total} match${data.total===1?'':'es'}` + (data.total > data.results.length ? ` (showing first ${data.results.length})` : '');
   const tb = document.querySelector('#txnSearchTable tbody');
   _txnSearchRowsById = new Map(data.results.map(r => [r.id, r]));

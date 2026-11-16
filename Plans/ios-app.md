@@ -9,12 +9,12 @@ Tracking issue: #93
 | 1. Connect and Dashboard | #87 | Released in 1.50.0 (2026-11-15; web 1.72.0, schema 19, iOS 0.1.1); simulator screenshots on #87; waiting on your phone check |
 | 2. Forecast | #88 | Released in 1.52.0 (2026-11-15; iOS 0.2.0); waiting on your phone check |
 | 3. Bills & income and Calendar | #89 | Released in 1.53.0 (2026-11-15; iOS 0.3.0); waiting on your phone check |
-| 4. The Duo's big screen | #90 | All four parts built 2026-11-15 (iOS 0.7.0), not released; waiting on your choice of which to keep |
+| 4. The Duo's big screen | #90 | All four parts released in 1.54.2 (2026-11-15; iOS 0.7.0); waiting on your choice of which to keep |
 | 5. The other pages and app settings | #91 | Released in 1.54.0 (2026-11-15; iOS 0.4.0); waiting on your phone check |
 | 6. TestFlight and the App Store | #92 | Open (waits on legal-risk phase 5, #49) |
 | 7. More ways to sign in | #100 | Open (after phase 1; email and password after phone-path phase 3, #43) |
 | 8. Kept on the phone | #101 | Released in 1.54.1 (2026-11-15; iOS 0.5.0); simulator check passed later that day (one fix, in iOS 0.6.0); waiting on your phone check |
-| 9. The web app's themes | #102 | Built 2026-11-15 (iOS 0.6.0), not released; every page checked in the simulator in all eight themes, closed and open; waiting on your look |
+| 9. The web app's themes | #102 | Released in 1.54.2 (2026-11-15; iOS 0.6.0); every page checked in the simulator in all eight themes, closed and open; waiting on your look |
 | 10. Search everything | #112 | Open (after phases 3 and 5, and #111: one search on the server and in the web app) |
 
 Phase 1 built on 2026-11-15: server 1.50.0 (the "sign in an app" page and its two endpoints, `current_balance` on the Dashboard, schema 19), web 1.72.0 (the "Open in WalletWeather" button) and the iOS app 0.1.0 (Connect, sign-in, the Important notice, the frame and the Dashboard). Verified by the server tests (pytest, all passing), `swift test` in `apps/ios/WalletWeatherKit` against samples recorded from the demo server, and simulator screenshots on the Duo (closed, open on its side, open upright) and an iPhone 17, which found two layout bugs fixed in iOS 0.1.1; released in v1.50.0 the same day. The Cloudflare part waits on your phone (see `docs/dev/decisions/ios-app.md`, "how the Cloudflare sign-in reaches the app").

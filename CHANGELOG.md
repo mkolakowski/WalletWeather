@@ -69,10 +69,18 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.60.0** · Web version: **1.77.0** · Schema version: **21** · iOS version: **0.12.0**
+App version: **1.60.0** · Web version: **1.77.0** · Schema version: **21** · iOS version: **0.13.0**
 
 ### Added
 
+- **A Getting started card in the iPhone app:** the Dashboard opens with a
+  short list of things worth trying, the first being "Make the tab bar
+  yours". It opens a sheet that shows the bar, with Swap beside each of its
+  three pages and a picture of the bar that follows your swaps. Save puts
+  the new bar in place. The task is ticked once you've saved there or
+  changed the bar in Settings → Tab bar. The card goes for good once every
+  task is done, or when you close it. It shows on new sign-ins, and once
+  after updating if you're already signed in. (iOS 0.13.0)
 - **Admins can require two-factor sign-in:** Admin → Two-factor sign-in has
   a "Require two-factor sign-in" switch, with a count of the users who
   haven't set it up yet. Once it's on, everyone who signs in with a password

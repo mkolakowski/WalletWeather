@@ -23,8 +23,21 @@ final class AppSettings {
     }
 
     /// The pages in the tab bar beside Settings and Search, in order (#158).
+    /// Any change ticks Getting started's tab bar task (#175).
     var tabs: [TabPage] {
-        didSet { defaults.set(TabPage.stored(tabs), forKey: Keys.tabs) }
+        didSet {
+            defaults.set(TabPage.stored(tabs), forKey: Keys.tabs)
+            start.done.insert(.tabBar)
+        }
+    }
+
+    /// The Getting started card on the Dashboard (#175): kept per phone.
+    var start: GettingStarted {
+        didSet {
+            guard start != oldValue else { return }
+            defaults.set(GettingStarted.stored(start.done), forKey: Keys.startDone)
+            defaults.set(start.dismissed, forKey: Keys.startDismissed)
+        }
     }
 
     /// The theme saved in the web app, for Match the web app: kept here so
@@ -60,6 +73,8 @@ final class AppSettings {
         static let look = "appearance"
         static let serverTheme = "appearance.web"
         static let tabs = "tabs"
+        static let startDone = "start.done"
+        static let startDismissed = "start.dismissed"
         static let lockEnabled = "lock.enabled"
         static let lockOffered = "lock.offered"
     }
@@ -73,6 +88,12 @@ final class AppSettings {
         serverTheme = defaults.string(forKey: Keys.serverTheme)
         // Debug only: `WW_DEBUG_TABS=forecast,netWorth` for screenshots.
         tabs = TabPage.bar(from: AppModel.debugSetting("WW_DEBUG_TABS") ?? defaults.string(forKey: Keys.tabs))
+        // Debug only: `WW_DEBUG_START=fresh` (or `tour`, which also opens the
+        // guided tab bar sheet) shows Getting started as on a new phone.
+        start = AppModel.debugSetting("WW_DEBUG_START") != nil
+            ? GettingStarted()
+            : GettingStarted(done: GettingStarted.done(from: defaults.string(forKey: Keys.startDone)),
+                             dismissed: defaults.bool(forKey: Keys.startDismissed))
         let enabled = defaults.bool(forKey: Keys.lockEnabled)
         lockEnabled = enabled
         lockOffered = defaults.bool(forKey: Keys.lockOffered)

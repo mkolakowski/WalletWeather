@@ -1,15 +1,18 @@
 import SwiftUI
 import WalletWeatherKit
 
-/// The Dashboard, read-only: "rest of this month", a card per account, the
-/// charts with the Month / 30 days / 90 days switch, and pinned reports.
+/// The Dashboard, read-only: Getting started while it's due (#175), "rest of
+/// this month", a card per account, the charts with the Month / 30 days /
+/// 90 days switch, and pinned reports.
 /// One column on any iPhone and on the Duo closed; on the open Duo the
 /// accounts take the left half and the charts the right, meeting at the fold
 /// with nothing to read or tap on it.
 struct DashboardView: View {
     @Environment(AppModel.self) private var model
+    @Environment(AppSettings.self) private var settings
     @Environment(\.horizontalSizeClass) private var sizeClass
     @SceneStorage("dashboard.window") private var window: ChartWindow = .month
+    @State private var touring = false
 
     @State private var summary: Loadable<Dashboard> = .loading
     @State private var charts: Loadable<DashboardCharts> = .loading
@@ -50,6 +53,8 @@ struct DashboardView: View {
         }
         .task(id: model.generation) { await load() }
         .task(id: window) { await loadCharts() }
+        .sheet(isPresented: $touring) { TabBarTour() }
+        .onAppear { if AppModel.debugSetting("WW_DEBUG_START") == "tour" { touring = true } }
     }
 
     // MARK: - Layouts
@@ -85,6 +90,13 @@ struct DashboardView: View {
 
     @ViewBuilder
     private func accountsColumn(_ dashboard: Dashboard) -> some View {
+        if settings.start.showsCard {
+            GettingStartedCard { task in
+                switch task {
+                case .tabBar: touring = true
+                }
+            }
+        }
         if dashboard.cards.isEmpty {
             ContentUnavailableView("No accounts yet", systemImage: "building.columns",
                                    description: Text("Add an account in the web app's Settings, and it shows here."))

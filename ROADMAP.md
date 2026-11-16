@@ -224,6 +224,34 @@ categories and saved reports, in the web app's top bar and in the iOS app.
 Today only transactions can be searched (item 3). It needs one search endpoint
 that returns matches grouped by kind (#111). **Effort: medium.**
 
+### 29. Bank sync (SimpleFIN, Plaid)
+Pull transactions from the bank on a schedule instead of uploading a CSV
+(item 4), land them through the same import path with the provider's
+transaction id for de-duplication, and apply the auto-tag rules (item 8).
+Two providers were looked at (#163), and which to build is undecided:
+
+- **SimpleFIN Bridge:** the user pays for it themselves and pastes one token
+  into the app, and the server polls. No approval, no third-party script, no
+  public address. It gives no categories, so a mapping and the tag rules do
+  that work.
+- **Plaid:** each instance brings its own Plaid keys, as Google sign-in does
+  with `GOOGLE_CLIENT_ID`; the project can't ship a shared one. Plaid
+  supplies a category per transaction, to be mapped onto the user's
+  categories. It needs Plaid's production approval per operator, loads its
+  sign-in window from Plaid's servers (`PRIVACY.md` says the web client
+  loads nothing from other sites) and needs a public HTTPS return address
+  for the large banks, against the README's advice to stay off the public
+  internet.
+
+Either one stores a long-lived, read-only bank token, so encrypted backups
+(item 12) and two-factor sign-in (item 14) should come first. `PRIVACY.md`
+("What leaves the server"), `docs/privacy.md`, `SECURITY.md` ("Known
+limits"), the README's security notes, `.env.example` and the first-login
+notice would all change, and disconnecting a bank or deleting a user has to
+remove the connection at the provider. How pending bank rows meet the
+forecast and "To confirm" is an open design question. Needs a plan.
+**Effort: large.**
+
 ---
 
 ## What's already in good shape (don't re-prioritize these)

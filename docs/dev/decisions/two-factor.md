@@ -66,3 +66,16 @@ Decisions made while planning and building [`Plans/two-factor.md`](../../../Plan
 **Options considered:** a short name worked out from the browser's user-agent ("Safari on iPhone"), storing only that name; no name, each listed by the date it was remembered.
 
 **The decision:** the short name. The user-agent string itself is never stored, as with the sign-in log (decided for login-limits). `PRIVACY.md` lists the name with the rest of what a remembered browser keeps.
+
+## 2026-11-15: a required set-up holds API tokens back too
+
+**Decided:** 2026-11-15, by Matthew, while building phase 4 (#168). **Status:** accepted.
+
+**The question:** once an admin requires two-factor sign-in, a user with a password who hasn't set it up sees only the set-up screen in the browser. Should their API tokens (scripts, and the iPhone app, which signs in with a token) keep working meanwhile?
+
+**Options considered:** hold tokens back too, so every request answers "set up two-factor in a browser first" until they do; or hold back only sign-ins (the browser and the app's email and password sign-in), leaving existing tokens working until they expire, a gap in the requirement.
+
+**The decision:** tokens are held back too. Only what set-up needs stays open: `GET /api/me`, the first-login notice, the two set-up steps, and an app revoking its own token to sign out.
+
+**What it changes:** app 1.60.0. The iPhone app shows the server's message on any held-back request.
+

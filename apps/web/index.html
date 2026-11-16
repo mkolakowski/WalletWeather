@@ -1195,6 +1195,20 @@
   </div>
 </div>
 
+<!-- Shown in place of #app while an admin requires two-factor sign-in and
+     this user hasn't set it up (#168). The Settings panel #twoFactorPanel is
+     moved in here, so set-up works the same way in both places. -->
+<div id="tfaGate" class="login hidden">
+  <h1 data-app-title>WalletWeather</h1>
+  <div class="auth-card notice-card">
+    <h2 style="margin:0 0 8px;font-size:17px">Set up two-factor sign-in</h2>
+    <p style="font-size:14px;margin:0 0 12px">Your admin requires two-factor sign-in on this instance.
+      Set it up to carry on: you'll need an authenticator app on your phone.</p>
+    <div id="tfaGateBody"></div>
+    <button class="ghost" onclick="logout()" style="width:100%;margin-top:8px">Sign out</button>
+  </div>
+</div>
+
 <!-- Shown instead of the sign-in screen when the server can't be reached
      (the installed app opened offline, #41). Nothing is stored on the phone,
      so there's nothing to show until it's back. -->
@@ -2075,6 +2089,19 @@
         <div id="adminAppTitleStatus" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
       </div>
 
+      <div class="panel" id="adminTwoFactor">
+        <h2>Two-factor sign-in</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Require every user who signs in with a password to set up two-factor sign-in.
+          Until they do, they see only the set-up screen, and their API tokens and the iPhone app wait too.
+          Users who sign in only with Google aren't asked: Google has its own two-step check.
+        </p>
+        <label style="display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer">
+          <input id="adminTwoFactorRequired" type="checkbox" style="width:auto;margin:0" onchange="saveAdminTwoFactor()">
+          Require two-factor sign-in</label>
+        <div id="adminTwoFactorStatus" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
+      </div>
+
       <div class="panel">
         <h2>User management</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
@@ -2616,7 +2643,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.76.0";
+const WEB_VERSION = "1.77.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2627,6 +2654,7 @@ const WEB_VERSION = "1.76.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.77.0 (2026-11-15, claude+mkolakowski): (#168) Two-factor sign-in required by an admin. A user /api/me says two_factor_setup_required gets only a set-up screen after sign-in (#tfaGate, showTwoFactorGate, which borrows the Settings panel #twoFactorPanel) until it's on; a request the server holds back for it reloads into that screen (api()). Admin → "Two-factor sign-in" panel (#adminTwoFactor, loadAdminTwoFactor, saveAdminTwoFactor) switches the requirement and counts who still has to set it up.
 // 1.76.0 (2026-11-15, claude+mkolakowski): (#167) Remember this browser. The sign-in code step gets a "Don't ask on this browser for 30 days" tick box (#siRemember, sent as remember to /api/auth/login/two-factor). Settings → Two-factor sign-in lists remembered browsers when it's on (#tfaBrowsers, loadRememberedBrowsers) with Forget on each and Forget all.
 // 1.75.0 (2026-11-15, claude+mkolakowski): (#165) Two-factor sign-in. The sign-in card gets a code step (#formTwoFactor, doSigninCode) shown when /api/auth/login answers two_factor_required. Settings → Your account: a "Two-factor sign-in" panel (#twoFactorPanel, loadTwoFactor) sets it up with a QR code drawn by the page's own qrSvg, shows the recovery codes once, switches it off and makes new recovery codes. Admin → Users: a "two-factor" badge and a switch-off button (adminTwoFactorOff). /app-sign-in asks for the code too.
 // 1.74.0 (2026-11-15, claude+mkolakowski): (#111) Search across everything: a box in the top bar (#gsearch; a magnifier opening a full-width box when the bar has no room, always on a phone: _fitGlobalSearch) calls GET /api/search and lists transactions, bills and income, accounts, categories, tags and reports, each with one detail; a result opens where it lives (openGlobalSearchResult): a transaction or bill in its editor, an account in Forecast, a category or tag as its transactions, a report run.
@@ -3414,7 +3442,13 @@ async function api(path, opts={}) {
   }
   const res = await fetch(path, { headers:{'Content-Type':'application/json'}, ...opts });
   if (res.status===401) { showLogin(); throw new Error('auth'); }
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    const text = await res.text();
+    // An admin started requiring two-factor sign-in while this page was open
+    // (#168): the server holds every request back until it's set up.
+    if (res.status === 403 && text.includes('requires two-factor sign-in') && !inTwoFactorGate()) location.reload();
+    throw new Error(text);
+  }
   return res.json();
 }
 
@@ -5183,20 +5217,34 @@ async function setPermission(accountId, userId, level) {
 }
 
 function showOffline() {
-  ['login', 'notice', 'app'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  ['login', 'notice', 'tfaGate', 'app'].forEach(id => document.getElementById(id).classList.add('hidden'));
   document.getElementById('offline').classList.remove('hidden');
 }
 function showLogin() {
   document.getElementById('offline').classList.add('hidden');
   document.getElementById('login').classList.remove('hidden');
   document.getElementById('notice').classList.add('hidden');
+  document.getElementById('tfaGate').classList.add('hidden');
   document.getElementById('app').classList.add('hidden');
 }
 function showApp() {
   document.getElementById('login').classList.add('hidden');
   document.getElementById('notice').classList.add('hidden');
+  document.getElementById('tfaGate').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
 }
+// Two-factor sign-in required by an admin (#168): until it's set up, the
+// set-up panel is all there is. Finishing it ("I've saved them") reloads.
+function showTwoFactorGate() {
+  const panel = document.getElementById('twoFactorPanel');
+  document.getElementById('tfaGateBody').appendChild(panel);
+  panel.classList.remove('hidden');
+  panel.querySelector('h2').classList.add('hidden');
+  ['login', 'notice', 'app', 'offline'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  document.getElementById('tfaGate').classList.remove('hidden');
+  loadTwoFactor();
+}
+function inTwoFactorGate() { return !document.getElementById('tfaGate').classList.contains('hidden'); }
 // The "Important notice" (the disclaimer): shown once per user, in place of
 // the app, until they agree. The server says when it's owed
 // (me.notice_required); the demo user is never asked.
@@ -5572,6 +5620,8 @@ function loadTwoFactor() {
   if (!document.getElementById('twoFactorSetup').classList.contains('hidden')) return;
   if (!me.has_password) return _tfaView('twoFactorGoogle');
   if (!me.two_factor_enabled) return _tfaView('twoFactorOff');
+  // Just set up from the required set-up screen: only the recovery codes.
+  if (inTwoFactorGate()) return _tfaView(null);
   const left = me.recovery_codes_left;
   document.getElementById('tfaStatus').innerHTML = "It's <strong>on</strong>. "
     + (left === 0 ? '<span style="color:var(--warn)">You have no recovery codes left: make new ones.</span>'
@@ -5689,6 +5739,7 @@ async function twoFactorCopyCodes() {
 function twoFactorCodesDone() {
   document.getElementById('tfaCodes').textContent = '';
   document.getElementById('twoFactorCodes').classList.add('hidden');
+  if (inTwoFactorGate() && me && me.two_factor_enabled) location.reload();
 }
 // Settings → "Delete my account". The server decides what deleting would
 // do (GET /api/me/deletion-check); this only shows it and asks to confirm.
@@ -5828,6 +5879,12 @@ async function init() {
   if (me.notice_required) {
     applyTheme(me.theme_preference || DEFAULT_THEME);
     showNotice();
+    return;
+  }
+  // Then, if an admin requires two-factor sign-in, nothing loads until it's on.
+  if (me.two_factor_setup_required) {
+    applyTheme(me.theme_preference || DEFAULT_THEME);
+    showTwoFactorGate();
     return;
   }
   showApp();
@@ -8730,12 +8787,44 @@ async function importBackup() {
 // ============ Admin page ============
 function loadAdminPage() {
   loadAdminAppTitle();
+  loadAdminTwoFactor();
   loadAdminUsers();
   loadAdminTokens();
   loadAdminPermissions();
   loadAdminBackupConfig();
   loadAdminBackups();
   loadAdminAudit();
+}
+
+// Admin → "Two-factor sign-in" (#168): require it of every user with a
+// password. The server refuses until the admin has set up their own.
+function _adminTwoFactorShow(data) {
+  document.getElementById('adminTwoFactorRequired').checked = data.required;
+  const n = data.users_to_set_up;
+  const status = document.getElementById('adminTwoFactorStatus');
+  status.style.color = '';
+  status.textContent = (data.required ? 'Required. ' : 'Not required. ')
+    + (n === 0 ? 'Every user with a password has it set up.'
+               : n + ' user' + (n === 1 ? '' : 's') + ' with a password ' + (n === 1 ? 'hasn\'t' : 'haven\'t') + ' set it up'
+                 + (data.required ? ' and will be asked to before they can carry on.' : '.'));
+}
+async function loadAdminTwoFactor() {
+  try { _adminTwoFactorShow(await api('/api/admin/two-factor')); }
+  catch (e) { document.getElementById('adminTwoFactorStatus').textContent = 'Failed to load: ' + errText(e); }
+}
+async function saveAdminTwoFactor() {
+  const box = document.getElementById('adminTwoFactorRequired');
+  const status = document.getElementById('adminTwoFactorStatus');
+  const want = box.checked;
+  box.disabled = true;
+  try {
+    _adminTwoFactorShow(await api('/api/admin/two-factor', { method: 'PUT', body: JSON.stringify({ required: want }) }));
+    notify(want ? 'Two-factor sign-in is now required.' : 'Two-factor sign-in is no longer required.');
+  } catch (e) {
+    box.checked = !want;
+    status.textContent = errText(e);
+    status.style.color = 'var(--bad)';
+  } finally { box.disabled = false; }
 }
 
 async function loadAdminAppTitle() {

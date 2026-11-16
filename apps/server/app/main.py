@@ -29,7 +29,7 @@ from urllib.parse import urlencode
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.59.0"
+APP_VERSION = "1.60.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,13 @@ APP_VERSION = "1.59.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.60.0 (2026-11-15, claude+mkolakowski): an admin can require two-factor
+#     sign-in (#168): GET/PUT /api/admin/two-factor. While it's on, a user
+#     with a password who hasn't set it up is held back from every endpoint
+#     but /api/me, the notice, set-up and signing an app out, by session or
+#     token alike (403); /api/me says two_factor_setup_required, and
+#     POST /api/auth/token refuses them. Tests in
+#     tests/test_two_factor_required.py.
 # 1.59.0 (2026-11-15, claude+mkolakowski): POST /api/auth/token takes an
 #     optional "code" (#166): for a user with two-factor sign-in on, no code
 #     or a wrong one answers 403 with "two_factor_required": true, and a
@@ -762,6 +769,7 @@ def _authenticate(request: Request, db: Session) -> User:
             row.last_used_at = now
             db.commit()
         request.state.api_token = row
+        _hold_for_two_factor(request, db, user)
         return user
     uid = request.session.get("uid")
     if not uid:
@@ -773,7 +781,49 @@ def _authenticate(request: Request, db: Session) -> User:
         # Disabled users get logged out cleanly
         request.session.clear()
         raise HTTPException(status_code=403, detail="Account disabled")
+    _hold_for_two_factor(request, db, user)
     return user
+
+
+# ---------- Two-factor sign-in required by an admin (#168) ----------
+# Decided 2026-11-15 (Plans/two-factor.md, open question 4, and #168): when
+# an admin requires it, it covers every user with a password (Google-only
+# users aren't asked: Google sign-in skips the code). Until such a user has
+# set it up, every request of theirs is held back, by session or API token
+# alike, except what setting it up needs.
+REQUIRE_TWO_FACTOR_KEY = "require_two_factor"
+TWO_FACTOR_SETUP_MESSAGE = ("This instance requires two-factor sign-in. "
+                            "Set it up in Settings in a browser first.")
+# (method, path) still open to a user who must set it up: who they are, the
+# first-login notice, the two set-up steps, and an app signing itself out.
+TWO_FACTOR_SETUP_OPEN = {
+    ("GET", "/api/me"),
+    ("POST", "/api/me/acknowledge-notice"),
+    ("POST", "/api/me/two-factor/setup"),
+    ("POST", "/api/me/two-factor/enable"),
+    ("DELETE", "/api/tokens/current"),
+}
+
+
+def two_factor_required(db: Session) -> bool:
+    row = db.get(AdminSetting, REQUIRE_TWO_FACTOR_KEY)
+    return bool(row and row.value == "true")
+
+
+def must_set_up_two_factor(db: Session, user: User) -> bool:
+    """True for a user the requirement covers who hasn't set it up yet."""
+    if user.password_hash is None or user.totp_enabled_at is not None:
+        return False
+    if is_demo_email(user.email):
+        return False
+    return two_factor_required(db)
+
+
+def _hold_for_two_factor(request: Request, db: Session, user: User) -> None:
+    if (request.method, request.url.path) in TWO_FACTOR_SETUP_OPEN:
+        return
+    if must_set_up_two_factor(db, user):
+        raise HTTPException(status_code=403, detail=TWO_FACTOR_SETUP_MESSAGE)
 
 
 def current_user(request: Request, db: Session = Depends(get_db)) -> User:
@@ -1260,6 +1310,10 @@ def app_token(payload: AppTokenIn, request: Request, db: Session = Depends(get_d
         raise HTTPException(400, "Access must be read or full")
     _check_expiry(payload.expires_in_days)
     user = _password_sign_in(db, request, payload.email, payload.password, "token")
+    if must_set_up_two_factor(db, user):
+        # Required by an admin and not set up yet (#168): no token until it is.
+        record_event(db, "two_factor_asked", request, user=user, detail="token; set-up required")
+        raise HTTPException(403, TWO_FACTOR_SETUP_MESSAGE)
     if user.totp_enabled_at is not None:
         # The password was right, and that's half of it (#166). Both answers
         # below carry two_factor_required so an app can show a code field;
@@ -1506,6 +1560,9 @@ def me(request: Request, user: User = Depends(current_user),
             # Two-factor sign-in (#165): whether it's on, and how many
             # one-time recovery codes are unused.
             "two_factor_enabled": two_factor,
+            # An admin requires two-factor and this user hasn't set it up
+            # (#168): the web app shows only the set-up screen.
+            "two_factor_setup_required": must_set_up_two_factor(db, user),
             "recovery_codes_left": _recovery_codes_left(db, user) if two_factor else 0}
 
 
@@ -5712,6 +5769,51 @@ def admin_reset_app_title(request: Request, user: User = Depends(current_admin),
     return {"app_title": APP_TITLE_DEFAULT}
 
 
+class TwoFactorRequirementIn(BaseModel):
+    required: bool
+
+
+def _users_to_set_up(db: Session) -> int:
+    """Users the requirement covers who haven't set it up: with a password,
+    not disabled, not the demo user."""
+    rows = (db.query(User.email)
+            .filter(User.password_hash.isnot(None), User.totp_enabled_at.is_(None),
+                    User.disabled.is_(False))
+            .all())
+    return sum(1 for (email,) in rows if not is_demo_email(email))
+
+
+@app.get("/api/admin/two-factor")
+def admin_get_two_factor(user: User = Depends(current_admin), db: Session = Depends(get_db)):
+    """Whether two-factor sign-in is required, and how many users it still
+    waits on."""
+    return {"required": two_factor_required(db), "users_to_set_up": _users_to_set_up(db)}
+
+
+@app.put("/api/admin/two-factor")
+def admin_set_two_factor(payload: TwoFactorRequirementIn, request: Request,
+                         user: User = Depends(current_session_admin),
+                         db: Session = Depends(get_db)):
+    """Require two-factor sign-in of every user with a password, or stop.
+    A browser session only, and the admin sets up their own first (#168)."""
+    if payload.required and user.password_hash is not None and user.totp_enabled_at is None:
+        raise HTTPException(409, "Set up your own two-factor sign-in first "
+                                 "(Settings → Your account), then require it of everyone.")
+    was = two_factor_required(db)
+    row = db.get(AdminSetting, REQUIRE_TWO_FACTOR_KEY)
+    if payload.required and not row:
+        db.add(AdminSetting(key=REQUIRE_TWO_FACTOR_KEY, value="true"))
+    elif payload.required:
+        row.value = "true"
+    elif row:
+        db.delete(row)
+    db.commit()
+    if was != payload.required:
+        record_event(db, "two_factor_requirement_changed", request, user=user,
+                     detail="on" if payload.required else "off")
+    return {"required": payload.required, "users_to_set_up": _users_to_set_up(db)}
+
+
 @app.get("/api/admin/users")
 def admin_list_users(user: User = Depends(current_admin), db: Session = Depends(get_db)):
     users = db.query(User).order_by(User.id).all()
@@ -6003,7 +6105,7 @@ AUDIT_EVENT_TYPES = (
     "token_created", "token_revoked",
     "two_factor_asked", "two_factor_enabled", "two_factor_disabled",
     "recovery_code_used", "recovery_codes_remade",
-    "browser_remembered", "browser_forgotten",
+    "browser_remembered", "browser_forgotten", "two_factor_requirement_changed",
 )
 _AUDIT_USER_REF = re.compile(r"\buser #(\d+)")
 

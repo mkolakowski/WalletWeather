@@ -9,7 +9,7 @@ Tracking issue: #170
 | 1. Set up, sign in with a code, recovery | #165 | Released in 1.57.0 (web 1.75.0, schema 20) |
 | 2. A code in the iOS app's sign-in | #166 | Released in 1.59.0 (iOS 0.11.0) |
 | 3. Remember this browser | #167 | Built as 1.58.0 (web 1.76.0, schema 21), released in 1.59.0 |
-| 4. Admin: require it for everyone | #168 | Open, after phase 1 |
+| 4. Admin: require it for everyone | #168 | Built 2026-11-15 (app 1.60.0, web 1.77.0); not released |
 | 5. A code for sensitive actions | #169 | Open, after phase 1 |
 
 Planned 2026-11-15.
@@ -19,6 +19,8 @@ Phase 1 built 2026-11-15 as app 1.57.0 (web 1.75.0, schema 20). Verified by 21 n
 Phase 3 built 2026-11-15 as app 1.58.0 (web 1.76.0, schema 21), after phase 1's release in v1.57.0 but before your try of it (your call). A `remembered_browsers` table keeps each browser's cookie as a SHA-256, with a short name worked out from the browser ("Safari on iPhone", never the user-agent string) so Settings can tell them apart; an admin's password reset forgets them too, alongside the three the decision names. Verified by 17 new tests in `test_remembered_browsers.py` (280 in all pass) and a headless browser run against a throwaway server at phone and desktop widths (tick box, signed in with the password alone, the Settings list with "This browser", Forget, asked again: 22 checks pass). Released 2026-11-15 in v1.59.0 (release issue #173). Not yet tried on your instance.
 
 Phase 2 built 2026-11-15 as app 1.59.0 and iOS 0.11.0 (web and schema unchanged), also before your try of phase 1 (your call). `POST /api/auth/token` takes an optional `code`; without one, or with a wrong one, it answers 403 with `two_factor_required`, which the app turns into a Code field on the Connect screen. Verified by 7 new server tests (286 in all pass), 4 new tests in the app's library (98 pass) and a simulator build. The app was not run in a simulator or on the phone, so the Code field hasn't been seen on screen. Released 2026-11-15 in v1.59.0 (release issue #173); the app itself still has to be installed on the phone.
+
+Phase 4 built 2026-11-15 as app 1.60.0 (web 1.77.0, no schema change; the requirement is an `admin_settings` row). Your choice the same day: a user who must set it up is held back by API token too, not only in the browser ([decision](../docs/dev/decisions/two-factor.md)). Verified by 15 new tests in `test_two_factor_required.py` (301 in all pass) and a headless browser run against a throwaway server (the admin refused before their own set-up, then the switch on with its count; a second user on a phone gets only the set-up screen, their other requests answer 403, the QR code, only the recovery codes after it, then into the app: 11 checks pass). Not released, and not yet seen on your instance.
 
 Sessions: may span — each phase ends with a release and your try on your own instance with a real authenticator app before the next starts.
 

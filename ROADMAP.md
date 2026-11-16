@@ -147,9 +147,10 @@ financial data warrant this. **Effort: small-to-medium.** New columns on
 > **Shipped (1.57.0, #165):** set-up in Settings → Your account with a QR
 > code, a code step after the password, ten recovery codes and an admin
 > switch-off. The codes are written from the standard, so `pyotp` wasn't
-> needed. Remember this browser for 30 days followed in 1.58.0 (#167). The
-> plan's other phases (a code in the iOS app's sign-in, an admin "require
-> it", a code for sensitive actions) are tracked in `Plans/two-factor.md`.
+> needed. Remember this browser for 30 days followed in 1.58.0 (#167), a code
+> in the iOS app's sign-in in 1.59.0 (#166) and an admin "require it" in
+> 1.60.0 (#168). A code for sensitive actions is tracked in
+> `Plans/two-factor.md`.
 
 ### ~~15. Login rate limiting & audit log~~ ✅ **Shipped in v1.44.0 (rate limiting) and v1.49.0 (audit events, Admin → Audit log).**
 ~~Rate-limit failed logins by IP+username, and write significant events

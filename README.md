@@ -298,7 +298,8 @@ before you decide where to run it:
 - Backups are unencrypted (roadmap item 12).
 - There is no self-serve password reset (item 13). Two-factor sign-in (a
   code from an authenticator app after the password) is there for each user
-  to switch on in Settings → Your account; an admin can't require it yet.
+  to switch on in Settings → Your account, and an admin can require it of
+  everyone who signs in with a password (Admin → Two-factor sign-in).
   Wrong passwords and wrong codes are rate limited, and sign-ins and admin
   actions are logged for admins to read in Admin → Audit log.
 - Session cookies are not marked HTTPS-only, so serve the app over HTTPS

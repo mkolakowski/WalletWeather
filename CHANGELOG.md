@@ -69,7 +69,31 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.59.0** · Web version: **1.76.0** · Schema version: **21** · iOS version: **0.11.0**
+App version: **1.60.0** · Web version: **1.77.0** · Schema version: **21** · iOS version: **0.11.0**
+
+### Added
+
+- **Admins can require two-factor sign-in:** Admin → Two-factor sign-in has
+  a "Require two-factor sign-in" switch, with a count of the users who
+  haven't set it up yet. Once it's on, everyone who signs in with a password
+  and hasn't set up two-factor sees only a set-up screen after signing in,
+  until they've scanned the QR code and saved their recovery codes. Users
+  who sign in only with Google aren't asked. You have to set up your own
+  first. If you switch off someone's two-factor while it's required, they
+  set it up again at their next sign-in. (app 1.60.0, web 1.77.0)
+
+### Changed
+
+- **While two-factor is required, a user who hasn't set it up can't use
+  their API tokens or the iPhone app either:** every request answers "This
+  instance requires two-factor sign-in. Set it up in Settings in a browser
+  first." until they do, and the app's email and password sign-in refuses
+  them. Nothing changes while the switch is off.
+
+### Security
+
+- Switching the requirement on or off is recorded in the audit log, and only
+  works from a browser session, not with an API token.
 
 ## [1.59.0] — 2026-11-15
 

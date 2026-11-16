@@ -41,6 +41,12 @@ os.environ["DEMO_MODE"] = "false"
 os.environ["ALLOW_REGISTRATION"] = "true"
 os.environ["ALLOWED_EMAILS"] = ""
 os.environ["ADMIN_EMAILS"] = ""
+os.environ["REGISTRATION_CODE"] = ""
+# Every test registers and signs in from one address ("testclient"), so the
+# limits that count per address are lifted; test_security_fixes.py puts
+# them back for its own tests.
+os.environ["REGISTRATIONS_PER_HOUR"] = "1000000"
+os.environ["LOGIN_MAX_FAILURES_PER_ADDRESS"] = "1000000"
 
 # Make `import app` work however pytest is started.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -79,3 +85,21 @@ def registered(client):
                     json={"email": email, "password": password})
     assert r.status_code == 200, r.text
     return {"email": email, "password": password, "id": r.json()["id"]}
+
+
+def share_account(owner_client, account_id, level, invitee_client=None, email=None,
+                  password="correct-horse-battery"):
+    """Share an account the way the app does: the owner invites an address
+    and that person accepts. Pass the invitee's signed-in client, or their
+    email (and password) to sign in as them here."""
+    if invitee_client is None:
+        invitee_client = TestClient(owner_client.app)
+        r = invitee_client.post("/api/auth/login", json={"email": email, "password": password})
+        assert r.status_code == 200, r.text
+    email = email or invitee_client.get("/api/me").json()["email"]
+    r = owner_client.post("/api/invitations",
+                          json={"account_id": account_id, "email": email, "level": level})
+    assert r.status_code == 200, r.text
+    r = invitee_client.post(f"/api/invitations/{r.json()['id']}/accept")
+    assert r.status_code == 200, r.text
+    return invitee_client

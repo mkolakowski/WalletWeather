@@ -14,7 +14,7 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 
-from conftest import unique_email
+from conftest import share_account, unique_email
 
 PASSWORD = "correct-horse-battery"
 
@@ -37,12 +37,14 @@ def make_account(c, name="Checking"):
 
 
 def share(c, account_id, other, level):
-    # Look the other user up the way the Permissions panel does.
-    users = c.get("/api/permissions").json()["users"]
-    user_id = next(u["id"] for u in users if u["email"] == other["email"])
-    r = c.post("/api/permissions", json={
-        "account_id": account_id, "user_id": user_id, "level": level})
-    assert r.status_code == 200, r.text
+    # The way the app does it: an invitation the other person accepts.
+    # Taking access away again is the owner's alone.
+    if level == "deny":
+        r = c.post("/api/permissions", json={
+            "account_id": account_id, "user_id": other["id"], "level": "deny"})
+        assert r.status_code == 200, r.text
+        return
+    share_account(c, account_id, level, email=other["email"], password=PASSWORD)
 
 
 def delete_me(c, password=PASSWORD):

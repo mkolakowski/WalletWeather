@@ -1,3 +1,4 @@
+from conftest import share_account
 """GET /api/search (#111): one search across transactions, bills and income,
 accounts, categories, tags and saved reports, for the web app's top bar and
 the iOS app (ios-app phase 10, #112). Each test checks the fields the
@@ -139,9 +140,7 @@ def test_nothing_from_accounts_the_caller_cant_see(app_started, owner):
 
 def test_a_shared_account_shows_but_not_the_owners_own_things(app_started, owner):
     viewer, viewer_id = register(app_started)
-    r = owner["c"].post("/api/permissions", json={
-        "account_id": owner["acc"], "user_id": viewer_id, "level": "read"})
-    assert r.status_code == 200, r.text
+    share_account(owner["c"], owner["acc"], "read", viewer)
     body = search(viewer, "harbor")
     assert body["transactions"]["total"] == 1
     assert body["recurring"]["results"][0]["account_level"] == "read"

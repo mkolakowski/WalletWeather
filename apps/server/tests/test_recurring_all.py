@@ -10,7 +10,7 @@ from datetime import date, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from conftest import unique_email
+from conftest import share_account, unique_email
 
 PASSWORD = "correct-horse-battery"
 
@@ -124,9 +124,7 @@ def test_archived_lists_only_ended_templates(two_accounts):
 def test_shared_read_only_account_shows_its_level(app_started, two_accounts):
     owner, checking, savings, ids = two_accounts
     viewer, viewer_id = register(app_started)
-    r = owner.post("/api/permissions", json={
-        "account_id": checking, "user_id": viewer_id, "level": "read"})
-    assert r.status_code == 200, r.text
+    share_account(owner, checking, "read", viewer)
 
     body = viewer.get("/api/recurring").json()
     assert {it["id"] for it in body["items"]} == {ids["rent"], ids["pay"]}

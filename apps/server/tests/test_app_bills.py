@@ -10,7 +10,7 @@ from datetime import date, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from conftest import unique_email
+from conftest import share_account, unique_email
 from test_app_shapes import NUM, has
 
 PASSWORD = "correct-horse-battery"
@@ -142,9 +142,7 @@ def test_changing_an_unknown_item_is_404(owner):
 
 def test_a_read_only_account_cant_be_changed(app_started, owner):
     viewer, viewer_id = register(app_started)
-    r = owner["c"].post("/api/permissions", json={
-        "account_id": owner["checking"], "user_id": viewer_id, "level": "read"})
-    assert r.status_code == 200, r.text
+    share_account(owner["c"], owner["checking"], "read", viewer)
     assert item(viewer, owner["gym"])["account_level"] == "read"
     r = viewer.post(f"/api/recurring/{owner['gym']}/skip", json={"skip_date": TODAY.isoformat()})
     assert r.status_code == 404
@@ -162,9 +160,7 @@ def test_someone_you_share_with_can_end_a_bill_keeping_its_category(app_started,
             "active": True}
     assert c.patch(f"/api/recurring/{owner['gym']}", json=body).status_code == 200
     editor, editor_id = register(app_started)
-    r = c.post("/api/permissions", json={
-        "account_id": owner["checking"], "user_id": editor_id, "level": "edit"})
-    assert r.status_code == 200, r.text
+    share_account(c, owner["checking"], "edit", editor)
     ended = {**body, "end_date": (TODAY + timedelta(days=30)).isoformat()}
     assert editor.patch(f"/api/recurring/{owner['gym']}", json=ended).status_code == 200
     assert item(editor, owner["gym"])["category_id"] == cat

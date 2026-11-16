@@ -13,7 +13,7 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 
-from conftest import unique_email
+from conftest import share_account, unique_email
 from test_app_shapes import NUM, has
 
 PASSWORD = "correct-horse-battery"
@@ -216,9 +216,7 @@ def test_someone_you_share_with_keeps_the_lines_category(app_started, owner):
     Saving the line with that category kept works; picking another
     category that isn't the saver's own is still refused."""
     editor, editor_id = register(app_started)
-    r = owner["c"].post("/api/permissions", json={
-        "account_id": owner["acc"], "user_id": editor_id, "level": "edit"})
-    assert r.status_code == 200, r.text
+    share_account(owner["c"], owner["acc"], "edit", editor)
     acc = owner["acc"]
 
     row = rent(editor, acc)

@@ -2373,16 +2373,33 @@
         </div>
       </div>
 
-      <div class="panel" data-settings-section="sharing" id="permissionsPanel">
-        <h2>Permissions</h2>
+      <div class="panel" data-settings-section="sharing" id="sharedWithYouPanel">
+        <h2>Shared with you</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
-          Grant other users access to your accounts.
-          <strong>Owner</strong> can manage all permissions including other owners, and can delete the account.
-          <strong>Edit</strong> can modify data, run backups, and manage read/edit permissions, but cannot touch owners.
-          <strong>Read</strong> can view the forecast only.
-          <strong>Deny</strong> hides the account.
-          A ★ next to an account name means you own it.
+          When someone invites you to one of their accounts, it waits here. The account
+          appears in the app once you accept.
         </p>
+        <div id="invitationsReceived"></div>
+        <div id="sharedAccounts" style="margin-top:12px"></div>
+      </div>
+
+      <div class="panel" data-settings-section="sharing" id="permissionsPanel">
+        <h2>Share your accounts</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Invite someone by their email address. The account appears for them once they accept.
+          <strong>Owner</strong> can do everything, including sharing and deleting the account.
+          <strong>Edit</strong> can change its data.
+          <strong>Read</strong> can look only.
+          Only an owner changes who has access.
+        </p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px">
+          <div><label for="inviteAccount">Account</label><select id="inviteAccount"></select></div>
+          <div><label for="inviteEmail">Their email</label><input id="inviteEmail" type="email" autocomplete="off"></div>
+          <div><label for="inviteLevel">Can</label>
+            <select id="inviteLevel"><option value="read">Read</option><option value="edit">Edit</option><option value="owner">Owner</option></select></div>
+          <button onclick="sendInvitation()">Send invitation</button>
+        </div>
+        <div id="invitationsSent" style="margin-bottom:12px"></div>
         <div id="permissionsContent" style="overflow-x:auto">
           <div style="color:var(--muted);padding:8px">Loading…</div>
         </div>
@@ -2671,7 +2688,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.81.0";
+const WEB_VERSION = "1.82.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2682,6 +2699,7 @@ const WEB_VERSION = "1.81.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.82.0 (2026-11-16, claude+mkolakowski): (#189) Settings → Sharing is by invitation. "Share your accounts" (#permissionsPanel): an invite form (#inviteAccount, #inviteEmail, #inviteLevel → POST /api/invitations), invitations waiting (#invitationsSent, Cancel), and the table now lists only people who already have access, with Remove. New "Shared with you" panel (#sharedWithYouPanel): invitations to accept or decline, and accounts others share with you, each with Leave. noticeInvitations() says so once after sign-in when one is waiting.
 // 1.81.0 (2026-11-16, claude+mkolakowski): (#186) Settings → Change password gets "Sign out my other browsers" (#endOtherSessionsBtn → POST /api/me/sessions/end-others), and the password-changed notice says the other browsers were signed out.
 // 1.80.0 (2026-11-16, claude+mkolakowski): (#187) drain(res) lets go of an answer whose body is never read (a 401 in api(), sign-out, the two preference saves): API answers are no-store now, and Chrome keeps such a request open until its body is read or dropped.
 // 1.79.0 (2026-11-16, claude+mkolakowski): (#183) Security fixes from the review. Colours from the server are written into the page only when they are hex colours (safeColor at each place, scrubColors on every api() answer). The sign-up form shows a Registration code field (#suCode) when /api/auth/config says registration_code_required. Admin → User management gets Add a user (#adminNewEmail, #adminNewName, #adminNewPass → POST /api/admin/users).
@@ -5187,14 +5205,19 @@ function exportReport(format) {
   URL.revokeObjectURL(url);
 }
 
+// Settings → Sharing (#189). Sharing is by invitation: an owner types an
+// email, and the account appears for that person once they accept. The
+// table lists only the people who already have access to the caller's own
+// accounts; there's no list of every user.
 async function loadPermissions() {
+  loadSharedWithYou();
   const container = document.getElementById('permissionsContent');
   const panel = document.getElementById('permissionsPanel');
-  let data;
+  let data, invitations;
   try {
-    data = await api('/api/permissions');
+    [data, invitations] = await Promise.all([api('/api/permissions'), api('/api/invitations')]);
   } catch (e) {
-    container.innerHTML = `<div style="color:var(--bad)">Could not load permissions: ${escapeHtml(errText(e))}</div>`;
+    container.innerHTML = `<div style="color:var(--bad)">Could not load sharing: ${escapeHtml(errText(e))}</div>`;
     return;
   }
   if (!data.accounts.length) {
@@ -5202,51 +5225,42 @@ async function loadPermissions() {
     return;
   }
   panel.classList.remove('hidden');
+  const pick = document.getElementById('inviteAccount');
+  const chosen = pick.value;
+  pick.innerHTML = data.accounts.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('');
+  if (chosen && data.accounts.some(a => String(a.id) === chosen)) pick.value = chosen;
 
-  // Build a quick lookup: permsByPair["accountId:userId"] = level
+  const sent = document.getElementById('invitationsSent');
+  sent.innerHTML = invitations.sent.length
+    ? '<div style="font-size:13px;color:var(--muted);margin-bottom:4px">Waiting for an answer:</div>' +
+      invitations.sent.map(i => `<div style="font-size:13px;margin:2px 0">
+          ${escapeHtml(i.email)} · ${escapeHtml(i.account_name || '')} · ${escapeHtml(i.level)}
+          <button class="ghost" style="padding:2px 8px;margin-left:6px" onclick="removeInvitation(${i.id}, 'Cancelled.')">Cancel</button></div>`).join('')
+    : '';
+
   const permsByPair = {};
-  data.permissions.forEach(p => {
-    permsByPair[`${p.account_id}:${p.user_id}`] = p.level;
-  });
-
-  // Header row: blank corner cell + one col per account
+  data.permissions.forEach(p => { permsByPair[`${p.account_id}:${p.user_id}`] = p.level; });
   let html = '<table style="width:auto;min-width:100%"><thead><tr>';
-  html += '<th style="position:sticky;left:0;background:var(--panel)">User</th>';
-  data.accounts.forEach(a => {
-    html += `<th>${escapeHtml(a.name)}${a.caller_level==='owner'?' <span class="owner-flag" title="You own this account">★</span>':''}</th>`;
-  });
+  html += '<th style="position:sticky;left:0;background:var(--panel)">Has access</th>';
+  data.accounts.forEach(a => { html += `<th>${escapeHtml(a.name)}</th>`; });
   html += '</tr></thead><tbody>';
-
   const otherUsers = data.users.filter(u => u.id !== data.self_id);
   if (otherUsers.length === 0) {
-    html += '<tr><td colspan="' + (data.accounts.length + 1) + '" style="color:var(--muted);text-align:center;padding:14px">No other users have registered yet.</td></tr>';
+    html += '<tr><td colspan="' + (data.accounts.length + 1) + '" style="color:var(--muted);text-align:center;padding:14px">Nobody else has access yet.</td></tr>';
   } else {
     otherUsers.forEach(u => {
-      html += '<tr>';
-      html += `<td style="position:sticky;left:0;background:var(--panel);white-space:nowrap">${escapeHtml(u.email)}</td>`;
+      html += `<tr><td style="position:sticky;left:0;background:var(--panel);white-space:nowrap">${escapeHtml(u.email)}</td>`;
       data.accounts.forEach(a => {
-        const level = permsByPair[`${a.id}:${u.id}`] || 'deny';
-        const callerIsOwner = a.caller_level === 'owner';
-        // Non-owners cannot touch rows where the target is currently owner.
-        const lockedOut = level === 'owner' && !callerIsOwner;
-        // Options: Deny / Read / Edit always; Owner only if caller is owner.
-        const opts = [
-          `<option value="deny"${level==='deny'?' selected':''}>Deny</option>`,
-          `<option value="read"${level==='read'?' selected':''}>Read</option>`,
-          `<option value="edit"${level==='edit'?' selected':''}>Edit</option>`,
-        ];
-        if (callerIsOwner || level === 'owner') {
-          opts.push(`<option value="owner"${level==='owner'?' selected':''}>Owner</option>`);
-        }
-        const disabledAttr = lockedOut ? ' disabled title="Only owners can modify this"' : '';
-        html += `<td><select onchange="setPermission(${a.id},${u.id},this.value)"${disabledAttr}>
-          ${opts.join('')}
+        const level = permsByPair[`${a.id}:${u.id}`];
+        if (!level) { html += '<td style="color:var(--muted)">—</td>'; return; }
+        const opt = (v, label) => `<option value="${v}"${level===v?' selected':''}>${label}</option>`;
+        html += `<td><select onchange="setPermission(${a.id},${u.id},this.value)">
+          ${opt('read','Read')}${opt('edit','Edit')}${opt('owner','Owner')}<option value="deny">Remove</option>
         </select></td>`;
       });
       html += '</tr>';
     });
   }
-
   html += '</tbody></table>';
   container.innerHTML = html;
   document.getElementById('permissionsStatus').textContent = '';
@@ -5261,15 +5275,89 @@ async function setPermission(accountId, userId, level) {
       method: 'POST',
       body: JSON.stringify({account_id: accountId, user_id: userId, level: level}),
     });
-    status.textContent = 'Saved.';
+    status.textContent = level === 'deny' ? 'Removed.' : 'Saved.';
     status.style.color = 'var(--good)';
     setTimeout(() => { status.textContent = ''; }, 2000);
+    if (level === 'deny') await loadPermissions();
   } catch (e) {
     status.textContent = 'Save failed: ' + errText(e);
     status.style.color = 'var(--bad)';
     // Reload to revert the dropdown to its actual server-side value
     await loadPermissions();
   }
+}
+
+async function sendInvitation() {
+  const status = document.getElementById('permissionsStatus');
+  const email = document.getElementById('inviteEmail').value.trim();
+  status.style.color = 'var(--bad)';
+  if (!email) { status.textContent = 'Type their email address.'; return; }
+  try {
+    await api('/api/invitations', { method: 'POST', body: JSON.stringify({
+      account_id: parseInt(document.getElementById('inviteAccount').value, 10), email,
+      level: document.getElementById('inviteLevel').value }) });
+  } catch (e) { status.textContent = errText(e); return; }
+  document.getElementById('inviteEmail').value = '';
+  await loadPermissions();
+  status.style.color = 'var(--good)';
+  status.textContent = `Invitation sent. ${email} will see it in Settings → Sharing the next time they open WalletWeather.`;
+}
+
+async function removeInvitation(id, said) {
+  try { await api('/api/invitations/' + id, { method: 'DELETE' }); }
+  catch (e) { notifyError('That didn’t work', e); return; }
+  notify(said);
+  await loadPermissions();
+}
+
+async function acceptInvitation(id) {
+  try { await api('/api/invitations/' + id + '/accept', { method: 'POST' }); }
+  catch (e) { notifyError('That didn’t work', e); return; }
+  notify('Accepted. The account is in your list now.');
+  await loadAccounts();
+  await loadPermissions();
+}
+
+async function leaveSharedAccount(id, name) {
+  if (!(await confirmDialog(`Stop seeing "${name}"? Its owner would have to invite you again.`, { title: 'Leave account', okLabel: 'Leave', danger: true }))) return;
+  try { await api('/api/permissions', { method: 'POST', body: JSON.stringify({ account_id: id, user_id: me.id, level: 'deny' }) }); }
+  catch (e) { notifyError('That didn’t work', e); return; }
+  await loadAccounts();
+  await loadPermissions();
+}
+
+// Invitations waiting for the caller, and the accounts others share with
+// them (with a way out of each).
+async function loadSharedWithYou() {
+  const box = document.getElementById('invitationsReceived');
+  let invitations;
+  try { invitations = await api('/api/invitations'); }
+  catch (e) { box.innerHTML = `<div style="color:var(--bad)">Could not load invitations: ${escapeHtml(errText(e))}</div>`; return; }
+  box.innerHTML = invitations.received.length
+    ? invitations.received.map(i => `<div style="margin:6px 0">
+        <strong>${escapeHtml(i.invited_by || 'Someone')}</strong> invites you to
+        <strong>${escapeHtml(i.account_name || 'an account')}</strong> (${escapeHtml(i.level)})
+        <button style="padding:2px 10px;margin-left:8px" onclick="acceptInvitation(${i.id})">Accept</button>
+        <button class="ghost" style="padding:2px 10px" onclick="removeInvitation(${i.id}, 'Declined.')">Decline</button></div>`).join('')
+    : '<div style="color:var(--muted);font-size:13px">No invitations waiting.</div>';
+  const shared = (accounts || []).filter(a => a.level && a.level !== 'owner');
+  document.getElementById('sharedAccounts').innerHTML = shared.length
+    ? '<div style="font-size:13px;color:var(--muted);margin-bottom:4px">Accounts others share with you:</div>' +
+      shared.map(a => `<div style="font-size:13px;margin:2px 0">${escapeHtml(a.name)} · ${escapeHtml(a.level)}
+        <button class="ghost" style="padding:2px 8px;margin-left:6px" data-name="${escapeHtml(a.name)}" onclick="leaveSharedAccount(${a.id}, this.dataset.name)">Leave</button></div>`).join('')
+    : '';
+}
+
+// Once after sign-in: say so if an invitation is waiting.
+async function noticeInvitations() {
+  try {
+    const invitations = await api('/api/invitations');
+    if (invitations.received.length) {
+      notify(invitations.received.length === 1
+        ? 'You have an invitation to share an account. See Settings → Sharing.'
+        : `You have ${invitations.received.length} invitations to share accounts. See Settings → Sharing.`);
+    }
+  } catch {}
 }
 
 function showOffline() {
@@ -6004,6 +6092,7 @@ async function init() {
   // push a redundant duplicate history entry on top of the page the
   // browser already navigated to.
   showPage(_pageFromHash(), { fromPopState: true, sub: _hashSub() });
+  noticeInvitations();
 }
 
 function switchTab(which) {

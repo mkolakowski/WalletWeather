@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.66.0"
+APP_VERSION = "1.67.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,18 @@ APP_VERSION = "1.66.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.67.0 (2026-11-16, claude+mkolakowski): sharing and sign-in limits
+#     (security-fixes phase 6, #189). Sharing is by invitation: POST
+#     /api/invitations {account_id, email, level}, GET /api/invitations
+#     {received, sent}, POST /api/invitations/{id}/accept, DELETE
+#     /api/invitations/{id} (schema v24, account_invitations). GET
+#     /api/permissions lists only the accounts the caller owns and the
+#     people on them; POST /api/permissions changes or removes someone who
+#     already has access, owners only, and lets anyone remove themselves.
+#     Google sign-in linking to a user with a password removes the password,
+#     two-factor, sessions and tokens. Sign-in is also limited per email
+#     across addresses and per address across emails, and registration per
+#     address per hour.
 # 1.66.0 (2026-11-16, claude+mkolakowski): sessions that can be ended
 #     (security-fixes phase 3, #186). users.session_epoch (schema v23) is
 #     kept in the session cookie and checked on every request. Changing the
@@ -524,7 +536,7 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 
 from .db import (
     init_db, get_db, User, Account, RecurringTransaction, Transaction, Category,
-    AccountPermission, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
+    AccountPermission, AccountInvitation, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
     Tag, TransactionTag, RecurringTag, TagRule, SavedReport, RecurringSkip,
     ApiToken, AuditEvent, AppSignInCode, RecoveryCode, RememberedBrowser, SessionLocal,
     SCHEMA_VERSION,
@@ -565,6 +577,18 @@ LOGIN_WINDOW_MINUTES = max(1, int(os.environ.get("LOGIN_WINDOW_MINUTES", "15")))
 # How long audit events are kept (login-limits phase 3, #134; 180 days decided
 # 2026-11-15). Never less than a day, so the rate limit's window is always there.
 AUDIT_RETENTION_DAYS = max(1, int(os.environ.get("AUDIT_RETENTION_DAYS", "180")))
+# Wider sign-in limits (security-fixes phase 6, #189), in the same window as
+# LOGIN_MAX_FAILURES. That one is per email from one address, so someone
+# with many addresses got five tries from each, and someone trying one
+# password on many emails was never slowed at all.
+#   per email, from all addresses together (default: 4 x LOGIN_MAX_FAILURES)
+#   per address, across all emails           (default: 10 x LOGIN_MAX_FAILURES)
+LOGIN_MAX_FAILURES_PER_EMAIL = max(1, int(os.environ.get(
+    "LOGIN_MAX_FAILURES_PER_EMAIL", str(4 * LOGIN_MAX_FAILURES))))
+LOGIN_MAX_FAILURES_PER_ADDRESS = max(1, int(os.environ.get(
+    "LOGIN_MAX_FAILURES_PER_ADDRESS", str(10 * LOGIN_MAX_FAILURES))))
+# New users, and wrong registration codes, from one address in an hour.
+REGISTRATIONS_PER_HOUR = max(1, int(os.environ.get("REGISTRATIONS_PER_HOUR", "10")))
 
 # Demo mode: when on, the app boots with a pre-seeded admin user and sample
 # data, the UI is branded "WalletWeather Demo", and a background daemon
@@ -1152,6 +1176,46 @@ def _login_retry_after(db: Session, email: str, ip: str | None) -> int:
     return _failures_retry_after(db, same_pair, same_pair)
 
 
+def _wide_login_retry_after(db: Session, email: str, ip: str | None) -> int:
+    """Seconds to wait under the two wider limits (#189), or 0: too many
+    failed sign-ins for this email from all addresses together, or from
+    this address across all emails, within LOGIN_WINDOW_MINUTES. Plain
+    counts, unlike the per-pair limit: a correct password doesn't clear
+    them, since the person failing and the person succeeding may differ."""
+    window = timedelta(minutes=LOGIN_WINDOW_MINUTES)
+    now = datetime.utcnow()
+    recent = (AuditEvent.event == "login_failed", AuditEvent.created_at > now - window)
+
+    def oldest_counted(limit: int, *who):
+        times = [t for (t,) in db.query(AuditEvent.created_at).filter(*recent, *who)
+                 .order_by(AuditEvent.created_at.desc()).limit(limit).all()]
+        return times[-1] if len(times) >= limit else None
+
+    blocked_since = [t for t in (
+        oldest_counted(LOGIN_MAX_FAILURES_PER_EMAIL, AuditEvent.email == email),
+        oldest_counted(LOGIN_MAX_FAILURES_PER_ADDRESS, AuditEvent.ip == ip) if ip else None,
+    ) if t is not None]
+    if not blocked_since:
+        return 0
+    return max(1, math.ceil((max(blocked_since) + window - now).total_seconds()))
+
+
+def _registration_retry_after(db: Session, ip: str | None) -> int:
+    """Seconds until this address may register again, or 0 (#189): each new
+    user costs a password hash, and each wrong registration code is a guess."""
+    if ip is None:
+        return 0
+    hour = timedelta(hours=1)
+    now = datetime.utcnow()
+    times = [t for (t,) in db.query(AuditEvent.created_at)
+             .filter(AuditEvent.event.in_(("user_registered", "registration_refused")),
+                     AuditEvent.ip == ip, AuditEvent.created_at > now - hour)
+             .order_by(AuditEvent.created_at.desc()).limit(REGISTRATIONS_PER_HOUR).all()]
+    if len(times) < REGISTRATIONS_PER_HOUR:
+        return 0
+    return max(1, math.ceil((times[-1] + hour - now).total_seconds()))
+
+
 def _code_retry_after(db: Session, user: User) -> int:
     """Seconds until this user may try a two-factor code again, or 0.
 
@@ -1305,11 +1369,25 @@ def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db
         raise HTTPException(400, "Invalid email")
     if ALLOWED_EMAILS and email not in ALLOWED_EMAILS:
         raise HTTPException(403, "This email is not authorized for this app")
-    _check_registration_code(payload.registration_code)
+    wait = _registration_retry_after(db, client_ip(request))
+    if wait:
+        minutes = math.ceil(wait / 60)
+        raise HTTPException(
+            429, "Too many new users from this address. "
+                 f"Try again in {minutes} minute{'s' if minutes != 1 else ''}.",
+            headers={"Retry-After": str(wait)})
+    try:
+        _check_registration_code(payload.registration_code)
+    except HTTPException:
+        record_event(db, "registration_refused", request, detail="wrong code")
+        raise
     _refuse_reserved_address(db, email)
     if db.query(User).filter_by(email=email).first():
         raise HTTPException(409, "An account with that email already exists")
     user = _create_password_user(db, email, payload.name, payload.password)
+    # By number, like every event about someone (#139), and it's the
+    # address that the limit above counts.
+    record_event(db, "user_registered", request, detail=f"user #{user.id}")
     _start_session(request, user)
     return {"id": user.id, "email": user.email}
 
@@ -1362,7 +1440,7 @@ def _password_sign_in(db: Session, request: Request, email_in: str, password: st
     # Too many recent failures for this email from this address: refuse
     # without checking the password (a right one too), whether or not the
     # account exists, so the answer never says which emails have one.
-    wait = _login_retry_after(db, email, ip)
+    wait = _login_retry_after(db, email, ip) or _wide_login_retry_after(db, email, ip)
     if wait:
         _refuse_blocked(db, request, wait, email)
     user = db.query(User).filter_by(email=email).first()
@@ -1691,6 +1769,21 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
         user = db.query(User).filter_by(email=email).one_or_none()
         if user:
             user.google_sub = sub  # link Google to existing local account
+            if user.password_hash is not None:
+                # Whoever registered this address with a password proved
+                # nothing; Google has. Decided 2026-11-16 (#189, docs/dev/
+                # decisions/security-fixes.md): the password goes, and with
+                # it two-factor, every session and every API token, so only
+                # the address's Google owner is left holding the user.
+                user.password_hash = None
+                _clear_two_factor(db, user)
+                _end_other_sessions(None, user)
+                (db.query(ApiToken)
+                 .filter(ApiToken.owner_id == user.id, ApiToken.revoked_at.is_(None))
+                 .update({ApiToken.revoked_at: datetime.utcnow()}, synchronize_session=False))
+                db.commit()
+                record_event(db, "password_removed", request, user=user,
+                             detail="first Google sign-in")
         else:
             if not ALLOW_REGISTRATION:
                 raise HTTPException(403, "Registration is disabled")
@@ -5394,34 +5487,34 @@ class PermissionIn(BaseModel):
     level: str  # 'owner' | 'edit' | 'read' | 'deny'
 
 
+def _owned_account(db: Session, user: User, account_id: int) -> Account:
+    """The account, for changing who has access to it: owners only (decided
+    2026-11-16, #189). 404 for one the caller can't see, 403 for one they
+    can see but don't own."""
+    acc = _account_with_perm(db, user, account_id, "read")
+    if _user_level(db, user, account_id) != "owner":
+        raise HTTPException(403, "Only an owner can change who has access to this account.")
+    return acc
+
+
 @app.get("/api/permissions")
 def list_permissions(user: User = Depends(current_user), db: Session = Depends(get_db)):
-    """Return everything needed to render the permissions matrix."""
-    editable = _user_editable_accounts(db, user)
-    if not editable:
-        return {"users": [], "accounts": [], "permissions": []}
-
-    editable_ids = [a.id for a in editable]
-    # All users in the system, since we need to be able to grant access to any.
-    all_users = db.query(User).order_by(User.email).all()
-    perms = (
-        db.query(AccountPermission)
-        .filter(AccountPermission.account_id.in_(editable_ids))
-        .all()
-    )
-    # For each account, also include the caller's own level so the frontend
-    # knows which columns they can manage owner rows on (vs just read/edit).
-    account_rows = []
-    for a in editable:
-        account_rows.append({
-            "id": a.id,
-            "name": a.name,
-            "caller_level": _user_level(db, user, a.id),
-        })
+    """The accounts the caller owns and who has access to each. `users`
+    holds only the caller and the people on those accounts: there's no list
+    of everyone to pick from, a share starts with an invitation by email
+    (POST /api/invitations)."""
+    owned = [a for a in _user_editable_accounts(db, user)
+             if _user_level(db, user, a.id) == "owner"]
+    if not owned:
+        return {"self_id": user.id, "users": [], "accounts": [], "permissions": []}
+    perms = (db.query(AccountPermission)
+             .filter(AccountPermission.account_id.in_([a.id for a in owned])).all())
+    people = (db.query(User).filter(User.id.in_({p.user_id for p in perms} | {user.id}))
+              .order_by(User.email).all())
     return {
         "self_id": user.id,
-        "users": [{"id": u.id, "email": u.email, "name": u.name} for u in all_users],
-        "accounts": account_rows,
+        "users": [{"id": u.id, "email": u.email, "name": u.name} for u in people],
+        "accounts": [{"id": a.id, "name": a.name, "caller_level": "owner"} for a in owned],
         "permissions": [
             {"account_id": p.account_id, "user_id": p.user_id, "level": p.level}
             for p in perms
@@ -5432,12 +5525,17 @@ def list_permissions(user: User = Depends(current_user), db: Session = Depends(g
 @app.post("/api/permissions")
 def set_permission(payload: PermissionIn,
                    user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Change the level of someone who already has access, or remove them
+    ("deny"). Owners only, except that anyone may remove themselves. Giving
+    access to someone new is an invitation (POST /api/invitations)."""
     if payload.level not in ("owner", "edit", "read", "deny"):
         raise HTTPException(400, "Invalid level")
 
-    # Caller must have at least edit on the account to touch any permission.
-    _account_with_perm(db, user, payload.account_id, "edit")
-    caller_level = _user_level(db, user, payload.account_id)
+    leaving = payload.user_id == user.id and payload.level == "deny"
+    if leaving:
+        _account_with_perm(db, user, payload.account_id, "read")
+    else:
+        _owned_account(db, user, payload.account_id)
 
     target = db.get(User, payload.user_id)
     if not target:
@@ -5447,25 +5545,9 @@ def set_permission(payload: PermissionIn,
         account_id=payload.account_id, user_id=payload.user_id
     ).first()
     existing_level = existing.level if existing else "deny"
-
-    # --- Owner protection rules ---
-
-    # An edit (non-owner) user cannot touch rows where the target currently
-    # has owner. This blocks hostile takeover — only an owner can demote
-    # another owner.
-    if existing_level == "owner" and caller_level != "owner":
-        raise HTTPException(
-            403,
-            "Only owners can modify other owners' permissions.",
-        )
-
-    # Only owners can grant owner. This prevents edit users from minting new
-    # owners (whether themselves or anyone else).
-    if payload.level == "owner" and caller_level != "owner":
-        raise HTTPException(
-            403,
-            "Only owners can promote users to owner.",
-        )
+    if existing is None and payload.level != "deny":
+        raise HTTPException(400, "They don't have access yet. Invite them by email: "
+                                 "the account appears for them once they accept.")
 
     # --- Last-owner guardrail ---
     # Never let the change leave an account with zero owners. This matters if
@@ -5513,6 +5595,116 @@ def set_permission(payload: PermissionIn,
         ))
     db.commit()
     return {"ok": True, "level": payload.level}
+
+
+# ---------- Sharing by invitation (security-fixes phase 6, #189) ----------
+# Decided 2026-11-16 (docs/dev/decisions/security-fixes.md): no list of every
+# user to pick from. An owner types the exact email; the account appears for
+# that person only once they accept. The answer to an invitation is the same
+# whether or not the address has a user here, so it can't be used to find
+# out who does.
+INVITATION_LEVELS = ("read", "edit", "owner")
+INVITATIONS_PENDING_MAX = 50      # per inviter, across their accounts
+
+
+class InvitationIn(BaseModel):
+    account_id: int
+    email: str = Field(max_length=EMAIL_MAX)
+    level: str
+
+
+def _invitation_out(inv: AccountInvitation, account: Account | None, inviter: User | None) -> dict:
+    return {"id": inv.id, "account_id": inv.account_id,
+            "account_name": account.name if account else None,
+            "email": inv.email, "level": inv.level,
+            "invited_by": inviter.email if inviter else None,
+            "created_at": _iso(inv.created_at)}
+
+
+@app.get("/api/invitations")
+def list_invitations(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """`received`: invitations to the caller's address, waiting for an
+    answer. `sent`: ones the caller made that haven't been answered."""
+    def rows(*where):
+        found = (db.query(AccountInvitation).filter(*where)
+                 .order_by(AccountInvitation.created_at.desc(), AccountInvitation.id.desc()).all())
+        return [_invitation_out(i, db.get(Account, i.account_id), db.get(User, i.invited_by))
+                for i in found]
+    return {"received": rows(AccountInvitation.email == user.email.lower()),
+            "sent": rows(AccountInvitation.invited_by == user.id)}
+
+
+@app.post("/api/invitations")
+def create_invitation(payload: InvitationIn, user: User = Depends(current_user),
+                      db: Session = Depends(get_db)):
+    """Invite an address to an account the caller owns. Inviting the same
+    address again changes the level it's offered."""
+    acc = _owned_account(db, user, payload.account_id)
+    if payload.level not in INVITATION_LEVELS:
+        raise HTTPException(400, "Level must be read, edit or owner")
+    email = payload.email.strip().lower()
+    if not _email_ok(email):
+        raise HTTPException(400, "Invalid email")
+    if email == user.email.lower():
+        raise HTTPException(400, "That's your own address.")
+    # Someone who already has access is no secret from an owner.
+    invitee = db.query(User).filter_by(email=email).first()
+    if invitee and db.query(AccountPermission).filter_by(
+            account_id=acc.id, user_id=invitee.id).first():
+        raise HTTPException(409, "They already have access. Change their level in the table.")
+    inv = db.query(AccountInvitation).filter_by(account_id=acc.id, email=email).first()
+    if inv is None:
+        pending = db.query(AccountInvitation).filter_by(invited_by=user.id).count()
+        if pending >= INVITATIONS_PENDING_MAX:
+            raise HTTPException(429, "You have too many invitations waiting. Cancel some first.")
+        inv = AccountInvitation(account_id=acc.id, email=email, invited_by=user.id)
+        db.add(inv)
+    inv.level = payload.level
+    inv.invited_by = user.id
+    db.commit()
+    db.refresh(inv)
+    return _invitation_out(inv, acc, user)
+
+
+def _invitation_for(db: Session, user: User, invitation_id: int, as_invitee_only: bool) -> AccountInvitation:
+    """An invitation the caller may act on: one sent to their address, or
+    (to cancel) one on an account they own. 404 for any other."""
+    inv = db.get(AccountInvitation, invitation_id)
+    if inv is not None:
+        if inv.email == user.email.lower():
+            return inv
+        if not as_invitee_only and _user_level(db, user, inv.account_id) == "owner":
+            return inv
+    raise HTTPException(404, "Invitation not found")
+
+
+@app.post("/api/invitations/{invitation_id}/accept")
+def accept_invitation(invitation_id: int, user: User = Depends(current_user),
+                      db: Session = Depends(get_db)):
+    """Take up an invitation sent to the caller's address: the account is
+    theirs to see (or edit, or own) from now on."""
+    inv = _invitation_for(db, user, invitation_id, as_invitee_only=True)
+    existing = db.query(AccountPermission).filter_by(
+        account_id=inv.account_id, user_id=user.id).first()
+    if existing is None:
+        db.add(AccountPermission(account_id=inv.account_id, user_id=user.id, level=inv.level))
+    elif LEVEL_RANK[inv.level] > LEVEL_RANK[existing.level]:
+        existing.level = inv.level
+    account_id, level = inv.account_id, inv.level
+    db.delete(inv)
+    db.commit()
+    return {"ok": True, "account_id": account_id, "level": _user_level(db, user, account_id)}
+
+
+@app.delete("/api/invitations/{invitation_id}")
+def remove_invitation(invitation_id: int, user: User = Depends(current_user),
+                      db: Session = Depends(get_db)):
+    """Decline an invitation sent to the caller, or cancel one on an
+    account the caller owns."""
+    inv = _invitation_for(db, user, invitation_id, as_invitee_only=False)
+    db.delete(inv)
+    db.commit()
+    return {"ok": True}
 
 
 # ---------- Reports ----------
@@ -6558,7 +6750,8 @@ def admin_download_backup(filename: str, request: Request,
 AUDIT_EVENT_TYPES = (
     "login", "login_failed", "login_blocked",
     "password_changed", "password_reset", "sessions_ended",
-    "user_created", "user_disabled", "user_enabled", "user_deleted",
+    "user_registered", "registration_refused",
+    "user_created", "user_disabled", "user_enabled", "user_deleted", "password_removed",
     "permission_changed", "app_title_changed", "backup_settings_changed",
     "backup_made", "backup_downloaded", "backup_restored",
     "backup_exported", "backup_imported",

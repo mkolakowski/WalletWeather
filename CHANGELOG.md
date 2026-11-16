@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.66.0** · Web version: **1.81.0** · Schema version: **23** · iOS version: **0.16.0**
+App version: **1.67.0** · Web version: **1.82.0** · Schema version: **24** · iOS version: **0.16.0**
 
 ### Security
 
@@ -134,10 +134,40 @@ More from the security review (plan: `Plans/security-fixes.md`, #190).
   their API tokens stop too. Nobody is signed out by the update itself.
   (#186)
 
+- **Breaking: sharing an account is by invitation.** The Sharing page used
+  to list every user's email and name to anyone with an account, and a
+  share took effect without the other person's say. Now you type the
+  person's email under Settings → Sharing; they see the invitation the
+  next time they open WalletWeather and the account appears for them once
+  they accept. Nobody can look up who else uses the instance, and nobody
+  can put an account on your dashboard uninvited. Existing shares stay as
+  they are. People you share with can leave an account themselves.
+  (`GET/POST /api/invitations`, `POST /api/invitations/{id}/accept`,
+  `DELETE /api/invitations/{id}`; `POST /api/permissions` no longer gives
+  access to someone new.) (#189)
+- **Breaking: only an owner changes who has access.** An editor could give
+  anyone read or edit access to an account they'd been let into, and
+  remove other people. Now that takes an owner. (#189)
+- **Breaking: the first Google sign-in to a user removes its password.**
+  If a user already has a password when Google sign-in first links to it,
+  someone else may have registered that address first and still know the
+  password. So the password is removed, along with two-factor, every
+  session and every API token of that user: only the address's Google
+  owner is left. If that's you, and you want a password as well, an
+  administrator can set one, and the iPhone app signs in again. (#189)
+- **Sign-in limits that don't depend on one address:** five wrong
+  passwords for an email from one address already paused that pair. Now 20
+  wrong passwords for an email from all addresses together pause the
+  email, 50 from one address across all emails pause the address, and one
+  address can register 10 users an hour. All three are settings (see
+  `.env.example`). (#189)
+
 ### Database
 
 - **Schema 23:** `users.session_epoch`, the number a session has to carry
   to still count. (#186)
+- **Schema 24:** `account_invitations`, offers of access waiting for an
+  answer. (#189)
 
 ## [1.62.0] — 2026-11-16
 

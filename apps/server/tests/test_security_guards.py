@@ -26,7 +26,7 @@ from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
-from conftest import unique_email
+from conftest import share_account, unique_email
 
 PASSWORD = "correct-horse-battery"
 TODAY = date.today()
@@ -404,16 +404,14 @@ def test_another_users_data_is_in_none_of_your_lists_or_searches(app_started, ow
 
 # ---------- Shared accounts: what each level may not do ----------
 
-def share(o, user_id, level):
-    r = o["c"].post("/api/permissions", json={
-        "account_id": o["acc"], "user_id": user_id, "level": level})
-    assert r.status_code == 200, r.text
+def share(o, invitee_client, level):
+    share_account(o["c"], o["acc"], level, invitee_client)
 
 
 def test_a_viewer_reads_and_changes_nothing(app_started, owner):
     o = owner
     v, viewer = register(app_started)
-    share(o, viewer["id"], "read")
+    share(o, v, "read")
     before = _snapshot(o)
     day = TODAY.isoformat()
     assert v.get(f"/api/accounts/{o['acc']}/transactions").status_code == 200
@@ -433,11 +431,16 @@ def test_a_viewer_reads_and_changes_nothing(app_started, owner):
         ("POST", f"/api/accounts/{o['acc']}/import/commit",
          {"csv_text": "Date,Description,Amount\n2026-01-01,x,-1\n",
           "mapping": {"date": 0, "description": 1, "amount": 2}}),
-        ("POST", "/api/permissions",
-         {"account_id": o["acc"], "user_id": viewer["id"], "level": "edit"}),
     ]:
         r = v.request(method, path, json=body) if body is not None else v.request(method, path)
         assert r.status_code == 404, (method, path, r.status_code, r.text[:120])
+    # Who has access is the owner's to change: a viewer who asks is told so.
+    for body in ({"account_id": o["acc"], "user_id": viewer["id"], "level": "edit"},
+                 {"account_id": o["acc"], "user_id": o["id"], "level": "deny"}):
+        assert v.post("/api/permissions", json=body).status_code == 403
+    r = v.post("/api/invitations", json={"account_id": o["acc"], "email": unique_email(),
+                                         "level": "read"})
+    assert r.status_code == 403
     # A viewer's backup holds only accounts they can edit: not this one.
     assert o["marker"] not in v.get("/api/backup/export").text
     assert _snapshot(o) == before
@@ -446,7 +449,7 @@ def test_a_viewer_reads_and_changes_nothing(app_started, owner):
 def test_an_editor_cant_take_over_rename_or_delete_the_account(app_started, owner):
     o = owner
     e, editor = register(app_started)
-    share(o, editor["id"], "edit")
+    share(o, e, "edit")
 
     def perm(user_id, level):
         return e.post("/api/permissions", json={
@@ -472,9 +475,11 @@ def test_the_last_owner_cant_be_removed(owner):
 def test_access_ends_when_the_share_is_removed(app_started, owner):
     o = owner
     v, viewer = register(app_started)
-    share(o, viewer["id"], "read")
+    share(o, v, "read")
     assert v.get(f"/api/accounts/{o['acc']}/transactions").status_code == 200
-    share(o, viewer["id"], "deny")
+    r = o["c"].post("/api/permissions", json={
+        "account_id": o["acc"], "user_id": viewer["id"], "level": "deny"})
+    assert r.status_code == 200, r.text
     assert v.get(f"/api/accounts/{o['acc']}/transactions").status_code == 404
     assert o["marker"] not in v.get("/api/accounts").text
 

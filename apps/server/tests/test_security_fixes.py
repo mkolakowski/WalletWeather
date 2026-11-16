@@ -1,5 +1,5 @@
 """Fixes from the 2026-11-16 security review (#178), each guarded by the test
-that failed before it (#183 in 1.62.0, #185 in 1.63.0, #187 in 1.64.0, #186 in 1.66.0). The ids (WW-SEC-01 ...) are the
+that failed before it (#183 in 1.62.0, #185 in 1.63.0, #187 in 1.64.0, #186 in 1.66.0, #189 in 1.67.0). The ids (WW-SEC-01 ...) are the
 review's.
 """
 import os
@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from conftest import unique_email
+from conftest import share_account, unique_email
 
 PASSWORD = "correct-horse-battery"
 TODAY = date.today().isoformat()
@@ -749,3 +749,215 @@ def test_a_session_from_before_the_update_still_works(app_started):
     here = _second_browser(app_started, user)
     assert here.post("/api/me/sessions/end-others").status_code == 200
     assert c.get("/api/me").status_code == 401
+
+
+# ---------- WW-SEC-06: everyone's address ----------
+
+def test_you_dont_see_the_addresses_of_people_you_share_nothing_with(app_started):
+    _, stranger = register(app_started)
+    c, _ = register(app_started)
+    make_account(c)
+    assert stranger["email"] not in c.get("/api/permissions").text
+
+
+# ---------- More on WW-SEC-06 and -18: sharing by invitation ----------
+
+INVITATION = {"id": int, "account_id": int, "account_name": str, "email": str, "level": str,
+              "invited_by": str, "created_at": str}
+
+
+def _shape(row, fields):
+    assert set(row) == set(fields), set(row) ^ set(fields)
+    for key, kind in fields.items():
+        assert isinstance(row[key], kind), (key, row[key])
+
+
+def test_an_invitation_shares_an_account_once_its_accepted(app_started):
+    o, owner = register(app_started)
+    v, viewer = register(app_started)
+    acc = make_account(o, "Joint")
+    r = o.post("/api/invitations", json={"account_id": acc, "email": f" {viewer['email'].upper()} ",
+                                         "level": "read"})
+    assert r.status_code == 200, r.text
+    inv = r.json()
+    _shape(inv, INVITATION)
+    assert (inv["email"], inv["level"], inv["account_name"], inv["invited_by"]) == (
+        viewer["email"], "read", "Joint", owner["email"])
+    # Not theirs yet.
+    assert v.get("/api/accounts").json() == []
+    assert v.get(f"/api/accounts/{acc}/transactions").status_code == 404
+    listed = v.get("/api/invitations").json()
+    assert set(listed) == {"received", "sent"} and listed["sent"] == []
+    assert [i["id"] for i in listed["received"]] == [inv["id"]]
+    _shape(listed["received"][0], INVITATION)
+    assert [i["id"] for i in o.get("/api/invitations").json()["sent"]] == [inv["id"]]
+    r = v.post(f"/api/invitations/{inv['id']}/accept")
+    assert r.status_code == 200 and r.json() == {"ok": True, "account_id": acc, "level": "read"}
+    assert [a["level"] for a in v.get("/api/accounts").json()] == ["read"]
+    assert v.get("/api/invitations").json()["received"] == []
+    assert o.get("/api/invitations").json()["sent"] == []
+    assert v.post(f"/api/invitations/{inv['id']}/accept").status_code == 404   # used up
+    people = {u["email"] for u in o.get("/api/permissions").json()["users"]}
+    assert people == {owner["email"], viewer["email"]}
+
+
+def test_inviting_an_address_says_nothing_about_whether_it_has_a_user(app_started):
+    o, _ = register(app_started)
+    _, someone = register(app_started)
+    acc = make_account(o)
+    nobody = unique_email()
+    known = o.post("/api/invitations", json={"account_id": acc, "email": someone["email"], "level": "read"})
+    unknown = o.post("/api/invitations", json={"account_id": acc, "email": nobody, "level": "read"})
+    assert known.status_code == unknown.status_code == 200
+    assert set(known.json()) == set(unknown.json())
+    # And the invitation waits for whoever registers that address.
+    late, _ = register(app_started, email=nobody)
+    assert [i["account_id"] for i in late.get("/api/invitations").json()["received"]] == [acc]
+
+
+def test_only_an_owner_invites_and_only_to_a_real_level_and_address(app_started):
+    o, owner = register(app_started)
+    e, editor = register(app_started)
+    x, _ = register(app_started)
+    acc = make_account(o)
+    share_account(o, acc, "edit", e)
+    body = {"account_id": acc, "email": unique_email(), "level": "read"}
+    assert e.post("/api/invitations", json=body).status_code == 403
+    assert x.post("/api/invitations", json=body).status_code == 404
+    assert TestClient(app_started).post("/api/invitations", json=body).status_code == 401
+    assert o.post("/api/invitations", json={**body, "level": "deny"}).status_code == 400
+    assert o.post("/api/invitations", json={**body, "email": "not-an-address"}).status_code == 400
+    assert o.post("/api/invitations", json={**body, "email": owner["email"]}).status_code == 400
+    assert o.post("/api/invitations", json={**body, "email": editor["email"]}).status_code == 409
+    assert o.post("/api/invitations", json={"email": "a@example.test"}).status_code == 422
+    assert o.get("/api/invitations").json()["sent"] == []
+
+
+def test_inviting_again_changes_the_offer_instead_of_adding_one(app_started):
+    o, _ = register(app_started)
+    v, viewer = register(app_started)
+    acc = make_account(o)
+    first = o.post("/api/invitations", json={"account_id": acc, "email": viewer["email"], "level": "read"}).json()
+    again = o.post("/api/invitations", json={"account_id": acc, "email": viewer["email"], "level": "edit"}).json()
+    assert again["id"] == first["id"] and again["level"] == "edit"
+    assert len(v.get("/api/invitations").json()["received"]) == 1
+    assert v.post(f"/api/invitations/{first['id']}/accept").json()["level"] == "edit"
+
+
+def test_who_may_accept_decline_and_cancel(app_started):
+    o, _ = register(app_started)
+    v, viewer = register(app_started)
+    x, _ = register(app_started)
+    acc = make_account(o)
+
+    def invite():
+        return o.post("/api/invitations", json={"account_id": acc, "email": viewer["email"],
+                                                "level": "edit"}).json()["id"]
+    inv = invite()
+    for other in (o, x):                       # not the owner, not a stranger
+        assert other.post(f"/api/invitations/{inv}/accept").status_code == 404
+    assert x.delete(f"/api/invitations/{inv}").status_code == 404
+    assert v.delete(f"/api/invitations/{inv}").json() == {"ok": True}       # declined
+    assert v.get("/api/accounts").json() == []
+    inv = invite()
+    assert o.delete(f"/api/invitations/{inv}").json() == {"ok": True}       # cancelled
+    assert v.post(f"/api/invitations/{inv}/accept").status_code == 404
+    assert v.delete("/api/invitations/999999999").status_code == 404
+
+
+def test_access_cant_be_handed_out_without_an_invitation(app_started):
+    o, _ = register(app_started)
+    _, other = register(app_started)
+    acc = make_account(o)
+    r = o.post("/api/permissions", json={"account_id": acc, "user_id": other["id"], "level": "read"})
+    assert r.status_code == 400 and "Invite them" in r.json()["detail"]
+
+
+def test_anyone_can_leave_an_account_shared_with_them(app_started):
+    o, _ = register(app_started)
+    v, viewer = register(app_started)
+    acc = make_account(o)
+    share_account(o, acc, "read", v)
+    r = v.post("/api/permissions", json={"account_id": acc, "user_id": viewer["id"], "level": "deny"})
+    assert r.status_code == 200, r.text
+    assert v.get("/api/accounts").json() == []
+
+
+# ---------- More on WW-SEC-13: Google sign-in meeting a password ----------
+
+def test_the_first_google_sign_in_removes_a_password_someone_else_may_know(app_started, monkeypatch):
+    squatter, user = register(app_started)          # whoever registered the address first
+    token = squatter.post("/api/tokens", json={"name": "kept", "access": "full"}).json()["token"]
+    bearer = {"Authorization": "Bearer " + token}
+    sub = "sub-" + uuid.uuid4().hex
+    _google(monkeypatch, {"sub": sub, "email": user["email"], "email_verified": True})
+    owner = TestClient(app_started)
+    assert owner.get("/auth/callback", follow_redirects=False).status_code in (302, 307)
+    me = owner.get("/api/me").json()
+    assert me["email"] == user["email"] and me["has_password"] is False
+    assert squatter.get("/api/me").status_code == 401
+    assert TestClient(app_started).get("/api/me", headers=bearer).status_code == 401
+    r = TestClient(app_started).post("/api/auth/login",
+                                     json={"email": user["email"], "password": PASSWORD})
+    assert r.status_code == 401
+    # The second Google sign-in is an ordinary one: nothing more is ended.
+    assert TestClient(app_started).get("/auth/callback", follow_redirects=False).status_code in (302, 307)
+    assert owner.get("/api/me").status_code == 200
+
+
+# ---------- WW-SEC-16: limits that don't depend on one address ----------
+
+def _client_at(app, address):
+    return TestClient(app, raise_server_exceptions=False, client=(address, 50000))
+
+
+def _fail(c, email):
+    return c.post("/api/auth/login", json={"email": email, "password": "not-the-one"})
+
+
+def test_an_email_is_limited_across_addresses(app_started, monkeypatch):
+    from app import main
+    monkeypatch.setattr(main, "LOGIN_MAX_FAILURES_PER_EMAIL", 3)
+    _, user = register(app_started)
+    net = uuid.uuid4().int % 200
+    for n in range(3):
+        assert _fail(_client_at(app_started, f"10.{net}.1.{n}"), user["email"]).status_code == 401
+    r = _fail(_client_at(app_started, f"10.{net}.1.99"), user["email"])
+    assert r.status_code == 429 and int(r.headers["retry-after"]) > 0
+    # The right password is refused too while it lasts, as with the first limit.
+    r = _client_at(app_started, f"10.{net}.1.98").post(
+        "/api/auth/login", json={"email": user["email"], "password": PASSWORD})
+    assert r.status_code == 429
+    # Another email from those addresses is untouched.
+    assert _fail(_client_at(app_started, f"10.{net}.1.0"), unique_email()).status_code == 401
+
+
+def test_an_address_is_limited_across_emails(app_started, monkeypatch):
+    from app import main
+    monkeypatch.setattr(main, "LOGIN_MAX_FAILURES_PER_ADDRESS", 3)
+    here = _client_at(app_started, f"10.{uuid.uuid4().int % 200}.2.{uuid.uuid4().int % 200}")
+    for _ in range(3):
+        assert _fail(here, unique_email()).status_code == 401
+    assert _fail(here, unique_email()).status_code == 429
+    elsewhere = _client_at(app_started, f"10.{uuid.uuid4().int % 200}.3.{uuid.uuid4().int % 200}")
+    assert _fail(elsewhere, unique_email()).status_code == 401
+
+
+def test_registering_is_limited_per_address(app_started, monkeypatch):
+    from app import main
+    monkeypatch.setattr(main, "REGISTRATIONS_PER_HOUR", 2)
+    address = f"10.{uuid.uuid4().int % 200}.4.{uuid.uuid4().int % 200}"
+
+    def sign_up(**extra):
+        return _client_at(app_started, address).post(
+            "/api/auth/register", json={"email": unique_email(), "password": PASSWORD, **extra})
+    assert sign_up().status_code == 200
+    monkeypatch.setattr(main, "REGISTRATION_CODE", "the-code")
+    assert sign_up(registration_code="a guess").status_code == 403      # a wrong code counts
+    r = sign_up(registration_code="the-code")
+    assert r.status_code == 429 and "Too many new users" in r.json()["detail"]
+    assert int(r.headers["retry-after"]) > 0
+    other = _client_at(app_started, "10.250.4.1").post(
+        "/api/auth/register", json={"email": unique_email(), "password": PASSWORD,
+                                    "registration_code": "the-code"})
+    assert other.status_code == 200

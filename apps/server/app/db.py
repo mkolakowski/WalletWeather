@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "23"
+SCHEMA_VERSION = "24"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,9 @@ SCHEMA_VERSION = "23"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v24 (2026-11-16, claude+mkolakowski): add account_invitations — an offer
+#     of access to an account, by email, waiting for that person to accept
+#     (#189). Existing shares are untouched.
 # v23 (2026-11-16, claude+mkolakowski): add users.session_epoch — raised to
 #     sign a user out of every browser at once (#186). Existing sessions
 #     carry no number and count as 0, so nobody is signed out by the update.
@@ -272,6 +275,19 @@ class AccountPermission(Base):
                      primary_key=True)
     level = Column(String(10), nullable=False)  # 'owner' | 'edit' | 'read'
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AccountInvitation(Base):
+    """An owner's offer of access to an account, to an email address, until
+    that person accepts or declines it (#189). One per account and address."""
+    __tablename__ = "account_invitations"
+    __table_args__ = (UniqueConstraint("account_id", "email", name="uq_invitation_account_email"),)
+    id = Column(Integer, primary_key=True)
+    account_id = Column(Integer, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
+    email = Column(String(320), nullable=False, index=True)   # lowercase
+    level = Column(String(10), nullable=False)                # 'read' | 'edit' | 'owner'
+    invited_by = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class AdminSetting(Base):
@@ -766,6 +782,8 @@ def init_db():
         "WHERE color IS NOT NULL AND color !~ '^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$'",
         "UPDATE tags SET color = NULL "
         "WHERE color IS NOT NULL AND color !~ '^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$'",
+        # v23 → v24: account_invitations
+        # (Created by Base.metadata.create_all above — boundary marker only.)
         # v22 → v23: users.session_epoch (#186)
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS session_epoch INTEGER NOT NULL DEFAULT 0",
     ]

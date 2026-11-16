@@ -22,7 +22,7 @@ Built with FastAPI, PostgreSQL, and a single-page vanilla JS frontend. Runs on D
 - **Multi-account** — checking, savings, credit cards, each with independent forecasts
 - **Multi-user** — local auth (email/password with bcrypt) or Google OAuth
 - **Two-factor sign-in** — an optional code from an authenticator app after your password, with one-time recovery codes
-- **Permissions** — owner/edit/read/deny per account, with anti-takeover protections
+- **Sharing** — invite someone to an account by email as owner, editor or reader; it appears for them once they accept, and only an owner changes who has access
 - **Admin panel** — user management, permission overrides, scheduled system backups (for users listed in `ADMIN_EMAILS`)
 - **Backup & restore** — per-account or full export/import as unencrypted JSON
 - **Encryption at rest** — account names, balances, transaction amounts, descriptions, and notes are Fernet-encrypted in PostgreSQL
@@ -75,6 +75,9 @@ All configuration is via environment variables in `.env`:
 | `GOOGLE_CLIENT_SECRET` | No | — | Google OAuth client secret |
 | `LOGIN_MAX_FAILURES` | No | `5` | Wrong passwords for one email from one address before sign-in is paused |
 | `LOGIN_WINDOW_MINUTES` | No | `15` | How long those failures count, and how long the pause lasts after the last one |
+| `LOGIN_MAX_FAILURES_PER_EMAIL` | No | 4 × `LOGIN_MAX_FAILURES` | Wrong passwords for one email from all addresses together before it's paused |
+| `LOGIN_MAX_FAILURES_PER_ADDRESS` | No | 10 × `LOGIN_MAX_FAILURES` | Wrong passwords from one address across all emails before that address is paused |
+| `REGISTRATIONS_PER_HOUR` | No | `10` | New users (and wrong registration codes) from one address in an hour |
 | `AUDIT_RETENTION_DAYS` | No | `180` | How many days the audit log keeps its entries; older ones are deleted once a day (at least 1) |
 | `TRUST_PROXY_HEADERS` | No | `false` | Set `true` behind a Cloudflare Tunnel to take the visitor's address from `CF-Connecting-IP`. Only when the server can be reached **only** through Cloudflare, or the header can be forged. |
 | `DEMO_MODE` | No | `false` | Set to `true` to boot with a pre-seeded demo admin, sample data, the "WalletWeather Demo" title, and an hourly auto-reset of edited demo data. |

@@ -11,7 +11,7 @@ Tracking issue: #190
 | 3. Sessions that can be ended | #186 | Built as 1.66.0 (web 1.81.0, schema 23), not released |
 | 4. The browser's side | #187 | Built as 1.64.0 (web 1.80.0), not released |
 | 5. Dependencies and the image | #188 | Built as 1.65.0, not released |
-| 6. Sharing and sign-in limits | #189 | Not started |
+| 6. Sharing and sign-in limits | #189 | Built as 1.67.0 (web 1.82.0, schema 24), not released; WW-SEC-17 left open (open question 5) |
 
 Planned 2026-11-16, from the security review of the server (#178).
 
@@ -24,6 +24,8 @@ Phase 4 built 2026-11-16 as app 1.64.0 (web 1.80.0). Verified by its tests with 
 Phase 5 built 2026-11-16 as app 1.65.0. Verified by the whole suite on the new libraries (507 pass, the licence check among them), `/cve-scan`'s script end to end (0 advisories in 35 packages, down from 38 in 4), and the real image run under the hardened Compose file in a throwaway project: it starts, registers a user, saves and writes a backup with a read-only file system and no capabilities. Left out on purpose: pinning images and Actions by digest. Nothing here runs on a schedule to move a pin forward, so a pinned base image would stop picking up its own security patches at each release build, which is worse than the risk it removes.
 
 Phase 3 built 2026-11-16 as app 1.66.0 (web 1.81.0, schema 23), on your choice the same day ([decision](../docs/dev/decisions/security-fixes.md)). Verified by its two tests with their markers off and six more (515 pass in all): the browser that changes the password stays in, tokens survive a change and end with an admin's reset, and a session from before the update still works. The new button hasn't been clicked in a browser yet.
+
+Phase 6 built 2026-11-16 as app 1.67.0 (web 1.82.0, schema 24), on your choices the same day. Verified by 12 new tests (527 pass in all, none left as expected failures) and a headless browser run of two users: invite, the notice after sign-in, accept, the owner changing the level, the invitee leaving, and Sign out my other browsers (13 checks pass). WW-SEC-17 isn't built: see open question 5.
 
 Phases 2 to 6 wait for one release (your choice, same page).
 
@@ -45,12 +47,13 @@ Sessions: may span — six releases, and four answers of yours between them.
 2. ~~**Who can you share an account with?**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/security-fixes.md)): type the exact email, and the other person accepts before the account appears for them.
 3. ~~**May an editor share an account onward?**~~ Decided 2026-11-16 (same page): owners only.
 4. ~~**Google sign-in meeting an existing password.**~~ Decided 2026-11-16 (same page): the password is removed and that user's sessions and tokens end.
+5. **The Cloudflare hand-back (WW-SEC-17).** `GET /app-sign-in/cloudflare` sends the visitor's Cloudflare Access token to whichever app on the phone has claimed `walletweather://`. No change on the server can tell the real app from another one. (a) Leave it: it needs a hostile app already on the phone, and the token only gets through Cloudflare, not into WalletWeather. (b) Show a page with an Allow button first, so a link can't do it silently; one more tap when the iPhone app renews its Cloudflare sign-in, and a change to test on the phone. Leaning (a), recorded as accepted.
 
 ## The plan
 
 **Goal:** close what the 2026-11-16 security review of `apps/server` found, most serious first, each fix guarded by a test that failed before it.
 
-**How it's tested:** the review wrote one test per finding as the behaviour the fix should give. Open ones are in `apps/server/tests/test_security_findings.py`, marked `xfail(strict=True)`: they fail today and the run stays green. When a phase lands, its tests start passing, strict mode turns that into a failure, and the markers come off in the same commit (the tests move to `test_security_fixes.py`). `test_security_guards.py` pins what already held.
+**How it's tested:** the review wrote one test per finding as the behaviour the fix should give, each marked `xfail(strict=True)` in `test_security_findings.py` until its phase landed: failing, with the run green. As each phase landed its tests started passing, strict mode turned that into a failure, and they moved to `apps/server/tests/test_security_fixes.py` with the markers off. With phase 6 that file emptied and was removed. `test_security_guards.py` pins what already held.
 
 **The findings**, by the review's ids:
 
@@ -62,7 +65,7 @@ Sessions: may span — six releases, and four answers of yours between them.
 | WW-SEC-04 | ~~A line could name a recurring item on someone else's account~~ | Medium | 1, fixed |
 | WW-SEC-05 | ~~Marking a bill paid accepted any category id~~ | Low | 1, fixed |
 | WW-SEC-10 | ~~The demo's reserved domain could be registered~~ | Low | 1, fixed |
-| WW-SEC-13 | ~~Google sign-in didn't require a verified address~~ (linking to an existing password: open question 4) | Low | 1, fixed; rest in 6 |
+| WW-SEC-13 | ~~Google sign-in didn't require a verified address, and linked to a user whose password someone else might know~~ | Low | 1, fixed; 6, built |
 | WW-SEC-09 | ~~No upper limits: long names are a 500 or are stored, request bodies and the forecast window can be any size~~ | Medium | 2, built |
 | WW-SEC-11 | ~~NaN and Infinity amounts, and unknown frequencies, are stored and break the pages that show them~~ | Low | 2, built |
 | WW-SEC-12 | ~~The server starts with an empty or placeholder `SESSION_SECRET`~~ | Low | 2, built |
@@ -71,10 +74,10 @@ Sessions: may span — six releases, and four answers of yours between them.
 | WW-SEC-08 | ~~No security headers; the API's documentation pages are public~~ | Low | 4, built |
 | WW-SEC-15 | ~~starlette, authlib, cryptography and python-multipart carry known advisories~~ | Medium | 5, built |
 | WW-SEC-19 | ~~Images and Actions pinned by tag; Compose runs the web service with default privileges~~ | Low | 5, built (Compose hardened; digest pins left out, see Status) |
-| WW-SEC-06 | Any user can list every user's email and name, and share an account to anyone | Medium | 6 |
-| WW-SEC-16 | The sign-in limit is per email and address only; registration has none | Low | 6 |
-| WW-SEC-17 | The Cloudflare token hand-back to the app isn't tied to the app that asked | Low | 6 |
-| WW-SEC-18 | An editor can share an owner's account onward | Low | 6 |
+| WW-SEC-06 | ~~Any user can list every user's email and name, and share an account to anyone~~ | Medium | 6, built |
+| WW-SEC-16 | ~~The sign-in limit is per email and address only; registration has none~~ | Low | 6, built |
+| WW-SEC-17 | The Cloudflare token hand-back to the app isn't tied to the app that asked | Low | open question 5 |
+| WW-SEC-18 | ~~An editor can share an owner's account onward~~ | Low | 6, built |
 
 **Out of scope:** encrypted backups and self-serve password reset (roadmap items; `SECURITY.md` lists them as known limits), HTTPS-only cookies (the app is served over plain HTTP on home networks), a content security policy (the web app is one file of inline script, so a useful one needs that split first).
 

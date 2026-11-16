@@ -71,6 +71,10 @@ same commit (or session) that introduces it.
 
 App version: **1.61.0** · Web version: **1.78.0** · Schema version: **21** · iOS version: **0.14.0**
 
+## [1.61.0] — 2026-11-16
+
+App version: **1.61.0** · Web version: **1.78.0** · Schema version: **21** · iOS version: **0.14.0**
+
 ### Added
 
 - **A Getting started card in the iPhone app:** the Dashboard opens with a
@@ -2225,7 +2229,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.59.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.61.0...HEAD
+[1.61.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.61.0
 [1.59.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.59.0
 [1.57.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.57.0
 [1.56.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.56.0

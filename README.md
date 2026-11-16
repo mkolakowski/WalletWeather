@@ -24,7 +24,7 @@ Built with FastAPI, PostgreSQL, and a single-page vanilla JS frontend. Runs on D
 - **Two-factor sign-in** — an optional code from an authenticator app after your password, with one-time recovery codes
 - **Sharing** — invite someone to an account by email as owner, editor or reader; it appears for them once they accept, and only an owner changes who has access
 - **Admin panel** — user management, permission overrides, scheduled system backups (for users listed in `ADMIN_EMAILS`)
-- **Bank sync** — with an admin's say-so (Admin → Bank sync), each user can connect their own [SimpleFIN Bridge](https://bridge.simplefin.org/) subscription in Settings → Bank sync, match bank accounts to theirs, and bring posted transactions in with Sync now
+- **Bank sync** — with an admin's say-so (Admin → Bank sync), each user can connect their own [SimpleFIN Bridge](https://bridge.simplefin.org/) subscription in Settings → Bank sync, match bank accounts to theirs, and bring posted transactions in with Sync now ([setup guide](https://mkolakowski.github.io/WalletWeather/bank-sync.html))
 - **Backup & restore** — per-account or full export/import as unencrypted JSON
 - **Encryption at rest** — account names, balances, transaction amounts, descriptions, and notes are Fernet-encrypted in PostgreSQL
 - **Mobile responsive** — 3-column grid layout on narrow screens

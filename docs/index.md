@@ -7,5 +7,6 @@ title: WalletWeather
 A self-hosted personal finance forecasting app: you run the server yourself,
 and your data stays on it.
 
+- [Set up bank sync (SimpleFIN)](bank-sync.md)
 - [Privacy policy for the WalletWeather apps](privacy.md)
 - [Source code, setup and documentation](https://github.com/mkolakowski/WalletWeather)

@@ -1,5 +1,5 @@
 # GitHub Pages settings for the public pages in this folder (the store
-# privacy policy). Developer notes under dev/ are left out of the site.
+# privacy policy, the bank sync guide). Developer notes under dev/ are left out of the site.
 title: WalletWeather
 description: A self-hosted personal finance forecasting app
 exclude:

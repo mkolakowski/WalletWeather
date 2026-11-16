@@ -71,16 +71,11 @@ same commit (or session) that introduces it.
 
 App version: **1.56.0** · Web version: **1.74.0** · Schema version: **19** · iOS version: **0.10.0**
 
-### Added
+## [1.56.0] — 2026-11-15
 
-- **Search everything in the iPhone app:** the round search button now finds
-  transactions, bills and income, accounts, categories, tags and saved
-  reports, grouped by kind. Tap a result to open it where it lives: a
-  transaction or a bill in its editor, an account in Forecast, a category or
-  tag as its transactions, a report run. On the open iPhone Duo the results
-  stay on the left and what you tap opens on the right. With a server older
-  than 1.56.0 it still searches transactions, and says an update finds the
-  rest. Nothing about a search is kept on the phone. (iOS app 0.10.0)
+App version: **1.56.0** · Web version: **1.74.0** · Schema version: **19** · iOS version: **0.10.0**
+
+### Added
 
 - **Search everything from the top bar:** type in the search box to find
   transactions, bills and income, accounts, categories, tags and saved
@@ -92,6 +87,14 @@ App version: **1.56.0** · Web version: **1.74.0** · Schema version: **19** · 
   When the bar has no room, and on a phone, it's a magnifier that opens a
   full-width search. Search only finds what you can see. The server's new
   `GET /api/search` does the searching. (web 1.74.0)
+- **Search everything in the iPhone app:** the round search button now finds
+  transactions, bills and income, accounts, categories, tags and saved
+  reports, grouped by kind. Tap a result to open it where it lives: a
+  transaction or a bill in its editor, an account in Forecast, a category or
+  tag as its transactions, a report run. On the open iPhone Duo the results
+  stay on the left and what you tap opens on the right. With a server older
+  than 1.56.0 it still searches transactions, and says an update finds the
+  rest. Nothing about a search is kept on the phone. (iOS app 0.10.0)
 
 ### Fixed
 
@@ -2085,7 +2088,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.55.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.56.0...HEAD
+[1.56.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.56.0
 [1.55.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.55.0
 [1.54.3]: https://github.com/mkolakowski/walletweather/releases/tag/v1.54.3
 [1.54.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.54.2

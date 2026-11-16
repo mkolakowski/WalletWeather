@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.68.0** · Web version: **1.83.0** · Schema version: **24** · iOS version: **0.16.0**
+App version: **1.68.1** · Web version: **1.83.0** · Schema version: **24** · iOS version: **0.16.0**
+
+### Fixed
+
+- `BACKUP_PASSPHRASE` set in `.env` now reaches the app. In 1.68.0, `docker-compose.yml` didn't pass it to the container, so Admin kept saying it wasn't set and system backups didn't run. Update your `docker-compose.yml` from this release (or add the line `BACKUP_PASSPHRASE: ${BACKUP_PASSPHRASE:-}` under the app's `environment:`), then run `docker compose up -d`. (#200)
 
 ## [1.68.0] — 2026-11-16
 

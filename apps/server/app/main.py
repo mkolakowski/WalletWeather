@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.68.0"
+APP_VERSION = "1.68.1"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,9 @@ APP_VERSION = "1.68.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.68.1 (2026-11-16, claude+mkolakowski): docker-compose.yml passes
+#     BACKUP_PASSPHRASE to the app (#200); 1.68.0 left it out, so a value in
+#     .env never arrived. test_settings_wiring.py now checks every setting.
 # 1.68.0 (2026-11-16, claude+mkolakowski): encrypted backups (bank-sync
 #     phase 1, #193). POST /api/backup/export {passphrase, account_ids?}
 #     returns the backup sealed with AES-256-GCM under a scrypt key

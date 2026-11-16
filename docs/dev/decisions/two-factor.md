@@ -30,8 +30,29 @@ Decisions made while planning and building [`Plans/two-factor.md`](../../../Plan
 
 ## 2026-11-15: wrong codes are counted per user
 
-**Decided:** 2026-11-15, while building; not asked. **Status:** a working choice, open to change (open question 2 in the plan).
+**Decided:** 2026-11-15, while building, then confirmed by Matthew the same day (see below). **Status:** accepted.
 
 **The question:** the password limit counts failures per email and address. Should wrong codes be counted the same way?
 
 **The choice:** per user, from any address, with the same numbers. A code has a million values and three are right at any moment, so a per-address count would hand someone who already has the password five more tries from every address they can use. The cost is that someone who knows the password can keep the code step blocked for the real owner; that person already has half of what they need, and the block shows in the audit log.
+
+## 2026-11-15: wrong codes, remembered browsers, who's required, and what asks again
+
+**Decided:** 2026-11-15, by Matthew (open questions 2 to 5, asked together). **Status:** accepted.
+
+**The questions:** how wrong codes are counted (phase 1, already built), how long "Don't ask on this browser" lasts (phase 3), who an admin's "require it for everyone" covers (phase 4), and which actions ask for a fresh code from someone already signed in (phase 5).
+
+**Options considered:**
+- Wrong codes: per user from any address (as built); per email and address, like wrong passwords. Per address would give someone who has the password five more tries from every address they can use.
+- Remembered for: 7, 30 or 90 days. Seven means more typing; 90 leaves a stolen laptop trusted for a season.
+- Required for: users with a password; everyone, Google-only users too. Google sign-in skips the code (decided above), so a Google-only user's set-up would never be used.
+- Asks again: changing the password, deleting your own account, making an API token, switching two-factor off (any combination).
+
+**The decision:**
+- Wrong codes stay counted per user from any address, with the password limit's numbers (5 in 15 minutes by default). The working choice above stands.
+- A remembered browser lasts 30 days. Switching two-factor off, changing the password or an admin's switch-off forgets every remembered browser.
+- "Require it for everyone" covers users with a password. Google-only users aren't asked.
+- All four actions ask for a current code (or a recovery code): changing the password, deleting your own account, making an API token (admin and app tokens alike, since a token skips the code afterwards), and switching two-factor off.
+
+**What it changes:** nothing already built. Phases 3, 4 and 5 are built on these answers, which were the plan's working assumptions; no phase grows or shrinks.
+

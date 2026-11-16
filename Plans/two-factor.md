@@ -31,10 +31,10 @@ Sessions: may span — each phase ends with a release and your try on your own i
 ## Open questions
 
 1. ~~**A QR code needs a library, or does it?**~~ Decided 2026-11-15 ([decision](../docs/dev/decisions/two-factor.md)): a QR code, yes; a library, no. The web client already had its own QR encoder (written for the API token's QR code, #100), so the set-up screen draws the code with that and `segno` was never added. The codes themselves are Python's standard `hmac`, so `pyotp` wasn't needed either.
-2. **How many wrong codes?** (blocks nothing; built on this assumption) Wrong codes use the same numbers as wrong passwords (`LOGIN_MAX_FAILURES` in `LOGIN_WINDOW_MINUTES`, 5 in 15 by default), but are counted for the user from any address, not per address as first assumed: a code has only a million values, so someone who has the password mustn't get five more tries from every address they can use. The cost: someone who knows your password can keep the code step blocked. Say if you'd rather have it per address.
-3. **How long is a browser remembered?** (blocks phase 3) Working assumption: 30 days, and switching two-factor off, changing the password or an admin's switch-off forgets every remembered browser.
-4. **Who does "require it" cover?** (blocks phase 4) Working assumption: users with a password. Google-only users aren't asked (decided below: Google sign-ins skip the code).
-5. **Which actions ask again?** (blocks phase 5) Working assumption: changing the password, deleting your own account, making an admin token, and switching two-factor off.
+2. ~~**How many wrong codes?**~~ Decided 2026-11-15 ([decision](../docs/dev/decisions/two-factor.md)): per user from any address, with the password limit's numbers (5 in 15 minutes by default), as built in phase 1.
+3. ~~**How long is a browser remembered?**~~ Decided 2026-11-15 ([decision](../docs/dev/decisions/two-factor.md)): 30 days; switching two-factor off, changing the password or an admin's switch-off forgets every remembered browser.
+4. ~~**Who does "require it" cover?**~~ Decided 2026-11-15 ([decision](../docs/dev/decisions/two-factor.md)): users with a password. Google-only users aren't asked.
+5. ~~**Which actions ask again?**~~ Decided 2026-11-15 ([decision](../docs/dev/decisions/two-factor.md)): changing the password, deleting your own account, making an API token (admin and app tokens) and switching two-factor off.
 
 ## The plan
 

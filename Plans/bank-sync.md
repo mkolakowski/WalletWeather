@@ -12,7 +12,7 @@ Tracking issue: #198
 | 4. Bills matched automatically | Server, Web | #196 | Not started; its question is settled |
 | 5. Status and Sync now in the iOS app | iOS | #197 | Not started |
 
-Planned 2026-11-16. Open questions 1 to 8 settled the same day; question 9 holds what followed from them. Added the same day at your ask: a sync log for the account's owner (phase 3) and a list of unmatched synced lines with matching by hand (phase 4).
+Planned 2026-11-16. Open questions 1 to 8 settled the same day; question 9, what followed from them, settled too. Added the same day at your ask: a sync log for the account's owner (phase 3) and a list of unmatched synced lines with matching by hand (phase 4).
 
 Sessions: may span — each phase ends with a release and your try on your own instance before the next starts, and phase 2 needs your own SimpleFIN subscription.
 
@@ -36,7 +36,7 @@ Sessions: may span — each phase ends with a release and your try on your own i
 6. ~~**How close is a match?**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-sync.md)): settable per bill (days either side and how far the amount may differ), starting at 5 days and 10%. Always the same account and direction; the nearest date wins and a tie is left unmatched.
 7. ~~**Shared accounts.**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-sync.md)): only an account's owner can link it to a bank account.
 8. ~~**A fresh code for connecting?**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-sync.md)): yes, with two-factor on, connecting and disconnecting each ask for a fresh code, in a browser session only.
-9. **The readable copy, old backups and the schedule, now that backups are encrypted only.** Blocks nothing; phase 1 is built on these assumptions unless you say otherwise. Assumed: (a) each user keeps a readable "Download my data" JSON, as `PRIVACY.md` promises; it isn't offered as a backup and never holds the bank connection. (b) Plain backup files made before this version still import. (c) The scheduled backup and the admin's full-system backup won't run without `BACKUP_PASSPHRASE` in `.env`, and Admin says so instead of quietly writing a plain file.
+9. ~~**The readable copy, old backups and the schedule, now that backups are encrypted only.**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-sync.md)): (a) a readable "Download my data" JSON stays, labelled as a copy to read and not as a backup, never holding the bank connection; (b) plain backup files from earlier versions still import, with a note that the file wasn't encrypted; (c) the scheduled and full-system backups don't run without `BACKUP_PASSPHRASE` in `.env`, and Admin says so. The changelog marks (c) **Breaking**.
 10. **How long the sync log is kept, and what a line in it shows.** Blocks nothing; phase 3 is built on this unless you say otherwise. Assumed: kept as long as the audit log (`AUDIT_RETENTION_DAYS`, 180 days by default); each sync shows when it ran, whether by schedule or Sync now, and how many lines came in, were skipped as already there, matched a bill or were left unmatched, with the lines themselves a tap away.
 
 ## The plan
@@ -71,13 +71,13 @@ Sessions: may span — each phase ends with a release and your try on your own i
 
 **Apps:** Server and Web. No iOS work.
 
-- Every backup is encrypted with a passphrase: a user's own, the admin's full-system one and the scheduled ones. Export asks for the passphrase (twice, with a warning that it can't be recovered); the scheduled and full-system backups use `BACKUP_PASSPHRASE` from `.env` (added to `.env.example`) and don't run without it (open question 9).
-- Import asks for the passphrase; a wrong one is refused with a plain message and nothing is changed. Plain backup files from earlier versions still import (open question 9).
-- The readable copy `PRIVACY.md` promises stays as "Download my data", not offered as a backup (open question 9).
+- Every backup is encrypted with a passphrase: a user's own, the admin's full-system one and the scheduled ones. Export asks for the passphrase (twice, with a warning that it can't be recovered); the scheduled and full-system backups use `BACKUP_PASSPHRASE` from `.env` (added to `.env.example`) and don't run without it; Admin says so, and the changelog marks it **Breaking**.
+- Import asks for the passphrase; a wrong one is refused with a plain message and nothing is changed. Plain backup files from earlier versions still import, with a note that the file wasn't encrypted.
+- The readable copy `PRIVACY.md` promises stays as "Download my data", labelled as a copy to read and not as a backup.
 - Documents: the README's security notes and `SECURITY.md` "Known limits" change "backups are not encrypted", `PRIVACY.md` on how to treat backup files, `ROADMAP.md` item 12, the changelog.
 - Tests: an encrypted export imports back the same; a wrong passphrase is refused; a damaged file is refused; a plain backup from an earlier version still imports; the scheduled backup is encrypted, and refuses to run without `BACKUP_PASSPHRASE`.
 
-**You:** add `BACKUP_PASSPHRASE` to your `.env`, then on your instance make an encrypted backup, import it into a throwaway user or instance, and try a wrong passphrase.
+**You:** add `BACKUP_PASSPHRASE` to your `.env` on the server (your scheduled backups stop until you do), then on your instance make an encrypted backup, import it into a throwaway user or instance, and try a wrong passphrase.
 
 **Done when:** the tests pass in CI, the version is released, and you've restored from an encrypted backup.
 

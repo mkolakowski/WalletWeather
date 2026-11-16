@@ -47,3 +47,15 @@ Decisions made while planning and building [`Plans/bank-sync.md`](../../../Plans
 **The decision:** the account's owner can read a log of each sync (phase 3), and synced lines that matched no bill are kept on an Unmatched list, from which one can be matched by hand to a planned line that isn't paid yet (phase 4).
 
 **What it changes:** phases 3 and 4 are bigger. Both are web only; the iOS app doesn't get them in this plan. How long the log is kept is the plan's open question 10.
+
+## 2026-11-16: what "encrypted only" means for the readable copy, old files and the schedule
+
+**Decided:** 2026-11-16, by Matthew. **Status:** accepted.
+
+**The questions and what was chosen** (the first option listed is the one chosen):
+
+- **The readable copy `PRIVACY.md` promises:** a plain "Download my data" JSON stays, labelled as a copy to read and not as a backup, never holding the bank connection; not the same with an admin switch to remove it; not removed.
+- **Plain backup files from earlier versions:** still import, with a note that the file wasn't encrypted; not silently; not refused.
+- **Scheduled and full-system backups without `BACKUP_PASSPHRASE`:** they don't run and Admin says so; not a passphrase typed by the admin for the full-system one; not a fall back to plain files.
+
+**What it changes:** updating to the phase 1 release stops an instance's scheduled backups until `BACKUP_PASSPHRASE` is added to `.env`, so the changelog entry is marked **Breaking**. `PRIVACY.md`'s promise of a readable copy stays as written.

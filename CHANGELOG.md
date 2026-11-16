@@ -71,6 +71,10 @@ same commit (or session) that introduces it.
 
 App version: **1.69.0** · Web version: **1.84.0** · Schema version: **25** · iOS version: **0.16.0**
 
+## [1.69.0] — 2026-11-16
+
+App version: **1.69.0** · Web version: **1.84.0** · Schema version: **25** · iOS version: **0.16.0**
+
 ### Added
 
 - Bank sync, first part: transactions can come straight from your bank through [SimpleFIN Bridge](https://bridge.simplefin.org/), a service you subscribe to yourself (about $15 a year). An admin switches it on in Admin → Bank sync (it's off until then). Each user then has a Bank sync tab in Settings: paste the setup token from SimpleFIN Bridge, match each bank account to one of your own accounts with a date to start from (today, or up to 90 days back), and press Sync now. Only lines the bank has posted come in, as paid lines, your auto-tag rules run on them, and a line already there (by CSV or by hand) isn't brought in twice. Disconnect forgets the connection; the lines already brought in stay. With two-factor sign-in on, connecting and disconnecting ask for a code. Admin's user list shows who has a bank connected. Syncing on a schedule comes in a later release. (#194)
@@ -2459,7 +2463,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.68.1...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.69.0...HEAD
+[1.69.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.69.0
 [1.68.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.68.1
 [1.68.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.68.0
 [1.67.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.67.1

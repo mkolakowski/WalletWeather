@@ -1149,6 +1149,8 @@
       <label for="siCode">Code from your authenticator app</label>
       <input id="siCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="40" required>
       <div style="font-size:12px;color:var(--muted);margin-top:6px">No phone? Type one of your recovery codes instead.</div>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;cursor:pointer">
+        <input id="siRemember" type="checkbox" style="width:auto;margin:0"> Don't ask on this browser for 30 days</label>
       <button id="siCodeBtn" type="submit" style="width:100%;margin-top:12px">Sign in</button>
       <button type="button" class="ghost" style="width:100%;margin-top:8px" onclick="showSigninCode(false)">Back</button>
     </form>
@@ -2498,6 +2500,14 @@
           </div>
         </form>
         <div id="twoFactorError" class="auth-error hidden"></div>
+
+        <div id="tfaBrowsers" class="hidden" style="margin-top:18px;max-width:520px">
+          <h3 style="font-size:14px;margin:0 0 4px">Remembered browsers</h3>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:8px">
+            These skip the code for 30 days after you ticked "Don't ask on this browser".
+            Changing your password or switching two-factor off forgets them all.</div>
+          <div id="tfaBrowserList"></div>
+        </div>
       </div>
 
       <div class="panel" data-settings-section="your-account" id="deleteAccountPanel">
@@ -2606,7 +2616,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.75.0";
+const WEB_VERSION = "1.76.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2617,6 +2627,7 @@ const WEB_VERSION = "1.75.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.76.0 (2026-11-15, claude+mkolakowski): (#167) Remember this browser. The sign-in code step gets a "Don't ask on this browser for 30 days" tick box (#siRemember, sent as remember to /api/auth/login/two-factor). Settings → Two-factor sign-in lists remembered browsers when it's on (#tfaBrowsers, loadRememberedBrowsers) with Forget on each and Forget all.
 // 1.75.0 (2026-11-15, claude+mkolakowski): (#165) Two-factor sign-in. The sign-in card gets a code step (#formTwoFactor, doSigninCode) shown when /api/auth/login answers two_factor_required. Settings → Your account: a "Two-factor sign-in" panel (#twoFactorPanel, loadTwoFactor) sets it up with a QR code drawn by the page's own qrSvg, shows the recovery codes once, switches it off and makes new recovery codes. Admin → Users: a "two-factor" badge and a switch-off button (adminTwoFactorOff). /app-sign-in asks for the code too.
 // 1.74.0 (2026-11-15, claude+mkolakowski): (#111) Search across everything: a box in the top bar (#gsearch; a magnifier opening a full-width box when the bar has no room, always on a phone: _fitGlobalSearch) calls GET /api/search and lists transactions, bills and income, accounts, categories, tags and reports, each with one detail; a result opens where it lives (openGlobalSearchResult): a transaction or bill in its editor, an account in Forecast, a category or tag as its transactions, a report run.
 // 1.73.0 (2026-11-15, claude+mkolakowski): (#100) Settings → API tokens: a new token gets a "Show QR code" button (#apiTokenQrBtn) off an iPhone, drawing its walletweather://connect link as a QR code for the iOS app to scan. The QR encoder (qrMatrix, qrSvg) is written for the page; Done (hideNewApiToken) clears the code and the token.
@@ -5548,6 +5559,7 @@ function _tfaView(name) {
   ['twoFactorGoogle', 'twoFactorOff', 'twoFactorSetup', 'twoFactorOn']
     .forEach(id => document.getElementById(id).classList.toggle('hidden', id !== name));
   document.getElementById('twoFactorError').classList.add('hidden');
+  if (name !== 'twoFactorOn') document.getElementById('tfaBrowsers').classList.add('hidden');
 }
 function _tfaFail(e) {
   const err = document.getElementById('twoFactorError');
@@ -5565,6 +5577,45 @@ function loadTwoFactor() {
     + (left === 0 ? '<span style="color:var(--warn)">You have no recovery codes left: make new ones.</span>'
                   : left + ' recovery code' + (left === 1 ? '' : 's') + ' left.');
   _tfaView('twoFactorOn');
+  loadRememberedBrowsers();
+}
+// Settings → Two-factor sign-in → Remembered browsers (#167): the browsers
+// that skip the code, each with Forget, and Forget all.
+async function loadRememberedBrowsers() {
+  const wrap = document.getElementById('tfaBrowsers');
+  const list = document.getElementById('tfaBrowserList');
+  wrap.classList.remove('hidden');
+  let rows;
+  try { rows = await api('/api/me/remembered-browsers'); }
+  catch (e) { list.innerHTML = '<div class="auth-error">' + escapeHtml(errText(e)) + '</div>'; return; }
+  if (!rows.length) {
+    list.innerHTML = '<div style="font-size:13px;color:var(--muted)">None. Every sign-in asks for a code.</div>';
+    return;
+  }
+  const day = iso => new Date(iso).toLocaleDateString();
+  list.innerHTML = '<ul style="list-style:none;padding:0;margin:0">' + rows.map(b =>
+    '<li style="display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border)">' +
+      '<div style="min-width:0"><div><strong>' + escapeHtml(b.label) + '</strong>' +
+        (b.current ? ' <span class="ro-badge">This browser</span>' : '') + '</div>' +
+      '<div style="font-size:12px;color:var(--muted)">Remembered ' + day(b.created_at) +
+        (b.last_used_at ? ' · Last used ' + day(b.last_used_at) : '') +
+        ' · Until ' + day(b.expires_at) + '</div></div>' +
+      '<button type="button" class="ghost" onclick="forgetRememberedBrowser(' + b.id + ')">Forget</button>' +
+    '</li>').join('') + '</ul>' +
+    (rows.length > 1 ? '<div style="margin-top:8px"><button type="button" class="ghost danger" onclick="forgetAllRememberedBrowsers()">Forget all</button></div>' : '');
+}
+async function forgetRememberedBrowser(id) {
+  try { await api('/api/me/remembered-browsers/' + id, { method: 'DELETE' }); }
+  catch (e) { notify(errText(e), 'error'); return; }
+  notify('Browser forgotten. It will be asked for a code next time.');
+  loadRememberedBrowsers();
+}
+async function forgetAllRememberedBrowsers() {
+  if (!(await confirmDialog('Forget every remembered browser? Each one, this one included, will be asked for a code at its next sign-in.', { title: 'Forget all browsers', okLabel: 'Forget all', danger: true }))) return;
+  try { await api('/api/me/remembered-browsers', { method: 'DELETE' }); }
+  catch (e) { notify(errText(e), 'error'); return; }
+  notify('All browsers forgotten.');
+  loadRememberedBrowsers();
 }
 async function _tfaRefresh() {
   try { me = await api('/api/me'); } catch { /* keep what we have */ }
@@ -5867,6 +5918,7 @@ function showSigninCode(on) {
   document.getElementById('authError').classList.add('hidden');
   const code = document.getElementById('siCode');
   code.value = '';
+  document.getElementById('siRemember').checked = false;
   if (on) code.focus(); else document.getElementById('siPass').value = '';
 }
 async function doSigninCode(ev) {
@@ -5876,7 +5928,8 @@ async function doSigninCode(ev) {
   try {
     const res = await fetch('/api/auth/login/two-factor', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({code: document.getElementById('siCode').value})
+      body: JSON.stringify({code: document.getElementById('siCode').value,
+                            remember: document.getElementById('siRemember').checked})
     });
     if (res.ok) { location.reload(); return; }
     const err = await res.json().catch(()=>({detail:'Sign in failed'}));

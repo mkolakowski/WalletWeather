@@ -21,8 +21,13 @@ server it runs on:
   identifier if they signed in with Google. If they switch on two-factor
   sign-in: the key their authenticator app shares with the server (encrypted
   with the instance's `ENCRYPTION_KEY`), when it was switched on, and their
-  recovery codes as hashes (never the codes). Switching it off deletes the
-  key and the codes.
+  recovery codes as hashes (never the codes). If they tick "Don't ask on
+  this browser", each remembered browser's short name worked out from the
+  browser (like "Safari on iPhone", never the full browser string), when it
+  was remembered and last used, when it runs out (30 days), and a hash of
+  the cookie that browser keeps. Switching it off deletes the key, the codes
+  and the remembered browsers; changing the password deletes the remembered
+  browsers.
 - **What users enter:** accounts, balances, transactions, recurring
   transactions, transfers, budgets, categories, tags and notes. Account
   names, balances, amounts, descriptions and notes are encrypted in the
@@ -39,8 +44,8 @@ server it runs on:
   or deleting a user or changing a permission, the instance title or the
   backup settings, backups made, downloaded, restored, exported or imported,
   a user deleting themselves, API tokens made or revoked, and two-factor
-  sign-in switched on or off, a recovery code used and recovery codes
-  remade (never a code). Each says who
+  sign-in switched on or off, a recovery code used, recovery codes remade
+  and browsers remembered or forgotten (never a code). Each says who
   did it and from which address; a user an action was done to is named by
   number, not email. No amounts, account names or other financial data. Admins can read it in Admin → Audit log.
   Entries are deleted once they're older than `AUDIT_RETENTION_DAYS` (180

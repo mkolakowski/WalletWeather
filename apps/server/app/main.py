@@ -29,7 +29,7 @@ from urllib.parse import urlencode
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.57.0"
+APP_VERSION = "1.58.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,13 @@ APP_VERSION = "1.57.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.58.0 (2026-11-15, claude+mkolakowski): remember this browser (#167,
+#     schema 21): POST /api/auth/login/two-factor takes "remember": true and
+#     sets a 30-day cookie; POST /api/auth/login skips the code for a
+#     remembered browser; GET/DELETE /api/me/remembered-browsers lists and
+#     forgets them. Switching two-factor off (yourself or an admin), changing
+#     the password or an admin's password reset forgets them all. Two new
+#     audit events. Tests in tests/test_remembered_browsers.py.
 # 1.57.0 (2026-11-15, claude+mkolakowski): two-factor sign-in (#165, schema
 #     20): set-up, switch-off and new recovery codes under
 #     /api/me/two-factor/*; POST /api/auth/login answers
@@ -457,7 +464,8 @@ from .db import (
     init_db, get_db, User, Account, RecurringTransaction, Transaction, Category,
     AccountPermission, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
     Tag, TransactionTag, RecurringTag, TagRule, SavedReport, RecurringSkip,
-    ApiToken, AuditEvent, AppSignInCode, RecoveryCode, SessionLocal, SCHEMA_VERSION,
+    ApiToken, AuditEvent, AppSignInCode, RecoveryCode, RememberedBrowser, SessionLocal,
+    SCHEMA_VERSION,
 )
 from . import twofactor
 from .forecast import build_forecast, actual_balance_as_of, upcoming_dates
@@ -1022,6 +1030,13 @@ def _password_sign_in(db: Session, request: Request, email_in: str, password: st
 @app.post("/api/auth/login")
 def local_login(payload: LoginIn, request: Request, db: Session = Depends(get_db)):
     user = _password_sign_in(db, request, payload.email, payload.password, "password")
+    if user.totp_enabled_at is not None and _remembered_browser(db, request, user):
+        # A browser the user asked not to be asked on (#167): the password
+        # is enough here until the remembering runs out or is forgotten.
+        request.session.clear()
+        request.session["uid"] = user.id
+        record_event(db, "login", request, user=user, detail="password; remembered browser")
+        return {"id": user.id, "email": user.email}
     if user.totp_enabled_at is not None:
         # Not signed in yet: the browser has TWO_FACTOR_STEP_MINUTES to send
         # the code to /api/auth/login/two-factor.
@@ -1045,6 +1060,99 @@ WRONG_CODE = "wrong code"
 
 class TwoFactorCodeIn(BaseModel):
     code: str = Field(max_length=40)
+
+
+class TwoFactorSignInIn(TwoFactorCodeIn):
+    # "Don't ask on this browser for 30 days" (#167).
+    remember: bool = False
+
+
+# ---------- Two-factor sign-in: remembered browsers (#167) ----------
+# Decided 2026-11-15 (Plans/two-factor.md, open question 3): a browser is
+# remembered for 30 days, and switching two-factor off, changing the
+# password or an admin's switch-off forgets every remembered browser. The
+# browser holds a random cookie of its own; the server keeps its SHA-256, so
+# a copy of the database can't be turned into a cookie.
+REMEMBER_BROWSER_DAYS = 30
+REMEMBER_COOKIE = "ww_remember"
+
+
+def _browser_label(user_agent: str | None) -> str:
+    """A short name for a browser, like "Safari on iPhone", so the user can
+    tell their remembered browsers apart. Only this is kept, never the
+    user-agent string itself."""
+    ua = user_agent or ""
+    if "Edg" in ua:
+        browser = "Edge"
+    elif "Firefox/" in ua or "FxiOS" in ua:
+        browser = "Firefox"
+    elif "Chrome/" in ua or "CriOS" in ua:
+        browser = "Chrome"
+    elif "Safari/" in ua:
+        browser = "Safari"
+    else:
+        browser = "A browser"
+    for marker, system in (("iPhone", "iPhone"), ("iPad", "iPad"), ("Android", "Android"),
+                           ("CrOS", "ChromeOS"), ("Windows", "Windows"),
+                           ("Mac OS X", "macOS"), ("Macintosh", "macOS"), ("Linux", "Linux")):
+        if marker in ua:
+            return f"{browser} on {system}"
+    return browser
+
+
+def _cookie_is_secure(request: Request) -> bool:
+    """Mark the cookie Secure when the browser reached us over HTTPS, either
+    directly or through a proxy that says so (Cloudflare does)."""
+    if request.url.scheme == "https":
+        return True
+    return TRUST_PROXY_HEADERS and request.headers.get("x-forwarded-proto", "").lower() == "https"
+
+
+def _remember_hash(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _remembered_browser(db: Session, request: Request, user: User) -> RememberedBrowser | None:
+    """This browser's remembering for `user`, if it has one that's current,
+    marked as used just now."""
+    token = request.cookies.get(REMEMBER_COOKIE)
+    if not token or len(token) > 100:
+        return None
+    row = (db.query(RememberedBrowser)
+           .filter(RememberedBrowser.token_hash == _remember_hash(token),
+                   RememberedBrowser.user_id == user.id,
+                   RememberedBrowser.expires_at > datetime.utcnow())
+           .first())
+    if row:
+        row.last_used_at = datetime.utcnow()
+        db.commit()
+    return row
+
+
+def _remember_browser(db: Session, request: Request, response: Response, user: User) -> None:
+    """Remember this browser for `user` for REMEMBER_BROWSER_DAYS: a new
+    cookie, and its hash on the server. The user's lapsed rows go too."""
+    now = datetime.utcnow()
+    db.query(RememberedBrowser).filter(
+        RememberedBrowser.user_id == user.id,
+        RememberedBrowser.expires_at <= now).delete(synchronize_session=False)
+    token = secrets.token_urlsafe(32)
+    db.add(RememberedBrowser(
+        user_id=user.id, token_hash=_remember_hash(token),
+        label=_browser_label(request.headers.get("user-agent")),
+        created_at=now, last_used_at=now,
+        expires_at=now + timedelta(days=REMEMBER_BROWSER_DAYS)))
+    db.commit()
+    response.set_cookie(REMEMBER_COOKIE, token, max_age=REMEMBER_BROWSER_DAYS * 86400,
+                        httponly=True, samesite="lax", secure=_cookie_is_secure(request),
+                        path="/")
+
+
+def _forget_browsers(db: Session, user: User) -> int:
+    """Forget every browser remembered for `user`; the caller commits.
+    Returns how many there were."""
+    return (db.query(RememberedBrowser).filter_by(user_id=user.id)
+            .delete(synchronize_session=False))
 
 
 def _use_two_factor_code(db: Session, user: User, code: str) -> str | None:
@@ -1077,7 +1185,7 @@ def _recovery_codes_left(db: Session, user: User) -> int:
 
 
 @app.post("/api/auth/login/two-factor")
-def local_login_two_factor(payload: TwoFactorCodeIn, request: Request,
+def local_login_two_factor(payload: TwoFactorSignInIn, request: Request, response: Response,
                            db: Session = Depends(get_db)):
     """The second step of a password sign-in: a code from the authenticator
     app, or a recovery code. Only after /api/auth/login accepted the
@@ -1105,7 +1213,12 @@ def local_login_two_factor(payload: TwoFactorCodeIn, request: Request,
     if how == "recovery code":
         record_event(db, "recovery_code_used", request, user=user, detail=f"{left} left")
     record_event(db, "login", request, user=user, detail="password; " + how)
-    return {"id": user.id, "email": user.email, "recovery_codes_left": left}
+    if payload.remember:
+        _remember_browser(db, request, response, user)
+        record_event(db, "browser_remembered", request, user=user,
+                     detail=f"{REMEMBER_BROWSER_DAYS} days")
+    return {"id": user.id, "email": user.email, "recovery_codes_left": left,
+            "remembered": payload.remember}
 
 
 # Password sign-in for apps (#43): the native apps swap an email and password
@@ -1538,6 +1651,8 @@ def change_password(payload: PasswordChangeIn, request: Request,
         # 403, not 401: the session is fine, the confirmation isn't.
         raise HTTPException(403, "That password is incorrect.")
     user.password_hash = hash_password(payload.new_password)
+    # A new password forgets every remembered browser (#167).
+    _forget_browsers(db, user)
     db.commit()
     record_event(db, "password_changed", request, user=user)
     return {"ok": True}
@@ -1579,11 +1694,13 @@ def _new_recovery_codes(db: Session, user: User) -> list[str]:
 
 
 def _clear_two_factor(db: Session, user: User) -> None:
-    """Switch two-factor off: the key and the recovery codes go."""
+    """Switch two-factor off: the key, the recovery codes and the
+    remembered browsers go."""
     user.totp_secret = None
     user.totp_enabled_at = None
     user.totp_last_step = None
     db.query(RecoveryCode).filter_by(user_id=user.id).delete(synchronize_session=False)
+    _forget_browsers(db, user)
     db.commit()
 
 
@@ -1659,6 +1776,64 @@ def two_factor_new_recovery_codes(payload: TwoFactorConfirmIn, request: Request,
     db.commit()
     record_event(db, "recovery_codes_remade", request, user=user)
     return {"recovery_codes": codes}
+
+
+def _browser_out(row: RememberedBrowser, this_hash: str | None) -> dict:
+    return {"id": row.id, "label": row.label,
+            "created_at": _iso(row.created_at), "last_used_at": _iso(row.last_used_at),
+            "expires_at": _iso(row.expires_at),
+            # The browser asking: Settings marks it "This browser".
+            "current": this_hash is not None and row.token_hash == this_hash}
+
+
+def _this_browser_hash(request: Request) -> str | None:
+    token = request.cookies.get(REMEMBER_COOKIE)
+    return _remember_hash(token) if token and len(token) <= 100 else None
+
+
+@app.get("/api/me/remembered-browsers")
+def list_remembered_browsers(request: Request,
+                             user: User = Depends(current_session_user),
+                             db: Session = Depends(get_db)):
+    """The browsers that skip the two-factor code for this user, newest
+    first. Lapsed ones aren't listed."""
+    rows = (db.query(RememberedBrowser)
+            .filter(RememberedBrowser.user_id == user.id,
+                    RememberedBrowser.expires_at > datetime.utcnow())
+            .order_by(RememberedBrowser.created_at.desc(), RememberedBrowser.id.desc())
+            .all())
+    this_hash = _this_browser_hash(request)
+    return [_browser_out(r, this_hash) for r in rows]
+
+
+@app.delete("/api/me/remembered-browsers/{browser_id}")
+def forget_remembered_browser(browser_id: int, request: Request, response: Response,
+                              user: User = Depends(current_session_user),
+                              db: Session = Depends(get_db)):
+    """Forget one browser: it's asked for the code at its next sign-in."""
+    row = db.query(RememberedBrowser).filter_by(id=browser_id, user_id=user.id).first()
+    if not row:
+        raise HTTPException(404, "That browser isn't remembered.")
+    if row.token_hash == _this_browser_hash(request):
+        response.delete_cookie(REMEMBER_COOKIE, path="/")
+    db.delete(row)
+    db.commit()
+    record_event(db, "browser_forgotten", request, user=user, detail="one browser")
+    return {"ok": True}
+
+
+@app.delete("/api/me/remembered-browsers")
+def forget_all_remembered_browsers(request: Request, response: Response,
+                                   user: User = Depends(current_session_user),
+                                   db: Session = Depends(get_db)):
+    """Forget every remembered browser, this one included."""
+    count = _forget_browsers(db, user)
+    db.commit()
+    response.delete_cookie(REMEMBER_COOKIE, path="/")
+    if count:
+        record_event(db, "browser_forgotten", request, user=user,
+                     detail=f"all, {count} browser{'s' if count != 1 else ''}")
+    return {"forgotten": count}
 
 
 # ---------- Deleting your own user ----------
@@ -5557,6 +5732,7 @@ def admin_update_user(uid: int, payload: AdminUserPatchIn, request: Request,
         events.append("user_disabled" if payload.disabled else "user_enabled")
     if payload.new_password is not None:
         target.password_hash = hash_password(payload.new_password)
+        _forget_browsers(db, target)  # a new password forgets them (#167)
         events.append("password_reset")
     if payload.two_factor is False and target.totp_enabled_at is not None:
         _clear_two_factor(db, target)
@@ -5803,6 +5979,7 @@ AUDIT_EVENT_TYPES = (
     "token_created", "token_revoked",
     "two_factor_asked", "two_factor_enabled", "two_factor_disabled",
     "recovery_code_used", "recovery_codes_remade",
+    "browser_remembered", "browser_forgotten",
 )
 _AUDIT_USER_REF = re.compile(r"\buser #(\d+)")
 

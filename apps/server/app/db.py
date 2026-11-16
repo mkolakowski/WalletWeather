@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "20"
+SCHEMA_VERSION = "21"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,9 @@ SCHEMA_VERSION = "20"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v21 (2026-11-15, claude+mkolakowski): add remembered_browsers — browsers
+#     that skip the two-factor code for 30 days (two-factor phase 3, #167).
+#     Only the SHA-256 of each browser's cookie is kept.
 # v20 (2026-11-15, claude+mkolakowski): two-factor sign-in (#165):
 #     users.totp_secret_enc (the authenticator key, encrypted),
 #     users.totp_enabled_at and users.totp_last_step (the last code step
@@ -661,6 +664,27 @@ class RecoveryCode(Base):
     used_at = Column(DateTime, nullable=True)
 
 
+class RememberedBrowser(Base):
+    """A browser that skips the two-factor code (two-factor phase 3, #167).
+
+    Made when the user ticks "Don't ask on this browser for 30 days" on the
+    code step. The browser holds a random cookie; only its SHA-256 is kept
+    here. `label` is a short name worked out from the browser's user-agent
+    ("Safari on iPhone"), never the user-agent string itself. Rows go with
+    their user via ON DELETE CASCADE, and all of a user's go when two-factor
+    is switched off or the password changes.
+    """
+    __tablename__ = "remembered_browsers"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"),
+                     nullable=False, index=True)
+    token_hash = Column(String(64), nullable=False, unique=True)
+    label = Column(String(60), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    last_used_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=False)
+
+
 def init_db():
     """Create missing tables, then apply in-place column migrations.
 
@@ -728,6 +752,8 @@ def init_db():
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret_enc BYTEA",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled_at TIMESTAMP",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_last_step BIGINT",
+        # v20 → v21: remembered_browsers
+        # (Created by Base.metadata.create_all above — boundary marker only.)
     ]
     with engine.begin() as conn:
         for sql in migrations:

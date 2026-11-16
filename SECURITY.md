@@ -36,5 +36,6 @@ so they don't need a report: backups are not encrypted, there is no
 self-serve password reset, and session cookies are not marked HTTPS-only.
 Two-factor sign-in is each user's choice (an admin can't require it yet), it
 covers password sign-ins only (Google sign-in relies on Google's own), and
-API tokens work without it by design. Anyone who can read both the database
+API tokens work without it by design. A browser the user chose to remember
+skips the code (not the password) for 30 days. Anyone who can read both the database
 and the `ENCRYPTION_KEY` can read the two-factor keys.

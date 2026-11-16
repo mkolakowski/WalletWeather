@@ -69,7 +69,32 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.57.0** · Web version: **1.75.0** · Schema version: **20** · iOS version: **0.10.0**
+App version: **1.58.0** · Web version: **1.76.0** · Schema version: **21** · iOS version: **0.10.0**
+
+### Added
+
+- **Remember this browser for two-factor sign-in:** the code step now has a
+  "Don't ask on this browser for 30 days" tick box. Tick it, and for the next
+  30 days your email and password alone sign you in on that browser; other
+  browsers still ask for a code. Settings → Your account → Two-factor sign-in
+  lists the browsers you've remembered (with "This browser" marked), and you
+  can forget any of them, or all at once. Changing your password, switching
+  two-factor off, or an admin switching it off or resetting your password
+  forgets every remembered browser. (app 1.58.0, web 1.76.0)
+
+### Database
+
+- Schema 21: a new `remembered_browsers` table holds each remembered
+  browser's short name (like "Safari on iPhone"), when it was remembered and
+  last used, when it runs out, and a hash of its cookie (never the cookie
+  itself). The server creates it when it starts.
+
+### Security
+
+- A remembered browser skips only the code, never the password, and wrong
+  passwords are still limited as before. The browser's cookie is HttpOnly
+  and marked Secure when the app is reached over HTTPS. The audit log
+  records a browser remembered and browsers forgotten.
 
 ## [1.57.0] — 2026-11-15
 

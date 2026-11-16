@@ -253,9 +253,10 @@ def test_bad_backup_settings_record_nothing(admin):
 def test_making_and_downloading_a_system_backup(admin):
     ac, a = admin
     made = ac.post("/api/admin/backups/now")
-    assert made.status_code == 200
+    assert made.status_code == 200, made.text
     filename = made.json()["filename"]
-    assert ac.get(f"/api/admin/backups/download/{filename}").status_code == 200
+    got = ac.get(f"/api/admin/backups/download/{filename}")
+    assert got.status_code == 200, got.text
     assert [(e["event"], e["detail"]) for e in events(a["id"])] == [
         ("backup_made", f"manual: {filename}"),
         ("backup_downloaded", filename),

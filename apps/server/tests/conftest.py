@@ -9,6 +9,7 @@ Run them with `docker compose -f docker-compose.test.yml run --rm tests`
 from the repo root (see README "Tests").
 """
 import base64
+import hashlib
 import os
 import secrets
 import sys
@@ -28,8 +29,12 @@ if not _test_db:
     )
 
 os.environ["DATABASE_URL"] = _test_db
-os.environ.setdefault(
-    "ENCRYPTION_KEY", base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())
+# The same test database gets the same key on every run (#147): rows an earlier
+# run left behind, until `docker compose -f docker-compose.test.yml down`,
+# still decrypt. A random key per run made the system backup, which reads
+# every user, fail on them.
+os.environ.setdefault("ENCRYPTION_KEY", base64.urlsafe_b64encode(
+    hashlib.sha256(("walletweather-tests " + _test_db).encode()).digest()).decode())
 os.environ.setdefault("SESSION_SECRET", secrets.token_urlsafe(48))
 os.environ.setdefault("BACKUP_DIR", tempfile.mkdtemp(prefix="ww-test-backups-"))
 os.environ["DEMO_MODE"] = "false"

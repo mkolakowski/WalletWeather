@@ -5476,7 +5476,9 @@ def admin_trigger_backup(request: Request, user: User = Depends(current_admin),
         record_event(db, "backup_made", request, user=user, detail=f"manual: {filename}")
         return {"ok": True, "filename": filename}
     except Exception as e:
-        raise HTTPException(500, f"Backup failed: {e}")
+        # Some errors have no message of their own (a row that can't be
+        # decrypted with this ENCRYPTION_KEY is InvalidToken): name them (#147).
+        raise HTTPException(500, f"Backup failed: {str(e) or type(e).__name__}")
 
 
 @app.post("/api/admin/backups/restore/{filename}")

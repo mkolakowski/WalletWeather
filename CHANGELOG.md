@@ -97,6 +97,10 @@ App version: **1.56.0** · Web version: **1.74.0** · Schema version: **19** · 
 
 - Forecast's Search transactions no longer shows an older search's results
   when two searches overlap.
+- When a manual backup in the Admin panel fails with an error that has no
+  message of its own, it now names it (for example "Backup failed:
+  InvalidToken", which means a row can't be decrypted with the server's
+  `ENCRYPTION_KEY`) instead of an empty "Backup failed:".
 
 ## [1.55.0] — 2026-11-15
 

@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.67.1"
+APP_VERSION = "1.68.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,15 @@ APP_VERSION = "1.67.1"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.68.0 (2026-11-16, claude+mkolakowski): encrypted backups (bank-sync
+#     phase 1, #193). POST /api/backup/export {passphrase, account_ids?}
+#     returns the backup sealed with AES-256-GCM under a scrypt key
+#     (backup.seal); POST /api/backup/preview opens one to list its accounts;
+#     POST /api/backup/import takes `passphrase` and answers `encrypted`.
+#     GET /api/backup/export stays as "Download my data" (event
+#     data_downloaded). System backups are sealed with BACKUP_PASSPHRASE and
+#     don't run without it; /api/admin/backup-config says passphrase_set and
+#     /api/admin/backups marks each file encrypted. Plain files still import.
 # 1.67.1 (2026-11-16, claude+mkolakowski): two fixes. Saving a line with a
 #     tag that one of the user's own tag rules also adds was a 500 (#182):
 #     the rules now see the tags just set. Importing a backup dropped every
@@ -547,7 +556,8 @@ from .db import (
 )
 from . import twofactor
 from .forecast import build_forecast, actual_balance_as_of, upcoming_dates
-from .backup import export_user, import_user
+from .backup import (export_user, import_user, seal, unwrap, passphrase_problem,
+                     BackupLocked, SEALED_MARKER)
 
 SECRET_KEY = os.environ["SESSION_SECRET"]
 # The session cookie is only as good as this secret: anyone who can guess it
@@ -570,6 +580,17 @@ ADMIN_EMAILS = {e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").sp
 # it's meant for were given. Empty means no code is asked for.
 REGISTRATION_CODE = os.environ.get("REGISTRATION_CODE", "").strip()
 BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", "/data/backups"))
+# Seals the scheduled and full-system backups (bank-sync phase 1, #193).
+# Without it (or with one too short) they don't run, and Admin says why.
+BACKUP_PASSPHRASE = os.environ.get("BACKUP_PASSPHRASE", "")
+
+
+def _backup_passphrase_problem() -> str | None:
+    """Why system backups can't run, or None when BACKUP_PASSPHRASE is usable."""
+    if not BACKUP_PASSPHRASE:
+        return "BACKUP_PASSPHRASE isn't set in .env, so system backups don't run."
+    problem = passphrase_problem(BACKUP_PASSPHRASE)
+    return f"BACKUP_PASSPHRASE in .env is too short: {problem}" if problem else None
 
 # Login rate limiting (login-limits phase 1, #132). TRUST_PROXY_HEADERS makes
 # the visitor's address come from Cloudflare's CF-Connecting-IP header; only
@@ -808,17 +829,26 @@ def _startup():
         dt.start()
 
 
+class BackupPassphraseMissing(RuntimeError):
+    pass
+
+
 def _run_system_backup() -> str:
-    """Execute a full-system backup to BACKUP_DIR. Returns the filename."""
+    """Execute a full-system backup to BACKUP_DIR, sealed with
+    BACKUP_PASSPHRASE (#193). Returns the filename. Raises
+    BackupPassphraseMissing, writing nothing, when the passphrase isn't usable."""
+    problem = _backup_passphrase_problem()
+    if problem:
+        raise BackupPassphraseMissing(problem)
     from .db import SessionLocal
     from .backup import export_full_system
     db = SessionLocal()
     try:
-        payload = export_full_system(db)
+        payload = seal(export_full_system(db), BACKUP_PASSPHRASE, kind="system")
         stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         filename = f"system-backup-{stamp}.json"
         filepath = BACKUP_DIR / filename
-        filepath.write_text(json.dumps(payload, indent=2))
+        filepath.write_text(json.dumps(payload))
         return filename
     finally:
         db.close()
@@ -892,6 +922,15 @@ def _backup_scheduler_loop():
                    and now.hour >= sched.hour:
                     should_run = True
             if not should_run:
+                continue
+            problem = _backup_passphrase_problem()
+            if problem:
+                # Nothing is written, and last_run_at stays put so the
+                # backup runs as soon as the passphrase is added (#193).
+                status = f"NOT RUN: {problem}"
+                if sched.last_run_status != status:
+                    sched.last_run_status = status
+                    db.commit()
                 continue
             try:
                 filename = _run_system_backup()
@@ -3816,24 +3855,60 @@ def forecast(account_id: int, days: int = 90,
 
 
 # ---------- Backup: export / import ----------
+def _export_accounts(db: Session, user: User, wanted: set[int] | None) -> list:
+    """The accounts a user may put in a backup: the ones they can edit,
+    narrowed to `wanted` when given."""
+    editable = _user_editable_accounts(db, user, include_archived=True)
+    if wanted is None:
+        return editable
+    accounts = [a for a in editable if a.id in wanted]
+    if not accounts:
+        raise HTTPException(404, "No matching accounts found")
+    return accounts
+
+
+def _accounts_detail(accounts) -> str:
+    return f"{len(accounts)} account{'' if len(accounts) == 1 else 's'}"
+
+
+# "Download my data": the readable JSON copy PRIVACY.md promises, a copy to
+# read and not a backup (decided 2026-11-16, #193). The path is kept from when
+# this was the backup, so scripts reading it keep working.
 @app.get("/api/backup/export")
 def backup_export(request: Request, account_ids: str | None = None,
                   user: User = Depends(current_user), db: Session = Depends(get_db)):
-    editable = _user_editable_accounts(db, user, include_archived=True)
+    wanted = None
     if account_ids:
-        # CSV of account ids; filter to editable ones the caller actually has
         try:
             wanted = {int(x) for x in account_ids.split(",") if x.strip()}
         except ValueError:
             raise HTTPException(400, "Invalid account_ids (must be comma-separated integers)")
-        accounts = [a for a in editable if a.id in wanted]
-        if not accounts:
-            raise HTTPException(404, "No matching accounts found")
-    else:
-        accounts = editable
+    accounts = _export_accounts(db, user, wanted)
     payload = export_user(db, user, accounts=accounts)
-    record_event(db, "backup_exported", request, user=user,
-                 detail=f"{len(accounts)} account{'' if len(accounts) == 1 else 's'}")
+    record_event(db, "data_downloaded", request, user=user, detail=_accounts_detail(accounts))
+    filename = f"walletweather-my-data-{date.today().isoformat()}.json"
+    return JSONResponse(
+        content=payload,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+class BackupExportIn(BaseModel):
+    passphrase: str = Field(max_length=1024)
+    account_ids: list[int] | None = None
+
+
+# An encrypted backup (#193). A POST so the passphrase never sits in a URL
+# or an access log.
+@app.post("/api/backup/export")
+def backup_export_encrypted(body: BackupExportIn, request: Request,
+                            user: User = Depends(current_user), db: Session = Depends(get_db)):
+    problem = passphrase_problem(body.passphrase)
+    if problem:
+        raise HTTPException(400, problem)
+    accounts = _export_accounts(db, user, set(body.account_ids) if body.account_ids else None)
+    payload = seal(export_user(db, user, accounts=accounts), body.passphrase)
+    record_event(db, "backup_exported", request, user=user, detail=_accounts_detail(accounts))
     filename = f"walletweather-backup-{date.today().isoformat()}.json"
     return JSONResponse(
         content=payload,
@@ -3841,24 +3916,55 @@ def backup_export(request: Request, account_ids: str | None = None,
     )
 
 
+def _unwrap_upload(payload, passphrase) -> tuple[dict, bool]:
+    try:
+        return unwrap(payload, passphrase)
+    except BackupLocked as e:
+        raise HTTPException(400, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+class BackupPreviewIn(BaseModel):
+    payload: dict
+    passphrase: str | None = Field(default=None, max_length=1024)
+
+
+@app.post("/api/backup/preview")
+def backup_preview(body: BackupPreviewIn, user: User = Depends(current_user)):
+    """What a backup file holds, so the restore screen can list its accounts
+    before anything changes (#193). Opens an encrypted one with the
+    passphrase; changes nothing."""
+    data, encrypted = _unwrap_upload(body.payload, body.passphrase)
+    if not isinstance(data.get("accounts"), list):
+        raise HTTPException(400, "Not a valid backup file (missing 'accounts').")
+    names = [str(a.get("name") or "") for a in data["accounts"] if isinstance(a, dict)]
+    return {"encrypted": encrypted, "accounts": names}
+
+
 class ImportIn(BaseModel):
     mode: str = "merge"  # 'merge' or 'replace'
     payload: dict
     account_names: list[str] | None = None  # if set, only import these by name
+    passphrase: str | None = Field(default=None, max_length=1024)  # for an encrypted file (#193)
 
 
 @app.post("/api/backup/import")
 def backup_import(body: ImportIn, request: Request,
                   user: User = Depends(current_user), db: Session = Depends(get_db)):
+    # Opened before anything is touched: a wrong passphrase changes nothing.
+    data, encrypted = _unwrap_upload(body.payload, body.passphrase)
     try:
-        counts = import_user(db, user, body.payload, mode=body.mode,
+        counts = import_user(db, user, data, mode=body.mode,
                              account_names=body.account_names)
     except ValueError as e:
+        db.rollback()
         raise HTTPException(400, str(e))
     n = counts.get("accounts", 0)
     record_event(db, "backup_imported", request, user=user,
-                 detail=f"{body.mode}, {n} account{'' if n == 1 else 's'}")
-    return {"ok": True, "imported": counts}
+                 detail=f"{body.mode}, {n} account{'' if n == 1 else 's'}"
+                        + ("" if encrypted else ", unencrypted file"))
+    return {"ok": True, "imported": counts, "encrypted": encrypted}
 
 
 # ---------- Dashboard ----------
@@ -6629,9 +6735,13 @@ def admin_set_permission(payload: PermissionIn, request: Request,
 @app.get("/api/admin/backup-config")
 def admin_get_backup_config(user: User = Depends(current_admin), db: Session = Depends(get_db)):
     sched = db.query(BackupSchedule).first()
+    # Whether system backups can run at all, and why not (#193).
+    passphrase = {"passphrase_set": _backup_passphrase_problem() is None,
+                  "passphrase_problem": _backup_passphrase_problem()}
     if not sched:
         return {"enabled": False, "frequency": "daily", "hour": 3,
-                "retention_days": 30, "last_run_at": None, "last_run_status": None}
+                "retention_days": 30, "last_run_at": None, "last_run_status": None,
+                **passphrase}
     return {
         "enabled": sched.enabled,
         "frequency": sched.frequency,
@@ -6639,6 +6749,7 @@ def admin_get_backup_config(user: User = Depends(current_admin), db: Session = D
         "retention_days": sched.retention_days,
         "last_run_at": sched.last_run_at.isoformat() if sched.last_run_at else None,
         "last_run_status": sched.last_run_status,
+        **passphrase,
     }
 
 
@@ -6674,10 +6785,14 @@ def admin_list_backups(user: User = Depends(current_admin)):
     for f in files:
         try:
             stat = f.stat()
+            # A sealed file names itself in its first bytes (#193).
+            with f.open("rb") as fh:
+                head = fh.read(200)
             out.append({
                 "filename": f.name,
                 "size": stat.st_size,
                 "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                "encrypted": SEALED_MARKER.encode() in head,
             })
         except OSError:
             pass
@@ -6697,6 +6812,8 @@ def admin_trigger_backup(request: Request, user: User = Depends(current_admin),
             db.commit()
         record_event(db, "backup_made", request, user=user, detail=f"manual: {filename}")
         return {"ok": True, "filename": filename}
+    except BackupPassphraseMissing as e:
+        raise HTTPException(400, str(e))
     except Exception as e:
         # Some errors have no message of their own (a row that can't be
         # decrypted with this ENCRYPTION_KEY is InvalidToken): name them (#147).
@@ -6715,6 +6832,17 @@ def admin_restore_backup(filename: str, request: Request,
         payload = json.loads(filepath.read_text())
     except (json.JSONDecodeError, OSError) as e:
         raise HTTPException(400, f"Could not read backup: {e}")
+    # A sealed file opens with BACKUP_PASSPHRASE; a plain one from an
+    # earlier version still restores (#193).
+    try:
+        payload, encrypted = unwrap(payload, BACKUP_PASSPHRASE)
+    except BackupLocked as e:
+        raise HTTPException(400, ("BACKUP_PASSPHRASE isn't set in .env, so this encrypted backup "
+                                  "can't be opened." if not BACKUP_PASSPHRASE else
+                                  "BACKUP_PASSPHRASE in .env doesn't open this backup. It may have "
+                                  "been made with an earlier passphrase. Nothing was changed."))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     if not payload.get("system_backup") or "users" not in payload:
         raise HTTPException(400, "Not a valid system backup file")
 
@@ -6739,7 +6867,7 @@ def admin_restore_backup(filename: str, request: Request,
     n = restored["users"]
     record_event(db, "backup_restored", request, user=user,
                  detail=f"{filename}, {n} user{'' if n == 1 else 's'}")
-    return {"ok": True, "restored": restored}
+    return {"ok": True, "restored": restored, "encrypted": encrypted}
 
 
 @app.get("/api/admin/backups/download/{filename}")
@@ -6762,7 +6890,7 @@ AUDIT_EVENT_TYPES = (
     "user_created", "user_disabled", "user_enabled", "user_deleted", "password_removed",
     "permission_changed", "app_title_changed", "backup_settings_changed",
     "backup_made", "backup_downloaded", "backup_restored",
-    "backup_exported", "backup_imported",
+    "backup_exported", "backup_imported", "data_downloaded",
     "token_created", "token_revoked",
     "two_factor_asked", "two_factor_enabled", "two_factor_disabled",
     "recovery_code_used", "recovery_codes_remade",

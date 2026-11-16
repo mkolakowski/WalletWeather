@@ -6,11 +6,13 @@ Tracking issue: #198
 
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
-| 1. Encrypted backups | Server, Web | #193 | Not started; its questions are settled |
+| 1. Encrypted backups | Server, Web | #193 | Built in 1.68.0 (web 1.83.0), waiting for its release and your try |
 | 2. Connect a bank and Sync now | Server, Web | #194 | Not started |
 | 3. Daily sync and its status | Server, Web | #195 | Not started |
 | 4. Bills matched automatically | Server, Web | #196 | Not started; its question is settled |
 | 5. Status and Sync now in the iOS app | iOS | #197 | Not started |
+
+Phase 1 built 2026-11-16 in 1.68.0: API tests in `apps/server/tests/test_encrypted_backups.py`; the screen wording, the 12-character minimum and "Download my data" under Settings → Your account were your calls that day.
 
 Planned 2026-11-16. Open questions 1 to 8 settled the same day; question 9, what followed from them, settled too. Added the same day at your ask: a sync log for the account's owner (phase 3) and a list of unmatched synced lines with matching by hand (phase 4).
 

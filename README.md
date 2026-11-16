@@ -71,6 +71,7 @@ All configuration is via environment variables in `.env`:
 | `REGISTRATION_CODE` | No | *(none)* | A code people must type to register with a password. Set one on any instance other people can reach |
 | `ALLOWED_EMAILS` | No | — | Comma-separated allowlist for registration |
 | `ADMIN_EMAILS` | No | — | Comma-separated admin emails (enables Admin panel) |
+| `BACKUP_PASSPHRASE` | For system backups | — | Encrypts the scheduled and Admin system backups; at least 12 characters. Without it they don't run. Keep a copy off the server: nobody can recover it |
 | `GOOGLE_CLIENT_ID` | No | — | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | No | — | Google OAuth client secret |
 | `LOGIN_MAX_FAILURES` | No | `5` | Wrong passwords for one email from one address before sign-in is paused |
@@ -288,7 +289,7 @@ workflow).
 - Passwords are hashed with bcrypt (work factor 12)
 - Sensitive fields (account names, balances, amounts, descriptions, notes) are encrypted with Fernet (AES-128-CBC + HMAC-SHA256) and stored as BYTEA in PostgreSQL
 - The `ENCRYPTION_KEY` is the master key — back it up securely. If lost, encrypted data is unrecoverable.
-- Backup exports are **unencrypted JSON** — store them somewhere safe
+- Backups are encrypted with a passphrase (AES-256-GCM, the key derived with scrypt): your own for the backups you download, `BACKUP_PASSPHRASE` for system backups. Nobody can recover a lost passphrase. "Download my data" (Settings → Your account) is a plain, readable copy and not a backup
 - Session cookies use the `SESSION_SECRET` for signing
 - Admin access is controlled by the `ADMIN_EMAILS` environment variable, not by database state — an admin cannot be created from the UI
 - Registering with a password doesn't prove who owns the address. So an address in `ADMIN_EMAILS` can only be registered while the instance has no users (register yours first); after that an admin adds it under Admin → User management. On an instance other people can reach, set `REGISTRATION_CODE` or turn `ALLOW_REGISTRATION` off
@@ -302,7 +303,6 @@ against someone who can read the server's `.env` file, where the
 categories and tags are stored unencrypted. Other limits to know about
 before you decide where to run it:
 
-- Backups are unencrypted (roadmap item 12).
 - There is no self-serve password reset (item 13). Two-factor sign-in (a
   code from an authenticator app after the password) is there for each user
   to switch on in Settings → Your account, and an admin can require it of

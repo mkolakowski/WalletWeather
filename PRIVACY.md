@@ -32,8 +32,11 @@ server it runs on:
   transactions, transfers, budgets, categories, tags and notes. Account
   names, balances, amounts, descriptions and notes are encrypted in the
   database with the instance's `ENCRYPTION_KEY`.
-- **Backups:** exports and scheduled system backups are unencrypted JSON
-  files that contain all of the above, email addresses included.
+- **Backups:** backups a user downloads and the scheduled system backups
+  contain all of the above, email addresses included, encrypted with a
+  passphrase: the user's own, or the instance's `BACKUP_PASSPHRASE`.
+  "Download my data" is the exception: a plain, readable file for the user
+  to keep or take elsewhere, not encrypted.
 - **Logs:** the web server's access log, which records the address and path
   of each request, goes to the container's output. The app also keeps a
   sign-in log in the database: each sign-in, failed sign-in and blocked
@@ -43,6 +46,7 @@ server it runs on:
   admin actions: password changes and resets, an admin disabling, enabling
   or deleting a user or changing a permission, the instance title or the
   backup settings, backups made, downloaded, restored, exported or imported,
+  a user downloading their data,
   a user deleting themselves, API tokens made or revoked, and two-factor
   sign-in switched on or off, a recovery code used, recovery codes remade
   and browsers remembered or forgotten (never a code). Each says who
@@ -72,11 +76,14 @@ the US) may apply to you. In practice:
   user. Admins are the addresses in `ADMIN_EMAILS`.
 - Keep the instance off the public internet, or behind something that
   checks who's asking before the app does (a VPN, a private tunnel).
-- Treat backup files and the `.env` file like the data itself: anyone with a
-  backup can read everything, and anyone with the database and the
-  `ENCRYPTION_KEY` can too.
-- **A copy of their data:** each user can export their own data as JSON from
-  the app.
+- Treat backup passphrases, "Download my data" files and the `.env` file
+  like the data itself: anyone with a backup and its passphrase can read
+  everything, anyone with a "Download my data" file can read that user's
+  data, and anyone with the database and the `ENCRYPTION_KEY` can too.
+  Backup files from before version 1.68.0 aren't encrypted: delete them
+  once you have new ones.
+- **A copy of their data:** each user can download their own data as
+  readable JSON from the app (Settings → Your account → Download my data).
 - **Deleting their data:** each user can delete their own user from
   Settings ("Delete my account"), which removes them and everything only
   they own; an account they share stays if it has another owner. An admin

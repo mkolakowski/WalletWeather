@@ -295,14 +295,18 @@ def test_a_missing_backup_file_records_nothing(admin):
 
 
 def test_your_own_export_and_import(app_started):
+    """Download my data, an encrypted backup and its restore (#193)."""
     c, u = register(app_started)
     make_account(c)
-    exported = c.get("/api/backup/export")
+    assert c.get("/api/backup/export").status_code == 200
+    exported = c.post("/api/backup/export", json={"passphrase": "a long passphrase"})
     assert exported.status_code == 200
-    r = c.post("/api/backup/import", json={"mode": "merge", "payload": exported.json()})
+    r = c.post("/api/backup/import", json={"mode": "merge", "payload": exported.json(),
+                                           "passphrase": "a long passphrase"})
     assert r.status_code == 200
     rows = events(u["id"])
     assert [(e["event"], e["detail"]) for e in rows] == [
+        ("data_downloaded", "1 account"),
         ("backup_exported", "1 account"),
         ("backup_imported", f"merge, {r.json()['imported']['accounts']} account"
                             f"{'' if r.json()['imported']['accounts'] == 1 else 's'}"),

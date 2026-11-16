@@ -32,7 +32,7 @@ version to get them.
 ## Known limits
 
 These are known and listed in the README's Security Notes and the roadmap,
-so they don't need a report: backups are not encrypted, there is no
+so they don't need a report: there is no
 self-serve password reset, and session cookies are not marked HTTPS-only.
 Two-factor sign-in is each user's choice unless an admin requires it, it
 covers password sign-ins only (Google sign-in relies on Google's own), and

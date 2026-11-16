@@ -1,12 +1,22 @@
-"""Export/import of a user's data as plaintext JSON.
+"""Export/import of a user's data, and the encrypted backup file around it.
 
 The export decrypts all Fernet-protected fields so the backup is portable and
-restorable even if the encryption key is lost. The caller is responsible for
-protecting the resulting file — it contains sensitive financial data.
+restorable even if the server's ENCRYPTION_KEY is lost. Since bank-sync phase 1
+(#193) every backup is then sealed with a passphrase (`seal` / `open_sealed`),
+so the file itself can't be read without it. The plain JSON is still what
+"Download my data" hands out, as a copy to read rather than a backup, and
+plain backup files from earlier versions still import.
 """
+import base64
+import json
 import re
+import secrets
 from datetime import date, datetime
 from decimal import Decimal
+
+from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from sqlalchemy.orm import Session
 
 from .db import (
@@ -20,6 +30,138 @@ BACKUP_VERSION = 4
 TAG_NAME_MAX = 60          # Tag.name's column size
 TAG_RULE_PATTERN_MAX = 120
 _HEX_COLOR = re.compile(r"#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?")
+
+
+# ---------- The encrypted file (#193) ----------
+# A sealed backup is a small JSON object: a header saying how it was sealed,
+# then the backup's JSON encrypted with AES-256-GCM under a key that scrypt
+# derives from the passphrase. The header is bound to the ciphertext as
+# associated data, so editing any of it makes the file refuse to open.
+# Everything needed to open it is in the file, so it restores on any server
+# with only the passphrase. The marker and field names below are read back
+# from files on people's disks: never rename them (a new layout bumps
+# SEALED_FORMAT and keeps reading the old one).
+SEALED_MARKER = "walletweather-encrypted-backup"
+SEALED_FORMAT = 1
+PASSPHRASE_MIN = 12          # decided 2026-11-16 (#193)
+# scrypt at the cost OWASP recommends (128 MiB, a fraction of a second).
+SCRYPT_N, SCRYPT_R, SCRYPT_P = 2 ** 17, 8, 1
+# A file says its own cost; refuse one asking for more than this, so a
+# hand-made file can't make the server spend gigabytes trying it.
+_SCRYPT_N_MAX, _SCRYPT_R_MAX, _SCRYPT_P_MAX = 2 ** 18, 16, 4
+
+WRONG_PASSPHRASE = "That passphrase doesn't open this backup. Nothing was changed."
+
+
+class BackupLocked(ValueError):
+    """The file is encrypted and no passphrase, or the wrong one, was given."""
+
+
+def passphrase_problem(passphrase) -> str | None:
+    """Why a passphrase can't seal a backup, or None when it can."""
+    if not isinstance(passphrase, str) or not passphrase:
+        return "Enter a passphrase."
+    if len(passphrase) < PASSPHRASE_MIN:
+        return f"The passphrase must be at least {PASSPHRASE_MIN} characters."
+    return None
+
+
+def is_sealed(payload) -> bool:
+    return isinstance(payload, dict) and payload.get("walletweather") == SEALED_MARKER
+
+
+def _b64(raw: bytes) -> str:
+    return base64.b64encode(raw).decode("ascii")
+
+
+def _unb64(value) -> bytes:
+    if not isinstance(value, str):
+        raise ValueError("bad field")
+    return base64.b64decode(value, validate=True)
+
+
+def _header_bytes(header: dict) -> bytes:
+    return json.dumps(header, sort_keys=True, separators=(",", ":")).encode()
+
+
+def _key(passphrase: str, salt: bytes, n: int, r: int, p: int) -> bytes:
+    return Scrypt(salt=salt, length=32, n=n, r=r, p=p).derive(passphrase.encode("utf-8"))
+
+
+def seal(payload: dict, passphrase: str, kind: str = "user") -> dict:
+    """The backup `payload` encrypted with `passphrase`, as a JSON-ready dict.
+    `kind` ("user" or "system") is left readable so a restore screen can say
+    what the file is before it's opened."""
+    problem = passphrase_problem(passphrase)
+    if problem:
+        raise ValueError(problem)
+    salt, nonce = secrets.token_bytes(16), secrets.token_bytes(12)
+    header = {
+        "walletweather": SEALED_MARKER,
+        "format": SEALED_FORMAT,
+        "kind": kind,
+        "exported_at": payload.get("exported_at"),
+        "kdf": {"name": "scrypt", "n": SCRYPT_N, "r": SCRYPT_R, "p": SCRYPT_P, "salt": _b64(salt)},
+        "cipher": {"name": "AES-256-GCM", "nonce": _b64(nonce)},
+    }
+    key = _key(passphrase, salt, SCRYPT_N, SCRYPT_R, SCRYPT_P)
+    body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    ciphertext = AESGCM(key).encrypt(nonce, body, _header_bytes(header))
+    # The ciphertext goes last, so the header can be read from a file's first
+    # few hundred bytes (the Admin list does).
+    return {**header, "ciphertext": _b64(ciphertext)}
+
+
+def open_sealed(sealed: dict, passphrase) -> dict:
+    """The backup inside a sealed file. Raises BackupLocked for a missing or
+    wrong passphrase and ValueError for a file that isn't one or is damaged."""
+    if not is_sealed(sealed):
+        raise ValueError("Not an encrypted WalletWeather backup.")
+    if sealed.get("format") != SEALED_FORMAT:
+        raise ValueError("This backup was made by a newer version of WalletWeather. "
+                         "Update this server, then restore it.")
+    if not isinstance(passphrase, str) or not passphrase:
+        raise BackupLocked("This backup is encrypted. Enter its passphrase.")
+    damaged = "This backup file is damaged and can't be opened."
+    header = {k: v for k, v in sealed.items() if k != "ciphertext"}
+    try:
+        kdf, cipher = sealed["kdf"], sealed["cipher"]
+        n, r, p = kdf["n"], kdf["r"], kdf["p"]
+        if (kdf.get("name") != "scrypt" or cipher.get("name") != "AES-256-GCM"
+                or not all(type(x) is int for x in (n, r, p))
+                or not (2 <= n <= _SCRYPT_N_MAX and n & (n - 1) == 0)
+                or not (1 <= r <= _SCRYPT_R_MAX and 1 <= p <= _SCRYPT_P_MAX)):
+            raise ValueError
+        salt, nonce = _unb64(kdf["salt"]), _unb64(cipher["nonce"])
+        ciphertext = _unb64(sealed["ciphertext"])
+        if len(salt) < 16 or len(nonce) != 12:
+            raise ValueError
+    except (KeyError, TypeError, ValueError):
+        raise ValueError(damaged)
+    try:
+        body = AESGCM(_key(passphrase, salt, n, r, p)).decrypt(nonce, ciphertext, _header_bytes(header))
+    except InvalidTag:
+        # A wrong passphrase and an edited file look the same to AES-GCM;
+        # the passphrase is by far the likelier.
+        raise BackupLocked(WRONG_PASSPHRASE)
+    try:
+        payload = json.loads(body)
+    except ValueError:
+        raise ValueError(damaged)
+    if not isinstance(payload, dict):
+        raise ValueError(damaged)
+    return payload
+
+
+def unwrap(payload, passphrase) -> tuple[dict, bool]:
+    """`(backup, was_encrypted)` for a file as uploaded: a sealed file is
+    opened with the passphrase, a plain one from an earlier version is
+    passed through (decided 2026-11-16, #193: plain files still import)."""
+    if is_sealed(payload):
+        return open_sealed(payload, passphrase), True
+    if not isinstance(payload, dict):
+        raise ValueError("Not a valid backup file.")
+    return payload, False
 
 
 def _color(value) -> str | None:

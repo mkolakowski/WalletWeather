@@ -303,6 +303,8 @@ def test_another_users_objects_are_404_and_untouched(app_started, owner):
         ("GET", f"/api/transactions/search?account_id={o['acc']}", None),
         ("GET", f"/api/calendar?start={day}&end={day}&account_id={o['acc']}", None),
         ("GET", f"/api/backup/export?account_ids={o['acc']}", None),
+        ("POST", "/api/backup/export", {"passphrase": "a long passphrase",
+                                        "account_ids": [o["acc"]]}),
         ("GET", f"/api/report?account_id={o['acc']}", None),
         ("PATCH", f"/api/accounts/{o['acc']}", {"name": "taken"}),
         ("PATCH", f"/api/accounts/{o['acc']}", {"archived": True}),

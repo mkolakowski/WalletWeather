@@ -69,7 +69,16 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.67.1** · Web version: **1.82.0** · Schema version: **24** · iOS version: **0.16.0**
+App version: **1.68.0** · Web version: **1.83.0** · Schema version: **24** · iOS version: **0.16.0**
+
+### Security
+
+- Backups are now encrypted with a passphrase, so a backup file on its own can't be read. Settings → Backup asks you for one (twice) when you download a backup, and again when you restore it. Nobody can recover a lost passphrase, not even the person running the server, so write it down somewhere safe. A wrong passphrase, or a damaged file, is refused and nothing is changed. Backups made by earlier versions still restore, with a note that the file wasn't encrypted: delete those once you have a new one. (#193)
+
+### Changed
+
+- **Breaking:** the scheduled system backups and Admin's "Run backup now" are encrypted with `BACKUP_PASSPHRASE`, a new setting in `.env` (at least 12 characters, see `.env.example`). Until you add it they don't run, and Admin → System backups says so. Keep a copy of it somewhere other than the server: it's the only way to open those backups. Admin's list of backups now says which files are encrypted. (#193)
+- Settings → Your account has a "Download my data" button: a plain, readable JSON copy of your data, for you to read or take elsewhere. It isn't a backup and isn't encrypted. (#193)
 
 ## [1.67.1] — 2026-11-16
 

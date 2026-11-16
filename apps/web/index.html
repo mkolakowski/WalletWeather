@@ -300,6 +300,7 @@
                font-size:13px; line-height:1.4; box-shadow:0 6px 24px rgba(0,0,0,.35); white-space:pre-line; }
   .app-toast.ok { border-left-color:var(--good); }
   .app-toast.error { border-left-color:var(--bad); }
+  .app-toast.warn { border-left-color:var(--warn); }
   .app-toast .msg { flex:1; min-width:0; overflow-wrap:anywhere; }
   .app-toast button { background:transparent; color:var(--muted); border:none; padding:0 2px; font-size:14px; line-height:1; }
   dialog.app-dialog { background:var(--panel); color:var(--text); border:1px solid var(--border);
@@ -2157,9 +2158,12 @@
       <div class="panel">
         <h2>System backups</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
-          Full-system backups include all users' data. Scheduled backups run automatically
+          Full-system backups include all users' data, encrypted with <code>BACKUP_PASSPHRASE</code>
+          from the server's <code>.env</code>. Scheduled backups run automatically
           at the configured time. Manual backups can be triggered anytime.
         </p>
+        <div id="adminBackupPassphraseWarn" class="hidden" role="alert"
+             style="margin:0 0 12px;font-size:13px;color:var(--bad)"></div>
 
         <h3 class="backup-subhead">Schedule</h3>
         <div class="row">
@@ -2409,8 +2413,8 @@
       <div class="panel" data-settings-section="backup">
         <h2>Backup &amp; restore</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
-          Backups are JSON files containing accounts, recurring transactions, categories, and history.
-          <strong style="color:var(--warn)">Files are unencrypted</strong> — store them somewhere safe.
+          A backup holds your accounts, recurring transactions, categories, tags and history,
+          encrypted with a passphrase you choose. Only that passphrase opens it again.
         </p>
 
         <h3 class="backup-subhead">Export</h3>
@@ -2420,6 +2424,18 @@
             <span style="color:var(--muted)">Loading…</span>
           </div>
         </div>
+        <div class="row" style="max-width:560px">
+          <div><label for="exportPassphrase">Passphrase (at least 12 characters)</label>
+            <input id="exportPassphrase" type="password" autocomplete="new-password" maxlength="1024"
+                   aria-describedby="exportPassphraseNote"></div>
+          <div><label for="exportPassphrase2">Type it again</label>
+            <input id="exportPassphrase2" type="password" autocomplete="new-password" maxlength="1024"
+                   aria-describedby="exportPassphraseNote"></div>
+        </div>
+        <p id="exportPassphraseNote" style="color:var(--warn);margin:6px 0 10px;font-size:13px;max-width:560px">
+          Nobody can recover this passphrase, not even the person running the server.
+          Without it, this backup can't be restored. Write it down somewhere safe.
+        </p>
         <div class="row">
           <div style="flex:0 0 auto"><button onclick="exportBackup()">Download backup</button></div>
         </div>
@@ -2436,6 +2452,12 @@
               <option value="replace">Replace (wipe my data first)</option>
             </select>
           </div>
+        </div>
+        <div id="importPassphraseWrap" class="hidden row" style="margin-top:10px;max-width:560px">
+          <div><label for="importPassphrase">This backup is encrypted. Its passphrase:</label>
+            <input id="importPassphrase" type="password" autocomplete="off" maxlength="1024"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();openImportFile();}"></div>
+          <div style="flex:0 0 auto"><button onclick="openImportFile()">Open</button></div>
         </div>
         <div id="importAccountWrap" class="hidden" style="margin-top:10px">
           <label id="importAccountListLabel">Select accounts to restore</label>
@@ -2582,6 +2604,17 @@
         </div>
       </div>
 
+      <div class="panel" data-settings-section="your-account" id="myDataPanel">
+        <h2>Download my data</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          A copy of your accounts, transactions, recurring transactions, categories and tags as a
+          plain JSON file, for you to read or take elsewhere.
+          <strong style="color:var(--warn)">It isn't a backup and isn't encrypted:</strong> anyone with
+          the file can read it. To keep a copy you can restore, use Settings → Backup.
+        </p>
+        <button class="ghost" onclick="downloadMyData()">Download my data</button>
+      </div>
+
       <div class="panel" data-settings-section="your-account" id="deleteAccountPanel">
         <h2>Delete my account</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
@@ -2688,7 +2721,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.82.0";
+const WEB_VERSION = "1.83.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2698,6 +2731,7 @@ const WEB_VERSION = "1.82.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.83.0 (2026-11-16, claude+mkolakowski): (#193) Encrypted backups. Settings → Backup asks for a passphrase twice (#exportPassphrase, #exportPassphrase2) with the warning, and POSTs /api/backup/export; the account menu's export asks in two promptDialogs (askBackupPassphrase). Restore spots an encrypted file (walletweather marker), asks for its passphrase (#importPassphraseWrap) and lists its accounts from /api/backup/preview; a plain file still restores, with the "wasn't encrypted" note. Settings → Your account gains Download my data (#myDataPanel, GET /api/backup/export). Admin → System backups warns when BACKUP_PASSPHRASE is missing (#adminBackupPassphraseWarn) and lists each file as Encrypted or Not encrypted.
 //
 // 1.82.0 (2026-11-16, claude+mkolakowski): (#189) Settings → Sharing is by invitation. "Share your accounts" (#permissionsPanel): an invite form (#inviteAccount, #inviteEmail, #inviteLevel → POST /api/invitations), invitations waiting (#invitationsSent, Cancel), and the table now lists only people who already have access, with Remove. New "Shared with you" panel (#sharedWithYouPanel): invitations to accept or decline, and accounts others share with you, each with Leave. noticeInvitations() says so once after sign-in when one is waiting.
 // 1.81.0 (2026-11-16, claude+mkolakowski): (#186) Settings → Change password gets "Sign out my other browsers" (#endOtherSessionsBtn → POST /api/me/sessions/end-others), and the password-changed notice says the other browsers were signed out.
@@ -4078,18 +4112,13 @@ async function acctMenuDo(what) {
   if (what === 'rename') return renameAccount(id);
   if (what === 'archive') return setAccountArchived(id, true);
   if (what === 'export') {
+    const passphrase = await askBackupPassphrase();
+    if (!passphrase) return;
     try {
-      const res = await fetch('/api/backup/export?account_ids=' + encodeURIComponent(String(id)));
-      if (!res.ok) throw new Error(await res.text());
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
       const acc = accounts.find(x => x.id === id);
       const slug = ((acc && acc.name) || 'account').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      a.href = url; a.download = `walletweather-${slug}-${_isoDate(new Date())}.json`;
-      document.body.appendChild(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
-      notify('Backup downloaded. It isn’t encrypted, so keep it somewhere safe.', 'ok');
+      await downloadEncryptedBackup([id], passphrase, `walletweather-${slug}-${_isoDate(new Date())}.json`);
+      notify('Encrypted backup downloaded.', 'ok');
     } catch (e) { notifyError('Could not export the backup', e); }
   }
 }
@@ -8848,67 +8877,153 @@ async function loadExportAccounts() {
   }
 }
 
+// Encrypted backups (#193). The passphrase is checked here for the user's
+// sake; the server checks it again and never stores it.
+const BACKUP_PASSPHRASE_MIN = 12;
+const BACKUP_PASSPHRASE_WARNING = 'Nobody can recover this passphrase, not even the person running the server. ' +
+  'Without it, this backup can\'t be restored. Write it down somewhere safe.';
+const ENCRYPTED_BACKUP_MARKER = 'walletweather-encrypted-backup';
+
+function _backupPassphraseProblem(p) {
+  if (!p) return 'Enter a passphrase.';
+  if (p.length < BACKUP_PASSPHRASE_MIN) return `The passphrase must be at least ${BACKUP_PASSPHRASE_MIN} characters.`;
+  return '';
+}
+
+// Two dialogs, for the account menu's one-account backup.
+async function askBackupPassphrase() {
+  const first = await promptDialog('Passphrase (at least 12 characters)', '', {
+    title: 'Encrypted backup', okLabel: 'Next', type: 'password', maxLength: 1024,
+    message: BACKUP_PASSPHRASE_WARNING, validate: _backupPassphraseProblem });
+  if (!first) return null;
+  const again = await promptDialog('Type it again', '', {
+    title: 'Encrypted backup', okLabel: 'Download backup', type: 'password', maxLength: 1024,
+    validate: v => v === first ? '' : 'The two passphrases don\'t match.' });
+  return again ? first : null;
+}
+
+async function _downloadResponse(res, filename) {
+  const blob = await res.blob();
+  const objUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = objUrl;
+  a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(objUrl);
+}
+
+async function downloadEncryptedBackup(accountIds, passphrase, filename) {
+  const res = await fetch('/api/backup/export', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ passphrase, account_ids: accountIds.map(Number) }),
+  });
+  if (!res.ok) {
+    let msg = 'Export failed';
+    try { msg = (await res.json()).detail || msg; } catch (_) {}
+    throw new Error(typeof msg === 'string' ? msg : 'Export failed');
+  }
+  await _downloadResponse(res, filename);
+}
+
 async function exportBackup() {
   const status = document.getElementById('backupStatus');
+  const p1 = document.getElementById('exportPassphrase');
+  const p2 = document.getElementById('exportPassphrase2');
+  const fail = msg => { status.textContent = msg; status.style.color = 'var(--bad)'; };
   const selected = Array.from(document.querySelectorAll('.export-acct:checked'))
     .map(cb => cb.value);
-  if (!selected.length) {
-    status.textContent = 'Select at least one account to export.';
-    status.style.color = 'var(--bad)';
-    return;
-  }
+  if (!selected.length) return fail('Select at least one account to export.');
+  const problem = _backupPassphraseProblem(p1.value);
+  if (problem) { p1.focus(); return fail(problem); }
+  if (p1.value !== p2.value) { p2.focus(); return fail('The two passphrases don\'t match.'); }
   status.textContent = 'Preparing backup...';
   status.style.color = 'var(--muted)';
   try {
-    const url = '/api/backup/export?account_ids=' + encodeURIComponent(selected.join(','));
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Export failed');
-    const blob = await res.blob();
-    const objUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = objUrl;
-    a.download = `walletweather-backup-${_isoDate(new Date())}.json`;
-    document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(objUrl);
-    status.textContent = `Exported ${selected.length} account(s).`;
+    await downloadEncryptedBackup(selected, p1.value, `walletweather-backup-${_isoDate(new Date())}.json`);
+    p1.value = ''; p2.value = '';
+    status.textContent = `Exported ${selected.length} account(s), encrypted.`;
     status.style.color = 'var(--good)';
   } catch (e) {
-    status.textContent = 'Export failed: ' + errText(e);
-    status.style.color = 'var(--bad)';
+    fail('Export failed: ' + errText(e));
   }
+}
+
+// Settings → Your account: the readable copy, not a backup (#193).
+async function downloadMyData() {
+  try {
+    const res = await fetch('/api/backup/export');
+    if (!res.ok) throw new Error('Download failed');
+    await _downloadResponse(res, `walletweather-my-data-${_isoDate(new Date())}.json`);
+  } catch (e) { notifyError('Could not download your data', e); }
+}
+
+// The chosen file, and its passphrase once it has opened (#193).
+let pendingImportPassphrase = null;
+
+function _showImportAccounts(names) {
+  const wrap = document.getElementById('importAccountWrap');
+  const list = document.getElementById('importAccountList');
+  list.innerHTML = names.length
+    ? names.map(n => `<label><input type="checkbox" class="import-acct" value="${escapeAttr(n)}" checked> ${escapeHtml(n || 'Unnamed')}</label>`).join('')
+    : '<span style="color:var(--muted)">Backup contains no accounts.</span>';
+  wrap.classList.remove('hidden');
 }
 
 async function onImportFileChosen() {
   const status = document.getElementById('backupStatus');
   const wrap = document.getElementById('importAccountWrap');
-  const list = document.getElementById('importAccountList');
+  const passWrap = document.getElementById('importPassphraseWrap');
   const fileInput = document.getElementById('importFile');
   pendingImportPayload = null;
-  if (!fileInput.files.length) {
-    wrap.classList.add('hidden');
-    return;
-  }
+  pendingImportPassphrase = null;
+  wrap.classList.add('hidden');
+  passWrap.classList.add('hidden');
+  document.getElementById('importPassphrase').value = '';
+  if (!fileInput.files.length) return;
   try {
-    const text = await fileInput.files[0].text();
-    const payload = JSON.parse(text);
-    if (!payload.accounts || !Array.isArray(payload.accounts)) {
+    const payload = JSON.parse(await fileInput.files[0].text());
+    if (payload && payload.walletweather === ENCRYPTED_BACKUP_MARKER) {
+      pendingImportPayload = payload;
+      passWrap.classList.remove('hidden');
+      document.getElementById('importPassphrase').focus();
+      status.textContent = 'Enter the backup\'s passphrase to see what it holds.';
+      status.style.color = 'var(--muted)';
+      return;
+    }
+    if (!payload || !Array.isArray(payload.accounts)) {
       throw new Error('File does not look like a valid backup');
     }
     pendingImportPayload = payload;
-    if (!payload.accounts.length) {
-      list.innerHTML = '<span style="color:var(--muted)">Backup contains no accounts.</span>';
-    } else {
-      list.innerHTML = payload.accounts.map((a, i) =>
-        `<label><input type="checkbox" class="import-acct" value="${escapeAttr(a.name)}" checked> ${escapeHtml(a.name || 'Unnamed')}</label>`
-      ).join('');
-    }
-    wrap.classList.remove('hidden');
-    status.textContent = `Loaded ${payload.accounts.length} account(s) from file. Select which to restore.`;
+    _showImportAccounts(payload.accounts.map(a => (a && a.name) || ''));
+    status.textContent = `Loaded ${payload.accounts.length} account(s) from file. This file isn't encrypted. Select which to restore.`;
     status.style.color = 'var(--muted)';
   } catch (e) {
-    wrap.classList.add('hidden');
     status.textContent = 'Could not read file: ' + errText(e);
     status.style.color = 'var(--bad)';
+  }
+}
+
+async function openImportFile() {
+  const status = document.getElementById('backupStatus');
+  const input = document.getElementById('importPassphrase');
+  if (!pendingImportPayload) return;
+  if (!input.value) { status.textContent = 'Enter the passphrase.'; status.style.color = 'var(--bad)'; return; }
+  status.textContent = 'Opening…';
+  status.style.color = 'var(--muted)';
+  try {
+    const res = await api('/api/backup/preview', {
+      method: 'POST',
+      body: JSON.stringify({ payload: pendingImportPayload, passphrase: input.value }),
+    });
+    pendingImportPassphrase = input.value;
+    document.getElementById('importPassphraseWrap').classList.add('hidden');
+    _showImportAccounts(res.accounts);
+    status.textContent = `Opened: ${res.accounts.length} account(s). Select which to restore.`;
+  } catch (e) {
+    status.textContent = errText(e);
+    status.style.color = 'var(--bad)';
+    input.focus(); input.select();
   }
 }
 
@@ -8917,6 +9032,11 @@ async function importBackup() {
   const mode = document.getElementById('importMode').value;
   if (!pendingImportPayload) {
     status.textContent = 'Choose a backup file first.';
+    status.style.color = 'var(--bad)';
+    return;
+  }
+  if (pendingImportPayload.walletweather === ENCRYPTED_BACKUP_MARKER && !pendingImportPassphrase) {
+    status.textContent = 'Enter the backup\'s passphrase and press Open first.';
     status.style.color = 'var(--bad)';
     return;
   }
@@ -8940,15 +9060,24 @@ async function importBackup() {
         mode,
         payload: pendingImportPayload,
         account_names: selectedNames,
+        passphrase: pendingImportPassphrase,
       }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Import failed');
-    status.textContent = `Imported ${data.imported.accounts} account(s), ${data.imported.recurring} recurring, ${data.imported.transactions} transaction(s), ${data.imported.categories||0} categor${(data.imported.categories||0)===1?'y':'ies'}.`;
-    status.style.color = 'var(--good)';
+    let msg = `Imported ${data.imported.accounts} account(s), ${data.imported.recurring} recurring, ${data.imported.transactions} transaction(s), ${data.imported.categories||0} categor${(data.imported.categories||0)===1?'y':'ies'}.`;
+    if (data.encrypted === false) {
+      msg = 'Restored. This file wasn\'t encrypted, so anyone who has it can read it. ' +
+            'Delete it and make a new, encrypted backup. ' + msg;
+      status.style.color = 'var(--warn)';
+    } else {
+      status.style.color = 'var(--good)';
+    }
+    status.textContent = msg;
     document.getElementById('importFile').value = '';
     document.getElementById('importAccountWrap').classList.add('hidden');
     pendingImportPayload = null;
+    pendingImportPassphrase = null;
     currentAccountId = null;
     await loadAccounts();
     await loadExportAccounts();  // refresh in case new accounts now exist
@@ -9343,6 +9472,13 @@ async function loadAdminBackupConfig() {
     document.getElementById('adminBackupHour').value = _utcToLocalHour(cfg.hour ?? 3);
     _backupHourNote();
     document.getElementById('adminBackupRetention').value = cfg.retention_days ?? 30;
+    // System backups don't run without BACKUP_PASSPHRASE (#193).
+    const warn = document.getElementById('adminBackupPassphraseWarn');
+    warn.classList.toggle('hidden', cfg.passphrase_set !== false);
+    warn.textContent = cfg.passphrase_set === false
+      ? (cfg.passphrase_problem || 'BACKUP_PASSPHRASE isn\'t set.') +
+        ' Add BACKUP_PASSPHRASE (at least 12 characters) to the server\'s .env and restart it.'
+      : '';
     const statusEl = document.getElementById('adminBackupScheduleStatus');
     if (cfg.last_run_at) {
       const raw = cfg.last_run_at;
@@ -9409,13 +9545,14 @@ async function loadAdminBackups() {
       <td>${escapeHtml(f.filename)}</td>
       <td style="color:var(--muted);font-size:12px">${fmtSize(f.size)}</td>
       <td style="color:var(--muted);font-size:12px">${f.modified.slice(0,19).replace('T',' ')}</td>
+      <td style="font-size:12px;color:${f.encrypted ? 'var(--muted)' : 'var(--warn)'}">${f.encrypted ? 'Encrypted' : 'Not encrypted'}</td>
       <td style="white-space:nowrap">
         <button class="ghost" onclick="downloadAdminBackup('${escapeAttr(f.filename)}')">Download</button>
         <button class="danger" onclick="restoreAdminBackup('${escapeAttr(f.filename)}')">Restore</button>
       </td>
     </tr>`).join('');
     wrap.innerHTML = `<table><thead><tr>
-      <th>File</th><th>Size</th><th>Date</th><th></th>
+      <th>File</th><th>Size</th><th>Date</th><th>Kind</th><th></th>
     </tr></thead><tbody>${rows}</tbody></table>`;
   } catch (e) {
     wrap.innerHTML = `<div style="color:var(--bad)">Error: ${escapeHtml(errText(e))}</div>`;
@@ -9433,7 +9570,9 @@ async function restoreAdminBackup(filename) {
     const res = await api(`/api/admin/backups/restore/${encodeURIComponent(filename)}`, {
       method: 'POST',
     });
-    notify(`Restore complete: ${res.restored.users} user(s), ${res.restored.accounts} account(s).`, 'ok');
+    notify(`Restore complete: ${res.restored.users} user(s), ${res.restored.accounts} account(s).` +
+           (res.encrypted === false ? ' This file wasn\'t encrypted, so anyone who has it can read it. Delete it once a new, encrypted backup has run.' : ''),
+           res.encrypted === false ? 'warn' : 'ok');
     await loadAdminPage();
   } catch (e) {
     notifyError('Restore failed', e);

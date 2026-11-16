@@ -37,6 +37,9 @@ os.environ.setdefault("ENCRYPTION_KEY", base64.urlsafe_b64encode(
     hashlib.sha256(("walletweather-tests " + _test_db).encode()).digest()).decode())
 os.environ.setdefault("SESSION_SECRET", secrets.token_urlsafe(48))
 os.environ.setdefault("BACKUP_DIR", tempfile.mkdtemp(prefix="ww-test-backups-"))
+# System backups are sealed with this (#193); tests that need it unset patch
+# app.main.BACKUP_PASSPHRASE.
+os.environ.setdefault("BACKUP_PASSPHRASE", "test-system-backup-passphrase")
 os.environ["DEMO_MODE"] = "false"
 os.environ["ALLOW_REGISTRATION"] = "true"
 os.environ["ALLOWED_EMAILS"] = ""

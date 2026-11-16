@@ -127,12 +127,14 @@ totals tile. **Effort: small** once the dashboard charts are stable.
 These are gaps that matter more the moment a non-trivial number of people
 use the instance. The README explicitly flags one of them.
 
-### 12. Encrypted backups
-The README confirms backups are unencrypted. Given the rest of the app uses
+### ~~12. Encrypted backups~~
+~~The README confirms backups are unencrypted. Given the rest of the app uses
 Fernet at rest, an encrypted-export option (or just "use the same Fernet
 key on restore") closes that loop. **Effort: small.** Wrap the existing
 backup file in Fernet on the way out. Planned as phase 1 of
-`Plans/bank-sync.md`.
+`Plans/bank-sync.md`.~~ Done in 1.68.0 (#193): every backup is encrypted
+with a passphrase (not the Fernet key, so a backup restores on any server),
+and "Download my data" stays as a readable copy.
 
 ### 13. Password reset
 There's no self-serve flow today. Even a token-based "admin can issue a

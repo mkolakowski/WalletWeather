@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.54.2** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.8.1**
+App version: **1.54.3** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.8.1**
+
+## [1.54.3] — 2026-11-15
+
+App version: **1.54.3** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.8.1**
 
 ### Added
 
@@ -88,18 +92,21 @@ App version: **1.54.2** · Web version: **1.72.0** · Schema version: **19** · 
   paid; the Paid switch undoes that. (iOS app 0.8.1)
 - The iPhone app's More page is made of cards like the other pages, in every
   look, instead of a plain settings list.
-
 - **Breaking:** in the iPhone app's Forecast, swiping right on a paid line
   now offers **Edit** instead of Undo paid; to undo, open the line and turn
   Paid off. Unpaid lines offer Paid and Edit. (iOS app 0.8.0)
 - Lines in Forecast's **To confirm** list now have an **Edit** button, and
   swipe like any other line: right to mark paid or edit, left to delete.
-
 - The iPhone app now names its sign-in after the phone's model ("iPhone 16
   Pro Max") instead of just "iPhone", and the Connect screen has a **Name for
   this phone** field to change it before signing in. That name is what the
   web app's Settings → API tokens shows. (iOS only tells apps the name you
   gave your phone with a permission from Apple, so the model is the default.)
+
+### Fixed
+
+- The iPhone app's line editor, opened as a sheet, no longer runs its rows
+  into the left edge of the screen.
 
 ## [1.54.2] — 2026-11-15
 
@@ -136,8 +143,6 @@ App version: **1.54.2** · Web version: **1.72.0** · Schema version: **19** · 
 
 ### Fixed
 
-- The iPhone app's line editor, opened as a sheet, no longer runs its rows
-  into the left edge of the screen.
 - In the iPhone app's Sepia look, Delete, End… and Sign out were drawn in
   the brown text colour instead of red. They're red again, in every look.
 - In the iPhone app with Last-known numbers, a page that was never loaded no
@@ -2024,7 +2029,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.54.2...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.54.3...HEAD
+[1.54.3]: https://github.com/mkolakowski/walletweather/releases/tag/v1.54.3
 [1.54.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.54.2
 [1.54.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.54.1
 [1.54.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.54.0

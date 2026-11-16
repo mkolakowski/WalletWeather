@@ -216,3 +216,14 @@ Decisions made while planning [`Plans/ios-app.md`](../../../Plans/ios-app.md) (t
 - **Email and password go first under "Other ways to sign in"** on the Connect screen, then Scan a QR code, the Open in WalletWeather note and Paste a token; Sign in (the sheet) stays the main way. The other option was a card of its own under Sign in. The app can't tell beforehand whether an account signs in only with Google (the server answers those like a wrong password), so the form is always there and a refused sign-in adds a pointer to the Sign in button.
 
 **What it changes:** phase 7 (#100).
+
+## 2026-11-15: all four big-screen parts stay
+
+**Decided:** 2026-11-15, by Matthew. **Status:** accepted.
+
+**The question:** phase 4 (#90) built four parts for the Duo's inner screen as prototypes, each to be kept or dropped: To confirm on Forecast, Compare on the open Duo, the half-open (laptop) layout of Forecast, and a second window.
+
+**The decision:** keep all four, as built in iOS 0.7.0. Nothing is removed.
+
+**What it changes:** no code change. Phase 4's Done when still asks for each part to work every way the Duo can be held, so it waits on a try on the phone, the side-by-side second window above all (the system's Split View, which the simulator check couldn't drive).
+

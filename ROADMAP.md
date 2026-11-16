@@ -141,7 +141,8 @@ reset link" mechanism (no SMTP required for v1) prevents lockouts.
 ### 14. Two-factor authentication (TOTP)
 Standard `pyotp` + a QR code on enrollment. Self-hosted apps with real
 financial data warrant this. **Effort: small-to-medium.** New columns on
-`users`, an enrollment page, a verify step in login.
+`users`, an enrollment page, a verify step in login. Planned in
+`Plans/two-factor.md` (#170).
 
 ### ~~15. Login rate limiting & audit log~~ ✅ **Shipped in v1.44.0 (rate limiting) and v1.49.0 (audit events, Admin → Audit log).**
 ~~Rate-limit failed logins by IP+username, and write significant events

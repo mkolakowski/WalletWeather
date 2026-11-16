@@ -71,6 +71,10 @@ same commit (or session) that introduces it.
 
 App version: **1.59.0** · Web version: **1.76.0** · Schema version: **21** · iOS version: **0.11.0**
 
+## [1.59.0] — 2026-11-15
+
+App version: **1.59.0** · Web version: **1.76.0** · Schema version: **21** · iOS version: **0.11.0**
+
 ### Added
 
 - **The iPhone app's email and password sign-in takes a two-factor code:**
@@ -2166,7 +2170,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.57.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.59.0...HEAD
+[1.59.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.59.0
 [1.57.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.57.0
 [1.56.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.56.0
 [1.55.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.55.0

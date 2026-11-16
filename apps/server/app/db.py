@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "24"
+SCHEMA_VERSION = "25"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,11 @@ SCHEMA_VERSION = "24"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v25 (2026-11-16, claude+mkolakowski): bank sync (bank-sync phase 2, #194).
+#     New tables bank_connections (a user's SimpleFIN access address,
+#     encrypted) and bank_account_links (a bank account matched to one of
+#     theirs, with a start date); transactions.bank_ref, a hash of the bank's
+#     own id, so a synced line is never brought in twice.
 # v24 (2026-11-16, claude+mkolakowski): add account_invitations — an offer
 #     of access to an account, by email, waiting for that person to accept
 #     (#189). Existing shares are untouched.
@@ -372,6 +377,10 @@ class Transaction(Base):
     notes_enc = Column(LargeBinary, nullable=True)
     is_actual = Column(Boolean, default=False)   # has it cleared?
     created_at = Column(DateTime, default=datetime.utcnow)
+    # A line that came from bank sync, or one bank sync found already here:
+    # sha256 of the bank's account and transaction ids (#194), so it's found
+    # without decrypting every row and is never brought in twice.
+    bank_ref = Column(String(64), nullable=True)
 
     account = relationship("Account", back_populates="transactions")
     category = relationship("Category")
@@ -601,6 +610,40 @@ class RecurringSkip(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class BankConnection(Base):
+    """A user's SimpleFIN connection (#194): one per user. The access address
+    holds the credentials SimpleFIN issued, so it's encrypted with
+    ENCRYPTION_KEY and never logged or sent to the browser. `accounts_enc` is
+    the last list of bank accounts SimpleFIN gave (JSON: id, name, org)."""
+    __tablename__ = "bank_connections"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    access_url_enc = Column(LargeBinary, nullable=False)
+    accounts_enc = Column(LargeBinary, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    last_sync_at = Column(DateTime, nullable=True)
+    last_sync_ok = Column(Boolean, nullable=True)
+    last_sync_status = Column(String(300), nullable=True)
+    # When each call to SimpleFIN's /accounts was made in the last day (JSON
+    # list of ISO times): Bridge disables a token that asks too often.
+    calls_json = Column(Text, nullable=False, default="[]")
+
+
+class BankAccountLink(Base):
+    """A bank account matched to one of the user's own accounts (#194).
+    Nothing dated before `start_date` comes in. `synced_through` is the
+    newest date the last good sync covered; None until the first."""
+    __tablename__ = "bank_account_links"
+    id = Column(Integer, primary_key=True)
+    connection_id = Column(Integer, ForeignKey("bank_connections.id", ondelete="CASCADE"), nullable=False)
+    bank_account_ref = Column(String(64), nullable=False)
+    account_id = Column(Integer, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
+    start_date = Column(Date, nullable=False)
+    synced_through = Column(Date, nullable=True)
+    __table_args__ = (UniqueConstraint("connection_id", "bank_account_ref", name="uq_bank_link_ref"),
+                      UniqueConstraint("connection_id", "account_id", name="uq_bank_link_account"))
+
+
 class ApiToken(Base):
     """A personal API token (#42), sent as `Authorization: Bearer <token>`.
 
@@ -718,6 +761,10 @@ def init_db():
     from sqlalchemy import text
     Base.metadata.create_all(engine)
     migrations = [
+        # v24 → v25: bank sync (#194). The two tables come from create_all.
+        "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS bank_ref VARCHAR(64)",
+        "CREATE INDEX IF NOT EXISTS ix_transactions_account_bank_ref "
+        "ON transactions (account_id, bank_ref) WHERE bank_ref IS NOT NULL",
         # v1 → v2: end_date + category support
         "ALTER TABLE recurring_transactions ADD COLUMN IF NOT EXISTS end_date DATE",
         "ALTER TABLE recurring_transactions ADD COLUMN IF NOT EXISTS category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL",

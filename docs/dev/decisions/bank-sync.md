@@ -59,3 +59,17 @@ Decisions made while planning and building [`Plans/bank-sync.md`](../../../Plans
 - **Scheduled and full-system backups without `BACKUP_PASSPHRASE`:** they don't run and Admin says so; not a passphrase typed by the admin for the full-system one; not a fall back to plain files.
 
 **What it changes:** updating to the phase 1 release stops an instance's scheduled backups until `BACKUP_PASSPHRASE` is added to `.env`, so the changelog entry is marked **Breaking**. `PRIVACY.md`'s promise of a readable copy stays as written.
+
+## 2026-11-16: where bank sync lives, how far back, and a guard on Sync now
+
+**Decided:** 2026-11-16, by Matthew, at the start of phase 2 (#194). **Status:** accepted.
+
+**The questions and what was chosen** (the first option listed is the one chosen):
+
+- **Where in Settings:** a "Bank sync" tab of its own, shown only when an admin has switched bank sync on (or the user still has a connection to remove); not under Accounts; not under Your account.
+- **How far back a start date may go:** up to 90 days, so the first sync is one request to SimpleFIN; not up to a year (several requests); not today only. Older history still comes in by CSV.
+- **A limit in phase 2:** yes, Sync now stops after 20 calls in 24 hours and says when it can run again; not left for phase 3.
+
+**Why:** a tab of its own leaves room for the sync log and the Unmatched list (phases 3 and 4). SimpleFIN Bridge allows 90 days per request and expects about 24 requests a day, and disables a token that asks much more often, so the guard protects a user's connection from the first release.
+
+**What it changes:** phase 3 builds its "wait N minutes" on the same count.

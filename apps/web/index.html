@@ -2108,6 +2108,20 @@
         <div id="adminTwoFactorStatus" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
       </div>
 
+      <div class="panel" id="adminBankSync">
+        <h2>Bank sync</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Let users bring transactions in from their bank through SimpleFIN Bridge, a service each of them
+          subscribes to. With it on, this server calls SimpleFIN for the users who connect; nothing is sent
+          for anyone else. Switching it off stops connecting and syncing; connections already made stay
+          until their users disconnect.
+        </p>
+        <label style="display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer">
+          <input id="adminBankSyncOn" type="checkbox" style="width:auto;margin:0" onchange="saveAdminBankSync()">
+          Allow bank sync</label>
+        <div id="adminBankSyncStatus" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
+      </div>
+
       <div class="panel">
         <h2>User management</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
@@ -2234,6 +2248,7 @@
         <button type="button" role="tab" data-section="budgets">Budgets</button>
         <button type="button" role="tab" data-section="sharing">Sharing</button>
         <button type="button" role="tab" data-section="backup">Backup</button>
+        <button type="button" role="tab" data-section="bank" id="bankTab" class="hidden">Bank sync</button>
         <button type="button" role="tab" data-section="your-account">Your account</button>
       </div>
       <div class="panel" data-settings-section="appearance">
@@ -2604,6 +2619,12 @@
         </div>
       </div>
 
+      <div class="panel" data-settings-section="bank" id="bankPanel">
+        <h2>Bank sync</h2>
+        <div id="bankBody"><span style="color:var(--muted)">Loading…</span></div>
+        <div id="bankStatus" role="status" style="margin-top:10px;font-size:13px"></div>
+      </div>
+
       <div class="panel" data-settings-section="your-account" id="myDataPanel">
         <h2>Download my data</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
@@ -2721,7 +2742,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.83.0";
+const WEB_VERSION = "1.84.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2731,6 +2752,7 @@ const WEB_VERSION = "1.83.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.84.0 (2026-11-16, claude+mkolakowski): (#194) Bank sync. Settings gets a "Bank sync" tab (#bankTab, section 'bank', #bankPanel, loadBank), shown when /api/bank says enabled or connected: paste a SimpleFIN setup token (bankConnect, with a code field when two-factor is on), match each bank account to an owned account with a start date (bankSaveLinks → PUT /api/bank/links), Sync now (bankSyncNow), Disconnect (bankDisconnect). Admin gets a "Bank sync" switch (#adminBankSync, loadAdminBankSync, saveAdminBankSync) and a "bank connected" badge in Users.
 // 1.83.0 (2026-11-16, claude+mkolakowski): (#193) Encrypted backups. Settings → Backup asks for a passphrase twice (#exportPassphrase, #exportPassphrase2) with the warning, and POSTs /api/backup/export; the account menu's export asks in two promptDialogs (askBackupPassphrase). Restore spots an encrypted file (walletweather marker), asks for its passphrase (#importPassphraseWrap) and lists its accounts from /api/backup/preview; a plain file still restores, with the "wasn't encrypted" note. Settings → Your account gains Download my data (#myDataPanel, GET /api/backup/export). Admin → System backups warns when BACKUP_PASSPHRASE is missing (#adminBackupPassphraseWarn) and lists each file as Encrypted or Not encrypted.
 //
 // 1.82.0 (2026-11-16, claude+mkolakowski): (#189) Settings → Sharing is by invitation. "Share your accounts" (#permissionsPanel): an invite form (#inviteAccount, #inviteEmail, #inviteLevel → POST /api/invitations), invitations waiting (#invitationsSent, Cancel), and the table now lists only people who already have access, with Remove. New "Shared with you" panel (#sharedWithYouPanel): invitations to accept or decline, and accounts others share with you, each with Leave. noticeInvitations() says so once after sign-in when one is waiting.
@@ -3783,7 +3805,7 @@ function showPage(name, opts) {
   document.getElementById('navAdmin').classList.toggle('active', name==='admin');
   document.getElementById('navSettings').classList.toggle('active', name==='settings');
   _syncPhoneNav(name);
-  if (name === 'settings') { showSettingsSection(settingsSection, { noHash: true }); loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); loadApiTokens(); loadChangePassword(); loadTwoFactor(); loadDeleteAccount(); }
+  if (name === 'settings') { showSettingsSection(settingsSection, { noHash: true }); loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); loadApiTokens(); loadChangePassword(); loadTwoFactor(); loadDeleteAccount(); loadBank(); }
   if (name === 'dashboard') loadDashboard();
   if (name === 'networth') loadNetworth();
   if (name === 'subscriptions') {
@@ -4173,7 +4195,7 @@ document.addEventListener('keydown', (ev) => {
   }
 });
 
-const SETTINGS_SECTIONS = ['appearance', 'accounts', 'categories', 'budgets', 'sharing', 'backup', 'your-account'];
+const SETTINGS_SECTIONS = ['appearance', 'accounts', 'categories', 'budgets', 'sharing', 'backup', 'bank', 'your-account'];
 let settingsSection = 'appearance';
 function showSettingsSection(section, opts) {
   opts = opts || {};
@@ -9091,6 +9113,7 @@ async function importBackup() {
 function loadAdminPage() {
   loadAdminAppTitle();
   loadAdminTwoFactor();
+  loadAdminBankSync();
   loadAdminUsers();
   loadAdminTokens();
   loadAdminPermissions();
@@ -9128,6 +9151,182 @@ async function saveAdminTwoFactor() {
     status.textContent = errText(e);
     status.style.color = 'var(--bad)';
   } finally { box.disabled = false; }
+}
+
+// Admin → "Bank sync" (#194): whether users may connect a bank.
+function _adminBankSyncShow(data) {
+  document.getElementById('adminBankSyncOn').checked = data.enabled;
+  const n = data.connected_users;
+  const status = document.getElementById('adminBankSyncStatus');
+  status.style.color = '';
+  status.textContent = (data.enabled ? 'On. ' : 'Off. ')
+    + (n === 0 ? 'No user has a bank connected.' : n + ' user' + (n === 1 ? ' has a bank' : 's have a bank') + ' connected.');
+}
+async function loadAdminBankSync() {
+  try { _adminBankSyncShow(await api('/api/admin/bank-sync')); }
+  catch (e) { document.getElementById('adminBankSyncStatus').textContent = 'Failed to load: ' + errText(e); }
+}
+async function saveAdminBankSync() {
+  const box = document.getElementById('adminBankSyncOn');
+  const status = document.getElementById('adminBankSyncStatus');
+  const want = box.checked;
+  box.disabled = true;
+  try {
+    _adminBankSyncShow(await api('/api/admin/bank-sync', { method: 'PUT', body: JSON.stringify({ enabled: want }) }));
+    notify(want ? 'Bank sync is on.' : 'Bank sync is off.');
+  } catch (e) {
+    box.checked = !want;
+    status.textContent = errText(e);
+    status.style.color = 'var(--bad)';
+  } finally { box.disabled = false; }
+}
+
+// Settings → Bank sync (#194). The tab shows when an admin has switched bank
+// sync on, or when this user still has a connection to remove.
+let bankState = null;
+const SIMPLEFIN_CREATE_URL = 'https://bridge.simplefin.org/simplefin/create';
+
+function _bankSay(msg, color) {
+  const el = document.getElementById('bankStatus');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.style.color = color || 'var(--muted)';
+}
+function _bankCodeField(id) {
+  return (me && me.two_factor_enabled)
+    ? `<div style="max-width:240px;margin-top:8px"><label for="${id}">Code from your authenticator app</label>
+         <input id="${id}" inputmode="numeric" autocomplete="one-time-code" maxlength="40"></div>` : '';
+}
+function _bankWhen(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return isNaN(d) ? iso : d.toLocaleString();
+}
+
+async function loadBank() {
+  const tab = document.getElementById('bankTab');
+  const body = document.getElementById('bankBody');
+  if (!tab || !body) return;
+  try {
+    bankState = await api('/api/bank');
+  } catch (e) {
+    tab.classList.add('hidden');
+    return;
+  }
+  tab.classList.toggle('hidden', !(bankState.enabled || bankState.connected));
+  if (!bankState.connected) return _renderBankConnect(body);
+  let owned = [];
+  try { owned = (await api('/api/accounts?include_archived=true')).filter(a => a.level === 'owner'); } catch (_) {}
+  _renderBankConnected(body, owned);
+}
+
+function _renderBankConnect(body) {
+  if (!bankState.enabled) { body.innerHTML = ''; return; }
+  body.innerHTML = `
+    <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+      Bring transactions in from your bank by themselves, through SimpleFIN Bridge, a service you subscribe to
+      yourself (about $15 a year). SimpleFIN can read your transactions and balances; it can't move money.
+      Only lines your bank has posted come in, as paid lines, and your auto-tag rules run on them.</p>
+    <ol style="margin:0 0 12px 18px;padding:0;font-size:13px;line-height:1.6">
+      <li>At <a href="${SIMPLEFIN_CREATE_URL}" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">SimpleFIN Bridge</a>,
+        link your bank and make a setup token.</li>
+      <li>Paste the token here and press Connect. A token works once.</li>
+      <li>Match each bank account to one of your accounts and pick the date to start from.</li>
+    </ol>
+    <label for="bankToken">SimpleFIN setup token</label>
+    <textarea id="bankToken" rows="3" maxlength="2000" spellcheck="false" autocomplete="off"
+              style="width:100%;max-width:560px;font-family:monospace;font-size:12px"></textarea>
+    ${_bankCodeField('bankConnectCode')}
+    <div style="margin-top:10px"><button onclick="bankConnect()">Connect</button></div>`;
+}
+
+function _renderBankConnected(body, owned) {
+  const today = new Date();
+  const minDay = new Date(today); minDay.setDate(minDay.getDate() - (bankState.start_max_days - 1));
+  const max = _isoDate(today), min = _isoDate(minDay);
+  const opts = (sel) => ['<option value="">Leave out</option>'].concat(owned.map(a =>
+    `<option value="${a.id}"${a.id === sel ? ' selected' : ''}>${escapeHtml(a.name)}${a.archived ? ' (archived)' : ''}</option>`)).join('');
+  const rows = (bankState.accounts || []).map(a => `<tr>
+      <td>${escapeHtml(a.name)}${a.org ? `<div style="font-size:11px;color:var(--muted)">${escapeHtml(a.org)}</div>` : ''}</td>
+      <td><select class="bank-link-account" data-ref="${escapeAttr(a.ref)}" aria-label="Your account for ${escapeAttr(a.name)}">${opts(a.account_id)}</select></td>
+      <td><input type="date" class="bank-link-start" data-ref="${escapeAttr(a.ref)}" min="${min}" max="${max}"
+                 value="${escapeAttr(a.start_date || max)}" aria-label="Bring in from"></td>
+    </tr>`).join('');
+  const last = bankState.last_sync_at
+    ? `Last sync ${_bankWhen(bankState.last_sync_at)}: ${escapeHtml(bankState.last_sync_status || '')}`
+    : 'Not synced yet.';
+  const left = bankState.syncs_left_today;
+  body.innerHTML = `
+    <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+      Connected through SimpleFIN Bridge on ${escapeHtml(_bankWhen(bankState.connected_at))}.
+      Match each bank account to one of your own accounts; nothing dated before its start date comes in
+      (at most ${bankState.start_max_days} days back). Only accounts you own can be matched.</p>
+    ${rows ? `<table style="width:100%;max-width:720px"><thead><tr>
+        <th>Bank account</th><th>Your account</th><th>Bring in from</th></tr></thead><tbody>${rows}</tbody></table>
+      <div style="margin-top:8px"><button class="ghost" onclick="bankSaveLinks()">Save matches</button></div>`
+      : '<div style="color:var(--muted);font-size:13px">SimpleFIN hasn\'t listed any bank accounts yet. Press Sync now to ask again.</div>'}
+    <h3 class="backup-subhead" style="margin-top:20px">Sync</h3>
+    <div style="font-size:13px;color:${bankState.last_sync_ok === false ? 'var(--bad)' : 'var(--muted)'}">${last}</div>
+    <div style="margin-top:8px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <button onclick="bankSyncNow()"${bankState.sync_wait_seconds ? ' disabled' : ''}>Sync now</button>
+      <span style="font-size:12px;color:var(--muted)">${left} sync${left === 1 ? '' : 's'} left in the next 24 hours</span>
+    </div>
+    <h3 class="backup-subhead" style="margin-top:20px">Disconnect</h3>
+    <p style="color:var(--muted);margin:0 0 8px;font-size:13px">
+      Forgets the connection here. Lines already brought in stay. To stop SimpleFIN reading your bank too,
+      disable the token at <a href="https://bridge.simplefin.org/" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">SimpleFIN Bridge</a>.</p>
+    ${_bankCodeField('bankDisconnectCode')}
+    <div style="margin-top:8px"><button class="danger" onclick="bankDisconnect()">Disconnect</button></div>`;
+}
+
+async function bankConnect() {
+  const token = (document.getElementById('bankToken').value || '').trim();
+  if (!token) return _bankSay('Paste the setup token from SimpleFIN Bridge first.', 'var(--bad)');
+  const codeEl = document.getElementById('bankConnectCode');
+  _bankSay('Connecting…');
+  try {
+    await api('/api/bank/connect', { method: 'POST',
+      body: JSON.stringify({ token, code: codeEl ? codeEl.value : null }) });
+    _bankSay('Connected. Match your bank accounts below, then press Sync now.', 'var(--good)');
+    await loadBank();
+  } catch (e) { _bankSay(errText(e), 'var(--bad)'); }
+}
+
+async function bankSaveLinks() {
+  const links = Array.from(document.querySelectorAll('.bank-link-account')).map(sel => {
+    const start = document.querySelector(`.bank-link-start[data-ref="${sel.dataset.ref}"]`);
+    return { ref: sel.dataset.ref, account_id: sel.value ? Number(sel.value) : null,
+             start_date: sel.value && start && start.value ? start.value : null };
+  });
+  _bankSay('Saving…');
+  try {
+    await api('/api/bank/links', { method: 'PUT', body: JSON.stringify({ links }) });
+    _bankSay('Matches saved.', 'var(--good)');
+    await loadBank();
+  } catch (e) { _bankSay(errText(e), 'var(--bad)'); }
+}
+
+async function bankSyncNow() {
+  _bankSay('Asking SimpleFIN…');
+  try {
+    const r = await api('/api/bank/sync', { method: 'POST' });
+    _bankSay(`${r.added} new line${r.added === 1 ? '' : 's'} came in; ${r.skipped} ${r.skipped === 1 ? 'was' : 'were'} already here.`
+             + (r.messages && r.messages.length ? ' SimpleFIN said: ' + r.messages.join('; ') : ''), 'var(--good)');
+    await loadBank();
+    if (r.added) loadAccounts();
+  } catch (e) { _bankSay(errText(e), 'var(--bad)'); await loadBank(); }
+}
+
+async function bankDisconnect() {
+  if (!(await confirmDialog('Disconnect your bank? Lines already brought in stay. You can connect again later with a new token.',
+                            { title: 'Disconnect bank', okLabel: 'Disconnect', danger: true }))) return;
+  const codeEl = document.getElementById('bankDisconnectCode');
+  _bankSay('Disconnecting…');
+  try {
+    await api('/api/bank/disconnect', { method: 'POST', body: JSON.stringify({ code: codeEl ? codeEl.value : null }) });
+    _bankSay('Disconnected. Remember to disable the token at SimpleFIN Bridge too.', 'var(--good)');
+    await loadBank();
+  } catch (e) { _bankSay(errText(e), 'var(--bad)'); }
 }
 
 async function loadAdminAppTitle() {
@@ -9190,6 +9389,7 @@ async function loadAdminUsers() {
       if (u.is_admin) badges.push('<span class="ro-badge" style="background:#d29922;color:#000">admin</span>');
       if (u.disabled) badges.push('<span class="ro-badge" style="background:var(--bad)">disabled</span>');
       if (u.two_factor_enabled) badges.push('<span class="ro-badge">two-factor</span>');
+      if (u.bank_connected) badges.push('<span class="ro-badge">bank connected</span>');
       const authMethods = [];
       if (u.has_password) authMethods.push('local');
       if (u.has_google) authMethods.push('google');

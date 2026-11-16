@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.68.1"
+APP_VERSION = "1.69.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,14 @@ APP_VERSION = "1.68.1"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.69.0 (2026-11-16, claude+mkolakowski): bank sync with SimpleFIN
+#     (bank-sync phase 2, #194). GET /api/bank, POST /api/bank/connect
+#     {token, code?}, PUT /api/bank/links {links: [{ref, account_id,
+#     start_date}]}, POST /api/bank/sync, POST /api/bank/disconnect {code?},
+#     all browser-session only; GET/PUT /api/admin/bank-sync {enabled};
+#     /api/admin/users gains bank_connected. Calls out live in simplefin.py;
+#     SIMPLEFIN_HOSTS limits where a token may point. Encrypted backups carry
+#     the connection and each line's bank_ref. Schema 25.
 # 1.68.1 (2026-11-16, claude+mkolakowski): docker-compose.yml passes
 #     BACKUP_PASSPHRASE to the app (#200); 1.68.0 left it out, so a value in
 #     .env never arrived. test_settings_wiring.py now checks every setting.
@@ -555,9 +563,10 @@ from .db import (
     AccountPermission, AccountInvitation, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
     Tag, TransactionTag, RecurringTag, TagRule, SavedReport, RecurringSkip,
     ApiToken, AuditEvent, AppSignInCode, RecoveryCode, RememberedBrowser, SessionLocal,
-    SCHEMA_VERSION,
+    BankConnection, BankAccountLink, encrypt_str, decrypt_str, SCHEMA_VERSION,
 )
 from . import twofactor
+from . import simplefin
 from .forecast import build_forecast, actual_balance_as_of, upcoming_dates
 from .backup import (export_user, import_user, seal, unwrap, passphrase_problem,
                      BackupLocked, SEALED_MARKER)
@@ -3910,7 +3919,8 @@ def backup_export_encrypted(body: BackupExportIn, request: Request,
     if problem:
         raise HTTPException(400, problem)
     accounts = _export_accounts(db, user, set(body.account_ids) if body.account_ids else None)
-    payload = seal(export_user(db, user, accounts=accounts), body.passphrase)
+    # A sealed backup carries the bank connection; Download my data never does.
+    payload = seal(export_user(db, user, accounts=accounts, include_bank=True), body.passphrase)
     record_event(db, "backup_exported", request, user=user, detail=_accounts_detail(accounts))
     filename = f"walletweather-backup-{date.today().isoformat()}.json"
     return JSONResponse(
@@ -3968,6 +3978,342 @@ def backup_import(body: ImportIn, request: Request,
                  detail=f"{body.mode}, {n} account{'' if n == 1 else 's'}"
                         + ("" if encrypted else ", unencrypted file"))
     return {"ok": True, "imported": counts, "encrypted": encrypted}
+
+
+# ---------- Bank sync with SimpleFIN (bank-sync phase 2, #194) ----------
+# Off until an admin switches it on (decided 2026-11-16, question 3). Each user
+# connects their own SimpleFIN Bridge, matches its bank accounts to accounts
+# they own (question 7) from a start date (question 4, at most 90 days back,
+# decided 2026-11-16 in phase 2), and Sync now lands new posted lines as paid.
+# With two-factor on, connecting and disconnecting ask for a fresh code
+# (question 8). Browser sessions only for now; phase 3 opens status and Sync
+# now to API tokens.
+BANK_SYNC_KEY = "bank_sync_enabled"
+BANK_START_MAX_DAYS = simplefin.MAX_DAYS_PER_REQUEST
+# Bridge disables a token that asks much more than 24 times a day: Sync now
+# stops at 20 calls in 24 hours (decided 2026-11-16, phase 2).
+BANK_CALLS_PER_DAY = 20
+# How far back each sync looks again before the last one, for lines a bank
+# posts late. Lines already here are recognised by their bank_ref.
+BANK_OVERLAP_DAYS = 14
+
+
+def bank_sync_enabled(db: Session) -> bool:
+    row = db.get(AdminSetting, BANK_SYNC_KEY)
+    return bool(row and row.value == "true")
+
+
+def _bank_allowed(db: Session, user: User) -> None:
+    if not bank_sync_enabled(db):
+        raise HTTPException(403, "Bank sync is switched off on this instance. An admin can "
+                                 "switch it on in Admin.")
+    if is_demo_email(user.email):
+        raise HTTPException(403, "The demo user can't connect a bank.")
+
+
+def _bank_connection(db: Session, user: User) -> BankConnection | None:
+    return db.query(BankConnection).filter_by(user_id=user.id).first()
+
+
+def bank_account_ref(bank_account_id: str) -> str:
+    return hashlib.sha256(f"simplefin-account:{bank_account_id}".encode()).hexdigest()
+
+
+def bank_txn_ref(bank_account_id: str, txn_id: str) -> str:
+    return hashlib.sha256(f"simplefin:{bank_account_id}:{txn_id}".encode()).hexdigest()
+
+
+def _bank_listing(conn: BankConnection) -> list[dict]:
+    try:
+        rows = json.loads(decrypt_str(conn.accounts_enc)) if conn.accounts_enc else []
+    except Exception:
+        rows = []
+    return rows if isinstance(rows, list) else []
+
+
+def _set_bank_listing(conn: BankConnection, accounts: list[dict]) -> None:
+    conn.accounts_enc = encrypt_str(json.dumps(
+        [{"id": a["id"], "name": a["name"], "org": a["org"]} for a in accounts]))
+
+
+def _bank_calls(conn: BankConnection, now: datetime) -> list[datetime]:
+    try:
+        times = [datetime.fromisoformat(x) for x in json.loads(conn.calls_json or "[]")]
+    except (ValueError, TypeError):
+        times = []
+    return sorted(t for t in times if now - t < timedelta(days=1))
+
+
+def _bank_call_wait(conn: BankConnection, now: datetime) -> int:
+    """Seconds until another call to SimpleFIN is allowed; 0 when it is."""
+    calls = _bank_calls(conn, now)
+    if len(calls) < BANK_CALLS_PER_DAY:
+        return 0
+    return max(1, math.ceil((calls[len(calls) - BANK_CALLS_PER_DAY] + timedelta(days=1) - now)
+                            .total_seconds()))
+
+
+def _note_bank_call(conn: BankConnection, now: datetime) -> None:
+    conn.calls_json = json.dumps([t.isoformat() for t in _bank_calls(conn, now) + [now]])
+
+
+def _bank_status(db: Session, user: User) -> dict:
+    conn = _bank_connection(db, user)
+    out = {"enabled": bank_sync_enabled(db), "connected": conn is not None,
+           "start_max_days": BANK_START_MAX_DAYS}
+    if not conn:
+        return out
+    now = datetime.utcnow()
+    links = {l.bank_account_ref: l for l in db.query(BankAccountLink).filter_by(connection_id=conn.id)}
+    accounts = []
+    for a in _bank_listing(conn):
+        ref = bank_account_ref(a["id"])
+        link = links.get(ref)
+        accounts.append({
+            "ref": ref, "name": a.get("name") or "", "org": a.get("org") or "",
+            "account_id": link.account_id if link else None,
+            "start_date": link.start_date.isoformat() if link else None,
+            "synced_through": link.synced_through.isoformat() if link and link.synced_through else None,
+        })
+    wait = _bank_call_wait(conn, now)
+    out.update({
+        "connected_at": conn.created_at.isoformat() + "Z",
+        "accounts": accounts,
+        "last_sync_at": conn.last_sync_at.isoformat() + "Z" if conn.last_sync_at else None,
+        "last_sync_ok": conn.last_sync_ok,
+        "last_sync_status": conn.last_sync_status,
+        "syncs_left_today": max(0, BANK_CALLS_PER_DAY - len(_bank_calls(conn, now))),
+        "sync_wait_seconds": wait,
+    })
+    return out
+
+
+@app.get("/api/bank")
+def bank_status(user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Whether bank sync is on, and this user's connection: its bank accounts,
+    what each is matched to, and how the last sync went. Never the access
+    address."""
+    return _bank_status(db, user)
+
+
+class BankConnectIn(BaseModel):
+    token: str = Field(min_length=1, max_length=2000)
+    code: str | None = Field(default=None, max_length=40)
+
+
+@app.post("/api/bank/connect")
+def bank_connect(body: BankConnectIn, request: Request,
+                 user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Claim a SimpleFIN setup token and list the bank accounts it reaches."""
+    _bank_allowed(db, user)
+    if _bank_connection(db, user):
+        raise HTTPException(409, "You already have a bank connected. Disconnect it first.")
+    _confirm_code_for(db, request, user, body.code, "bank connection")
+    try:
+        access = simplefin.claim(body.token)
+    except simplefin.SimpleFINError as e:
+        raise HTTPException(e.status, str(e))
+    # The token is used up now, so the address is kept even if the listing
+    # below fails: the next Sync now lists the accounts again.
+    now = datetime.utcnow()
+    conn = BankConnection(user_id=user.id, access_url_enc=encrypt_str(access), calls_json="[]")
+    db.add(conn)
+    try:
+        _note_bank_call(conn, now)
+        listing = simplefin.fetch_accounts(access, balances_only=True)
+        _set_bank_listing(conn, listing["accounts"])
+    except simplefin.SimpleFINError as e:
+        conn.last_sync_at, conn.last_sync_ok, conn.last_sync_status = now, False, str(e)[:300]
+    db.commit()
+    record_event(db, "bank_connected", request, user=user,
+                 detail=f"{len(_bank_listing(conn))} bank accounts")
+    return _bank_status(db, user)
+
+
+class BankLinkIn(BaseModel):
+    ref: str = Field(min_length=64, max_length=64)
+    account_id: int | None = None
+    start_date: date | None = None
+
+
+class BankLinksIn(BaseModel):
+    links: list[BankLinkIn] = Field(max_length=100)
+
+
+@app.put("/api/bank/links")
+def bank_set_links(body: BankLinksIn, request: Request,
+                   user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Match bank accounts to the user's own accounts, each from a start date
+    (today unless given, at most 90 days back). account_id null leaves a bank
+    account out. Bank accounts not listed keep what they had."""
+    _bank_allowed(db, user)
+    conn = _bank_connection(db, user)
+    if not conn:
+        raise HTTPException(404, "No bank is connected.")
+    known = {bank_account_ref(a["id"]) for a in _bank_listing(conn)}
+    today = date.today()
+    wanted: dict[str, BankLinkIn] = {}
+    for l in body.links:
+        if l.ref not in known:
+            raise HTTPException(404, "That bank account isn't on this connection.")
+        if l.ref in wanted:
+            raise HTTPException(400, "A bank account is listed twice.")
+        wanted[l.ref] = l
+        if l.account_id is not None:
+            # Only an account's owner links it to a bank (question 7). 404,
+            # like every account check, so ids don't leak.
+            _account_with_perm(db, user, l.account_id, "owner")
+            start = l.start_date or today
+            if start > today or start < today - timedelta(days=BANK_START_MAX_DAYS):
+                raise HTTPException(400, f"The start date must be today or up to "
+                                         f"{BANK_START_MAX_DAYS} days back.")
+    existing = {l.bank_account_ref: l for l in db.query(BankAccountLink).filter_by(connection_id=conn.id)}
+    after = {ref: link.account_id for ref, link in existing.items()}
+    for ref, l in wanted.items():
+        if l.account_id is None:
+            after.pop(ref, None)
+        else:
+            after[ref] = l.account_id
+    if len(set(after.values())) != len(after):
+        raise HTTPException(400, "Each of your accounts can be matched to one bank account only.")
+    # Matches that go or move are deleted first, so moving an account from
+    # one bank account to another never trips the one-match-per-account rule.
+    for ref, l in wanted.items():
+        link = existing.get(ref)
+        if link and link.account_id != l.account_id:
+            db.delete(link)
+            existing.pop(ref)
+    db.flush()
+    for ref, l in wanted.items():
+        if l.account_id is None:
+            continue
+        start, link = l.start_date or today, existing.get(ref)
+        if link is None:
+            db.add(BankAccountLink(connection_id=conn.id, bank_account_ref=ref,
+                                   account_id=l.account_id, start_date=start))
+        elif link.start_date != start:
+            # A new start date is fetched again from that date.
+            link.start_date, link.synced_through = start, None
+    db.commit()
+    return _bank_status(db, user)
+
+
+def _bank_sync(db: Session, user: User, conn: BankConnection, request: Request | None) -> dict:
+    links = db.query(BankAccountLink).filter_by(connection_id=conn.id).all()
+    if not links:
+        raise HTTPException(400, "Match at least one bank account to one of your accounts first.")
+    now = datetime.utcnow()
+    wait = _bank_call_wait(conn, now)
+    if wait:
+        minutes = math.ceil(wait / 60)
+        raise HTTPException(
+            429, f"Bank sync has asked SimpleFIN {BANK_CALLS_PER_DAY} times in the last 24 hours, "
+                 f"the most it allows without risking your connection. It can run again in "
+                 f"{minutes} minute{'s' if minutes != 1 else ''}.",
+            headers={"Retry-After": str(wait)})
+    today = date.today()
+    floor = today - timedelta(days=BANK_START_MAX_DAYS)
+
+    def link_start(l: BankAccountLink) -> date:
+        since = l.synced_through - timedelta(days=BANK_OVERLAP_DAYS) if l.synced_through else l.start_date
+        return max(l.start_date, since, floor)
+
+    start = min(link_start(l) for l in links)
+    _note_bank_call(conn, now)
+    db.commit()   # the call counts even if it fails
+    try:
+        data = simplefin.fetch_accounts(decrypt_str(conn.access_url_enc), start=start)
+    except simplefin.SimpleFINError as e:
+        conn.last_sync_at, conn.last_sync_ok, conn.last_sync_status = now, False, str(e)[:300]
+        db.commit()
+        record_event(db, "bank_sync_failed", request, user=user,
+                     detail="revoked" if e.revoked else f"HTTP {e.status}")
+        raise HTTPException(e.status, str(e))
+    if data["accounts"]:
+        _set_bank_listing(conn, data["accounts"])
+    by_ref = {l.bank_account_ref: l for l in links}
+    added = skipped = 0
+    for bank_acc in data["accounts"]:
+        link = by_ref.get(bank_account_ref(bank_acc["id"]))
+        if link is None:
+            continue
+        acc = db.get(Account, link.account_id)
+        if acc is None:
+            continue
+        refs = {r for (r,) in db.query(Transaction.bank_ref)
+                .filter(Transaction.account_id == acc.id, Transaction.bank_ref.isnot(None))}
+        # Paid lines that came by CSV or by hand, by date, amount and
+        # description (the CSV import's own test for a duplicate). A bank
+        # line that finds one claims it instead of landing a second.
+        unclaimed: dict[tuple, list[Transaction]] = {}
+        for t in db.query(Transaction).filter(Transaction.account_id == acc.id,
+                                              Transaction.bank_ref.is_(None),
+                                              Transaction.is_actual.is_(True)):
+            d = t.actual_date or t.forecast_date
+            if d:
+                unclaimed.setdefault((d, round(float(t.amount), 2),
+                                      (t.description or "").strip().lower()), []).append(t)
+        for tx in bank_acc["transactions"]:
+            if tx["date"] < link.start_date:
+                continue
+            ref = bank_txn_ref(bank_acc["id"], tx["id"])
+            if ref in refs:
+                skipped += 1
+                continue
+            refs.add(ref)
+            key = (tx["date"], round(float(tx["amount"]), 2), tx["description"].strip().lower())
+            if unclaimed.get(key):
+                unclaimed[key].pop().bank_ref = ref
+                skipped += 1
+                continue
+            t = Transaction(account_id=acc.id, actual_date=tx["date"], forecast_date=tx["date"],
+                            is_actual=True, bank_ref=ref)
+            t.description = tx["description"]
+            t.amount = tx["amount"]
+            db.add(t)
+            db.flush()
+            _apply_tag_rules(db, user, t)
+            added += 1
+        link.synced_through = today
+    status = f"{added} new line{'' if added == 1 else 's'}, {skipped} already here"
+    if data["messages"]:
+        status += ". SimpleFIN said: " + "; ".join(data["messages"])
+    conn.last_sync_at, conn.last_sync_ok, conn.last_sync_status = now, True, status[:300]
+    db.commit()
+    record_event(db, "bank_sync_run", request, user=user, detail=f"{added} added, {skipped} skipped")
+    return {"added": added, "skipped": skipped, "messages": data["messages"]}
+
+
+@app.post("/api/bank/sync")
+def bank_sync_now(request: Request, user: User = Depends(current_session_user),
+                  db: Session = Depends(get_db)):
+    """Bring in new posted lines from every matched bank account."""
+    _bank_allowed(db, user)
+    conn = _bank_connection(db, user)
+    if not conn:
+        raise HTTPException(404, "No bank is connected.")
+    result = _bank_sync(db, user, conn, request)
+    return {**result, "status": _bank_status(db, user)}
+
+
+class BankDisconnectIn(BaseModel):
+    code: str | None = Field(default=None, max_length=40)
+
+
+@app.post("/api/bank/disconnect")
+def bank_disconnect(body: BankDisconnectIn, request: Request,
+                    user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Forget the SimpleFIN address and the matches. Lines already brought in
+    stay. Allowed with bank sync switched off, so a connection can always be
+    removed."""
+    conn = _bank_connection(db, user)
+    if not conn:
+        raise HTTPException(404, "No bank is connected.")
+    _confirm_code_for(db, request, user, body.code, "bank disconnection")
+    db.delete(conn)
+    db.commit()
+    record_event(db, "bank_disconnected", request, user=user)
+    return _bank_status(db, user)
 
 
 # ---------- Dashboard ----------
@@ -6550,9 +6896,42 @@ def admin_set_two_factor(payload: TwoFactorRequirementIn, request: Request,
     return {"required": payload.required, "users_to_set_up": _users_to_set_up(db)}
 
 
+class BankSyncSettingIn(BaseModel):
+    enabled: bool
+
+
+@app.get("/api/admin/bank-sync")
+def admin_get_bank_sync(user: User = Depends(current_admin), db: Session = Depends(get_db)):
+    """Whether users may connect a bank (#194), and how many have."""
+    return {"enabled": bank_sync_enabled(db),
+            "connected_users": db.query(BankConnection).count()}
+
+
+@app.put("/api/admin/bank-sync")
+def admin_set_bank_sync(payload: BankSyncSettingIn, request: Request,
+                        user: User = Depends(current_session_admin),
+                        db: Session = Depends(get_db)):
+    """Switch bank sync on or off for the instance. Off stops connecting and
+    syncing; connections already made stay until their users disconnect."""
+    was = bank_sync_enabled(db)
+    row = db.get(AdminSetting, BANK_SYNC_KEY)
+    if payload.enabled and not row:
+        db.add(AdminSetting(key=BANK_SYNC_KEY, value="true"))
+    elif payload.enabled:
+        row.value = "true"
+    elif row:
+        db.delete(row)
+    db.commit()
+    if was != payload.enabled:
+        record_event(db, "bank_sync_setting_changed", request, user=user,
+                     detail="on" if payload.enabled else "off")
+    return admin_get_bank_sync(user, db)
+
+
 @app.get("/api/admin/users")
 def admin_list_users(user: User = Depends(current_admin), db: Session = Depends(get_db)):
     users = db.query(User).order_by(User.id).all()
+    banked = {uid for (uid,) in db.query(BankConnection.user_id)}
     out = []
     for u in users:
         acct_count = db.query(AccountPermission).filter_by(user_id=u.id).filter(
@@ -6573,6 +6952,7 @@ def admin_list_users(user: User = Depends(current_admin), db: Session = Depends(
             "has_password": u.password_hash is not None,
             "has_google": u.google_sub is not None,
             "two_factor_enabled": u.totp_enabled_at is not None,
+            "bank_connected": u.id in banked,
         })
     return out
 
@@ -6898,6 +7278,8 @@ AUDIT_EVENT_TYPES = (
     "two_factor_asked", "two_factor_enabled", "two_factor_disabled",
     "recovery_code_used", "recovery_codes_remade",
     "browser_remembered", "browser_forgotten", "two_factor_requirement_changed",
+    "bank_connected", "bank_disconnected", "bank_sync_run", "bank_sync_failed",
+    "bank_sync_setting_changed",
 )
 _AUDIT_USER_REF = re.compile(r"\buser #(\d+)")
 

@@ -36,7 +36,17 @@ server it runs on:
   contain all of the above, email addresses included, encrypted with a
   passphrase: the user's own, or the instance's `BACKUP_PASSPHRASE`.
   "Download my data" is the exception: a plain, readable file for the user
-  to keep or take elsewhere, not encrypted.
+  to keep or take elsewhere, not encrypted. A user's bank connection goes
+  into encrypted backups only, never into "Download my data".
+- **Bank sync, for a user who connects a bank:** the address SimpleFIN
+  issued for their connection, which holds its credentials (encrypted with
+  `ENCRYPTION_KEY`, never shown or logged), the names of their bank
+  accounts as SimpleFIN gives them (encrypted), which of their accounts each
+  is matched to and from what date, when the last sync ran and how it went,
+  and the times of the last day's calls to SimpleFIN (to stay within its
+  limit). Each line it brings in is stored like any other, plus a hash of
+  the bank's own id for it. Disconnecting deletes the connection and the
+  matches; the lines stay.
 - **Logs:** the web server's access log, which records the address and path
   of each request, goes to the container's output. The app also keeps a
   sign-in log in the database: each sign-in, failed sign-in and blocked
@@ -46,7 +56,8 @@ server it runs on:
   admin actions: password changes and resets, an admin disabling, enabling
   or deleting a user or changing a permission, the instance title or the
   backup settings, backups made, downloaded, restored, exported or imported,
-  a user downloading their data,
+  a user downloading their data, a bank connected or disconnected and each
+  sync (how many lines, or that it failed),
   a user deleting themselves, API tokens made or revoked, and two-factor
   sign-in switched on or off, a recovery code used, recovery codes remade
   and browsers remembered or forgotten (never a code). Each says who
@@ -61,10 +72,21 @@ server it runs on:
 
 ## What leaves the server
 
-Nothing, with one exception the operator chooses: when Google sign-in is
-switched on (`GOOGLE_CLIENT_ID`), signing in with Google sends the user to
-Google, and Google tells the instance their email address, name and account
-identifier. Google's own privacy policy covers its side of that.
+Nothing, with two exceptions the operator chooses:
+
+- **Google sign-in:** when it's switched on (`GOOGLE_CLIENT_ID`), signing in
+  with Google sends the user to Google, and Google tells the instance their
+  email address, name and account identifier. Google's own privacy policy
+  covers its side of that.
+- **Bank sync:** when an admin switches it on (Admin → Bank sync, off by
+  default), a user may connect their own SimpleFIN Bridge subscription. For
+  that user only, the server calls SimpleFIN (only the hosts in
+  `SIMPLEFIN_HOSTS`): once to claim the token they paste, then each time
+  they sync, asking for their bank accounts and posted transactions since a
+  date. Nothing about them goes the other way except that request and the
+  credentials SimpleFIN issued. SimpleFIN and their bank see that the
+  connection is used, and when; SimpleFIN's own privacy policy covers its
+  side. Users who don't connect a bank cause no calls at all.
 
 ## If you run an instance for other people
 

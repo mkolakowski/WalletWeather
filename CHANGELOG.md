@@ -69,7 +69,19 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.68.1** · Web version: **1.83.0** · Schema version: **24** · iOS version: **0.16.0**
+App version: **1.69.0** · Web version: **1.84.0** · Schema version: **25** · iOS version: **0.16.0**
+
+### Added
+
+- Bank sync, first part: transactions can come straight from your bank through [SimpleFIN Bridge](https://bridge.simplefin.org/), a service you subscribe to yourself (about $15 a year). An admin switches it on in Admin → Bank sync (it's off until then). Each user then has a Bank sync tab in Settings: paste the setup token from SimpleFIN Bridge, match each bank account to one of your own accounts with a date to start from (today, or up to 90 days back), and press Sync now. Only lines the bank has posted come in, as paid lines, your auto-tag rules run on them, and a line already there (by CSV or by hand) isn't brought in twice. Disconnect forgets the connection; the lines already brought in stay. With two-factor sign-in on, connecting and disconnecting ask for a code. Admin's user list shows who has a bank connected. Syncing on a schedule comes in a later release. (#194)
+
+### Security
+
+- Bank sync makes the server call out to SimpleFIN for users who connect a bank, and only then. A pasted token may only point at SimpleFIN (the hosts in the new `SIMPLEFIN_HOSTS` setting, SimpleFIN Bridge by default); the address SimpleFIN issues is stored encrypted, never shown or logged, and goes only into encrypted backups, never "Download my data". Sync now stops after 20 calls in 24 hours, since SimpleFIN disables a token that asks much more often. `PRIVACY.md` says what leaves the server and what's stored. (#194)
+
+### Database
+
+- Schema 25: two new tables for bank connections and the bank accounts matched to yours, and a column on transactions holding a hash of the bank's own id for each synced line. Added on start-up; nothing existing changes. (#194)
 
 ## [1.68.1] — 2026-11-16
 

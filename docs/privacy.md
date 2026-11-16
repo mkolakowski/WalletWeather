@@ -33,6 +33,12 @@ If the person who runs your server has switched on Google sign-in and you
 choose to use it, you sign in with Google, and Google tells the server your
 email address and name. Google's privacy policy covers its part in that.
 
+If they have switched on bank sync and you connect your bank in the web app,
+the server (not your phone) asks SimpleFIN Bridge for your bank accounts and
+posted transactions whenever it syncs. SimpleFIN and your bank see that, and
+SimpleFIN's privacy policy covers its part. The iOS app itself never talks to
+SimpleFIN.
+
 ## What is kept on your device
 
 What the app needs to reconnect: the address of your server and the

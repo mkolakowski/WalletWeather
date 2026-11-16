@@ -6,11 +6,13 @@ Tracking issue: #198
 
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
-| 1. Encrypted backups | Server, Web | #193 | Released in 1.68.0 (2026-11-16); waiting for your try |
-| 2. Connect a bank and Sync now | Server, Web | #194 | Not started |
+| 1. Encrypted backups | Server, Web | #193 | Released in 1.68.0 (2026-11-16); BACKUP_PASSPHRASE wiring fixed in 1.68.1 (#200) |
+| 2. Connect a bank and Sync now | Server, Web | #194 | Built in 1.69.0 (web 1.84.0, schema 25), waiting for its release and your try |
 | 3. Daily sync and its status | Server, Web | #195 | Not started |
 | 4. Bills matched automatically | Server, Web | #196 | Not started; its question is settled |
 | 5. Status and Sync now in the iOS app | iOS | #197 | Not started |
+
+Phase 2 built 2026-11-16 in 1.69.0: API tests in `apps/server/tests/test_bank_sync.py` against a stand-in SimpleFIN, and the screens driven in a headless browser against the same stand-in. SimpleFIN's protocol was checked that day: v2 puts the bank's name on a "connection" and has no payee or memo; Bridge allows 90 days per request. The Settings tab, the 90-day limit and the 20-a-day guard were your calls ([decision](../docs/dev/decisions/bank-sync.md)).
 
 Phase 1 built 2026-11-16 in 1.68.0: API tests in `apps/server/tests/test_encrypted_backups.py`; the screen wording, the 12-character minimum and "Download my data" under Settings → Your account were your calls that day.
 

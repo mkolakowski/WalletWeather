@@ -74,6 +74,11 @@ MUST_BE_SESSION_ONLY = {
     ("DELETE", "/api/me/remembered-browsers/{browser_id}"),
     ("POST", "/api/app-sign-in"),
     ("PUT", "/api/admin/two-factor"),
+    # Bank sync (#194): connecting holds a bank's credentials; phase 3 opens
+    # status and Sync now to tokens.
+    ("GET", "/api/bank"), ("POST", "/api/bank/connect"), ("PUT", "/api/bank/links"),
+    ("POST", "/api/bank/sync"), ("POST", "/api/bank/disconnect"),
+    ("PUT", "/api/admin/bank-sync"),
 }
 
 # Writes a read-only token is allowed, because they change nothing or end

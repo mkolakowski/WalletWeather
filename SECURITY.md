@@ -44,4 +44,9 @@ renews its Cloudflare Access sign-in, the server hands the Cloudflare token
 to whichever app on the phone has claimed the `walletweather://` address; it
 can't tell the real app from another one, so a hostile app already on the
 phone could receive it. That token gets a request through Cloudflare, not
-into WalletWeather.
+into WalletWeather. Bank sync (off unless an admin switches it on) keeps
+each connected user's SimpleFIN access address encrypted with
+`ENCRYPTION_KEY`: anyone who can read both the database and that key can
+read users' bank transactions through SimpleFIN until the user disconnects
+and disables the token there. It can't move money. It's also in encrypted
+backups, so a backup's passphrase guards it too.

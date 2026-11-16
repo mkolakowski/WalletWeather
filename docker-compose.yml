@@ -48,6 +48,7 @@ services:
       DEMO_MODE: ${DEMO_MODE:-false}
       BACKUP_DIR: /data/backups
       BACKUP_PASSPHRASE: ${BACKUP_PASSPHRASE:-}
+      SIMPLEFIN_HOSTS: ${SIMPLEFIN_HOSTS:-}
     # Healthy once the API answers. The image has no curl, so Python does the
     # request; start_period covers the first boot's database setup.
     healthcheck:

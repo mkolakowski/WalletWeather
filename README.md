@@ -24,6 +24,7 @@ Built with FastAPI, PostgreSQL, and a single-page vanilla JS frontend. Runs on D
 - **Two-factor sign-in** — an optional code from an authenticator app after your password, with one-time recovery codes
 - **Sharing** — invite someone to an account by email as owner, editor or reader; it appears for them once they accept, and only an owner changes who has access
 - **Admin panel** — user management, permission overrides, scheduled system backups (for users listed in `ADMIN_EMAILS`)
+- **Bank sync** — with an admin's say-so (Admin → Bank sync), each user can connect their own [SimpleFIN Bridge](https://bridge.simplefin.org/) subscription in Settings → Bank sync, match bank accounts to theirs, and bring posted transactions in with Sync now
 - **Backup & restore** — per-account or full export/import as unencrypted JSON
 - **Encryption at rest** — account names, balances, transaction amounts, descriptions, and notes are Fernet-encrypted in PostgreSQL
 - **Mobile responsive** — 3-column grid layout on narrow screens
@@ -71,6 +72,7 @@ All configuration is via environment variables in `.env`:
 | `REGISTRATION_CODE` | No | *(none)* | A code people must type to register with a password. Set one on any instance other people can reach |
 | `ALLOWED_EMAILS` | No | — | Comma-separated allowlist for registration |
 | `ADMIN_EMAILS` | No | — | Comma-separated admin emails (enables Admin panel) |
+| `SIMPLEFIN_HOSTS` | No | SimpleFIN Bridge | The only hosts a pasted SimpleFIN token may point the server at, comma-separated. Leave empty for SimpleFIN Bridge |
 | `BACKUP_PASSPHRASE` | For system backups | — | Encrypts the scheduled and Admin system backups; at least 12 characters. Without it they don't run. Keep a copy off the server: nobody can recover it |
 | `GOOGLE_CLIENT_ID` | No | — | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | No | — | Google OAuth client secret |
@@ -291,6 +293,7 @@ workflow).
 - The `ENCRYPTION_KEY` is the master key — back it up securely. If lost, encrypted data is unrecoverable.
 - Backups are encrypted with a passphrase (AES-256-GCM, the key derived with scrypt): your own for the backups you download, `BACKUP_PASSPHRASE` for system backups. Nobody can recover a lost passphrase. "Download my data" (Settings → Your account) is a plain, readable copy and not a backup
 - Session cookies use the `SESSION_SECRET` for signing
+- Bank sync is off until an admin switches it on. A user's SimpleFIN access address is stored encrypted with `ENCRYPTION_KEY` and goes only into encrypted backups. A pasted token may only point at the hosts in `SIMPLEFIN_HOSTS` (SimpleFIN Bridge by default), and the server follows no redirects. SimpleFIN reads transactions and balances; it can't move money
 - Admin access is controlled by the `ADMIN_EMAILS` environment variable, not by database state — an admin cannot be created from the UI
 - Registering with a password doesn't prove who owns the address. So an address in `ADMIN_EMAILS` can only be registered while the instance has no users (register yours first); after that an admin adds it under Admin → User management. On an instance other people can reach, set `REGISTRATION_CODE` or turn `ALLOW_REGISTRATION` off
 

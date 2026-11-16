@@ -69,7 +69,48 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.56.0** · Web version: **1.74.0** · Schema version: **19** · iOS version: **0.10.0**
+App version: **1.57.0** · Web version: **1.75.0** · Schema version: **20** · iOS version: **0.10.0**
+
+### Added
+
+- **Two-factor sign-in:** in Settings → Your account you can switch on a
+  second step for your password: a 6-digit code from an authenticator app on
+  your phone (any app that scans a QR code for sign-in codes). Setting it up
+  shows a QR code to scan and ten one-time recovery codes to keep somewhere
+  safe; each recovery code signs you in once if you don't have your phone.
+  After that, signing in with your email and password asks for a code. You
+  can switch it off or get new recovery codes there too, with your password
+  and a code. Signing in with Google is unchanged: Google has its own
+  two-step check. (app 1.57.0, web 1.75.0)
+- **Admins can switch a user's two-factor sign-in off** in Admin → Users, for
+  someone who has lost their phone and their recovery codes. The Users list
+  shows who has it on. An admin can't switch it on for anyone, and resetting
+  a user's password leaves it on.
+
+### Changed
+
+- **The iPhone app's email and password sign-in refuses an account with
+  two-factor sign-in on**, with a message to sign in through the browser
+  instead, which asks for the code and works as before
+  (`POST /api/auth/token` answers 403). Accounts without two-factor are
+  unaffected.
+
+### Database
+
+- Schema 20: `users` gains `totp_secret_enc` (the authenticator key,
+  encrypted with `ENCRYPTION_KEY`), `totp_enabled_at` and `totp_last_step`,
+  and a new `recovery_codes` table holds the recovery codes as hashes. The
+  server adds them when it starts; existing users have two-factor off.
+
+### Security
+
+- Two-factor sign-in (above) means a stolen password alone no longer opens
+  an account that has it on. Wrong codes count toward the sign-in limit
+  (`LOGIN_MAX_FAILURES` in `LOGIN_WINDOW_MINUTES`) for the account from any
+  address, a code works only once, and a right password doesn't reset the
+  count. The audit log records a password accepted with a code still to
+  come, two-factor switched on or off (and by whom), a recovery code used
+  and recovery codes remade.
 
 ## [1.56.0] — 2026-11-15
 

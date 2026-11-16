@@ -6,13 +6,15 @@ Tracking issue: #170
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Set up, sign in with a code, recovery | #165 | Open |
+| 1. Set up, sign in with a code, recovery | #165 | Built 2026-11-15 (app 1.57.0, web 1.75.0, schema 20); not released |
 | 2. A code in the iOS app's sign-in | #166 | Open, after phase 1 |
 | 3. Remember this browser | #167 | Open, after phase 1 |
 | 4. Admin: require it for everyone | #168 | Open, after phase 1 |
 | 5. A code for sensitive actions | #169 | Open, after phase 1 |
 
-Nothing built yet. Planned 2026-11-15.
+Planned 2026-11-15.
+
+Phase 1 built 2026-11-15 as app 1.57.0 (web 1.75.0, schema 20). Verified by 21 new tests in `test_two_factor.py` (263 in all pass), the codes against the standard's published values among them. The screens were driven in a headless browser against a throwaway server (set-up, the QR code decoded back to its link, the code step, a recovery code, the app sign-in page, new recovery codes, the admin switch-off: 19 checks pass). Not released, and not yet tried on your instance with a real authenticator app.
 
 Sessions: may span — each phase ends with a release and your try on your own instance with a real authenticator app before the next starts.
 
@@ -28,8 +30,8 @@ Sessions: may span — each phase ends with a release and your try on your own i
 
 ## Open questions
 
-1. **A QR code needs a library, or does it?** (blocks phase 1's set-up screen only) The codes themselves need no library: they're a few lines of Python's standard `hmac`, checked against the standard's published test values, so `pyotp` (the roadmap's suggestion) isn't needed. Drawing a QR code does need one. Working assumption: add `segno` (BSD licence, pure Python, no dependencies of its own) to draw the QR on the server, so nothing loads from another site. The alternative is no QR: the set-up screen shows the key to type and a link that opens the authenticator app on a phone.
-2. **How many wrong codes?** (blocks phase 1's numbers, not its build) Working assumption: wrong codes count toward the same limit as wrong passwords (`LOGIN_MAX_FAILURES` in `LOGIN_WINDOW_MINUTES`, 5 in 15 by default), per email and address.
+1. ~~**A QR code needs a library, or does it?**~~ Decided 2026-11-15 ([decision](../docs/dev/decisions/two-factor.md)): a QR code, yes; a library, no. The web client already had its own QR encoder (written for the API token's QR code, #100), so the set-up screen draws the code with that and `segno` was never added. The codes themselves are Python's standard `hmac`, so `pyotp` wasn't needed either.
+2. **How many wrong codes?** (blocks nothing; built on this assumption) Wrong codes use the same numbers as wrong passwords (`LOGIN_MAX_FAILURES` in `LOGIN_WINDOW_MINUTES`, 5 in 15 by default), but are counted for the user from any address, not per address as first assumed: a code has only a million values, so someone who has the password mustn't get five more tries from every address they can use. The cost: someone who knows your password can keep the code step blocked. Say if you'd rather have it per address.
 3. **How long is a browser remembered?** (blocks phase 3) Working assumption: 30 days, and switching two-factor off, changing the password or an admin's switch-off forgets every remembered browser.
 4. **Who does "require it" cover?** (blocks phase 4) Working assumption: users with a password. Google-only users aren't asked (decided below: Google sign-ins skip the code).
 5. **Which actions ask again?** (blocks phase 5) Working assumption: changing the password, deleting your own account, making an admin token, and switching two-factor off.
@@ -38,7 +40,7 @@ Sessions: may span — each phase ends with a release and your try on your own i
 
 **Goal:** a stolen password alone no longer opens an instance. A user can switch on a second step: a 6-digit code from an authenticator app (any app that follows the usual standard, TOTP), asked after the password. It is roadmap item 14, and one of the two things to do before bank sync (item 29, #163).
 
-**Decided 2026-11-15** (asked while planning):
+**Decided 2026-11-15** (asked while planning; [decision page](../docs/dev/decisions/two-factor.md)):
 
 - **Password sign-ins only.** The code is asked after an email and password. Google sign-in skips it: Google runs its own two-step check.
 - **Lost phone: recovery codes and an admin.** Ten one-time recovery codes are shown at set-up, and an admin can switch a user's two-factor off.

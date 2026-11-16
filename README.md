@@ -21,6 +21,7 @@ Built with FastAPI, PostgreSQL, and a single-page vanilla JS frontend. Runs on D
 - **Reports** — category breakdown with pie charts, forecast vs actual comparison, CSV/JSON export
 - **Multi-account** — checking, savings, credit cards, each with independent forecasts
 - **Multi-user** — local auth (email/password with bcrypt) or Google OAuth
+- **Two-factor sign-in** — an optional code from an authenticator app after your password, with one-time recovery codes
 - **Permissions** — owner/edit/read/deny per account, with anti-takeover protections
 - **Admin panel** — user management, permission overrides, scheduled system backups (for users listed in `ADMIN_EMAILS`)
 - **Backup & restore** — per-account or full export/import as unencrypted JSON
@@ -295,8 +296,10 @@ categories and tags are stored unencrypted. Other limits to know about
 before you decide where to run it:
 
 - Backups are unencrypted (roadmap item 12).
-- There is no self-serve password reset (item 13) and no two-factor sign-in
-  (item 14). Wrong passwords are rate limited, and sign-ins and admin
+- There is no self-serve password reset (item 13). Two-factor sign-in (a
+  code from an authenticator app after the password) is there for each user
+  to switch on in Settings → Your account; an admin can't require it yet.
+  Wrong passwords and wrong codes are rate limited, and sign-ins and admin
   actions are logged for admins to read in Admin → Audit log.
 - Session cookies are not marked HTTPS-only, so serve the app over HTTPS
   yourself (a reverse proxy or private tunnel) if it leaves your own machine.

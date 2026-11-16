@@ -87,6 +87,16 @@
     <div id="signInError" class="error hidden" role="alert"></div>
   </form>
 
+  <form id="codeStep" class="panel hidden">
+    <h2>Enter your code</h2>
+    <p class="muted">Your account has two-factor sign-in on.</p>
+    <label for="code">Code from your authenticator app</label>
+    <input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="40" required>
+    <p class="muted">No phone? Type one of your recovery codes instead.</p>
+    <div class="buttons"><button id="codeBtn" type="submit">Sign in</button></div>
+    <div id="codeError" class="error hidden" role="alert"></div>
+  </form>
+
   <form id="confirm" class="panel hidden">
     <h2>Let the app in?</h2>
     <p>The WalletWeather app wants to use your account, <strong id="who"></strong>.</p>
@@ -120,7 +130,7 @@
   const wanted = q.get('access') === 'read' ? 'read' : 'full';
   const name = (q.get('name') || 'iPhone').slice(0, 80);
   const $ = id => document.getElementById(id);
-  const show = id => ['loading', 'bad', 'signIn', 'confirm', 'done']
+  const show = id => ['loading', 'bad', 'signIn', 'codeStep', 'confirm', 'done']
     .forEach(x => $(x).classList.toggle('hidden', x !== id));
 
   // The server answers errors with {"detail": "..."}.
@@ -183,12 +193,40 @@
     $('signInError').classList.add('hidden');
     $('signInBtn').disabled = true;
     try {
-      await call('/api/auth/login', { email: $('email').value, password: $('password').value });
+      const signedIn = await call('/api/auth/login', { email: $('email').value, password: $('password').value });
+      // Two-factor sign-in (#165): the password was right, now the code.
+      if (signedIn && signedIn.two_factor_required) {
+        $('code').value = '';
+        show('codeStep');
+        $('code').focus();
+        return;
+      }
       showConfirm(await call('/api/me'));
     } catch (e) {
       fail('signInError', e);
     } finally {
       $('signInBtn').disabled = false;
+    }
+  });
+
+  $('codeStep').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    $('codeError').classList.add('hidden');
+    $('codeBtn').disabled = true;
+    try {
+      await call('/api/auth/login/two-factor', { code: $('code').value });
+      showConfirm(await call('/api/me'));
+    } catch (e) {
+      // Expired: back to the email and password, with the reason.
+      if (e.status === 401 && /expired/.test(e.message)) {
+        $('password').value = '';
+        show('signIn');
+        fail('signInError', e);
+      } else {
+        fail('codeError', e);
+      }
+    } finally {
+      $('codeBtn').disabled = false;
     }
   });
 

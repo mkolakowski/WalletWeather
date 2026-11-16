@@ -18,7 +18,11 @@ server it runs on:
 
 - **About each user:** email address, display name, a bcrypt hash of the
   password (never the password), display preferences, and a Google account
-  identifier if they signed in with Google.
+  identifier if they signed in with Google. If they switch on two-factor
+  sign-in: the key their authenticator app shares with the server (encrypted
+  with the instance's `ENCRYPTION_KEY`), when it was switched on, and their
+  recovery codes as hashes (never the codes). Switching it off deletes the
+  key and the codes.
 - **What users enter:** accounts, balances, transactions, recurring
   transactions, transfers, budgets, categories, tags and notes. Account
   names, balances, amounts, descriptions and notes are encrypted in the
@@ -34,7 +38,9 @@ server it runs on:
   admin actions: password changes and resets, an admin disabling, enabling
   or deleting a user or changing a permission, the instance title or the
   backup settings, backups made, downloaded, restored, exported or imported,
-  a user deleting themselves, and API tokens made or revoked. Each says who
+  a user deleting themselves, API tokens made or revoked, and two-factor
+  sign-in switched on or off, a recovery code used and recovery codes
+  remade (never a code). Each says who
   did it and from which address; a user an action was done to is named by
   number, not email. No amounts, account names or other financial data. Admins can read it in Admin → Audit log.
   Entries are deleted once they're older than `AUDIT_RETENTION_DAYS` (180

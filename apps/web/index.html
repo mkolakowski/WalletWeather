@@ -1145,6 +1145,14 @@
       <button onclick="doSignin()" style="width:100%;margin-top:12px">Sign in</button>
     </div>
 
+    <form id="formTwoFactor" class="hidden" onsubmit="doSigninCode(event)">
+      <label for="siCode">Code from your authenticator app</label>
+      <input id="siCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="40" required>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px">No phone? Type one of your recovery codes instead.</div>
+      <button id="siCodeBtn" type="submit" style="width:100%;margin-top:12px">Sign in</button>
+      <button type="button" class="ghost" style="width:100%;margin-top:8px" onclick="showSigninCode(false)">Back</button>
+    </form>
+
     <div id="formSignup" class="hidden">
       <label for="suName">Name</label>
       <input id="suName" type="text" autocomplete="name">
@@ -2435,6 +2443,63 @@
         </form>
       </div>
 
+      <div class="panel" data-settings-section="your-account" id="twoFactorPanel">
+        <h2>Two-factor sign-in</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Asks for a 6-digit code from an authenticator app on your phone after your password,
+          so a stolen password isn't enough to get in.
+        </p>
+        <div id="twoFactorGoogle" class="hidden" style="color:var(--muted);font-size:13px">
+          You sign in with Google, which has its own two-step check. There's nothing to set up here.
+        </div>
+
+        <form id="twoFactorOff" class="hidden" onsubmit="twoFactorStart(event)" style="max-width:320px">
+          <div style="font-size:13px;margin-bottom:4px">It's <strong>off</strong>.</div>
+          <label for="tfaSetupPass">Your password</label>
+          <input id="tfaSetupPass" type="password" autocomplete="current-password" required style="width:100%">
+          <div style="margin-top:12px"><button id="tfaSetupBtn" type="submit">Set up</button></div>
+        </form>
+
+        <form id="twoFactorSetup" class="hidden" onsubmit="twoFactorEnable(event)" style="max-width:420px">
+          <div style="font-size:13px"><strong>1.</strong> Scan this with your authenticator app, or type the key into it.</div>
+          <div id="tfaQr" style="width:200px;max-width:100%;line-height:0;border-radius:6px;overflow:hidden;margin:10px 0"></div>
+          <label for="tfaKey">Key</label>
+          <input id="tfaKey" readonly style="width:100%;font-family:monospace" onfocus="this.select()">
+          <div id="tfaLinkWrap" style="font-size:13px;margin-top:6px"><a id="tfaLink" href="#">Open in an authenticator app on this device</a></div>
+          <div style="font-size:13px;margin-top:14px"><strong>2.</strong> Type the code the app shows.</div>
+          <label for="tfaEnableCode">Code</label>
+          <input id="tfaEnableCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required style="width:140px">
+          <div style="margin-top:12px;display:flex;gap:8px">
+            <button id="tfaEnableBtn" type="submit">Switch on</button>
+            <button type="button" class="ghost" onclick="twoFactorCancelSetup()">Cancel</button>
+          </div>
+        </form>
+
+        <div id="twoFactorCodes" class="hidden" role="status" style="max-width:420px;margin-bottom:14px;padding:10px 12px;border:1px solid var(--accent);border-radius:8px">
+          <div style="font-size:13px;margin-bottom:8px"><strong>Save these recovery codes now.</strong> They won't be shown again.
+            Each one signs you in once if you don't have your phone.</div>
+          <pre id="tfaCodes" style="margin:0 0 10px;font-size:14px;line-height:1.6;columns:2"></pre>
+          <div style="display:flex;gap:8px">
+            <button type="button" onclick="twoFactorCopyCodes()">Copy</button>
+            <button type="button" class="ghost" onclick="twoFactorCodesDone()">I've saved them</button>
+          </div>
+        </div>
+
+        <form id="twoFactorOn" class="hidden" onsubmit="event.preventDefault()" style="max-width:320px">
+          <div id="tfaStatus" style="font-size:13px;margin-bottom:4px"></div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:4px">To switch it off or get new recovery codes, confirm it's you:</div>
+          <label for="tfaPass">Your password</label>
+          <input id="tfaPass" type="password" autocomplete="current-password" required style="width:100%">
+          <label for="tfaCode">Code from the app, or a recovery code</label>
+          <input id="tfaCode" type="text" autocomplete="one-time-code" maxlength="40" required style="width:100%">
+          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+            <button id="tfaNewCodesBtn" type="button" onclick="twoFactorConfirmed('recovery-codes')">New recovery codes</button>
+            <button id="tfaDisableBtn" type="button" class="danger" onclick="twoFactorConfirmed('disable')">Switch off</button>
+          </div>
+        </form>
+        <div id="twoFactorError" class="auth-error hidden"></div>
+      </div>
+
       <div class="panel" data-settings-section="your-account" id="deleteAccountPanel">
         <h2>Delete my account</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
@@ -2541,7 +2606,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.74.0";
+const WEB_VERSION = "1.75.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2552,6 +2617,7 @@ const WEB_VERSION = "1.74.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.75.0 (2026-11-15, claude+mkolakowski): (#165) Two-factor sign-in. The sign-in card gets a code step (#formTwoFactor, doSigninCode) shown when /api/auth/login answers two_factor_required. Settings → Your account: a "Two-factor sign-in" panel (#twoFactorPanel, loadTwoFactor) sets it up with a QR code drawn by the page's own qrSvg, shows the recovery codes once, switches it off and makes new recovery codes. Admin → Users: a "two-factor" badge and a switch-off button (adminTwoFactorOff). /app-sign-in asks for the code too.
 // 1.74.0 (2026-11-15, claude+mkolakowski): (#111) Search across everything: a box in the top bar (#gsearch; a magnifier opening a full-width box when the bar has no room, always on a phone: _fitGlobalSearch) calls GET /api/search and lists transactions, bills and income, accounts, categories, tags and reports, each with one detail; a result opens where it lives (openGlobalSearchResult): a transaction or bill in its editor, an account in Forecast, a category or tag as its transactions, a report run.
 // 1.73.0 (2026-11-15, claude+mkolakowski): (#100) Settings → API tokens: a new token gets a "Show QR code" button (#apiTokenQrBtn) off an iPhone, drawing its walletweather://connect link as a QR code for the iOS app to scan. The QR encoder (qrMatrix, qrSvg) is written for the page; Done (hideNewApiToken) clears the code and the token.
 // 1.72.0 (2026-11-15, claude+mkolakowski): (#87) Settings → API tokens: on an iPhone, a new token gets an "Open in WalletWeather" button (#apiTokenOpenApp) beside Copy, which opens walletweather://connect?server=…&token=… in the iOS app. New page apps/web/app-sign-in.html (served at /app-sign-in) for signing in the iOS app.
@@ -3564,7 +3630,7 @@ function showPage(name, opts) {
   document.getElementById('navAdmin').classList.toggle('active', name==='admin');
   document.getElementById('navSettings').classList.toggle('active', name==='settings');
   _syncPhoneNav(name);
-  if (name === 'settings') { showSettingsSection(settingsSection, { noHash: true }); loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); loadApiTokens(); loadChangePassword(); loadDeleteAccount(); }
+  if (name === 'settings') { showSettingsSection(settingsSection, { noHash: true }); loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); loadApiTokens(); loadChangePassword(); loadTwoFactor(); loadDeleteAccount(); }
   if (name === 'dashboard') loadDashboard();
   if (name === 'networth') loadNetworth();
   if (name === 'subscriptions') {
@@ -5408,11 +5474,11 @@ function qrMatrix(text) {
   applyMask(best); drawFormat(best);
   return grid;
 }
-function qrSvg(text) {
+function qrSvg(text, label) {
   const grid = qrMatrix(text), quiet = 4, size = grid.length + quiet * 2;
   let path = '';
   grid.forEach((row, y) => row.forEach((dark, x) => { if (dark) path += `M${x + quiet} ${y + quiet}h1v1h-1z`; }));
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges" role="img" aria-label="QR code for the new token">`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges" role="img" aria-label="${escapeHtml(label || 'QR code for the new token')}">`
     + `<rect width="${size}" height="${size}" fill="#fff"/><path d="${path}" fill="#000"/></svg>`;
 }
 // --- end QR code ---------------------------------------------------------------
@@ -5473,6 +5539,105 @@ async function changePassword(ev) {
   } finally { btn.disabled = false; }
   document.getElementById('changePasswordForm').reset();
   notify('Password changed.');
+}
+// Settings → "Two-factor sign-in" (#165). One of four views shows: a note
+// for a Google-only user, "off" (start set-up), the set-up step (QR code,
+// key and first code) or "on" (switch off, new recovery codes). The recovery
+// codes box sits over whichever is current until it's dismissed.
+function _tfaView(name) {
+  ['twoFactorGoogle', 'twoFactorOff', 'twoFactorSetup', 'twoFactorOn']
+    .forEach(id => document.getElementById(id).classList.toggle('hidden', id !== name));
+  document.getElementById('twoFactorError').classList.add('hidden');
+}
+function _tfaFail(e) {
+  const err = document.getElementById('twoFactorError');
+  err.textContent = errText(e);
+  err.classList.remove('hidden');
+}
+function loadTwoFactor() {
+  if (!document.getElementById('twoFactorPanel') || !me) return;
+  // Mid set-up: leave the QR code where it is.
+  if (!document.getElementById('twoFactorSetup').classList.contains('hidden')) return;
+  if (!me.has_password) return _tfaView('twoFactorGoogle');
+  if (!me.two_factor_enabled) return _tfaView('twoFactorOff');
+  const left = me.recovery_codes_left;
+  document.getElementById('tfaStatus').innerHTML = "It's <strong>on</strong>. "
+    + (left === 0 ? '<span style="color:var(--warn)">You have no recovery codes left: make new ones.</span>'
+                  : left + ' recovery code' + (left === 1 ? '' : 's') + ' left.');
+  _tfaView('twoFactorOn');
+}
+async function _tfaRefresh() {
+  try { me = await api('/api/me'); } catch { /* keep what we have */ }
+  loadTwoFactor();
+}
+async function twoFactorStart(ev) {
+  ev.preventDefault();
+  const btn = document.getElementById('tfaSetupBtn');
+  btn.disabled = true;
+  let made;
+  try {
+    made = await api('/api/me/two-factor/setup', { method: 'POST',
+      body: JSON.stringify({ password: document.getElementById('tfaSetupPass').value }) });
+  } catch (e) { _tfaFail(e); return; }
+  finally { btn.disabled = false; }
+  document.getElementById('twoFactorOff').reset();
+  _tfaView('twoFactorSetup');
+  document.getElementById('tfaQr').innerHTML = qrSvg(made.otpauth_url, 'QR code for your authenticator app');
+  document.getElementById('tfaKey').value = made.secret;
+  document.getElementById('tfaLink').href = made.otpauth_url;
+  document.getElementById('tfaEnableCode').focus();
+}
+function _tfaClearSetup() {
+  document.getElementById('tfaQr').innerHTML = '';
+  document.getElementById('tfaKey').value = '';
+  document.getElementById('tfaLink').href = '#';
+  document.getElementById('twoFactorSetup').reset();
+  document.getElementById('twoFactorSetup').classList.add('hidden');
+}
+function twoFactorCancelSetup() { _tfaClearSetup(); loadTwoFactor(); }
+function _tfaShowCodes(codes) {
+  document.getElementById('tfaCodes').textContent = codes.join('\n');
+  document.getElementById('twoFactorCodes').classList.remove('hidden');
+}
+async function twoFactorEnable(ev) {
+  ev.preventDefault();
+  const btn = document.getElementById('tfaEnableBtn');
+  btn.disabled = true;
+  let done;
+  try {
+    done = await api('/api/me/two-factor/enable', { method: 'POST',
+      body: JSON.stringify({ code: document.getElementById('tfaEnableCode').value }) });
+  } catch (e) { _tfaFail(e); return; }
+  finally { btn.disabled = false; }
+  _tfaClearSetup();
+  _tfaShowCodes(done.recovery_codes);
+  notify('Two-factor sign-in is on.');
+  await _tfaRefresh();
+}
+async function twoFactorConfirmed(action) {
+  const form = document.getElementById('twoFactorOn');
+  if (!form.reportValidity()) return;
+  if (action === 'disable' && !(await confirmDialog('Switch two-factor sign-in off? Your password alone will sign you in again.', { title: 'Switch off two-factor sign-in', okLabel: 'Switch off', danger: true }))) return;
+  const btns = [document.getElementById('tfaNewCodesBtn'), document.getElementById('tfaDisableBtn')];
+  btns.forEach(b => b.disabled = true);
+  let done;
+  try {
+    done = await api('/api/me/two-factor/' + action, { method: 'POST', body: JSON.stringify({
+      password: document.getElementById('tfaPass').value, code: document.getElementById('tfaCode').value }) });
+  } catch (e) { _tfaFail(e); return; }
+  finally { btns.forEach(b => b.disabled = false); }
+  form.reset();
+  if (action === 'disable') { twoFactorCodesDone(); notify('Two-factor sign-in is off.'); }
+  else { _tfaShowCodes(done.recovery_codes); notify('New recovery codes made. The old ones no longer work.'); }
+  await _tfaRefresh();
+}
+async function twoFactorCopyCodes() {
+  try { await navigator.clipboard.writeText(document.getElementById('tfaCodes').textContent); notify('Recovery codes copied.'); }
+  catch { notify('Select the codes and copy them by hand.', 'error'); }
+}
+function twoFactorCodesDone() {
+  document.getElementById('tfaCodes').textContent = '';
+  document.getElementById('twoFactorCodes').classList.add('hidden');
 }
 // Settings → "Delete my account". The server decides what deleting would
 // do (GET /api/me/deletion-check); this only shows it and asks to confirm.
@@ -5590,6 +5755,7 @@ async function init() {
   try {
     const cfg = await fetch('/api/auth/config').then(r=>r.json());
     if (cfg.app_title) applyAppTitle(cfg.app_title);
+    window._googleEnabled = !!cfg.google_enabled;  // showSigninCode puts the button back
     if (cfg.google_enabled) document.getElementById('googleWrap').classList.remove('hidden');
     if (!cfg.registration_enabled) document.getElementById('tabSignup').classList.add('hidden');
     if (cfg.demo_mode && cfg.demo_email && cfg.demo_password) {
@@ -5684,8 +5850,42 @@ async function doSignin() {
       const err = await res.json().catch(()=>({detail:'Sign in failed'}));
       return showAuthError(err.detail || 'Sign in failed');
     }
+    const body = await res.json().catch(() => ({}));
+    if (body.two_factor_required) return showSigninCode(true);
     location.reload();
   } catch (e) { showAuthError('Network error'); }
+}
+
+// Two-factor sign-in (#165): the password was right and the server wants a
+// code. The code step replaces the email and password fields until it's
+// done, the server says the sign-in has expired, or Back is pressed.
+function showSigninCode(on) {
+  document.getElementById('formTwoFactor').classList.toggle('hidden', !on);
+  document.getElementById('formSignin').classList.toggle('hidden', on);
+  document.querySelector('#login .tabs').classList.toggle('hidden', on);
+  document.getElementById('googleWrap').classList.toggle('hidden', on || !window._googleEnabled);
+  document.getElementById('authError').classList.add('hidden');
+  const code = document.getElementById('siCode');
+  code.value = '';
+  if (on) code.focus(); else document.getElementById('siPass').value = '';
+}
+async function doSigninCode(ev) {
+  ev.preventDefault();
+  const btn = document.getElementById('siCodeBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/auth/login/two-factor', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({code: document.getElementById('siCode').value})
+    });
+    if (res.ok) { location.reload(); return; }
+    const err = await res.json().catch(()=>({detail:'Sign in failed'}));
+    const msg = typeof err.detail === 'string' ? err.detail : 'Sign in failed';
+    // Expired: back to the email and password, keeping the reason on screen.
+    if (res.status === 401 && /expired/.test(msg)) showSigninCode(false);
+    showAuthError(msg);
+  } catch (e) { showAuthError('Network error'); }
+  finally { btn.disabled = false; }
 }
 
 async function doSignup() {
@@ -8544,6 +8744,7 @@ async function loadAdminUsers() {
       const badges = [];
       if (u.is_admin) badges.push('<span class="ro-badge" style="background:#d29922;color:#000">admin</span>');
       if (u.disabled) badges.push('<span class="ro-badge" style="background:var(--bad)">disabled</span>');
+      if (u.two_factor_enabled) badges.push('<span class="ro-badge">two-factor</span>');
       const authMethods = [];
       if (u.has_password) authMethods.push('local');
       if (u.has_google) authMethods.push('google');
@@ -8558,6 +8759,7 @@ async function loadAdminUsers() {
             ${u.disabled ? '✓ Enable' : '⊘ Disable'}
           </button>
           <button class="ghost" onclick="adminResetPassword(${u.id})" title="Reset password">🔑</button>
+          ${u.two_factor_enabled ? `<button class="ghost" onclick="adminTwoFactorOff(${u.id})" title="Switch off two-factor sign-in">Two-factor off</button>` : ''}
           <button class="danger" onclick="adminDeleteUser(${u.id}, '${escapeAttr(u.email)}')" title="Delete">🗑</button>
         </td>
       </tr>`;
@@ -8660,6 +8862,20 @@ async function adminToggleDisable(uid, disabled) {
     notifyError('That didn’t work', e);
     return;
   }
+  await loadAdminUsers();
+}
+
+// Admin → Users: switch a user's two-factor sign-in off (#165), for someone
+// who has lost their phone and their recovery codes.
+async function adminTwoFactorOff(uid) {
+  if (!(await confirmDialog('Switch off this user\'s two-factor sign-in? Their password alone will sign them in until they set it up again.', { title: 'Switch off two-factor sign-in', okLabel: 'Switch off', danger: true }))) return;
+  try {
+    await api('/api/admin/users/' + uid, { method: 'PATCH', body: JSON.stringify({two_factor: false}) });
+  } catch (e) {
+    notifyError('That didn’t work', e);
+    return;
+  }
+  notify('Two-factor sign-in is off for that user.');
   await loadAdminUsers();
 }
 

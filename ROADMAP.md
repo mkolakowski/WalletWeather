@@ -138,11 +138,18 @@ There's no self-serve flow today. Even a token-based "admin can issue a
 reset link" mechanism (no SMTP required for v1) prevents lockouts.
 **Effort: small.** New table for reset tokens, two endpoints, one page.
 
-### 14. Two-factor authentication (TOTP)
-Standard `pyotp` + a QR code on enrollment. Self-hosted apps with real
+### ~~14. Two-factor authentication (TOTP)~~ ✅ **Shipped in v1.57.0.**
+~~Standard `pyotp` + a QR code on enrollment. Self-hosted apps with real
 financial data warrant this. **Effort: small-to-medium.** New columns on
 `users`, an enrollment page, a verify step in login. Planned in
-`Plans/two-factor.md` (#170).
+`Plans/two-factor.md` (#170).~~
+
+> **Shipped (1.57.0, #165):** set-up in Settings → Your account with a QR
+> code, a code step after the password, ten recovery codes and an admin
+> switch-off. The codes are written from the standard, so `pyotp` wasn't
+> needed. The plan's later phases (a code in the iOS app's sign-in, remember
+> this browser, an admin "require it", a code for sensitive actions) are
+> tracked in `Plans/two-factor.md`.
 
 ### ~~15. Login rate limiting & audit log~~ ✅ **Shipped in v1.44.0 (rate limiting) and v1.49.0 (audit events, Admin → Audit log).**
 ~~Rate-limit failed logins by IP+username, and write significant events

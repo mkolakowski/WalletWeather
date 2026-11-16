@@ -33,5 +33,8 @@ version to get them.
 
 These are known and listed in the README's Security Notes and the roadmap,
 so they don't need a report: backups are not encrypted, there is no
-two-factor sign-in and no self-serve password reset, and session cookies are
-not marked HTTPS-only.
+self-serve password reset, and session cookies are not marked HTTPS-only.
+Two-factor sign-in is each user's choice (an admin can't require it yet), it
+covers password sign-ins only (Google sign-in relies on Google's own), and
+API tokens work without it by design. Anyone who can read both the database
+and the `ENCRYPTION_KEY` can read the two-factor keys.

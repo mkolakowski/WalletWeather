@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "19"
+SCHEMA_VERSION = "20"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,10 @@ SCHEMA_VERSION = "19"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v20 (2026-11-15, claude+mkolakowski): two-factor sign-in (#165):
+#     users.totp_secret_enc (the authenticator key, encrypted),
+#     users.totp_enabled_at and users.totp_last_step (the last code step
+#     used, so a code works once); new recovery_codes table (hashes only).
 # v19 (2026-11-15, claude+mkolakowski): add app_sign_in_codes — the
 #     one-time codes the "sign in an app" page hands a native app, swapped
 #     for an API token (ios-app phase 1, #87). Only their SHA-256 is kept.
@@ -86,7 +90,7 @@ SCHEMA_VERSION = "19"
 
 from sqlalchemy import (
     create_engine, Column, Integer, String, Date, DateTime, Numeric,
-    ForeignKey, Boolean, LargeBinary, Text, UniqueConstraint, Index
+    ForeignKey, Boolean, LargeBinary, Text, UniqueConstraint, Index, BigInteger
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from decimal import Decimal
@@ -159,9 +163,25 @@ class User(Base):
     # When the user acknowledged the "Important notice" (the disclaimer shown
     # once after sign-in). NULL means not yet. Demo users are never asked.
     notice_ack_at = Column(DateTime, nullable=True)
+    # Two-factor sign-in (#165). The authenticator key, encrypted like the
+    # financial fields; it's there from the start of set-up, and two-factor is
+    # on only once totp_enabled_at is set. totp_last_step is the last
+    # 30-second step a code was accepted for, so the same code never works
+    # twice.
+    totp_secret_enc = Column(LargeBinary, nullable=True)
+    totp_enabled_at = Column(DateTime, nullable=True)
+    totp_last_step = Column(BigInteger, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     accounts = relationship("Account", back_populates="owner", cascade="all, delete-orphan")
+
+    @property
+    def totp_secret(self) -> str | None:
+        return decrypt_str(self.totp_secret_enc)
+
+    @totp_secret.setter
+    def totp_secret(self, v: str | None):
+        self.totp_secret_enc = encrypt_str(v) if v else None
 
 
 class Account(Base):
@@ -623,6 +643,24 @@ class AppSignInCode(Base):
     used_at = Column(DateTime, nullable=True)
 
 
+class RecoveryCode(Base):
+    """A one-time recovery code for two-factor sign-in (#165).
+
+    Ten are made when two-factor is switched on, for signing in without the
+    authenticator app. Only the SHA-256 is kept; a used code keeps its row
+    with `used_at` set. Rows go with their user via the DB-level ON DELETE
+    CASCADE, and are deleted when two-factor is switched off or the codes
+    are remade.
+    """
+    __tablename__ = "recovery_codes"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"),
+                     nullable=False, index=True)
+    code_hash = Column(String(64), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+
+
 def init_db():
     """Create missing tables, then apply in-place column migrations.
 
@@ -685,6 +723,11 @@ def init_db():
         # (Created by Base.metadata.create_all above — boundary marker only.)
         # v18 → v19: app_sign_in_codes
         # (Created by Base.metadata.create_all above — boundary marker only.)
+        # v19 → v20: two-factor sign-in. recovery_codes is created by
+        # Base.metadata.create_all above. Existing users have it off.
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret_enc BYTEA",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled_at TIMESTAMP",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_last_step BIGINT",
     ]
     with engine.begin() as conn:
         for sql in migrations:

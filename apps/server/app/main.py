@@ -29,7 +29,7 @@ from urllib.parse import urlencode
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.56.0"
+APP_VERSION = "1.57.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,15 @@ APP_VERSION = "1.56.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.57.0 (2026-11-15, claude+mkolakowski): two-factor sign-in (#165, schema
+#     20): set-up, switch-off and new recovery codes under
+#     /api/me/two-factor/*; POST /api/auth/login answers
+#     {"two_factor_required": true} for a user who has it on and
+#     POST /api/auth/login/two-factor takes the code (or a recovery code);
+#     POST /api/auth/token refuses such a user; an admin can switch a user's
+#     off (PATCH /api/admin/users/{id} {"two_factor": false}); five new audit
+#     events. The codes are app/twofactor.py. Tests in
+#     tests/test_two_factor.py.
 # 1.56.0 (2026-11-15, claude+mkolakowski): GET /api/search (#111): one search
 #     across transactions, bills and income, accounts, categories, tags and
 #     saved reports, grouped by kind with each group's count; only what the
@@ -448,8 +457,9 @@ from .db import (
     init_db, get_db, User, Account, RecurringTransaction, Transaction, Category,
     AccountPermission, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
     Tag, TransactionTag, RecurringTag, TagRule, SavedReport, RecurringSkip,
-    ApiToken, AuditEvent, AppSignInCode, SessionLocal, SCHEMA_VERSION,
+    ApiToken, AuditEvent, AppSignInCode, RecoveryCode, SessionLocal, SCHEMA_VERSION,
 )
+from . import twofactor
 from .forecast import build_forecast, actual_balance_as_of, upcoming_dates
 from .backup import export_user, import_user
 
@@ -845,14 +855,33 @@ def _login_retry_after(db: Session, email: str, ip: str | None) -> int:
     Blocked attempts aren't failures, so trying during a block doesn't make
     it longer.
     """
-    window = timedelta(minutes=LOGIN_WINDOW_MINUTES)
-    now = datetime.utcnow()
     same_pair = (AuditEvent.email == email,
                  AuditEvent.ip.is_(None) if ip is None else AuditEvent.ip == ip)
+    return _failures_retry_after(db, same_pair, same_pair)
+
+
+def _code_retry_after(db: Session, user: User) -> int:
+    """Seconds until this user may try a two-factor code again, or 0.
+
+    Counted per user, from any address (#165): a code has only a million
+    values, so someone who has the password mustn't get a fresh set of tries
+    from every address they can reach. Same numbers as the password limit.
+    """
+    own = (AuditEvent.user_id == user.id,)
+    return _failures_retry_after(
+        db, own, own + (AuditEvent.detail.like("%" + WRONG_CODE),))
+
+
+def _failures_retry_after(db: Session, ok_filters: tuple, failed_filters: tuple) -> int:
+    """The counting behind both limits: the last LOGIN_MAX_FAILURES
+    `login_failed` rows matching `failed_filters`, since the last `login`
+    matching `ok_filters`."""
+    window = timedelta(minutes=LOGIN_WINDOW_MINUTES)
+    now = datetime.utcnow()
     last_ok = (db.query(func.max(AuditEvent.created_at))
-               .filter(AuditEvent.event == "login", *same_pair).scalar())
+               .filter(AuditEvent.event == "login", *ok_filters).scalar())
     q = (db.query(AuditEvent.created_at)
-         .filter(AuditEvent.event == "login_failed", *same_pair,
+         .filter(AuditEvent.event == "login_failed", *failed_filters,
                  AuditEvent.created_at > now - 2 * window))
     if last_ok is not None:
         q = q.filter(AuditEvent.created_at > last_ok)
@@ -862,6 +891,17 @@ def _login_retry_after(db: Session, email: str, ip: str | None) -> int:
         return 0
     remaining = (times[0] + window - now).total_seconds()
     return math.ceil(remaining) if remaining > 0 else 0
+
+
+def _refuse_blocked(db: Session, request: Request, wait: int, email: str,
+                    user: User | None = None) -> None:
+    """Log a sign-in try made during a block and answer 429."""
+    record_event(db, "login_blocked", request, user=user, email=email)
+    minutes = math.ceil(wait / 60)
+    raise HTTPException(
+        429,
+        f"Too many failed sign-ins. Try again in {minutes} minute{'s' if minutes != 1 else ''}.",
+        headers={"Retry-After": str(wait)})
 
 
 # ---------- Local auth schemas ----------
@@ -956,12 +996,7 @@ def _password_sign_in(db: Session, request: Request, email_in: str, password: st
     # account exists, so the answer never says which emails have one.
     wait = _login_retry_after(db, email, ip)
     if wait:
-        record_event(db, "login_blocked", request, email=email)
-        minutes = math.ceil(wait / 60)
-        raise HTTPException(
-            429,
-            f"Too many failed sign-ins. Try again in {minutes} minute{'s' if minutes != 1 else ''}.",
-            headers={"Retry-After": str(wait)})
+        _refuse_blocked(db, request, wait, email)
     user = db.query(User).filter_by(email=email).first()
     # Constant-ish failure path: still verify against a dummy hash to reduce timing leaks
     if not user or not user.password_hash:
@@ -976,15 +1011,101 @@ def _password_sign_in(db: Session, request: Request, email_in: str, password: st
         record_event(db, "login_failed", request, user=user, email=email,
                      detail=via + "; account disabled")
         raise HTTPException(403, "Account disabled")
-    record_event(db, "login", request, user=user, email=email, detail=via)
+    # With two-factor on, the password is only half of it: no "login" is
+    # logged yet (the caller asks for the code), so a right password doesn't
+    # clear the count of wrong codes either (#165).
+    if user.totp_enabled_at is None:
+        record_event(db, "login", request, user=user, email=email, detail=via)
     return user
 
 
 @app.post("/api/auth/login")
 def local_login(payload: LoginIn, request: Request, db: Session = Depends(get_db)):
     user = _password_sign_in(db, request, payload.email, payload.password, "password")
+    if user.totp_enabled_at is not None:
+        # Not signed in yet: the browser has TWO_FACTOR_STEP_MINUTES to send
+        # the code to /api/auth/login/two-factor.
+        request.session.clear()
+        request.session["2fa_uid"] = user.id
+        request.session["2fa_at"] = int(time.time())
+        record_event(db, "two_factor_asked", request, user=user, detail="password")
+        return {"two_factor_required": True}
     request.session["uid"] = user.id
     return {"id": user.id, "email": user.email}
+
+
+# ---------- Two-factor sign-in: the code step (#165) ----------
+# Decided 2026-11-15 (Plans/two-factor.md): the code is asked after a
+# password only (Google runs its own two-step check), and ten one-time
+# recovery codes or an admin get someone back in without their phone.
+TWO_FACTOR_STEP_MINUTES = 5
+# How a wrong code's login_failed row ends; _code_retry_after counts these.
+WRONG_CODE = "wrong code"
+
+
+class TwoFactorCodeIn(BaseModel):
+    code: str = Field(max_length=40)
+
+
+def _use_two_factor_code(db: Session, user: User, code: str) -> str | None:
+    """Check a 6-digit code or a recovery code for a user who has two-factor
+    on, and spend it. Returns "code", "recovery code", or None when it's
+    wrong or was already used. Each is spent by one UPDATE, so two requests
+    with the same code can't both win."""
+    text = "".join(code.split())
+    if twofactor.looks_like_code(text):
+        step = twofactor.matching_step(user.totp_secret, text, after_step=user.totp_last_step)
+        if step is None:
+            return None
+        won = (db.query(User)
+               .filter(User.id == user.id,
+                       (User.totp_last_step.is_(None)) | (User.totp_last_step < step))
+               .update({User.totp_last_step: step}, synchronize_session=False))
+        db.commit()
+        db.refresh(user)
+        return "code" if won else None
+    won = (db.query(RecoveryCode)
+           .filter(RecoveryCode.user_id == user.id, RecoveryCode.used_at.is_(None),
+                   RecoveryCode.code_hash == twofactor.hash_recovery_code(text))
+           .update({RecoveryCode.used_at: datetime.utcnow()}, synchronize_session=False))
+    db.commit()
+    return "recovery code" if won else None
+
+
+def _recovery_codes_left(db: Session, user: User) -> int:
+    return db.query(RecoveryCode).filter_by(user_id=user.id, used_at=None).count()
+
+
+@app.post("/api/auth/login/two-factor")
+def local_login_two_factor(payload: TwoFactorCodeIn, request: Request,
+                           db: Session = Depends(get_db)):
+    """The second step of a password sign-in: a code from the authenticator
+    app, or a recovery code. Only after /api/auth/login accepted the
+    password in this browser, within TWO_FACTOR_STEP_MINUTES."""
+    uid, started = request.session.get("2fa_uid"), request.session.get("2fa_at")
+    user = db.get(User, uid) if uid else None
+    if (not user or user.totp_enabled_at is None or not isinstance(started, int)
+            or time.time() - started > TWO_FACTOR_STEP_MINUTES * 60):
+        request.session.clear()
+        raise HTTPException(401, "That sign-in has expired. Enter your email and password again.")
+    if user.disabled:
+        request.session.clear()
+        raise HTTPException(403, "Account disabled")
+    wait = max(_login_retry_after(db, user.email, client_ip(request)),
+               _code_retry_after(db, user))
+    if wait:
+        _refuse_blocked(db, request, wait, user.email, user=user)
+    how = _use_two_factor_code(db, user, payload.code)
+    if not how:
+        record_event(db, "login_failed", request, user=user, detail="password; " + WRONG_CODE)
+        raise HTTPException(401, "That code isn't right. Check your authenticator app and try again.")
+    request.session.clear()
+    request.session["uid"] = user.id
+    left = _recovery_codes_left(db, user)
+    if how == "recovery code":
+        record_event(db, "recovery_code_used", request, user=user, detail=f"{left} left")
+    record_event(db, "login", request, user=user, detail="password; " + how)
+    return {"id": user.id, "email": user.email, "recovery_codes_left": left}
 
 
 # Password sign-in for apps (#43): the native apps swap an email and password
@@ -1017,6 +1138,12 @@ def app_token(payload: AppTokenIn, request: Request, db: Session = Depends(get_d
         raise HTTPException(400, "Access must be read or full")
     _check_expiry(payload.expires_in_days)
     user = _password_sign_in(db, request, payload.email, payload.password, "token")
+    if user.totp_enabled_at is not None:
+        # This endpoint takes no code yet (two-factor phase 2, #166). The
+        # browser sign-in page does, and ends with a token all the same.
+        record_event(db, "two_factor_asked", request, user=user, detail="token; refused")
+        raise HTTPException(403, "This account has two-factor sign-in on. "
+                                 "Sign in through the browser instead.")
     token, row = _make_token(db, user, name, payload.access, payload.expires_in_days)
     record_event(db, "token_created", request, user=user,
                  detail=f"token #{row.id}, {row.access}; by sign-in")
@@ -1223,8 +1350,10 @@ def _iso(dt: datetime | None) -> str | None:
 
 
 @app.get("/api/me")
-def me(request: Request, user: User = Depends(current_user)):
+def me(request: Request, user: User = Depends(current_user),
+       db: Session = Depends(get_db)):
     token = request.state.api_token
+    two_factor = user.totp_enabled_at is not None
     return {"id": user.id, "email": user.email, "name": user.name,
             # What this token may do (read, full or admin), or null when
             # signed in through a browser: the iOS app hides editing under a
@@ -1236,7 +1365,11 @@ def me(request: Request, user: User = Depends(current_user)):
             "recurring_position": user.recurring_position,
             "notice_required": _notice_required(user),
             "notice_acknowledged_at": _iso(user.notice_ack_at),
-            "has_password": user.password_hash is not None}
+            "has_password": user.password_hash is not None,
+            # Two-factor sign-in (#165): whether it's on, and how many
+            # one-time recovery codes are unused.
+            "two_factor_enabled": two_factor,
+            "recovery_codes_left": _recovery_codes_left(db, user) if two_factor else 0}
 
 
 @app.post("/api/me/acknowledge-notice")
@@ -1408,6 +1541,124 @@ def change_password(payload: PasswordChangeIn, request: Request,
     db.commit()
     record_event(db, "password_changed", request, user=user)
     return {"ok": True}
+
+
+# ---------- Two-factor sign-in: your own set-up (#165) ----------
+# Browser session only, like changing the password. Every step that turns it
+# on or off, or shows new recovery codes, asks for the password again, so a
+# browser left signed in can't be used to lock its owner out.
+class TwoFactorSetupIn(BaseModel):
+    password: str
+
+
+class TwoFactorConfirmIn(BaseModel):
+    password: str
+    code: str = Field(max_length=40)
+
+
+WRONG_CODE_MESSAGE = "That code isn't right. Check your authenticator app and try again."
+
+
+def _check_two_factor_password(user: User, password: str) -> None:
+    if is_demo_email(user.email):
+        raise HTTPException(403, "The demo user can't use two-factor sign-in.")
+    if not user.password_hash:
+        raise HTTPException(400, "You sign in with Google, which has its own two-step check.")
+    if not verify_password(password, user.password_hash):
+        # 403, not 401: the session is fine, the confirmation isn't.
+        raise HTTPException(403, "That password is incorrect.")
+
+
+def _new_recovery_codes(db: Session, user: User) -> list[str]:
+    """Replace the user's recovery codes; the caller commits."""
+    db.query(RecoveryCode).filter_by(user_id=user.id).delete(synchronize_session=False)
+    codes = twofactor.new_recovery_codes()
+    for code in codes:
+        db.add(RecoveryCode(user_id=user.id, code_hash=twofactor.hash_recovery_code(code)))
+    return codes
+
+
+def _clear_two_factor(db: Session, user: User) -> None:
+    """Switch two-factor off: the key and the recovery codes go."""
+    user.totp_secret = None
+    user.totp_enabled_at = None
+    user.totp_last_step = None
+    db.query(RecoveryCode).filter_by(user_id=user.id).delete(synchronize_session=False)
+    db.commit()
+
+
+@app.post("/api/me/two-factor/setup")
+def two_factor_setup(payload: TwoFactorSetupIn,
+                     user: User = Depends(current_session_user),
+                     db: Session = Depends(get_db)):
+    """Start set-up: make a key and return it, with the otpauth:// address
+    the page draws as a QR code. Nothing is on until /enable gets a code.
+    Starting again replaces the key."""
+    _check_two_factor_password(user, payload.password)
+    if user.totp_enabled_at is not None:
+        raise HTTPException(409, "Two-factor sign-in is already on.")
+    secret = twofactor.new_secret()
+    user.totp_secret = secret
+    user.totp_last_step = None
+    db.commit()
+    return {"secret": secret,
+            "otpauth_url": twofactor.otpauth_url(secret, user.email, get_app_title(db))}
+
+
+@app.post("/api/me/two-factor/enable")
+def two_factor_enable(payload: TwoFactorCodeIn, request: Request,
+                      user: User = Depends(current_session_user),
+                      db: Session = Depends(get_db)):
+    """Finish set-up with a code from the app, proving it has the key.
+    Returns the recovery codes, this once."""
+    if user.totp_enabled_at is not None:
+        raise HTTPException(409, "Two-factor sign-in is already on.")
+    if not user.totp_secret_enc:
+        raise HTTPException(400, "Start the set-up again.")
+    step = twofactor.matching_step(user.totp_secret, "".join(payload.code.split()))
+    if step is None:
+        raise HTTPException(403, WRONG_CODE_MESSAGE)
+    user.totp_enabled_at = datetime.utcnow()
+    user.totp_last_step = step
+    codes = _new_recovery_codes(db, user)
+    db.commit()
+    record_event(db, "two_factor_enabled", request, user=user)
+    return {"two_factor_enabled": True, "recovery_codes": codes}
+
+
+def _confirm_two_factor(db: Session, user: User, payload: TwoFactorConfirmIn) -> None:
+    """The password and a current code (or a recovery code), for a user who
+    has two-factor on."""
+    _check_two_factor_password(user, payload.password)
+    if user.totp_enabled_at is None:
+        raise HTTPException(400, "Two-factor sign-in isn't on.")
+    if not _use_two_factor_code(db, user, payload.code):
+        raise HTTPException(403, WRONG_CODE_MESSAGE)
+
+
+@app.post("/api/me/two-factor/disable")
+def two_factor_disable(payload: TwoFactorConfirmIn, request: Request,
+                       user: User = Depends(current_session_user),
+                       db: Session = Depends(get_db)):
+    """Switch two-factor off, confirmed with the password and a code."""
+    _confirm_two_factor(db, user, payload)
+    _clear_two_factor(db, user)
+    record_event(db, "two_factor_disabled", request, user=user,
+                 detail=audit_target(user, user.id))
+    return {"two_factor_enabled": False}
+
+
+@app.post("/api/me/two-factor/recovery-codes")
+def two_factor_new_recovery_codes(payload: TwoFactorConfirmIn, request: Request,
+                                  user: User = Depends(current_session_user),
+                                  db: Session = Depends(get_db)):
+    """Replace the recovery codes with ten new ones, shown this once. The old
+    ones stop working."""
+    _confirm_two_factor(db, user, payload)
+    codes = _new_recovery_codes(db, user)
+    db.commit()
+    record_event(db, "recovery_codes_remade", request, user=user)
+    return {"recovery_codes": codes}
 
 
 # ---------- Deleting your own user ----------
@@ -5210,6 +5461,9 @@ def list_report_templates(user: User = Depends(current_user)):
 class AdminUserPatchIn(BaseModel):
     disabled: bool | None = None
     new_password: str | None = Field(default=None, min_length=8, max_length=128)
+    # Only false means anything: an admin can switch a user's two-factor
+    # sign-in off (they lost their phone), never on (#165).
+    two_factor: bool | None = None
 
 
 class AdminBackupConfigIn(BaseModel):
@@ -5281,6 +5535,7 @@ def admin_list_users(user: User = Depends(current_admin), db: Session = Depends(
             "owned_count": owned_count,
             "has_password": u.password_hash is not None,
             "has_google": u.google_sub is not None,
+            "two_factor_enabled": u.totp_enabled_at is not None,
         })
     return out
 
@@ -5294,6 +5549,8 @@ def admin_update_user(uid: int, payload: AdminUserPatchIn, request: Request,
     # Protect against disabling yourself
     if payload.disabled is not None and target.id == user.id and payload.disabled:
         raise HTTPException(400, "Cannot disable your own account")
+    if payload.two_factor:
+        raise HTTPException(400, "Only the user can switch two-factor sign-in on.")
     events = []
     if payload.disabled is not None and bool(target.disabled) != payload.disabled:
         target.disabled = payload.disabled
@@ -5301,6 +5558,9 @@ def admin_update_user(uid: int, payload: AdminUserPatchIn, request: Request,
     if payload.new_password is not None:
         target.password_hash = hash_password(payload.new_password)
         events.append("password_reset")
+    if payload.two_factor is False and target.totp_enabled_at is not None:
+        _clear_two_factor(db, target)
+        events.append("two_factor_disabled")
     db.commit()
     for event in events:
         record_event(db, event, request, user=user, detail=audit_target(user, target.id))
@@ -5541,6 +5801,8 @@ AUDIT_EVENT_TYPES = (
     "backup_made", "backup_downloaded", "backup_restored",
     "backup_exported", "backup_imported",
     "token_created", "token_revoked",
+    "two_factor_asked", "two_factor_enabled", "two_factor_disabled",
+    "recovery_code_used", "recovery_codes_remade",
 )
 _AUDIT_USER_REF = re.compile(r"\buser #(\d+)")
 

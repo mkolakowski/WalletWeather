@@ -29,7 +29,7 @@ from urllib.parse import urlencode
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.54.3"
+APP_VERSION = "1.55.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,9 @@ APP_VERSION = "1.54.3"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.55.0 (2026-11-15, claude+mkolakowski): no server change; the release
+#     that ships web 1.73.0 (Show QR code) and the iOS app 0.9.0, email and
+#     password and QR sign-in (#100, #164).
 # 1.54.3 (2026-11-15, claude+mkolakowski): no server change; the release
 #     that ships the iOS app 0.8.1 (#155-#161, #162).
 # 1.54.2 (2026-11-15, claude+mkolakowski): no server change; the release

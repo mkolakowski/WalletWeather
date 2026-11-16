@@ -10,7 +10,7 @@ Tracking issue: #170
 | 2. A code in the iOS app's sign-in | #166 | Released in 1.59.0 (iOS 0.11.0) |
 | 3. Remember this browser | #167 | Built as 1.58.0 (web 1.76.0, schema 21), released in 1.59.0 |
 | 4. Admin: require it for everyone | #168 | Built 2026-11-15 (app 1.60.0, web 1.77.0); not released |
-| 5. A code for sensitive actions | #169 | Open, after phase 1 |
+| 5. A code for sensitive actions | #169 | Built 2026-11-15 (app 1.61.0, web 1.78.0); not released |
 
 Planned 2026-11-15.
 
@@ -21,6 +21,8 @@ Phase 3 built 2026-11-15 as app 1.58.0 (web 1.76.0, schema 21), after phase 1's 
 Phase 2 built 2026-11-15 as app 1.59.0 and iOS 0.11.0 (web and schema unchanged), also before your try of phase 1 (your call). `POST /api/auth/token` takes an optional `code`; without one, or with a wrong one, it answers 403 with `two_factor_required`, which the app turns into a Code field on the Connect screen. Verified by 7 new server tests (286 in all pass), 4 new tests in the app's library (98 pass) and a simulator build. The app was not run in a simulator or on the phone, so the Code field hasn't been seen on screen. Released 2026-11-15 in v1.59.0 (release issue #173); the app itself still has to be installed on the phone.
 
 Phase 4 built 2026-11-15 as app 1.60.0 (web 1.77.0, no schema change; the requirement is an `admin_settings` row). Your choice the same day: a user who must set it up is held back by API token too, not only in the browser ([decision](../docs/dev/decisions/two-factor.md)). Verified by 15 new tests in `test_two_factor_required.py` (301 in all pass) and a headless browser run against a throwaway server (the admin refused before their own set-up, then the switch on with its count; a second user on a phone gets only the set-up screen, their other requests answer 403, the QR code, only the recovery codes after it, then into the app: 11 checks pass). Not released, and not yet seen on your instance.
+
+Phase 5 built 2026-11-15 as app 1.61.0 (web 1.78.0, no schema change). Your choice the same day: the code is asked every time, and a code typed earlier doesn't count ([decision](../docs/dev/decisions/two-factor.md)); since a code works once, the server says "already been used" for one just spent rather than calling it wrong. Changing the password, deleting your account, making a token (any access) and the app sign-in page's Allow take a code; switching two-factor off and new recovery codes already did, and now their wrong codes are counted and limited too. Verified by 43 new tests in `test_two_factor_actions.py` (344 in all pass; four older tests now send a code) and a headless browser run against a throwaway server (the code fields, a token refused without a code then made with one, a reused code explained, a wrong then right code on Change password: 7 checks pass). The app sign-in page's Allow step is covered by the tests, not seen in a browser. Not released.
 
 Sessions: may span — each phase ends with a release and your try on your own instance with a real authenticator app before the next starts.
 

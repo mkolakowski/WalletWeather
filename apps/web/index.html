@@ -2451,6 +2451,7 @@
               <option value="never">Never</option>
             </select>
           </div>
+          <div id="apiTokenCodeWrap" class="hidden"><label for="apiTokenCode">Code from your authenticator app</label><input id="apiTokenCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="40"></div>
           <div style="flex:0 0 auto"><button id="apiTokenCreateBtn" onclick="createApiToken()">Create token</button></div>
         </div>
       </div>
@@ -2467,6 +2468,10 @@
           <input id="pwNew" type="password" autocomplete="new-password" minlength="8" maxlength="128" required style="width:100%">
           <label for="pwNew2">New password again</label>
           <input id="pwNew2" type="password" autocomplete="new-password" minlength="8" maxlength="128" required style="width:100%">
+          <div id="pwCodeWrap" class="hidden">
+            <label for="pwCode">Code from your authenticator app</label>
+            <input id="pwCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="40" style="width:100%">
+          </div>
           <div id="changePasswordError" class="auth-error hidden"></div>
           <div style="margin-top:12px"><button id="changePasswordBtn" type="submit">Change password</button></div>
         </form>
@@ -2643,7 +2648,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.77.0";
+const WEB_VERSION = "1.78.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2654,6 +2659,7 @@ const WEB_VERSION = "1.77.0";
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
 //
+// 1.78.0 (2026-11-15, claude+mkolakowski): (#169) A code for sensitive actions. With two-factor on, Change password (#pwCode), Create token (#apiTokenCode) and Delete my account (#deleteAccountCode) get a "Code from your authenticator app" field and send it as code; shown only when me.two_factor_enabled. /app-sign-in's Allow step asks too.
 // 1.77.0 (2026-11-15, claude+mkolakowski): (#168) Two-factor sign-in required by an admin. A user /api/me says two_factor_setup_required gets only a set-up screen after sign-in (#tfaGate, showTwoFactorGate, which borrows the Settings panel #twoFactorPanel) until it's on; a request the server holds back for it reloads into that screen (api()). Admin → "Two-factor sign-in" panel (#adminTwoFactor, loadAdminTwoFactor, saveAdminTwoFactor) switches the requirement and counts who still has to set it up.
 // 1.76.0 (2026-11-15, claude+mkolakowski): (#167) Remember this browser. The sign-in code step gets a "Don't ask on this browser for 30 days" tick box (#siRemember, sent as remember to /api/auth/login/two-factor). Settings → Two-factor sign-in lists remembered browsers when it's on (#tfaBrowsers, loadRememberedBrowsers) with Forget on each and Forget all.
 // 1.75.0 (2026-11-15, claude+mkolakowski): (#165) Two-factor sign-in. The sign-in card gets a code step (#formTwoFactor, doSigninCode) shown when /api/auth/login answers two_factor_required. Settings → Your account: a "Two-factor sign-in" panel (#twoFactorPanel, loadTwoFactor) sets it up with a QR code drawn by the page's own qrSvg, shows the recovery codes once, switches it off and makes new recovery codes. Admin → Users: a "two-factor" badge and a switch-off button (adminTwoFactorOff). /app-sign-in asks for the code too.
@@ -5286,6 +5292,8 @@ async function loadApiTokens() {
   const adminOpt = sel.querySelector('option[value="admin"]');
   if (admin && !adminOpt) sel.add(new Option('Admin', 'admin'));
   if (!admin && adminOpt) adminOpt.remove();
+  // With two-factor on, making a token needs a current code (#169).
+  document.getElementById('apiTokenCodeWrap').classList.toggle('hidden', !(me && me.two_factor_enabled));
   let rows;
   try { rows = await api('/api/tokens'); }
   catch { list.innerHTML = '<span style="color:var(--muted)">Could not load your tokens. Reload the page to try again.</span>'; return; }
@@ -5320,9 +5328,14 @@ async function createApiToken() {
   const btn = document.getElementById('apiTokenCreateBtn');
   btn.disabled = true;
   let made;
-  try { made = await api('/api/tokens', { method: 'POST', body: JSON.stringify({ name, access, expires_in_days: exp === 'never' ? null : Number(exp) }) }); }
+  const codeEl = document.getElementById('apiTokenCode');
+  if (me && me.two_factor_enabled && !codeEl.value.trim()) {
+    btn.disabled = false;
+    notify('Type the code from your authenticator app to make a token.', 'error'); codeEl.focus(); return;
+  }
+  try { made = await api('/api/tokens', { method: 'POST', body: JSON.stringify({ name, access, expires_in_days: exp === 'never' ? null : Number(exp), code: codeEl.value || null }) }); }
   catch (e) { notifyError('Could not create the token', e); return; }
-  finally { btn.disabled = false; }
+  finally { btn.disabled = false; codeEl.value = ''; }
   nameEl.value = '';
   document.getElementById('apiTokenValue').value = made.token;
   // On an iPhone, the native app can take the new token straight from here
@@ -5578,6 +5591,10 @@ function loadChangePassword() {
   const has = !!(me && me.has_password);
   form.classList.toggle('hidden', !has);
   document.getElementById('changePasswordGoogle').classList.toggle('hidden', has);
+  // With two-factor on, a password change needs a current code (#169).
+  const tfa = !!(me && me.two_factor_enabled);
+  document.getElementById('pwCodeWrap').classList.toggle('hidden', !tfa);
+  document.getElementById('pwCode').required = tfa;
 }
 async function changePassword(ev) {
   ev.preventDefault();
@@ -5591,7 +5608,8 @@ async function changePassword(ev) {
   const btn = document.getElementById('changePasswordBtn');
   btn.disabled = true;
   try {
-    await api('/api/me/password', { method: 'POST', body: JSON.stringify({ current_password: current, new_password: next }) });
+    await api('/api/me/password', { method: 'POST', body: JSON.stringify({ current_password: current, new_password: next,
+      code: document.getElementById('pwCode').value || null }) });
   } catch (e) {
     fail(errText(e));
     return;
@@ -5780,6 +5798,10 @@ async function loadDeleteAccount() {
   html += c.has_password
     ? '<label for="deleteAccountConfirm">Your password</label><input id="deleteAccountConfirm" type="password" autocomplete="current-password" style="max-width:320px;width:100%">'
     : '<label for="deleteAccountConfirm">Type your email address to confirm</label><input id="deleteAccountConfirm" type="email" autocomplete="off" style="max-width:320px;width:100%">';
+  // With two-factor on, deleting needs a current code too (#169).
+  if (me && me.two_factor_enabled) {
+    html += '<label for="deleteAccountCode">Code from your authenticator app</label><input id="deleteAccountCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="40" style="max-width:320px;width:100%">';
+  }
   html += '<div id="deleteAccountError" class="auth-error hidden" style="max-width:320px"></div>' +
     '<div style="margin-top:12px"><button id="deleteAccountBtn" class="danger" onclick="submitDeleteAccount(' + (c.has_password ? 'true' : 'false') + ')">Delete my account</button></div>';
   body.innerHTML = html;
@@ -5790,6 +5812,8 @@ async function submitDeleteAccount(hasPassword) {
   const fail = msg => { err.textContent = msg; err.classList.remove('hidden'); };
   err.classList.add('hidden');
   if (!value) { fail(hasPassword ? 'Enter your password.' : 'Type your email address.'); return; }
+  const codeEl = document.getElementById('deleteAccountCode');
+  if (codeEl && !codeEl.value.trim()) { fail('Type the code from your authenticator app.'); return; }
   if (!(await confirmDialog('Delete your account and everything only you own? This can\'t be undone.', { title: 'Delete your account', okLabel: 'Delete my account', danger: true }))) return;
   const btn = document.getElementById('deleteAccountBtn');
   btn.disabled = true;
@@ -5797,7 +5821,8 @@ async function submitDeleteAccount(hasPassword) {
   try {
     res = await fetch('/api/me', {
       method: 'DELETE', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(hasPassword ? {password: value} : {confirm_email: value}),
+      body: JSON.stringify(Object.assign(hasPassword ? {password: value} : {confirm_email: value},
+                                         codeEl ? {code: codeEl.value} : {})),
     });
   } catch {
     btn.disabled = false;

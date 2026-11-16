@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.60.0** · Web version: **1.77.0** · Schema version: **21** · iOS version: **0.13.0**
+App version: **1.61.0** · Web version: **1.78.0** · Schema version: **21** · iOS version: **0.13.0**
 
 ### Added
 
@@ -101,6 +101,14 @@ App version: **1.60.0** · Web version: **1.77.0** · Schema version: **21** · 
   Settings → Tab bar has a Swap button on each page to put another page in
   its place. A bar of four you chose before keeps its first three. (iOS
   0.12.0)
+- **Breaking:** **With two-factor sign-in on, a few things now ask for a
+  code from your authenticator app (or a recovery code) every time:**
+  changing your password, deleting your account, making an API token, and
+  letting the iPhone app in on its "Let the app in?" page. A code you've
+  just used won't work twice, so if you've only just signed in with one,
+  wait for the next. Scripts that make tokens or change the password through
+  the API for such an account need to send `code` too. Accounts without
+  two-factor are unaffected. (app 1.61.0, web 1.78.0)
 - **While two-factor is required, a user who hasn't set it up can't use
   their API tokens or the iPhone app either:** every request answers "This
   instance requires two-factor sign-in. Set it up in Settings in a browser
@@ -111,6 +119,9 @@ App version: **1.60.0** · Web version: **1.77.0** · Schema version: **21** · 
 
 - Switching the requirement on or off is recorded in the audit log, and only
   works from a browser session, not with an API token.
+- Wrong codes on those actions, and when switching two-factor off or making
+  new recovery codes, count toward the same limit as wrong codes at sign-in,
+  so a browser left signed in can't be used to guess a code.
 
 ## [1.59.0] — 2026-11-15
 

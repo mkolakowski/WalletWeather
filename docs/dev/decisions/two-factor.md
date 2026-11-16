@@ -79,3 +79,15 @@ Decisions made while planning and building [`Plans/two-factor.md`](../../../Plan
 
 **What it changes:** app 1.60.0. The iPhone app shows the server's message on any held-back request.
 
+## 2026-11-15: a sensitive action asks for a code every time
+
+**Decided:** 2026-11-15, by Matthew, while building phase 5 (#169). **Status:** accepted.
+
+**The question:** with two-factor on, changing the password, deleting your account, making an API token and the iPhone app's Allow step ask for a current code. Should a code typed moments before (at sign-in, or for another action) count, for say 5 minutes?
+
+**Options considered:** a 5-minute window, so Allow right after signing in with a code doesn't ask twice; or always ask.
+
+**The decision:** always ask. A code works once, so straight after signing in the user waits for the app's next code; the server answers "That code has already been used. Wait for the next one" for a just-spent code instead of calling it wrong, and doesn't count it as a wrong guess.
+
+**What it changes:** app 1.61.0, web 1.78.0.
+

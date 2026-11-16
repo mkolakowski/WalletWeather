@@ -149,8 +149,8 @@ financial data warrant this. **Effort: small-to-medium.** New columns on
 > switch-off. The codes are written from the standard, so `pyotp` wasn't
 > needed. Remember this browser for 30 days followed in 1.58.0 (#167), a code
 > in the iOS app's sign-in in 1.59.0 (#166) and an admin "require it" in
-> 1.60.0 (#168). A code for sensitive actions is tracked in
-> `Plans/two-factor.md`.
+> 1.60.0 (#168), and a code for sensitive actions in 1.61.0 (#169), the
+> last phase of `Plans/two-factor.md`.
 
 ### ~~15. Login rate limiting & audit log~~ ✅ **Shipped in v1.44.0 (rate limiting) and v1.49.0 (audit events, Admin → Audit log).**
 ~~Rate-limit failed logins by IP+username, and write significant events

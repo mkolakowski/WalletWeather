@@ -287,9 +287,12 @@ def test_the_list_is_newest_first_with_current_marked(app_started, client, regis
 
 
 def test_a_token_cannot_list_or_forget_browsers(client, registered, limits):
-    signed_in_with_remembered(client, registered)
+    secret = signed_in_with_remembered(client, registered)
     mine = client.get("/api/me/remembered-browsers").json()[0]["id"]
-    token = client.post("/api/tokens", json={"name": "script", "access": "full"}).json()["token"]
+    # Making a token now needs a current code (#169).
+    token = client.post("/api/tokens", json={
+        "name": "script", "access": "full",
+        "code": fresh_code(registered["email"], secret)}).json()["token"]
     client.cookies.clear()
     bearer = {"Authorization": "Bearer " + token}
     assert client.get("/api/me/remembered-browsers", headers=bearer).status_code == 403
@@ -351,9 +354,11 @@ def test_an_admin_switching_it_off_forgets_them(app_started, client, registered,
 
 
 def test_changing_your_own_password_forgets_them(client, registered, limits):
-    signed_in_with_remembered(client, registered)
+    secret = signed_in_with_remembered(client, registered)
+    # A password change needs a current code (#169).
     r = client.post("/api/me/password", json={
-        "current_password": registered["password"], "new_password": "a-brand-new-password"})
+        "current_password": registered["password"], "new_password": "a-brand-new-password",
+        "code": fresh_code(registered["email"], secret)})
     assert r.status_code == 200, r.text
     assert stored_rows(registered["id"]) == []
     registered["password"] = "a-brand-new-password"

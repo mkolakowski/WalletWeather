@@ -29,7 +29,7 @@ from urllib.parse import urlencode
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.60.0"
+APP_VERSION = "1.61.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,13 @@ APP_VERSION = "1.60.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.61.0 (2026-11-15, claude+mkolakowski): a code for sensitive actions
+#     (#169): for a user with two-factor on, POST /api/me/password,
+#     DELETE /api/me, POST /api/tokens and POST /api/app-sign-in take a
+#     "code" (from the authenticator app, or a recovery code) and answer 403
+#     without a right one; wrong codes count toward the per-user code limit
+#     (429), as do wrong codes when switching two-factor off or remaking
+#     recovery codes. Tests in tests/test_two_factor_actions.py.
 # 1.60.0 (2026-11-15, claude+mkolakowski): an admin can require two-factor
 #     sign-in (#168): GET/PUT /api/admin/two-factor. While it's on, a user
 #     with a password who hasn't set it up is held back from every endpoint
@@ -1468,6 +1475,9 @@ class AppSignInIn(BaseModel):
     access: str
     code_challenge: str
     state: str
+    # A current code from the authenticator app, for a user with two-factor
+    # on (#169). Not to be confused with the one-time code this answers with.
+    two_factor_code: str | None = Field(default=None, max_length=40)
 
 
 @app.post("/api/app-sign-in")
@@ -1484,6 +1494,7 @@ def app_sign_in(payload: AppSignInIn, request: Request,
     if not (len(payload.code_challenge) == 43 and _B64URL.match(payload.code_challenge)):
         raise HTTPException(400, "code_challenge must be a base64url SHA-256")
     _check_state(payload.state)
+    _confirm_code_for(db, request, user, payload.two_factor_code, "app sign-in")
     code = secrets.token_urlsafe(32)
     db.add(AppSignInCode(
         code_hash=_hash_token(code), user_id=user.id, name=name,
@@ -1589,6 +1600,8 @@ class ApiTokenIn(BaseModel):
     access: str
     # 30, 90 or 365; left out (or null) means the token never expires.
     expires_in_days: int | None = None
+    # A current code, for a user with two-factor on (#169).
+    code: str | None = Field(default=None, max_length=40)
 
 
 def _token_json(t: ApiToken) -> dict:
@@ -1620,6 +1633,7 @@ def create_token(payload: ApiTokenIn, request: Request,
     if payload.access == "admin" and not is_admin(user):
         raise HTTPException(403, "Only an admin can make an admin token")
     _check_expiry(payload.expires_in_days)
+    _confirm_code_for(db, request, user, payload.code, "token")
     token, row = _make_token(db, user, name, payload.access, payload.expires_in_days)
     record_event(db, "token_created", request, user=user,
                  detail=f"token #{row.id}, {row.access}")
@@ -1715,6 +1729,8 @@ def admin_revoke_token(token_id: int, request: Request,
 class PasswordChangeIn(BaseModel):
     current_password: str
     new_password: str = Field(..., min_length=8, max_length=128)
+    # A current code, for a user with two-factor on (#169).
+    code: str | None = Field(default=None, max_length=40)
 
 
 @app.post("/api/me/password")
@@ -1731,6 +1747,7 @@ def change_password(payload: PasswordChangeIn, request: Request,
     if not verify_password(payload.current_password, user.password_hash):
         # 403, not 401: the session is fine, the confirmation isn't.
         raise HTTPException(403, "That password is incorrect.")
+    _confirm_code_for(db, request, user, payload.code, "password change")
     user.password_hash = hash_password(payload.new_password)
     # A new password forgets every remembered browser (#167).
     _forget_browsers(db, user)
@@ -1753,6 +1770,42 @@ class TwoFactorConfirmIn(BaseModel):
 
 
 WRONG_CODE_MESSAGE = "That code isn't right. Check your authenticator app and try again."
+CODE_USED_MESSAGE = ("That code has already been used. "
+                     "Wait for the next one in your authenticator app.")
+CODE_NEEDED_MESSAGE = ("Two-factor sign-in is on: type the code from your authenticator app, "
+                       "or a recovery code, to confirm.")
+
+
+def _confirm_code_for(db: Session, request: Request, user: User, code: str | None,
+                      action: str) -> None:
+    """For a user with two-factor on, a current code (or a recovery code)
+    before a sensitive action (#169), every time: decided 2026-11-15, a code
+    typed earlier doesn't count. Wrong codes count toward the same per-user
+    limit as the sign-in's code step. Does nothing for a user without it."""
+    if user.totp_enabled_at is None:
+        return
+    if not (code or "").strip():
+        raise HTTPException(403, CODE_NEEDED_MESSAGE)
+    wait = _code_retry_after(db, user)
+    if wait:
+        record_event(db, "login_blocked", request, user=user, detail=action)
+        minutes = math.ceil(wait / 60)
+        raise HTTPException(
+            429, f"Too many wrong codes. Try again in {minutes} minute{'s' if minutes != 1 else ''}.",
+            headers={"Retry-After": str(wait)})
+    how = _use_two_factor_code(db, user, code)
+    if not how:
+        # Always asking means a code typed seconds ago (at sign-in, say) is
+        # often still on the phone's screen; it works once, so say so rather
+        # than call it wrong. It isn't a guess, so it isn't counted.
+        text = "".join(code.split())
+        if twofactor.looks_like_code(text) and twofactor.matching_step(user.totp_secret, text) is not None:
+            raise HTTPException(403, CODE_USED_MESSAGE)
+        record_event(db, "login_failed", request, user=user, detail=f"{action}; {WRONG_CODE}")
+        raise HTTPException(403, WRONG_CODE_MESSAGE)
+    if how == "recovery code":
+        record_event(db, "recovery_code_used", request, user=user,
+                     detail=f"{action}; {_recovery_codes_left(db, user)} left")
 
 
 def _check_two_factor_password(user: User, password: str) -> None:
@@ -1824,14 +1877,14 @@ def two_factor_enable(payload: TwoFactorCodeIn, request: Request,
     return {"two_factor_enabled": True, "recovery_codes": codes}
 
 
-def _confirm_two_factor(db: Session, user: User, payload: TwoFactorConfirmIn) -> None:
+def _confirm_two_factor(db: Session, request: Request, user: User,
+                        payload: TwoFactorConfirmIn, action: str) -> None:
     """The password and a current code (or a recovery code), for a user who
-    has two-factor on."""
+    has two-factor on. Wrong codes are counted and limited (#169)."""
     _check_two_factor_password(user, payload.password)
     if user.totp_enabled_at is None:
         raise HTTPException(400, "Two-factor sign-in isn't on.")
-    if not _use_two_factor_code(db, user, payload.code):
-        raise HTTPException(403, WRONG_CODE_MESSAGE)
+    _confirm_code_for(db, request, user, payload.code, action)
 
 
 @app.post("/api/me/two-factor/disable")
@@ -1839,7 +1892,7 @@ def two_factor_disable(payload: TwoFactorConfirmIn, request: Request,
                        user: User = Depends(current_session_user),
                        db: Session = Depends(get_db)):
     """Switch two-factor off, confirmed with the password and a code."""
-    _confirm_two_factor(db, user, payload)
+    _confirm_two_factor(db, request, user, payload, "two-factor off")
     _clear_two_factor(db, user)
     record_event(db, "two_factor_disabled", request, user=user,
                  detail=audit_target(user, user.id))
@@ -1852,7 +1905,7 @@ def two_factor_new_recovery_codes(payload: TwoFactorConfirmIn, request: Request,
                                   db: Session = Depends(get_db)):
     """Replace the recovery codes with ten new ones, shown this once. The old
     ones stop working."""
-    _confirm_two_factor(db, user, payload)
+    _confirm_two_factor(db, request, user, payload, "recovery codes")
     codes = _new_recovery_codes(db, user)
     db.commit()
     record_event(db, "recovery_codes_remade", request, user=user)
@@ -1983,6 +2036,8 @@ class DeleteMeIn(BaseModel):
     # and confirms by typing their email address.
     password: str | None = None
     confirm_email: str | None = None
+    # A current code, for a user with two-factor on (#169).
+    code: str | None = Field(default=None, max_length=40)
 
 
 @app.delete("/api/me")
@@ -1997,6 +2052,7 @@ def delete_me(payload: DeleteMeIn, request: Request,
             raise HTTPException(403, "That password is incorrect.")
     elif (payload.confirm_email or "").strip().lower() != user.email.lower():
         raise HTTPException(400, "Type your email address to confirm.")
+    _confirm_code_for(db, request, user, payload.code, "account deletion")
 
     plan = _deletion_plan(db, user)
     if plan["blocking"]:

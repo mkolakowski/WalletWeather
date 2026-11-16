@@ -110,6 +110,11 @@
         <span>Read-only<small>See your data, change nothing.</small></span></label>
     </fieldset>
     <p class="muted">It gets its own token, which lasts 90 days. You'll find it in Settings → API tokens, where you can revoke it to sign the app out.</p>
+    <div id="allowCodeWrap" class="hidden">
+      <label for="allowCode">Code from your authenticator app</label>
+      <input id="allowCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="40">
+      <p class="muted">Two-factor sign-in is on, so letting an app in takes a fresh code. If you just used one, wait for the next.</p>
+    </div>
     <div class="buttons">
       <button id="cancelBtn" type="button" class="ghost">Cancel</button>
       <button id="allowBtn" type="submit">Allow</button>
@@ -162,6 +167,9 @@
 
   async function showConfirm(me) {
     $('who').textContent = me.email;
+    // With two-factor on, allowing an app takes a current code (#169).
+    $('allowCodeWrap').classList.toggle('hidden', !me.two_factor_enabled);
+    $('allowCode').required = !!me.two_factor_enabled;
     $('deviceName').value = name;
     document.querySelector('input[name=access][value=' + wanted + ']').checked = true;
     show('confirm');
@@ -238,6 +246,7 @@
       const access = document.querySelector('input[name=access]:checked').value;
       const made = await call('/api/app-sign-in', {
         name: $('deviceName').value.trim() || name, access, state, code_challenge: challenge,
+        two_factor_code: $('allowCode').value || null,
       });
       show('done');
       location.href = made.redirect_url;

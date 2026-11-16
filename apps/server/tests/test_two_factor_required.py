@@ -104,8 +104,11 @@ def second_user(app_started, **kw):
     return c, user
 
 
-def make_token(client, access="full"):
-    r = client.post("/api/tokens", json={"name": "script", "access": access})
+def make_token(client, access="full", code=None):
+    body = {"name": "script", "access": access}
+    if code:
+        body["code"] = code  # a user with two-factor on needs one (#169)
+    r = client.post("/api/tokens", json=body)
     assert r.status_code == 200, r.text
     return r.json()["token"]
 
@@ -179,8 +182,9 @@ def test_the_switch_needs_a_sign_in(app_started, requirement):
 
 def test_an_admin_token_reads_but_cannot_change_it(app_started, admin):
     admin_client, user = admin
-    turn_on(admin_client, user)
-    tok = bearer(app_started, make_token(admin_client, "admin"))
+    secret, _ = turn_on(admin_client, user)
+    tok = bearer(app_started, make_token(
+        admin_client, "admin", code=fresh_code(user["email"], secret)))
     r = tok.get("/api/admin/two-factor")
     assert r.status_code == 200 and r.json()["required"] is False
     assert tok.put("/api/admin/two-factor", json={"required": True}).status_code == 403

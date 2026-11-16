@@ -411,8 +411,11 @@ def test_new_recovery_codes_replace_the_old(client, registered, limits):
 
 
 def test_deleting_yourself_works_with_it_on(client, registered):
-    turn_on(client, registered)
-    r = client.request("DELETE", "/api/me", json={"password": registered["password"]})
+    secret, _ = turn_on(client, registered)
+    # Deleting the user needs a current code (#169).
+    r = client.request("DELETE", "/api/me", json={
+        "password": registered["password"],
+        "code": fresh_code(registered["email"], secret)})
     assert r.status_code == 200, r.text
 
 

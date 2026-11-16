@@ -7,9 +7,11 @@ import WalletWeatherKit
 
 /// A line still to confirm, made for ticking off with your bank's app open
 /// beside WalletWeather: Paid as planned in one tap, or the amount it really
-/// came to and Paid.
+/// came to and Paid; Edit opens it in the editor (#157), and it swipes like
+/// any other line.
 struct ConfirmRow: View {
     let line: ForecastLine
+    let onEdit: () -> Void
     let onConfirm: (String?) async -> Void
 
     @State private var amount = ""
@@ -24,7 +26,15 @@ struct ConfirmRow: View {
                     .font(.headline.monospacedDigit())
                     .foregroundStyle(line.plannedAmount.isNegative ? Palette.bad : Palette.good)
             }
-            Text(subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+            HStack {
+                Text(subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                Spacer(minLength: 8)
+                Button("Edit", systemImage: "pencil", action: onEdit)
+                    .labelStyle(.titleAndIcon)
+                    .font(.subheadline)
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Edit \(line.description)")
+            }
             HStack(spacing: 8) {
                 Button {
                     Task { await run(nil) }

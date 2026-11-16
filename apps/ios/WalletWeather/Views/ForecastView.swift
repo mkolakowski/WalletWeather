@@ -119,7 +119,7 @@ struct ForecastView: View {
                         ForEach(data.rows) { line in
                             Button { openLine(line) } label: { LineCard(line: line, today: .today()) }
                                 .buttonStyle(.plain)
-                                .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onUndo: undoPaid,
+                                .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onEdit: openLine,
                                                      onDelete: { pendingDelete = $0 }))
                         }
                     }
@@ -194,7 +194,7 @@ struct ForecastView: View {
                                 LineTableRow(line: line, selected: open?.id == line.id)
                             }
                             .buttonStyle(.plain)
-                            .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onUndo: undoPaid,
+                            .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onEdit: openLine,
                                                  onDelete: { pendingDelete = $0 }))
                         }
                     }
@@ -257,7 +257,9 @@ struct ForecastView: View {
                 .frame(maxWidth: .infinity).padding(.vertical, 24)
         }
         ForEach(lines) { line in
-            ConfirmRow(line: line) { amount in await confirm(line, amount: amount) }
+            ConfirmRow(line: line, onEdit: { openLine(line) }) { amount in await confirm(line, amount: amount) }
+                .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onEdit: openLine,
+                                     onDelete: { pendingDelete = $0 }))
         }
     }
 
@@ -316,11 +318,6 @@ struct ForecastView: View {
         Task { await change(line) { try await $0.save(line, draft: .paidAsPlanned(line, today: .today()), account: account.id) } }
     }
 
-    private func undoPaid(_ line: ForecastLine) {
-        guard let account else { return }
-        Task { await change(line) { try await $0.save(line, draft: .unpaid(line, today: .today()), account: account.id) } }
-    }
-
     /// A change made from the list (a swipe, a delete). If that line is
     /// open in the editor, the editor closes: what it held is out of date.
     private func change(_ line: ForecastLine, _ action: (APIClient) async throws -> Void) async {
@@ -372,26 +369,26 @@ struct ForecastView: View {
 
 // MARK: - Swipes
 
-/// Swipe right to mark a line paid as planned (or to undo it once paid),
+/// Swipe right to mark a line paid as planned, or to edit it (#160: a paid
+/// line offers Edit, not Undo paid; undoing is the editor's Paid switch);
 /// swipe left to delete. Only on lines this person may change.
 struct LineSwipes: ViewModifier {
     let line: ForecastLine
     let editable: Bool
     let onPaid: (ForecastLine) -> Void
-    let onUndo: (ForecastLine) -> Void
+    let onEdit: (ForecastLine) -> Void
     let onDelete: (ForecastLine) -> Void
 
     func body(content: Content) -> some View {
         if editable && line.canEdit(onEditableAccount: true) {
             content
                 .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                    if line.isPaid {
-                        Button("Undo paid", systemImage: "arrow.uturn.backward") { onUndo(line) }
-                            .tint(.gray)
-                    } else {
+                    if !line.isPaid {
                         Button("Paid", systemImage: "checkmark.circle") { onPaid(line) }
                             .tint(Palette.good)
                     }
+                    Button("Edit", systemImage: "pencil") { onEdit(line) }
+                        .tint(Palette.accent)
                 }
                 .swipeActions(edge: .trailing) {
                     Button("Delete", systemImage: "trash", role: .destructive) { onDelete(line) }

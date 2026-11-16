@@ -69,9 +69,15 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.54.2** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.7.1**
+App version: **1.54.2** · Web version: **1.72.0** · Schema version: **19** · iOS version: **0.8.0**
 
 ### Changed
+
+- **Breaking:** in the iPhone app's Forecast, swiping right on a paid line
+  now offers **Edit** instead of Undo paid; to undo, open the line and turn
+  Paid off. Unpaid lines offer Paid and Edit. (iOS app 0.8.0)
+- Lines in Forecast's **To confirm** list now have an **Edit** button, and
+  swipe like any other line: right to mark paid or edit, left to delete.
 
 - The iPhone app now names its sign-in after the phone's model ("iPhone 16
   Pro Max") instead of just "iPhone", and the Connect screen has a **Name for

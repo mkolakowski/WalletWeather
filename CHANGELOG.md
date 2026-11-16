@@ -71,6 +71,10 @@ same commit (or session) that introduces it.
 
 App version: **1.68.0** · Web version: **1.83.0** · Schema version: **24** · iOS version: **0.16.0**
 
+## [1.68.0] — 2026-11-16
+
+App version: **1.68.0** · Web version: **1.83.0** · Schema version: **24** · iOS version: **0.16.0**
+
 ### Security
 
 - Backups are now encrypted with a passphrase, so a backup file on its own can't be read. Settings → Backup asks you for one (twice) when you download a backup, and again when you restore it. Nobody can recover a lost passphrase, not even the person running the server, so write it down somewhere safe. A wrong passphrase, or a damaged file, is refused and nothing is changed. Backups made by earlier versions still restore, with a note that the file wasn't encrypted: delete those once you have a new one. (#193)
@@ -2435,7 +2439,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.67.1...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.68.0...HEAD
+[1.68.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.68.0
 [1.67.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.67.1
 [1.62.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.62.0
 [1.61.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.61.1

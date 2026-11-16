@@ -244,8 +244,7 @@ def owner(app_started):
     acc2 = make_account(c, f"{marker} Savings")
     cat = created(c.post("/api/categories", json={"name": f"{marker} cat", "color": "#112233"}))
     tag = created(c.post("/api/tags", json={"name": f"{marker} tag", "color": "#445566"}))
-    # The rule's text is in no line below: a line whose own tag a rule also
-    # adds is a known 500 (its own issue), not what this file is about.
+    # The rule's text is in no line below, so no rule adds to these lines.
     rule = created(c.post("/api/tag-rules", json={"description_pattern": f"{marker} rule",
                                                   "tag_id": tag}))
     rec = created(c.post(f"/api/accounts/{acc}/recurring", json={

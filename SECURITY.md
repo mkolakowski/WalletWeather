@@ -39,4 +39,9 @@ covers password sign-ins only (Google sign-in relies on Google's own), and
 API tokens work without it by design. A browser the user chose to remember
 skips the code (not the password) for 30 days. With it on, changing the
 password, deleting the account and making a token ask for a fresh code. Anyone who can read both the database
-and the `ENCRYPTION_KEY` can read the two-factor keys.
+and the `ENCRYPTION_KEY` can read the two-factor keys. When the iPhone app
+renews its Cloudflare Access sign-in, the server hands the Cloudflare token
+to whichever app on the phone has claimed the `walletweather://` address; it
+can't tell the real app from another one, so a hostile app already on the
+phone could receive it. That token gets a request through Cloudflare, not
+into WalletWeather.

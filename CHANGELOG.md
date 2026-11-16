@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.67.0** · Web version: **1.82.0** · Schema version: **24** · iOS version: **0.16.0**
+App version: **1.67.1** · Web version: **1.82.0** · Schema version: **24** · iOS version: **0.16.0**
 
 ### Security
 
@@ -161,6 +161,18 @@ More from the security review (plan: `Plans/security-fixes.md`, #190).
   email, 50 from one address across all emails pause the address, and one
   address can register 10 users an hour. All three are settings (see
   `.env.example`). (#189)
+
+### Fixed
+
+- **Saving a line with a tag one of your tag rules also adds:** if you
+  ticked a tag on a transaction and one of your own tag rules would have
+  added that same tag, saving failed with a server error. The same
+  happened importing a CSV row with that tag. It saves now, with the tag
+  on the line once. (#182)
+- **Notes survive a backup:** a backup held every note, but importing one
+  never read them, so notes on bills and transactions were lost on every
+  restore. They come back now. Backups you already have contain the notes,
+  so importing one again restores them. (#191)
 
 ### Database
 

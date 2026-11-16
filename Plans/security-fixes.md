@@ -11,7 +11,7 @@ Tracking issue: #190
 | 3. Sessions that can be ended | #186 | Built as 1.66.0 (web 1.81.0, schema 23), not released |
 | 4. The browser's side | #187 | Built as 1.64.0 (web 1.80.0), not released |
 | 5. Dependencies and the image | #188 | Built as 1.65.0, not released |
-| 6. Sharing and sign-in limits | #189 | Built as 1.67.0 (web 1.82.0, schema 24), not released; WW-SEC-17 left open (open question 5) |
+| 6. Sharing and sign-in limits | #189 | Built as 1.67.0 (web 1.82.0, schema 24), not released; WW-SEC-17 accepted as a known limit |
 
 Planned 2026-11-16, from the security review of the server (#178).
 
@@ -47,7 +47,7 @@ Sessions: may span — six releases, and four answers of yours between them.
 2. ~~**Who can you share an account with?**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/security-fixes.md)): type the exact email, and the other person accepts before the account appears for them.
 3. ~~**May an editor share an account onward?**~~ Decided 2026-11-16 (same page): owners only.
 4. ~~**Google sign-in meeting an existing password.**~~ Decided 2026-11-16 (same page): the password is removed and that user's sessions and tokens end.
-5. **The Cloudflare hand-back (WW-SEC-17).** `GET /app-sign-in/cloudflare` sends the visitor's Cloudflare Access token to whichever app on the phone has claimed `walletweather://`. No change on the server can tell the real app from another one. (a) Leave it: it needs a hostile app already on the phone, and the token only gets through Cloudflare, not into WalletWeather. (b) Show a page with an Allow button first, so a link can't do it silently; one more tap when the iPhone app renews its Cloudflare sign-in, and a change to test on the phone. Leaning (a), recorded as accepted.
+5. ~~**The Cloudflare hand-back (WW-SEC-17).**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/security-fixes.md)): accepted as a known limit, listed in `SECURITY.md`.
 
 ## The plan
 
@@ -76,7 +76,7 @@ Sessions: may span — six releases, and four answers of yours between them.
 | WW-SEC-19 | ~~Images and Actions pinned by tag; Compose runs the web service with default privileges~~ | Low | 5, built (Compose hardened; digest pins left out, see Status) |
 | WW-SEC-06 | ~~Any user can list every user's email and name, and share an account to anyone~~ | Medium | 6, built |
 | WW-SEC-16 | ~~The sign-in limit is per email and address only; registration has none~~ | Low | 6, built |
-| WW-SEC-17 | The Cloudflare token hand-back to the app isn't tied to the app that asked | Low | open question 5 |
+| WW-SEC-17 | The Cloudflare token hand-back to the app isn't tied to the app that asked | Low | accepted, a known limit in `SECURITY.md` |
 | WW-SEC-18 | ~~An editor can share an owner's account onward~~ | Low | 6, built |
 
 **Out of scope:** encrypted backups and self-serve password reset (roadmap items; `SECURITY.md` lists them as known limits), HTTPS-only cookies (the app is served over plain HTTP on home networks), a content security policy (the web app is one file of inline script, so a useful one needs that split first).

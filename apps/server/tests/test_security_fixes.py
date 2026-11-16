@@ -957,7 +957,8 @@ def test_registering_is_limited_per_address(app_started, monkeypatch):
     r = sign_up(registration_code="the-code")
     assert r.status_code == 429 and "Too many new users" in r.json()["detail"]
     assert int(r.headers["retry-after"]) > 0
-    other = _client_at(app_started, "10.250.4.1").post(
+    elsewhere = f"10.{200 + uuid.uuid4().int % 50}.{uuid.uuid4().int % 250}.{uuid.uuid4().int % 250}"
+    other = _client_at(app_started, elsewhere).post(
         "/api/auth/register", json={"email": unique_email(), "password": PASSWORD,
                                     "registration_code": "the-code"})
     assert other.status_code == 200

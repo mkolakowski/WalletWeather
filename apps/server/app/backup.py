@@ -290,6 +290,7 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
             )
             rec.description = _text(r_data.get("description", ""), 500)
             rec.amount = _amount(r_data.get("amount", 0))
+            rec.notes = _text(r_data.get("notes"), 256) or None   # (#191)
             db.add(rec)
             db.flush()
             for sd in {_parse_date(x) for x in r_data.get("skipped_dates") or []} - {None}:
@@ -310,6 +311,7 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
             )
             t.description = _text(t_data.get("description", ""), 500)
             t.amount = _amount(t_data.get("amount", 0))
+            t.notes = _text(t_data.get("notes"), 256) or None     # (#191)
             if t_data.get("forecast_amount") is not None:
                 t.forecast_amount = _amount(t_data["forecast_amount"])
             rec_desc = t_data.get("recurring_description")

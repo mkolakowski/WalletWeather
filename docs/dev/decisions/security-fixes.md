@@ -58,6 +58,16 @@ Decisions made while building [`Plans/security-fixes.md`](../../../Plans/securit
 
 **The decision:** phases 2, 4, 5, 3 and 6 are built as 1.63.0 to 1.67.0 and held for one release at the end, rather than released one by one. Two of them can stop an instance that updates without a look at its `.env` (a short `SESSION_SECRET`; a reverse proxy that rewrites `Host` with `APP_BASE_URL` unset), and one read of the release notes is better than five.
 
+## 2026-11-16: the Cloudflare hand-back is an accepted limit
+
+**Decided:** 2026-11-16, by Matthew. **Status:** accepted.
+
+**The question:** `GET /app-sign-in/cloudflare` sends the visitor's Cloudflare Access token to whichever app on the phone has claimed `walletweather://` (the review's WW-SEC-17). Nothing the server can check tells the real app from another.
+
+**Options considered:** accept it; show a page with an Allow button first, so a link can't do it silently.
+
+**The decision:** accepted. It needs a hostile app already on the phone, and the token gets a request through Cloudflare, not into WalletWeather. It's listed under `SECURITY.md`'s known limits.
+
 ## 2026-11-16: images and Actions stay pinned by tag
 
 **Decided:** 2026-11-16, while building phase 5. **Status:** accepted; Matthew can overrule it.

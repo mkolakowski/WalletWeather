@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.67.0"
+APP_VERSION = "1.67.1"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,10 @@ APP_VERSION = "1.67.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.67.1 (2026-11-16, claude+mkolakowski): two fixes. Saving a line with a
+#     tag that one of the user's own tag rules also adds was a 500 (#182):
+#     the rules now see the tags just set. Importing a backup dropped every
+#     note (#191): notes on recurring items and transactions are restored.
 # 1.67.0 (2026-11-16, claude+mkolakowski): sharing and sign-in limits
 #     (security-fixes phase 6, #189). Sharing is by invitation: POST
 #     /api/invitations {account_id, email, level}, GET /api/invitations
@@ -2926,6 +2930,10 @@ def _apply_tag_rules(db: Session, user: User, t: Transaction) -> int:
     """
     if not t.description:
         return 0
+    # Tags set a moment ago (the line's own, a CSV row's) are still unsaved,
+    # and the session doesn't flush by itself: without this the lookup below
+    # misses them and the same tag is added twice, which is a 500 (#182).
+    db.flush()
     desc = t.description.lower()
     rules = (db.query(TagRule)
                .filter(TagRule.owner_id == user.id, TagRule.active == True)

@@ -69,7 +69,17 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.74.0** · Web version: **1.88.0** · Schema version: **29** · iOS version: **0.16.0**
+App version: **1.75.0** · Web version: **1.89.0** · Schema version: **30** · iOS version: **0.16.0**
+
+### Added
+
+- **Email alerts pay your planned bills:** an alert that comes in and is close to one of your bills or paychecks pays it instead of landing as a second line, the same way bank sync does. The bill's line in Forecast is marked paid at the alert's date and amount, with an "Email alert" mark. Close means the same account and direction, within the bill's own days and percent settings (5 days and 10% to start) of one of its unpaid dates; when two dates are equally close nothing is matched, so you choose. A wrong match can be un-matched from its row: the bill goes back to planned and the alert's line stays as its own line, and isn't matched again. (app 1.75.0, web 1.89.0, #209)
+- **Alerts that paid no bill** are listed under Settings → Email alerts for each account, with a count: match one by hand to any planned line that isn't paid yet, or leave it as its own line (the same screen as bank sync's Unmatched list). The check log and Check now say how many of a check's lines matched a bill. (app 1.75.0, web 1.89.0, #209)
+- For apps and scripts: forecast rows have `match_source` (`alert` or `bank`, null when nothing paid the line); the Unmatched endpoints under `/api/accounts/{id}/bank-unmatched` and `POST /api/transactions/{id}/bank-unmatch` now cover alert lines too, each line with a `source`; `GET /api/mail` has `unmatched` (accounts and counts), and check results and the check log have `matched`. (#209)
+
+### Database
+
+- Schema 30: a column on the mailbox's check log for how many alerts matched a bill. Added on start-up. (#209)
 
 ## [1.74.0] — 2026-11-17
 

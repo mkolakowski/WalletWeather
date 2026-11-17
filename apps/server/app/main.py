@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.74.0"
+APP_VERSION = "1.75.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,16 @@ APP_VERSION = "1.74.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.75.0 (2026-11-17, claude+mkolakowski): email alerts matched to bills
+#     (bank-alert-emails phase 4, #209). An alert that lands pays a planned
+#     bill or income line the way a bank line does (_bill_for_bank_line, the
+#     bill's own match_days and match_percent; the paid line has bank_match
+#     'auto' and mail_ref, so match_source is 'alert' on forecast rows).
+#     The Unmatched list, match by hand, leave and un-match endpoints
+#     (/api/accounts/{id}/bank-unmatched..., /api/transactions/{id}/bank-unmatch)
+#     now cover alert lines too (lines have source 'bank' or 'alert');
+#     GET /api/mail gains unmatched [{account_id, count}]; check results and
+#     the check log gain matched. Schema 30.
 # 1.74.0 (2026-11-17, claude+mkolakowski): email alerts checked by
 #     themselves (bank-alert-emails phase 2, #207). _mail_scheduler_loop runs
 #     run_due_mail_checks every minute; each mailbox is due check_minutes (5,
@@ -583,7 +593,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from typing import Annotated, Literal
 
@@ -4439,14 +4449,24 @@ def _bill_for_bank_line(bills: dict, day: date, amount: Decimal):
     return found[0][1], found[0][2]
 
 
+def _source_cols(source: str, ref: str, run_id: int | None) -> dict:
+    """The columns that say where a line came from: a bank sync line
+    (bank_ref, bank_sync_run_id) or an email alert's (mail_ref, mail_run_id,
+    #209). The match columns (bank_match, bank_text, bank_left) are shared."""
+    if source == "alert":
+        return {"mail_ref": ref, "mail_run_id": run_id}
+    return {"bank_ref": ref, "bank_sync_run_id": run_id}
+
+
 def _pay_bill_from_bank(db: Session, rec: RecurringTransaction, occ: date, day: date,
                         amount: Decimal, ref: str, raw: str, how: str,
-                        run_id: int | None) -> Transaction:
-    """Marks one of a bill's dates paid with the bank's date and amount, as
-    marking it paid by hand does, keeping the bank line's own text."""
+                        run_id: int | None, source: str = "bank") -> Transaction:
+    """Marks one of a bill's dates paid with the bank's date and amount (or
+    the email alert's, source "alert"), as marking it paid by hand does,
+    keeping the line's own text."""
     t = Transaction(account_id=rec.account_id, recurring_id=rec.id, category_id=rec.category_id,
-                    forecast_date=occ, actual_date=day, is_actual=True, bank_ref=ref,
-                    bank_sync_run_id=run_id, bank_match=how)
+                    forecast_date=occ, actual_date=day, is_actual=True, bank_match=how,
+                    **_source_cols(source, ref, run_id))
     t.description = rec.description
     t.amount = amount
     t.forecast_amount = rec.amount
@@ -4459,12 +4479,14 @@ def _pay_bill_from_bank(db: Session, rec: RecurringTransaction, occ: date, day: 
 
 
 def _bank_own_line(db: Session, user: User, account_id: int, day: date, amount: Decimal,
-                   raw: str, ref: str, run_id: int | None, left: bool = False) -> Transaction:
-    """A bank line landed as its own paid line. Tag rules see the bank's full
-    text, as they did before names were shortened (#213); then the line takes
-    the short name and keeps the full text in its notes."""
+                   raw: str, ref: str, run_id: int | None, left: bool = False,
+                   source: str = "bank") -> Transaction:
+    """A bank line (or an email alert's, source "alert") landed as its own
+    paid line. Tag rules see the bank's full text, as they did before names
+    were shortened (#213); then the line takes the short name and keeps the
+    full text in its notes."""
     t = Transaction(account_id=account_id, actual_date=day, forecast_date=day, is_actual=True,
-                    bank_ref=ref, bank_sync_run_id=run_id, bank_left=left)
+                    bank_left=left, **_source_cols(source, ref, run_id))
     t.description = raw
     t.amount = amount
     db.add(t)
@@ -4474,6 +4496,11 @@ def _bank_own_line(db: Session, user: User, account_id: int, day: date, amount: 
     if short:
         t.description, t.notes = short, raw[:NOTES_MAX_LEN]
     return t
+
+
+def _line_source(t: Transaction) -> str:
+    """'alert' for a line an email alert brought in, else 'bank'."""
+    return "alert" if t.mail_ref else "bank"
 
 
 def _bank_text_of(t: Transaction) -> str:
@@ -4487,7 +4514,8 @@ def _bank_text_of(t: Transaction) -> str:
 def _unmatched_query(db: Session, account_id: int):
     """Synced lines that paid no planned line and are still to look at."""
     return (db.query(Transaction)
-            .filter(Transaction.account_id == account_id, Transaction.bank_ref.isnot(None),
+            .filter(Transaction.account_id == account_id,
+                    or_(Transaction.bank_ref.isnot(None), Transaction.mail_ref.isnot(None)),
                     Transaction.bank_match.is_(None), Transaction.bank_left.is_(False),
                     Transaction.recurring_id.is_(None), Transaction.transfer_id.is_(None),
                     Transaction.is_actual.is_(True)))
@@ -4495,7 +4523,8 @@ def _unmatched_query(db: Session, account_id: int):
 
 def _unmatched_line(db: Session, acc: Account, txn_id: int) -> Transaction:
     t = db.get(Transaction, txn_id)
-    if (t is None or t.account_id != acc.id or t.bank_ref is None or t.bank_match is not None
+    if (t is None or t.account_id != acc.id or (t.bank_ref is None and t.mail_ref is None)
+            or t.bank_match is not None
             or t.bank_left or t.recurring_id is not None or t.transfer_id is not None or not t.is_actual):
         raise HTTPException(404, "That line isn't on the Unmatched list.")
     return t
@@ -4506,13 +4535,15 @@ MATCH_BY_HAND_DAYS = 60   # how far either side the planned lines offered reach
 
 @app.get("/api/accounts/{account_id}/bank-unmatched")
 def bank_unmatched(account_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
-    """Synced lines that matched no planned line, newest first (the owner)."""
+    """Synced lines and email alerts' lines that matched no planned line,
+    newest first (the owner)."""
     acc = _sync_log_account(db, user, account_id)
     rows = (_unmatched_query(db, acc.id)
             .order_by(Transaction.actual_date.desc(), Transaction.id.desc()).all())
     return {"count": len(rows),
             "lines": [{"id": t.id, "date": (t.actual_date or t.forecast_date).isoformat(),
-                       "description": t.description, "amount": float(t.amount), "notes": t.notes}
+                       "description": t.description, "amount": float(t.amount), "notes": t.notes,
+                       "source": _line_source(t)}
                       for t in rows]}
 
 
@@ -4574,8 +4605,11 @@ def bank_match_by_hand(account_id: int, txn_id: int, body: BankMatchIn,
         if t.forecast_date is None:
             t.forecast_date = day
         t.amount, t.actual_date, t.is_actual = line.amount, day, True
-        t.bank_ref, t.bank_match, t.bank_text = line.bank_ref, "hand", raw
-        t.bank_sync_run_id = line.bank_sync_run_id
+        t.bank_match, t.bank_text = "hand", raw
+        if line.mail_ref:
+            t.mail_ref, t.mail_run_id = line.mail_ref, line.mail_run_id
+        else:
+            t.bank_ref, t.bank_sync_run_id = line.bank_ref, line.bank_sync_run_id
         paid = t
     elif body.recurring_id is not None and body.forecast_date is not None:
         rec = db.get(RecurringTransaction, body.recurring_id)
@@ -4587,8 +4621,10 @@ def bank_match_by_hand(account_id: int, txn_id: int, body: BankMatchIn,
         bills = _bills_to_match(db, acc.id)
         if (rec.id, occ) in bills["covered"] or (rec.id, occ) in bills["skipped"]:
             raise HTTPException(409, "That date is already paid or was deleted: pick a planned line.")
-        paid = _pay_bill_from_bank(db, rec, occ, day, line.amount, line.bank_ref, raw, "hand",
-                                   line.bank_sync_run_id)
+        src = _line_source(line)
+        paid = _pay_bill_from_bank(
+            db, rec, occ, day, line.amount, line.mail_ref or line.bank_ref, raw, "hand",
+            line.mail_run_id if src == "alert" else line.bank_sync_run_id, src)
     else:
         raise HTTPException(400, "Give transaction_id, or recurring_id and forecast_date.")
     db.delete(line)
@@ -4616,20 +4652,22 @@ def bank_unmatch(txn_id: int, user: User = Depends(current_user), db: Session = 
         raise HTTPException(404, "Transaction not found")
     acc = _sync_log_account(db, user, t.account_id)
     if not t.bank_match:
-        raise HTTPException(409, "That line wasn't matched by bank sync.")
+        raise HTTPException(409, "That line wasn't matched by bank sync or an email alert.")
+    src = _line_source(t)
     day = t.actual_date or t.forecast_date
-    raw, ref, run_id, amount = t.bank_text or t.description, t.bank_ref, t.bank_sync_run_id, t.amount
+    raw, amount = t.bank_text or t.description, t.amount
+    ref, run_id = ((t.mail_ref, t.mail_run_id) if src == "alert" else (t.bank_ref, t.bank_sync_run_id))
     if t.recurring_id is not None:
         db.delete(t)   # the bill's date shows as planned again
     else:
         if t.forecast_amount is not None:
             t.amount = t.forecast_amount
         t.is_actual, t.actual_date = False, None
-        t.bank_ref = t.bank_match = None
+        t.bank_ref = t.bank_match = t.mail_ref = None
         t.bank_text = None
-        t.bank_sync_run_id = None
+        t.bank_sync_run_id = t.mail_run_id = None
     db.flush()
-    own = _bank_own_line(db, user, acc.id, day, amount, raw, ref, run_id, left=True)
+    own = _bank_own_line(db, user, acc.id, day, amount, raw, ref, run_id, left=True, source=src)
     db.commit()
     return {"ok": True, "transaction_id": own.id}
 
@@ -4957,9 +4995,23 @@ def _mail_status(db: Session, user: User, request: Request | None = None) -> dic
         "unread_count": db.query(MailUnread).filter(MailUnread.connection_id == conn.id,
                                                      MailUnread.reason != "dismissed").count(),
         "bank_linked_account_ids": sorted(_bank_linked_ids(db, user)),
+        "unmatched": _mail_unmatched_counts(db, user),
     })
     out.update(_mail_short_status(db, user))
     return out
+
+
+def _mail_unmatched_counts(db: Session, user: User) -> list[dict]:
+    """The user's accounts with alert lines that paid no bill and are still
+    to look at (#209): [{account_id, count}]."""
+    rows = (db.query(Transaction.account_id, func.count(Transaction.id))
+            .join(Account, Account.id == Transaction.account_id)
+            .filter(Account.owner_id == user.id, Transaction.mail_ref.isnot(None),
+                    Transaction.bank_match.is_(None), Transaction.bank_left.is_(False),
+                    Transaction.recurring_id.is_(None), Transaction.transfer_id.is_(None),
+                    Transaction.is_actual.is_(True))
+            .group_by(Transaction.account_id).order_by(Transaction.account_id).all())
+    return [{"account_id": a, "count": n} for a, n in rows]
 
 
 def _mail_next_check(db: Session, conn: MailConnection, now: datetime) -> datetime | None:
@@ -5438,9 +5490,11 @@ def _mail_lock(user_id: int) -> threading.Lock:
 
 def _mail_land(db: Session, user: User, conn: MailConnection, sender: MailSender,
                kind: MailAlertKind, text: str, received: datetime, ref: str,
-               run_id: int | None = None):
-    """Read one alert and land it as a paid line. Returns the new line, or
-    (reason, detail) when it can't become one."""
+               run_id: int | None = None, bills_cache: dict | None = None):
+    """Read one alert and land it as a paid line, or as the payment of a
+    planned bill it matches (#209: the bank sync matcher, with the bill's own
+    match settings; the returned line has bank_match set then). Returns the
+    line, or (reason, detail) when it can't become one."""
     day = alerts.received_day(received, conn.utc_offset_minutes)
     values = alerts.read(text, _mail_anchors(kind), day)
     if values is None:
@@ -5460,9 +5514,20 @@ def _mail_land(db: Session, user: User, conn: MailConnection, sender: MailSender
         return ("bank_linked", None)
     amount = values["amount"] if kind.direction == "in" else -values["amount"]
     when = values.get("date") or day
+    merchant = values.get("merchant") or sender.label
+    cache = bills_cache if bills_cache is not None else {}
+    bills = cache.get(acc.id)
+    if bills is None:
+        bills = cache[acc.id] = _bills_to_match(db, acc.id)
+    hit = _bill_for_bank_line(bills, when, amount)
+    if hit:
+        rec, occ = hit
+        paid = _pay_bill_from_bank(db, rec, occ, when, amount, ref, merchant, "auto", run_id, "alert")
+        bills["covered"].add((rec.id, occ))
+        return paid
     t = Transaction(account_id=acc.id, actual_date=when, forecast_date=when, is_actual=True,
                     mail_ref=ref, mail_run_id=run_id)
-    t.description = values.get("merchant") or sender.label
+    t.description = merchant
     t.amount = amount
     db.add(t)
     db.flush()
@@ -5511,7 +5576,8 @@ def _mail_check_locked(db: Session, user: User, conn: MailConnection, request: R
     def kind_for(sender: MailSender, subject: str) -> MailAlertKind | None:
         return next((k for k in kinds.get(sender.id, []) if alerts.subject_matches(k.subject_key, subject)), None)
 
-    added = skipped = unread = 0
+    added = skipped = unread = matched = 0
+    bills_cache: dict = {}
     # This check's row in the log; dropped again below when it found nothing.
     run = MailCheckRun(connection_id=conn.id, run_at=now, trigger=trigger)
     db.add(run)
@@ -5525,10 +5591,12 @@ def _mail_check_locked(db: Session, user: User, conn: MailConnection, request: R
         k = kind_for(s, decrypt_str(u.subject_enc)) if s else None
         if k is None or added >= MAIL_LINES_PER_CHECK:
             continue
-        got = _mail_land(db, user, conn, s, k, decrypt_str(u.text_enc), u.received_at, u.message_ref, run.id)
+        got = _mail_land(db, user, conn, s, k, decrypt_str(u.text_enc), u.received_at, u.message_ref,
+                         run.id, bills_cache)
         if isinstance(got, Transaction):
             db.delete(u)
             added += 1
+            matched += 1 if got.bank_match else 0
         else:
             u.reason, u.detail = got
     try:
@@ -5571,10 +5639,11 @@ def _mail_check_locked(db: Session, user: User, conn: MailConnection, request: R
                                   "unverified", None)
                 unread += 1
             else:
-                got = _mail_land(db, user, conn, s, k, text, m["received"], ref, run.id)
+                got = _mail_land(db, user, conn, s, k, text, m["received"], ref, run.id, bills_cache)
                 if isinstance(got, Transaction):
                     landed.add(ref)
                     added += 1
+                    matched += 1 if got.bank_match else 0
                 else:
                     _mail_keep_unread(db, conn, ref, m["received"], m["sender"], m["subject"], text, *got)
                     unread += 1
@@ -5599,23 +5668,27 @@ def _mail_check_locked(db: Session, user: User, conn: MailConnection, request: R
             db.flush()
         run.error = str(e)[:300]
         run.added = db.query(Transaction).filter_by(mail_run_id=run.id).count()
+        run.matched = (db.query(Transaction).filter(Transaction.mail_run_id == run.id,
+                                                    Transaction.bank_match.isnot(None)).count())
         db.commit()
         record_event(db, "mail_check_failed", request, user=user,
                      detail=("revoked" if e.revoked else f"HTTP {e.status}") + f", {trigger}")
         raise HTTPException(e.status, str(e))
-    status = (f"{added} new line{'' if added == 1 else 's'}, {skipped} already here"
+    status = (f"{added} new line{'' if added == 1 else 's'}"
+              + (f", {matched} of them matched a bill" if matched else "")
+              + f", {skipped} already here"
               + (f", {unread} couldn't become lines" if unread else "")
               + (". More is waiting: check again." if stopped else ""))
     conn.last_check_at, conn.last_check_ok, conn.last_check_status = now, True, status[:300]
     conn.last_ok_at, conn.needs_reconnect = now, False
     if added or unread:
-        run.added, run.skipped, run.unread = added, skipped, unread
+        run.added, run.skipped, run.unread, run.matched = added, skipped, unread, matched
     else:
         db.delete(run)   # a check that found nothing isn't kept
     db.commit()
     record_event(db, "mail_check_run", request, user=user,
                  detail=f"{added} added, {skipped} skipped, {unread} unread, {trigger}")
-    return {"added": added, "skipped": skipped, "unread": unread, "more": stopped}
+    return {"added": added, "matched": matched, "skipped": skipped, "unread": unread, "more": stopped}
 
 
 class MailCheckIn(BaseModel):
@@ -5689,7 +5762,8 @@ def mail_check_log(user: User = Depends(current_session_user), db: Session = Dep
     runs = (db.query(MailCheckRun).filter_by(connection_id=conn.id)
             .order_by(MailCheckRun.run_at.desc(), MailCheckRun.id.desc()).limit(200).all())
     return [{"id": r.id, "run_at": r.run_at.isoformat() + "Z", "trigger": r.trigger,
-             "added": r.added, "skipped": r.skipped, "unread": r.unread, "error": r.error}
+             "added": r.added, "matched": r.matched, "skipped": r.skipped, "unread": r.unread,
+             "error": r.error}
             for r in runs]
 
 
@@ -5706,10 +5780,13 @@ def mail_check_log_lines(run_id: int, user: User = Depends(current_session_user)
             .filter(Transaction.mail_run_id == run.id, Account.owner_id == user.id)
             .order_by(Transaction.actual_date, Transaction.id).all())
     return {"id": run.id, "run_at": run.run_at.isoformat() + "Z", "trigger": run.trigger,
-            "added": run.added, "skipped": run.skipped, "unread": run.unread, "error": run.error,
+            "added": run.added, "matched": run.matched, "skipped": run.skipped,
+            "unread": run.unread, "error": run.error,
             "lines": [{"id": t.id, "date": (t.actual_date or t.forecast_date).isoformat(),
                        "description": t.description, "amount": float(t.amount),
-                       "account_id": t.account_id, "account_name": acc.name} for t, acc in rows]}
+                       "account_id": t.account_id, "account_name": acc.name,
+                       # Paid a planned bill (#209): auto or hand; else None.
+                       "matched": t.bank_match} for t, acc in rows]}
 
 
 @app.get("/api/mail/unread")

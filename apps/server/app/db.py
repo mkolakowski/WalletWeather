@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "29"
+SCHEMA_VERSION = "30"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,9 @@ SCHEMA_VERSION = "29"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v30 (2026-11-17, claude+mkolakowski): email alerts matched to bills
+#     (bank-alert-emails phase 4, #209). mail_check_runs.matched, how many of
+#     a check's alerts paid a planned bill.
 # v29 (2026-11-17, claude+mkolakowski): email alerts checked by themselves
 #     (bank-alert-emails phase 2, #207). New table mail_check_runs (the
 #     mailbox's log of checks that brought something in or failed);
@@ -755,6 +758,9 @@ class MailCheckRun(Base):
     added = Column(Integer, nullable=False, default=0)
     skipped = Column(Integer, nullable=False, default=0)
     unread = Column(Integer, nullable=False, default=0)
+    # Of `added`, how many paid a planned bill instead of landing as their
+    # own line (#209).
+    matched = Column(Integer, nullable=False, default=0)
     error = Column(String(300), nullable=True)
     __table_args__ = (Index("ix_mail_check_runs_conn_run", "connection_id", "run_at"),)
 
@@ -926,6 +932,8 @@ def init_db():
     from sqlalchemy import text
     Base.metadata.create_all(engine)
     migrations = [
+        # v29 → v30: email alerts matched to bills (#209).
+        "ALTER TABLE mail_check_runs ADD COLUMN IF NOT EXISTS matched INTEGER NOT NULL DEFAULT 0",
         # v28 → v29: email alerts checked by themselves (#207). mail_check_runs
         # comes from create_all.
         "ALTER TABLE mail_connections ADD COLUMN IF NOT EXISTS check_minutes INTEGER NOT NULL DEFAULT 5",

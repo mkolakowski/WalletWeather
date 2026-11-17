@@ -282,14 +282,15 @@ def test_the_log_and_its_lines(ready, ms):
     run_due(now=datetime.utcnow() + timedelta(minutes=6))
     log = c.get("/api/mail/checks").json()
     assert len(log) == 2
-    assert all(set(r) == {"id", "run_at", "trigger", "added", "skipped", "unread", "error"} for r in log)
+    assert all(set(r) == {"id", "run_at", "trigger", "added", "matched", "skipped", "unread", "error"}
+               for r in log)
     newest, oldest = log
     assert (newest["added"], newest["unread"], newest["error"]) == (1, 1, None)
     assert (oldest["added"], oldest["unread"]) == (1, 0)
     one = c.get(f"/api/mail/checks/{newest['id']}").json()
     assert [(l["description"], l["amount"], l["account_name"]) for l in one["lines"]] == [
         ("SHELL OIL 5566", -12.0, "Checking")]
-    assert all(set(l) == {"id", "date", "description", "amount", "account_id", "account_name"}
+    assert all(set(l) == {"id", "date", "description", "amount", "account_id", "account_name", "matched"}
                for l in one["lines"])
     two = c.get(f"/api/mail/checks/{oldest['id']}").json()
     assert [l["description"] for l in two["lines"]] == ["STARBUCKS #123"]

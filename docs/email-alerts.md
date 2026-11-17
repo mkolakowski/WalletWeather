@@ -16,7 +16,7 @@ mailbox. It only reads: it never marks mail read, moves it or deletes it, and
 it never sends mail.
 
 {: .important }
-> - **WalletWeather 1.74.0 or later** to have it check by itself (1.73.0 has Check now only). The version is in the app's footer.
+> - **WalletWeather 1.75.0 or later** to have alerts pay your bills, 1.74.0 to have it check by itself (1.73.0 has Check now only). The version is in the app's footer.
 > - **Not yet tried with a real Microsoft mailbox.** Email alerts are new in 1.73.0 and were tested only against a stand-in for Microsoft. Tell us if something doesn't work.
 > - **The person who runs the server** registers a Microsoft app once and
 >   switches email alerts on ([below](#for-the-person-who-runs-the-server)).
@@ -135,6 +135,24 @@ admin to approve the app the first time someone signs in.
 Press **Check now** to bring alerts in. Each becomes a paid line, named after
 the merchant, and your auto-tag rules run on it. An email is never brought in
 twice.
+
+### Alerts pay your planned bills
+
+If you've planned the bill (under Bills & income), an alert for it pays it:
+the bill's line in Forecast turns paid at the alert's date and amount and
+shows an **Email alert** mark, instead of a second line appearing. An alert
+matches a bill when it's on the same account, goes the same way (money out or
+in), is within the bill's **days** and **percent** settings (5 days and 10% to
+start; change them in the bill's editor) of one of its dates that isn't paid
+yet, and no other date is just as close. When two dates are equally close
+nothing is matched, so you choose.
+
+Alerts that paid no bill are listed under **Alerts that paid no bill** in
+Settings → Email alerts, one line per account. For each you can **Match…** it
+to any planned line on that account that isn't paid yet (the nearest dates
+first, whatever the bill's settings say) or **Leave as its own line**. A wrong
+match can be undone from its row in Forecast: **Un-match** puts the bill back
+to planned and keeps the alert's line, which isn't matched again.
 
 ### It checks by itself
 

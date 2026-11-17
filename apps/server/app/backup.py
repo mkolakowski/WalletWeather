@@ -679,6 +679,11 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
             ref = t_data.get("mail_ref")
             if isinstance(ref, str) and _HEX64.fullmatch(ref):
                 t.mail_ref = ref
+                # An email alert's line carries the same match fields (#209).
+                if t_data.get("bank_match") in ("auto", "hand"):
+                    t.bank_match = t_data["bank_match"]
+                    t.bank_text = _text(t_data.get("bank_text"), 500) or None
+                t.bank_left = t_data.get("bank_left") is True
             rec_desc = t_data.get("recurring_description")
             if rec_desc and rec_desc in rec_by_desc:
                 t.recurring_id = rec_by_desc[rec_desc].id

@@ -2769,7 +2769,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.88.0";
+const WEB_VERSION = "1.89.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2779,6 +2779,7 @@ const WEB_VERSION = "1.88.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.89.0 (2026-11-17, claude+mkolakowski): (#209) Email alerts matched to bills. A bill an alert paid shows an "Email alert" pill (_bankMatchPill reads match_source) and its Un-match asks about the alert; Settings → Email alerts lists the accounts with alerts that paid no bill (bankShowUnmatched(accountId, 'mailLog'), _mailRefreshUnmatchedCounts), and the check log and Check now say how many matched a bill.
 // 1.88.0 (2026-11-17, claude+mkolakowski): (#207) Email alerts checked by themselves. Settings → Email alerts gains a "Check every" 5/15/60 minutes setting (mailSaveSettings → PUT /api/mail/settings {check_minutes}; the folder is optional now), says when the next check is due or why checking waits or has stopped, and a Check log (loadMail → GET /api/mail/checks; mailShowRun → GET /api/mail/checks/{id}). The Dashboard shows #dashMailWarn (loadDashMailWarn → GET /api/mail/status) when checks have failed for over a day, the sign-in needs making again, or alerts couldn't be read.
 // 1.87.0 (2026-11-17, claude+mkolakowski): (#196) Bills matched to bank lines automatically. The bill editor and add line take "Bank match: ± days" and "Amount may differ by %" (_recMatchFields; match_days/match_percent sent on POST/PATCH /api/.../recurring). Forecast rows paid by a bank line show a "Bank sync" or "Matched by hand" pill (_bankMatchPill) and an Un-match button in the open line (_forecastUnmatchBtn → unmatchBankLine → POST /api/transactions/{id}/bank-unmatch). Settings → Bank sync: "Unmatched (N)" per account (bankShowUnmatched → GET /api/accounts/{id}/bank-unmatched; bankShowCandidates → .../{txn_id}/candidates; bankPayCandidate → POST .../match; bankLeaveLine → POST .../leave). The sync log has a Matched column and marks lines that paid a bill.
 // 1.86.0 (2026-11-16, claude+mkolakowski): (#206) Email alerts. Settings gets an "Email alerts" tab (#mailTab, section 'mail', #mailPanel, loadMail), shown when /api/mail says enabled or connected: sign in to Microsoft with a code (mailDeviceStart → POST /api/mail/microsoft/device, then polls /device/poll) or with the Connect button (mailWebStart → /api/mail/microsoft/web), pick the folder and start date (mailSaveSettings → PUT /api/mail/settings, GET /api/mail/folders), the banks taught with their accounts, cards and kinds (PUT/DELETE /api/mail/senders), Check now (mailCheckNow → POST /api/mail/check), the mail it couldn't read (GET /api/mail/unread, mailDismiss), Disconnect (mailDisconnect). Teaching a bank's alert (mailTeachList → GET /api/mail/messages, mailTeachFrom → POST /api/mail/preview, mailMark, mailTeachSave → POST /api/mail/senders): select words in the alert text, then tap Amount, Merchant, Date or Card; offsets are converted between the server's code points and the page's UTF-16 units (cpToJs, jsToCp); all mail text is escaped and never made into links. Admin gets an "Email alerts" switch (#adminMailAlerts, loadAdminMail, saveAdminMail) and a "mailbox connected" badge in Users.
@@ -8421,18 +8422,25 @@ function cancelEditForecastRow() {
 
 // "Bank sync" / "Matched by hand" pill for a row a bank line paid (#196).
 function _bankMatchPill(r) {
-  if (r.bank_match === 'auto') return ' <span class="pill actual" title="A bank-synced line paid this bill by itself, using its bank match settings.">Bank sync</span>';
-  if (r.bank_match === 'hand') return ' <span class="pill actual" title="You matched a bank-synced line to this bill by hand.">Matched by hand</span>';
+  const alert = r.match_source === 'alert';   // an email alert paid it (#209), else a bank-synced line
+  if (r.bank_match === 'auto') return alert
+    ? ' <span class="pill actual" title="An email alert from your bank paid this bill by itself, using its bank match settings.">Email alert</span>'
+    : ' <span class="pill actual" title="A bank-synced line paid this bill by itself, using its bank match settings.">Bank sync</span>';
+  if (r.bank_match === 'hand') return alert
+    ? ' <span class="pill actual" title="You matched an email alert to this bill by hand.">Matched by hand</span>'
+    : ' <span class="pill actual" title="You matched a bank-synced line to this bill by hand.">Matched by hand</span>';
   return '';
 }
 // Un-match button for such a row, shown in its open line (#196).
 function _forecastUnmatchBtn(r, cls, label) {
   if (!r.bank_match || !r.transaction_id) return '';
-  return `<button class="${cls}" title="Put the bill back to planned; the bank's line stays as its own line" onclick="unmatchBankLine(${r.transaction_id})">${label || 'Un-match'}</button>`;
+  const src = r.match_source === 'alert' ? 'alert' : 'bank';
+  return `<button class="${cls}" title="Put the bill back to planned; the ${src === 'alert' ? "alert's" : "bank's"} line stays as its own line" onclick="unmatchBankLine(${r.transaction_id}, '${src}')">${label || 'Un-match'}</button>`;
 }
-async function unmatchBankLine(txnId) {
-  if (!(await confirmDialog("Un-match this line? The bill goes back to planned and the bank's line stays as its own line.",
-                            { title: 'Un-match bank line', okLabel: 'Un-match' }))) return;
+async function unmatchBankLine(txnId, source) {
+  const alert = source === 'alert';
+  if (!(await confirmDialog(`Un-match this line? The bill goes back to planned and the ${alert ? "alert's" : "bank's"} line stays as its own line.`,
+                            { title: alert ? 'Un-match email alert' : 'Un-match bank line', okLabel: 'Un-match' }))) return;
   try {
     await api(`/api/transactions/${txnId}/bank-unmatch`, { method: 'POST' });
   } catch (e) {
@@ -9463,8 +9471,10 @@ async function bankShowLogLines(accountId, runId, btn) {
 
 // Synced lines that paid no planned line (#196): match one to a planned
 // bill by hand, or leave it as its own line. Shown in the #bankLog box.
-async function bankShowUnmatched(accountId) {
-  const box = document.getElementById('bankLog');
+let _unmatchedBoxId = 'bankLog';   // the box the list shows in: Bank sync's, or Email alerts' (#209)
+async function bankShowUnmatched(accountId, boxId) {
+  _unmatchedBoxId = boxId || 'bankLog';
+  const box = document.getElementById(_unmatchedBoxId);
   if (!box) return;
   box.classList.remove('hidden');
   box.innerHTML = '<span style="color:var(--muted)">Loading…</span>';
@@ -9480,11 +9490,11 @@ async function bankShowUnmatched(accountId) {
         <button class="ghost" onclick="bankLeaveLine(${accountId}, ${l.id})">Leave as its own line</button></td>
     </tr><tr class="hidden" id="bankCand${l.id}"><td colspan="4"></td></tr>`).join('');
   box.innerHTML = `<h3 class="backup-subhead">Unmatched lines${acc ? ': ' + escapeHtml(acc.name) : ''}
-      <button class="ghost" style="float:right" onclick="document.getElementById('bankLog').classList.add('hidden')">Close</button></h3>
+      <button class="ghost" style="float:right" onclick="document.getElementById('${_unmatchedBoxId}').classList.add('hidden')">Close</button></h3>
     <div id="bankUnmatchedStatus" role="status" style="font-size:12px;margin-bottom:6px"></div>`
     + (data.lines.length ? `<table style="width:100%"><thead><tr><th>Date</th><th>Description</th>
         <th style="text-align:right">Amount</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
-      : '<div style="color:var(--muted);font-size:13px">Nothing to look at: every synced line paid a planned line or was left as its own.</div>');
+      : '<div style="color:var(--muted);font-size:13px">Nothing to look at: every synced or alert line paid a planned line or was left as its own.</div>');
 }
 
 function _bankUnmatchedSay(text, color) {
@@ -9533,8 +9543,10 @@ async function bankLeaveLine(accountId, txnId) {
 // Reload the list and the counts on the accounts table behind it, and the
 // forecast, which a match changes.
 async function _bankRefreshUnmatched(accountId, said) {
-  await bankShowUnmatched(accountId);
+  const box = _unmatchedBoxId;
+  await bankShowUnmatched(accountId, box);
   _bankUnmatchedSay(said, 'var(--good)');
+  if (box === 'mailLog') return _mailRefreshUnmatchedCounts();
   try { bankState = await api('/api/bank'); } catch (_) {}
   document.querySelectorAll('#bankBody button[onclick^="bankShowUnmatched("]').forEach(b => {
     const m = /bankShowUnmatched\((\d+)\)/.exec(b.getAttribute('onclick') || '');
@@ -9804,7 +9816,7 @@ function _renderMailConnected(body, folders, unread, checks) {
       <div><strong>${escapeHtml(_bankWhen(r.run_at))}</strong>
         <span style="color:var(--muted)">· ${r.trigger === 'schedule' ? 'by itself' : 'Check now'}</span></div>
       ${r.error ? `<div style="color:var(--bad)">${escapeHtml(r.error)}</div>` : ''}
-      <div>${r.added} new line${r.added === 1 ? '' : 's'}${r.skipped ? `, ${r.skipped} already here` : ''}${r.unread ? `, ${r.unread} couldn't be read` : ''}
+      <div>${r.added} new line${r.added === 1 ? '' : 's'}${r.matched ? `, ${r.matched} of them matched a bill` : ''}${r.skipped ? `, ${r.skipped} already here` : ''}${r.unread ? `, ${r.unread} couldn't be read` : ''}
         ${r.added ? `<button class="ghost" style="padding:2px 8px" onclick="mailShowRun(${r.id})">Show lines</button>` : ''}</div>
       <div id="mailRun${r.id}"></div>
     </div>`).join('');
@@ -9847,6 +9859,11 @@ function _renderMailConnected(body, folders, unread, checks) {
     ${nextLine ? `<div style="font-size:13px;color:var(--muted);margin-top:4px">${nextLine}</div>` : ''}
     <div style="margin-top:8px"><button onclick="mailCheckNow()"${canCheck ? '' : ' disabled'}>Check now</button></div>
     ${m.unread_count ? `<h3 class="backup-subhead" style="margin-top:20px">Couldn't read (${m.unread_count})</h3>${unreadRows}` : ''}
+    ${(m.unmatched || []).length ? `<h3 class="backup-subhead" style="margin-top:20px">Alerts that paid no bill</h3>
+      <div style="color:var(--muted);font-size:13px;margin-bottom:6px">Match one to a planned bill by hand, or leave it as its own line.</div>
+      ${m.unmatched.map(u => `<div style="margin:4px 0;font-size:13px">${escapeHtml(_mailAccName(u.account_id))}
+        <button class="ghost" data-mail-unmatched="${Number(u.account_id)}" onclick="bankShowUnmatched(${Number(u.account_id)}, 'mailLog')">Unmatched (${Number(u.count)})</button></div>`).join('')}
+      <div id="mailLog" class="hidden" style="margin-top:8px"></div>` : ''}
     <h3 class="backup-subhead" style="margin-top:20px">Check log</h3>
     ${logRows ? `<div style="color:var(--muted);font-size:12px;margin-bottom:4px">Checks that brought something in or failed, newest first. Kept as long as the audit log.</div>${logRows}`
               : '<div style="color:var(--muted);font-size:13px">Nothing yet. Checks that find nothing new aren\'t listed.</div>'}
@@ -9875,7 +9892,7 @@ async function mailCheckNow() {
   _mailSay('Checking your mail…');
   try {
     const r = await api('/api/mail/check', { method: 'POST', body: JSON.stringify({ utc_offset_minutes: _mailOffset() }) });
-    notify(`${r.added} new line${r.added === 1 ? '' : 's'}; ${r.skipped} already here; ${r.unread} couldn't be read${r.more ? '; more mail is waiting, check again' : ''}.`);
+    notify(`${r.added} new line${r.added === 1 ? '' : 's'}${r.matched ? ` (${r.matched} matched a bill)` : ''}; ${r.skipped} already here; ${r.unread} couldn't be read${r.more ? '; more mail is waiting, check again' : ''}.`);
     await loadMail();
     if (r.added) loadAccounts();
   } catch (e) { _mailSay(errText(e), 'var(--bad)'); }
@@ -9916,6 +9933,20 @@ async function mailForgetKind(id, kid) {
   const r = await _mailDo('Forgetting…', () => api(`/api/mail/senders/${id}/kinds/${kid}`, { method: 'DELETE' }));
   if (r !== undefined) await loadMail();
 }
+function _mailAccName(id) {
+  const a = (mailOwned || []).find(x => x.id === id) || (accounts || []).find(x => x.id === id);
+  return a ? a.name : 'Account';
+}
+// After a match or "Leave as its own line" from the Email alerts tab: the
+// counts beside each account.
+async function _mailRefreshUnmatchedCounts() {
+  try { mailState = await api('/api/mail'); } catch (_) {}
+  const left = {}; (mailState.unmatched || []).forEach(u => { left[u.account_id] = u.count; });
+  document.querySelectorAll('#mailBody button[data-mail-unmatched]').forEach(b => {
+    const n = left[Number(b.getAttribute('data-mail-unmatched'))];
+    if (n > 0) b.textContent = `Unmatched (${n})`; else b.parentElement.remove();
+  });
+}
 async function mailShowRun(id) {
   const el = document.getElementById('mailRun' + id);
   if (!el) return;
@@ -9928,7 +9959,7 @@ async function mailShowRun(id) {
       <span style="color:var(--muted)">${escapeHtml(l.date)}</span>
       <span style="overflow-wrap:anywhere">${escapeHtml(l.description)}</span>
       <strong>${escapeHtml(fmt(l.amount))}</strong>
-      <span style="color:var(--muted)">${escapeHtml(l.account_name)}</span></div>`).join('')
+      <span style="color:var(--muted)">${escapeHtml(l.account_name)}${l.matched ? ' · paid a bill' : ''}</span></div>`).join('')
     : '<div style="margin-top:4px;color:var(--muted)">Those lines are no longer here.</div>';
 }
 async function mailDismiss(id) {

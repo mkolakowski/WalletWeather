@@ -284,8 +284,9 @@ is off until an admin allows it, and `PRIVACY.md`, `SECURITY.md` and
 
 **Progress:** phase 1 (connect Microsoft 365, teach a bank's alert, Check
 now) shipped in 1.73.0 (#206), switched off by default and not yet tried with
-a real mailbox; the checking by itself, its status and log are built in
-1.74.0 (#207), not released yet.
+a real mailbox; the checking by itself, its status and log shipped in
+1.74.0 (#207); alerts paying your planned bills are built in 1.75.0 (#209),
+not released yet.
 
 ---
 

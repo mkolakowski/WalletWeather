@@ -184,7 +184,8 @@ def test_the_unmatched_list(connected, fake):
     got = unmatched(c, acc)
     assert got["count"] == 2
     first = got["lines"][0]
-    assert set(first) == {"id", "date", "description", "amount", "notes"}
+    assert set(first) == {"id", "date", "description", "amount", "notes", "source"}
+    assert first["source"] == "bank"       # an email alert's line says "alert" (#209)
     assert [x["description"] for x in got["lines"]] == ["PAYROLL ACME", "CORNER GROCERY"]   # newest first
     st = c.get("/api/bank").json()
     assert next(a for a in st["accounts"] if a["account_id"] == acc)["unmatched_count"] == 2

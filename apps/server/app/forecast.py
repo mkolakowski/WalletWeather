@@ -187,6 +187,8 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
             "transfer_id": t.transfer_id,
             # 'auto' or 'hand' when bank sync paid this line (#196).
             "bank_match": t.bank_match,
+            # 'alert' or 'bank': what paid the line (#209); None when nothing did.
+            "match_source": (("alert" if t.mail_ref else "bank") if t.bank_match else None),
             "tags": tags_by_txn.get(t.id, []),
         })
 
@@ -243,6 +245,7 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
                 "transaction_id": None,
                 "transfer_id": None,
                 "bank_match": None,
+                "match_source": None,
                 # The item's tags; a line saved from this row starts with them.
                 "tags": tags_by_rec.get(rec.id, []),
             })
@@ -313,6 +316,7 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
             "transaction_id": ev["transaction_id"],
             "transfer_id": ev["transfer_id"],
             "bank_match": ev.get("bank_match"),
+            "match_source": ev.get("match_source"),
             "tags": ev.get("tags", []),
         })
 

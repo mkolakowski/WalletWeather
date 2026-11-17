@@ -71,6 +71,14 @@ same commit (or session) that introduces it.
 
 App version: **1.75.0** · Web version: **1.89.0** · Schema version: **30** · iOS version: **0.16.0**
 
+## [1.75.0] — 2026-11-17
+
+App version: **1.75.0** · Web version: **1.89.0** · Schema version: **30** · iOS version: **0.16.0**
+
+Email alerts are still off unless an admin switches them on and sets
+`MS_CLIENT_ID`, and they have still not been tried with a real Microsoft
+mailbox.
+
 ### Added
 
 - **Email alerts pay your planned bills:** an alert that comes in and is close to one of your bills or paychecks pays it instead of landing as a second line, the same way bank sync does. The bill's line in Forecast is marked paid at the alert's date and amount, with an "Email alert" mark. Close means the same account and direction, within the bill's own days and percent settings (5 days and 10% to start) of one of its unpaid dates; when two dates are equally close nothing is matched, so you choose. A wrong match can be un-matched from its row: the bill goes back to planned and the alert's line stays as its own line, and isn't matched again. (app 1.75.0, web 1.89.0, #209)
@@ -2562,7 +2570,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.74.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.75.0...HEAD
+[1.75.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.75.0
 [1.74.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.74.0
 [1.73.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.73.0
 [1.71.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.71.0

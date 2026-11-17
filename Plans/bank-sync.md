@@ -9,7 +9,7 @@ Tracking issue: #198
 | 1. Encrypted backups | Server, Web | #193 | Released in 1.68.0 (2026-11-16); BACKUP_PASSPHRASE wiring fixed in 1.68.1 (#200) |
 | 2. Connect a bank and Sync now | Server, Web | #194 | Released in 1.69.0 (2026-11-16); tried on your instance the same day: connected to SimpleFIN, and Sync now brought in your bank's lines. The lines carry the bank's full ACH text as their names |
 | 3. Daily sync and its status | Server, Web | #195 | Released in 1.70.0 (2026-11-16); waiting for three days of syncing on your instance |
-| 4. Bills matched automatically | Server, Web | #196 | Built in 1.73.0 (2026-11-17; web 1.87.0, schema 28), not released; waits for a month of your real bills after the release |
+| 4. Bills matched automatically | Server, Web | #196 | Released in 1.73.0 (2026-11-17; web 1.87.0, schema 28); waits for a month of your real bills |
 | 5. Status and Sync now in the iOS app | iOS | #197 | Not started |
 
 Phase 4 built 2026-11-17 in 1.73.0 (web 1.87.0, schema 28; 1.72.0 and schema 27 went to email alerts, #206): API tests in `apps/server/tests/test_bank_sync_matching.py` (19, covering the plan's list), the screens driven in a headless browser against a scratch instance with seeded bank lines (the Bank sync mark, the Unmatched list, Match… and Pay this, the sync log's Matched column, Un-match; no console errors). Set in building, not asked: the settings' limits (0 to 31 days, 0 to 100%); Match… offers planned lines within 60 days; a line un-matched becomes its own line off the Unmatched list; lines synced before 1.73.0 are on the Unmatched list. Known gap: a bill already marked paid by hand before its bank line arrives isn't claimed by it, so the bank line lands on the Unmatched list (leave it, or delete one of the two).

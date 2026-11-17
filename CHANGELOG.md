@@ -69,7 +69,18 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.70.0** · Web version: **1.85.0** · Schema version: **26** · iOS version: **0.16.0**
+App version: **1.71.0** · Web version: **1.85.0** · Schema version: **26** · iOS version: **0.16.0**
+
+### Changed
+
+- **Bank-synced lines get short names:** some banks send the whole ACH
+  record as a transaction's description ("Withdrawal Example Internet /
+  TYPE: … ID: … ACH Trace Number: …"). Bank sync now names such a line after
+  the company, the part before " / " without "Withdrawal" or "Deposit", and
+  keeps the bank's full text in the line's notes. Lines already synced are
+  shortened the same way when the server starts, after any notes of their
+  own. Lines you renamed or added by hand are left alone. Auto-tag rules
+  still match the bank's full text, and nothing is synced twice. (app 1.71.0)
 
 ## [1.70.0] — 2026-11-16
 

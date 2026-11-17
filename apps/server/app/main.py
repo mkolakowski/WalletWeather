@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.70.0"
+APP_VERSION = "1.71.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -826,6 +826,8 @@ def _startup():
     try:
         for user in db.query(User).all():
             seed_default_categories(db, user)
+        # Lines synced before names were shortened (#213).
+        shorten_synced_names(db)
         # Demo-mode reconciliation. This must run after init_db so the
         # admin_settings table exists.
         if DEMO_MODE:
@@ -4306,18 +4308,28 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
                 run.skipped += 1
                 continue
             refs.add(ref)
-            key = (tx["date"], round(float(tx["amount"]), 2), tx["description"].strip().lower())
-            if unclaimed.get(key):
-                unclaimed[key].pop().bank_ref = ref
+            raw = tx["description"]
+            short = simplefin.short_name(raw)
+            # A CSV row may carry the bank's full text or a short name.
+            keys = [(tx["date"], round(float(tx["amount"]), 2), name.strip().lower())
+                    for name in ([raw, short] if short else [raw])]
+            claim = next((k for k in keys if unclaimed.get(k)), None)
+            if claim:
+                unclaimed[claim].pop().bank_ref = ref
                 run.skipped += 1
                 continue
             t = Transaction(account_id=acc.id, actual_date=tx["date"], forecast_date=tx["date"],
                             is_actual=True, bank_ref=ref, bank_sync_run_id=run.id)
-            t.description = tx["description"]
+            t.description = raw
             t.amount = tx["amount"]
             db.add(t)
             db.flush()
+            # Tag rules see the bank's full text, as they did before names
+            # were shortened (#213), then the line takes the short name and
+            # keeps the full text in its notes.
             _apply_tag_rules(db, user, t)
+            if short:
+                t.description, t.notes = short, raw[:NOTES_MAX_LEN]
             run.added += 1
         added, skipped = added + run.added, skipped + run.skipped
         link.synced_through = today
@@ -4330,6 +4342,25 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
     record_event(db, "bank_sync_run", request, user=user,
                  detail=f"{added} added, {skipped} skipped, {trigger}")
     return {"added": added, "skipped": skipped, "messages": data["messages"]}
+
+
+def shorten_synced_names(db: Session) -> int:
+    """Gives lines synced before #213 their short name, the bank's full text
+    moving to their notes (after any notes already there). Lines whose name
+    has no bank text in it (renamed, or added by hand) aren't touched, so
+    this is safe on every start. Returns how many lines changed."""
+    changed = 0
+    for t in db.query(Transaction).filter(Transaction.bank_ref.isnot(None)):
+        raw = t.description
+        short = simplefin.short_name(raw)
+        if not short:
+            continue
+        t.description = short
+        t.notes = (f"{t.notes}\n\n{raw}" if t.notes else raw)[:NOTES_MAX_LEN]
+        changed += 1
+    if changed:
+        db.commit()
+    return changed
 
 
 @app.post("/api/bank/sync")

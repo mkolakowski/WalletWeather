@@ -35,6 +35,23 @@ _transport: httpx.BaseTransport | None = None
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 
 
+# "Withdrawal Example Internet / TYPE: … ID: … CO: … ACH Trace Number: …":
+# some banks put the whole ACH record in a line's description (#213).
+_DIRECTION = re.compile(r"^(?:(?:ACH|POS|Debit Card|Online|Mobile|External)\s+)?(?:Withdrawal|Deposit)(?:\s+|$)",
+                        re.IGNORECASE)
+
+
+def short_name(text: str | None) -> str | None:
+    """A synced line's name when the bank's text carries more than a name:
+    the part before " / ", without a leading "Withdrawal" or "Deposit"
+    (decided 2026-11-16, #213). None when there's nothing to shorten. A
+    short name has no " / " in it, so shortening twice changes nothing."""
+    if not text or " / " not in text:
+        return None
+    head = _DIRECTION.sub("", text.split(" / ", 1)[0].strip()).strip()
+    return head[:NAME_MAX] if head else None
+
+
 class SimpleFINError(Exception):
     """A reason in plain words. `status` is the HTTP status to answer with;
     `revoked` means the connection no longer works and has to be made again."""

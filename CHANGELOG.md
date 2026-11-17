@@ -69,10 +69,28 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.72.0** · Web version: **1.86.0** · Schema version: **27** · iOS version: **0.16.0**
+App version: **1.73.0** · Web version: **1.87.0** · Schema version: **28** · iOS version: **0.16.0**
 
 ### Added
 
+- **Bank sync pays your planned bills:** a synced line that's close to one of
+  your bills or paychecks pays it instead of landing as a second line. The
+  bill's line in Forecast is marked paid at the bank's date and amount, with
+  a "Bank sync" mark. Close means the same account and direction, within 5
+  days and 10% of one of the bill's unpaid dates; each bill has its own two
+  settings in its editor. When two dates are equally close nothing is
+  matched, so you choose. A wrong match can be un-matched from its row: the
+  bill goes back to planned and the bank's line stays as its own line, and
+  isn't matched again. (app 1.73.0, web 1.87.0, #196)
+- **An Unmatched list for each bank-synced account** (Settings → Bank sync):
+  synced lines that didn't pay a bill, with a count beside the account. Match
+  one by hand to any planned line that isn't paid yet, or leave it as its own
+  line. Lines synced before this version are on the list too. The sync log
+  now also counts the lines that paid a bill. (app 1.73.0, web 1.87.0, #196)
+- For apps and scripts: bills and income have `match_days` and
+  `match_percent`; forecast rows have `bank_match`; new endpoints under
+  `/api/accounts/{id}/bank-unmatched` and `POST
+  /api/transactions/{id}/bank-unmatch`. (#196)
 - Email alerts, first part: switch on your bank's email alert for every transaction, and WalletWeather reads those emails from one folder of your Microsoft 365 or Outlook.com mailbox and adds each as a paid line, named after the merchant, with your auto-tag rules run on it. The person who runs the server registers a free Microsoft app and sets `MS_CLIENT_ID`, then switches email alerts on in Admin → Email alerts (off until then). Each user connects their own mailbox in Settings → Email alerts, by typing a code at Microsoft's sign-in page (or with a Connect button on servers reached over `https://` that also set `MS_CLIENT_SECRET`), picks the folder and the day to read from, and teaches it their bank's alert once: WalletWeather highlights what it thinks are the amount, merchant, date and card digits in a sample, and you correct any by selecting the right words. Check now brings alerts in; an email is never brought in twice. Alerts that couldn't become lines are listed with the reason, to teach from or dismiss. With two-factor sign-in on, connecting and disconnecting ask for a code. Checking by itself, Gmail, matching alerts to bills and joining them to bank sync come in later versions; until then an account matched to bank sync can't take alerts. See the [setup guide](https://mkolakowski.github.io/WalletWeather/email-alerts.html). (#206)
 
 ### Security
@@ -81,6 +99,10 @@ App version: **1.72.0** · Web version: **1.86.0** · Schema version: **27** · 
 
 ### Database
 
+- Schema 28: two match settings on bills and income, three columns on
+  transactions for lines paid by bank sync (how they were matched, the bank's
+  own text, and whether one was left as its own line), and a matched count in
+  the sync log. Added on start-up. (#196)
 - Schema 27: tables for a user's mailbox, the banks taught and their kinds of alert, and alerts that didn't become lines, and a column on transactions naming the email a line came from. Added on start-up. (#206)
 
 ## [1.71.0] — 2026-11-16

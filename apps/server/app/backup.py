@@ -234,6 +234,9 @@ def export_user(db: Session, user: User, accounts: list | None = None,
                     "category_name": r.category.name if r.category else None,
                     "notes": r.notes,
                     "tags": rec_tags.get(r.id, []),
+                    # Bank-match settings (#196). Older backups lack them.
+                    "match_days": r.match_days,
+                    "match_percent": r.match_percent,
                     # Occurrences deleted from the forecast. Older backups
                     # lack this key; restore treats that as "none".
                     "skipped_dates": sorted(
@@ -260,6 +263,10 @@ def export_user(db: Session, user: User, accounts: list | None = None,
                     "bank_ref": t.bank_ref,
                     # The same for a line from an email alert (#206).
                     "mail_ref": t.mail_ref,
+                    # Bills matched by bank sync (#196). Older backups lack them.
+                    "bank_match": t.bank_match,
+                    "bank_text": t.bank_text,
+                    "bank_left": bool(t.bank_left),
                 }
                 for t in acc.transactions
             ],
@@ -469,6 +476,13 @@ def _frequency(value) -> str:
     return str(value or "monthly_day")[:20]
 
 
+def _bounded_int(value, lo: int, hi: int, default: int) -> int:
+    """A whole number from a backup within [lo, hi], else `default`."""
+    if isinstance(value, bool) or not isinstance(value, int) or not lo <= value <= hi:
+        return default
+    return value
+
+
 def _day_of_month(value):
     """A day the forecast can use, or none (it then projects nothing)."""
     if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 31:
@@ -615,6 +629,8 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
             rec.description = _text(r_data.get("description", ""), 500)
             rec.amount = _amount(r_data.get("amount", 0))
             rec.notes = _text(r_data.get("notes"), 256) or None   # (#191)
+            rec.match_days = _bounded_int(r_data.get("match_days"), 0, 31, 5)
+            rec.match_percent = _bounded_int(r_data.get("match_percent"), 0, 100, 10)
             db.add(rec)
             db.flush()
             for sd in {_parse_date(x) for x in r_data.get("skipped_dates") or []} - {None}:
@@ -641,6 +657,10 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
             ref = t_data.get("bank_ref")
             if isinstance(ref, str) and _HEX64.fullmatch(ref):
                 t.bank_ref = ref
+                if t_data.get("bank_match") in ("auto", "hand"):
+                    t.bank_match = t_data["bank_match"]
+                    t.bank_text = _text(t_data.get("bank_text"), 500) or None
+                t.bank_left = t_data.get("bank_left") is True
             ref = t_data.get("mail_ref")
             if isinstance(ref, str) and _HEX64.fullmatch(ref):
                 t.mail_ref = ref

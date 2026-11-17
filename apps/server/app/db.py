@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "27"
+SCHEMA_VERSION = "28"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,13 @@ SCHEMA_VERSION = "27"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v28 (2026-11-17, claude+mkolakowski): bills matched by bank sync
+#     (bank-sync phase 4, #196). recurring_transactions.match_days and
+#     .match_percent (how close a bank line must be, 5 days and 10% to
+#     start); transactions.bank_match ('auto' or 'hand': a planned line paid
+#     by a bank line), .bank_text_enc (that bank line's own text, encrypted,
+#     for un-matching) and .bank_left (taken off the Unmatched list);
+#     bank_sync_runs.matched.
 # v27 (2026-11-16, claude+mkolakowski): email alerts (bank-alert-emails
 #     phase 1, #206). New tables mail_connections (a user's Microsoft
 #     sign-in, encrypted, and the folder read), mail_senders, mail_alert_kinds
@@ -331,6 +338,10 @@ class RecurringTransaction(Base):
     end_date = Column(Date, nullable=True)
     active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    # How close a bank line must be to pay one of its dates (#196): days
+    # either side, and how far the amount may differ, in percent.
+    match_days = Column(Integer, nullable=False, default=5)
+    match_percent = Column(Integer, nullable=False, default=10)
 
     account = relationship("Account", back_populates="recurring")
     category = relationship("Category")
@@ -396,6 +407,20 @@ class Transaction(Base):
     # A line that came from an email alert (#206): sha256 of the mail's own
     # id, so one mail never becomes two lines.
     mail_ref = Column(String(64), nullable=True)
+    # Bills matched by bank sync (#196): 'auto' or 'hand' when this planned
+    # line was paid by a bank line, whose own text is kept for un-matching.
+    bank_match = Column(String(4), nullable=True)
+    bank_text_enc = Column(LargeBinary, nullable=True)
+    # A synced line taken off the Unmatched list ("Leave as its own line").
+    bank_left = Column(Boolean, nullable=False, default=False)
+
+    @property
+    def bank_text(self) -> str | None:
+        return decrypt_str(self.bank_text_enc) if self.bank_text_enc else None
+
+    @bank_text.setter
+    def bank_text(self, v: str | None):
+        self.bank_text_enc = encrypt_str(v) if v else None
 
     account = relationship("Account", back_populates="transactions")
     category = relationship("Category")
@@ -674,6 +699,7 @@ class BankSyncRun(Base):
     trigger = Column(String(10), nullable=False)    # 'schedule' | 'manual'
     added = Column(Integer, nullable=False, default=0)
     skipped = Column(Integer, nullable=False, default=0)
+    matched = Column(Integer, nullable=False, default=0)   # paid a planned line (#196)
     error = Column(String(300), nullable=True)
     __table_args__ = (Index("ix_bank_sync_runs_account_run", "account_id", "run_at"),)
 
@@ -874,6 +900,13 @@ def init_db():
     from sqlalchemy import text
     Base.metadata.create_all(engine)
     migrations = [
+        # v27 → v28: bills matched by bank sync (#196).
+        "ALTER TABLE recurring_transactions ADD COLUMN IF NOT EXISTS match_days INTEGER NOT NULL DEFAULT 5",
+        "ALTER TABLE recurring_transactions ADD COLUMN IF NOT EXISTS match_percent INTEGER NOT NULL DEFAULT 10",
+        "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS bank_match VARCHAR(4)",
+        "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS bank_text_enc BYTEA",
+        "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS bank_left BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE bank_sync_runs ADD COLUMN IF NOT EXISTS matched INTEGER NOT NULL DEFAULT 0",
         # v26 → v27: email alerts (#206). mail_connections, mail_senders,
         # mail_alert_kinds and mail_unread come from create_all.
         "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS mail_ref VARCHAR(64)",

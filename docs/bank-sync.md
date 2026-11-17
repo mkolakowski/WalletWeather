@@ -15,7 +15,7 @@ service you subscribe to yourself (about $15 a year). SimpleFIN reads your
 bank's transactions and balances. It can't move money.
 
 {: .important }
-> - **WalletWeather 1.69.0 or later**, 1.70.0 for the daily sync and the sync log. The version is in the app's footer.
+> - **WalletWeather 1.69.0 or later**, 1.70.0 for the daily sync and the sync log, 1.73.0 for bills paid by a sync. The version is in the app's footer.
 > - **An admin switches bank sync on** once for the server ([below](#for-the-person-who-runs-the-server)).
 > - **Each person connects their own bank** with their own SimpleFIN
 >   subscription ([Connect your bank](#connect-your-bank)).
@@ -135,6 +135,40 @@ lines** lists the lines a sync brought in. Only you, the account's owner, see
 it; people you share the account with don't. Entries are kept as long as the
 server keeps its audit log (180 days unless its admin changed it).
 
+### Bills paid by a sync
+
+From 1.73.0, a synced line that looks like one of your planned bills or
+paychecks pays it instead of landing as a second line. The bill's line in
+Forecast is marked paid, at the bank's date and amount, with a **Bank sync**
+mark. A line looks like a bill when it's on the same account, goes the same
+way (money out for a bill, in for income), and is close to one of the bill's
+dates that isn't paid yet:
+
+- **within 5 days** either side, and
+- **within 10%** of the planned amount.
+
+Each bill has its own two settings in its editor in Bills & income: change
+them for a bill that's often late or varies a lot, or set them to 0 for one
+that must match exactly. When two dates are equally close, nothing is
+matched, so you choose.
+
+**Un-match** a line that was matched wrongly, from its row in Forecast: the
+bill goes back to planned and the bank's line stays as its own paid line. It
+isn't matched again.
+
+### The Unmatched list
+
+Synced lines that didn't pay a bill are kept on an **Unmatched** list, with a
+count beside the account on the Bank sync tab. For each one:
+
+- **Match…** shows the account's planned lines that aren't paid yet, nearest
+  in date first (whatever the bill's settings say). Pick one: it's marked paid
+  with the bank's date and amount, and the separate line goes away.
+- **Leave as its own line** takes it off the list.
+
+Lines synced before 1.73.0 are on the list too, so you can match any that
+duplicate a bill you hadn't marked paid.
+
 ### If sync keeps failing
 
 The Dashboard shows a warning when bank sync has been failing for more than a
@@ -147,8 +181,11 @@ SimpleFIN has stopped accepting the connection, until you connect again.
 - **Posted transactions only.** A transaction your bank still shows as
   pending comes in on a later sync, once the bank has posted it. A line never
   changes after it arrives.
-- **Each one lands as a paid line** on the matched account, dated the day
-  the bank posted it, with the bank's description.
+- **Each one pays a planned bill, or lands as a paid line** on the matched
+  account, dated the day the bank posted it ([Bills paid by a
+  sync](#bills-paid-by-a-sync)). A line's name is the bank's description,
+  shortened to the company when the bank sends a whole ACH record (from
+  1.71.0), with the full text in its notes.
 - **Your auto-tag rules run** on each new line, as they do for a CSV import.
   SimpleFIN gives no categories.
 - **Nothing comes in twice.** A line already brought in is recognised by the

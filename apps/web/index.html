@@ -400,6 +400,9 @@
   .pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px;
           background:var(--chip-bg); color:var(--muted); }
   .pill.actual { background:var(--good-bg); color:var(--good); }
+  .rec-match { display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; font-size:11px; color:var(--muted); }
+  .rec-match label { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; }
+  tr.le-inline .rec-match input { width:56px; min-width:0; }
   .login { text-align:center; padding:80px 20px; }
   .login h1 { font-size:24px; margin-bottom:8px; }
   .login p { color:var(--muted); margin-bottom:24px; }
@@ -2764,7 +2767,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.86.0";
+const WEB_VERSION = "1.87.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2774,6 +2777,7 @@ const WEB_VERSION = "1.86.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.87.0 (2026-11-17, claude+mkolakowski): (#196) Bills matched to bank lines automatically. The bill editor and add line take "Bank match: ± days" and "Amount may differ by %" (_recMatchFields; match_days/match_percent sent on POST/PATCH /api/.../recurring). Forecast rows paid by a bank line show a "Bank sync" or "Matched by hand" pill (_bankMatchPill) and an Un-match button in the open line (_forecastUnmatchBtn → unmatchBankLine → POST /api/transactions/{id}/bank-unmatch). Settings → Bank sync: "Unmatched (N)" per account (bankShowUnmatched → GET /api/accounts/{id}/bank-unmatched; bankShowCandidates → .../{txn_id}/candidates; bankPayCandidate → POST .../match; bankLeaveLine → POST .../leave). The sync log has a Matched column and marks lines that paid a bill.
 // 1.86.0 (2026-11-16, claude+mkolakowski): (#206) Email alerts. Settings gets an "Email alerts" tab (#mailTab, section 'mail', #mailPanel, loadMail), shown when /api/mail says enabled or connected: sign in to Microsoft with a code (mailDeviceStart → POST /api/mail/microsoft/device, then polls /device/poll) or with the Connect button (mailWebStart → /api/mail/microsoft/web), pick the folder and start date (mailSaveSettings → PUT /api/mail/settings, GET /api/mail/folders), the banks taught with their accounts, cards and kinds (PUT/DELETE /api/mail/senders), Check now (mailCheckNow → POST /api/mail/check), the mail it couldn't read (GET /api/mail/unread, mailDismiss), Disconnect (mailDisconnect). Teaching a bank's alert (mailTeachList → GET /api/mail/messages, mailTeachFrom → POST /api/mail/preview, mailMark, mailTeachSave → POST /api/mail/senders): select words in the alert text, then tap Amount, Merchant, Date or Card; offsets are converted between the server's code points and the page's UTF-16 units (cpToJs, jsToCp); all mail text is escaped and never made into links. Admin gets an "Email alerts" switch (#adminMailAlerts, loadAdminMail, saveAdminMail) and a "mailbox connected" badge in Users.
 // 1.85.0 (2026-11-16, claude+mkolakowski): (#195) Daily bank sync. Settings → Bank sync says when the next daily sync is due, or that SimpleFIN no longer accepts the connection; each matched bank account gets a "Sync log" button (bankShowLog → GET /api/accounts/{id}/bank-syncs, bankShowLogLines → .../{run_id}). The Dashboard shows #dashBankWarn (loadDashBankWarn → GET /api/bank/status) when sync has failed for over a day or needs reconnecting.
 // 1.84.0 (2026-11-16, claude+mkolakowski): (#194) Bank sync. Settings gets a "Bank sync" tab (#bankTab, section 'bank', #bankPanel, loadBank), shown when /api/bank says enabled or connected: paste a SimpleFIN setup token (bankConnect, with a code field when two-factor is on), match each bank account to an owned account with a start date (bankSaveLinks → PUT /api/bank/links), Sync now (bankSyncNow), Disconnect (bankDisconnect). Admin gets a "Bank sync" switch (#adminBankSync, loadAdminBankSync, saveAdminBankSync) and a "bank connected" badge in Users.
@@ -7166,6 +7170,7 @@ function _buildRecAddRow() {
   tr.innerHTML = [
     '<td></td>',
     _leTd(_leField('Description', 'recAddDesc', '<input id="recAddDesc" maxlength="120" placeholder="New item: description">')
+          + _recMatchFields('recAddMatchDays', 'recAddMatchPct', 5, 10)
           + '<div class="le-status" id="recAddStatus" role="status"></div>'),
     _leTd(_leField('Start date', 'recAddAnchor',
           `<input id="recAddAnchor" type="date" value="${_isoDate(new Date())}" title="The first date it falls on; Monthly repeats on this day of the month">`)),
@@ -7229,6 +7234,9 @@ async function submitRecAddForm(addAnother) {
   if (isNaN(amount) || amount === 0) return err('Enter the amount: negative for a bill, positive for income.', 'recAddAmt');
   if (!anchor) return err('Enter a start date.', 'recAddAnchor');
   const catVal = val('recAddCat');
+  const mt = _readRecMatch('recAddMatchDays', 'recAddMatchPct');
+  if (Number.isNaN(mt.days)) return err('Bank match days: a whole number from 0 to 31.', 'recAddMatchDays');
+  if (Number.isNaN(mt.pct)) return err('Amount may differ by: a whole number from 0 to 100.', 'recAddMatchPct');
   const body = {
     description: desc,
     amount,
@@ -7240,6 +7248,8 @@ async function submitRecAddForm(addAnother) {
     notes: val('recAddNotes').trim() || null,
     tag_ids: readTagPick('recAddTags'),
   };
+  if (mt.days != null) body.match_days = mt.days;
+  if (mt.pct != null) body.match_percent = mt.pct;
   try {
     await api(`/api/accounts/${accountId}/recurring`, { method: 'POST', body: JSON.stringify(body) });
   } catch (e) {
@@ -7422,6 +7432,26 @@ function changeRecurringPage(delta) {
   renderRecurring();
 }
 
+// Bank match settings of a bill (#196): how close a bank line must be, in
+// days either side and in percent of the amount, to pay one of its dates.
+function _recMatchFields(daysId, pctId, days, pct) {
+  return `<div class="rec-match">
+    <label for="${daysId}" title="A bank line this many days before or after a date can pay it. 0 means the same day only.">Bank match: ± days
+      <input id="${daysId}" type="number" min="0" max="31" step="1" value="${Number(days)}"></label>
+    <label for="${pctId}" title="A bank line whose amount is within this percent of the bill's can pay it. 0 means the exact amount.">Amount may differ by %
+      <input id="${pctId}" type="number" min="0" max="100" step="1" value="${Number(pct)}"></label></div>`;
+}
+// Reads the two fields back; null for a blank or out-of-range one.
+function _readRecMatch(daysId, pctId) {
+  const days = document.getElementById(daysId), pct = document.getElementById(pctId);
+  const n = (el, max) => {
+    if (!el || el.value === '') return null;
+    const v = Number(el.value);
+    return Number.isInteger(v) && v >= 0 && v <= max ? v : NaN;
+  };
+  return { days: n(days, 31), pct: n(pct, 100) };
+}
+
 function renderEditRow(r, opts) {
   const sheet = !!(opts && opts.sheet);
   // One cell per column after the select checkbox the caller adds; field ids
@@ -7450,6 +7480,7 @@ function renderEditRow(r, opts) {
   return [
     _leTd(_leField('Description', `editDesc_${id}`, `<input id="editDesc_${id}" maxlength="120" value="${escapeAttr(r.description)}">`)
           + (skipNote ? `<div class="le-ro">${skipNote}</div>` : '')
+          + _recMatchFields(`editMatchDays_${id}`, `editMatchPct_${id}`, r.match_days != null ? r.match_days : 5, r.match_percent != null ? r.match_percent : 10)
           + `<div class="le-status" id="editStatus_${id}" role="alert"></div>`),
     _leTd(_leField('Start date', `editAnchor_${id}`,
                `<input id="editAnchor_${id}" type="date" value="${anchorVal}" data-prefilled="${prefilled}"
@@ -7572,6 +7603,11 @@ async function saveRecurring(id, opts) {
     const el = document.getElementById(`${field}_${id}`);
     if (el) el.focus();
   };
+  const mt = _readRecMatch(`editMatchDays_${id}`, `editMatchPct_${id}`);
+  if (Number.isNaN(mt.days)) return fieldErr('Bank match days: a whole number from 0 to 31.', 'editMatchDays');
+  if (Number.isNaN(mt.pct)) return fieldErr('Amount may differ by: a whole number from 0 to 100.', 'editMatchPct');
+  if (mt.days != null) body.match_days = mt.days;
+  if (mt.pct != null) body.match_percent = mt.pct;
   if (!body.description) return fieldErr('Enter a description.', 'editDesc');
   if (isNaN(body.amount) || body.amount === 0) return fieldErr('Enter the amount: negative for a bill, positive for income.', 'editAmt');
   if (!body.anchor_date) return fieldErr('Enter a start date.', 'editAnchor');
@@ -7584,6 +7620,8 @@ async function saveRecurring(id, opts) {
       && before.frequency === body.frequency && (before.day_of_month || null) === body.day_of_month
       && anchorSame && (before.end_date || null) === body.end_date
       && (before.category_id || null) === body.category_id && (before.notes || null) === body.notes
+      && (body.match_days == null || (before.match_days != null ? before.match_days : 5) === body.match_days)
+      && (body.match_percent == null || (before.match_percent != null ? before.match_percent : 10) === body.match_percent)
       && (before.tags || []).map(t => t.id).sort().join(',') === [...body.tag_ids].sort().join(',')) {
     document.getElementById(`editStatus_${id}`).textContent = '';
     return;
@@ -8198,7 +8236,7 @@ function renderForecast() {
       ? `<div class="row-tag-chips">${renderTagChips(r.tags)}</div>`
       : '';
     tr.innerHTML = `
-      <td>${escapeHtml(r.description)}${tagBits}</td>
+      <td>${escapeHtml(r.description)}${_bankMatchPill(r)}${tagBits}</td>
       <td>${r.forecast_date || '—'}</td>
       ${actDateCell}
       <td>${cat}</td>
@@ -8282,6 +8320,7 @@ function _renderForecastEditRow(r) {
     <td style="white-space:nowrap;vertical-align:bottom">
       <button title="Save" onclick="saveForecastRowEdit('${rowKey}')">✓</button>
       <button class="ghost" title="Cancel" onclick="cancelEditForecastRow()">✕</button>
+      ${_forecastUnmatchBtn(r, 'ghost', 'Un-match')}
       ${_forecastDeleteBtn(r, 'danger')}
     </td>`;
 }
@@ -8357,6 +8396,30 @@ function wireForecastRowEditing() {
 function cancelEditForecastRow() {
   editingForecastRowKey = null;
   renderForecast();
+}
+
+// "Bank sync" / "Matched by hand" pill for a row a bank line paid (#196).
+function _bankMatchPill(r) {
+  if (r.bank_match === 'auto') return ' <span class="pill actual" title="A bank-synced line paid this bill by itself, using its bank match settings.">Bank sync</span>';
+  if (r.bank_match === 'hand') return ' <span class="pill actual" title="You matched a bank-synced line to this bill by hand.">Matched by hand</span>';
+  return '';
+}
+// Un-match button for such a row, shown in its open line (#196).
+function _forecastUnmatchBtn(r, cls, label) {
+  if (!r.bank_match || !r.transaction_id) return '';
+  return `<button class="${cls}" title="Put the bill back to planned; the bank's line stays as its own line" onclick="unmatchBankLine(${r.transaction_id})">${label || 'Un-match'}</button>`;
+}
+async function unmatchBankLine(txnId) {
+  if (!(await confirmDialog("Un-match this line? The bill goes back to planned and the bank's line stays as its own line.",
+                            { title: 'Un-match bank line', okLabel: 'Un-match' }))) return;
+  try {
+    await api(`/api/transactions/${txnId}/bank-unmatch`, { method: 'POST' });
+  } catch (e) {
+    notifyError('Could not un-match', e);
+    return;
+  }
+  editingForecastRowKey = null;
+  await loadForecast();
 }
 
 // Delete button for a forecast row. Real transactions are deleted outright;
@@ -8545,6 +8608,7 @@ function _renderForecastLineEditor(r) {
     : 'Description';
   return [
     _leTd(_leField(descLabel, 'fcEdit_desc', inp('desc', 'text', r.description, ' maxlength="120"'))
+          + (r.bank_match ? `<div class="le-ro">${_bankMatchPill(r).trim()}</div>` : '')
           + '<div class="le-status" id="fcEditStatus" role="alert"></div>'),
     _leTd(_leField('Forecast date', 'fcEdit_fdate', inp('fdate', 'date', r.forecast_date))),
     _leTd(_leField('Actual date', 'fcEdit_adate', inp('adate', 'date', r.actual_date))),
@@ -8558,6 +8622,7 @@ function _renderForecastLineEditor(r) {
           : '', { colspan: 4 }),
     _leNotesActionsTd(_leField('Notes', 'fcEdit_notes', inp('notes', 'text', r.notes, ' maxlength="256" placeholder="Notes"')),
       `<button onclick="saveEditedForecastRow('${k}')" title="Save (Enter)">Save</button>
+              ${_forecastUnmatchBtn(r, 'ghost')}
               ${_forecastDeleteBtn(r, 'danger', '🗑 Delete')}
               <button class="ghost" onclick="cancelEditForecastRow()" title="Cancel (Esc)">Cancel</button>`),
   ].join('');
@@ -8602,7 +8667,7 @@ function _renderForecastGridRow(r, rowIdx, opts) {
   const tagBits = (editing && (r.transaction_id || r.recurring_id))
     ? `<div style="margin-top:6px"><label class="inline-label">Tags</label>${renderTagPicker('editFcTags', (r.tags || []).map(t => t.id))}</div>`
     : ((r.tags && r.tags.length) ? `<div class="row-tag-chips">${renderTagChips(r.tags)}</div>` : '');
-  const delBtn = _forecastDeleteBtn(r, 'ghost');
+  const delBtn = _forecastUnmatchBtn(r, 'ghost') + _forecastDeleteBtn(r, 'ghost');
   const actionsTd = editing
     ? `<td style="white-space:nowrap"><button title="Save and close this line (Enter)" onclick="saveEditedForecastRow('${escapeAttr(rowKey)}')">✓</button>
          ${delBtn}
@@ -8616,7 +8681,7 @@ function _renderForecastGridRow(r, rowIdx, opts) {
   return `
     <td data-r="${rowIdx}" data-c="2"><input class="inline-edit grid-cell grid-desc" type="text"
         data-row-key="${escapeAttr(rowKey)}" data-field="desc"
-        value="${escapeAttr(r.description||'')}">${tagBits}</td>
+        value="${escapeAttr(r.description||'')}">${_bankMatchPill(r)}${tagBits}</td>
     ${input('fdate', 0, {type:'date', cls:'date', raw:r.forecast_date||''})}
     ${input('adate', 1, {type:'date', cls:'date', raw:r.actual_date||''})}
     <td data-r="${rowIdx}" data-c="3"><select class="inline-edit grid-cell grid-cat"
@@ -9294,7 +9359,8 @@ function _renderBankConnected(body, owned) {
       <td><select class="bank-link-account" data-ref="${escapeAttr(a.ref)}" aria-label="Your account for ${escapeAttr(a.name)}">${opts(a.account_id)}</select></td>
       <td><input type="date" class="bank-link-start" data-ref="${escapeAttr(a.ref)}" min="${min}" max="${max}"
                  value="${escapeAttr(a.start_date || max)}" aria-label="Bring in from"></td>
-      <td>${a.account_id ? `<button class="ghost" onclick="bankShowLog(${a.account_id})">Sync log</button>` : ''}</td>
+      <td style="white-space:nowrap">${a.account_id ? `<button class="ghost" onclick="bankShowLog(${a.account_id})">Sync log</button>` : ''}
+        ${a.account_id && a.unmatched_count > 0 ? `<button class="ghost" onclick="bankShowUnmatched(${a.account_id})">Unmatched (${Number(a.unmatched_count)})</button>` : ''}</td>
     </tr>`).join('');
   const last = (bankState.last_sync_at
     ? `Last sync ${_bankWhen(bankState.last_sync_at)}: ${escapeHtml(bankState.last_sync_status || '')}`
@@ -9344,13 +9410,15 @@ async function bankShowLog(accountId) {
       <td>${escapeHtml(_bankWhen(r.run_at))}</td>
       <td>${r.trigger === 'schedule' ? 'Daily' : 'Sync now'}</td>
       <td style="text-align:right">${r.added}</td>
+      <td style="text-align:right">${r.matched || 0}</td>
       <td style="text-align:right">${r.skipped}</td>
       <td>${r.error ? `<span style="color:var(--bad)">${escapeHtml(r.error)}</span>`
-           : r.added ? `<button class="ghost" onclick="bankShowLogLines(${accountId}, ${r.id}, this)">Show lines</button>` : ''}</td>
-    </tr><tr class="hidden" id="bankLogLines${r.id}"><td colspan="5"></td></tr>`).join('');
+           : (r.added || r.matched) ? `<button class="ghost" onclick="bankShowLogLines(${accountId}, ${r.id}, this)">Show lines</button>` : ''}</td>
+    </tr><tr class="hidden" id="bankLogLines${r.id}"><td colspan="6"></td></tr>`).join('');
   box.innerHTML = `<h3 class="backup-subhead">Sync log${acc ? ': ' + escapeHtml(acc.name) : ''}
       <button class="ghost" style="float:right" onclick="document.getElementById('bankLog').classList.add('hidden')">Close</button></h3>`
     + (runs.length ? `<table style="width:100%"><thead><tr><th>When</th><th>How</th><th style="text-align:right">Came in</th>
+        <th style="text-align:right" title="Lines that paid a bill by themselves">Matched</th>
         <th style="text-align:right">Already here</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
       : '<div style="color:var(--muted);font-size:13px">No syncs yet.</div>');
 }
@@ -9367,9 +9435,94 @@ async function bankShowLogLines(accountId, runId, btn) {
     const run = await api(`/api/accounts/${accountId}/bank-syncs/${runId}`);
     cell.innerHTML = run.lines.length
       ? '<ul style="margin:0;padding-left:18px;font-size:13px">' + run.lines.map(l =>
-          `<li>${escapeHtml(l.date)} · ${escapeHtml(l.description)} · ${escapeHtml(fmt(l.amount))}</li>`).join('') + '</ul>'
+          `<li>${escapeHtml(l.date)} · ${escapeHtml(l.description)} · ${escapeHtml(fmt(l.amount))}${l.matched ? ` <span class="pill actual" title="${l.matched === 'auto' ? 'Paid a bill by itself' : 'You matched it to a bill by hand'}">paid a bill</span>` : ''}</li>`).join('') + '</ul>'
       : '<span style="color:var(--muted);font-size:13px">The lines it brought in have since been deleted.</span>';
   } catch (e) { cell.innerHTML = `<span style="color:var(--bad)">${escapeHtml(errText(e))}</span>`; }
+}
+
+// Synced lines that paid no planned line (#196): match one to a planned
+// bill by hand, or leave it as its own line. Shown in the #bankLog box.
+async function bankShowUnmatched(accountId) {
+  const box = document.getElementById('bankLog');
+  if (!box) return;
+  box.classList.remove('hidden');
+  box.innerHTML = '<span style="color:var(--muted)">Loading…</span>';
+  let data;
+  try { data = await api(`/api/accounts/${accountId}/bank-unmatched`); }
+  catch (e) { box.innerHTML = `<span style="color:var(--bad)">${escapeHtml(errText(e))}</span>`; return; }
+  const acc = (accounts || []).find(a => a.id === accountId);
+  const rows = data.lines.map(l => `<tr>
+      <td>${escapeHtml(l.date)}</td>
+      <td>${escapeHtml(l.description)}</td>
+      <td style="text-align:right" class="${l.amount >= 0 ? 'pos' : 'neg'}">${escapeHtml(fmt(l.amount))}</td>
+      <td style="white-space:nowrap"><button class="ghost" onclick="bankShowCandidates(${accountId}, ${l.id})">Match…</button>
+        <button class="ghost" onclick="bankLeaveLine(${accountId}, ${l.id})">Leave as its own line</button></td>
+    </tr><tr class="hidden" id="bankCand${l.id}"><td colspan="4"></td></tr>`).join('');
+  box.innerHTML = `<h3 class="backup-subhead">Unmatched lines${acc ? ': ' + escapeHtml(acc.name) : ''}
+      <button class="ghost" style="float:right" onclick="document.getElementById('bankLog').classList.add('hidden')">Close</button></h3>
+    <div id="bankUnmatchedStatus" role="status" style="font-size:12px;margin-bottom:6px"></div>`
+    + (data.lines.length ? `<table style="width:100%"><thead><tr><th>Date</th><th>Description</th>
+        <th style="text-align:right">Amount</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
+      : '<div style="color:var(--muted);font-size:13px">Nothing to look at: every synced line paid a planned line or was left as its own.</div>');
+}
+
+function _bankUnmatchedSay(text, color) {
+  const el = document.getElementById('bankUnmatchedStatus');
+  if (el) { el.textContent = text; el.style.color = color || 'var(--muted)'; }
+}
+
+async function bankShowCandidates(accountId, txnId) {
+  const row = document.getElementById('bankCand' + txnId);
+  if (!row) return;
+  row.classList.remove('hidden');
+  const cell = row.firstElementChild;
+  cell.innerHTML = '<span style="color:var(--muted)">Loading…</span>';
+  try {
+    const data = await api(`/api/accounts/${accountId}/bank-unmatched/${txnId}/candidates`);
+    _bankCandidates[txnId] = data.candidates;
+    cell.innerHTML = data.candidates.length
+      ? '<ul style="margin:0;padding-left:18px;font-size:13px;list-style:none">' + data.candidates.map((c, i) =>
+          `<li style="margin:3px 0">${escapeHtml(c.description)} · planned ${escapeHtml(c.forecast_date)} · ${escapeHtml(fmt(c.amount))}
+            · ${c.days_apart} day${c.days_apart === 1 ? '' : 's'} apart
+            <button class="ghost" onclick="bankPayCandidate(${accountId}, ${txnId}, ${i})">Pay this</button></li>`).join('') + '</ul>'
+      : '<span style="color:var(--muted);font-size:13px">No planned line within 60 days to pay with this one.</span>';
+  } catch (e) { cell.innerHTML = `<span style="color:var(--bad)">${escapeHtml(errText(e))}</span>`; }
+}
+const _bankCandidates = {};
+
+async function bankPayCandidate(accountId, txnId, idx) {
+  const c = (_bankCandidates[txnId] || [])[idx];
+  if (!c) return;
+  const body = c.transaction_id != null
+    ? { transaction_id: c.transaction_id }
+    : { recurring_id: c.recurring_id, forecast_date: c.forecast_date };
+  try {
+    await api(`/api/accounts/${accountId}/bank-unmatched/${txnId}/match`, { method: 'POST', body: JSON.stringify(body) });
+  } catch (e) { _bankUnmatchedSay(errText(e), 'var(--bad)'); return; }
+  await _bankRefreshUnmatched(accountId, 'Paid.');
+}
+
+async function bankLeaveLine(accountId, txnId) {
+  try {
+    await api(`/api/accounts/${accountId}/bank-unmatched/${txnId}/leave`, { method: 'POST' });
+  } catch (e) { _bankUnmatchedSay(errText(e), 'var(--bad)'); return; }
+  await _bankRefreshUnmatched(accountId, 'Left as its own line.');
+}
+
+// Reload the list and the counts on the accounts table behind it, and the
+// forecast, which a match changes.
+async function _bankRefreshUnmatched(accountId, said) {
+  await bankShowUnmatched(accountId);
+  _bankUnmatchedSay(said, 'var(--good)');
+  try { bankState = await api('/api/bank'); } catch (_) {}
+  document.querySelectorAll('#bankBody button[onclick^="bankShowUnmatched("]').forEach(b => {
+    const m = /bankShowUnmatched\((\d+)\)/.exec(b.getAttribute('onclick') || '');
+    if (!m) return;
+    const acct = (bankState.accounts || []).find(a => a.account_id === Number(m[1]));
+    if (acct && acct.unmatched_count > 0) b.textContent = `Unmatched (${acct.unmatched_count})`;
+    else b.remove();
+  });
+  if (typeof loadForecast === 'function' && currentAccountId === accountId) loadForecast();
 }
 
 async function bankConnect() {
@@ -9403,7 +9556,9 @@ async function bankSyncNow() {
   _bankSay('Asking SimpleFIN…');
   try {
     const r = await api('/api/bank/sync', { method: 'POST' });
-    _bankSay(`${r.added} new line${r.added === 1 ? '' : 's'} came in; ${r.skipped} ${r.skipped === 1 ? 'was' : 'were'} already here.`
+    _bankSay(`${r.added} new line${r.added === 1 ? '' : 's'} came in`
+             + (r.matched ? `, ${r.matched} of them paid a bill` : '')
+             + `; ${r.skipped} ${r.skipped === 1 ? 'was' : 'were'} already here.`
              + (r.messages && r.messages.length ? ' SimpleFIN said: ' + r.messages.join('; ') : ''), 'var(--good)');
     await loadBank();
     if (r.added) loadAccounts();

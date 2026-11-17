@@ -185,6 +185,8 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
             "recurring_id": t.recurring_id,
             "transaction_id": t.id,
             "transfer_id": t.transfer_id,
+            # 'auto' or 'hand' when bank sync paid this line (#196).
+            "bank_match": t.bank_match,
             "tags": tags_by_txn.get(t.id, []),
         })
 
@@ -240,6 +242,7 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
                 "recurring_id": rec.id,
                 "transaction_id": None,
                 "transfer_id": None,
+                "bank_match": None,
                 # The item's tags; a line saved from this row starts with them.
                 "tags": tags_by_rec.get(rec.id, []),
             })
@@ -309,6 +312,7 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
             "recurring_id": ev["recurring_id"],
             "transaction_id": ev["transaction_id"],
             "transfer_id": ev["transfer_id"],
+            "bank_match": ev.get("bank_match"),
             "tags": ev.get("tags", []),
         })
 

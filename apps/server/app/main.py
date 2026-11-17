@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.72.0"
+APP_VERSION = "1.73.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -590,7 +590,7 @@ from .db import (
 from . import twofactor
 from . import simplefin
 from . import mailbox, alerts
-from .forecast import build_forecast, actual_balance_as_of, upcoming_dates
+from .forecast import build_forecast, actual_balance_as_of, upcoming_dates, _occurrences
 from .backup import (export_user, import_user, seal, unwrap, passphrase_problem,
                      BackupLocked, SEALED_MARKER)
 
@@ -2671,6 +2671,9 @@ class AccountIn(BaseModel):
     starting_date: date
 
 
+MATCH_DAYS_MAX, MATCH_PERCENT_MAX = 31, 100   # a bill's bank-match settings (#196)
+
+
 class RecurringIn(BaseModel):
     description: str = Field(max_length=DESCRIPTION_MAX)
     amount: Money  # signed: negative = withdraw
@@ -2684,6 +2687,10 @@ class RecurringIn(BaseModel):
     # Tags (#118): None leaves them as they are, [] clears them. Lines created
     # from the item start with these tags.
     tag_ids: list[int] | None = Field(default=None, max_length=200)
+    # How close a bank line must be to pay one of its dates (#196): None
+    # leaves them as they are (a new item starts at 5 days and 10%).
+    match_days: int | None = Field(default=None, ge=0, le=MATCH_DAYS_MAX)
+    match_percent: int | None = Field(default=None, ge=0, le=MATCH_PERCENT_MAX)
 
     @model_validator(mode="after")
     def _one_the_forecast_can_run(self):
@@ -3363,6 +3370,8 @@ def _recurring_row(r: RecurringTransaction, today: date,
         "yearly_cost": round(monthly_cost * 12, 2) if monthly_cost is not None else None,
         "skipped_count": skip_counts.get(r.id, 0),
         "tags": (tags_by_rec or {}).get(r.id, []),
+        "match_days": r.match_days,
+        "match_percent": r.match_percent,
     }
 
 
@@ -3487,6 +3496,8 @@ def create_recurring(account_id: int, payload: RecurringIn,
         end_date=payload.end_date,
         category_id=payload.category_id,
         active=payload.active,
+        match_days=5 if payload.match_days is None else payload.match_days,
+        match_percent=10 if payload.match_percent is None else payload.match_percent,
     )
     rec.description = payload.description
     rec.amount = Decimal(str(payload.amount))
@@ -3519,6 +3530,10 @@ def update_recurring(rec_id: int, payload: RecurringIn,
     rec.category_id = payload.category_id
     rec.notes = payload.notes
     rec.active = payload.active
+    if payload.match_days is not None:
+        rec.match_days = payload.match_days
+    if payload.match_percent is not None:
+        rec.match_percent = payload.match_percent
     _apply_recurring_tags(db, user, rec, payload.tag_ids)
     db.commit()
     return {"ok": True}
@@ -4105,6 +4120,8 @@ def _bank_status(db: Session, user: User) -> dict:
             "account_id": link.account_id if link else None,
             "start_date": link.start_date.isoformat() if link else None,
             "synced_through": link.synced_through.isoformat() if link and link.synced_through else None,
+            # Synced lines that paid no planned line, still to look at (#196).
+            "unmatched_count": _unmatched_query(db, link.account_id).count() if link else 0,
         })
     wait = _bank_call_wait(conn, now)
     out.update(_bank_short_status(db, user))
@@ -4293,7 +4310,7 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
     if data["accounts"]:
         _set_bank_listing(conn, data["accounts"])
     by_account = {bank_account_ref(a["id"]): a for a in data["accounts"]}
-    added = skipped = 0
+    added = skipped = matched = 0
     for link in links:
         acc = db.get(Account, link.account_id)
         if acc is None:
@@ -4307,6 +4324,7 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
             continue
         refs = {r for (r,) in db.query(Transaction.bank_ref)
                 .filter(Transaction.account_id == acc.id, Transaction.bank_ref.isnot(None))}
+        bills = _bills_to_match(db, acc.id)
         # Paid lines that came by CSV or by hand, by date, amount and
         # description (the CSV import's own test for a duplicate). A bank
         # line that finds one claims it instead of landing a second.
@@ -4336,30 +4354,270 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
                 unclaimed[claim].pop().bank_ref = ref
                 run.skipped += 1
                 continue
-            t = Transaction(account_id=acc.id, actual_date=tx["date"], forecast_date=tx["date"],
-                            is_actual=True, bank_ref=ref, bank_sync_run_id=run.id)
-            t.description = raw
-            t.amount = tx["amount"]
-            db.add(t)
-            db.flush()
-            # Tag rules see the bank's full text, as they did before names
-            # were shortened (#213), then the line takes the short name and
-            # keeps the full text in its notes.
-            _apply_tag_rules(db, user, t)
-            if short:
-                t.description, t.notes = short, raw[:NOTES_MAX_LEN]
+            # A planned bill or income line close in date and amount is
+            # paid by this line instead of a second line landing (#196).
+            hit = _bill_for_bank_line(bills, tx["date"], tx["amount"])
+            if hit:
+                rec, occ = hit
+                _pay_bill_from_bank(db, rec, occ, tx["date"], tx["amount"], ref, raw, "auto", run.id)
+                bills["covered"].add((rec.id, occ))
+                run.matched += 1
+                continue
+            _bank_own_line(db, user, acc.id, tx["date"], tx["amount"], raw, ref, run.id)
             run.added += 1
         added, skipped = added + run.added, skipped + run.skipped
+        matched += run.matched
         link.synced_through = today
-    status = f"{added} new line{'' if added == 1 else 's'}, {skipped} already here"
+    status = (f"{added} new line{'' if added == 1 else 's'}, "
+              + (f"{matched} matched a bill, " if matched else "")
+              + f"{skipped} already here")
     if data["messages"]:
         status += ". SimpleFIN said: " + "; ".join(data["messages"])
     conn.last_sync_at, conn.last_sync_ok, conn.last_sync_status = now, True, status[:300]
     conn.last_ok_at, conn.needs_reconnect = now, False
     db.commit()
     record_event(db, "bank_sync_run", request, user=user,
-                 detail=f"{added} added, {skipped} skipped, {trigger}")
-    return {"added": added, "skipped": skipped, "messages": data["messages"]}
+                 detail=f"{added} added, {matched} matched, {skipped} skipped, {trigger}")
+    return {"added": added, "matched": matched, "skipped": skipped, "messages": data["messages"]}
+
+
+# ---------- Bills matched by bank sync (#196) ----------
+# A bank line pays a planned bill or income line on the same account when it
+# goes the same way (money out or in), its amount is within the bill's
+# match_percent and its date within match_days of one of the bill's dates
+# that isn't paid or deleted yet. The nearest date wins; a tie is left
+# unmatched, to be matched by hand. A bank line is only ever matched as it
+# arrives, so one un-matched by hand isn't matched again.
+
+def _bills_to_match(db: Session, account_id: int) -> dict:
+    recs = (db.query(RecurringTransaction)
+            .filter(RecurringTransaction.account_id == account_id, RecurringTransaction.active == True)
+            .all())
+    covered = {(rid, d) for rid, d in
+               db.query(Transaction.recurring_id, Transaction.forecast_date)
+               .filter(Transaction.account_id == account_id, Transaction.recurring_id.isnot(None),
+                       Transaction.forecast_date.isnot(None))}
+    skipped = set()
+    if recs:
+        skipped = set(db.query(RecurringSkip.recurring_id, RecurringSkip.skip_date)
+                      .filter(RecurringSkip.recurring_id.in_([r.id for r in recs])))
+    return {"recs": recs, "covered": covered, "skipped": skipped}
+
+
+def _bill_for_bank_line(bills: dict, day: date, amount: Decimal):
+    """(bill, date) the bank line pays, or None (no match, or a tie)."""
+    found = []
+    for rec in bills["recs"]:
+        planned = rec.amount
+        if not planned or not amount or (planned < 0) != (amount < 0):
+            continue
+        if abs(amount - planned) > abs(planned) * Decimal(rec.match_percent) / 100:
+            continue
+        reach = timedelta(days=rec.match_days)
+        for occ, _amount, _desc in _occurrences(rec, day - reach, day + reach):
+            if (rec.id, occ) not in bills["covered"] and (rec.id, occ) not in bills["skipped"]:
+                found.append((abs((occ - day).days), rec, occ))
+    if not found:
+        return None
+    found.sort(key=lambda f: f[0])
+    if len(found) > 1 and found[1][0] == found[0][0]:
+        return None
+    return found[0][1], found[0][2]
+
+
+def _pay_bill_from_bank(db: Session, rec: RecurringTransaction, occ: date, day: date,
+                        amount: Decimal, ref: str, raw: str, how: str,
+                        run_id: int | None) -> Transaction:
+    """Marks one of a bill's dates paid with the bank's date and amount, as
+    marking it paid by hand does, keeping the bank line's own text."""
+    t = Transaction(account_id=rec.account_id, recurring_id=rec.id, category_id=rec.category_id,
+                    forecast_date=occ, actual_date=day, is_actual=True, bank_ref=ref,
+                    bank_sync_run_id=run_id, bank_match=how)
+    t.description = rec.description
+    t.amount = amount
+    t.forecast_amount = rec.amount
+    t.notes = rec.notes
+    t.bank_text = raw
+    db.add(t)
+    db.flush()
+    _copy_recurring_tags(db, rec.id, t)
+    return t
+
+
+def _bank_own_line(db: Session, user: User, account_id: int, day: date, amount: Decimal,
+                   raw: str, ref: str, run_id: int | None, left: bool = False) -> Transaction:
+    """A bank line landed as its own paid line. Tag rules see the bank's full
+    text, as they did before names were shortened (#213); then the line takes
+    the short name and keeps the full text in its notes."""
+    t = Transaction(account_id=account_id, actual_date=day, forecast_date=day, is_actual=True,
+                    bank_ref=ref, bank_sync_run_id=run_id, bank_left=left)
+    t.description = raw
+    t.amount = amount
+    db.add(t)
+    db.flush()
+    _apply_tag_rules(db, user, t)
+    short = simplefin.short_name(raw)
+    if short:
+        t.description, t.notes = short, raw[:NOTES_MAX_LEN]
+    return t
+
+
+def _bank_text_of(t: Transaction) -> str:
+    """A synced line's bank text: the full text in its notes when its name
+    was shortened from it, else its name."""
+    if t.notes and simplefin.short_name(t.notes) == t.description:
+        return t.notes
+    return t.description
+
+
+def _unmatched_query(db: Session, account_id: int):
+    """Synced lines that paid no planned line and are still to look at."""
+    return (db.query(Transaction)
+            .filter(Transaction.account_id == account_id, Transaction.bank_ref.isnot(None),
+                    Transaction.bank_match.is_(None), Transaction.bank_left.is_(False),
+                    Transaction.recurring_id.is_(None), Transaction.transfer_id.is_(None),
+                    Transaction.is_actual.is_(True)))
+
+
+def _unmatched_line(db: Session, acc: Account, txn_id: int) -> Transaction:
+    t = db.get(Transaction, txn_id)
+    if (t is None or t.account_id != acc.id or t.bank_ref is None or t.bank_match is not None
+            or t.bank_left or t.recurring_id is not None or t.transfer_id is not None or not t.is_actual):
+        raise HTTPException(404, "That line isn't on the Unmatched list.")
+    return t
+
+
+MATCH_BY_HAND_DAYS = 60   # how far either side the planned lines offered reach
+
+
+@app.get("/api/accounts/{account_id}/bank-unmatched")
+def bank_unmatched(account_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Synced lines that matched no planned line, newest first (the owner)."""
+    acc = _sync_log_account(db, user, account_id)
+    rows = (_unmatched_query(db, acc.id)
+            .order_by(Transaction.actual_date.desc(), Transaction.id.desc()).all())
+    return {"count": len(rows),
+            "lines": [{"id": t.id, "date": (t.actual_date or t.forecast_date).isoformat(),
+                       "description": t.description, "amount": float(t.amount), "notes": t.notes}
+                      for t in rows]}
+
+
+@app.get("/api/accounts/{account_id}/bank-unmatched/{txn_id}/candidates")
+def bank_unmatched_candidates(account_id: int, txn_id: int, user: User = Depends(current_user),
+                              db: Session = Depends(get_db)):
+    """The account's planned lines that aren't paid yet, nearest in date
+    first, whatever a bill's match settings say."""
+    acc = _sync_log_account(db, user, account_id)
+    line = _unmatched_line(db, acc, txn_id)
+    day = line.actual_date or line.forecast_date
+    lo, hi = day - timedelta(days=MATCH_BY_HAND_DAYS), day + timedelta(days=MATCH_BY_HAND_DAYS)
+    out = []
+    for t in (db.query(Transaction)
+              .filter(Transaction.account_id == acc.id, Transaction.is_actual.is_(False),
+                      Transaction.transfer_id.is_(None), Transaction.forecast_date >= lo,
+                      Transaction.forecast_date <= hi)):
+        out.append({"transaction_id": t.id, "recurring_id": t.recurring_id,
+                    "forecast_date": t.forecast_date.isoformat(), "description": t.description,
+                    "amount": float(t.amount), "days_apart": abs((t.forecast_date - day).days)})
+    bills = _bills_to_match(db, acc.id)
+    for rec in bills["recs"]:
+        for occ, amount, desc in _occurrences(rec, lo, hi):
+            if (rec.id, occ) in bills["covered"] or (rec.id, occ) in bills["skipped"]:
+                continue
+            out.append({"transaction_id": None, "recurring_id": rec.id,
+                        "forecast_date": occ.isoformat(), "description": desc,
+                        "amount": float(amount), "days_apart": abs((occ - day).days)})
+    out.sort(key=lambda c: (c["days_apart"], c["forecast_date"], c["description"].lower()))
+    return {"line": {"id": line.id, "date": day.isoformat(), "description": line.description,
+                     "amount": float(line.amount)},
+            "candidates": out[:50]}
+
+
+class BankMatchIn(BaseModel):
+    """A planned line: a saved one by `transaction_id`, or a bill's date by
+    `recurring_id` and `forecast_date`."""
+    transaction_id: int | None = None
+    recurring_id: int | None = None
+    forecast_date: date | None = None
+
+
+@app.post("/api/accounts/{account_id}/bank-unmatched/{txn_id}/match")
+def bank_match_by_hand(account_id: int, txn_id: int, body: BankMatchIn,
+                       user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Pays a planned line with an unmatched bank line's date and amount; the
+    bank line's separate line goes away."""
+    acc = _sync_log_account(db, user, account_id)
+    line = _unmatched_line(db, acc, txn_id)
+    day, raw = line.actual_date or line.forecast_date, _bank_text_of(line)
+    if body.transaction_id is not None:
+        t = db.get(Transaction, body.transaction_id)
+        if t is None or t.account_id != acc.id:
+            raise HTTPException(404, "Planned line not found")
+        if t.is_actual or t.transfer_id is not None:
+            raise HTTPException(409, "That line is already paid, or is a transfer: pick a planned line.")
+        if t.forecast_amount is None:
+            t.forecast_amount = t.amount
+        if t.forecast_date is None:
+            t.forecast_date = day
+        t.amount, t.actual_date, t.is_actual = line.amount, day, True
+        t.bank_ref, t.bank_match, t.bank_text = line.bank_ref, "hand", raw
+        t.bank_sync_run_id = line.bank_sync_run_id
+        paid = t
+    elif body.recurring_id is not None and body.forecast_date is not None:
+        rec = db.get(RecurringTransaction, body.recurring_id)
+        if rec is None or rec.account_id != acc.id:
+            raise HTTPException(404, "Bill not found")
+        occ = body.forecast_date
+        if not any(d == occ for d, _a, _s in _occurrences(rec, occ, occ)):
+            raise HTTPException(400, "That bill has no date on that day.")
+        bills = _bills_to_match(db, acc.id)
+        if (rec.id, occ) in bills["covered"] or (rec.id, occ) in bills["skipped"]:
+            raise HTTPException(409, "That date is already paid or was deleted: pick a planned line.")
+        paid = _pay_bill_from_bank(db, rec, occ, day, line.amount, line.bank_ref, raw, "hand",
+                                   line.bank_sync_run_id)
+    else:
+        raise HTTPException(400, "Give transaction_id, or recurring_id and forecast_date.")
+    db.delete(line)
+    db.commit()
+    return {"ok": True, "transaction_id": paid.id}
+
+
+@app.post("/api/accounts/{account_id}/bank-unmatched/{txn_id}/leave")
+def bank_leave_unmatched(account_id: int, txn_id: int, user: User = Depends(current_user),
+                         db: Session = Depends(get_db)):
+    """"Leave as its own line": takes it off the Unmatched list."""
+    acc = _sync_log_account(db, user, account_id)
+    _unmatched_line(db, acc, txn_id).bank_left = True
+    db.commit()
+    return {"ok": True}
+
+
+@app.post("/api/transactions/{txn_id}/bank-unmatch")
+def bank_unmatch(txn_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Undoes a match: the planned line goes back to planned and the bank
+    line becomes its own paid line (off the Unmatched list), which isn't
+    matched again."""
+    t = db.get(Transaction, txn_id)
+    if t is None:
+        raise HTTPException(404, "Transaction not found")
+    acc = _sync_log_account(db, user, t.account_id)
+    if not t.bank_match:
+        raise HTTPException(409, "That line wasn't matched by bank sync.")
+    day = t.actual_date or t.forecast_date
+    raw, ref, run_id, amount = t.bank_text or t.description, t.bank_ref, t.bank_sync_run_id, t.amount
+    if t.recurring_id is not None:
+        db.delete(t)   # the bill's date shows as planned again
+    else:
+        if t.forecast_amount is not None:
+            t.amount = t.forecast_amount
+        t.is_actual, t.actual_date = False, None
+        t.bank_ref = t.bank_match = None
+        t.bank_text = None
+        t.bank_sync_run_id = None
+    db.flush()
+    own = _bank_own_line(db, user, acc.id, day, amount, raw, ref, run_id, left=True)
+    db.commit()
+    return {"ok": True, "transaction_id": own.id}
 
 
 def shorten_synced_names(db: Session) -> int:
@@ -4368,7 +4626,8 @@ def shorten_synced_names(db: Session) -> int:
     has no bank text in it (renamed, or added by hand) aren't touched, so
     this is safe on every start. Returns how many lines changed."""
     changed = 0
-    for t in db.query(Transaction).filter(Transaction.bank_ref.isnot(None)):
+    for t in db.query(Transaction).filter(Transaction.bank_ref.isnot(None),
+                                          Transaction.bank_match.is_(None)):
         raw = t.description
         short = simplefin.short_name(raw)
         if not short:
@@ -4504,7 +4763,8 @@ def bank_sync_log(account_id: int, user: User = Depends(current_user), db: Sessi
     runs = (db.query(BankSyncRun).filter_by(account_id=acc.id, user_id=user.id)
             .order_by(BankSyncRun.run_at.desc(), BankSyncRun.id.desc()).limit(200).all())
     return [{"id": r.id, "run_at": r.run_at.isoformat() + "Z", "trigger": r.trigger,
-             "added": r.added, "skipped": r.skipped, "error": r.error} for r in runs]
+             "added": r.added, "matched": r.matched, "skipped": r.skipped, "error": r.error}
+            for r in runs]
 
 
 @app.get("/api/accounts/{account_id}/bank-syncs/{run_id}")
@@ -4518,9 +4778,11 @@ def bank_sync_log_lines(account_id: int, run_id: int, user: User = Depends(curre
     rows = (db.query(Transaction).filter_by(account_id=acc.id, bank_sync_run_id=run.id)
             .order_by(Transaction.actual_date, Transaction.id).all())
     return {"id": run.id, "run_at": run.run_at.isoformat() + "Z", "trigger": run.trigger,
-            "added": run.added, "skipped": run.skipped, "error": run.error,
+            "added": run.added, "matched": run.matched, "skipped": run.skipped, "error": run.error,
             "lines": [{"id": t.id, "date": (t.actual_date or t.forecast_date).isoformat(),
-                       "description": t.description, "amount": float(t.amount)} for t in rows]}
+                       "description": t.description, "amount": float(t.amount),
+                       # Paid a planned line (#196): auto or hand; else None.
+                       "matched": t.bank_match} for t in rows]}
 
 
 class BankDisconnectIn(BaseModel):

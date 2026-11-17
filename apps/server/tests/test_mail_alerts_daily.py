@@ -137,6 +137,15 @@ def test_one_users_failure_doesnt_stop_the_others(app_started, ms, switched_on):
     assert run_due() == {"checked": 1, "failed": 1}
     assert conn_row(users[0][1]["id"]).last_check_ok is False
     assert len(lines(users[1][0], users[1][2])) == 1
+    # A damaged sign-in doesn't stop the system backup of everyone else.
+    from app import main
+    from app.db import SessionLocal
+    db = SessionLocal()
+    try:
+        from app.backup import export_full_system
+        export_full_system(db)
+    finally:
+        db.close()
 
 
 def test_a_lapsed_sign_in_stops_the_schedule(ready, ms):

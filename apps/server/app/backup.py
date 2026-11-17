@@ -350,12 +350,28 @@ def _import_bank(db: Session, user: User, data, acc_by_name: dict) -> bool:
     return True
 
 
+def _export_kinds(db: Session, sender) -> list:
+    out = []
+    for k in db.query(MailAlertKind).filter_by(sender_id=sender.id).order_by(MailAlertKind.id):
+        try:
+            out.append({"subject_key": k.subject_key, "direction": k.direction,
+                        "anchors": json.loads(decrypt_str(k.anchors_enc)),
+                        "sample": decrypt_str(k.sample_enc)})
+        except Exception:
+            continue
+    return out
+
+
 def _export_mail(db: Session, user: User, accounts: list) -> dict | None:
     """The user's mailbox for email alerts (#206): the sign-in, the folder and
     what was taught, with accounts by name. Only into sealed backups."""
     conn = db.query(MailConnection).filter_by(user_id=user.id).first()
     if not conn:
         return None
+    try:
+        tokens = json.loads(decrypt_str(conn.tokens_enc))
+    except Exception:
+        return None   # a damaged sign-in must not stop the whole system backup
     names = {a.id: a.name for a in accounts}
     senders = []
     for s in db.query(MailSender).filter_by(connection_id=conn.id).order_by(MailSender.id):
@@ -366,13 +382,10 @@ def _export_mail(db: Session, user: User, accounts: list) -> dict | None:
         senders.append({
             "address": s.address, "label": s.label, "account_name": names.get(s.account_id),
             "cards": {k: names[v] for k, v in cards.items() if v in names},
-            "kinds": [{"subject_key": k.subject_key, "direction": k.direction,
-                       "anchors": json.loads(decrypt_str(k.anchors_enc)),
-                       "sample": decrypt_str(k.sample_enc)}
-                      for k in db.query(MailAlertKind).filter_by(sender_id=s.id).order_by(MailAlertKind.id)],
+            "kinds": _export_kinds(db, s),
         })
     return {"provider": conn.provider, "auth_mode": conn.auth_mode,
-            "tokens": json.loads(decrypt_str(conn.tokens_enc)),
+            "tokens": tokens,
             "address": decrypt_str(conn.address_enc) if conn.address_enc else None,
             "folder_id": conn.folder_id, "folder_name": conn.folder_name,
             "start_date": conn.start_date.isoformat(),

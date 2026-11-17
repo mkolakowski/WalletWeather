@@ -85,6 +85,19 @@ struct DemoTests {
         #expect(APIError.demoReadOnly.message.contains("doesn't save changes"))
     }
 
+    @Test func bankSyncShowsASampleStatusAndSyncNowSavesNothing() async throws {
+        let status = try #require(try await client.bankStatus())
+        #expect(status.enabled && status.connected && status.lastSyncOk == true)
+        let last = try #require(BankStatus.date(status.lastSyncAt))
+        let next = try #require(BankStatus.date(status.nextSyncAt))
+        // Made from now, so never moved by months like the sample dates.
+        #expect(last < .now && Date.now.timeIntervalSince(last) < 24 * 3600)
+        #expect(next > .now)
+        let summary = status.summary(when: { _ in "earlier" })
+        #expect(summary.tone == .ok && summary.canSync && summary.headline == "Synced earlier")
+        await #expect(throws: APIError.demoReadOnly) { _ = try await client.syncBankNow() }
+    }
+
     @Test func nothingIsKept() async throws {
         let folder = FileManager.default.temporaryDirectory.appending(path: "demo-tests-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: folder) }

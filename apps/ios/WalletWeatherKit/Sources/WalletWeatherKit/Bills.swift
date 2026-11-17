@@ -64,6 +64,10 @@ public struct RecurringItem: Sendable, Codable, Equatable, Identifiable {
     public let nextDate: LocalDay?
     /// The next six such dates, for "skip once".
     public let nextDates: [LocalDay]
+    /// How close a synced bank line must be to pay one of its dates: days
+    /// either side, and percent of the amount (server 1.73.0, #196).
+    public let matchDays: Int?
+    public let matchPercent: Int?
 
     public var kind: Frequency? { Frequency(rawValue: frequency) }
     public var isIncome: Bool { !amount.isNegative }
@@ -112,6 +116,10 @@ public struct BillDraft: Sendable, Equatable {
     public var endDate: LocalDay
     public var categoryId: Int?
     public var notes: String
+    /// Bank sync's match settings (#197); nil on a server that has none
+    /// yet, and for a new bill, which starts at the server's 5 days and 10%.
+    public var matchDays: Int?
+    public var matchPercent: Int?
 
     public var amount: Decimal? { parseAmount(amountText) }
 
@@ -127,6 +135,8 @@ public struct BillDraft: Sendable, Equatable {
         endDate = today
         categoryId = nil
         notes = ""
+        matchDays = nil
+        matchPercent = nil
     }
 
     public init(_ item: RecurringItem, today: LocalDay) {
@@ -141,6 +151,8 @@ public struct BillDraft: Sendable, Equatable {
         endDate = item.endDate ?? today
         categoryId = item.categoryId
         notes = item.notes ?? ""
+        matchDays = item.matchDays
+        matchPercent = item.matchPercent
     }
 
     /// What's wrong before it can be saved, or nil.
@@ -150,6 +162,8 @@ public struct BillDraft: Sendable, Equatable {
         if !(1...31).contains(dayOfMonth) { return "Pick a day from 1 to 31." }
         if ends, frequency != .monthly || hasStart, endDate < start { return "It can't end before it starts." }
         if notes.count > 256 { return "Notes can be up to 256 characters." }
+        if let matchDays, !(0...31).contains(matchDays) { return "Bank match days can be 0 to 31." }
+        if let matchPercent, !(0...100).contains(matchPercent) { return "The amount can differ by 0 to 100 percent." }
         return nil
     }
 }
@@ -167,10 +181,14 @@ public struct RecurringBody: Sendable, Encodable, Equatable {
     public let categoryId: Int?
     public let notes: String?
     public let active: Bool
+    /// Left out of the request when nil, which leaves them as they are.
+    public let matchDays: Int?
+    public let matchPercent: Int?
 
     enum CodingKeys: String, CodingKey {
         case description, amount, frequency, notes, active
         case dayOfMonth = "day_of_month", anchorDate = "anchor_date", endDate = "end_date", categoryId = "category_id"
+        case matchDays = "match_days", matchPercent = "match_percent"
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -184,6 +202,8 @@ public struct RecurringBody: Sendable, Encodable, Equatable {
         try c.encode(categoryId, forKey: .categoryId)
         try c.encode(notes, forKey: .notes)
         try c.encode(active, forKey: .active)
+        try c.encodeIfPresent(matchDays, forKey: .matchDays)
+        try c.encodeIfPresent(matchPercent, forKey: .matchPercent)
     }
 
     /// From the editor. `active` is kept from the item being changed.
@@ -204,6 +224,8 @@ public struct RecurringBody: Sendable, Encodable, Equatable {
         let trimmed = draft.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         notes = trimmed.isEmpty ? nil : trimmed
         self.active = active
+        matchDays = draft.matchDays
+        matchPercent = draft.matchPercent
     }
 
     /// The item as it is, ending after `last` (End, decided 2026-11-15).

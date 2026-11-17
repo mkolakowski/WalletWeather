@@ -1,0 +1,17 @@
+{
+    "enabled": true,
+    "connected": true,
+    "linked_account_ids": [
+        1
+    ],
+    "last_sync_at": "2026-11-17T14:06:16.123456Z",
+    "last_sync_ok": false,
+    "last_sync_status": "SimpleFIN no longer accepts this connection.",
+    "last_ok_at": "2026-11-17T14:06:16.123456Z",
+    "needs_reconnect": true,
+    "failing_since": null,
+    "failing_over_a_day": false,
+    "next_sync_at": null,
+    "syncs_left_today": 19,
+    "sync_wait_seconds": 0
+}

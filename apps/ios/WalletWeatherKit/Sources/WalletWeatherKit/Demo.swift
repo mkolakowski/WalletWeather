@@ -63,6 +63,9 @@ public enum Demo {
         case ("GET", "networth", _): found = (sample("networth"), thisMonth)
         case ("GET", "budgets", _): found = (sample("budgets"), thisMonth)
         case ("GET", "categories", 2): found = (sample("categories"), thisMonth)
+        // Bank sync's status: times are made from now, so they aren't moved
+        // by months like the sample dates are.
+        case ("GET", "bank", 3) where parts[2] == "status": found = (bankStatus(), recorded)
         case ("GET", "recurring", 2):
             found = (recurring(account: query["account_id"].flatMap(Int.init), ended: query["archived"] == "true"), thisMonth)
         case ("GET", "calendar", 2): found = (calendar(account: query["account_id"].flatMap(Int.init)), askedMonth)
@@ -190,6 +193,20 @@ public enum Demo {
         all["accounts"] = group(accounts, ["name"])
         for name in ["categories", "tags", "reports"] { all[name] = group(rows(name), ["name"]) }
         return json(all)
+    }
+
+    /// A sample bank sync status: a bank connected and matched, last synced
+    /// a few hours ago, with the next sync due tomorrow (#197).
+    static func bankStatus(now: Date = .now) -> Data {
+        json([
+            "enabled": true, "connected": true, "linked_account_ids": [1],
+            "last_sync_at": BankStatus.text(now.addingTimeInterval(-5 * 3600)), "last_sync_ok": true,
+            "last_sync_status": "2 new lines, 1 matched a bill, 14 already here",
+            "last_ok_at": BankStatus.text(now.addingTimeInterval(-5 * 3600)), "needs_reconnect": false,
+            "failing_since": NSNull(), "failing_over_a_day": false,
+            "next_sync_at": BankStatus.text(now.addingTimeInterval(18.5 * 3600)),
+            "syncs_left_today": 19, "sync_wait_seconds": 0,
+        ])
     }
 
     // MARK: - Helpers

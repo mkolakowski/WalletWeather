@@ -35,6 +35,9 @@ struct SettingsView: View {
                         .card()
                     }
 
+                    SectionTitle("Bank sync")
+                    BankSyncCard()
+
                     SectionTitle("This phone")
                     VStack(alignment: .leading, spacing: 0) {
                         MoreRow { Text("Appearance") } trailing: {
@@ -559,6 +562,105 @@ struct ReportResult: View {
 
 /// One row of a More card: what it is on the left, its value or action on
 /// the right, tall enough to tap.
+/// Bank sync's state and Sync now (bank-sync phase 5, #197). Connecting a
+/// bank, the sync log and the Unmatched list are in the web app.
+private struct BankSyncCard: View {
+    @Environment(AppModel.self) private var model
+    private enum Load { case loading, unavailable, failed(String), shown(BankStatus) }
+    @State private var load = Load.loading
+    @State private var syncing = false
+    /// What the last Sync now said, or why it didn't work.
+    @State private var outcome: String?
+    @State private var outcomeFailed = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            switch load {
+            case .loading:
+                HStack(spacing: 8) { ProgressView(); Text("Checking bank sync…").foregroundStyle(.secondary) }
+            case .unavailable:
+                Text("Bank sync shows here from server \(BankStatus.minimumServer). Update your server, then come back.")
+                    .foregroundStyle(.secondary)
+            case let .failed(message):
+                Text(message).foregroundStyle(.secondary)
+                Button("Try again") { Task { await refresh() } }.buttonStyle(.glass)
+            case let .shown(status):
+                shown(status)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .card()
+        .task(id: model.generation) { await refresh() }
+    }
+
+    @ViewBuilder
+    private func shown(_ status: BankStatus) -> some View {
+        let summary = status.summary(when: { KeptBar.when($0) })
+        Label {
+            Text(summary.headline).font(.subheadline.weight(.semibold))
+        } icon: {
+            switch summary.tone {
+            case .ok: Image(systemName: "checkmark.circle.fill").foregroundStyle(Palette.good)
+            case .warning: Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Palette.warn)
+            case .neutral: Image(systemName: "building.columns")
+            }
+        }
+        if let detail = summary.detail {
+            Text(detail).font(.footnote).foregroundStyle(.secondary)
+        }
+        if let next = summary.next {
+            Text(next).font(.footnote).foregroundStyle(.secondary)
+        }
+        if model.me?.isReadOnly != true, summary.canSync || summary.waitText != nil {
+            Button { Task { await syncNow() } } label: {
+                HStack(spacing: 8) {
+                    if syncing { ProgressView() }
+                    Text("Sync now").frame(maxWidth: .infinity)
+                }
+            }
+            .buttonStyle(.glass)
+            .disabled(syncing || !summary.canSync)
+            if let wait = summary.waitText {
+                Text(wait).font(.footnote).foregroundStyle(Palette.warn)
+            }
+        }
+        if let outcome {
+            Text(outcome).font(.footnote).foregroundStyle(outcomeFailed ? Palette.bad : .secondary)
+        }
+    }
+
+    private func refresh() async {
+        guard let client = model.client else { return }
+        do {
+            if let status = try await client.bankStatus() {
+                load = .shown(status)
+            } else {
+                load = .unavailable
+            }
+        } catch {
+            load = .failed(AppModel.describe(error))
+        }
+    }
+
+    private func syncNow() async {
+        guard let client = model.client else { return }
+        syncing = true
+        outcome = nil
+        defer { syncing = false }
+        do {
+            let result = try await client.syncBankNow()
+            load = .shown(result.status)
+            outcome = "Synced: \(result.status.lastSyncStatus ?? "done")."
+            outcomeFailed = false
+        } catch {
+            // The server's own words say what went wrong (the limit, a read-only token, SimpleFIN down).
+            if case let .server(_, detail) = error { outcome = detail } else { outcome = AppModel.describe(error) }
+            outcomeFailed = true
+            await refresh()
+        }
+    }
+}
+
 private struct MoreRow<Leading: View, Trailing: View>: View {
     @ViewBuilder let leading: Leading
     @ViewBuilder let trailing: Trailing

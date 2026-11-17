@@ -1,0 +1,17 @@
+{
+    "enabled": true,
+    "connected": true,
+    "linked_account_ids": [
+        1
+    ],
+    "last_sync_at": "2026-11-17T14:06:16.123456Z",
+    "last_sync_ok": true,
+    "last_sync_status": "2 new lines, 1 matched a bill, 14 already here",
+    "last_ok_at": "2026-11-17T14:06:16.123456Z",
+    "needs_reconnect": false,
+    "failing_since": null,
+    "failing_over_a_day": false,
+    "next_sync_at": "2026-11-18T13:36:16.123456Z",
+    "syncs_left_today": 19,
+    "sync_wait_seconds": 0
+}

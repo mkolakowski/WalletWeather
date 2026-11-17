@@ -69,7 +69,12 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.75.0** · Web version: **1.89.0** · Schema version: **30** · iOS version: **0.16.0**
+App version: **1.75.0** · Web version: **1.89.0** · Schema version: **30** · iOS version: **0.17.0**
+
+### Added
+
+- **Bank sync in the iPhone app:** Settings has a Bank sync card that says whether a bank is connected, when it last synced and how many lines came in or paid a bill, any error in plain words, and when it syncs by itself next. **Sync now** runs a sync from the phone (it isn't shown for a read-only sign-in), and over the day's limit the card says when it can run again, in the web app's words. With no bank connected it says connecting is done in the web app (Settings → Bank sync). Needs server 1.70.0 or later for the details, and 1.73.0 for the bill settings below. Try the demo shows a sample status. (iOS 0.17.0)
+- **A bill's bank match settings in the iPhone app:** a bill or income's editor has a Bank sync section with the days either side and how far the amount may differ that let a synced bank line pay one of its dates, the same two settings as the web app's editor. (iOS 0.17.0)
 
 ## [1.75.0] — 2026-11-17
 

@@ -1,0 +1,17 @@
+{
+    "enabled": true,
+    "connected": true,
+    "linked_account_ids": [
+        1
+    ],
+    "last_sync_at": "2026-11-17T14:06:16.123456Z",
+    "last_sync_ok": false,
+    "last_sync_status": "SimpleFIN answered with an error (HTTP 500). Try again in a while.",
+    "last_ok_at": "2026-11-17T14:06:16.123456Z",
+    "needs_reconnect": false,
+    "failing_since": "2026-11-16T14:06:16.123456Z",
+    "failing_over_a_day": true,
+    "next_sync_at": "2026-11-17T20:06:16.123456Z",
+    "syncs_left_today": 19,
+    "sync_wait_seconds": 0
+}

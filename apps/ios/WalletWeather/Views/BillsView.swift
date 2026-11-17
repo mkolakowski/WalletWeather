@@ -691,6 +691,19 @@ struct BillEditor: View {
                 Text(problem).foregroundStyle(Palette.bad)
             }
         }
+        if open.draft.matchDays != nil, open.draft.matchPercent != nil {
+            Section {
+                Stepper("Days either side: \(open.draft.matchDays ?? 5)",
+                        value: Binding(get: { open.draft.matchDays ?? 5 }, set: { open.draft.matchDays = $0 }), in: 0...31)
+                Stepper("Amount may differ by \(open.draft.matchPercent ?? 10)%",
+                        value: Binding(get: { open.draft.matchPercent ?? 10 }, set: { open.draft.matchPercent = $0 }),
+                        in: 0...100, step: 5)
+            } header: {
+                Text("Bank sync")
+            } footer: {
+                Text("A synced bank line that goes the same way and is this close to one of its dates pays it, instead of landing as a second line. Set both to 0 for an exact match.")
+            }
+        }
         if let item = open.item, !item.expired {
             Section {
                 if !item.nextDates.isEmpty {

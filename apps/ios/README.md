@@ -15,6 +15,9 @@ an older server searches transactions only). It works with a server on
 1.54.0 or later. It isn't on TestFlight or the App Store yet (phase 6, #92);
 for now it's built from source and put on a phone from Xcode. **Try the
 demo** on the Connect screen opens it on sample numbers with no server.
+Bank sync (phase 5 of `Plans/bank-sync.md`, #197) shows its status and Sync
+now under Settings, and a bill's bank match settings in its editor; the sync
+log, the Unmatched list and connecting a bank stay in the web app.
 
 Changes in this folder don't trigger the container build.
 
@@ -187,6 +190,20 @@ re-record the samples from a demo server (`DEMO_MODE=true`) and run
 
 The app checks `GET /api/version` when it connects. A server older than
 `AppInfo.minimumServerVersion` (in `WalletWeatherKit`) gets a plain message.
+
+## Bank sync
+
+Settings has a **Bank sync** card (`BankSyncCard` in `MoreView.swift`, with
+the words in `BankSync.swift` in `WalletWeatherKit`, which tests check state
+by state). It reads `GET /api/bank/status` (server 1.70.0; an older server
+gets "Bank sync shows here from server 1.70.0") and **Sync now** posts to
+`POST /api/bank/sync`, which a read-only token can't, so the button is hidden
+for one. Over the 20-a-day limit the card shows the web app's wait message
+and disables the button. A bill's editor shows the two match settings
+(`match_days`, `match_percent`, server 1.73.0) only when the server sends
+them, and a save from a server without them leaves them out of the request,
+which leaves them as they are. In the demo the status is a sample made from
+the time now, and Sync now says the demo saves nothing.
 
 ## Try the demo
 

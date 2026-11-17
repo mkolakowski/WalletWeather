@@ -71,6 +71,10 @@ same commit (or session) that introduces it.
 
 App version: **1.71.0** · Web version: **1.85.0** · Schema version: **26** · iOS version: **0.16.0**
 
+## [1.71.0] — 2026-11-16
+
+App version: **1.71.0** · Web version: **1.85.0** · Schema version: **26** · iOS version: **0.16.0**
+
 ### Changed
 
 - **Bank-synced lines get short names:** some banks send the whole ACH
@@ -2488,7 +2492,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.70.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.71.0...HEAD
+[1.71.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.71.0
 [1.70.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.70.0
 [1.69.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.69.0
 [1.68.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.68.1

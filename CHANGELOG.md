@@ -71,6 +71,14 @@ same commit (or session) that introduces it.
 
 App version: **1.74.0** · Web version: **1.88.0** · Schema version: **29** · iOS version: **0.16.0**
 
+## [1.74.0] — 2026-11-17
+
+App version: **1.74.0** · Web version: **1.88.0** · Schema version: **29** · iOS version: **0.16.0**
+
+Email alerts are still off unless an admin switches them on and sets
+`MS_CLIENT_ID`, and they have still not been tried with a real Microsoft
+mailbox.
+
 ### Added
 
 - Email alerts now check your mailbox by themselves: every 5, 15 or 60 minutes, as you choose under Settings → Email alerts (it starts at 5), so a purchase shows up within minutes without pressing Check now. The tab says when the next check is due, or why checking is waiting (no folder yet, nothing taught, or switched off by an admin) or has stopped (Microsoft no longer accepts the sign-in: disconnect and connect again). A failed check is tried again at the same interval. The Dashboard shows a warning when checks have been failing for more than a day, the sign-in needs making again, or alerts couldn't be read. (#207)
@@ -2544,7 +2552,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.73.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.74.0...HEAD
+[1.74.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.74.0
 [1.73.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.73.0
 [1.71.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.71.0
 [1.70.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.70.0

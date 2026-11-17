@@ -270,6 +270,18 @@ forecast and "To confirm" is an open design question. Planned in
 `Plans/bank-sync.md`, with encrypted backups as its first phase.
 **Effort: large.**
 
+### 30. Bank alert emails
+Switch on "alert me for every transaction" at the bank and let the server
+read those emails from your own mailbox: each becomes a line minutes after
+the purchase, tagged by the auto-tag rules (item 8) and matched to the
+planned bill it pays, then joined to the posted row bank sync (item 29)
+brings days later. Microsoft 365 first, then Gmail and other IMAP
+mailboxes. The app is taught each bank's alert from a sample rather than
+shipping a reader per bank. It stores a sign-in that can read mail, so it
+is off until an admin allows it, and `PRIVACY.md`, `SECURITY.md` and
+`.env.example` change with it. Planned 2026-11-16 in
+`Plans/bank-alert-emails.md` (#212). **Effort: large.**
+
 ---
 
 ## What's already in good shape (don't re-prioritize these)

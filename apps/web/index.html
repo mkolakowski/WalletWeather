@@ -2769,7 +2769,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.89.0";
+const WEB_VERSION = "1.90.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2779,6 +2779,7 @@ const WEB_VERSION = "1.89.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.90.0 (2026-11-17, claude+mkolakowski): (#215) Create an account from Settings → Bank sync. A bank account that isn't matched yet gets a first choice "New account…" in its "Your account" select (BANK_NEW_ACCOUNT, bankLinkChanged) that shows a name box prefilled with the bank account's name; Save matches (bankSaveLinks) sends the other rows to PUT /api/bank/links as before, then makes each new account with POST /api/bank/accounts (name, start date), shows how many lines came in and the starting balance, and refreshes the bank panel and the account lists (loadAccounts, loadManageAccounts, loadExportAccounts).
 // 1.89.0 (2026-11-17, claude+mkolakowski): (#209) Email alerts matched to bills. A bill an alert paid shows an "Email alert" pill (_bankMatchPill reads match_source) and its Un-match asks about the alert; Settings → Email alerts lists the accounts with alerts that paid no bill (bankShowUnmatched(accountId, 'mailLog'), _mailRefreshUnmatchedCounts), and the check log and Check now say how many matched a bill.
 // 1.88.0 (2026-11-17, claude+mkolakowski): (#207) Email alerts checked by themselves. Settings → Email alerts gains a "Check every" 5/15/60 minutes setting (mailSaveSettings → PUT /api/mail/settings {check_minutes}; the folder is optional now), says when the next check is due or why checking waits or has stopped, and a Check log (loadMail → GET /api/mail/checks; mailShowRun → GET /api/mail/checks/{id}). The Dashboard shows #dashMailWarn (loadDashMailWarn → GET /api/mail/status) when checks have failed for over a day, the sign-in needs making again, or alerts couldn't be read.
 // 1.87.0 (2026-11-17, claude+mkolakowski): (#196) Bills matched to bank lines automatically. The bill editor and add line take "Bank match: ± days" and "Amount may differ by %" (_recMatchFields; match_days/match_percent sent on POST/PATCH /api/.../recurring). Forecast rows paid by a bank line show a "Bank sync" or "Matched by hand" pill (_bankMatchPill) and an Un-match button in the open line (_forecastUnmatchBtn → unmatchBankLine → POST /api/transactions/{id}/bank-unmatch). Settings → Bank sync: "Unmatched (N)" per account (bankShowUnmatched → GET /api/accounts/{id}/bank-unmatched; bankShowCandidates → .../{txn_id}/candidates; bankPayCandidate → POST .../match; bankLeaveLine → POST .../leave). The sync log has a Matched column and marks lines that paid a bill.
@@ -9322,6 +9323,18 @@ async function saveAdminBankSync() {
 // sync on, or when this user still has a connection to remove.
 let bankState = null;
 const SIMPLEFIN_CREATE_URL = 'https://bridge.simplefin.org/simplefin/create';
+// The "New account…" choice in a bank account's select (#215).
+const BANK_NEW_ACCOUNT = '__new__';
+// Show a row's name box only while its select says "New account…".
+function bankLinkChanged(sel) {
+  const wrap = document.querySelector(`.bank-new-wrap[data-ref="${sel.dataset.ref}"]`);
+  if (!wrap) return;
+  wrap.classList.toggle('hidden', sel.value !== BANK_NEW_ACCOUNT);
+  if (sel.value === BANK_NEW_ACCOUNT) {
+    const inp = wrap.querySelector('.bank-new-name');
+    if (inp) inp.focus();
+  }
+}
 
 function _bankSay(msg, color) {
   const el = document.getElementById('bankStatus');
@@ -9381,11 +9394,17 @@ function _renderBankConnected(body, owned) {
   const today = new Date();
   const minDay = new Date(today); minDay.setDate(minDay.getDate() - (bankState.start_max_days - 1));
   const max = _isoDate(today), min = _isoDate(minDay);
-  const opts = (sel) => ['<option value="">Leave out</option>'].concat(owned.map(a =>
+  const opts = (sel) => (sel ? [] : [`<option value="${BANK_NEW_ACCOUNT}">New account…</option>`])
+    .concat([`<option value=""${sel ? '' : ' selected'}>Leave out</option>`], owned.map(a =>
     `<option value="${a.id}"${a.id === sel ? ' selected' : ''}>${escapeHtml(a.name)}${a.archived ? ' (archived)' : ''}</option>`)).join('');
   const rows = (bankState.accounts || []).map(a => `<tr>
       <td>${escapeHtml(a.name)}${a.org ? `<div style="font-size:11px;color:var(--muted)">${escapeHtml(a.org)}</div>` : ''}</td>
-      <td><select class="bank-link-account" data-ref="${escapeAttr(a.ref)}" aria-label="Your account for ${escapeAttr(a.name)}">${opts(a.account_id)}</select></td>
+      <td><select class="bank-link-account" data-ref="${escapeAttr(a.ref)}" aria-label="Your account for ${escapeAttr(a.name)}" onchange="bankLinkChanged(this)">${opts(a.account_id)}</select>
+        ${a.account_id ? '' : `<div class="bank-new-wrap hidden" data-ref="${escapeAttr(a.ref)}" style="margin-top:6px">
+          <input type="text" class="bank-new-name" data-ref="${escapeAttr(a.ref)}" maxlength="120" autocomplete="off"
+                 value="${escapeAttr(a.name)}" aria-label="Name for the new account" style="width:100%;max-width:260px">
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Creates this account, matches it and syncs now. Its balance will match the bank's.</div>
+        </div>`}</td>
       <td><input type="date" class="bank-link-start" data-ref="${escapeAttr(a.ref)}" min="${min}" max="${max}"
                  value="${escapeAttr(a.start_date || max)}" aria-label="Bring in from"></td>
       <td style="white-space:nowrap">${a.account_id ? `<button class="ghost" onclick="bankShowLog(${a.account_id})">Sync log</button>` : ''}
@@ -9407,7 +9426,7 @@ function _renderBankConnected(body, owned) {
       (at most ${bankState.start_max_days} days back). Only accounts you own can be matched.</p>
     ${rows ? `<table style="width:100%;max-width:720px"><thead><tr>
         <th>Bank account</th><th>Your account</th><th>Bring in from</th><th></th></tr></thead><tbody>${rows}</tbody></table>
-      <div style="margin-top:8px"><button class="ghost" onclick="bankSaveLinks()">Save matches</button></div>
+      <div style="margin-top:8px"><button class="ghost" id="bankSaveBtn" onclick="bankSaveLinks()">Save matches</button></div>
       <div id="bankLog" class="hidden" style="margin-top:14px;max-width:720px"></div>`
       : '<div style="color:var(--muted);font-size:13px">SimpleFIN hasn\'t listed any bank accounts yet. Press Sync now to ask again.</div>'}
     <h3 class="backup-subhead" style="margin-top:20px">Sync</h3>
@@ -9572,17 +9591,54 @@ async function bankConnect() {
 }
 
 async function bankSaveLinks() {
-  const links = Array.from(document.querySelectorAll('.bank-link-account')).map(sel => {
-    const start = document.querySelector(`.bank-link-start[data-ref="${sel.dataset.ref}"]`);
-    return { ref: sel.dataset.ref, account_id: sel.value ? Number(sel.value) : null,
-             start_date: sel.value && start && start.value ? start.value : null };
+  const sels = Array.from(document.querySelectorAll('.bank-link-account'));
+  const startOf = (ref) => {
+    const start = document.querySelector(`.bank-link-start[data-ref="${ref}"]`);
+    return start && start.value ? start.value : null;
+  };
+  // Rows chosen as "New account…" are made one by one after the matches save (#215).
+  const fresh = sels.filter(sel => sel.value === BANK_NEW_ACCOUNT).map(sel => {
+    const inp = document.querySelector(`.bank-new-name[data-ref="${sel.dataset.ref}"]`);
+    return { ref: sel.dataset.ref, name: inp ? inp.value.trim() : '', start_date: startOf(sel.dataset.ref) };
   });
+  if (fresh.some(f => !f.name)) return _bankSay('Give the new account a name.', 'var(--bad)');
+  const links = sels.filter(sel => sel.value !== BANK_NEW_ACCOUNT).map(sel => ({
+    ref: sel.dataset.ref, account_id: sel.value ? Number(sel.value) : null,
+    start_date: sel.value ? startOf(sel.dataset.ref) : null }));
+  const btn = document.getElementById('bankSaveBtn');
+  if (btn) btn.disabled = true;
   _bankSay('Saving…');
+  const said = [];
+  let made = 0;
   try {
-    await api('/api/bank/links', { method: 'PUT', body: JSON.stringify({ links }) });
-    _bankSay('Matches saved.', 'var(--good)');
+    if (links.length || !fresh.length) {
+      await api('/api/bank/links', { method: 'PUT', body: JSON.stringify({ links }) });
+      if (!fresh.length) said.push('Matches saved.');
+    }
+    for (const f of fresh) {
+      _bankSay(`Creating ${f.name} and syncing…`);
+      const body = { ref: f.ref, name: f.name };
+      if (f.start_date) body.start_date = f.start_date;
+      const r = await api('/api/bank/accounts', { method: 'POST', body: JSON.stringify(body) });
+      made++;
+      if (r && r.status) bankState = r.status;
+      said.push(`Created "${f.name}": ${r.added} new line${r.added === 1 ? '' : 's'} came in, starting balance ${fmt(r.starting_balance)}.`
+        + (r.balance_known === false
+          ? ` The bank sent no balance, so "${f.name}" starts at 0: set its starting balance in Settings → Accounts.` : ''));
+    }
     await loadBank();
-  } catch (e) { _bankSay(errText(e), 'var(--bad)'); }
+    _bankSay(said.join(' '), 'var(--good)');
+  } catch (e) {
+    const err = errText(e);
+    if (made) await loadBank();
+    _bankSay((said.length ? said.join(' ') + ' ' : '') + err, 'var(--bad)');
+  } finally {
+    if (made) {
+      try { await loadAccounts(); await loadManageAccounts(); await loadExportAccounts(); } catch (_) {}
+    }
+    const b2 = document.getElementById('bankSaveBtn');
+    if (b2) b2.disabled = false;
+  }
 }
 
 async function bankSyncNow() {

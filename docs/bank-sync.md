@@ -111,6 +111,14 @@ For each bank account:
   or **Leave out**. Only accounts you own can be picked, not ones someone
   shares with you, and each of your accounts can be matched to one bank
   account only.
+- **New account…** (from 1.76.0): for a bank account you haven't set up in
+  WalletWeather yet. Pick it, check the name (it starts as the bank's own),
+  and press **Save matches**: WalletWeather makes the account, matches it
+  from the "Bring in from" date and syncs straight away. Its starting
+  balance is worked out from the bank's balance and the lines that come in,
+  so its balance today is the bank's. If the sync can't run, nothing is made
+  and you can try again. If the bank sends no balance, the account starts at
+  0: set it in Settings → Accounts. It uses one of the day's 20 syncs.
 - **Bring in from:** the first date to bring in. It starts at today, which
   means only new transactions come in. Set it back up to 90 days to bring in
   recent history. Anything older is best brought in with a CSV import.

@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.75.0"
+APP_VERSION = "1.76.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -4271,6 +4271,64 @@ def bank_set_links(body: BankLinksIn, request: Request,
     return _bank_status(db, user)
 
 
+class BankNewAccountIn(BaseModel):
+    ref: str = Field(min_length=64, max_length=64)
+    name: str = Field(min_length=1, max_length=ACCOUNT_NAME_MAX)
+    start_date: date | None = None
+
+
+@app.post("/api/bank/accounts")
+def bank_create_account(body: BankNewAccountIn, request: Request,
+                        user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Makes a new account of the user's own from a bank account that has no
+    match, matches it from the start date and syncs straight away (#215). Its
+    starting balance is worked out from the bank's balance and the lines that
+    come in, so the account's balance today is the bank's. If the sync can't
+    run, nothing is made."""
+    _bank_allowed(db, user)
+    conn = _bank_connection(db, user)
+    if not conn:
+        raise HTTPException(404, "No bank is connected.")
+    if body.ref not in {bank_account_ref(a["id"]) for a in _bank_listing(conn)}:
+        raise HTTPException(404, "That bank account isn't on this connection.")
+    if db.query(BankAccountLink).filter_by(connection_id=conn.id, bank_account_ref=body.ref).first():
+        raise HTTPException(400, "That bank account is already matched to one of your accounts.")
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(400, "Give the account a name.")
+    today = date.today()
+    start = body.start_date or today
+    if start > today or start < today - timedelta(days=BANK_START_MAX_DAYS):
+        raise HTTPException(400, f"The start date must be today or up to {BANK_START_MAX_DAYS} days back.")
+    acc = Account(owner_id=user.id, starting_date=start)
+    acc.name = name
+    acc.starting_balance = Decimal("0")
+    db.add(acc)
+    db.flush()
+    db.add(AccountPermission(account_id=acc.id, user_id=user.id, level="owner"))
+    db.add(BankAccountLink(connection_id=conn.id, bank_account_ref=body.ref, account_id=acc.id,
+                           start_date=start))
+    db.commit()
+    try:
+        result = _bank_sync(db, user, conn, request, trigger="manual", calibrate={acc.id})
+    except HTTPException:
+        # The sync didn't run (the limit, SimpleFIN down, another sync going):
+        # take away only what this request made, so the account isn't left at
+        # a balance of 0 and can be made again.
+        db.rollback()
+        made = db.get(Account, acc.id)
+        if made is not None:
+            db.delete(made)
+            db.commit()
+        raise
+    db.refresh(acc)
+    record_event(db, "bank_account_created", request, user=user, detail=f"account #{acc.id}")
+    return {"account_id": acc.id, "name": acc.name, "starting_balance": float(acc.starting_balance),
+            "balance_known": acc.id in result["calibrated"],
+            "added": result["added"], "matched": result["matched"], "skipped": result["skipped"],
+            "messages": result["messages"], "status": _bank_status(db, user)}
+
+
 # One sync per user at a time (#195): the daily sync and a Sync now never run
 # together. The server is one process (the Dockerfile's uvicorn), so a lock
 # in memory is enough.
@@ -4284,18 +4342,18 @@ def _bank_lock(user_id: int) -> threading.Lock:
 
 
 def _bank_sync(db: Session, user: User, conn: BankConnection, request: Request | None,
-               trigger: str = "manual") -> dict:
+               trigger: str = "manual", calibrate: set[int] | None = None) -> dict:
     lock = _bank_lock(user.id)
     if not lock.acquire(blocking=False):
         raise HTTPException(409, "A sync is already running. Try again in a minute.")
     try:
-        return _bank_sync_locked(db, user, conn, request, trigger)
+        return _bank_sync_locked(db, user, conn, request, trigger, calibrate or set())
     finally:
         lock.release()
 
 
 def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Request | None,
-                      trigger: str) -> dict:
+                      trigger: str, calibrate: set[int] = frozenset()) -> dict:
     links = db.query(BankAccountLink).filter_by(connection_id=conn.id).all()
     if not links:
         raise HTTPException(400, "Match at least one bank account to one of your accounts first.")
@@ -4335,6 +4393,7 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
         _set_bank_listing(conn, data["accounts"])
     by_account = {bank_account_ref(a["id"]): a for a in data["accounts"]}
     added = skipped = matched = 0
+    calibrated: set[int] = set()
     for link in links:
         acc = db.get(Account, link.account_id)
         if acc is None:
@@ -4392,6 +4451,16 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
         added, skipped = added + run.added, skipped + run.skipped
         matched += run.matched
         link.synced_through = today
+        if acc.id in calibrate and bank_acc.get("balance") is not None:
+            # A new account made from this bank account (#215): its starting
+            # balance is what makes today's balance the bank's, given the
+            # lines just brought in (it has no others).
+            db.flush()
+            landed = sum((t.amount for t in db.query(Transaction)
+                          .filter(Transaction.account_id == acc.id, Transaction.is_actual.is_(True))),
+                         Decimal("0"))
+            acc.starting_balance = bank_acc["balance"] - landed
+            calibrated.add(acc.id)
     status = (f"{added} new line{'' if added == 1 else 's'}, "
               + (f"{matched} matched a bill, " if matched else "")
               + f"{skipped} already here")
@@ -4402,7 +4471,8 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
     db.commit()
     record_event(db, "bank_sync_run", request, user=user,
                  detail=f"{added} added, {matched} matched, {skipped} skipped, {trigger}")
-    return {"added": added, "matched": matched, "skipped": skipped, "messages": data["messages"]}
+    return {"added": added, "matched": matched, "skipped": skipped, "messages": data["messages"],
+            "calibrated": sorted(calibrated)}
 
 
 # ---------- Bills matched by bank sync (#196) ----------
@@ -8836,7 +8906,7 @@ AUDIT_EVENT_TYPES = (
     "two_factor_asked", "two_factor_enabled", "two_factor_disabled",
     "recovery_code_used", "recovery_codes_remade",
     "browser_remembered", "browser_forgotten", "two_factor_requirement_changed",
-    "bank_connected", "bank_disconnected", "bank_sync_run", "bank_sync_failed",
+    "bank_connected", "bank_disconnected", "bank_account_created", "bank_sync_run", "bank_sync_failed",
     "bank_sync_setting_changed",
     "mail_connected", "mail_disconnected", "mail_sender_taught", "mail_check_run",
     "mail_check_failed", "mail_alerts_setting_changed",

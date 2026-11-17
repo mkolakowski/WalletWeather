@@ -208,7 +208,9 @@ def parse(data: dict) -> dict:
             txns.append({"id": str(t["id"]), "date": day, "amount": amount,
                          "description": _text(t.get("description"), DESCRIPTION_MAX) or "Bank transaction"})
         accounts.append({"id": str(a["id"]), "name": _text(a.get("name"), NAME_MAX) or "Bank account",
-                         "org": _text(org, NAME_MAX), "transactions": txns})
+                         "org": _text(org, NAME_MAX), "transactions": txns,
+                         # The bank's balance when it last looked (#215); None if it sent none.
+                         "balance": _amount(a.get("balance"))})
     messages = []
     for e in data.get("errlist") or []:
         if isinstance(e, dict) and e.get("msg"):

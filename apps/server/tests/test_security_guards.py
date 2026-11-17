@@ -77,7 +77,7 @@ MUST_BE_SESSION_ONLY = {
     # Bank sync (#194): connecting holds a bank's credentials. Sync now and
     # GET /api/bank/status are open to tokens since phase 3 (#195).
     ("GET", "/api/bank"), ("POST", "/api/bank/connect"), ("PUT", "/api/bank/links"),
-    ("POST", "/api/bank/disconnect"),
+    ("POST", "/api/bank/disconnect"), ("POST", "/api/bank/accounts"),
     ("PUT", "/api/admin/bank-sync"),
     # Email alerts (#206): a mailbox's sign-in can read mail, so connecting,
     # teaching and the log are browser-session only. GET /api/mail/status and

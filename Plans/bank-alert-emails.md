@@ -6,14 +6,14 @@ Tracking issue: #212
 
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
-| 1. Connect Microsoft 365 and Check now | Server, Web | #206 | Not started; open questions 1 to 4 are built on their assumptions unless you answer first |
+| 1. Connect Microsoft 365 and Check now | Server, Web | #206 | Not started; its questions are settled |
 | 2. The mailbox checked by itself | Server, Web | #207 | Not started |
 | 3. Gmail and other mailboxes | Server, Web | #208 | Not started |
 | 4. Alerts matched to bills, and the first release | Server, Web | #209 | Not started; waits for bank sync phase 4 (#196) |
 | 5. Alerts joined to bank sync rows | Server, Web | #210 | Not started; waits for open question 7 |
 | 6. Status and Check now in the iOS app | iOS | #211 | Not started |
 
-Planned 2026-11-16. Four calls were made that day while planning ([decision](../docs/dev/decisions/bank-alert-emails.md)): the app is taught each sender's alert from a sample; an account can have alerts and bank sync together, joined; Gmail gets both an app-password route and a Google sign-in route; phases 1 to 4 go out as one release.
+Planned 2026-11-16. Open questions 1 to 6 settled the same day. Four calls were made that day while planning ([decision](../docs/dev/decisions/bank-alert-emails.md)): the app is taught each sender's alert from a sample; an account can have alerts and bank sync together, joined; Gmail gets both an app-password route and a Google sign-in route; phases 1 to 4 go out as one release.
 
 Sessions: may span — phase 1 needs your own Microsoft app registration, phase 4 waits for bank sync phase 4 (#196), and phases 4 to 6 each end with a release and your try on your own instance.
 
@@ -30,14 +30,14 @@ Sessions: may span — phase 1 needs your own Microsoft app registration, phase 
 
 ## Open questions
 
-Each has an assumption the phase is built on unless you say otherwise. `/resolve-open-questions bank-alert-emails` works through them.
+Questions 1 to 6 were settled on 2026-11-16. Each of the rest has an assumption its phase is built on unless you say otherwise. `/resolve-open-questions bank-alert-emails` works through them.
 
-1. **How you sign in to Microsoft.** Blocks phase 1. Microsoft only sends a sign-in back to an `https://` address (or `localhost`), and many instances are on a plain home-network address. Assumed: the "type this code at microsoft.com/devicelogin" way, which needs no return address and no client secret, so it works wherever the instance lives. The other way is a "Connect" button that goes to Microsoft and comes back, for instances on `https://` only.
-2. **Who may connect a mailbox.** Blocks phase 1. Assumed, as bank sync does: nobody until an admin switches email alerts on in Admin (off by default, a switch of its own); then any user can connect their own mailbox; demo users can't; in a browser session only; with two-factor on, connecting and disconnecting each ask for a fresh code.
-3. **Which mail the server reads, and what it keeps.** Blocks phase 1. Assumed: one folder you name (Inbox by default), and in it only mail from senders you've taught. The server keeps the values it read (date, amount, merchant, the card's last four digits), the sample you taught each sender from, and any alert it couldn't read (so you can teach from it), all encrypted, and removes couldn't-read alerts with the log (question 5). Other mail is never stored. The mailbox is never changed: nothing is marked read, moved or deleted.
-4. **What an alert becomes.** Blocks phase 1. Assumed: a paid line dated when the alert says, marked "from an alert", as a bank sync row is marked. Not a line waiting under "To confirm".
-5. **How often the mailbox is checked, and how long the log is kept.** Blocks phase 2. Assumed: every 5 minutes; the log is kept as long as the audit log (`AUDIT_RETENTION_DAYS`).
-6. **A mail from the bank's address that fails the sender check.** Blocks phase 1. Assumed: skipped, counted in the log and shown on the couldn't-read list as "may not be from your bank"; never made into a line. (The check is the one your mailbox provider already ran on the mail: whether it really came from the bank's domain.)
+1. ~~**How you sign in to Microsoft.**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-alert-emails.md)): both ways. A Connect button that goes to Microsoft and comes back when the instance is on `https://`; a code typed at microsoft.com/devicelogin otherwise.
+2. ~~**Who may connect a mailbox.**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-alert-emails.md)): as bank sync, with a switch of its own in Admin, off by default; then any user connects their own mailbox; demo users can't; a browser session only; a fresh code with two-factor on.
+3. ~~**Which mail the server reads, and what it keeps.**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-alert-emails.md)): one folder you name (Inbox by default), only mail from taught senders. Kept, encrypted: the values read, the sample each sender was taught from, and alerts it couldn't read (removed with the log). Other mail is never stored and the mailbox is never changed.
+4. ~~**What an alert becomes.**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-alert-emails.md)): a paid line dated when the alert says, marked "from an alert".
+5. ~~**How often the mailbox is checked, and how long the log is kept.**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-alert-emails.md)): each user picks 5, 15 or 60 minutes in Settings. Not asked, so built on these unless you say otherwise: it starts at 5 minutes, and the log is kept as long as the audit log (`AUDIT_RETENTION_DAYS`), as bank sync's is.
+6. ~~**A mail from the bank's address that fails the sender check.**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-alert-emails.md)): skipped, counted in the log and shown with the couldn't-read alerts as "may not be from your bank"; never made into a line, and no button to add it anyway.
 7. **How close an alert and a bank row must be to be joined** (phase 5). Blocks phase 5. Assumed: the same account and direction, the bank's date from the alert's day to 7 days after, the amount the same or up to 30% more (a tip added later), the nearest date winning and a tie left for you to join by hand. An alert no bank row has met after 10 days is flagged "never posted".
 8. **Whose values win when they're joined.** Blocks phase 5. Assumed: the bank's amount and date, the alert's merchant name (SimpleFIN's descriptions are rougher), and your own edits to the line over both.
 9. **Work or school Microsoft 365 accounts.** Blocks nothing. Assumed: both personal (Outlook.com) and work or school accounts are allowed; a work tenant may want its admin to approve the app, and the guide says so.
@@ -83,9 +83,9 @@ Each has an assumption the phase is built on unless you say otherwise. `/resolve
 
 **Apps:** Server and Web. No iOS work.
 
-- **Settings in `.env`:** `MS_CLIENT_ID` (and `MS_TENANT`, defaulting to any account), added to `.env.example` with where the value comes from. Without it the Microsoft route isn't offered.
+- **Settings in `.env`:** `MS_CLIENT_ID` (and `MS_TENANT`, defaulting to any account), and `MS_CLIENT_SECRET` for the Connect button only, added to `.env.example` with where each value comes from. Without `MS_CLIENT_ID` the Microsoft route isn't offered.
 - **Admin:** a switch that allows email alerts on the instance, off by default; the users list shows who has a mailbox connected.
-- **Connect, in Settings → Email alerts:** sign in to Microsoft (open question 1), pick the folder, and the tab shows the mailbox's address and when it was last checked. Browser session only; demo users can't; a fresh code with two-factor on.
+- **Connect, in Settings → Email alerts:** sign in to Microsoft either way (decided 2026-11-16): a Connect button that goes to Microsoft and comes back, offered when the instance is on `https://` and `MS_CLIENT_SECRET` is set, or a short code typed at microsoft.com/devicelogin, which works on any address. Then pick the folder, and the tab shows the mailbox's address and when it was last checked. Browser session only; demo users can't; a fresh code with two-factor on.
 - **Schema:** a table for a user's mailbox connection (the provider, the sign-in encrypted with `ENCRYPTION_KEY`, the folder, the last check and its result), a table of taught senders (the address, what each kind of alert from it looks like, which account each card's last four digits belongs to) and on `transactions` the alert's own id, so a mail is never read into two lines.
 - **Teach a sender:** the tab lists recent mail in the folder (sender, subject and date only); you pick one of your bank's alerts; the reader shows what it took as the amount, the merchant, the date and the card's last four digits; you correct any of them by marking the right text, say whether it's money out or in, and pick the account that card belongs to. A sender can be taught more than one kind of alert (a purchase, a deposit); kinds it wasn't taught are ignored.
 - **Check now:** asks Microsoft for mail since the last check, takes the mail from taught senders that passed the sender check, reads each, and lands it as a paid line marked "from an alert" through the path bank sync uses: duplicates skipped by the alert's id, the auto-tag rules run, and the button says how many came in.
@@ -106,11 +106,11 @@ Each has an assumption the phase is built on unless you say otherwise. `/resolve
 
 **Apps:** Server and Web. No iOS work.
 
-- A background check, like bank sync's, that looks at each connected mailbox every few minutes (open question 5), never at the same moment as a Check now for the same user.
+- A background check, like bank sync's, that looks at each connected mailbox as often as its user has chosen in Settings (5, 15 or 60 minutes, decided 2026-11-16; it starts at 5), never at the same moment as a Check now for the same user.
 - Settings shows when the last check ran and what it brought in and, when it failed, why and what to do (a lapsed sign-in asks you to connect again). The Dashboard shows a small warning when checks have been failing for more than a day or alerts are waiting on the couldn't-read list.
 - **A log, for the account's owner:** per account, each check that brought something in or failed: when, by schedule or Check now, how many lines came in, were skipped as already there, couldn't be read or failed the sender check; opening one shows the lines. Checks that found nothing aren't listed.
 - A status endpoint an API token may read, and Check now allowed to a token with write access, ready for phase 6.
-- Tests: the scheduler checks a due mailbox and skips one checked just now; a failure is recorded and doesn't stop other users' checks; a lapsed sign-in stops the schedule until reconnected; the status endpoint's shape; the log's shape, and that someone the account is shared with can't read it; a read-only token can't Check now.
+- Tests: the scheduler checks a due mailbox and skips one checked just now; each user's own interval is kept, and a value that isn't 5, 15 or 60 is refused; a failure is recorded and doesn't stop other users' checks; a lapsed sign-in stops the schedule until reconnected; the status endpoint's shape; the log's shape, and that someone the account is shared with can't read it; a read-only token can't Check now.
 
 **You:** nothing yet.
 

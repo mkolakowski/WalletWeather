@@ -16,7 +16,8 @@ mailbox. It only reads: it never marks mail read, moves it or deletes it, and
 it never sends mail.
 
 {: .important }
-> - **WalletWeather 1.72.0 or later.** The version is in the app's footer.
+> - **WalletWeather 1.73.0 or later.** The version is in the app's footer.
+> - **Not yet tried with a real Microsoft mailbox.** Email alerts are new in 1.73.0 and were tested only against a stand-in for Microsoft. Tell us if something doesn't work.
 > - **The person who runs the server** registers a Microsoft app once and
 >   switches email alerts on ([below](#for-the-person-who-runs-the-server)).
 > - **Each person connects their own mailbox** and teaches it their bank's

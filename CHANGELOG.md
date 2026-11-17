@@ -71,6 +71,14 @@ same commit (or session) that introduces it.
 
 App version: **1.73.0** · Web version: **1.87.0** · Schema version: **28** · iOS version: **0.16.0**
 
+## [1.73.0] — 2026-11-17
+
+App version: **1.73.0** · Web version: **1.87.0** · Schema version: **28** · iOS version: **0.16.0**
+
+Email alerts (below) are off unless an admin switches them on and sets
+`MS_CLIENT_ID`. They have been tested only against a stand-in for Microsoft,
+never with a real mailbox, so treat them as a first try.
+
 ### Added
 
 - **Bank sync pays your planned bills:** a synced line that's close to one of
@@ -2526,7 +2534,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.71.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.73.0...HEAD
+[1.73.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.73.0
 [1.71.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.71.0
 [1.70.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.70.0
 [1.69.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.69.0

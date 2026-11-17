@@ -71,6 +71,16 @@ same commit (or session) that introduces it.
 
 App version: **1.74.0** · Web version: **1.88.0** · Schema version: **29** · iOS version: **0.16.0**
 
+### Added
+
+- Email alerts now check your mailbox by themselves: every 5, 15 or 60 minutes, as you choose under Settings → Email alerts (it starts at 5), so a purchase shows up within minutes without pressing Check now. The tab says when the next check is due, or why checking is waiting (no folder yet, nothing taught, or switched off by an admin) or has stopped (Microsoft no longer accepts the sign-in: disconnect and connect again). A failed check is tried again at the same interval. The Dashboard shows a warning when checks have been failing for more than a day, the sign-in needs making again, or alerts couldn't be read. (#207)
+- A Check log under Settings → Email alerts: every check that brought something in or failed, newest first, whether it ran by itself or by Check now, how many lines came in, were already there or couldn't be read, and any error; Show lines lists what a check brought in. Checks that found nothing new aren't listed. Only you see it, and entries are kept as long as the audit log (180 days unless changed). (#207)
+- For apps and scripts: `GET /api/mail/status` gives the mailbox's state and can be read with any API token, and `POST /api/mail/check` (Check now) works with a token that has write access. (#207)
+
+### Database
+
+- Schema 29: a table for the mailbox's check log, a column on the mailbox for how often it's checked, and a column on transactions naming the check that brought a line in. Added on start-up. (#207)
+
 ## [1.73.0] — 2026-11-17
 
 App version: **1.73.0** · Web version: **1.87.0** · Schema version: **28** · iOS version: **0.16.0**
@@ -81,9 +91,6 @@ never with a real mailbox, so treat them as a first try.
 
 ### Added
 
-- Email alerts now check your mailbox by themselves: every 5, 15 or 60 minutes, as you choose under Settings → Email alerts (it starts at 5), so a purchase shows up within minutes without pressing Check now. The tab says when the next check is due, or why checking is waiting (no folder yet, nothing taught, or switched off by an admin) or has stopped (Microsoft no longer accepts the sign-in: disconnect and connect again). A failed check is tried again at the same interval. The Dashboard shows a warning when checks have been failing for more than a day, the sign-in needs making again, or alerts couldn't be read. (#207)
-- A Check log under Settings → Email alerts: every check that brought something in or failed, newest first, whether it ran by itself or by Check now, how many lines came in, were already there or couldn't be read, and any error; Show lines lists what a check brought in. Checks that found nothing new aren't listed. Only you see it, and entries are kept as long as the audit log (180 days unless changed). (#207)
-- For apps and scripts: `GET /api/mail/status` gives the mailbox's state and can be read with any API token, and `POST /api/mail/check` (Check now) works with a token that has write access. (#207)
 - **Bank sync pays your planned bills:** a synced line that's close to one of
   your bills or paychecks pays it instead of landing as a second line. The
   bill's line in Forecast is marked paid at the bank's date and amount, with
@@ -110,7 +117,6 @@ never with a real mailbox, so treat them as a first try.
 
 ### Database
 
-- Schema 29: a table for the mailbox's check log, a column on the mailbox for how often it's checked, and a column on transactions naming the check that brought a line in. Added on start-up. (#207)
 - Schema 28: two match settings on bills and income, three columns on
   transactions for lines paid by bank sync (how they were matched, the bank's
   own text, and whether one was left as its own line), and a matched count in

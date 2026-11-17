@@ -83,3 +83,15 @@ Decisions made while planning and building [`Plans/bank-alert-emails.md`](../../
 **Why:** a check can bring in lines for several accounts and some alerts have none; a mailbox is what a check belongs to. It's simpler to build and nothing is left out of it.
 
 **Set while building, not asked:** the scheduler looks every minute, since the shortest interval is five; a failed check is tried again at the user's own interval; checks that found nothing aren't kept; the log is kept as long as the audit log.
+
+## 2026-11-17: phase 1 ships ahead of the plan's one release
+
+**Decided:** 2026-11-17, by Matthew, when asked to cut v1.73.0 (told to the release session, #216). **Status:** accepted.
+
+**The question:** the plan said phases 1 to 4 would go out as one release. v1.73.0 was due with bank sync phase 4 (#196); should phase 1 of email alerts (#206) go in it?
+
+**The decision:** yes. Phase 1 shipped in v1.73.0, switched off until an admin turns it on and sets `MS_CLIENT_ID`, with the release notes and the setup guide saying it has only been tested against a stand-in for Microsoft, never a real mailbox.
+
+**Why:** it can't affect anyone who doesn't switch it on, and trying it on a real mailbox early finds what a stand-in can't, before more is built on it.
+
+**What it changes:** phases 2 to 4 are released as they're ready, not together; phase 4 is no longer "the first release". The plan's other choices stand.

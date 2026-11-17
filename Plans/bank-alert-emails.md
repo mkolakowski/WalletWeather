@@ -6,12 +6,14 @@ Tracking issue: #212
 
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
-| 1. Connect Microsoft 365 and Check now | Server, Web | #206 | Not started; its questions are settled |
+| 1. Connect Microsoft 365 and Check now | Server, Web | #206 | Built in 1.72.0 (2026-11-16), switched off; released with phase 4 |
 | 2. The mailbox checked by itself | Server, Web | #207 | Not started |
 | 3. Gmail and other mailboxes | Server, Web | #208 | Not started |
 | 4. Alerts matched to bills, and the first release | Server, Web | #209 | Not started; waits for bank sync phase 4 (#196) |
 | 5. Alerts joined to bank sync rows | Server, Web | #210 | Not started; its questions are settled |
 | 6. Status and Check now in the iOS app | iOS | #211 | Not started |
+
+Phase 1 built 2026-11-16 in 1.72.0 (schema 27, web 1.86.0), not released by itself: API tests in `apps/server/tests/test_mail_alerts.py` against a stand-in Microsoft (34 tests, the reader on alerts worded different ways included), and the screens driven in a headless browser against the same stand-in. Endpoints were checked against Microsoft's device code and Graph list-messages pages that day. The teaching screen's "select text, then pick" was your call; the 30-day start date, 50 lines and 100 mails per check and 15 seconds between checks were set in building ([decision](../docs/dev/decisions/bank-alert-emails.md)). Not yet tried against a real Microsoft mailbox.
 
 Planned 2026-11-16. All nine open questions settled the same day. Four calls were made that day while planning ([decision](../docs/dev/decisions/bank-alert-emails.md)): the app is taught each sender's alert from a sample; an account can have alerts and bank sync together, joined; Gmail gets both an app-password route and a Google sign-in route; phases 1 to 4 go out as one release.
 

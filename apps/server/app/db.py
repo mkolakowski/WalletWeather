@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "26"
+SCHEMA_VERSION = "27"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,11 @@ SCHEMA_VERSION = "26"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v27 (2026-11-16, claude+mkolakowski): email alerts (bank-alert-emails
+#     phase 1, #206). New tables mail_connections (a user's Microsoft
+#     sign-in, encrypted, and the folder read), mail_senders, mail_alert_kinds
+#     (what each taught alert looks like) and mail_unread (alerts that
+#     didn't become lines); transactions.mail_ref, the mail a line came from.
 # v26 (2026-11-16, claude+mkolakowski): daily bank sync and its log
 #     (bank-sync phase 3, #195). New table bank_sync_runs (one row per
 #     linked account per sync, for its owner's sync log);
@@ -388,6 +393,9 @@ class Transaction(Base):
     bank_ref = Column(String(64), nullable=True)
     # The sync that brought it in, for the sync log (#195).
     bank_sync_run_id = Column(Integer, ForeignKey("bank_sync_runs.id", ondelete="SET NULL"), nullable=True)
+    # A line that came from an email alert (#206): sha256 of the mail's own
+    # id, so one mail never becomes two lines.
+    mail_ref = Column(String(64), nullable=True)
 
     account = relationship("Account", back_populates="transactions")
     category = relationship("Category")
@@ -670,6 +678,85 @@ class BankSyncRun(Base):
     __table_args__ = (Index("ix_bank_sync_runs_account_run", "account_id", "run_at"),)
 
 
+class MailConnection(Base):
+    """A user's mailbox for email alerts (bank-alert-emails phase 1, #206): one
+    per user. `tokens_enc` holds Microsoft's sign-in (JSON: access, refresh,
+    expires_at), encrypted with ENCRYPTION_KEY and never logged or sent to the
+    browser. `auth_mode` is 'device' (signed in with a code) or 'web' (the
+    Connect button, renewed with MS_CLIENT_SECRET). Only mail in `folder_id`
+    received from `start_date` on is read; `scanned_through` is how far the
+    last good check got."""
+    __tablename__ = "mail_connections"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    provider = Column(String(20), nullable=False, default="microsoft")
+    auth_mode = Column(String(10), nullable=False, default="device")
+    tokens_enc = Column(LargeBinary, nullable=False)
+    address_enc = Column(LargeBinary, nullable=True)
+    folder_id = Column(Text, nullable=True)
+    folder_name = Column(String(200), nullable=True)
+    start_date = Column(Date, nullable=False)
+    # The user's clock, minutes east of UTC, for the day an alert arrived.
+    utc_offset_minutes = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    scanned_through = Column(DateTime, nullable=True)
+    last_check_at = Column(DateTime, nullable=True)
+    last_check_ok = Column(Boolean, nullable=True)
+    last_check_status = Column(String(300), nullable=True)
+    last_ok_at = Column(DateTime, nullable=True)
+    needs_reconnect = Column(Boolean, nullable=False, default=False)
+
+
+class MailSender(Base):
+    """An address whose alerts have been taught (#206). New lines go to
+    `account_id`, or to the account a card's last four digits are matched to
+    (`cards_json`: {"1234": account_id})."""
+    __tablename__ = "mail_senders"
+    id = Column(Integer, primary_key=True)
+    connection_id = Column(Integer, ForeignKey("mail_connections.id", ondelete="CASCADE"), nullable=False)
+    address = Column(String(320), nullable=False)
+    label = Column(String(80), nullable=False)
+    account_id = Column(Integer, ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True)
+    cards_json = Column(Text, nullable=False, default="{}")
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    __table_args__ = (UniqueConstraint("connection_id", "address", name="uq_mail_sender_address"),)
+
+
+class MailAlertKind(Base):
+    """One kind of alert from a sender (#206): mail whose subject starts with
+    `subject_key`. `anchors_enc` is the text around each value in the sample
+    (JSON), `sample_enc` the sample's text, both encrypted: they hold words
+    from the user's own mail."""
+    __tablename__ = "mail_alert_kinds"
+    id = Column(Integer, primary_key=True)
+    sender_id = Column(Integer, ForeignKey("mail_senders.id", ondelete="CASCADE"), nullable=False)
+    subject_key = Column(String(200), nullable=False)
+    direction = Column(String(3), nullable=False)    # 'out' | 'in'
+    anchors_enc = Column(LargeBinary, nullable=False)
+    sample_enc = Column(LargeBinary, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class MailUnread(Base):
+    """An alert from a taught sender that didn't become a line (#206): the
+    reader couldn't make sense of it, its card isn't matched to an account,
+    or it failed the sender check ("may not be from your bank"). Its text is
+    kept, encrypted, so it can be taught from; removed with the audit log
+    (AUDIT_RETENTION_DAYS) or when dismissed."""
+    __tablename__ = "mail_unread"
+    id = Column(Integer, primary_key=True)
+    connection_id = Column(Integer, ForeignKey("mail_connections.id", ondelete="CASCADE"), nullable=False)
+    message_ref = Column(String(64), nullable=False)
+    received_at = Column(DateTime, nullable=False)
+    sender = Column(String(320), nullable=False)
+    reason = Column(String(20), nullable=False)
+    detail = Column(String(200), nullable=True)
+    subject_enc = Column(LargeBinary, nullable=False)
+    text_enc = Column(LargeBinary, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    __table_args__ = (UniqueConstraint("connection_id", "message_ref", name="uq_mail_unread_ref"),)
+
+
 class ApiToken(Base):
     """A personal API token (#42), sent as `Authorization: Bearer <token>`.
 
@@ -787,6 +874,11 @@ def init_db():
     from sqlalchemy import text
     Base.metadata.create_all(engine)
     migrations = [
+        # v26 → v27: email alerts (#206). mail_connections, mail_senders,
+        # mail_alert_kinds and mail_unread come from create_all.
+        "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS mail_ref VARCHAR(64)",
+        "CREATE INDEX IF NOT EXISTS ix_transactions_account_mail_ref "
+        "ON transactions (account_id, mail_ref) WHERE mail_ref IS NOT NULL",
         # v25 → v26: daily bank sync and its log (#195). bank_sync_runs comes
         # from create_all.
         "ALTER TABLE bank_connections ADD COLUMN IF NOT EXISTS last_ok_at TIMESTAMP",

@@ -1,6 +1,6 @@
 ---
 title: Privacy policy
-nav_order: 3
+nav_order: 4
 ---
 
 # WalletWeather privacy policy
@@ -39,6 +39,12 @@ the server (not your phone) asks SimpleFIN Bridge for your bank accounts and
 posted transactions whenever it syncs. SimpleFIN and your bank see that, and
 SimpleFIN's privacy policy covers its part. The iOS app itself never talks to
 SimpleFIN.
+
+If they have switched on email alerts and you connect your Microsoft mailbox
+in the web app, the server (not your phone) reads your bank's alert emails
+from the one folder you picked, read-only, whenever it checks. Microsoft sees
+that, and its privacy policy covers its part. The iOS app itself never talks
+to Microsoft.
 
 ## What is kept on your device
 

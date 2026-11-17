@@ -36,8 +36,20 @@ server it runs on:
   contain all of the above, email addresses included, encrypted with a
   passphrase: the user's own, or the instance's `BACKUP_PASSPHRASE`.
   "Download my data" is the exception: a plain, readable file for the user
-  to keep or take elsewhere, not encrypted. A user's bank connection goes
-  into encrypted backups only, never into "Download my data".
+  to keep or take elsewhere, not encrypted. A user's bank connection and
+  mailbox sign-in go into encrypted backups only, never into "Download my
+  data".
+- **Email alerts, for a user who connects a mailbox:** Microsoft's sign-in
+  for it (encrypted with `ENCRYPTION_KEY`, never shown or logged), the
+  mailbox's address (encrypted), the folder they picked and the day to read
+  from. For each bank they teach: its sender address, the name they gave
+  it, which account its lines go to and which card digits go to which
+  account, and for each kind of alert how its subject starts, the text
+  around each value and the sample alert's text (both encrypted). Alerts
+  from a taught bank that didn't become lines, with their subject and text
+  (encrypted), until they're dismissed or older than `AUDIT_RETENTION_DAYS`
+  (180 days unless changed). Each line an alert brings in is stored like any
+  other, plus a hash of the email's own id. Other mail is never stored.
 - **Bank sync, for a user who connects a bank:** the address SimpleFIN
   issued for their connection, which holds its credentials (encrypted with
   `ENCRYPTION_KEY`, never shown or logged), the names of their bank
@@ -76,7 +88,7 @@ server it runs on:
 
 ## What leaves the server
 
-Nothing, with two exceptions the operator chooses:
+Nothing, with three exceptions the operator chooses:
 
 - **Google sign-in:** when it's switched on (`GOOGLE_CLIENT_ID`), signing in
   with Google sends the user to Google, and Google tells the instance their
@@ -92,6 +104,17 @@ Nothing, with two exceptions the operator chooses:
   credentials SimpleFIN issued. SimpleFIN and their bank see that the
   connection is used, and when; SimpleFIN's own privacy policy covers its
   side. Users who don't connect a bank cause no calls at all.
+- **Email alerts:** when an admin switches them on (Admin → Email alerts,
+  off by default) and has registered a Microsoft app (`MS_CLIENT_ID`), a
+  user may connect their own Microsoft 365 or Outlook.com mailbox. For that
+  user only, the server calls Microsoft (login.microsoftonline.com and
+  graph.microsoft.com, nothing else): to sign in, to renew the sign-in, and
+  each time they check, to list the folder's mail since the last check and
+  open the alerts from banks they've taught. It asks for read-only access
+  and never changes the mailbox. Nothing about them goes the other way
+  except those requests and the sign-in. Microsoft sees that the mailbox is
+  read, and when; its own privacy policy covers its side. Users who don't
+  connect a mailbox cause no calls at all.
 
 ## If you run an instance for other people
 

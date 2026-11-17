@@ -49,6 +49,9 @@ services:
       BACKUP_DIR: /data/backups
       BACKUP_PASSPHRASE: ${BACKUP_PASSPHRASE:-}
       SIMPLEFIN_HOSTS: ${SIMPLEFIN_HOSTS:-}
+      MS_CLIENT_ID: ${MS_CLIENT_ID:-}
+      MS_CLIENT_SECRET: ${MS_CLIENT_SECRET:-}
+      MS_TENANT: ${MS_TENANT:-}
     # Healthy once the API answers. The image has no curl, so Python does the
     # request; start_period covers the first boot's database setup.
     healthcheck:

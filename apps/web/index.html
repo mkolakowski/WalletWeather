@@ -2124,6 +2124,20 @@
         <div id="adminBankSyncStatus" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
       </div>
 
+      <div class="panel" id="adminMailAlerts">
+        <h2>Email alerts</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Let users bring in transactions from their bank's alert emails, read from one folder of their
+          Microsoft mailbox (read-only). With it on, this server calls Microsoft for the users who connect;
+          nothing is sent for anyone else. Switching it off stops connecting and checking; connections already
+          made stay until their users disconnect.
+        </p>
+        <label style="display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer">
+          <input id="adminMailOn" type="checkbox" style="width:auto;margin:0" onchange="saveAdminMail()">
+          Allow email alerts</label>
+        <div id="adminMailStatus" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
+      </div>
+
       <div class="panel">
         <h2>User management</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
@@ -2251,6 +2265,7 @@
         <button type="button" role="tab" data-section="sharing">Sharing</button>
         <button type="button" role="tab" data-section="backup">Backup</button>
         <button type="button" role="tab" data-section="bank" id="bankTab" class="hidden">Bank sync</button>
+        <button type="button" role="tab" data-section="mail" id="mailTab" class="hidden">Email alerts</button>
         <button type="button" role="tab" data-section="your-account">Your account</button>
       </div>
       <div class="panel" data-settings-section="appearance">
@@ -2627,6 +2642,11 @@
         <div id="bankStatus" role="status" style="margin-top:10px;font-size:13px"></div>
       </div>
 
+      <div class="panel" data-settings-section="mail" id="mailPanel">
+        <h2>Email alerts</h2>
+        <div id="mailBody"><span style="color:var(--muted)">Loading…</span></div>
+      </div>
+
       <div class="panel" data-settings-section="your-account" id="myDataPanel">
         <h2>Download my data</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
@@ -2744,7 +2764,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.85.0";
+const WEB_VERSION = "1.86.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2754,6 +2774,7 @@ const WEB_VERSION = "1.85.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.86.0 (2026-11-16, claude+mkolakowski): (#206) Email alerts. Settings gets an "Email alerts" tab (#mailTab, section 'mail', #mailPanel, loadMail), shown when /api/mail says enabled or connected: sign in to Microsoft with a code (mailDeviceStart → POST /api/mail/microsoft/device, then polls /device/poll) or with the Connect button (mailWebStart → /api/mail/microsoft/web), pick the folder and start date (mailSaveSettings → PUT /api/mail/settings, GET /api/mail/folders), the banks taught with their accounts, cards and kinds (PUT/DELETE /api/mail/senders), Check now (mailCheckNow → POST /api/mail/check), the mail it couldn't read (GET /api/mail/unread, mailDismiss), Disconnect (mailDisconnect). Teaching a bank's alert (mailTeachList → GET /api/mail/messages, mailTeachFrom → POST /api/mail/preview, mailMark, mailTeachSave → POST /api/mail/senders): select words in the alert text, then tap Amount, Merchant, Date or Card; offsets are converted between the server's code points and the page's UTF-16 units (cpToJs, jsToCp); all mail text is escaped and never made into links. Admin gets an "Email alerts" switch (#adminMailAlerts, loadAdminMail, saveAdminMail) and a "mailbox connected" badge in Users.
 // 1.85.0 (2026-11-16, claude+mkolakowski): (#195) Daily bank sync. Settings → Bank sync says when the next daily sync is due, or that SimpleFIN no longer accepts the connection; each matched bank account gets a "Sync log" button (bankShowLog → GET /api/accounts/{id}/bank-syncs, bankShowLogLines → .../{run_id}). The Dashboard shows #dashBankWarn (loadDashBankWarn → GET /api/bank/status) when sync has failed for over a day or needs reconnecting.
 // 1.84.0 (2026-11-16, claude+mkolakowski): (#194) Bank sync. Settings gets a "Bank sync" tab (#bankTab, section 'bank', #bankPanel, loadBank), shown when /api/bank says enabled or connected: paste a SimpleFIN setup token (bankConnect, with a code field when two-factor is on), match each bank account to an owned account with a start date (bankSaveLinks → PUT /api/bank/links), Sync now (bankSyncNow), Disconnect (bankDisconnect). Admin gets a "Bank sync" switch (#adminBankSync, loadAdminBankSync, saveAdminBankSync) and a "bank connected" badge in Users.
 // 1.83.0 (2026-11-16, claude+mkolakowski): (#193) Encrypted backups. Settings → Backup asks for a passphrase twice (#exportPassphrase, #exportPassphrase2) with the warning, and POSTs /api/backup/export; the account menu's export asks in two promptDialogs (askBackupPassphrase). Restore spots an encrypted file (walletweather marker), asks for its passphrase (#importPassphraseWrap) and lists its accounts from /api/backup/preview; a plain file still restores, with the "wasn't encrypted" note. Settings → Your account gains Download my data (#myDataPanel, GET /api/backup/export). Admin → System backups warns when BACKUP_PASSPHRASE is missing (#adminBackupPassphraseWarn) and lists each file as Encrypted or Not encrypted.
@@ -3808,7 +3829,7 @@ function showPage(name, opts) {
   document.getElementById('navAdmin').classList.toggle('active', name==='admin');
   document.getElementById('navSettings').classList.toggle('active', name==='settings');
   _syncPhoneNav(name);
-  if (name === 'settings') { showSettingsSection(settingsSection, { noHash: true }); loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); loadApiTokens(); loadChangePassword(); loadTwoFactor(); loadDeleteAccount(); loadBank(); }
+  if (name === 'settings') { showSettingsSection(settingsSection, { noHash: true }); loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); loadApiTokens(); loadChangePassword(); loadTwoFactor(); loadDeleteAccount(); loadBank(); loadMail(); }
   if (name === 'dashboard') loadDashboard();
   if (name === 'networth') loadNetworth();
   if (name === 'subscriptions') {
@@ -4198,7 +4219,7 @@ document.addEventListener('keydown', (ev) => {
   }
 });
 
-const SETTINGS_SECTIONS = ['appearance', 'accounts', 'categories', 'budgets', 'sharing', 'backup', 'bank', 'your-account'];
+const SETTINGS_SECTIONS = ['appearance', 'accounts', 'categories', 'budgets', 'sharing', 'backup', 'bank', 'mail', 'your-account'];
 let settingsSection = 'appearance';
 function showSettingsSection(section, opts) {
   opts = opts || {};
@@ -9135,6 +9156,7 @@ function loadAdminPage() {
   loadAdminAppTitle();
   loadAdminTwoFactor();
   loadAdminBankSync();
+  loadAdminMail();
   loadAdminUsers();
   loadAdminTokens();
   loadAdminPermissions();
@@ -9400,6 +9422,513 @@ async function bankDisconnect() {
   } catch (e) { _bankSay(errText(e), 'var(--bad)'); }
 }
 
+// Settings → Email alerts (#206). WalletWeather reads a bank's "alert me for
+// every transaction" emails from one folder of a Microsoft mailbox (read-only)
+// and turns each into a line. Mail text is written by strangers: every string
+// from the server goes through escapeHtml, and nothing from mail becomes a link.
+let mailState = null;
+let mailOwned = [];
+let mailTeach = null;      // the teaching screen's state, or null
+let mailPollTimer = null;
+const MAIL_FIELDS = [
+  ['amount', 'Amount', 'rgba(46,160,67,.40)'],
+  ['merchant', 'Merchant', 'rgba(56,139,253,.38)'],
+  ['date', 'Date', 'rgba(210,153,34,.42)'],
+  ['card', 'Card', 'rgba(163,113,247,.38)'],
+];
+
+function _mailSay(msg, color) {
+  const el = document.getElementById('mailStatus');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.style.color = color || 'var(--muted)';
+}
+function _mailOffset() { return -new Date().getTimezoneOffset(); }
+function _mailStopPoll() { if (mailPollTimer) { clearTimeout(mailPollTimer); mailPollTimer = null; } }
+// The server counts code points (Python); the page counts UTF-16 units.
+function cpToJs(text, n) {
+  let i = 0;
+  for (; n > 0 && i < text.length; n--) i += text.codePointAt(i) > 0xffff ? 2 : 1;
+  return i;
+}
+function jsToCp(text, j) {
+  let n = 0;
+  for (let i = 0; i < j && i < text.length; n++) i += text.codePointAt(i) > 0xffff ? 2 : 1;
+  return n;
+}
+
+async function loadMail() {
+  const tab = document.getElementById('mailTab');
+  const body = document.getElementById('mailBody');
+  if (!tab || !body) return;
+  _mailStopPoll();
+  try { mailState = await api('/api/mail'); }
+  catch (e) { tab.classList.add('hidden'); return; }
+  tab.classList.toggle('hidden', !(mailState.enabled || mailState.connected));
+  mailTeach = null;
+  if (!mailState.connected) {
+    if (!mailState.enabled) { body.innerHTML = ''; return; }
+    if (mailState.pending) return _mailShowPending(mailState.pending);
+    return _renderMailConnect(body);
+  }
+  try { mailOwned = (await api('/api/accounts?include_archived=true')).filter(a => a.level === 'owner'); } catch (_) { mailOwned = []; }
+  let folders = [], unread = [];
+  if (!mailState.needs_reconnect) { try { folders = await api('/api/mail/folders'); } catch (_) {} }
+  if (mailState.unread_count) { try { unread = await api('/api/mail/unread'); } catch (_) {} }
+  _renderMailConnected(body, folders, unread);
+}
+
+function _renderMailConnect(body) {
+  const intro = `
+    <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+      Turn on "alert me for every transaction" at your bank. WalletWeather reads those emails from one folder of your
+      Microsoft 365 or Outlook.com mailbox and turns each into a line. It only reads: it never changes, moves or
+      deletes your mail.</p>`;
+  if (!mailState.available) {
+    body.innerHTML = intro + `<p style="font-size:13px">This server has no Microsoft app set up yet. The person who runs it
+      needs to set <code>MS_CLIENT_ID</code> in the server's <code>.env</code>; the setup guide is
+      <code>docs/email-alerts.md</code>.</p><div id="mailStatus" role="status" style="margin-top:10px;font-size:13px"></div>`;
+    return;
+  }
+  const err = mailState.connect_error
+    ? `<p style="color:var(--bad);font-size:13px;margin:0 0 10px">${escapeHtml(mailState.connect_error)}</p>` : '';
+  body.innerHTML = intro + err + `
+    ${_bankCodeField('mailConnectCode')}
+    <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+      <button onclick="mailDeviceStart()">Sign in with a code</button>
+      ${mailState.web_available ? '<button class="ghost" onclick="mailWebStart()">Connect with Microsoft</button>' : ''}
+    </div>
+    <div id="mailStatus" role="status" style="margin-top:10px;font-size:13px"></div>`;
+}
+
+function _mailCode() {
+  const el = document.getElementById('mailConnectCode');
+  return el && el.value ? el.value : null;
+}
+
+async function mailWebStart() {
+  _mailSay('Opening Microsoft…');
+  try {
+    const r = await api('/api/mail/microsoft/web', { method: 'POST',
+      body: JSON.stringify({ code: _mailCode(), utc_offset_minutes: _mailOffset() }) });
+    location.href = r.url;
+  } catch (e) { _mailSay(errText(e), 'var(--bad)'); }
+}
+
+async function mailDeviceStart() {
+  _mailSay('Asking Microsoft for a code…');
+  try {
+    const r = await api('/api/mail/microsoft/device', { method: 'POST',
+      body: JSON.stringify({ code: _mailCode(), utc_offset_minutes: _mailOffset() }) });
+    _mailShowPending(r);
+  } catch (e) { _mailSay(errText(e), 'var(--bad)'); }
+}
+
+function _mailShowPending(p) {
+  const body = document.getElementById('mailBody');
+  _mailStopPoll();
+  body.innerHTML = `
+    <p style="margin:0 0 8px;font-size:13px">Open the Microsoft page below, type this code, and sign in to the mailbox that gets your bank's alerts.</p>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <div id="mailUserCode" style="font-size:32px;font-weight:700;letter-spacing:4px;font-family:monospace;user-select:all">${escapeHtml(p.user_code)}</div>
+      <button class="ghost" onclick="mailCopyCode()">Copy</button>
+    </div>
+    <p style="margin:10px 0 0;font-size:13px"><a id="mailVerifyLink" href="${escapeAttr(p.verification_uri)}" target="_blank" rel="noopener" style="color:var(--accent)">${escapeHtml(p.verification_uri)}</a></p>
+    <p id="mailWait" style="color:var(--muted);font-size:13px">Waiting for you to sign in…</p>
+    <div id="mailStatus" role="status" style="margin-top:10px;font-size:13px"></div>`;
+  const wait = Math.max(2, Number(p.interval) || 5) * 1000;
+  const tick = async () => {
+    if (!document.getElementById('mailWait')) return;
+    try {
+      const r = await api('/api/mail/microsoft/device/poll', { method: 'POST' });
+      if (r.status === 'connected') { notify('Mailbox connected.'); return loadMail(); }
+    } catch (e) {
+      const w = document.getElementById('mailWait');
+      if (w) w.innerHTML = `<span style="color:var(--bad)">${escapeHtml(errText(e))}</span>
+        <div style="margin-top:8px"><button onclick="loadMail()">Start again</button></div>`;
+      return;
+    }
+    mailPollTimer = setTimeout(tick, wait);
+  };
+  mailPollTimer = setTimeout(tick, wait);
+}
+
+async function mailCopyCode() {
+  const c = document.getElementById('mailUserCode');
+  if (!c) return;
+  try { await navigator.clipboard.writeText(c.textContent); notify('Code copied.'); }
+  catch (_) {
+    const r = document.createRange(); r.selectNodeContents(c);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    notify('Press and hold the code to copy it.', 'info');
+  }
+}
+
+function _mailAccName(id) {
+  const a = mailOwned.find(x => x.id === id);
+  return a ? a.name + (a.archived ? ' (archived)' : '') : null;
+}
+function _mailAccOpts(sel, blank, disableLinked) {
+  const linked = (mailState && mailState.bank_linked_account_ids) || [];
+  return `<option value="">${escapeHtml(blank)}</option>` + mailOwned.map(a => {
+    const dis = disableLinked && linked.includes(a.id);
+    return `<option value="${a.id}"${a.id === sel ? ' selected' : ''}${dis ? ' disabled' : ''}>${escapeHtml(a.name)}${a.archived ? ' (archived)' : ''}${dis ? ' (bank sync)' : ''}</option>`;
+  }).join('');
+}
+function _mailKindText(k) {
+  const f = (k.fields || []).map(x => x);
+  return `Subject starts with “${escapeHtml(k.subject_key)}” · ${k.direction === 'in' ? 'money in' : 'money out'}`
+    + (f.length ? ' · ' + escapeHtml(f.join(', ')) : '');
+}
+
+function _renderMailConnected(body, folders, unread) {
+  const m = mailState;
+  const today = new Date();
+  const minDay = new Date(today); minDay.setDate(minDay.getDate() - (m.start_max_days - 1));
+  const max = _isoDate(today), min = _isoDate(minDay);
+  const byId = {}; folders.forEach(f => { byId[f.id] = f; });
+  const fopts = '<option value="">Choose a folder…</option>' + folders.map(f => {
+    const label = (f.parent ? f.parent + ' / ' : '') + f.name;
+    return `<option value="${escapeAttr(f.id)}"${m.folder && m.folder.id === f.id ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+  }).join('') + (m.folder && !byId[m.folder.id]
+    ? `<option value="${escapeAttr(m.folder.id)}" selected>${escapeHtml(m.folder.name)}</option>` : '');
+  const senders = (m.senders || []).map(s => `
+    <div class="panel" style="margin:0 0 10px;padding:12px;max-width:720px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:baseline;justify-content:space-between">
+        <div><strong>${escapeHtml(s.label)}</strong> <span style="color:var(--muted);font-size:12px">${escapeHtml(s.address)}</span></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="ghost" onclick="mailRenameSender(${s.id})">Rename</button>
+          <button class="danger" onclick="mailForgetSender(${s.id})">Forget bank</button>
+        </div>
+      </div>
+      <div style="margin-top:8px;font-size:13px">
+        <label for="mailSenderAcc${s.id}">Lines go to</label>
+        <select id="mailSenderAcc${s.id}" onchange="mailSenderAccount(${s.id}, this.value)">${_mailAccOpts(s.account_id, 'No account yet', true)}</select>
+      </div>
+      ${(s.cards || []).length ? `<div style="margin-top:8px;font-size:13px">${s.cards.map(c => `
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px">
+          <span>Card ending ${escapeHtml(c.last4)}</span>
+          <select aria-label="Account for card ending ${escapeAttr(c.last4)}" onchange="mailCardAccount(${s.id}, '${escapeAttr(c.last4)}', this.value)">${_mailAccOpts(c.account_id, 'Use the bank\'s account', true)}</select>
+        </div>`).join('')}</div>` : ''}
+      <ul style="margin:8px 0 0;padding-left:18px;font-size:13px">${(s.kinds || []).map(k => `
+        <li style="margin:3px 0">${_mailKindText(k)} <button class="ghost" style="padding:2px 8px" onclick="mailForgetKind(${s.id}, ${k.id})">Forget</button></li>`).join('')}</ul>
+    </div>`).join('');
+  const lastLine = m.last_check_at
+    ? `Last check ${escapeHtml(_bankWhen(m.last_check_at))}: ${escapeHtml(m.last_check_status || '')}` : 'Not checked yet.';
+  const canCheck = !!m.folder && (m.senders || []).length > 0 && !m.needs_reconnect;
+  const unreadRows = unread.map(u => `
+    <div style="border-top:1px solid var(--border,#8884);padding:8px 0;font-size:13px;max-width:720px">
+      <div style="color:var(--muted);font-size:12px">${escapeHtml(_bankWhen(u.received_at))} · ${escapeHtml(u.sender || '')}</div>
+      <div><strong>${escapeHtml(u.subject || '(no subject)')}</strong></div>
+      ${u.reason === 'unverified' ? '' : `<div>${escapeHtml(u.reason_text || '')}</div>`}
+      ${u.reason === 'unverified' ? '<div style="color:var(--bad)">This mail failed your mailbox\'s sender check, so it may not be from your bank.</div>' : ''}
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+        ${u.reason === 'unverified' ? '' : `<button class="ghost" onclick="mailTeachFrom({ unread_id: ${u.id} })">Teach from this</button>`}
+        <button class="ghost" onclick="mailDismiss(${u.id})">Dismiss</button>
+      </div>
+    </div>`).join('');
+  body.innerHTML = `
+    ${m.needs_reconnect ? `<p style="color:var(--bad);font-size:13px;margin:0 0 10px"><strong>Microsoft no longer accepts this sign-in, so checking has stopped.</strong>
+      Disconnect below and connect again.</p>` : ''}
+    <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+      Connected to <strong>${m.address ? escapeHtml(m.address) : 'address unknown'}</strong>
+      (${m.auth_mode === 'web' ? 'signed in with Microsoft' : 'signed in with a code'}${m.connected_at ? ', ' + escapeHtml(_bankWhen(m.connected_at)) : ''}).
+      Read-only: your mail is never changed, moved or deleted.</p>
+    <h3 class="backup-subhead">Folder and start date</h3>
+    <p style="color:var(--muted);margin:0 0 8px;font-size:13px">Tip: make a mail rule in Outlook that files your bank's alerts into their own folder, and pick that folder here.</p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+      <div><label for="mailFolder">Choose folder</label><select id="mailFolder">${fopts}</select></div>
+      <div><label for="mailStart">Read alerts from</label>
+        <input type="date" id="mailStart" min="${min}" max="${max}" value="${escapeAttr(m.start_date || max)}"></div>
+      <button onclick="mailSaveSettings()">Save</button>
+    </div>
+    <h3 class="backup-subhead" style="margin-top:20px">Banks taught</h3>
+    ${senders || '<div style="color:var(--muted);font-size:13px;margin-bottom:8px">No bank taught yet. Pick one of its alert emails and show WalletWeather where the amount and merchant are.</div>'}
+    <button onclick="mailTeachList()"${m.folder ? '' : ' disabled'}>Teach a bank's alert</button>
+    ${m.folder ? '' : '<span style="font-size:12px;color:var(--muted);margin-left:8px">Choose a folder first.</span>'}
+    <h3 class="backup-subhead" style="margin-top:20px">Check</h3>
+    <div style="font-size:13px;color:${m.last_check_ok === false ? 'var(--bad)' : 'var(--muted)'}">${lastLine}</div>
+    <div style="margin-top:8px"><button onclick="mailCheckNow()"${canCheck ? '' : ' disabled'}>Check now</button></div>
+    ${m.unread_count ? `<h3 class="backup-subhead" style="margin-top:20px">Couldn't read (${m.unread_count})</h3>${unreadRows}` : ''}
+    <h3 class="backup-subhead" style="margin-top:20px">Disconnect</h3>
+    <p style="color:var(--muted);margin:0 0 8px;font-size:13px">Forgets the connection here. Lines already brought in stay.</p>
+    ${_bankCodeField('mailDisconnectCode')}
+    <div style="margin-top:8px"><button class="danger" onclick="mailDisconnect()">Disconnect</button></div>
+    <div id="mailStatus" role="status" style="margin-top:10px;font-size:13px"></div>`;
+}
+
+async function _mailDo(busy, fn, done) {
+  _mailSay(busy);
+  try { const r = await fn(); if (done) _mailSay(done, 'var(--good)'); return r; }
+  catch (e) { _mailSay(errText(e), 'var(--bad)'); return undefined; }
+}
+async function mailSaveSettings() {
+  const folder_id = document.getElementById('mailFolder').value;
+  const start_date = document.getElementById('mailStart').value;
+  if (!folder_id) return _mailSay('Choose a folder first.', 'var(--bad)');
+  const r = await _mailDo('Saving…', () => api('/api/mail/settings', { method: 'PUT',
+    body: JSON.stringify({ folder_id, start_date, utc_offset_minutes: _mailOffset() }) }));
+  if (r !== undefined) { await loadMail(); _mailSay('Saved.', 'var(--good)'); }
+}
+async function mailCheckNow() {
+  _mailSay('Checking your mail…');
+  try {
+    const r = await api('/api/mail/check', { method: 'POST', body: JSON.stringify({ utc_offset_minutes: _mailOffset() }) });
+    notify(`${r.added} new line${r.added === 1 ? '' : 's'}; ${r.skipped} already here; ${r.unread} couldn't be read${r.more ? '; more mail is waiting, check again' : ''}.`);
+    await loadMail();
+    if (r.added) loadAccounts();
+  } catch (e) { _mailSay(errText(e), 'var(--bad)'); }
+}
+async function mailDisconnect() {
+  if (!(await confirmDialog('Disconnect your mailbox? Lines already brought in stay, and what you taught is forgotten. You can connect again later.',
+                            { title: 'Disconnect mailbox', okLabel: 'Disconnect', danger: true }))) return;
+  const codeEl = document.getElementById('mailDisconnectCode');
+  const r = await _mailDo('Disconnecting…', () => api('/api/mail/disconnect', { method: 'POST',
+    body: JSON.stringify({ code: codeEl ? codeEl.value : null }) }));
+  if (r !== undefined) { await loadMail(); _mailSay('Disconnected.', 'var(--good)'); }
+}
+async function mailRenameSender(id) {
+  const s = (mailState.senders || []).find(x => x.id === id);
+  const v = await promptDialog('Bank name', s ? s.label : '', { title: 'Rename bank', maxLength: 80 });
+  if (v === null || !v.trim()) return;
+  const r = await _mailDo('Saving…', () => api('/api/mail/senders/' + id, { method: 'PUT', body: JSON.stringify({ label: v.trim() }) }));
+  if (r !== undefined) await loadMail();
+}
+async function mailSenderAccount(id, v) {
+  const r = await _mailDo('Saving…', () => api('/api/mail/senders/' + id, { method: 'PUT',
+    body: JSON.stringify({ account_id: v ? Number(v) : null }) }), 'Saved.');
+  await loadMail();
+}
+async function mailCardAccount(id, last4, v) {
+  const cards = {}; cards[last4] = v ? Number(v) : null;
+  await _mailDo('Saving…', () => api('/api/mail/senders/' + id, { method: 'PUT', body: JSON.stringify({ cards }) }), 'Saved.');
+}
+async function mailForgetSender(id) {
+  if (!(await confirmDialog('Forget this bank and everything taught for it? Lines already brought in stay.',
+                            { title: 'Forget bank', okLabel: 'Forget', danger: true }))) return;
+  const r = await _mailDo('Forgetting…', () => api('/api/mail/senders/' + id, { method: 'DELETE' }));
+  if (r !== undefined) await loadMail();
+}
+async function mailForgetKind(id, kid) {
+  if (!(await confirmDialog('Forget this kind of alert? Later mail like it will show up under "Couldn\'t read".',
+                            { title: 'Forget alert', okLabel: 'Forget', danger: true }))) return;
+  const r = await _mailDo('Forgetting…', () => api(`/api/mail/senders/${id}/kinds/${kid}`, { method: 'DELETE' }));
+  if (r !== undefined) await loadMail();
+}
+async function mailDismiss(id) {
+  const r = await _mailDo('Dismissing…', () => api('/api/mail/unread/' + id, { method: 'DELETE' }));
+  if (r !== undefined) await loadMail();
+}
+
+// ---- Pick a mail to teach from ----
+async function mailTeachList() {
+  const body = document.getElementById('mailBody');
+  _mailSay('Looking in your folder…');
+  let msgs;
+  try { msgs = await api('/api/mail/messages'); }
+  catch (e) { return _mailSay(errText(e), 'var(--bad)'); }
+  body.innerHTML = `
+    <h3 class="backup-subhead">Pick an alert to teach from</h3>
+    <p style="color:var(--muted);margin:0 0 8px;font-size:13px">Newest first. Pick one real alert from your bank; you'll show WalletWeather where the amount and merchant are.</p>
+    <div style="max-width:720px">${msgs.length ? msgs.map(x => `
+      <div style="border-top:1px solid var(--border,#8884);padding:8px 0;font-size:13px;display:flex;gap:8px;justify-content:space-between;align-items:center">
+        <div style="min-width:0">
+          <div style="color:var(--muted);font-size:12px">${escapeHtml(_bankWhen(x.received_at))} · ${escapeHtml(x.sender || '')}${x.taught ? ' · <strong>already taught</strong>' : ''}</div>
+          <div style="overflow-wrap:anywhere">${escapeHtml(x.subject || '(no subject)')}</div>
+        </div>
+        <button class="ghost" onclick="mailTeachFrom({ message_id: ${JSON.stringify(String(x.id)).replace(/"/g, '&quot;')} })">Pick</button>
+      </div>`).join('') : '<div style="color:var(--muted);font-size:13px">No mail in that folder since your start date.</div>'}</div>
+    <div style="margin-top:12px"><button class="ghost" onclick="loadMail()">Back</button></div>
+    <div id="mailStatus" role="status" style="margin-top:10px;font-size:13px"></div>`;
+}
+
+// ---- The teaching screen: select text, then pick what it is ----
+async function mailTeachFrom(src) {
+  _mailSay('Opening the mail…');
+  let p;
+  try { p = await api('/api/mail/preview', { method: 'POST', body: JSON.stringify(Object.assign({}, src, { utc_offset_minutes: _mailOffset() })) }); }
+  catch (e) { return _mailSay(errText(e), 'var(--bad)'); }
+  const marks = {};
+  const fields = (p.guess && p.guess.fields) || {};
+  for (const [k] of MAIL_FIELDS) {
+    const f = fields[k];
+    if (f && f.length === 2) marks[k] = [cpToJs(p.text, f[0]), cpToJs(p.text, f[1])];
+  }
+  mailTeach = { src, p, marks, sel: null };
+  _renderMailTeach();
+}
+
+function _mailDomain(addr) { const i = (addr || '').lastIndexOf('@'); return i >= 0 ? addr.slice(i + 1) : (addr || ''); }
+
+function _renderMailTeach() {
+  const t = mailTeach, p = t.p, body = document.getElementById('mailBody');
+  const ks = p.known_sender;
+  const dir = (p.guess && p.guess.direction) || 'out';
+  const defAcc = ks ? ks.account_id : null;
+  body.innerHTML = `
+    <h3 class="backup-subhead">Teach an alert</h3>
+    ${p.verified ? '' : `<p style="color:var(--bad);font-size:13px;margin:0 0 8px"><strong>This mail failed your mailbox's sender check, so it may not be from your bank. Alerts like it will never become lines.</strong></p>`}
+    <div style="font-size:13px;color:var(--muted)">From ${escapeHtml(p.sender || '')}</div>
+    <div style="font-size:13px;margin-bottom:6px"><strong>${escapeHtml(p.subject || '(no subject)')}</strong></div>
+    <p style="color:var(--muted);margin:0 0 6px;font-size:12px">Select words in the alert, then tap what they are. The coloured parts are what WalletWeather found.</p>
+    <div id="mailText" style="white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--border,#8884);border-radius:6px;padding:10px;max-width:720px;font-size:13px;max-height:320px;overflow:auto;user-select:text;-webkit-user-select:text"></div>
+    <div id="mailSelBar" class="hidden" style="margin-top:6px;max-width:720px"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:12px;color:var(--muted)">Selected text is…</span>
+      ${MAIL_FIELDS.map(([k, label]) => `<button type="button" class="ghost" onmousedown="event.preventDefault()" onclick="mailMark('${k}')">${label}</button>`).join('')}
+    </div></div>
+    <div id="mailMarks" style="margin-top:10px;font-size:13px;max-width:720px"></div>
+    <div id="mailTeachMsg" role="status" style="font-size:13px;margin-top:6px"></div>
+    <div style="margin-top:12px;max-width:720px">
+      <label for="mailLabel">Bank name</label>
+      <input id="mailLabel" maxlength="80" value="${escapeAttr(ks ? ks.label : _mailDomain(p.sender))}">
+      <div style="margin-top:8px;display:flex;gap:16px;flex-wrap:wrap">
+        <label style="display:flex;gap:6px;align-items:center"><input type="radio" name="mailDir" value="out" style="width:auto;margin:0"${dir === 'out' ? ' checked' : ''}> Money out</label>
+        <label style="display:flex;gap:6px;align-items:center"><input type="radio" name="mailDir" value="in" style="width:auto;margin:0"${dir === 'in' ? ' checked' : ''}> Money in</label>
+      </div>
+      <label for="mailKey" style="margin-top:8px;display:block">Mail whose subject starts with</label>
+      <input id="mailKey" maxlength="200" value="${escapeAttr(p.subject_key || '')}">
+      <div style="font-size:12px;color:var(--muted)">This has to be how this mail's subject starts. Later mail with a subject starting this way is read the same way.</div>
+      <label for="mailAcc" id="mailAccLabel" style="margin-top:8px;display:block">Account</label>
+      <select id="mailAcc">${_mailAccOpts(defAcc, 'Choose an account…', true)}</select>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button onclick="mailTeachSave()">Save</button>
+      <button class="ghost" onclick="loadMail()">Cancel</button>
+      <span id="mailSaveErr" style="font-size:13px;color:var(--bad)"></span>
+    </div>
+    <div id="mailStatus" role="status" style="margin-top:10px;font-size:13px"></div>`;
+  _mailPaintText();
+}
+
+function _mailPaintText() {
+  const t = mailTeach, text = t.p.text;
+  const spans = MAIL_FIELDS.filter(([k]) => t.marks[k]).map(([k, , col]) => ({ k, col, s: t.marks[k][0], e: t.marks[k][1] }))
+    .sort((a, b) => a.s - b.s);
+  let html = '', pos = 0;
+  for (const sp of spans) {
+    if (sp.s < pos) continue;
+    html += escapeHtml(text.slice(pos, sp.s))
+      + `<mark style="background:${sp.col};color:inherit;border-radius:3px">${escapeHtml(text.slice(sp.s, sp.e))}</mark>`;
+    pos = sp.e;
+  }
+  html += escapeHtml(text.slice(pos));
+  document.getElementById('mailText').innerHTML = html;
+  document.getElementById('mailMarks').innerHTML = MAIL_FIELDS.map(([k, label, col]) => {
+    const m = t.marks[k];
+    const val = m ? escapeHtml(text.slice(m[0], m[1])) : '<span style="color:var(--muted)">not marked</span>';
+    const act = k === 'amount' ? '<span style="color:var(--muted);font-size:12px">required</span>'
+      : (m ? `<button class="ghost" style="padding:2px 8px" onclick="mailClearMark('${k}')">Clear</button>` : '');
+    return `<div style="display:flex;gap:8px;align-items:center;margin:3px 0;flex-wrap:wrap">
+      <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${col}"></span>
+      <strong>${label}</strong> <span style="overflow-wrap:anywhere">${val}</span> ${act}</div>`;
+  }).join('');
+  const c = t.marks.card ? text.slice(t.marks.card[0], t.marks.card[1]).replace(/\D/g, '').slice(-4) : '';
+  document.getElementById('mailAccLabel').textContent = c ? `Account for card ending ${c}` : 'Account';
+}
+
+function mailClearMark(k) {
+  if (k === 'amount') return;
+  delete mailTeach.marks[k];
+  _mailPaintText();
+}
+
+// Where the selection sits inside the text box, as UTF-16 indices, or null.
+document.addEventListener('selectionchange', () => {
+  const box = document.getElementById('mailText');
+  const bar = document.getElementById('mailSelBar');
+  if (!box || !bar || !mailTeach) return;
+  const s = getSelection();
+  if (!s || s.rangeCount === 0) return;
+  const r = s.getRangeAt(0);
+  if (!box.contains(r.startContainer) || !box.contains(r.endContainer)) {
+    return; // outside the text: keep what was picked (tapping a button can move focus)
+  }
+  if (r.collapsed) { mailTeach.sel = null; bar.classList.add('hidden'); return; }
+  const pre = document.createRange();
+  pre.setStart(box, 0); pre.setEnd(r.startContainer, r.startOffset);
+  let a = pre.toString().length, b = a + r.toString().length;
+  const text = mailTeach.p.text;
+  while (a < b && /\s/.test(text[a])) a++;
+  while (b > a && /\s/.test(text[b - 1])) b--;
+  if (a >= b) { mailTeach.sel = null; bar.classList.add('hidden'); return; }
+  mailTeach.sel = [a, b];
+  bar.classList.remove('hidden');
+});
+
+function mailMark(k) {
+  const t = mailTeach;
+  const msg = document.getElementById('mailTeachMsg');
+  if (!t.sel) { msg.style.color = 'var(--bad)'; msg.textContent = 'Select some words in the alert first.'; return; }
+  const [a, b] = t.sel;
+  for (const [o] of MAIL_FIELDS) {
+    const m = t.marks[o];
+    if (o !== k && m && a < m[1] && m[0] < b) {
+      msg.style.color = 'var(--bad)';
+      msg.textContent = `That overlaps the ${o}. Clear it first, or select other words.`;
+      return;
+    }
+  }
+  t.marks[k] = [a, b];
+  t.sel = null;
+  msg.textContent = '';
+  const s = getSelection(); if (s) s.removeAllRanges();
+  document.getElementById('mailSelBar').classList.add('hidden');
+  _mailPaintText();
+}
+
+async function mailTeachSave() {
+  const t = mailTeach, text = t.p.text;
+  const err = document.getElementById('mailSaveErr');
+  err.textContent = '';
+  if (!t.marks.amount) { err.textContent = 'Mark the amount first.'; return; }
+  const accVal = document.getElementById('mailAcc').value;
+  const payload = Object.assign({}, t.src, {
+    label: document.getElementById('mailLabel').value.trim(),
+    direction: (document.querySelector('input[name="mailDir"]:checked') || {}).value || 'out',
+    subject_key: document.getElementById('mailKey').value.trim(),
+    account_id: accVal ? Number(accVal) : null,
+    utc_offset_minutes: _mailOffset(),
+  });
+  for (const [k] of MAIL_FIELDS) {
+    const m = t.marks[k];
+    if (m) payload[k] = [jsToCp(text, m[0]), jsToCp(text, m[1])];
+  }
+  try {
+    await api('/api/mail/senders', { method: 'POST', body: JSON.stringify(payload) });
+    notify('Taught. Press Check now to bring in mail like it.');
+    await loadMail();
+  } catch (e) { err.textContent = errText(e); }
+}
+
+// Admin → "Email alerts" (#206): whether users may connect a mailbox.
+function _adminMailShow(data) {
+  document.getElementById('adminMailOn').checked = data.enabled;
+  const n = data.connected_users;
+  const status = document.getElementById('adminMailStatus');
+  status.style.color = '';
+  status.textContent = (data.enabled ? 'On. ' : 'Off. ')
+    + (n === 0 ? 'No user has a mailbox connected.' : n + ' user' + (n === 1 ? ' has a mailbox' : 's have a mailbox') + ' connected.')
+    + (data.microsoft_configured ? '' : ' Users can\'t connect until MS_CLIENT_ID is set in the server\'s .env.');
+}
+async function loadAdminMail() {
+  try { _adminMailShow(await api('/api/admin/mail-alerts')); }
+  catch (e) { document.getElementById('adminMailStatus').textContent = 'Failed to load: ' + errText(e); }
+}
+async function saveAdminMail() {
+  const box = document.getElementById('adminMailOn');
+  const status = document.getElementById('adminMailStatus');
+  const want = box.checked;
+  box.disabled = true;
+  try {
+    _adminMailShow(await api('/api/admin/mail-alerts', { method: 'PUT', body: JSON.stringify({ enabled: want }) }));
+    notify(want ? 'Email alerts are on.' : 'Email alerts are off.');
+  } catch (e) {
+    box.checked = !want;
+    status.textContent = errText(e);
+    status.style.color = 'var(--bad)';
+  } finally { box.disabled = false; }
+}
+
 async function loadAdminAppTitle() {
   const input = document.getElementById('adminAppTitle');
   const status = document.getElementById('adminAppTitleStatus');
@@ -9461,6 +9990,7 @@ async function loadAdminUsers() {
       if (u.disabled) badges.push('<span class="ro-badge" style="background:var(--bad)">disabled</span>');
       if (u.two_factor_enabled) badges.push('<span class="ro-badge">two-factor</span>');
       if (u.bank_connected) badges.push('<span class="ro-badge">bank connected</span>');
+      if (u.mail_connected) badges.push('<span class="ro-badge">mailbox connected</span>');
       const authMethods = [];
       if (u.has_password) authMethods.push('local');
       if (u.has_google) authMethods.push('google');

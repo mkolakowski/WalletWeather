@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from .db import (
     User, Account, RecurringTransaction, RecurringSkip, RecurringTag, Transaction,
     TransactionTag, Category, AccountPermission, Tag, TagRule, BankConnection, BankAccountLink,
-    encrypt_str, decrypt_str,
+    MailConnection, MailSender, MailAlertKind, encrypt_str, decrypt_str,
 )
 
 # 4 (#117): tags, tag rules, and each recurring item's and transaction's tag
@@ -258,6 +258,8 @@ def export_user(db: Session, user: User, accounts: list | None = None,
                     # A hash of the bank's ids, so a restored line isn't
                     # synced again (#194). Older backups lack it.
                     "bank_ref": t.bank_ref,
+                    # The same for a line from an email alert (#206).
+                    "mail_ref": t.mail_ref,
                 }
                 for t in acc.transactions
             ],
@@ -276,6 +278,9 @@ def export_user(db: Session, user: User, accounts: list | None = None,
         bank = _export_bank(db, user, accounts)
         if bank:
             out["bank_connection"] = bank
+        mail = _export_mail(db, user, accounts)
+        if mail:
+            out["mail_connection"] = mail
     return out
 
 
@@ -335,6 +340,102 @@ def _import_bank(db: Session, user: User, data, acc_by_name: dict) -> bool:
         used_accounts.add(acc.id)
         db.add(BankAccountLink(connection_id=conn.id, bank_account_ref=ref, account_id=acc.id,
                                start_date=start, synced_through=through))
+    return True
+
+
+def _export_mail(db: Session, user: User, accounts: list) -> dict | None:
+    """The user's mailbox for email alerts (#206): the sign-in, the folder and
+    what was taught, with accounts by name. Only into sealed backups."""
+    conn = db.query(MailConnection).filter_by(user_id=user.id).first()
+    if not conn:
+        return None
+    names = {a.id: a.name for a in accounts}
+    senders = []
+    for s in db.query(MailSender).filter_by(connection_id=conn.id).order_by(MailSender.id):
+        try:
+            cards = json.loads(s.cards_json or "{}")
+        except ValueError:
+            cards = {}
+        senders.append({
+            "address": s.address, "label": s.label, "account_name": names.get(s.account_id),
+            "cards": {k: names[v] for k, v in cards.items() if v in names},
+            "kinds": [{"subject_key": k.subject_key, "direction": k.direction,
+                       "anchors": json.loads(decrypt_str(k.anchors_enc)),
+                       "sample": decrypt_str(k.sample_enc)}
+                      for k in db.query(MailAlertKind).filter_by(sender_id=s.id).order_by(MailAlertKind.id)],
+        })
+    return {"provider": conn.provider, "auth_mode": conn.auth_mode,
+            "tokens": json.loads(decrypt_str(conn.tokens_enc)),
+            "address": decrypt_str(conn.address_enc) if conn.address_enc else None,
+            "folder_id": conn.folder_id, "folder_name": conn.folder_name,
+            "start_date": conn.start_date.isoformat(),
+            "utc_offset_minutes": conn.utc_offset_minutes,
+            "scanned_through": conn.scanned_through.isoformat() if conn.scanned_through else None,
+            "senders": senders}
+
+
+def _anchor_ok(a) -> bool:
+    return (isinstance(a, dict) and isinstance(a.get("before"), str) and isinstance(a.get("after"), str)
+            and len(a["before"]) <= 200 and len(a["after"]) <= 200)
+
+
+def _import_mail(db: Session, user: User, data, acc_by_name: dict) -> bool:
+    """Restore a backup's mailbox for a user who has none, matching accounts
+    by name. Returns whether one was restored."""
+    if not isinstance(data, dict) or not isinstance(data.get("tokens"), dict):
+        return False
+    if db.query(MailConnection).filter_by(user_id=user.id).first():
+        return False
+    tokens = {k: data["tokens"].get(k) for k in ("access", "refresh", "expires_at")}
+    if not isinstance(tokens["refresh"], str) or len(tokens["refresh"]) > 20000:
+        return False
+    try:
+        start = _parse_date(data.get("start_date")) or date.today()
+        scanned = datetime.fromisoformat(data["scanned_through"]) if data.get("scanned_through") else None
+    except (TypeError, ValueError):
+        start, scanned = date.today(), None
+    offset = data.get("utc_offset_minutes")
+    conn = MailConnection(
+        user_id=user.id, provider="microsoft",
+        auth_mode="web" if data.get("auth_mode") == "web" else "device",
+        tokens_enc=encrypt_str(json.dumps(tokens)),
+        address_enc=encrypt_str(_text(data["address"], 320)) if isinstance(data.get("address"), str) else None,
+        folder_id=_text(data.get("folder_id"), 400) or None,
+        folder_name=_text(data.get("folder_name"), 200) or None,
+        start_date=start, scanned_through=scanned,
+        utc_offset_minutes=offset if isinstance(offset, int) and -840 <= offset <= 840 else 0)
+    db.add(conn)
+    db.flush()
+    seen = set()
+    for s in (data.get("senders") or [])[:100]:
+        if not isinstance(s, dict) or not isinstance(s.get("address"), str):
+            continue
+        address = _text(s["address"], 320).lower()
+        if not address or address in seen:
+            continue
+        seen.add(address)
+        acc = acc_by_name.get(s.get("account_name"))
+        cards = {}
+        for last4, name in (s.get("cards") or {}).items() if isinstance(s.get("cards"), dict) else []:
+            if isinstance(last4, str) and re.fullmatch(r"\d{4}", last4) and acc_by_name.get(name):
+                cards[last4] = acc_by_name[name].id
+        sender = MailSender(connection_id=conn.id, address=address,
+                            label=_text(s.get("label"), 80) or address,
+                            account_id=acc.id if acc else None, cards_json=json.dumps(cards))
+        db.add(sender)
+        db.flush()
+        for k in (s.get("kinds") or [])[:50]:
+            if not isinstance(k, dict) or not isinstance(k.get("anchors"), dict):
+                continue
+            anchors = {f: a for f, a in k["anchors"].items()
+                       if f in ("amount", "merchant", "date", "card") and _anchor_ok(a)}
+            key = _text(k.get("subject_key"), 200).lower()
+            if "amount" not in anchors or len(key) < 3:
+                continue
+            db.add(MailAlertKind(sender_id=sender.id, subject_key=key,
+                                 direction="in" if k.get("direction") == "in" else "out",
+                                 anchors_enc=encrypt_str(json.dumps(anchors)),
+                                 sample_enc=encrypt_str(_text(k.get("sample"), 20000))))
     return True
 
 
@@ -408,6 +509,10 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
         if isinstance(payload.get("bank_connection"), dict):
             # The backup's connection replaces theirs (#194).
             for conn in db.query(BankConnection).filter_by(user_id=user.id).all():
+                db.delete(conn)
+        if isinstance(payload.get("mail_connection"), dict):
+            # And its mailbox theirs (#206).
+            for conn in db.query(MailConnection).filter_by(user_id=user.id).all():
                 db.delete(conn)
         for acc in db.query(Account).filter_by(owner_id=user.id).all():
             db.delete(acc)
@@ -536,6 +641,9 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
             ref = t_data.get("bank_ref")
             if isinstance(ref, str) and _HEX64.fullmatch(ref):
                 t.bank_ref = ref
+            ref = t_data.get("mail_ref")
+            if isinstance(ref, str) and _HEX64.fullmatch(ref):
+                t.mail_ref = ref
             rec_desc = t_data.get("recurring_description")
             if rec_desc and rec_desc in rec_by_desc:
                 t.recurring_id = rec_by_desc[rec_desc].id
@@ -548,6 +656,7 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
                     db.add(TransactionTag(transaction_id=t.id, tag_id=tag.id))
 
     counts["bank_connection"] = int(_import_bank(db, user, payload.get("bank_connection"), acc_by_name))
+    counts["mail_connection"] = int(_import_mail(db, user, payload.get("mail_connection"), acc_by_name))
     db.commit()
     return counts
 

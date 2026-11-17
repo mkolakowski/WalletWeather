@@ -69,7 +69,19 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.71.0** · Web version: **1.85.0** · Schema version: **26** · iOS version: **0.16.0**
+App version: **1.72.0** · Web version: **1.86.0** · Schema version: **27** · iOS version: **0.16.0**
+
+### Added
+
+- Email alerts, first part: switch on your bank's email alert for every transaction, and WalletWeather reads those emails from one folder of your Microsoft 365 or Outlook.com mailbox and adds each as a paid line, named after the merchant, with your auto-tag rules run on it. The person who runs the server registers a free Microsoft app and sets `MS_CLIENT_ID`, then switches email alerts on in Admin → Email alerts (off until then). Each user connects their own mailbox in Settings → Email alerts, by typing a code at Microsoft's sign-in page (or with a Connect button on servers reached over `https://` that also set `MS_CLIENT_SECRET`), picks the folder and the day to read from, and teaches it their bank's alert once: WalletWeather highlights what it thinks are the amount, merchant, date and card digits in a sample, and you correct any by selecting the right words. Check now brings alerts in; an email is never brought in twice. Alerts that couldn't become lines are listed with the reason, to teach from or dismiss. With two-factor sign-in on, connecting and disconnecting ask for a code. Checking by itself, Gmail, matching alerts to bills and joining them to bank sync come in later versions; until then an account matched to bank sync can't take alerts. See the [setup guide](https://mkolakowski.github.io/WalletWeather/email-alerts.html). (#206)
+
+### Security
+
+- Email alerts make the server call Microsoft (login.microsoftonline.com and graph.microsoft.com only) for users who connect a mailbox, and only then. It asks for read-only mail access and never changes the mailbox. The sign-in is stored encrypted, never shown or logged, and goes only into encrypted backups, never "Download my data". Alert emails are read as plain text, with no link followed and no image fetched; a mail that fails the mailbox provider's own check that it came from the bank's domain never becomes a line ("may not be from your bank"); one check brings in at most 50 lines. `PRIVACY.md` and `SECURITY.md` say what leaves the server, what's stored and what the sign-in can read. (#206)
+
+### Database
+
+- Schema 27: tables for a user's mailbox, the banks taught and their kinds of alert, and alerts that didn't become lines, and a column on transactions naming the email a line came from. Added on start-up. (#206)
 
 ## [1.71.0] — 2026-11-16
 

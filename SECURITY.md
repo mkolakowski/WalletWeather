@@ -49,4 +49,14 @@ each connected user's SimpleFIN access address encrypted with
 `ENCRYPTION_KEY`: anyone who can read both the database and that key can
 read users' bank transactions through SimpleFIN until the user disconnects
 and disables the token there. It can't move money. It's also in encrypted
-backups, so a backup's passphrase guards it too.
+backups, so a backup's passphrase guards it too. Email alerts (off unless an
+admin switches them on) keep each connected user's Microsoft sign-in
+encrypted the same way: it has read-only access to their whole mailbox, not
+just the folder they picked (Microsoft has no permission limited to one
+folder), so anyone who can read both the database and the key can read
+their mail until they disconnect and remove the app's access at Microsoft.
+That's why the setup guide has the bank's alerts filed into a folder of
+their own and the server reads only that folder. Alert emails are text
+written by strangers: the server reads them as plain text, follows no link,
+fetches no image, makes a line only from a mail that passed the mailbox
+provider's own sender check, and never more than 50 lines in one check.

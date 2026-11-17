@@ -55,3 +55,17 @@ Decisions made while planning and building [`Plans/bank-alert-emails.md`](../../
 **Why:** a card used in restaurants needs room for a tip and a card that isn't doesn't, so the allowance belongs to the account. A line is never removed without the user, as "No destructive fixes" asks of everything else. The posted amount and date are the true ones, and SimpleFIN has no payee field, so the alert's name reads better.
 
 **What it changes:** phase 5 (#210) gains two settings per account and a schema version for them. All nine of the plan's open questions are now settled.
+
+## 2026-11-16: how a guess is corrected while teaching
+
+**Decided:** 2026-11-16, by Matthew, while building phase 1 (#206). **Status:** accepted.
+
+**The question:** on the teaching screen, the sample alert is shown as plain text with the reader's guesses highlighted. How does the user correct a wrong or missing value?
+
+**Options considered:** select the right words, then pick Amount, Merchant, Date or Card from a bar under the text; pick the value first ("Fix"), then select its words; type each value into a box and let the server find it in the alert.
+
+**The decision:** select the words, then pick which value they are; each value also has a Clear button, except the amount, which is required.
+
+**Why:** one step per correction, the same with a finger or a mouse, and the marked words are exactly what the anchors are built from, so a value that appears twice is never ambiguous.
+
+**Set while building, not asked:** the start date reaches back up to 30 days; one check opens at most 100 alerts and lands at most 50 lines, saying when more is waiting; Check now waits 15 seconds after the last check; a taught kind's marked amount has to be the amount itself, not text with a number in it.

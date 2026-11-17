@@ -25,6 +25,7 @@ Built with FastAPI, PostgreSQL, and a single-page vanilla JS frontend. Runs on D
 - **Sharing** — invite someone to an account by email as owner, editor or reader; it appears for them once they accept, and only an owner changes who has access
 - **Admin panel** — user management, permission overrides, scheduled system backups (for users listed in `ADMIN_EMAILS`)
 - **Bank sync** — with an admin's say-so (Admin → Bank sync), each user can connect their own [SimpleFIN Bridge](https://bridge.simplefin.org/) subscription in Settings → Bank sync, match bank accounts to theirs, and bring posted transactions in, by themselves once a day or with Sync now ([setup guide](https://mkolakowski.github.io/WalletWeather/bank-sync.html))
+- **Email alerts** — with an admin's say-so (Admin → Email alerts) and a Microsoft app registered for the server (`MS_CLIENT_ID`), each user can connect their Microsoft 365 or Outlook.com mailbox in Settings → Email alerts, teach it their bank's "every transaction" alert from a sample, and press Check now to turn each alert into a paid line ([setup guide](https://mkolakowski.github.io/WalletWeather/email-alerts.html))
 - **Backup & restore** — per-account or full export/import as unencrypted JSON
 - **Encryption at rest** — account names, balances, transaction amounts, descriptions, and notes are Fernet-encrypted in PostgreSQL
 - **Mobile responsive** — 3-column grid layout on narrow screens
@@ -73,6 +74,9 @@ All configuration is via environment variables in `.env`:
 | `ALLOWED_EMAILS` | No | — | Comma-separated allowlist for registration |
 | `ADMIN_EMAILS` | No | — | Comma-separated admin emails (enables Admin panel) |
 | `SIMPLEFIN_HOSTS` | No | SimpleFIN Bridge | The only hosts a pasted SimpleFIN token may point the server at, comma-separated. Leave empty for SimpleFIN Bridge |
+| `MS_CLIENT_ID` | For email alerts | — | The Application (client) ID of the Microsoft app you register for email alerts ([setup guide](https://mkolakowski.github.io/WalletWeather/email-alerts.html)). Without it nobody can connect a mailbox |
+| `MS_CLIENT_SECRET` | No | — | That app's client secret, only for the "Connect with Microsoft" button on an `https://` `APP_BASE_URL`. Signing in with a code doesn't need it |
+| `MS_TENANT` | No | any account | Who may sign in to Microsoft: empty for anyone, `consumers`, `organizations`, or a tenant id |
 | `BACKUP_PASSPHRASE` | For system backups | — | Encrypts the scheduled and Admin system backups; at least 12 characters. Without it they don't run. Keep a copy off the server: nobody can recover it |
 | `GOOGLE_CLIENT_ID` | No | — | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | No | — | Google OAuth client secret |
@@ -294,6 +298,7 @@ workflow).
 - Backups are encrypted with a passphrase (AES-256-GCM, the key derived with scrypt): your own for the backups you download, `BACKUP_PASSPHRASE` for system backups. Nobody can recover a lost passphrase. "Download my data" (Settings → Your account) is a plain, readable copy and not a backup
 - Session cookies use the `SESSION_SECRET` for signing
 - Bank sync is off until an admin switches it on. A user's SimpleFIN access address is stored encrypted with `ENCRYPTION_KEY` and goes only into encrypted backups. A pasted token may only point at the hosts in `SIMPLEFIN_HOSTS` (SimpleFIN Bridge by default), and the server follows no redirects. SimpleFIN reads transactions and balances; it can't move money
+- Email alerts are off until an admin switches them on. A user's Microsoft sign-in is stored encrypted with `ENCRYPTION_KEY` and goes only into encrypted backups. It asks Microsoft for read-only mail access; the server talks only to login.microsoftonline.com and graph.microsoft.com, follows no redirects, never changes the mailbox, and reads alert emails as plain text (no links followed, no images fetched)
 - Admin access is controlled by the `ADMIN_EMAILS` environment variable, not by database state — an admin cannot be created from the UI
 - Registering with a password doesn't prove who owns the address. So an address in `ADMIN_EMAILS` can only be registered while the instance has no users (register yours first); after that an admin adds it under Admin → User management. On an instance other people can reach, set `REGISTRATION_CODE` or turn `ALLOW_REGISTRATION` off
 

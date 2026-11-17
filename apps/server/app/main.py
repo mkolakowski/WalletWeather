@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.71.0"
+APP_VERSION = "1.72.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,20 @@ APP_VERSION = "1.71.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.72.0 (2026-11-16, claude+mkolakowski): email alerts, first part
+#     (bank-alert-emails phase 1, #206). GET /api/mail; POST
+#     /api/mail/microsoft/device {code?, utc_offset_minutes} and .../poll
+#     (sign in with a code); POST /api/mail/microsoft/web and GET .../callback
+#     (the Connect button, PKCE + MS_CLIENT_SECRET); GET /api/mail/folders,
+#     PUT /api/mail/settings {folder_id, start_date, utc_offset_minutes};
+#     GET /api/mail/messages, POST /api/mail/preview {message_id|unread_id};
+#     POST /api/mail/senders (teach), PUT/DELETE /api/mail/senders/{id},
+#     DELETE .../kinds/{kind_id}; POST /api/mail/check; GET/DELETE
+#     /api/mail/unread[/{id}]; POST /api/mail/disconnect {code?}; GET/PUT
+#     /api/admin/mail-alerts; /api/admin/users gains mail_connected. All
+#     browser-session only. Calls out live in mailbox.py (Microsoft only),
+#     reading in alerts.py. Encrypted backups carry the mailbox and each
+#     line's mail_ref. Schema 27.
 # 1.70.0 (2026-11-16, claude+mkolakowski): the daily bank sync and its log
 #     (bank-sync phase 3, #195). _bank_scheduler_loop runs run_due_bank_syncs
 #     every 30 minutes (due 23h30 after the last try, 6h after a failure, never
@@ -570,10 +584,12 @@ from .db import (
     AccountPermission, AccountInvitation, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
     Tag, TransactionTag, RecurringTag, TagRule, SavedReport, RecurringSkip,
     ApiToken, AuditEvent, AppSignInCode, RecoveryCode, RememberedBrowser, SessionLocal,
-    BankConnection, BankAccountLink, BankSyncRun, encrypt_str, decrypt_str, SCHEMA_VERSION,
+    BankConnection, BankAccountLink, BankSyncRun, MailConnection, MailSender, MailAlertKind,
+    MailUnread, encrypt_str, decrypt_str, SCHEMA_VERSION,
 )
 from . import twofactor
 from . import simplefin
+from . import mailbox, alerts
 from .forecast import build_forecast, actual_balance_as_of, upcoming_dates
 from .backup import (export_user, import_user, seal, unwrap, passphrase_problem,
                      BackupLocked, SEALED_MARKER)
@@ -901,6 +917,8 @@ def prune_audit_events(db: Session, now: datetime | None = None) -> int:
             .delete(synchronize_session=False))
     # The bank sync log is kept as long (#195; the plan's question 10).
     db.query(BankSyncRun).filter(BankSyncRun.run_at < cutoff).delete(synchronize_session=False)
+    # And alerts that didn't become lines (#206; question 3).
+    db.query(MailUnread).filter(MailUnread.created_at < cutoff).delete(synchronize_session=False)
     db.commit()
     return gone
 
@@ -4525,6 +4543,798 @@ def bank_disconnect(body: BankDisconnectIn, request: Request,
     return _bank_status(db, user)
 
 
+# ---------- Email alerts (bank-alert-emails phase 1, #206) ----------
+# A user's bank sends an alert for every transaction; the server reads those
+# mails from the user's own mailbox and lands each as a paid line marked
+# "from an alert". Decided 2026-11-16 (docs/dev/decisions/bank-alert-emails.md):
+# off until an admin switches it on, its own switch (question 2); either way
+# of signing in to Microsoft (question 1); one folder, only taught senders,
+# the mailbox never changed (question 3); a paid line (question 4); a mail
+# failing the sender check never becomes a line and is shown as "may not be
+# from your bank" (question 6). Browser sessions only in phase 1; phase 2
+# adds the schedule and opens Check now to tokens.
+MAIL_ALERTS_KEY = "mail_alerts_enabled"
+MAIL_START_MAX_DAYS = 30
+MAIL_LINES_PER_CHECK = 50          # never more lines from one check
+MAIL_BODIES_PER_CHECK = 100        # mails opened in one check
+MAIL_SCAN_LIMIT = 1000             # mails listed in one check
+MAIL_OVERLAP = timedelta(minutes=10)
+MAIL_CHECK_GAP = timedelta(seconds=15)
+MAIL_RETURN_PATH = "/#settings/mail"
+MAIL_REASONS = {
+    "unreadable": "Couldn't find the values this alert was taught to have.",
+    "unverified": "May not be from your bank: it failed your mailbox's sender check.",
+    "card": "Its card isn't matched to an account.",
+    "no_account": "No account to put it in.",
+    "bank_linked": "Its account takes lines from bank sync; alerts join it in a later version.",
+}
+# Tried again on each check, from the kept text; an unverified or dismissed
+# alert never is.
+MAIL_RETRY_REASONS = ("unreadable", "card", "no_account", "bank_linked")
+
+
+def mail_alerts_enabled(db: Session) -> bool:
+    row = db.get(AdminSetting, MAIL_ALERTS_KEY)
+    return bool(row and row.value == "true")
+
+
+def _mail_allowed(db: Session, user: User) -> None:
+    if not mail_alerts_enabled(db):
+        raise HTTPException(403, "Email alerts are switched off on this instance. An admin can "
+                                 "switch them on in Admin.")
+    if is_demo_email(user.email):
+        raise HTTPException(403, "The demo user can't connect a mailbox.")
+
+
+def _mail_connection(db: Session, user: User) -> MailConnection | None:
+    return db.query(MailConnection).filter_by(user_id=user.id).first()
+
+
+def _mail_needed(db: Session, user: User) -> MailConnection:
+    _mail_allowed(db, user)
+    conn = _mail_connection(db, user)
+    if not conn:
+        raise HTTPException(404, "No mailbox is connected.")
+    return conn
+
+
+def mail_ref(message_id: str) -> str:
+    """The same for every user, so a line restored from a backup into another
+    user is still recognised; looked up only in the user's own accounts."""
+    return hashlib.sha256(f"mail:{message_id}".encode()).hexdigest()
+
+
+def _mail_redirect_uri() -> str:
+    return APP_BASE_URL.strip().rstrip("/") + "/api/mail/microsoft/callback"
+
+
+def _mail_cards(sender: MailSender) -> dict:
+    try:
+        cards = json.loads(sender.cards_json or "{}")
+    except ValueError:
+        cards = {}
+    return {k: v for k, v in cards.items() if isinstance(k, str) and isinstance(v, int)} \
+        if isinstance(cards, dict) else {}
+
+
+def _mail_anchors(kind: MailAlertKind) -> dict:
+    try:
+        a = json.loads(decrypt_str(kind.anchors_enc))
+    except Exception:
+        a = {}
+    return a if isinstance(a, dict) else {}
+
+
+def _bank_linked_ids(db: Session, user: User) -> set[int]:
+    conn = _bank_connection(db, user)
+    if not conn:
+        return set()
+    return {a for (a,) in db.query(BankAccountLink.account_id).filter_by(connection_id=conn.id)}
+
+
+def _mail_sender_out(db: Session, s: MailSender) -> dict:
+    kinds = db.query(MailAlertKind).filter_by(sender_id=s.id).order_by(MailAlertKind.id).all()
+    return {"id": s.id, "address": s.address, "label": s.label, "account_id": s.account_id,
+            "cards": [{"last4": k, "account_id": v} for k, v in sorted(_mail_cards(s).items())],
+            "kinds": [{"id": k.id, "subject_key": k.subject_key, "direction": k.direction,
+                       "fields": [f for f in alerts.FIELDS if f in _mail_anchors(k)]} for k in kinds]}
+
+
+# Sign-ins with a code that are waiting for the user (one per user). The
+# server is one process, so memory is enough; a restart only means asking
+# for a new code.
+_mail_pending: dict[int, dict] = {}
+_mail_pending_guard = threading.Lock()
+
+
+def _mail_status(db: Session, user: User, request: Request | None = None) -> dict:
+    conn = _mail_connection(db, user)
+    iso = lambda d: d.isoformat() + "Z" if d else None
+    out = {"enabled": mail_alerts_enabled(db), "available": mailbox.available(),
+           "web_available": mailbox.web_available(_mail_redirect_uri()),
+           "connected": conn is not None, "start_max_days": MAIL_START_MAX_DAYS}
+    if request is not None and "mail_oauth_result" in request.session:
+        out["connect_error"] = request.session.pop("mail_oauth_result")
+    with _mail_pending_guard:
+        p = _mail_pending.get(user.id)
+        if p and p["expires"] > time.time() and not conn:
+            out["pending"] = {"user_code": p["user_code"], "verification_uri": p["verification_uri"],
+                              "expires_in": int(p["expires"] - time.time()), "interval": p["interval"]}
+    if not conn:
+        return out
+    senders = db.query(MailSender).filter_by(connection_id=conn.id).order_by(MailSender.id).all()
+    out.update({
+        "provider": conn.provider, "auth_mode": conn.auth_mode,
+        "address": decrypt_str(conn.address_enc) if conn.address_enc else None,
+        "folder": {"id": conn.folder_id, "name": conn.folder_name} if conn.folder_id else None,
+        "start_date": conn.start_date.isoformat(),
+        "connected_at": iso(conn.created_at),
+        "last_check_at": iso(conn.last_check_at), "last_check_ok": conn.last_check_ok,
+        "last_check_status": conn.last_check_status, "last_ok_at": iso(conn.last_ok_at),
+        "needs_reconnect": bool(conn.needs_reconnect),
+        "senders": [_mail_sender_out(db, s) for s in senders],
+        "unread_count": db.query(MailUnread).filter(MailUnread.connection_id == conn.id,
+                                                     MailUnread.reason != "dismissed").count(),
+        "bank_linked_account_ids": sorted(_bank_linked_ids(db, user)),
+    })
+    return out
+
+
+@app.get("/api/mail")
+def mail_status(request: Request, user: User = Depends(current_session_user),
+                db: Session = Depends(get_db)):
+    """Whether email alerts are on, and this user's mailbox: its folder, the
+    senders taught and how the last check went. Never the sign-in."""
+    return _mail_status(db, user, request)
+
+
+def _mail_fail(db: Session, conn: MailConnection | None, e: mailbox.MailboxError):
+    if conn is not None and e.revoked:
+        conn.needs_reconnect = True
+        db.commit()
+    raise HTTPException(e.status, str(e))
+
+
+def _mail_token(db: Session, conn: MailConnection) -> str:
+    """A working access token for the mailbox, renewing (and storing) the
+    sign-in when it's due. Raises MailboxError."""
+    try:
+        tokens = json.loads(decrypt_str(conn.tokens_enc))
+    except Exception:
+        tokens = {}
+    tokens = tokens if isinstance(tokens, dict) else {}
+    new = mailbox.fresh(tokens, conn.auth_mode)
+    if new is not tokens:
+        conn.tokens_enc = encrypt_str(json.dumps(new))
+        db.commit()
+    return new["access"]
+
+
+def _mail_access(db: Session, conn: MailConnection) -> str:
+    """The same, with a failure answered as an HTTP error."""
+    try:
+        return _mail_token(db, conn)
+    except mailbox.MailboxError as e:
+        _mail_fail(db, conn, e)
+
+
+def _mail_today(offset_minutes: int) -> date:
+    """The user's own date: the server's clock is usually UTC."""
+    return (datetime.utcnow() + timedelta(minutes=offset_minutes)).date()
+
+
+def _mail_finish_connect(db: Session, user: User, tokens: dict, mode: str,
+                         request: Request | None, offset: int = 0) -> MailConnection:
+    try:
+        address = mailbox.mailbox_address(tokens["access"])
+    except mailbox.MailboxError:
+        address = None   # shown as unknown; reading mail is what matters
+    conn = MailConnection(user_id=user.id, provider="microsoft", auth_mode=mode,
+                          tokens_enc=encrypt_str(json.dumps(tokens)),
+                          address_enc=encrypt_str(address) if address else None,
+                          start_date=_mail_today(offset), utc_offset_minutes=offset)
+    db.add(conn)
+    db.commit()
+    record_event(db, "mail_connected", request, user=user, detail=f"microsoft, {mode}")
+    return conn
+
+
+class MailCodeIn(BaseModel):
+    code: str | None = Field(default=None, max_length=40)
+    # The browser's clock, minutes east of UTC, so "today" is the user's.
+    utc_offset_minutes: int = Field(default=0, ge=-840, le=840)
+
+
+def _mail_connect_checks(db: Session, request: Request, user: User, code: str | None) -> None:
+    _mail_allowed(db, user)
+    if not mailbox.available():
+        raise HTTPException(400, "This server has no Microsoft app set up yet: MS_CLIENT_ID is "
+                                 "empty in its .env. See the email alerts setup guide.")
+    if _mail_connection(db, user):
+        raise HTTPException(409, "You already have a mailbox connected. Disconnect it first.")
+    _confirm_code_for(db, request, user, code, "mailbox connection")
+
+
+@app.post("/api/mail/microsoft/device")
+def mail_device_start(body: MailCodeIn, request: Request,
+                      user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Start signing in with a code: the user types it at Microsoft's page,
+    then the browser asks /poll until it's done."""
+    _mail_connect_checks(db, request, user, body.code)
+    try:
+        d = mailbox.start_device()
+    except mailbox.MailboxError as e:
+        raise HTTPException(e.status, str(e))
+    with _mail_pending_guard:
+        _mail_pending[user.id] = {**d, "expires": time.time() + d["expires_in"], "next": 0.0,
+                                  "offset": body.utc_offset_minutes}
+    return {"user_code": d["user_code"], "verification_uri": d["verification_uri"],
+            "expires_in": d["expires_in"], "interval": d["interval"]}
+
+
+@app.post("/api/mail/microsoft/device/poll")
+def mail_device_poll(request: Request, user: User = Depends(current_session_user),
+                     db: Session = Depends(get_db)):
+    """Whether the sign-in with a code has finished. {"status": "pending"}
+    until it has; then the mailbox's status."""
+    _mail_allowed(db, user)
+    with _mail_pending_guard:
+        p = _mail_pending.get(user.id)
+        if not p or p["expires"] <= time.time():
+            _mail_pending.pop(user.id, None)
+            raise HTTPException(410, "The code ran out before the sign-in finished. Start again "
+                                     "for a new one.")
+        if time.time() < p["next"]:
+            return {"status": "pending"}
+        p["next"] = time.time() + p["interval"]
+        device_code, offset = p["device_code"], p.get("offset", 0)
+    if _mail_connection(db, user):
+        raise HTTPException(409, "You already have a mailbox connected. Disconnect it first.")
+    try:
+        tokens = mailbox.poll_device(device_code)
+    except mailbox.MailboxError as e:
+        with _mail_pending_guard:
+            _mail_pending.pop(user.id, None)
+        raise HTTPException(e.status, str(e))
+    if tokens is None:
+        return {"status": "pending"}
+    with _mail_pending_guard:
+        _mail_pending.pop(user.id, None)
+    _mail_finish_connect(db, user, tokens, "device", request, offset)
+    return {"status": "connected", **_mail_status(db, user)}
+
+
+@app.post("/api/mail/microsoft/web")
+def mail_web_start(body: MailCodeIn, request: Request,
+                   user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Start signing in with the Connect button: the address to send the
+    browser to. Only when this server is reached over https:// and has
+    MS_CLIENT_SECRET."""
+    _mail_connect_checks(db, request, user, body.code)
+    redirect_uri = _mail_redirect_uri()
+    if not mailbox.web_available(redirect_uri):
+        raise HTTPException(400, "The Connect button needs this server on an https:// address "
+                                 "(APP_BASE_URL) and MS_CLIENT_SECRET in its .env. Sign in with "
+                                 "a code instead.")
+    s = mailbox.start_web(redirect_uri)
+    request.session["mail_oauth"] = {"state": s["state"], "verifier": s["verifier"],
+                                     "uid": user.id, "at": int(time.time()),
+                                     "offset": body.utc_offset_minutes}
+    return {"url": s["url"]}
+
+
+@app.get("/api/mail/microsoft/callback")
+def mail_web_callback(request: Request, code: str | None = None, state: str | None = None,
+                      error: str | None = None,
+                      user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Microsoft sends the browser back here after the Connect button."""
+    pending = request.session.pop("mail_oauth", None)
+
+    def back(problem: str | None):
+        if problem:
+            request.session["mail_oauth_result"] = problem
+        return RedirectResponse(MAIL_RETURN_PATH, status_code=303)
+
+    if (not isinstance(pending, dict) or pending.get("uid") != user.id or not state
+            or not secrets.compare_digest(str(pending.get("state", "")), state)
+            or time.time() - int(pending.get("at", 0)) > 900):
+        return back("The sign-in didn't match one started here, or took too long. Start again.")
+    if error or not code:
+        return back("The sign-in was cancelled or declined at Microsoft.")
+    try:
+        _mail_allowed(db, user)
+    except HTTPException as e:
+        return back(e.detail)
+    if _mail_connection(db, user):
+        return back("You already have a mailbox connected. Disconnect it first.")
+    try:
+        tokens = mailbox.finish_web(code[:4000], pending["verifier"], _mail_redirect_uri())
+    except mailbox.MailboxError as e:
+        return back(str(e))
+    offset = pending.get("offset")
+    _mail_finish_connect(db, user, tokens, "web", request,
+                         offset if isinstance(offset, int) and -840 <= offset <= 840 else 0)
+    return back(None)
+
+
+@app.get("/api/mail/folders")
+def mail_folders(user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """The mailbox's folders, to pick the one alerts are read from."""
+    conn = _mail_needed(db, user)
+    try:
+        return mailbox.folders(_mail_access(db, conn))
+    except mailbox.MailboxError as e:
+        _mail_fail(db, conn, e)
+
+
+class MailSettingsIn(BaseModel):
+    folder_id: str | None = Field(default=None, min_length=1, max_length=400)
+    start_date: date | None = None
+    utc_offset_minutes: int | None = Field(default=None, ge=-840, le=840)
+
+
+@app.put("/api/mail/settings")
+def mail_settings(body: MailSettingsIn, user: User = Depends(current_session_user),
+                  db: Session = Depends(get_db)):
+    """Pick the folder alerts are read from, and the day they're read from
+    (today or up to 30 days back)."""
+    conn = _mail_needed(db, user)
+    if body.folder_id is not None and body.folder_id != conn.folder_id:
+        try:
+            found = [f for f in mailbox.folders(_mail_access(db, conn)) if f["id"] == body.folder_id]
+        except mailbox.MailboxError as e:
+            _mail_fail(db, conn, e)
+        if not found:
+            raise HTTPException(404, "That folder isn't in the mailbox.")
+        f = found[0]
+        conn.folder_id = f["id"]
+        conn.folder_name = (f"{f['parent']} / {f['name']}" if f["parent"] else f["name"])[:200]
+        conn.scanned_through = None
+    if body.utc_offset_minutes is not None:
+        conn.utc_offset_minutes = body.utc_offset_minutes
+    if body.start_date is not None and body.start_date != conn.start_date:
+        today = _mail_today(conn.utc_offset_minutes)
+        if body.start_date > today or body.start_date < today - timedelta(days=MAIL_START_MAX_DAYS):
+            raise HTTPException(400, f"The start date must be today or up to "
+                                     f"{MAIL_START_MAX_DAYS} days back.")
+        conn.start_date, conn.scanned_through = body.start_date, None
+    db.commit()
+    return _mail_status(db, user)
+
+
+@app.get("/api/mail/messages")
+def mail_messages(user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """The newest mail in the folder (sender, subject and when only), to pick
+    a bank's alert to teach from."""
+    conn = _mail_needed(db, user)
+    if not conn.folder_id:
+        raise HTTPException(400, "Pick the folder alerts are read from first.")
+    try:
+        rows = mailbox.recent(_mail_access(db, conn), conn.folder_id)
+    except mailbox.MailboxError as e:
+        _mail_fail(db, conn, e)
+    taught = {s.address for s in db.query(MailSender).filter_by(connection_id=conn.id)}
+    return [{"id": m["id"], "sender": m["sender"], "subject": m["subject"],
+             "received_at": m["received"].isoformat() + "Z", "taught": m["sender"] in taught}
+            for m in rows]
+
+
+class MailSourceIn(BaseModel):
+    message_id: str | None = Field(default=None, min_length=1, max_length=400)
+    unread_id: int | None = None
+
+
+def _mail_source(db: Session, user: User, conn: MailConnection, body: MailSourceIn) -> dict:
+    """A sample alert as text, from the mailbox or the couldn't-read list."""
+    if (body.message_id is None) == (body.unread_id is None):
+        raise HTTPException(400, "Give a message or an item from the couldn't-read list.")
+    if body.unread_id is not None:
+        u = db.get(MailUnread, body.unread_id)
+        if u is None or u.connection_id != conn.id or u.reason == "dismissed":
+            raise HTTPException(404, "That alert isn't on your couldn't-read list.")
+        return {"sender": u.sender, "subject": decrypt_str(u.subject_enc),
+                "text": decrypt_str(u.text_enc), "received": u.received_at,
+                "verified": u.reason != "unverified"}
+    try:
+        m = mailbox.message(_mail_access(db, conn), body.message_id)
+    except mailbox.MailboxError as e:
+        _mail_fail(db, conn, e)
+    return {"sender": m["sender"], "subject": m["subject"], "text": alerts.to_text(m["body"], m["html"]),
+            "received": m["received"], "verified": alerts.sender_verified(m["sender"], m["auth_results"])}
+
+
+@app.post("/api/mail/preview")
+def mail_preview(body: MailSourceIn, user: User = Depends(current_session_user),
+                 db: Session = Depends(get_db)):
+    """A sample alert as plain text, with where the reader thinks each value
+    is (offsets into `text`), for the teaching screen."""
+    conn = _mail_needed(db, user)
+    src = _mail_source(db, user, conn, body)
+    g = alerts.guess(src["text"], src["subject"])
+    sender = db.query(MailSender).filter_by(connection_id=conn.id, address=src["sender"]).first()
+    return {"sender": src["sender"], "subject": src["subject"], "text": src["text"],
+            "received_at": src["received"].isoformat() + "Z", "verified": src["verified"],
+            "subject_key": alerts.subject_key(src["subject"]), "guess": g,
+            "known_sender": _mail_sender_out(db, sender) if sender else None}
+
+
+class MailTeachIn(MailSourceIn):
+    label: str = Field(min_length=1, max_length=80)
+    direction: str = Field(pattern="^(out|in)$")
+    subject_key: str = Field(min_length=3, max_length=200)
+    account_id: int
+    amount: list[int] = Field(min_length=2, max_length=2)
+    merchant: list[int] | None = Field(default=None, min_length=2, max_length=2)
+    date: list[int] | None = Field(default=None, min_length=2, max_length=2)
+    card: list[int] | None = Field(default=None, min_length=2, max_length=2)
+
+
+def _mail_account_ok(db: Session, user: User, account_id: int) -> Account:
+    # Alerts land lines in the account, so its owner only, as bank sync does.
+    acc = _account_with_perm(db, user, account_id, "owner")
+    if acc.id in _bank_linked_ids(db, user):
+        raise HTTPException(400, "That account takes lines from bank sync. Alerts and bank sync "
+                                 "on one account arrive in a later version; pick another account.")
+    return acc
+
+
+@app.post("/api/mail/senders")
+def mail_teach(body: MailTeachIn, request: Request, user: User = Depends(current_session_user),
+               db: Session = Depends(get_db)):
+    """Teach a kind of alert from a sample: where each value is in it (offsets
+    into the preview's text), whether it's money out or in, and the account
+    its lines go to (or its card's account). The same subject start taught
+    again replaces what was taught."""
+    conn = _mail_needed(db, user)
+    src = _mail_source(db, user, conn, body)
+    text, received = src["text"], src["received"]
+    if not src["sender"]:
+        raise HTTPException(400, "That mail has no sender address.")
+    key = " ".join(body.subject_key.lower().split())
+    if not alerts.subject_matches(key, src["subject"]):
+        raise HTTPException(400, "The start of the subject has to match this mail's subject.")
+    _mail_account_ok(db, user, body.account_id)
+    day = alerts.received_day(received, conn.utc_offset_minutes)
+    anchors, values = {}, {}
+    for field in alerts.FIELDS:
+        span = getattr(body, field)
+        if span is None:
+            continue
+        start, end = span
+        if not (0 <= start < end <= len(text)) or end - start > alerts.LIMITS[field]:
+            raise HTTPException(400, f"The {field} marked isn't in this mail.")
+        value = alerts.marked(field, text[start:end], day)
+        if value is None:
+            raise HTTPException(400, {"amount": "The text marked as the amount isn't an amount.",
+                                      "date": "The text marked as the date isn't a date.",
+                                      "card": "The text marked as the card has no four digits.",
+                                      "merchant": "The text marked as the merchant is empty."}[field])
+        anchors[field], values[field] = alerts.anchor(text, start, end), value
+    if alerts.read(text, anchors, day) is None:
+        raise HTTPException(400, "Marked like that, the values can't be found again in this same "
+                                 "mail. Mark a little more of the text around them.")
+    sender = db.query(MailSender).filter_by(connection_id=conn.id, address=src["sender"]).first()
+    if sender is None:
+        sender = MailSender(connection_id=conn.id, address=src["sender"], label=body.label.strip(),
+                            cards_json="{}")
+        db.add(sender)
+        db.flush()
+    sender.label = body.label.strip()[:80]
+    if "card" in values:
+        cards = _mail_cards(sender)
+        cards[values["card"]] = body.account_id
+        sender.cards_json = json.dumps(cards)
+        if sender.account_id is None:
+            sender.account_id = body.account_id
+    else:
+        sender.account_id = body.account_id
+    db.query(MailAlertKind).filter_by(sender_id=sender.id, subject_key=key).delete()
+    db.add(MailAlertKind(sender_id=sender.id, subject_key=key, direction=body.direction,
+                         anchors_enc=encrypt_str(json.dumps(anchors)), sample_enc=encrypt_str(text)))
+    conn.scanned_through = None   # mail from before is read again, now it's taught
+    db.commit()
+    record_event(db, "mail_sender_taught", request, user=user,
+                 detail=f"{len(anchors)} values, {body.direction}")
+    return _mail_status(db, user)
+
+
+class MailSenderIn(BaseModel):
+    label: str | None = Field(default=None, min_length=1, max_length=80)
+    account_id: int | None = None
+    cards: dict[str, int | None] | None = None
+
+
+@app.put("/api/mail/senders/{sender_id}")
+def mail_sender_update(sender_id: int, body: MailSenderIn, user: User = Depends(current_session_user),
+                       db: Session = Depends(get_db)):
+    """Rename a taught sender, change the account its lines go to, or match a
+    card's last four digits to an account (null removes a card)."""
+    conn = _mail_needed(db, user)
+    s = db.get(MailSender, sender_id)
+    if s is None or s.connection_id != conn.id:
+        raise HTTPException(404, "Sender not found")
+    if body.label is not None:
+        s.label = body.label.strip()[:80]
+    if body.account_id is not None:
+        s.account_id = _mail_account_ok(db, user, body.account_id).id
+    if body.cards is not None:
+        cards = _mail_cards(s)
+        for last4, acc_id in list(body.cards.items())[:50]:
+            if not re.fullmatch(r"\d{4}", last4):
+                raise HTTPException(400, "A card is its last four digits.")
+            if acc_id is None:
+                cards.pop(last4, None)
+            else:
+                cards[last4] = _mail_account_ok(db, user, acc_id).id
+        s.cards_json = json.dumps(cards)
+    db.commit()
+    return _mail_status(db, user)
+
+
+@app.delete("/api/mail/senders/{sender_id}")
+def mail_sender_delete(sender_id: int, user: User = Depends(current_session_user),
+                       db: Session = Depends(get_db)):
+    """Forget a sender and everything taught from it. Lines already brought
+    in stay."""
+    conn = _mail_needed(db, user)
+    s = db.get(MailSender, sender_id)
+    if s is None or s.connection_id != conn.id:
+        raise HTTPException(404, "Sender not found")
+    db.delete(s)
+    db.commit()
+    return _mail_status(db, user)
+
+
+@app.delete("/api/mail/senders/{sender_id}/kinds/{kind_id}")
+def mail_kind_delete(sender_id: int, kind_id: int, user: User = Depends(current_session_user),
+                     db: Session = Depends(get_db)):
+    """Forget one kind of alert from a sender."""
+    conn = _mail_needed(db, user)
+    s = db.get(MailSender, sender_id)
+    k = db.get(MailAlertKind, kind_id)
+    if s is None or s.connection_id != conn.id or k is None or k.sender_id != s.id:
+        raise HTTPException(404, "Kind of alert not found")
+    db.delete(k)
+    db.commit()
+    return _mail_status(db, user)
+
+
+# One check per user at a time, as bank sync does.
+_mail_locks: dict[int, threading.Lock] = {}
+_mail_locks_guard = threading.Lock()
+
+
+def _mail_lock(user_id: int) -> threading.Lock:
+    with _mail_locks_guard:
+        return _mail_locks.setdefault(user_id, threading.Lock())
+
+
+def _mail_land(db: Session, user: User, conn: MailConnection, sender: MailSender,
+               kind: MailAlertKind, text: str, received: datetime, ref: str):
+    """Read one alert and land it as a paid line. Returns the new line, or
+    (reason, detail) when it can't become one."""
+    day = alerts.received_day(received, conn.utc_offset_minutes)
+    values = alerts.read(text, _mail_anchors(kind), day)
+    if values is None:
+        return ("unreadable", None)
+    account_id = sender.account_id
+    if "card" in values:
+        account_id = _mail_cards(sender).get(values["card"])
+        if account_id is None:
+            return ("card", f"Card ending {values['card']} isn't matched to an account.")
+    if account_id is None:
+        return ("no_account", None)
+    try:
+        acc = _account_with_perm(db, user, account_id, "owner")
+    except HTTPException:
+        return ("no_account", "The account it was matched to is gone or no longer yours.")
+    if acc.id in _bank_linked_ids(db, user):
+        return ("bank_linked", None)
+    amount = values["amount"] if kind.direction == "in" else -values["amount"]
+    when = values.get("date") or day
+    t = Transaction(account_id=acc.id, actual_date=when, forecast_date=when, is_actual=True,
+                    mail_ref=ref)
+    t.description = values.get("merchant") or sender.label
+    t.amount = amount
+    db.add(t)
+    db.flush()
+    _apply_tag_rules(db, user, t)
+    return t
+
+
+def _mail_keep_unread(db: Session, conn: MailConnection, ref: str, received: datetime, sender: str,
+                      subject: str, text: str, reason: str, detail: str | None,
+                      existing: MailUnread | None = None) -> None:
+    if existing is not None:
+        existing.reason, existing.detail = reason, (detail or None)
+        return
+    db.add(MailUnread(connection_id=conn.id, message_ref=ref, received_at=received, sender=sender[:320],
+                      reason=reason, detail=(detail or None),
+                      subject_enc=encrypt_str(subject or ""), text_enc=encrypt_str(text or "")))
+
+
+def _mail_check(db: Session, user: User, conn: MailConnection, request: Request | None,
+                trigger: str = "manual") -> dict:
+    lock = _mail_lock(user.id)
+    if not lock.acquire(blocking=False):
+        raise HTTPException(409, "A check is already running. Try again in a minute.")
+    try:
+        return _mail_check_locked(db, user, conn, request, trigger)
+    finally:
+        lock.release()
+
+
+def _mail_check_locked(db: Session, user: User, conn: MailConnection, request: Request | None,
+                       trigger: str) -> dict:
+    if not conn.folder_id:
+        raise HTTPException(400, "Pick the folder alerts are read from first.")
+    senders = {s.address: s for s in db.query(MailSender).filter_by(connection_id=conn.id)}
+    if not senders:
+        raise HTTPException(400, "Teach at least one bank's alert first.")
+    now = datetime.utcnow()
+    if trigger == "manual" and conn.last_check_at and now - conn.last_check_at < MAIL_CHECK_GAP:
+        raise HTTPException(429, "The mailbox was checked a moment ago. Try again in a few seconds.",
+                            headers={"Retry-After": "15"})
+    kinds: dict[int, list[MailAlertKind]] = {}
+    for k in (db.query(MailAlertKind).filter(MailAlertKind.sender_id.in_([s.id for s in senders.values()]))
+              .order_by(MailAlertKind.id)):
+        kinds.setdefault(k.sender_id, []).append(k)
+
+    def kind_for(sender: MailSender, subject: str) -> MailAlertKind | None:
+        return next((k for k in kinds.get(sender.id, []) if alerts.subject_matches(k.subject_key, subject)), None)
+
+    added = skipped = unread = 0
+    # Alerts that couldn't become lines before are tried again from their
+    # kept text: a sender taught since, or a card matched since.
+    for u in db.query(MailUnread).filter(MailUnread.connection_id == conn.id,
+                                         MailUnread.reason.in_(MAIL_RETRY_REASONS)).all():
+        s = senders.get(u.sender)
+        k = kind_for(s, decrypt_str(u.subject_enc)) if s else None
+        if k is None or added >= MAIL_LINES_PER_CHECK:
+            continue
+        got = _mail_land(db, user, conn, s, k, decrypt_str(u.text_enc), u.received_at, u.message_ref)
+        if isinstance(got, Transaction):
+            db.delete(u)
+            added += 1
+        else:
+            u.reason, u.detail = got
+    try:
+        access = _mail_token(db, conn)
+        if conn.scanned_through:
+            after = conn.scanned_through - MAIL_OVERLAP
+        else:
+            start = datetime(conn.start_date.year, conn.start_date.month, conn.start_date.day)
+            after = start - timedelta(minutes=conn.utc_offset_minutes)
+        listed = mailbox.since(access, conn.folder_id, after, MAIL_SCAN_LIMIT)
+        wanted = [m for m in listed if m["sender"] in senders]
+        refs = {mail_ref(m["message_id"]): m for m in wanted}
+        landed = {r for (r,) in db.query(Transaction.mail_ref).join(Account, Account.id == Transaction.account_id)
+                  .filter(Account.owner_id == user.id, Transaction.mail_ref.in_(list(refs)))} if refs else set()
+        kept = {u.message_ref: u for u in db.query(MailUnread).filter(
+            MailUnread.connection_id == conn.id, MailUnread.message_ref.in_(list(refs)))} if refs else {}
+        through, opened, stopped = None, 0, False
+        for m in listed:
+            ref = mail_ref(m["message_id"])
+            s = senders.get(m["sender"])
+            if s is None or ref in kept:
+                through = m["received"]
+                continue
+            if ref in landed:
+                skipped += 1
+                through = m["received"]
+                continue
+            k = kind_for(s, m["subject"])
+            if k is None:   # a kind of mail from the bank that wasn't taught
+                through = m["received"]
+                continue
+            if opened >= MAIL_BODIES_PER_CHECK or added >= MAIL_LINES_PER_CHECK:
+                stopped = True
+                break
+            opened += 1
+            full = mailbox.message(access, m["id"])
+            text = alerts.to_text(full["body"], full["html"])
+            if not alerts.sender_verified(full["sender"], full["auth_results"]):
+                _mail_keep_unread(db, conn, ref, m["received"], m["sender"], m["subject"], text,
+                                  "unverified", None)
+                unread += 1
+            else:
+                got = _mail_land(db, user, conn, s, k, text, m["received"], ref)
+                if isinstance(got, Transaction):
+                    landed.add(ref)
+                    added += 1
+                else:
+                    _mail_keep_unread(db, conn, ref, m["received"], m["sender"], m["subject"], text, *got)
+                    unread += 1
+            through = m["received"]
+        if through is not None:
+            conn.scanned_through = through
+        elif not listed:
+            conn.scanned_through = now - MAIL_OVERLAP
+    except mailbox.MailboxError as e:
+        db.rollback()
+        conn = db.get(MailConnection, conn.id)
+        conn.last_check_at, conn.last_check_ok, conn.last_check_status = now, False, str(e)[:300]
+        if e.revoked:
+            conn.needs_reconnect = True
+        db.commit()
+        record_event(db, "mail_check_failed", request, user=user,
+                     detail=("revoked" if e.revoked else f"HTTP {e.status}") + f", {trigger}")
+        raise HTTPException(e.status, str(e))
+    status = (f"{added} new line{'' if added == 1 else 's'}, {skipped} already here"
+              + (f", {unread} couldn't become lines" if unread else "")
+              + (". More is waiting: check again." if stopped else ""))
+    conn.last_check_at, conn.last_check_ok, conn.last_check_status = now, True, status[:300]
+    conn.last_ok_at, conn.needs_reconnect = now, False
+    db.commit()
+    record_event(db, "mail_check_run", request, user=user,
+                 detail=f"{added} added, {skipped} skipped, {unread} unread, {trigger}")
+    return {"added": added, "skipped": skipped, "unread": unread, "more": stopped}
+
+
+class MailCheckIn(BaseModel):
+    utc_offset_minutes: int | None = Field(default=None, ge=-840, le=840)
+
+
+@app.post("/api/mail/check")
+def mail_check_now(request: Request, body: MailCheckIn | None = None,
+                   user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Read new alerts from the folder and land them as paid lines."""
+    conn = _mail_needed(db, user)
+    if body and body.utc_offset_minutes is not None:
+        conn.utc_offset_minutes = body.utc_offset_minutes
+        db.commit()
+    result = _mail_check(db, user, conn, request, trigger="manual")
+    return {**result, "status": _mail_status(db, user)}
+
+
+@app.get("/api/mail/unread")
+def mail_unread(user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Alerts from taught senders that didn't become lines, newest first."""
+    conn = _mail_connection(db, user)
+    if not conn:
+        raise HTTPException(404, "No mailbox is connected.")
+    rows = (db.query(MailUnread).filter(MailUnread.connection_id == conn.id,
+                                        MailUnread.reason != "dismissed")
+            .order_by(MailUnread.received_at.desc(), MailUnread.id.desc()).limit(200).all())
+    return [{"id": u.id, "received_at": u.received_at.isoformat() + "Z", "sender": u.sender,
+             "subject": decrypt_str(u.subject_enc), "reason": u.reason,
+             "reason_text": u.detail or MAIL_REASONS.get(u.reason, "")} for u in rows]
+
+
+@app.delete("/api/mail/unread/{unread_id}")
+def mail_unread_dismiss(unread_id: int, user: User = Depends(current_session_user),
+                        db: Session = Depends(get_db)):
+    """Take an alert off the couldn't-read list; it isn't read again."""
+    conn = _mail_connection(db, user)
+    u = db.get(MailUnread, unread_id)
+    if not conn or u is None or u.connection_id != conn.id:
+        raise HTTPException(404, "That alert isn't on your couldn't-read list.")
+    # Kept as "dismissed" with its text gone, so the next check doesn't read
+    # the mail again; pruned with the rest.
+    u.reason, u.detail = "dismissed", None
+    u.subject_enc, u.text_enc = encrypt_str(""), encrypt_str("")
+    db.commit()
+    return {"ok": True}
+
+
+@app.post("/api/mail/disconnect")
+def mail_disconnect(body: MailCodeIn, request: Request, user: User = Depends(current_session_user),
+                    db: Session = Depends(get_db)):
+    """Forget the mailbox's sign-in, the senders taught and the couldn't-read
+    list. Lines already brought in stay. Allowed with email alerts switched
+    off, so a mailbox can always be removed."""
+    conn = _mail_connection(db, user)
+    if not conn:
+        raise HTTPException(404, "No mailbox is connected.")
+    _confirm_code_for(db, request, user, body.code, "mailbox disconnection")
+    db.delete(conn)
+    db.commit()
+    with _mail_pending_guard:
+        _mail_pending.pop(user.id, None)
+    record_event(db, "mail_disconnected", request, user=user)
+    return _mail_status(db, user)
+
+
 # ---------- Dashboard ----------
 @app.get("/api/dashboard")
 def dashboard(today: date | None = None,
@@ -7137,10 +7947,46 @@ def admin_set_bank_sync(payload: BankSyncSettingIn, request: Request,
     return admin_get_bank_sync(user, db)
 
 
+class MailAlertsSettingIn(BaseModel):
+    enabled: bool
+
+
+@app.get("/api/admin/mail-alerts")
+def admin_get_mail_alerts(user: User = Depends(current_admin), db: Session = Depends(get_db)):
+    """Whether users may connect a mailbox for email alerts (#206), how many
+    have, and whether the server has a Microsoft app (MS_CLIENT_ID)."""
+    return {"enabled": mail_alerts_enabled(db),
+            "connected_users": db.query(MailConnection).count(),
+            "microsoft_configured": mailbox.available()}
+
+
+@app.put("/api/admin/mail-alerts")
+def admin_set_mail_alerts(payload: MailAlertsSettingIn, request: Request,
+                          user: User = Depends(current_session_admin),
+                          db: Session = Depends(get_db)):
+    """Switch email alerts on or off for the instance. Off stops connecting
+    and checking; mailboxes already connected stay until their users
+    disconnect."""
+    was = mail_alerts_enabled(db)
+    row = db.get(AdminSetting, MAIL_ALERTS_KEY)
+    if payload.enabled and not row:
+        db.add(AdminSetting(key=MAIL_ALERTS_KEY, value="true"))
+    elif payload.enabled:
+        row.value = "true"
+    elif row:
+        db.delete(row)
+    db.commit()
+    if was != payload.enabled:
+        record_event(db, "mail_alerts_setting_changed", request, user=user,
+                     detail="on" if payload.enabled else "off")
+    return admin_get_mail_alerts(user, db)
+
+
 @app.get("/api/admin/users")
 def admin_list_users(user: User = Depends(current_admin), db: Session = Depends(get_db)):
     users = db.query(User).order_by(User.id).all()
     banked = {uid for (uid,) in db.query(BankConnection.user_id)}
+    mailed = {uid for (uid,) in db.query(MailConnection.user_id)}
     out = []
     for u in users:
         acct_count = db.query(AccountPermission).filter_by(user_id=u.id).filter(
@@ -7162,6 +8008,7 @@ def admin_list_users(user: User = Depends(current_admin), db: Session = Depends(
             "has_google": u.google_sub is not None,
             "two_factor_enabled": u.totp_enabled_at is not None,
             "bank_connected": u.id in banked,
+            "mail_connected": u.id in mailed,
         })
     return out
 
@@ -7489,6 +8336,8 @@ AUDIT_EVENT_TYPES = (
     "browser_remembered", "browser_forgotten", "two_factor_requirement_changed",
     "bank_connected", "bank_disconnected", "bank_sync_run", "bank_sync_failed",
     "bank_sync_setting_changed",
+    "mail_connected", "mail_disconnected", "mail_sender_taught", "mail_check_run",
+    "mail_check_failed", "mail_alerts_setting_changed",
 )
 _AUDIT_USER_REF = re.compile(r"\buser #(\d+)")
 

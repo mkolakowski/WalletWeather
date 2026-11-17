@@ -282,6 +282,10 @@ is off until an admin allows it, and `PRIVACY.md`, `SECURITY.md` and
 `.env.example` change with it. Planned 2026-11-16 in
 `Plans/bank-alert-emails.md` (#212). **Effort: large.**
 
+**Progress:** phase 1 (connect Microsoft 365, teach a bank's alert, Check
+now) built in 1.72.0 (#206), switched off by default; it's released with
+phases 2 to 4.
+
 ---
 
 ## What's already in good shape (don't re-prioritize these)

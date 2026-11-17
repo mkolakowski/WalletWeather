@@ -10,10 +10,10 @@ Tracking issue: #212
 | 2. The mailbox checked by itself | Server, Web | #207 | Not started |
 | 3. Gmail and other mailboxes | Server, Web | #208 | Not started |
 | 4. Alerts matched to bills, and the first release | Server, Web | #209 | Not started; waits for bank sync phase 4 (#196) |
-| 5. Alerts joined to bank sync rows | Server, Web | #210 | Not started; waits for open question 7 |
+| 5. Alerts joined to bank sync rows | Server, Web | #210 | Not started; its questions are settled |
 | 6. Status and Check now in the iOS app | iOS | #211 | Not started |
 
-Planned 2026-11-16. Open questions 1 to 6 settled the same day. Four calls were made that day while planning ([decision](../docs/dev/decisions/bank-alert-emails.md)): the app is taught each sender's alert from a sample; an account can have alerts and bank sync together, joined; Gmail gets both an app-password route and a Google sign-in route; phases 1 to 4 go out as one release.
+Planned 2026-11-16. All nine open questions settled the same day. Four calls were made that day while planning ([decision](../docs/dev/decisions/bank-alert-emails.md)): the app is taught each sender's alert from a sample; an account can have alerts and bank sync together, joined; Gmail gets both an app-password route and a Google sign-in route; phases 1 to 4 go out as one release.
 
 Sessions: may span — phase 1 needs your own Microsoft app registration, phase 4 waits for bank sync phase 4 (#196), and phases 4 to 6 each end with a release and your try on your own instance.
 
@@ -30,7 +30,7 @@ Sessions: may span — phase 1 needs your own Microsoft app registration, phase 
 
 ## Open questions
 
-Questions 1 to 6 were settled on 2026-11-16. Each of the rest has an assumption its phase is built on unless you say otherwise. `/resolve-open-questions bank-alert-emails` works through them.
+All nine were settled on 2026-11-16. `/resolve-open-questions bank-alert-emails` works through them.
 
 1. ~~**How you sign in to Microsoft.**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-alert-emails.md)): both ways. A Connect button that goes to Microsoft and comes back when the instance is on `https://`; a code typed at microsoft.com/devicelogin otherwise.
 2. ~~**Who may connect a mailbox.**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-alert-emails.md)): as bank sync, with a switch of its own in Admin, off by default; then any user connects their own mailbox; demo users can't; a browser session only; a fresh code with two-factor on.
@@ -38,9 +38,9 @@ Questions 1 to 6 were settled on 2026-11-16. Each of the rest has an assumption 
 4. ~~**What an alert becomes.**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-alert-emails.md)): a paid line dated when the alert says, marked "from an alert".
 5. ~~**How often the mailbox is checked, and how long the log is kept.**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-alert-emails.md)): each user picks 5, 15 or 60 minutes in Settings. Not asked, so built on these unless you say otherwise: it starts at 5 minutes, and the log is kept as long as the audit log (`AUDIT_RETENTION_DAYS`), as bank sync's is.
 6. ~~**A mail from the bank's address that fails the sender check.**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-alert-emails.md)): skipped, counted in the log and shown with the couldn't-read alerts as "may not be from your bank"; never made into a line, and no button to add it anyway.
-7. **How close an alert and a bank row must be to be joined** (phase 5). Blocks phase 5. Assumed: the same account and direction, the bank's date from the alert's day to 7 days after, the amount the same or up to 30% more (a tip added later), the nearest date winning and a tie left for you to join by hand. An alert no bank row has met after 10 days is flagged "never posted".
-8. **Whose values win when they're joined.** Blocks phase 5. Assumed: the bank's amount and date, the alert's merchant name (SimpleFIN's descriptions are rougher), and your own edits to the line over both.
-9. **Work or school Microsoft 365 accounts.** Blocks nothing. Assumed: both personal (Outlook.com) and work or school accounts are allowed; a work tenant may want its admin to approve the app, and the guide says so.
+7. ~~**How close an alert and a bank row must be to be joined.**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-alert-emails.md)): settable per account, how many days after the alert and how much higher the amount, starting at 7 days and 30%. Always the same account and direction; the nearest date wins and a tie is left for you. An alert no bank row has met after 10 days is flagged "never posted" for you to delete or keep; nothing is removed by itself.
+8. ~~**Whose values win when they're joined.**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-alert-emails.md)): the bank's amount and date, the alert's merchant name, and your own edits to the line over both.
+9. ~~**Work or school Microsoft 365 accounts.**~~ Decided 2026-11-16 ([decision](../docs/dev/decisions/bank-alert-emails.md)): personal (Outlook.com) and work or school accounts are both allowed; a work tenant may want its admin to approve the app, and the guide says so. `MS_TENANT` can narrow it.
 
 ## The plan
 
@@ -49,7 +49,7 @@ Questions 1 to 6 were settled on 2026-11-16. Each of the rest has an assumption 
 **Decided 2026-11-16** (asked while planning; [decision page](../docs/dev/decisions/bank-alert-emails.md)):
 
 - **Taught per sender.** A built-in reader guesses the amount, merchant, date and the card's last four digits from any alert; you check its guess once on a sample from each bank and correct it. No reader per bank shipped with the app.
-- **Alerts and bank sync on the same account, joined.** The alert adds the line straight away; when the bank's posted row arrives it joins that line and corrects the amount instead of adding a second one (phase 5). Until phase 5 is out, an account takes one or the other.
+- **Alerts and bank sync on the same account, joined.** The alert adds the line straight away; when the bank's posted row arrives it joins that line and corrects the amount instead of adding a second one (phase 5), by settings each account has. Until phase 5 is out, an account takes one or the other.
 - **Gmail both ways:** an app password over IMAP (which also reads other IMAP mailboxes), and "Connect Gmail" with Google sign-in and read-only access.
 - **One first release.** Phases 1 to 4 (Microsoft 365, the schedule, Gmail, bill matching) are built and pushed one by one, switched off by default, and go out together in one release. If you want to try Microsoft 365 before that, a one-off test image can be built by hand after phase 1.
 - **Done means** API tests in CI, then a release and your try on your own instance, as bank sync did.
@@ -151,18 +151,19 @@ Questions 1 to 6 were settled on 2026-11-16. Each of the rest has an assumption 
 
 **Apps:** Server and Web.
 
-- An account may now have both alerts and bank sync. When a bank row lands, the server first looks for an alert's line it is the posted version of (open question 7); a join keeps one line, with the bank's id added, the values of open question 8, and a mark that says it came by alert and was confirmed by the bank.
+- An account may now have both alerts and bank sync. When a bank row lands, the server first looks for an alert's line it is the posted version of: the same account and direction, within that account's own settings (decided 2026-11-16), the nearest date winning and a tie left for you. A join keeps one line, with the bank's id added, the bank's amount and date, the alert's merchant name, your own edits over both, and a mark that says it came by alert and was confirmed by the bank.
+- **Per account:** two join settings on each account, how many days after the alert the bank's row may come and how much higher its amount may be (a tip), starting at 7 days and 30%, in the web client's account editor and on the accounts endpoint. A schema version adds them.
 - A bill the alert had already marked paid stays paid, at the bank's amount.
 - A join can be undone: the bank row becomes its own line and that pair isn't joined again. An alert's line and a bank row can be joined by hand from the Unmatched list.
-- An alert no bank row has met after the days in open question 7 is flagged "never posted" on the Unmatched list (a hold that dropped off, a declined charge), for you to delete or keep.
+- An alert no bank row has met after 10 days is flagged "never posted" on the Unmatched list (a hold that dropped off, a declined charge), for you to delete or keep.
 - The logs say how many rows were joined.
-- Tests: an exact join; a tip (the bank's amount higher); the bank row a few days later; two candidates (left for you); a join undone and not remade; a row already brought in by CSV; an alert that never posts; a bill paid by the alert stays paid once; another user's lines can't be joined.
+- Tests: an exact join; a tip (the bank's amount higher); an account's own settings are used, and their limits checked; the bank row a few days later; two candidates (left for you); a join undone and not remade; a row already brought in by CSV; an alert that never posts; a bill paid by the alert stays paid once; another user's lines can't be joined.
 
 **You:** on an account with both, watch a couple of weeks: every purchase once, restaurant tips corrected, nothing doubled.
 
 **Done when:** the tests pass in CI, the version is released, and two weeks on your instance have shown no doubled and no missing lines on an account with both.
 
-**Depends on:** phase 4 released; open questions 7 and 8.
+**Depends on:** phase 4 released.
 
 ### Phase 6: Status and Check now in the iOS app
 

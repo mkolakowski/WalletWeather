@@ -39,3 +39,19 @@ Decisions made while planning and building [`Plans/bank-alert-emails.md`](../../
 **Why:** the code works on a home-network address and the button is smoother where `https://` exists. A mailbox sign-in is a bigger secret than a bank token, so it gets its own switch. Keeping the sample and the unread alerts is what makes teaching and fixing possible without fetching mail again. Paid at once is what alerts are for. A forged alert must never become a line by a tap.
 
 **What it changes:** phase 1 (#206) builds both sign-in ways and adds `MS_CLIENT_SECRET` to `.env.example`; phase 2 (#207) adds the per-user setting. Not asked, and built on unless said otherwise: the setting starts at 5 minutes, and the log is kept as long as the audit log.
+
+## 2026-11-16: joining alerts to bank rows, and which Microsoft accounts
+
+**Decided:** 2026-11-16, by Matthew. **Status:** accepted.
+
+**The questions:** how close a bank sync row must be to an alert's line to be joined to it, what happens to an alert no bank row ever meets, whose values the joined line keeps, and which Microsoft accounts may connect.
+
+**The decisions, with the options not taken:**
+- **How close:** settable per account, how many days after the alert the bank's row may come and how much higher its amount may be, starting at 7 days and 30%. Always the same account and direction; the nearest date wins and a tie is left to join by hand; not a fixed 7 days and 30% for everyone; not the exact amount only.
+- **Never posted:** an alert no bank row has met after 10 days is flagged "never posted" on the Unmatched list, to delete or keep; not removed by itself; not left alone for good.
+- **Whose values:** the bank's amount and date, the alert's merchant name, and the user's own edits over both; not everything from the bank; not the alert's date.
+- **Microsoft accounts:** personal (Outlook.com) and work or school, with `MS_TENANT` to narrow it; not work or school only; not personal only.
+
+**Why:** a card used in restaurants needs room for a tip and a card that isn't doesn't, so the allowance belongs to the account. A line is never removed without the user, as "No destructive fixes" asks of everything else. The posted amount and date are the true ones, and SimpleFIN has no payee field, so the alert's name reads better.
+
+**What it changes:** phase 5 (#210) gains two settings per account and a schema version for them. All nine of the plan's open questions are now settled.

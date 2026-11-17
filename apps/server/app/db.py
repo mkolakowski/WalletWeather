@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "28"
+SCHEMA_VERSION = "29"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,11 @@ SCHEMA_VERSION = "28"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v29 (2026-11-17, claude+mkolakowski): email alerts checked by themselves
+#     (bank-alert-emails phase 2, #207). New table mail_check_runs (the
+#     mailbox's log of checks that brought something in or failed);
+#     mail_connections.check_minutes (5, 15 or 60); transactions.mail_run_id,
+#     the check that brought a line in.
 # v28 (2026-11-17, claude+mkolakowski): bills matched by bank sync
 #     (bank-sync phase 4, #196). recurring_transactions.match_days and
 #     .match_percent (how close a bank line must be, 5 days and 10% to
@@ -407,6 +412,8 @@ class Transaction(Base):
     # A line that came from an email alert (#206): sha256 of the mail's own
     # id, so one mail never becomes two lines.
     mail_ref = Column(String(64), nullable=True)
+    # The check that brought it in, for the mailbox's log (#207).
+    mail_run_id = Column(Integer, ForeignKey("mail_check_runs.id", ondelete="SET NULL"), nullable=True)
     # Bills matched by bank sync (#196): 'auto' or 'hand' when this planned
     # line was paid by a bank line, whose own text is kept for un-matching.
     bank_match = Column(String(4), nullable=True)
@@ -731,6 +738,25 @@ class MailConnection(Base):
     last_check_status = Column(String(300), nullable=True)
     last_ok_at = Column(DateTime, nullable=True)
     needs_reconnect = Column(Boolean, nullable=False, default=False)
+    # How often the server looks at the mailbox by itself, in minutes: 5, 15
+    # or 60 (#207; decided 2026-11-16, open question 5).
+    check_minutes = Column(Integer, nullable=False, default=5)
+
+
+class MailCheckRun(Base):
+    """One check of a user's mailbox that brought something in or failed
+    (#207): the mailbox's log, owner only. Checks that found nothing aren't
+    kept. Pruned with the audit log (AUDIT_RETENTION_DAYS)."""
+    __tablename__ = "mail_check_runs"
+    id = Column(Integer, primary_key=True)
+    connection_id = Column(Integer, ForeignKey("mail_connections.id", ondelete="CASCADE"), nullable=False)
+    run_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    trigger = Column(String(10), nullable=False)    # 'schedule' | 'manual'
+    added = Column(Integer, nullable=False, default=0)
+    skipped = Column(Integer, nullable=False, default=0)
+    unread = Column(Integer, nullable=False, default=0)
+    error = Column(String(300), nullable=True)
+    __table_args__ = (Index("ix_mail_check_runs_conn_run", "connection_id", "run_at"),)
 
 
 class MailSender(Base):
@@ -900,6 +926,11 @@ def init_db():
     from sqlalchemy import text
     Base.metadata.create_all(engine)
     migrations = [
+        # v28 → v29: email alerts checked by themselves (#207). mail_check_runs
+        # comes from create_all.
+        "ALTER TABLE mail_connections ADD COLUMN IF NOT EXISTS check_minutes INTEGER NOT NULL DEFAULT 5",
+        "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS mail_run_id INTEGER "
+        "REFERENCES mail_check_runs(id) ON DELETE SET NULL",
         # v27 → v28: bills matched by bank sync (#196).
         "ALTER TABLE recurring_transactions ADD COLUMN IF NOT EXISTS match_days INTEGER NOT NULL DEFAULT 5",
         "ALTER TABLE recurring_transactions ADD COLUMN IF NOT EXISTS match_percent INTEGER NOT NULL DEFAULT 10",

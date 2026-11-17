@@ -49,7 +49,11 @@ server it runs on:
   from a taught bank that didn't become lines, with their subject and text
   (encrypted), until they're dismissed or older than `AUDIT_RETENTION_DAYS`
   (180 days unless changed). Each line an alert brings in is stored like any
-  other, plus a hash of the email's own id. Other mail is never stored.
+  other, plus a hash of the email's own id and which check brought it in. A
+  log of the mailbox's checks that brought something in or failed (when, by
+  itself or by hand, how many lines came in, were already there or couldn't
+  be read, and any error), readable by the user only and kept as long as the
+  audit log. Other mail is never stored.
 - **Bank sync, for a user who connects a bank:** the address SimpleFIN
   issued for their connection, which holds its credentials (encrypted with
   `ENCRYPTION_KEY`, never shown or logged), the names of their bank
@@ -111,7 +115,8 @@ Nothing, with three exceptions the operator chooses:
   graph.microsoft.com, nothing else): to sign in, to renew the sign-in, and
   each time they check, to list the folder's mail since the last check and
   open the alerts from banks they've taught. It asks for read-only access
-  and never changes the mailbox. Nothing about them goes the other way
+  and never changes the mailbox. By itself it looks every 5, 15 or 60
+  minutes, as the user chose. Nothing about them goes the other way
   except those requests and the sign-in. Microsoft sees that the mailbox is
   read, and when; its own privacy policy covers its side. Users who don't
   connect a mailbox cause no calls at all.

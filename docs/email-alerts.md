@@ -16,7 +16,7 @@ mailbox. It only reads: it never marks mail read, moves it or deletes it, and
 it never sends mail.
 
 {: .important }
-> - **WalletWeather 1.73.0 or later.** The version is in the app's footer.
+> - **WalletWeather 1.74.0 or later** to have it check by itself (1.73.0 has Check now only). The version is in the app's footer.
 > - **Not yet tried with a real Microsoft mailbox.** Email alerts are new in 1.73.0 and were tested only against a stand-in for Microsoft. Tell us if something doesn't work.
 > - **The person who runs the server** registers a Microsoft app once and
 >   switches email alerts on ([below](#for-the-person-who-runs-the-server)).
@@ -135,6 +135,23 @@ admin to approve the app the first time someone signs in.
 Press **Check now** to bring alerts in. Each becomes a paid line, named after
 the merchant, and your auto-tag rules run on it. An email is never brought in
 twice.
+
+### It checks by itself
+
+Once a folder is chosen and a bank taught, WalletWeather looks at the folder
+by itself, every **5, 15 or 60 minutes** as you choose next to the folder
+(it starts at 5), so a purchase appears within minutes. The tab says when the
+next check is due. If a check fails (Microsoft is busy, say), it tries again
+at the same interval. If Microsoft no longer accepts the sign-in, checking
+stops until you disconnect and connect again, and the Dashboard says so. The
+Dashboard also warns when checks have been failing for more than a day or
+when alerts couldn't be read.
+
+The **Check log** lists every check that brought something in or failed,
+newest first: when, whether it ran by itself or by Check now, how many lines
+came in, were already there or couldn't be read, and any error. **Show lines**
+lists what a check brought in. Checks that find nothing new aren't listed,
+and entries go after 180 days (`AUDIT_RETENTION_DAYS`).
 
 {: .note }
 > Until a later version, an account takes lines from bank sync or from email

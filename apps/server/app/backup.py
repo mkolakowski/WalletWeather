@@ -377,6 +377,7 @@ def _export_mail(db: Session, user: User, accounts: list) -> dict | None:
             "folder_id": conn.folder_id, "folder_name": conn.folder_name,
             "start_date": conn.start_date.isoformat(),
             "utc_offset_minutes": conn.utc_offset_minutes,
+            "check_minutes": conn.check_minutes,
             "scanned_through": conn.scanned_through.isoformat() if conn.scanned_through else None,
             "senders": senders}
 
@@ -410,7 +411,8 @@ def _import_mail(db: Session, user: User, data, acc_by_name: dict) -> bool:
         folder_id=_text(data.get("folder_id"), 400) or None,
         folder_name=_text(data.get("folder_name"), 200) or None,
         start_date=start, scanned_through=scanned,
-        utc_offset_minutes=offset if isinstance(offset, int) and -840 <= offset <= 840 else 0)
+        utc_offset_minutes=offset if isinstance(offset, int) and -840 <= offset <= 840 else 0,
+        check_minutes=data.get("check_minutes") if data.get("check_minutes") in (5, 15, 60) else 5)
     db.add(conn)
     db.flush()
     seen = set()

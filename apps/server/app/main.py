@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.73.0"
+APP_VERSION = "1.74.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,16 @@ APP_VERSION = "1.73.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.74.0 (2026-11-17, claude+mkolakowski): email alerts checked by
+#     themselves (bank-alert-emails phase 2, #207). _mail_scheduler_loop runs
+#     run_due_mail_checks every minute; each mailbox is due check_minutes (5,
+#     15 or 60, PUT /api/mail/settings, starts at 5) after its last check, a
+#     failed one is tried again at the same interval, never while
+#     needs_reconnect; a per-user lock keeps it apart from Check now.
+#     GET /api/mail/status (any token), POST /api/mail/check now takes write
+#     tokens; GET /api/mail/checks[/{run_id}] is the mailbox's log (session
+#     only; checks that brought something in or failed; pruned with the audit
+#     log). Schema 29.
 # 1.72.0 (2026-11-16, claude+mkolakowski): email alerts, first part
 #     (bank-alert-emails phase 1, #206). GET /api/mail; POST
 #     /api/mail/microsoft/device {code?, utc_offset_minutes} and .../poll
@@ -575,7 +585,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, EmailStr, Field, model_validator
 
@@ -585,7 +595,7 @@ from .db import (
     Tag, TransactionTag, RecurringTag, TagRule, SavedReport, RecurringSkip,
     ApiToken, AuditEvent, AppSignInCode, RecoveryCode, RememberedBrowser, SessionLocal,
     BankConnection, BankAccountLink, BankSyncRun, MailConnection, MailSender, MailAlertKind,
-    MailUnread, encrypt_str, decrypt_str, SCHEMA_VERSION,
+    MailUnread, MailCheckRun, encrypt_str, decrypt_str, SCHEMA_VERSION,
 )
 from . import twofactor
 from . import simplefin
@@ -860,6 +870,8 @@ def _startup():
     t.start()
     # The daily bank sync (#195).
     threading.Thread(target=_bank_scheduler_loop, daemon=True).start()
+    # Checking the mailboxes for email alerts (#207).
+    threading.Thread(target=_mail_scheduler_loop, daemon=True).start()
     # Demo-reset daemon: on an instance running in DEMO_MODE, check hourly
     # whether the demo data has drifted from its post-seed fingerprint, and
     # wipe + reseed only if something has been edited.
@@ -919,6 +931,8 @@ def prune_audit_events(db: Session, now: datetime | None = None) -> int:
     db.query(BankSyncRun).filter(BankSyncRun.run_at < cutoff).delete(synchronize_session=False)
     # And alerts that didn't become lines (#206; question 3).
     db.query(MailUnread).filter(MailUnread.created_at < cutoff).delete(synchronize_session=False)
+    # And the mailbox's log of checks (#207).
+    db.query(MailCheckRun).filter(MailCheckRun.run_at < cutoff).delete(synchronize_session=False)
     db.commit()
     return gone
 
@@ -4822,6 +4836,11 @@ MAIL_BODIES_PER_CHECK = 100        # mails opened in one check
 MAIL_SCAN_LIMIT = 1000             # mails listed in one check
 MAIL_OVERLAP = timedelta(minutes=10)
 MAIL_CHECK_GAP = timedelta(seconds=15)
+# How often a user may have their mailbox checked by itself, in minutes
+# (decided 2026-11-16, open question 5); it starts at the first.
+MAIL_INTERVALS = (5, 15, 60)
+MAIL_SCHEDULER_TICK = 60           # seconds between looks for a mailbox that is due
+MAIL_FAILING_WARN_AFTER = timedelta(days=1)
 MAIL_RETURN_PATH = "/#settings/mail"
 MAIL_REASONS = {
     "unreadable": "Couldn't find the values this alert was taught to have.",
@@ -4939,7 +4958,50 @@ def _mail_status(db: Session, user: User, request: Request | None = None) -> dic
                                                      MailUnread.reason != "dismissed").count(),
         "bank_linked_account_ids": sorted(_bank_linked_ids(db, user)),
     })
+    out.update(_mail_short_status(db, user))
     return out
+
+
+def _mail_next_check(db: Session, conn: MailConnection, now: datetime) -> datetime | None:
+    """When the mailbox is next checked by itself; None while it can't be
+    (no folder, nothing taught, a sign-in to make again, or alerts off)."""
+    if conn.needs_reconnect or not conn.folder_id or not mail_alerts_enabled(db):
+        return None
+    if not db.query(MailSender.id).filter_by(connection_id=conn.id).first():
+        return None
+    gap = timedelta(minutes=conn.check_minutes or MAIL_INTERVALS[0])
+    return max(now, conn.last_check_at + gap) if conn.last_check_at else now
+
+
+def _mail_short_status(db: Session, user: User) -> dict:
+    """What an app needs to show the mailbox's state (#207): no folder or
+    sender names, nothing about the sign-in."""
+    conn = _mail_connection(db, user)
+    out = {"enabled": mail_alerts_enabled(db), "connected": conn is not None}
+    if not conn:
+        return out
+    now = datetime.utcnow()
+    iso = lambda d: d.isoformat() + "Z" if d else None
+    failing_since = (conn.last_ok_at or conn.created_at) if conn.last_check_ok is False else None
+    unread = db.query(MailUnread).filter(MailUnread.connection_id == conn.id,
+                                         MailUnread.reason != "dismissed").count()
+    out.update({
+        "check_minutes": conn.check_minutes or MAIL_INTERVALS[0],
+        "last_check_at": iso(conn.last_check_at), "last_check_ok": conn.last_check_ok,
+        "last_check_status": conn.last_check_status, "last_ok_at": iso(conn.last_ok_at),
+        "needs_reconnect": bool(conn.needs_reconnect),
+        "failing_since": iso(failing_since),
+        "failing_over_a_day": bool(failing_since and now - failing_since > MAIL_FAILING_WARN_AFTER),
+        "next_check_at": iso(_mail_next_check(db, conn, now)),
+        "unread_count": unread,
+    })
+    return out
+
+
+@app.get("/api/mail/status")
+def mail_short_status(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """The mailbox's state, for the Dashboard and apps; an API token may read it."""
+    return _mail_short_status(db, user)
 
 
 @app.get("/api/mail")
@@ -5133,6 +5195,7 @@ class MailSettingsIn(BaseModel):
     folder_id: str | None = Field(default=None, min_length=1, max_length=400)
     start_date: date | None = None
     utc_offset_minutes: int | None = Field(default=None, ge=-840, le=840)
+    check_minutes: Literal[5, 15, 60] | None = None
 
 
 @app.put("/api/mail/settings")
@@ -5154,6 +5217,8 @@ def mail_settings(body: MailSettingsIn, user: User = Depends(current_session_use
         conn.scanned_through = None
     if body.utc_offset_minutes is not None:
         conn.utc_offset_minutes = body.utc_offset_minutes
+    if body.check_minutes is not None:
+        conn.check_minutes = body.check_minutes
     if body.start_date is not None and body.start_date != conn.start_date:
         today = _mail_today(conn.utc_offset_minutes)
         if body.start_date > today or body.start_date < today - timedelta(days=MAIL_START_MAX_DAYS):
@@ -5372,7 +5437,8 @@ def _mail_lock(user_id: int) -> threading.Lock:
 
 
 def _mail_land(db: Session, user: User, conn: MailConnection, sender: MailSender,
-               kind: MailAlertKind, text: str, received: datetime, ref: str):
+               kind: MailAlertKind, text: str, received: datetime, ref: str,
+               run_id: int | None = None):
     """Read one alert and land it as a paid line. Returns the new line, or
     (reason, detail) when it can't become one."""
     day = alerts.received_day(received, conn.utc_offset_minutes)
@@ -5395,7 +5461,7 @@ def _mail_land(db: Session, user: User, conn: MailConnection, sender: MailSender
     amount = values["amount"] if kind.direction == "in" else -values["amount"]
     when = values.get("date") or day
     t = Transaction(account_id=acc.id, actual_date=when, forecast_date=when, is_actual=True,
-                    mail_ref=ref)
+                    mail_ref=ref, mail_run_id=run_id)
     t.description = values.get("merchant") or sender.label
     t.amount = amount
     db.add(t)
@@ -5446,6 +5512,11 @@ def _mail_check_locked(db: Session, user: User, conn: MailConnection, request: R
         return next((k for k in kinds.get(sender.id, []) if alerts.subject_matches(k.subject_key, subject)), None)
 
     added = skipped = unread = 0
+    # This check's row in the log; dropped again below when it found nothing.
+    run = MailCheckRun(connection_id=conn.id, run_at=now, trigger=trigger)
+    db.add(run)
+    db.flush()
+    run_id = run.id
     # Alerts that couldn't become lines before are tried again from their
     # kept text: a sender taught since, or a card matched since.
     for u in db.query(MailUnread).filter(MailUnread.connection_id == conn.id,
@@ -5454,7 +5525,7 @@ def _mail_check_locked(db: Session, user: User, conn: MailConnection, request: R
         k = kind_for(s, decrypt_str(u.subject_enc)) if s else None
         if k is None or added >= MAIL_LINES_PER_CHECK:
             continue
-        got = _mail_land(db, user, conn, s, k, decrypt_str(u.text_enc), u.received_at, u.message_ref)
+        got = _mail_land(db, user, conn, s, k, decrypt_str(u.text_enc), u.received_at, u.message_ref, run.id)
         if isinstance(got, Transaction):
             db.delete(u)
             added += 1
@@ -5500,7 +5571,7 @@ def _mail_check_locked(db: Session, user: User, conn: MailConnection, request: R
                                   "unverified", None)
                 unread += 1
             else:
-                got = _mail_land(db, user, conn, s, k, text, m["received"], ref)
+                got = _mail_land(db, user, conn, s, k, text, m["received"], ref, run.id)
                 if isinstance(got, Transaction):
                     landed.add(ref)
                     added += 1
@@ -5518,6 +5589,16 @@ def _mail_check_locked(db: Session, user: User, conn: MailConnection, request: R
         conn.last_check_at, conn.last_check_ok, conn.last_check_status = now, False, str(e)[:300]
         if e.revoked:
             conn.needs_reconnect = True
+        # A failure shows in the log (a scheduled one nobody was watching most
+        # of all). The check's row is there if renewing the sign-in committed
+        # it, along with lines landed from the couldn't-read list before.
+        run = db.get(MailCheckRun, run_id)
+        if run is None:
+            run = MailCheckRun(connection_id=conn.id, run_at=now, trigger=trigger)
+            db.add(run)
+            db.flush()
+        run.error = str(e)[:300]
+        run.added = db.query(Transaction).filter_by(mail_run_id=run.id).count()
         db.commit()
         record_event(db, "mail_check_failed", request, user=user,
                      detail=("revoked" if e.revoked else f"HTTP {e.status}") + f", {trigger}")
@@ -5527,6 +5608,10 @@ def _mail_check_locked(db: Session, user: User, conn: MailConnection, request: R
               + (". More is waiting: check again." if stopped else ""))
     conn.last_check_at, conn.last_check_ok, conn.last_check_status = now, True, status[:300]
     conn.last_ok_at, conn.needs_reconnect = now, False
+    if added or unread:
+        run.added, run.skipped, run.unread = added, skipped, unread
+    else:
+        db.delete(run)   # a check that found nothing isn't kept
     db.commit()
     record_event(db, "mail_check_run", request, user=user,
                  detail=f"{added} added, {skipped} skipped, {unread} unread, {trigger}")
@@ -5539,14 +5624,92 @@ class MailCheckIn(BaseModel):
 
 @app.post("/api/mail/check")
 def mail_check_now(request: Request, body: MailCheckIn | None = None,
-                   user: User = Depends(current_session_user), db: Session = Depends(get_db)):
-    """Read new alerts from the folder and land them as paid lines."""
+                   user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Read new alerts from the folder and land them as paid lines. A token
+    with write access may (#207, for the iOS app); a read-only one may not."""
     conn = _mail_needed(db, user)
     if body and body.utc_offset_minutes is not None:
         conn.utc_offset_minutes = body.utc_offset_minutes
         db.commit()
     result = _mail_check(db, user, conn, request, trigger="manual")
     return {**result, "status": _mail_status(db, user)}
+
+
+# ---------- Checking by itself (#207) ----------
+# Each connected mailbox is checked as often as its user chose (5, 15 or 60
+# minutes; the scheduler looks every minute). A failed check is tried again
+# at the same interval, except when Microsoft no longer accepts the sign-in:
+# then it waits until the user connects again. Alerts being off, a mailbox
+# with no folder or nothing taught, and a disabled or demo user are skipped.
+def mail_check_due(db: Session, conn: MailConnection, now: datetime) -> bool:
+    nxt = _mail_next_check(db, conn, now)
+    return nxt is not None and nxt <= now
+
+
+def run_due_mail_checks(db: Session, now: datetime | None = None) -> dict:
+    """Check every mailbox that is due. One user's failure is recorded on
+    their mailbox and doesn't stop the others."""
+    out = {"checked": 0, "failed": 0}
+    if not mail_alerts_enabled(db):
+        return out
+    now = now or datetime.utcnow()
+    for conn in db.query(MailConnection).order_by(MailConnection.id).all():
+        user = db.get(User, conn.user_id)
+        if user is None or user.disabled or is_demo_email(user.email) or not mail_check_due(db, conn, now):
+            continue
+        try:
+            _mail_check(db, user, conn, None, trigger="schedule")
+            out["checked"] += 1
+        except Exception:
+            db.rollback()
+            out["failed"] += 1
+    return out
+
+
+def _mail_scheduler_loop():
+    """Background daemon: every minute, check the mailboxes that are due."""
+    while True:
+        time.sleep(MAIL_SCHEDULER_TICK)
+        db = SessionLocal()
+        try:
+            run_due_mail_checks(db)
+        except Exception:
+            pass   # tried again in a minute
+        finally:
+            db.close()
+
+
+@app.get("/api/mail/checks")
+def mail_check_log(user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """This mailbox's checks that brought something in or failed, newest
+    first (the last 200). The mailbox's owner only."""
+    conn = _mail_connection(db, user)
+    if not conn:
+        raise HTTPException(404, "No mailbox is connected.")
+    runs = (db.query(MailCheckRun).filter_by(connection_id=conn.id)
+            .order_by(MailCheckRun.run_at.desc(), MailCheckRun.id.desc()).limit(200).all())
+    return [{"id": r.id, "run_at": r.run_at.isoformat() + "Z", "trigger": r.trigger,
+             "added": r.added, "skipped": r.skipped, "unread": r.unread, "error": r.error}
+            for r in runs]
+
+
+@app.get("/api/mail/checks/{run_id}")
+def mail_check_log_lines(run_id: int, user: User = Depends(current_session_user),
+                         db: Session = Depends(get_db)):
+    """The lines one check brought in that are still there, and the account
+    each went to."""
+    conn = _mail_connection(db, user)
+    run = db.get(MailCheckRun, run_id)
+    if conn is None or run is None or run.connection_id != conn.id:
+        raise HTTPException(404, "Check not found")
+    rows = (db.query(Transaction, Account).join(Account, Account.id == Transaction.account_id)
+            .filter(Transaction.mail_run_id == run.id, Account.owner_id == user.id)
+            .order_by(Transaction.actual_date, Transaction.id).all())
+    return {"id": run.id, "run_at": run.run_at.isoformat() + "Z", "trigger": run.trigger,
+            "added": run.added, "skipped": run.skipped, "unread": run.unread, "error": run.error,
+            "lines": [{"id": t.id, "date": (t.actual_date or t.forecast_date).isoformat(),
+                       "description": t.description, "amount": float(t.amount),
+                       "account_id": t.account_id, "account_name": acc.name} for t, acc in rows]}
 
 
 @app.get("/api/mail/unread")

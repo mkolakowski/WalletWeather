@@ -1278,6 +1278,8 @@
         </div>
         <div id="dashBankWarn" class="hidden" role="alert"
              style="margin:8px 0;padding:8px 12px;border-left:4px solid var(--warn);background:var(--panel2, transparent);font-size:13px"></div>
+        <div id="dashMailWarn" class="hidden" role="alert"
+             style="margin:8px 0;padding:8px 12px;border-left:4px solid var(--warn);background:var(--panel2, transparent);font-size:13px"></div>
         <div class="dash-window-bar">
           <span class="label">Charts window</span>
           <div class="seg" role="group" aria-label="Time window">
@@ -2767,7 +2769,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.87.0";
+const WEB_VERSION = "1.88.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2777,6 +2779,7 @@ const WEB_VERSION = "1.87.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.88.0 (2026-11-17, claude+mkolakowski): (#207) Email alerts checked by themselves. Settings → Email alerts gains a "Check every" 5/15/60 minutes setting (mailSaveSettings → PUT /api/mail/settings {check_minutes}; the folder is optional now), says when the next check is due or why checking waits or has stopped, and a Check log (loadMail → GET /api/mail/checks; mailShowRun → GET /api/mail/checks/{id}). The Dashboard shows #dashMailWarn (loadDashMailWarn → GET /api/mail/status) when checks have failed for over a day, the sign-in needs making again, or alerts couldn't be read.
 // 1.87.0 (2026-11-17, claude+mkolakowski): (#196) Bills matched to bank lines automatically. The bill editor and add line take "Bank match: ± days" and "Amount may differ by %" (_recMatchFields; match_days/match_percent sent on POST/PATCH /api/.../recurring). Forecast rows paid by a bank line show a "Bank sync" or "Matched by hand" pill (_bankMatchPill) and an Un-match button in the open line (_forecastUnmatchBtn → unmatchBankLine → POST /api/transactions/{id}/bank-unmatch). Settings → Bank sync: "Unmatched (N)" per account (bankShowUnmatched → GET /api/accounts/{id}/bank-unmatched; bankShowCandidates → .../{txn_id}/candidates; bankPayCandidate → POST .../match; bankLeaveLine → POST .../leave). The sync log has a Matched column and marks lines that paid a bill.
 // 1.86.0 (2026-11-16, claude+mkolakowski): (#206) Email alerts. Settings gets an "Email alerts" tab (#mailTab, section 'mail', #mailPanel, loadMail), shown when /api/mail says enabled or connected: sign in to Microsoft with a code (mailDeviceStart → POST /api/mail/microsoft/device, then polls /device/poll) or with the Connect button (mailWebStart → /api/mail/microsoft/web), pick the folder and start date (mailSaveSettings → PUT /api/mail/settings, GET /api/mail/folders), the banks taught with their accounts, cards and kinds (PUT/DELETE /api/mail/senders), Check now (mailCheckNow → POST /api/mail/check), the mail it couldn't read (GET /api/mail/unread, mailDismiss), Disconnect (mailDisconnect). Teaching a bank's alert (mailTeachList → GET /api/mail/messages, mailTeachFrom → POST /api/mail/preview, mailMark, mailTeachSave → POST /api/mail/senders): select words in the alert text, then tap Amount, Merchant, Date or Card; offsets are converted between the server's code points and the page's UTF-16 units (cpToJs, jsToCp); all mail text is escaped and never made into links. Admin gets an "Email alerts" switch (#adminMailAlerts, loadAdminMail, saveAdminMail) and a "mailbox connected" badge in Users.
 // 1.85.0 (2026-11-16, claude+mkolakowski): (#195) Daily bank sync. Settings → Bank sync says when the next daily sync is due, or that SimpleFIN no longer accepts the connection; each matched bank account gets a "Sync log" button (bankShowLog → GET /api/accounts/{id}/bank-syncs, bankShowLogLines → .../{run_id}). The Dashboard shows #dashBankWarn (loadDashBankWarn → GET /api/bank/status) when sync has failed for over a day or needs reconnecting.
@@ -4394,8 +4397,26 @@ async function loadDashBankWarn() {
     + `<a href="#settings/bank" style="color:var(--accent)" onclick="showPage('settings',{section:'bank'});return false">Open Settings → Bank sync</a>`;
 }
 
+// A small warning when email alerts have been failing for more than a day,
+// Microsoft no longer accepts the sign-in, or alerts are waiting on the
+// couldn't-read list (#207).
+async function loadDashMailWarn() {
+  const el = document.getElementById('dashMailWarn');
+  if (!el) return;
+  let st;
+  try { st = await api('/api/mail/status'); } catch (_) { el.classList.add('hidden'); return; }
+  const parts = [];
+  if (st.connected && st.needs_reconnect) parts.push('Email alerts have stopped: Microsoft no longer accepts your mailbox sign-in.');
+  else if (st.connected && st.failing_over_a_day) parts.push(`Email alerts have been failing since ${escapeHtml(new Date(st.failing_since).toLocaleDateString())}.`);
+  if (st.connected && st.unread_count) parts.push(`${st.unread_count} alert${st.unread_count === 1 ? '' : 's'} couldn't be read.`);
+  el.classList.toggle('hidden', !parts.length);
+  if (!parts.length) return;
+  el.innerHTML = parts.join(' ') + ` <a href="#settings/mail" style="color:var(--accent)" onclick="showPage('settings',{section:'mail'});return false">Open Settings → Email alerts</a>`;
+}
+
 async function loadDashboard() {
   loadDashBankWarn();
+  loadDashMailWarn();
   const grid = document.getElementById('dashboardGrid');
   grid.innerHTML = `<div style="color:var(--muted);grid-column:1/-1;text-align:center;padding:20px">Loading…</div>`;
   // Reflect saved window in the toggle before fetching.
@@ -9627,10 +9648,11 @@ async function loadMail() {
     return _renderMailConnect(body);
   }
   try { mailOwned = (await api('/api/accounts?include_archived=true')).filter(a => a.level === 'owner'); } catch (_) { mailOwned = []; }
-  let folders = [], unread = [];
+  let folders = [], unread = [], checks = [];
   if (!mailState.needs_reconnect) { try { folders = await api('/api/mail/folders'); } catch (_) {} }
   if (mailState.unread_count) { try { unread = await api('/api/mail/unread'); } catch (_) {} }
-  _renderMailConnected(body, folders, unread);
+  try { checks = await api('/api/mail/checks'); } catch (_) {}
+  _renderMailConnected(body, folders, unread, checks);
 }
 
 function _renderMailConnect(body) {
@@ -9736,7 +9758,7 @@ function _mailKindText(k) {
     + (f.length ? ' · ' + escapeHtml(f.join(', ')) : '');
 }
 
-function _renderMailConnected(body, folders, unread) {
+function _renderMailConnected(body, folders, unread, checks) {
   const m = mailState;
   const today = new Date();
   const minDay = new Date(today); minDay.setDate(minDay.getDate() - (m.start_max_days - 1));
@@ -9770,6 +9792,22 @@ function _renderMailConnected(body, folders, unread) {
     </div>`).join('');
   const lastLine = m.last_check_at
     ? `Last check ${escapeHtml(_bankWhen(m.last_check_at))}: ${escapeHtml(m.last_check_status || '')}` : 'Not checked yet.';
+  const nextLine = m.needs_reconnect ? 'Checking by itself has stopped until you connect again.'
+    : m.next_check_at ? `Checked by itself every ${m.check_minutes} minutes; the next check is due about ${escapeHtml(_bankWhen(m.next_check_at))}.`
+    : !m.folder ? 'It starts checking by itself once you choose a folder and teach a bank\'s alert.'
+    : !(m.senders || []).length ? 'It starts checking by itself once you teach a bank\'s alert.'
+    : m.enabled ? '' : 'Checking by itself is paused: an admin has switched email alerts off.';
+  const failingLine = m.failing_over_a_day && !m.needs_reconnect
+    ? `<div style="color:var(--bad);margin-top:4px">Checks have been failing since ${escapeHtml(_bankWhen(m.failing_since))}.</div>` : '';
+  const logRows = (checks || []).map(r => `
+    <div style="border-top:1px solid var(--border,#8884);padding:8px 0;font-size:13px;max-width:720px">
+      <div><strong>${escapeHtml(_bankWhen(r.run_at))}</strong>
+        <span style="color:var(--muted)">· ${r.trigger === 'schedule' ? 'by itself' : 'Check now'}</span></div>
+      ${r.error ? `<div style="color:var(--bad)">${escapeHtml(r.error)}</div>` : ''}
+      <div>${r.added} new line${r.added === 1 ? '' : 's'}${r.skipped ? `, ${r.skipped} already here` : ''}${r.unread ? `, ${r.unread} couldn't be read` : ''}
+        ${r.added ? `<button class="ghost" style="padding:2px 8px" onclick="mailShowRun(${r.id})">Show lines</button>` : ''}</div>
+      <div id="mailRun${r.id}"></div>
+    </div>`).join('');
   const canCheck = !!m.folder && (m.senders || []).length > 0 && !m.needs_reconnect;
   const unreadRows = unread.map(u => `
     <div style="border-top:1px solid var(--border,#8884);padding:8px 0;font-size:13px;max-width:720px">
@@ -9795,6 +9833,8 @@ function _renderMailConnected(body, folders, unread) {
       <div><label for="mailFolder">Choose folder</label><select id="mailFolder">${fopts}</select></div>
       <div><label for="mailStart">Read alerts from</label>
         <input type="date" id="mailStart" min="${min}" max="${max}" value="${escapeAttr(m.start_date || max)}"></div>
+      <div><label for="mailEvery">Check every</label>
+        <select id="mailEvery">${[5, 15, 60].map(n => `<option value="${n}"${(m.check_minutes || 5) === n ? ' selected' : ''}>${n} minutes</option>`).join('')}</select></div>
       <button onclick="mailSaveSettings()">Save</button>
     </div>
     <h3 class="backup-subhead" style="margin-top:20px">Banks taught</h3>
@@ -9803,8 +9843,13 @@ function _renderMailConnected(body, folders, unread) {
     ${m.folder ? '' : '<span style="font-size:12px;color:var(--muted);margin-left:8px">Choose a folder first.</span>'}
     <h3 class="backup-subhead" style="margin-top:20px">Check</h3>
     <div style="font-size:13px;color:${m.last_check_ok === false ? 'var(--bad)' : 'var(--muted)'}">${lastLine}</div>
+    ${failingLine}
+    ${nextLine ? `<div style="font-size:13px;color:var(--muted);margin-top:4px">${nextLine}</div>` : ''}
     <div style="margin-top:8px"><button onclick="mailCheckNow()"${canCheck ? '' : ' disabled'}>Check now</button></div>
     ${m.unread_count ? `<h3 class="backup-subhead" style="margin-top:20px">Couldn't read (${m.unread_count})</h3>${unreadRows}` : ''}
+    <h3 class="backup-subhead" style="margin-top:20px">Check log</h3>
+    ${logRows ? `<div style="color:var(--muted);font-size:12px;margin-bottom:4px">Checks that brought something in or failed, newest first. Kept as long as the audit log.</div>${logRows}`
+              : '<div style="color:var(--muted);font-size:13px">Nothing yet. Checks that find nothing new aren\'t listed.</div>'}
     <h3 class="backup-subhead" style="margin-top:20px">Disconnect</h3>
     <p style="color:var(--muted);margin:0 0 8px;font-size:13px">Forgets the connection here. Lines already brought in stay.</p>
     ${_bankCodeField('mailDisconnectCode')}
@@ -9820,9 +9865,10 @@ async function _mailDo(busy, fn, done) {
 async function mailSaveSettings() {
   const folder_id = document.getElementById('mailFolder').value;
   const start_date = document.getElementById('mailStart').value;
-  if (!folder_id) return _mailSay('Choose a folder first.', 'var(--bad)');
-  const r = await _mailDo('Saving…', () => api('/api/mail/settings', { method: 'PUT',
-    body: JSON.stringify({ folder_id, start_date, utc_offset_minutes: _mailOffset() }) }));
+  const check_minutes = Number(document.getElementById('mailEvery').value);
+  const body = { start_date, check_minutes, utc_offset_minutes: _mailOffset() };
+  if (folder_id) body.folder_id = folder_id;
+  const r = await _mailDo('Saving…', () => api('/api/mail/settings', { method: 'PUT', body: JSON.stringify(body) }));
   if (r !== undefined) { await loadMail(); _mailSay('Saved.', 'var(--good)'); }
 }
 async function mailCheckNow() {
@@ -9869,6 +9915,21 @@ async function mailForgetKind(id, kid) {
                             { title: 'Forget alert', okLabel: 'Forget', danger: true }))) return;
   const r = await _mailDo('Forgetting…', () => api(`/api/mail/senders/${id}/kinds/${kid}`, { method: 'DELETE' }));
   if (r !== undefined) await loadMail();
+}
+async function mailShowRun(id) {
+  const el = document.getElementById('mailRun' + id);
+  if (!el) return;
+  if (el.innerHTML) { el.innerHTML = ''; return; }   // a second press hides them
+  let run;
+  try { run = await api('/api/mail/checks/' + id); }
+  catch (e) { el.innerHTML = `<span style="color:var(--bad)">${escapeHtml(errText(e))}</span>`; return; }
+  el.innerHTML = run.lines.length ? run.lines.map(l => `
+    <div style="margin-top:4px;display:flex;gap:8px;flex-wrap:wrap">
+      <span style="color:var(--muted)">${escapeHtml(l.date)}</span>
+      <span style="overflow-wrap:anywhere">${escapeHtml(l.description)}</span>
+      <strong>${escapeHtml(fmt(l.amount))}</strong>
+      <span style="color:var(--muted)">${escapeHtml(l.account_name)}</span></div>`).join('')
+    : '<div style="margin-top:4px;color:var(--muted)">Those lines are no longer here.</div>';
 }
 async function mailDismiss(id) {
   const r = await _mailDo('Dismissing…', () => api('/api/mail/unread/' + id, { method: 'DELETE' }));

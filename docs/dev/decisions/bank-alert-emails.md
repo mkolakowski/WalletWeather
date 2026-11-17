@@ -69,3 +69,17 @@ Decisions made while planning and building [`Plans/bank-alert-emails.md`](../../
 **Why:** one step per correction, the same with a finger or a mouse, and the marked words are exactly what the anchors are built from, so a value that appears twice is never ambiguous.
 
 **Set while building, not asked:** the start date reaches back up to 30 days; one check opens at most 100 alerts and lands at most 50 lines, saying when more is waiting; Check now waits 15 seconds after the last check; a taught kind's marked amount has to be the amount itself, not text with a number in it.
+
+## 2026-11-17: where the check log lives
+
+**Decided:** 2026-11-17, by Matthew, while building phase 2 (#207). **Status:** accepted.
+
+**The question:** the plan had each account's owner reading a log of checks, as bank sync's sync log does. An alert whose card isn't matched yet, or that failed the sender check, belongs to no account. Where does the log live?
+
+**Options considered:** one log per mailbox; one per account as planned; both.
+
+**The decision:** one log per mailbox, in Settings → Email alerts, listing each check that brought something in or failed, with the lines it brought in and the account each went to; not one per account; not both.
+
+**Why:** a check can bring in lines for several accounts and some alerts have none; a mailbox is what a check belongs to. It's simpler to build and nothing is left out of it.
+
+**Set while building, not asked:** the scheduler looks every minute, since the shortest interval is five; a failed check is tried again at the user's own interval; checks that found nothing aren't kept; the log is kept as long as the audit log.

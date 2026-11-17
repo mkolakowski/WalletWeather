@@ -47,12 +47,17 @@ class FakeMicrosoft:
         self.n = 0
         self.access = "access-0"
         self.refresh = "refresh-0"
+        # Everything issued stays good, so two users can be signed in at once.
+        self.valid_access = {"access-0"}
+        self.valid_refresh = {"refresh-0"}
         self.messages: list[dict] = []
         self.next_link_host = None
 
     def _tokens(self):
         self.n += 1
         self.access, self.refresh = f"access-{self.n}", f"refresh-{self.n}"
+        self.valid_access.add(self.access)
+        self.valid_refresh.add(self.refresh)
         return httpx.Response(200, json={"token_type": "Bearer", "scope": "Mail.Read User.Read",
                                          "expires_in": 3599, "access_token": self.access,
                                          "refresh_token": self.refresh})
@@ -94,7 +99,7 @@ class FakeMicrosoft:
                     return httpx.Response(400, json={"error": "authorization_pending"})
                 return self._tokens()
             if grant == "refresh_token":
-                if self.revoked or form.get("refresh_token") != [self.refresh]:
+                if self.revoked or (form.get("refresh_token") or [""])[0] not in self.valid_refresh:
                     return httpx.Response(400, json={"error": "invalid_grant"})
                 return self._tokens()
             if grant == "authorization_code":
@@ -104,7 +109,7 @@ class FakeMicrosoft:
             return httpx.Response(400, json={"error": "unsupported_grant_type"})
         if host != "graph.microsoft.com":
             return httpx.Response(404)
-        if request.headers.get("authorization") != f"Bearer {self.access}":
+        if request.headers.get("authorization", "").removeprefix("Bearer ") not in self.valid_access:
             return httpx.Response(401)
         p = path.removeprefix("/v1.0")
         if p == "/me":
@@ -684,7 +689,7 @@ def test_an_api_token_and_the_demo_user_cannot(app_started, ms, switched_on, mon
     tok = c.post("/api/tokens", json={"name": "t", "access": "full", "expires_in_days": 30}).json()["token"]
     bearer = TestClient(app_started, headers={"Authorization": f"Bearer {tok}"})
     for method, path in [("GET", "/api/mail"), ("POST", "/api/mail/microsoft/device"),
-                         ("POST", "/api/mail/check"), ("GET", "/api/mail/unread")]:
+                         ("GET", "/api/mail/unread"), ("GET", "/api/mail/checks")]:
         assert bearer.request(method, path, json={}).status_code == 403, path
     import app.main as main
     monkeypatch.setattr(main, "is_demo_email", lambda e: e == u["email"])

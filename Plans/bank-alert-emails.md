@@ -7,11 +7,13 @@ Tracking issue: #212
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
 | 1. Connect Microsoft 365 and Check now | Server, Web | #206 | Built in 1.72.0 (2026-11-16), switched off; released with phase 4 |
-| 2. The mailbox checked by itself | Server, Web | #207 | Not started |
+| 2. The mailbox checked by itself | Server, Web | #207 | Built in 1.74.0 (2026-11-17), switched off; released with phase 4 |
 | 3. Gmail and other mailboxes | Server, Web | #208 | Not started |
 | 4. Alerts matched to bills, and the first release | Server, Web | #209 | Not started; waits for bank sync phase 4 (#196) |
 | 5. Alerts joined to bank sync rows | Server, Web | #210 | Not started; its questions are settled |
 | 6. Status and Check now in the iOS app | iOS | #211 | Not started |
+
+Phase 2 built 2026-11-17 in 1.74.0 (schema 29, web 1.88.0), not released by itself: API tests in `apps/server/tests/test_mail_alerts_daily.py` (the scheduler called with chosen times), the screens checked in a headless browser. Built on open question 5's answer (5, 15 or 60 minutes per user) and its assumption for the log's retention (as the audit log). The log is **one per mailbox** in Settings, not per account as first planned (your call: an alert with no account yet, or one that failed the sender check, belongs to no account); a failed check is tried again at the user's interval, and the scheduler looks every minute (both set in building).
 
 Phase 1 built 2026-11-16 in 1.72.0 (schema 27, web 1.86.0), not released by itself: API tests in `apps/server/tests/test_mail_alerts.py` against a stand-in Microsoft (34 tests, the reader on alerts worded different ways included), and the screens driven in a headless browser against the same stand-in. Endpoints were checked against Microsoft's device code and Graph list-messages pages that day. The teaching screen's "select text, then pick" was your call; the 30-day start date, 50 lines and 100 mails per check and 15 seconds between checks were set in building ([decision](../docs/dev/decisions/bank-alert-emails.md)). Not yet tried against a real Microsoft mailbox.
 
@@ -110,7 +112,7 @@ All nine were settled on 2026-11-16. `/resolve-open-questions bank-alert-emails`
 
 - A background check, like bank sync's, that looks at each connected mailbox as often as its user has chosen in Settings (5, 15 or 60 minutes, decided 2026-11-16; it starts at 5), never at the same moment as a Check now for the same user.
 - Settings shows when the last check ran and what it brought in and, when it failed, why and what to do (a lapsed sign-in asks you to connect again). The Dashboard shows a small warning when checks have been failing for more than a day or alerts are waiting on the couldn't-read list.
-- **A log, for the account's owner:** per account, each check that brought something in or failed: when, by schedule or Check now, how many lines came in, were skipped as already there, couldn't be read or failed the sender check; opening one shows the lines. Checks that found nothing aren't listed.
+- **A log, for the mailbox's owner** (decided 2026-11-17: one per mailbox, not per account; heading and the sentences below read "per account" in the first draft): per account, each check that brought something in or failed: when, by schedule or Check now, how many lines came in, were skipped as already there, couldn't be read or failed the sender check; opening one shows the lines. Checks that found nothing aren't listed.
 - A status endpoint an API token may read, and Check now allowed to a token with write access, ready for phase 6.
 - Tests: the scheduler checks a due mailbox and skips one checked just now; each user's own interval is kept, and a value that isn't 5, 15 or 60 is refused; a failure is recorded and doesn't stop other users' checks; a lapsed sign-in stops the schedule until reconnected; the status endpoint's shape; the log's shape, and that someone the account is shared with can't read it; a read-only token can't Check now.
 

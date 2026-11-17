@@ -79,9 +79,10 @@ MUST_BE_SESSION_ONLY = {
     ("GET", "/api/bank"), ("POST", "/api/bank/connect"), ("PUT", "/api/bank/links"),
     ("POST", "/api/bank/disconnect"),
     ("PUT", "/api/admin/bank-sync"),
-    # Email alerts (#206): a mailbox's sign-in can read mail, so every route
-    # is browser-session only in phase 1; phase 2 opens Check now and a
-    # status to tokens.
+    # Email alerts (#206): a mailbox's sign-in can read mail, so connecting,
+    # teaching and the log are browser-session only. GET /api/mail/status and
+    # POST /api/mail/check (write tokens) are open to tokens since phase 2
+    # (#207).
     ("GET", "/api/mail"), ("POST", "/api/mail/microsoft/device"),
     ("POST", "/api/mail/microsoft/device/poll"), ("POST", "/api/mail/microsoft/web"),
     ("GET", "/api/mail/microsoft/callback"), ("GET", "/api/mail/folders"),
@@ -89,7 +90,7 @@ MUST_BE_SESSION_ONLY = {
     ("POST", "/api/mail/senders"), ("PUT", "/api/mail/senders/{sender_id}"),
     ("DELETE", "/api/mail/senders/{sender_id}"),
     ("DELETE", "/api/mail/senders/{sender_id}/kinds/{kind_id}"),
-    ("POST", "/api/mail/check"), ("GET", "/api/mail/unread"),
+    ("GET", "/api/mail/checks"), ("GET", "/api/mail/checks/{run_id}"), ("GET", "/api/mail/unread"),
     ("DELETE", "/api/mail/unread/{unread_id}"), ("POST", "/api/mail/disconnect"),
     ("PUT", "/api/admin/mail-alerts"),
 }

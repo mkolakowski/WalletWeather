@@ -283,8 +283,9 @@ is off until an admin allows it, and `PRIVACY.md`, `SECURITY.md` and
 `Plans/bank-alert-emails.md` (#212). **Effort: large.**
 
 **Progress:** phase 1 (connect Microsoft 365, teach a bank's alert, Check
-now) built in 1.72.0 (#206), switched off by default; it's released with
-phases 2 to 4.
+now) built in 1.72.0 (#206) and the checking by itself, its status and log
+in 1.74.0 (#207), switched off by default; they're released with phases 3
+and 4.
 
 ---
 

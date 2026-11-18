@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.79.0"
+APP_VERSION = "1.80.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -4526,8 +4526,14 @@ def _bills_to_match(db: Session, account_id: int) -> dict:
 
 
 def _match_key(text: str | None) -> str:
-    """How a taught name is compared (#224): ignoring case and extra spaces."""
-    return " ".join((text or "").lower().split())
+    """How a taught name is compared (#224, #230): ignoring case, spaces and
+    codes. Split on spaces, `*` and `#`, drop each piece with a digit in it
+    (a card's changing code, a store number), so "AMAZON MKTPL*2K4AB1" and
+    "AMAZON MKTPL*9XZ3" are both "amazon mktpl". A name with nothing left
+    is compared as itself."""
+    plain = " ".join((text or "").lower().split())
+    words = [w for w in re.split(r"[\s*#]+", plain) if w and not any(ch.isdigit() for ch in w)]
+    return " ".join(words) or plain
 
 
 def _line_name(t: Transaction) -> str:

@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.79.0** · Web version: **1.95.0** · Schema version: **31** · iOS version: **0.17.1**
+App version: **1.80.0** · Web version: **1.95.0** · Schema version: **31** · iOS version: **0.17.1**
+
+### Changed
+
+- **Learned bank names ignore codes:** a bill that learned a bank line's name now also takes lines whose name differs only by numbers or a code after `*` or `#`. A bill taught "AMAZON MKTPL*2K4AB1" takes next month's "AMAZON MKTPL*9XZ3", while "AMAZON PRIME" is still a different name. (1.80.0, #230)
 
 ## [1.79.0] — 2026-11-18
 

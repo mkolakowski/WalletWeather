@@ -192,3 +192,32 @@ def test_the_v31_migration_adds_the_column(connected):
     finally:
         db.close()
     assert taught(c, acc, a) is None
+
+
+def test_names_are_compared_without_codes():
+    """#230: digits and codes after * or # don't count."""
+    from app.main import _match_key
+    assert _match_key("AMAZON MKTPL*2K4AB1") == _match_key("Amazon Mktpl*9XZ3") == "amazon mktpl"
+    assert _match_key("SQ *COFFEE SHOP 0423") == "sq coffee shop"
+    assert _match_key("SHELL OIL #5741 ") == "shell oil"
+    assert _match_key("AMAZON PRIME") != _match_key("AMAZON MKTPL*2K4AB1")
+    assert _match_key("  123 456 ") == "123 456"            # nothing left: compared as itself
+    assert _match_key(None) == ""
+
+
+def test_a_taught_card_name_takes_a_new_code(connected, fake):
+    c, u, acc, status = connected
+    a, b = gyms(c, acc)
+    fake.accounts[0]["transactions"][0]["description"] = "AMAZON MKTPL*2K4AB1"   # the grocery line
+    link(c, status, acc)
+    sync(c)
+    line = next(x for x in unmatched(c, acc)["lines"] if x["description"].startswith("AMAZON"))
+    out = match(c, acc, line["id"], recurring_id=a, forecast_date=(G - timedelta(days=1)).isoformat(),
+                remember=True)
+    assert out["learned"] == "AMAZON MKTPL*2K4AB1"
+    bank_line(fake, "T-15", LATER_LINE_DAY, -41.00, "AMAZON PRIME")          # another name: still a tie
+    bank_line(fake, "T-9", LATER_LINE_DAY, -41.00, "AMAZON MKTPL*9XZ3")      # a new code: Gym A's
+    assert sync(c)["matched"] == 1
+    paid = row(c, acc, a, G - timedelta(days=8))
+    assert paid["bank_match"] == "auto" and paid["actual_amount"] == -41.0
+    assert "AMAZON PRIME" in names(c, acc)

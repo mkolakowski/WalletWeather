@@ -69,7 +69,13 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.76.0** · Web version: **1.91.0** · Schema version: **30** · iOS version: **0.17.0**
+App version: **1.76.1** · Web version: **1.91.0** · Schema version: **30** · iOS version: **0.17.0**
+
+## [1.76.1] — 2026-11-18
+
+App version: **1.76.1** · Web version: **1.91.0** · Schema version: **30** · iOS version: **0.17.0**
+
+No server change: this release holds the web app's new Unmatched tables.
 
 ### Changed
 
@@ -2585,7 +2591,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.76.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.76.1...HEAD
+[1.76.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.76.1
 [1.76.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.76.0
 [1.75.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.75.0
 [1.74.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.74.0

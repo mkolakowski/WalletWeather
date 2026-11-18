@@ -71,6 +71,12 @@ same commit (or session) that introduces it.
 
 App version: **1.79.0** · Web version: **1.95.0** · Schema version: **31** · iOS version: **0.17.1**
 
+## [1.79.0] — 2026-11-18
+
+App version: **1.79.0** · Web version: **1.95.0** · Schema version: **31** · iOS version: **0.17.1**
+
+Matching bank lines by hand, rebuilt: a pop-in that shows the bank line and the planned lines side by side in words, matching from Forecast, and bills that learn which bank lines are theirs. Schema 31 is added on start-up.
+
 ### Added
 
 - **Match bank lines from Forecast:** a line from your bank that paid no planned line yet shows an "Unmatched" mark on Forecast, and its open line has Match…, which opens the same box as on Settings → Bank sync. A planned line's open line has "Paid by a bank line…", which lists the unmatched bank lines within 60 days of it, closest first, with "This paid it" on each. Either way, Forecast then shows one paid line where there were two. Only the account's owner sees these buttons. (1.78.0, web 1.94.0, #223)
@@ -2628,7 +2634,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.76.3...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.79.0...HEAD
+[1.79.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.79.0
 [1.76.3]: https://github.com/mkolakowski/walletweather/releases/tag/v1.76.3
 [1.76.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.76.2
 [1.76.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.76.1

@@ -69,7 +69,15 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.76.2** · Web version: **1.91.0** · Schema version: **30** · iOS version: **0.17.1**
+App version: **1.76.2** · Web version: **1.92.0** · Schema version: **30** · iOS version: **0.17.1**
+
+### Added
+
+- **Links to SimpleFIN from the bank sync pages:** Settings → Bank sync and Admin → Bank sync now start with a line linking to SimpleFIN Bridge's sign-in page, your SimpleFIN account and the page that makes a setup token, each opening in a new tab. (web 1.92.0, #227)
+
+### Fixed
+
+- **SimpleFIN links go to the right page:** the "make a setup token" and "disable the token" links opened SimpleFIN Bridge's homepage, because SimpleFIN's old address now sends every page there. They now open the page they name. (web 1.92.0, #227)
 
 ## [1.76.2] — 2026-11-17
 

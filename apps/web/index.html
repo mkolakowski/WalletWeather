@@ -2133,6 +2133,7 @@
           for anyone else. Switching it off stops connecting and syncing; connections already made stay
           until their users disconnect.
         </p>
+        <div id="adminBankSyncLinks" style="margin:0 0 12px;font-size:13px"></div>
         <label style="display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer">
           <input id="adminBankSyncOn" type="checkbox" style="width:auto;margin:0" onchange="saveAdminBankSync()">
           Allow bank sync</label>
@@ -2779,7 +2780,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.91.0";
+const WEB_VERSION = "1.92.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2789,6 +2790,7 @@ const WEB_VERSION = "1.91.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.92.0 (2026-11-18, claude+mkolakowski): (#227) Bank sync links to its provider. BANK_PROVIDERS holds each provider's name and pages (SimpleFIN Bridge: home, sign-in, account, new setup token) and _bankProviderLinks(key) draws a "SimpleFIN Bridge: Sign in · Your account · Make a setup token" line at the top of Settings → Bank sync (connect and connected views) and of Admin → Bank sync (#adminBankSyncLinks). The links use beta-bridge.simplefin.org, since bridge.simplefin.org now sends every path to that site's homepage; the "no longer accepts this connection" note links to the setup-token page too.
 // 1.91.0 (2026-11-18, claude+mkolakowski): (#220) The Unmatched panel's tables wear Forecast's grid (table.fc-like: the same cell dividers, padding and button size, green and red amounts, a truncating Notes column). bankShowUnmatched lists Description, Actual date, Actual amt, Notes and the buttons, in a box as wide as the page (the sync log keeps its 720px); bankShowCandidates lists the planned lines it can pay as Planned line, Forecast date, Forecast amt, Δ Amt against the bank's line, Days apart and Pay this. Also on Settings → Email alerts, which shares the panel.
 // 1.90.0 (2026-11-17, claude+mkolakowski): (#215) Create an account from Settings → Bank sync. A bank account that isn't matched yet gets a first choice "New account…" in its "Your account" select (BANK_NEW_ACCOUNT, bankLinkChanged) that shows a name box prefilled with the bank account's name; Save matches (bankSaveLinks) sends the other rows to PUT /api/bank/links as before, then makes each new account with POST /api/bank/accounts (name, start date), shows how many lines came in and the starting balance, and refreshes the bank panel and the account lists (loadAccounts, loadManageAccounts, loadExportAccounts).
 // 1.89.0 (2026-11-17, claude+mkolakowski): (#209) Email alerts matched to bills. A bill an alert paid shows an "Email alert" pill (_bankMatchPill reads match_source) and its Un-match asks about the alert; Settings → Email alerts lists the accounts with alerts that paid no bill (bankShowUnmatched(accountId, 'mailLog'), _mailRefreshUnmatchedCounts), and the check log and Check now say how many matched a bill.
@@ -9312,6 +9314,8 @@ function _adminBankSyncShow(data) {
     + (n === 0 ? 'No user has a bank connected.' : n + ' user' + (n === 1 ? ' has a bank' : 's have a bank') + ' connected.');
 }
 async function loadAdminBankSync() {
+  const links = document.getElementById('adminBankSyncLinks');
+  if (links) links.innerHTML = _bankProviderLinks();
   try { _adminBankSyncShow(await api('/api/admin/bank-sync')); }
   catch (e) { document.getElementById('adminBankSyncStatus').textContent = 'Failed to load: ' + errText(e); }
 }
@@ -9333,7 +9337,36 @@ async function saveAdminBankSync() {
 // Settings → Bank sync (#194). The tab shows when an admin has switched bank
 // sync on, or when this user still has a connection to remove.
 let bankState = null;
-const SIMPLEFIN_CREATE_URL = 'https://bridge.simplefin.org/simplefin/create';
+// Each bank sync provider's own pages (#227), so the panels can send people
+// to sign in or set up there. A later provider adds one entry. SimpleFIN's
+// pages are on beta-bridge.simplefin.org: bridge.simplefin.org now sends
+// every path to that site's homepage, losing the page asked for.
+const BANK_PROVIDERS = {
+  simplefin: {
+    name: 'SimpleFIN Bridge',
+    home: 'https://beta-bridge.simplefin.org/',
+    signIn: 'https://beta-bridge.simplefin.org/auth/login',
+    account: 'https://beta-bridge.simplefin.org/my-account',
+    setup: 'https://beta-bridge.simplefin.org/simplefin/create',
+  },
+};
+const BANK_PROVIDER = 'simplefin';   // the one provider so far
+const SIMPLEFIN_CREATE_URL = BANK_PROVIDERS.simplefin.setup;
+function _bankLink(href, text) {
+  return `<a href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">${escapeHtml(text)}</a>`;
+}
+// "SimpleFIN Bridge: Sign in · Your account · Make a setup token", each
+// opening the provider's site in a new tab.
+function _bankProviderLinks(key) {
+  const p = BANK_PROVIDERS[key || BANK_PROVIDER];
+  if (!p) return '';
+  const links = [
+    p.signIn && _bankLink(p.signIn, 'Sign in'),
+    p.account && _bankLink(p.account, 'Your account'),
+    p.setup && _bankLink(p.setup, 'Make a setup token'),
+  ].filter(Boolean).join(' · ');
+  return `<div style="font-size:13px;margin:0 0 12px"><strong>${_bankLink(p.home, p.name)}:</strong> ${links}</div>`;
+}
 // The "New account…" choice in a bank account's select (#215).
 const BANK_NEW_ACCOUNT = '__new__';
 // Show a row's name box only while its select says "New account…".
@@ -9384,6 +9417,7 @@ async function loadBank() {
 function _renderBankConnect(body) {
   if (!bankState.enabled) { body.innerHTML = ''; return; }
   body.innerHTML = `
+    ${_bankProviderLinks()}
     <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
       Bring transactions in from your bank by themselves, through SimpleFIN Bridge, a service you subscribe to
       yourself (about $15 a year). SimpleFIN can read your transactions and balances; it can't move money.
@@ -9425,12 +9459,13 @@ function _renderBankConnected(body, owned) {
     ? `Last sync ${_bankWhen(bankState.last_sync_at)}: ${escapeHtml(bankState.last_sync_status || '')}`
     : 'Not synced yet.')
     + (bankState.needs_reconnect
-      ? '<br><strong>SimpleFIN no longer accepts this connection, so daily syncing has stopped.</strong> Disconnect below, make a new setup token at SimpleFIN Bridge and connect again.'
+      ? '<br><strong>SimpleFIN no longer accepts this connection, so daily syncing has stopped.</strong> Disconnect below, make a new setup token at ' + _bankLink(SIMPLEFIN_CREATE_URL, 'SimpleFIN Bridge') + ' and connect again.'
       : bankState.next_sync_at
         ? `<br>Syncs by itself about once a day; next around ${escapeHtml(_bankWhen(bankState.next_sync_at))}.`
         : '');
   const left = bankState.syncs_left_today;
   body.innerHTML = `
+    ${_bankProviderLinks()}
     <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
       Connected through SimpleFIN Bridge on ${escapeHtml(_bankWhen(bankState.connected_at))}.
       Match each bank account to one of your own accounts; nothing dated before its start date comes in
@@ -9449,7 +9484,7 @@ function _renderBankConnected(body, owned) {
     <h3 class="backup-subhead" style="margin-top:20px">Disconnect</h3>
     <p style="color:var(--muted);margin:0 0 8px;font-size:13px">
       Forgets the connection here. Lines already brought in stay. To stop SimpleFIN reading your bank too,
-      disable the token at <a href="https://bridge.simplefin.org/" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">SimpleFIN Bridge</a>.</p>
+      disable the token in ${_bankLink(BANK_PROVIDERS.simplefin.account, 'your SimpleFIN Bridge account')}.</p>
     ${_bankCodeField('bankDisconnectCode')}
     <div style="margin-top:8px"><button class="danger" onclick="bankDisconnect()">Disconnect</button></div>`;
 }

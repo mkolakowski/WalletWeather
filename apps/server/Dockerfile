@@ -18,9 +18,12 @@ RUN useradd -r -u 1000 app && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p /data/backups && chown app:app /data/backups
 COPY --from=builder /install /install
-# Same layout as the repo: /app/server/app (Python) next to /app/web (SPA).
+# Same layout as the repo: /app/server/app (Python) next to /app/web (SPA)
+# and /app/packages/core (the shared JavaScript core).
 COPY apps/server/app /app/server/app
 COPY apps/web /app/web
+# The shared JavaScript core, run by app/jscore.py (#233).
+COPY packages/core/walletweather-core.js /app/packages/core/walletweather-core.js
 WORKDIR /app/server
 USER app
 EXPOSE 8000

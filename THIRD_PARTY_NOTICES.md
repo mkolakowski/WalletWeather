@@ -56,6 +56,7 @@ used as published, unmodified.
 | psycopg, psycopg-binary 3.2.3 | LGPL-3.0 | direct, see above |
 | pycparser | BSD-3-Clause | |
 | pydantic 2.9.2, pydantic_core | MIT | direct |
+| quickjs-ng 0.18.0.2 | MIT (bundles the quickjs-ng engine, MIT); its metadata names no licence, the licence file is in the wheel | direct |
 | python-dotenv | BSD-3-Clause | |
 | PyYAML | MIT | |
 | sniffio | MIT or Apache-2.0 | |
@@ -83,11 +84,6 @@ package, `libpq5` (PostgreSQL License).
 - **PostgreSQL** (`postgres:16-alpine`) is pulled by Docker Compose from
   Docker Hub as its own image; WalletWeather doesn't redistribute it.
 - **pytest** (MIT) is used for tests only and isn't installed in the image.
-- **quickjs-ng 0.18.0.2** (MIT; it bundles the quickjs-ng engine, MIT) runs
-  the shared JavaScript core (`packages/core/`) in the tests only for now
-  (Plans/standalone.md, phase 1); it moves into the image in phase 2.
-  Source: <https://github.com/genotrance/quickjs-ng>. Its package metadata
-  names no licence; the MIT licence file is in the wheel.
 - **Just the Docs** (MIT, v0.12.0) is the theme of the project site built
   from `docs/` by GitHub Pages, fetched at build time; it isn't in this
   repository or the image.

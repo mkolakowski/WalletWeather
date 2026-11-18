@@ -11,3 +11,6 @@ cryptography==50.0.2
 bcrypt==4.2.0
 httpx==0.27.2
 pydantic==2.9.2
+# Runs the shared JavaScript core (packages/core/), the money logic the
+# iPhone app shares (Plans/standalone.md, #232, #233).
+quickjs-ng==0.18.0.2

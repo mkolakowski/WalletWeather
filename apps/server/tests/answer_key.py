@@ -10,8 +10,10 @@ Database ids differ from run to run, so every id is renumbered in the order
 the household created it (accounts, categories, tags, bills, lines and
 transfers each count from 1).
 
-`rows_for_forecast` reads the rows the way build_forecast does, so it is
-also what the server will hand the core in phase 2.
+Since phase 2 (#233) the server's answers come from the core itself, so
+rebuilding the cases checks the whole path: the rows the server reads
+(`app.forecast.rows_for_forecast`), the engine and the routes. Rewrite the
+key only for a deliberate change to the answers, and say why in the commit.
 
 Rewrite the committed cases after a deliberate change to the server's
 answers with:
@@ -20,6 +22,7 @@ answers with:
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -28,95 +31,13 @@ from fastapi.testclient import TestClient
 
 from app.db import (Category, RecurringSkip, RecurringTag, RecurringTransaction, SessionLocal, Tag,
                     Transaction, TransactionTag, Transfer, User)
-from app.forecast import actual_balance_as_of, build_forecast
+from app.forecast import actual_balance_as_of, build_forecast, recurring_row, rows_for_forecast
+import app.main as main
 from app.main import _recurring_upcoming, _user_visible_accounts, calendar_events
 from conftest import unique_email
 
 KEY_DIR = Path(__file__).resolve().parents[3] / "packages" / "core" / "answer-key"
 PASSWORD = "correct-horse-battery"
-
-
-# ---------- Reading the rows the core is given ----------
-
-def _iso(d):
-    return d.isoformat() if d else None
-
-
-def _num(v):
-    return float(v) if v is not None else None
-
-
-def rows_for_forecast(db, account, with_tags: bool = True) -> dict:
-    """The forecast input for one account, read with build_forecast's own
-    queries and in their order: every line on the account, its active
-    bills, their skipped dates and the tags of both."""
-    txns = db.query(Transaction).filter(Transaction.account_id == account.id).all()
-    txn_tags: dict[int, list] = {}
-    if with_tags and txns:
-        for txn_id, tag_id, name, color in (
-                db.query(TransactionTag.transaction_id, Tag.id, Tag.name, Tag.color)
-                .join(Tag, Tag.id == TransactionTag.tag_id)
-                .filter(TransactionTag.transaction_id.in_([t.id for t in txns])).all()):
-            txn_tags.setdefault(txn_id, []).append({"id": tag_id, "name": name, "color": color})
-    recs = (db.query(RecurringTransaction)
-            .filter(RecurringTransaction.account_id == account.id,
-                    RecurringTransaction.active == True)  # noqa: E712 (SQL, as build_forecast)
-            .all())
-    rec_tags: dict[int, list] = {}
-    skips = []
-    if recs:
-        ids = [r.id for r in recs]
-        skips = [{"recurring_id": rid, "date": d.isoformat()} for rid, d in (
-            db.query(RecurringSkip.recurring_id, RecurringSkip.skip_date)
-            .filter(RecurringSkip.recurring_id.in_(ids))
-            .order_by(RecurringSkip.recurring_id, RecurringSkip.skip_date).all())]
-        if with_tags:
-            for rid, tid, name, color in (
-                    db.query(RecurringTag.recurring_id, Tag.id, Tag.name, Tag.color)
-                    .join(Tag, Tag.id == RecurringTag.tag_id)
-                    .filter(RecurringTag.recurring_id.in_(ids)).all()):
-                rec_tags.setdefault(rid, []).append({"id": tid, "name": name, "color": color})
-    return {
-        "starting_balance": float(account.starting_balance),
-        "transactions": [{
-            "id": t.id,
-            "recurring_id": t.recurring_id,
-            "category_id": t.category_id,
-            "category": t.category.name if t.category else None,
-            "transfer_id": t.transfer_id,
-            "description": t.description,
-            "notes": t.notes,
-            "amount": float(t.amount),
-            "forecast_amount": _num(t.forecast_amount),
-            "forecast_date": _iso(t.forecast_date),
-            "actual_date": _iso(t.actual_date),
-            "is_actual": t.is_actual,
-            "bank_match": t.bank_match,
-            "has_bank_ref": bool(t.bank_ref),
-            "has_mail_ref": bool(t.mail_ref),
-            "bank_left": bool(t.bank_left),
-            "tags": txn_tags.get(t.id, []),
-        } for t in txns],
-        "recurring": [_rec_row(r, rec_tags.get(r.id, [])) for r in recs],
-        "skips": skips,
-    }
-
-
-def _rec_row(r, tags) -> dict:
-    return {
-        "id": r.id,
-        "frequency": r.frequency,
-        "day_of_month": r.day_of_month,
-        "anchor_date": _iso(r.anchor_date),
-        "end_date": _iso(r.end_date),
-        "amount": float(r.amount),
-        "description": r.description,
-        "notes": r.notes,
-        "category": r.category.name if r.category else None,
-        "category_id": r.category_id,
-        "active": r.active,
-        "tags": tags,
-    }
 
 
 # ---------- Households ----------
@@ -235,7 +156,7 @@ class Household:
                           .filter(Transaction.recurring_id == r.id, Transaction.is_actual.is_(True),
                                   Transaction.forecast_date >= day))
             cases.append(self._case(f"{r.description} from {today}", "upcomingDates",
-                                    {"today": today, "recurring": _rec_row(r, []),
+                                    {"today": today, "recurring": recurring_row(r, []),
                                      "skipped": skipped, "paid": paid},
                                     [d.isoformat() for d in answers[r.id]]))
         return cases
@@ -245,7 +166,7 @@ class Household:
         visible = _user_visible_accounts(db, self.user)
         if account is not None:
             visible = [a for a in visible if a.id == account.id]
-        cats = db.query(Category).filter_by(owner_id=self.user.id).all()
+        cats = db.query(Category).filter_by(owner_id=self.user.id).order_by(Category.id).all()
         expected = calendar_events(date.fromisoformat(start), date.fromisoformat(end),
                                    account_id=account.id if account else None, user=self.user, db=db)
         return self._case(f"Calendar {start} to {end}" + (f", {account.name} only" if account else ""),
@@ -255,6 +176,28 @@ class Household:
                               "accounts": [{"id": a.id, "name": a.name, **rows_for_forecast(db, a)}
                                            for a in visible],
                           }, expected)
+
+    def _accounts(self):
+        return [{"id": a.id, "name": a.name, **rows_for_forecast(self.db, a)}
+                for a in _user_visible_accounts(self.db, self.user)]
+
+    def _categories(self):
+        return [{"id": c.id, "name": c.name, "color": c.color}
+                for c in self.db.query(Category).filter_by(owner_id=self.user.id).order_by(Category.id)]
+
+    def dashboard_case(self, today):
+        with _any_today():
+            expected = main.dashboard(today=date.fromisoformat(today), user=self.user, db=self.db)
+        return self._case(f"Dashboard on {today}", "dashboard",
+                          {"today": today, "accounts": self._accounts()}, expected)
+
+    def charts_case(self, window, today):
+        with _any_today():
+            expected = main.dashboard_charts(window=window, today=date.fromisoformat(today),
+                                             user=self.user, db=self.db)
+        return self._case(f"Dashboard charts, {window}, on {today}", "dashboardCharts",
+                          {"window": window, "today": today, "categories": self._categories(),
+                           "accounts": self._accounts()}, expected)
 
     def _case(self, name, function, given, expected):
         # A JSON round trip, so dates and Decimals are what a client would see.
@@ -268,7 +211,7 @@ class Household:
         by_key = {"transaction_id": "txn", "recurring_id": "rec", "transfer_id": "transfer",
                   "category_id": "cat", "account_id": "acc"}
         lists = {"transactions": "txn", "recurring": "rec", "tags": "tag", "categories": "cat",
-                 "accounts": "acc"}
+                 "accounts": "acc", "cards": "acc"}
 
         def walk(v, kind):
             if isinstance(v, dict):
@@ -287,6 +230,18 @@ class Household:
                 return [walk(x, kind) for x in v]
             return v
         return walk(value, kind)
+
+
+@contextmanager
+def _any_today():
+    """Let the routes take a date far from the server's (they refuse one
+    more than a day off, as a viewer's own date can't be)."""
+    real = main._viewer_today
+    main._viewer_today = lambda today: today or date.today()
+    try:
+        yield
+    finally:
+        main._viewer_today = real
 
 
 def _basics(app, db) -> list:
@@ -337,6 +292,8 @@ def _basics(app, db) -> list:
     cases += [h.balance_case(acc, d) for d in ("2026-02-15", "2026-02-28", "2026-03-01", "2026-03-31")]
     cases += h.upcoming_cases(acc, "2026-02-15") + h.upcoming_cases(acc, "2026-03-01")
     cases += [h.calendar_case("2026-02-01", "2026-02-28", acc), h.calendar_case("2026-03-01", "2026-03-31")]
+    cases += [h.dashboard_case(d) for d in ("2026-02-15", "2026-03-31")]
+    cases += [h.charts_case(w, "2026-03-15") for w in ("month", "30d", "90d")]
     return cases
 
 
@@ -361,6 +318,8 @@ def _edges(app, db) -> list:
     cases += [h.balance_case(acc, d) for d in ("2028-01-05", "2028-01-31", "2028-02-29", "2029-02-28")]
     cases += h.upcoming_cases(acc, "2028-02-20")
     cases.append(h.calendar_case("2028-02-01", "2028-03-15", acc))
+    cases += [h.dashboard_case("2028-02-29"), h.charts_case("90d", "2028-03-01"),
+              h.charts_case("month", "2027-12-31")]
     return cases
 
 
@@ -373,6 +332,7 @@ def _two_accounts(app, db) -> list:
     h.tag("trip")
     chk = h.account("Checking", 500, "2026-04-01")
     sav = h.account("Savings", 10000, "2026-04-01")
+    h.account("Empty", "0.1", "2026-04-01")
     h.bill("rent", chk, "Rent", "-800", "monthly_day", day_of_month=1, category="Bills")
     h.bill("interest", sav, "Interest", "12.34", "monthly_day", day_of_month=28)
     h.transfer(chk, sav, "2026-05-10", "250.00", "To savings")
@@ -382,6 +342,8 @@ def _two_accounts(app, db) -> list:
     cases = [h.forecast_case(a, "2026-05-01", "2026-05-31") for a in (chk, sav)]
     cases += [h.calendar_case("2026-05-01", "2026-05-31"), h.calendar_case("2026-05-01", "2026-05-31", chk),
               h.calendar_case("2026-04-15", "2026-06-15", sav)]
+    cases += [h.dashboard_case("2026-05-12"), h.dashboard_case("2026-04-10"),
+              h.charts_case("month", "2026-05-20"), h.charts_case("30d", "2026-05-20")]
     return cases
 
 

@@ -5,8 +5,9 @@ phase 1, #232).
   it came out of the server: the core adds the same doubles in the same
   order (with Python's compensated sum() where the server uses it), so every
   number agrees to the last bit.
-- The committed cases still match what today's server code answers, so the
-  key can't drift from the server while both copies exist.
+- Rebuilding the cases through the server (its readers, the engine and the
+  routes) still gives the committed answers. Before phase 2 (#233) this
+  compared the server's own Python with the key; the key was written by it.
 - The core's date and rounding helpers agree with Python's on wide ranges.
 
 To rewrite the key after a deliberate change, see tests/answer_key.py.
@@ -57,7 +58,8 @@ def test_the_core_gives_the_servers_answer(name, case):
 
 def test_the_key_has_every_function():
     functions = {case["function"] for _, case in _committed()}
-    assert functions == {"forecast", "actualBalanceAsOf", "upcomingDates", "calendar"}
+    assert functions == {"forecast", "actualBalanceAsOf", "upcomingDates", "calendar", "dashboard",
+                         "dashboardCharts"}
 
 
 def test_the_key_still_matches_the_server(app_started):

@@ -767,6 +767,23 @@ def test_the_source_has_no_dangerous_calls():
     assert found == []
 
 
+def test_javascript_only_runs_from_the_core_file():
+    """quickjs-ng runs the shared core (#233). Only app/jscore.py may touch
+    the engine, and it loads the core file shipped in the image; requests
+    reach it as a function name and JSON, never as code."""
+    found = []
+    for path, tree in _source_trees():
+        for node in ast.walk(tree):
+            names = ([a.name for a in node.names] if isinstance(node, ast.Import)
+                     else [node.module or ""] if isinstance(node, ast.ImportFrom) and node.level == 0
+                     else [])
+            if any(n.split(".")[0] == "quickjs" for n in names) and path.name != "jscore.py":
+                found.append(f"{path.name}:{node.lineno}")
+    assert found == []
+    source = (APP_DIR / "jscore.py").read_text()
+    assert "CORE.read_text(" in source and source.count("quickjs.Function(") == 1
+
+
 def test_sql_is_never_built_from_pieces():
     """Queries go through SQLAlchemy's query builder, or text() with a
     constant string and bound parameters. An f-string or a + inside text()

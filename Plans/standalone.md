@@ -7,7 +7,7 @@ Tracking issue: #240
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
 | 1. The answer key and first core numbers | Server (tests), Core | #232 | Done 2026-11-18, no version (tests only) |
-| 2. The server runs on the core | Server, Core | #233 | Not started |
+| 2. The server runs on the core | Server, Core | #233 | Built in 1.82.0, 2026-11-18; waits for the release and your look |
 | 3. The core on the iPhone | iOS, Core | #234 | Not started |
 | 4. Use without a server | iOS | #235 | Not started |
 | 5. Move between a server and the phone | iOS, Server | #236 | Not started |
@@ -15,6 +15,8 @@ Tracking issue: #240
 | 9. CSV import from Files (runs after 6, before 7) | iOS, Core | #243 | Not started |
 | 7. Live iCloud sync between devices | iOS | #238 | Not started |
 | 8. Bank sync on the phone | iOS, Core | #239 | Not started |
+
+Phase 2 built 2026-11-18 in 1.82.0 (core 0.2.0), not released yet. The server's forecast, Actual bal, a bill's next and in-window dates, Calendar, Dashboard and Dashboard charts now come from the core: `app/forecast.py` reads the rows, `app/jscore.py` runs the core in quickjs-ng (one thread behind a lock, memory and time limits, clean-up every 100 calls), and the Python copies are gone. Budgets, Net worth, Reports, Search and bank matching use it through `build_forecast` and `_occurrences`. The Dashboard and charts were added to the answer key first, written by the old Python (63 cases), and the core matched them exactly before the switch. Speed (an account with 1,458 lines): a month's forecast took 24 ms against 23.5 ms before, 90 days 28 ms against 26 ms. The first version was 3–4× slower: it decrypted every line, the engine cleaned up after every call, and strings compared one character at a time; all three were fixed without changing an answer. Found and fixed: the server read lines and categories in no set order, which can reorder lines on the same date in a busy database; it now reads each kind in id order. Image: +8 MB (quickjs-ng). Verified by the answer key, the full suite (810 passed) and an image build (the core at `/app/packages/core/`, run inside the image). Left for phase 4, where the phone first needs them: Bills & income's list and totals and Search (transfers are saves, not worked-out numbers).
 
 Phase 1 done 2026-11-18, with no version (nothing in the image changed). `packages/core/walletweather-core.js` (core 0.1.0) works out the forecast, the Actual bal as of a day, a bill's next dates and the Calendar. `apps/server/tests/answer_key.py` builds three households (basics, edges, two accounts) and writes 51 cases from today's server code to `packages/core/answer-key/`. `tests/test_core_answer_key.py` runs the core over every case in quickjs-ng and checks that the key still matches the server. The engine was chosen by you (open question 1). Findings that changed the plan: the server keeps amounts unrounded and adds them as floats, with Python 3.12's compensated `sum()` in two places, so the core adds the same doubles in the same order instead of using whole cents. Its answers then match the server's **exactly**, to the last bit. Verified by the 51 cases plus date, rounding and summation checks against Python, a deliberate bug (month ends clamped to the 28th) failing 19 cases, and the full suite (797 passed). Dashboard numbers weren't in phase 1's key; they move to phase 2.
 
@@ -28,7 +30,6 @@ Sessions: may span — eight phases across the server, a new shared core and the
 
 | Phase | Apps | Main session | Subagents | Why |
 | --- | --- | --- | --- | --- |
-| 2. The server runs on the core | Server, Core | Opus | Sonnet: runs the full suite and reports; Haiku: pulls failures out of long test output | Swaps the engine under the numbers every page shows; a mismatch moves real balances. |
 | 3. The core on the iPhone | iOS, Core | Opus | Sonnet: `swift test` over the answer key | JavaScriptCore in WalletWeatherKit, and the demo moving from recorded months to computed ones. |
 | 4. Use without a server | iOS | Opus | Sonnet: tests for the local store and the local answers | A privacy decision (financial data stored on the phone) and a new way into the app. |
 | 5. Move between a server and the phone | iOS, Server | Opus | Sonnet: server tests that import a file the phone made | scrypt written in Swift has to match `backup.py` byte for byte; a wrong key loses a backup. |
@@ -97,6 +98,7 @@ Sessions: may span — eight phases across the server, a new shared core and the
 
 ### Phase 4: Use without a server
 
+- **Core first:** Bills & income's list and totals and Search move into the core, with answer-key cases, and the server switches to them as in phase 2 (left from phase 2).
 - **iOS:** the first screen asks how to use the app (open question 7), with the pros and cons of each:
   - **On this iPhone:** no server to run, the data stays on your devices and backs up to iCloud; but no web app, no sharing, no bank-alert emails or email alerts, and bank sync only while the app runs.
   - **Your own server:** the web app and the phone, sharing, bank sync on a schedule and alerts; but you run and update a server.

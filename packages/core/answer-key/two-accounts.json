@@ -161,19 +161,19 @@
       "day_of_month": 1,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -800.0,
       "description": "Rent",
       "notes": null,
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": []
      }
     ],
     "skips": []
    },
    "expected": {
-    "opening_balance": 500.0,
+    "opening_balance": 500,
     "forecast_ending_balance": -316.0499999999999,
     "actual_ending_balance": -566.0500000000002,
     "rows": [
@@ -184,12 +184,12 @@
       "category": "Bills",
       "category_id": 14,
       "notes": null,
-      "forecast_amount": -800.0,
-      "forecast_balance": -300.0,
-      "actual_amount": -800.0,
-      "actual_balance": -300.0,
-      "diff_amount": 0.0,
-      "diff_balance": 0.0,
+      "forecast_amount": -800,
+      "forecast_balance": -300,
+      "actual_amount": -800,
+      "actual_balance": -300,
+      "diff_amount": 0,
+      "diff_balance": 0,
       "is_actual_real": false,
       "recurring_id": 1,
       "transaction_id": null,
@@ -207,11 +207,11 @@
       "category_id": null,
       "notes": null,
       "forecast_amount": null,
-      "forecast_balance": -300.0,
-      "actual_amount": -250.0,
-      "actual_balance": -550.0,
+      "forecast_balance": -300,
+      "actual_amount": -250,
+      "actual_balance": -550,
       "diff_amount": null,
-      "diff_balance": -250.0,
+      "diff_balance": -250,
       "is_actual_real": true,
       "recurring_id": null,
       "transaction_id": 1,
@@ -232,8 +232,8 @@
       "forecast_balance": -303.21,
       "actual_amount": -3.21,
       "actual_balance": -553.21,
-      "diff_amount": 0.0,
-      "diff_balance": -250.0,
+      "diff_amount": 0,
+      "diff_balance": -250,
       "is_actual_real": false,
       "recurring_id": null,
       "transaction_id": 3,
@@ -260,7 +260,7 @@
       "forecast_balance": -306.41999999999996,
       "actual_amount": -3.21,
       "actual_balance": -556.4200000000001,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -250.0000000000001,
       "is_actual_real": false,
       "recurring_id": null,
@@ -288,7 +288,7 @@
       "forecast_balance": -309.62999999999994,
       "actual_amount": -3.21,
       "actual_balance": -559.6300000000001,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -250.0000000000001,
       "is_actual_real": false,
       "recurring_id": null,
@@ -316,7 +316,7 @@
       "forecast_balance": -312.8399999999999,
       "actual_amount": -3.21,
       "actual_balance": -562.8400000000001,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -250.0000000000001,
       "is_actual_real": false,
       "recurring_id": null,
@@ -344,7 +344,7 @@
       "forecast_balance": -316.0499999999999,
       "actual_amount": -3.21,
       "actual_balance": -566.0500000000002,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -250.00000000000023,
       "is_actual_real": false,
       "recurring_id": null,
@@ -399,19 +399,19 @@
       "day_of_month": 28,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": 12.34,
       "description": "Interest",
       "notes": null,
       "category": null,
       "category_id": null,
-      "active": true,
       "tags": []
      }
     ],
     "skips": []
    },
    "expected": {
-    "opening_balance": 10000.0,
+    "opening_balance": 10000,
     "forecast_ending_balance": 10012.34,
     "actual_ending_balance": 10262.34,
     "rows": [
@@ -423,11 +423,11 @@
       "category_id": null,
       "notes": null,
       "forecast_amount": null,
-      "forecast_balance": 10000.0,
-      "actual_amount": 250.0,
-      "actual_balance": 10250.0,
+      "forecast_balance": 10000,
+      "actual_amount": 250,
+      "actual_balance": 10250,
       "diff_amount": null,
-      "diff_balance": 250.0,
+      "diff_balance": 250,
       "is_actual_real": true,
       "recurring_id": null,
       "transaction_id": 2,
@@ -448,8 +448,8 @@
       "forecast_balance": 10012.34,
       "actual_amount": 12.34,
       "actual_balance": 10262.34,
-      "diff_amount": 0.0,
-      "diff_balance": 250.0,
+      "diff_amount": 0,
+      "diff_balance": 250,
       "is_actual_real": false,
       "recurring_id": 2,
       "transaction_id": null,
@@ -704,12 +704,12 @@
         "day_of_month": 1,
         "anchor_date": null,
         "end_date": null,
+        "active": true,
         "amount": -800.0,
         "description": "Rent",
         "notes": null,
         "category": "Bills",
         "category_id": 14,
-        "active": true,
         "tags": []
        }
       ],
@@ -747,15 +747,23 @@
         "day_of_month": 28,
         "anchor_date": null,
         "end_date": null,
+        "active": true,
         "amount": 12.34,
         "description": "Interest",
         "notes": null,
         "category": null,
         "category_id": null,
-        "active": true,
         "tags": []
        }
       ],
+      "skips": []
+     },
+     {
+      "id": 3,
+      "name": "Empty",
+      "starting_balance": 0.1,
+      "transactions": [],
+      "recurring": [],
       "skips": []
      }
     ]
@@ -769,9 +777,9 @@
       "account_id": 1,
       "account_name": "Checking",
       "description": "Rent",
-      "amount": -800.0,
-      "forecast_amount": -800.0,
-      "actual_amount": -800.0,
+      "amount": -800,
+      "forecast_amount": -800,
+      "actual_amount": -800,
       "category_id": 14,
       "category_name": "Bills",
       "category_color": "#e5534b",
@@ -787,9 +795,9 @@
       "account_id": 1,
       "account_name": "Checking",
       "description": "To savings",
-      "amount": -250.0,
+      "amount": -250,
       "forecast_amount": null,
-      "actual_amount": -250.0,
+      "actual_amount": -250,
       "category_id": null,
       "category_name": null,
       "category_color": null,
@@ -805,9 +813,9 @@
       "account_id": 2,
       "account_name": "Savings",
       "description": "To savings",
-      "amount": 250.0,
+      "amount": 250,
       "forecast_amount": null,
-      "actual_amount": 250.0,
+      "actual_amount": 250,
       "category_id": null,
       "category_name": null,
       "category_color": null,
@@ -1202,12 +1210,12 @@
         "day_of_month": 1,
         "anchor_date": null,
         "end_date": null,
+        "active": true,
         "amount": -800.0,
         "description": "Rent",
         "notes": null,
         "category": "Bills",
         "category_id": 14,
-        "active": true,
         "tags": []
        }
       ],
@@ -1224,9 +1232,9 @@
       "account_id": 1,
       "account_name": "Checking",
       "description": "Rent",
-      "amount": -800.0,
-      "forecast_amount": -800.0,
-      "actual_amount": -800.0,
+      "amount": -800,
+      "forecast_amount": -800,
+      "actual_amount": -800,
       "category_id": 14,
       "category_name": "Bills",
       "category_color": "#e5534b",
@@ -1242,9 +1250,9 @@
       "account_id": 1,
       "account_name": "Checking",
       "description": "To savings",
-      "amount": -250.0,
+      "amount": -250,
       "forecast_amount": null,
-      "actual_amount": -250.0,
+      "actual_amount": -250,
       "category_id": null,
       "category_name": null,
       "category_color": null,
@@ -1377,17 +1385,17 @@
      }
     ],
     "daily_balances": {
-     "2026-05-01": -300.0,
-     "2026-05-02": -300.0,
-     "2026-05-03": -300.0,
-     "2026-05-04": -300.0,
-     "2026-05-05": -300.0,
-     "2026-05-06": -300.0,
-     "2026-05-07": -300.0,
-     "2026-05-08": -300.0,
-     "2026-05-09": -300.0,
-     "2026-05-10": -550.0,
-     "2026-05-11": -550.0,
+     "2026-05-01": -300,
+     "2026-05-02": -300,
+     "2026-05-03": -300,
+     "2026-05-04": -300,
+     "2026-05-05": -300,
+     "2026-05-06": -300,
+     "2026-05-07": -300,
+     "2026-05-08": -300,
+     "2026-05-09": -300,
+     "2026-05-10": -550,
+     "2026-05-11": -550,
      "2026-05-12": -566.05,
      "2026-05-13": -566.05,
      "2026-05-14": -566.05,
@@ -1528,12 +1536,12 @@
         "day_of_month": 28,
         "anchor_date": null,
         "end_date": null,
+        "active": true,
         "amount": 12.34,
         "description": "Interest",
         "notes": null,
         "category": null,
         "category_id": null,
-        "active": true,
         "tags": []
        }
       ],
@@ -1568,9 +1576,9 @@
       "account_id": 2,
       "account_name": "Savings",
       "description": "To savings",
-      "amount": 250.0,
+      "amount": 250,
       "forecast_amount": null,
-      "actual_amount": 250.0,
+      "actual_amount": 250,
       "category_id": null,
       "category_name": null,
       "category_color": null,
@@ -1601,19 +1609,19 @@
      }
     ],
     "daily_balances": {
-     "2026-04-15": 10000.0,
-     "2026-04-16": 10000.0,
-     "2026-04-17": 10000.0,
-     "2026-04-18": 10000.0,
-     "2026-04-19": 10000.0,
-     "2026-04-20": 10000.0,
-     "2026-04-21": 10000.0,
-     "2026-04-22": 10000.0,
-     "2026-04-23": 10000.0,
-     "2026-04-24": 10000.0,
-     "2026-04-25": 10000.0,
-     "2026-04-26": 10000.0,
-     "2026-04-27": 10000.0,
+     "2026-04-15": 10000,
+     "2026-04-16": 10000,
+     "2026-04-17": 10000,
+     "2026-04-18": 10000,
+     "2026-04-19": 10000,
+     "2026-04-20": 10000,
+     "2026-04-21": 10000,
+     "2026-04-22": 10000,
+     "2026-04-23": 10000,
+     "2026-04-24": 10000,
+     "2026-04-25": 10000,
+     "2026-04-26": 10000,
+     "2026-04-27": 10000,
      "2026-04-28": 10012.34,
      "2026-04-29": 10012.34,
      "2026-04-30": 10012.34,
@@ -1664,6 +1672,2072 @@
      "2026-06-14": 10274.68,
      "2026-06-15": 10274.68
     }
+   }
+  },
+  {
+   "name": "Dashboard on 2026-05-12",
+   "function": "dashboard",
+   "input": {
+    "today": "2026-05-12",
+    "accounts": [
+     {
+      "id": 1,
+      "name": "Checking",
+      "starting_balance": 500.0,
+      "transactions": [
+       {
+        "id": 1,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": 1,
+        "description": "To savings",
+        "notes": null,
+        "amount": -250.0,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-05-10",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 3,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "zebra",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 4,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "Apple",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 5,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "Éclair café",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 6,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "🍕 Pizza",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 7,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "apple pie",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       }
+      ],
+      "recurring": [
+       {
+        "id": 1,
+        "frequency": "monthly_day",
+        "day_of_month": 1,
+        "anchor_date": null,
+        "end_date": null,
+        "active": true,
+        "amount": -800.0,
+        "description": "Rent",
+        "notes": null,
+        "category": "Bills",
+        "category_id": 14,
+        "tags": []
+       }
+      ],
+      "skips": []
+     },
+     {
+      "id": 2,
+      "name": "Savings",
+      "starting_balance": 10000.0,
+      "transactions": [
+       {
+        "id": 2,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": 1,
+        "description": "To savings",
+        "notes": null,
+        "amount": 250.0,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-05-10",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       }
+      ],
+      "recurring": [
+       {
+        "id": 2,
+        "frequency": "monthly_day",
+        "day_of_month": 28,
+        "anchor_date": null,
+        "end_date": null,
+        "active": true,
+        "amount": 12.34,
+        "description": "Interest",
+        "notes": null,
+        "category": null,
+        "category_id": null,
+        "tags": []
+       }
+      ],
+      "skips": []
+     },
+     {
+      "id": 3,
+      "name": "Empty",
+      "starting_balance": 0.1,
+      "transactions": [],
+      "recurring": [],
+      "skips": []
+     }
+    ]
+   },
+   "expected": {
+    "cards": [
+     {
+      "id": 1,
+      "name": "Checking",
+      "month_label": "May 2026",
+      "opening_balance": 500,
+      "forecast_end": -316.0499999999999,
+      "actual_end": -566.0500000000002,
+      "forecast_high": -300,
+      "forecast_high_date": "2026-05-01",
+      "forecast_low": -316.0499999999999,
+      "forecast_low_date": "2026-05-12",
+      "actual_high": -300,
+      "actual_low": -566.0500000000002,
+      "row_count": 7,
+      "upcoming_count": 5,
+      "upcoming_net": -16.05,
+      "current_balance": -566.05
+     },
+     {
+      "id": 2,
+      "name": "Savings",
+      "month_label": "May 2026",
+      "opening_balance": 10000,
+      "forecast_end": 10012.34,
+      "actual_end": 10262.34,
+      "forecast_high": 10012.34,
+      "forecast_high_date": "2026-05-28",
+      "forecast_low": 10000,
+      "forecast_low_date": null,
+      "actual_high": 10262.34,
+      "actual_low": 10250,
+      "row_count": 2,
+      "upcoming_count": 1,
+      "upcoming_net": 12.34,
+      "current_balance": 10250
+     },
+     {
+      "id": 3,
+      "name": "Empty",
+      "month_label": "May 2026",
+      "opening_balance": 0.1,
+      "forecast_end": 0.1,
+      "actual_end": 0.1,
+      "forecast_high": 0.1,
+      "forecast_high_date": null,
+      "forecast_low": 0.1,
+      "forecast_low_date": null,
+      "actual_high": 0.1,
+      "actual_low": 0.1,
+      "row_count": 0,
+      "upcoming_count": 0,
+      "upcoming_net": 0,
+      "current_balance": 0.1
+     }
+    ]
+   }
+  },
+  {
+   "name": "Dashboard on 2026-04-10",
+   "function": "dashboard",
+   "input": {
+    "today": "2026-04-10",
+    "accounts": [
+     {
+      "id": 1,
+      "name": "Checking",
+      "starting_balance": 500.0,
+      "transactions": [
+       {
+        "id": 1,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": 1,
+        "description": "To savings",
+        "notes": null,
+        "amount": -250.0,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-05-10",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 3,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "zebra",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 4,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "Apple",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 5,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "Éclair café",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 6,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "🍕 Pizza",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 7,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "apple pie",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       }
+      ],
+      "recurring": [
+       {
+        "id": 1,
+        "frequency": "monthly_day",
+        "day_of_month": 1,
+        "anchor_date": null,
+        "end_date": null,
+        "active": true,
+        "amount": -800.0,
+        "description": "Rent",
+        "notes": null,
+        "category": "Bills",
+        "category_id": 14,
+        "tags": []
+       }
+      ],
+      "skips": []
+     },
+     {
+      "id": 2,
+      "name": "Savings",
+      "starting_balance": 10000.0,
+      "transactions": [
+       {
+        "id": 2,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": 1,
+        "description": "To savings",
+        "notes": null,
+        "amount": 250.0,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-05-10",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       }
+      ],
+      "recurring": [
+       {
+        "id": 2,
+        "frequency": "monthly_day",
+        "day_of_month": 28,
+        "anchor_date": null,
+        "end_date": null,
+        "active": true,
+        "amount": 12.34,
+        "description": "Interest",
+        "notes": null,
+        "category": null,
+        "category_id": null,
+        "tags": []
+       }
+      ],
+      "skips": []
+     },
+     {
+      "id": 3,
+      "name": "Empty",
+      "starting_balance": 0.1,
+      "transactions": [],
+      "recurring": [],
+      "skips": []
+     }
+    ]
+   },
+   "expected": {
+    "cards": [
+     {
+      "id": 1,
+      "name": "Checking",
+      "month_label": "April 2026",
+      "opening_balance": 500,
+      "forecast_end": -300,
+      "actual_end": -300,
+      "forecast_high": -300,
+      "forecast_high_date": "2026-04-01",
+      "forecast_low": -300,
+      "forecast_low_date": "2026-04-01",
+      "actual_high": -300,
+      "actual_low": -300,
+      "row_count": 1,
+      "upcoming_count": 0,
+      "upcoming_net": 0,
+      "current_balance": -300
+     },
+     {
+      "id": 2,
+      "name": "Savings",
+      "month_label": "April 2026",
+      "opening_balance": 10000,
+      "forecast_end": 10012.34,
+      "actual_end": 10012.34,
+      "forecast_high": 10012.34,
+      "forecast_high_date": "2026-04-28",
+      "forecast_low": 10012.34,
+      "forecast_low_date": "2026-04-28",
+      "actual_high": 10012.34,
+      "actual_low": 10012.34,
+      "row_count": 1,
+      "upcoming_count": 1,
+      "upcoming_net": 12.34,
+      "current_balance": 10000
+     },
+     {
+      "id": 3,
+      "name": "Empty",
+      "month_label": "April 2026",
+      "opening_balance": 0.1,
+      "forecast_end": 0.1,
+      "actual_end": 0.1,
+      "forecast_high": 0.1,
+      "forecast_high_date": null,
+      "forecast_low": 0.1,
+      "forecast_low_date": null,
+      "actual_high": 0.1,
+      "actual_low": 0.1,
+      "row_count": 0,
+      "upcoming_count": 0,
+      "upcoming_net": 0,
+      "current_balance": 0.1
+     }
+    ]
+   }
+  },
+  {
+   "name": "Dashboard charts, month, on 2026-05-20",
+   "function": "dashboardCharts",
+   "input": {
+    "window": "month",
+    "today": "2026-05-20",
+    "categories": [
+     {
+      "id": 1,
+      "name": "Groceries",
+      "color": "#3fb950"
+     },
+     {
+      "id": 2,
+      "name": "Dining",
+      "color": "#f0883e"
+     },
+     {
+      "id": 3,
+      "name": "Transportation",
+      "color": "#58a6ff"
+     },
+     {
+      "id": 4,
+      "name": "Utilities",
+      "color": "#56d4dd"
+     },
+     {
+      "id": 5,
+      "name": "Rent/Mortgage",
+      "color": "#a371f7"
+     },
+     {
+      "id": 6,
+      "name": "Insurance",
+      "color": "#2ea043"
+     },
+     {
+      "id": 7,
+      "name": "Healthcare",
+      "color": "#ff7b72"
+     },
+     {
+      "id": 8,
+      "name": "Entertainment",
+      "color": "#e3b341"
+     },
+     {
+      "id": 9,
+      "name": "Shopping",
+      "color": "#db61a2"
+     },
+     {
+      "id": 10,
+      "name": "Subscriptions",
+      "color": "#7c6be6"
+     },
+     {
+      "id": 11,
+      "name": "Income",
+      "color": "#3fb950"
+     },
+     {
+      "id": 12,
+      "name": "Savings",
+      "color": "#d29922"
+     },
+     {
+      "id": 13,
+      "name": "Other",
+      "color": "#8b949e"
+     },
+     {
+      "id": 14,
+      "name": "Bills",
+      "color": "#e5534b"
+     },
+     {
+      "id": 15,
+      "name": "Food",
+      "color": null
+     }
+    ],
+    "accounts": [
+     {
+      "id": 1,
+      "name": "Checking",
+      "starting_balance": 500.0,
+      "transactions": [
+       {
+        "id": 1,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": 1,
+        "description": "To savings",
+        "notes": null,
+        "amount": -250.0,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-05-10",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 3,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "zebra",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 4,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "Apple",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 5,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "Éclair café",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 6,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "🍕 Pizza",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 7,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "apple pie",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       }
+      ],
+      "recurring": [
+       {
+        "id": 1,
+        "frequency": "monthly_day",
+        "day_of_month": 1,
+        "anchor_date": null,
+        "end_date": null,
+        "active": true,
+        "amount": -800.0,
+        "description": "Rent",
+        "notes": null,
+        "category": "Bills",
+        "category_id": 14,
+        "tags": []
+       }
+      ],
+      "skips": []
+     },
+     {
+      "id": 2,
+      "name": "Savings",
+      "starting_balance": 10000.0,
+      "transactions": [
+       {
+        "id": 2,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": 1,
+        "description": "To savings",
+        "notes": null,
+        "amount": 250.0,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-05-10",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       }
+      ],
+      "recurring": [
+       {
+        "id": 2,
+        "frequency": "monthly_day",
+        "day_of_month": 28,
+        "anchor_date": null,
+        "end_date": null,
+        "active": true,
+        "amount": 12.34,
+        "description": "Interest",
+        "notes": null,
+        "category": null,
+        "category_id": null,
+        "tags": []
+       }
+      ],
+      "skips": []
+     },
+     {
+      "id": 3,
+      "name": "Empty",
+      "starting_balance": 0.1,
+      "transactions": [],
+      "recurring": [],
+      "skips": []
+     }
+    ]
+   },
+   "expected": {
+    "window": "month",
+    "label": "May 2026",
+    "start": "2026-05-01",
+    "end": "2026-05-31",
+    "accounts": [
+     {
+      "account_id": 1,
+      "account_name": "Checking",
+      "totals": {
+       "income_actual": 0,
+       "spending_actual": 816.05,
+       "net_actual": -816.05,
+       "income_forecast": 0,
+       "spending_forecast": 816.05,
+       "net_forecast": -816.05
+      },
+      "categories": [
+       {
+        "name": "Bills",
+        "color": "#e5534b",
+        "spending_actual": 800,
+        "spending_forecast": 800
+       },
+       {
+        "name": "Food",
+        "color": null,
+        "spending_actual": 16.05,
+        "spending_forecast": 16.05
+       }
+      ],
+      "balance_trend": [
+       {
+        "date": "2026-05-01",
+        "balance": -300
+       },
+       {
+        "date": "2026-05-02",
+        "balance": -300
+       },
+       {
+        "date": "2026-05-03",
+        "balance": -300
+       },
+       {
+        "date": "2026-05-04",
+        "balance": -300
+       },
+       {
+        "date": "2026-05-05",
+        "balance": -300
+       },
+       {
+        "date": "2026-05-06",
+        "balance": -300
+       },
+       {
+        "date": "2026-05-07",
+        "balance": -300
+       },
+       {
+        "date": "2026-05-08",
+        "balance": -300
+       },
+       {
+        "date": "2026-05-09",
+        "balance": -300
+       },
+       {
+        "date": "2026-05-10",
+        "balance": -550
+       },
+       {
+        "date": "2026-05-11",
+        "balance": -550
+       },
+       {
+        "date": "2026-05-12",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-13",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-14",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-15",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-16",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-17",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-18",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-19",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-20",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-21",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-22",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-23",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-24",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-25",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-26",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-27",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-28",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-29",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-30",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-31",
+        "balance": -566.05
+       }
+      ],
+      "opening_balance": 500,
+      "forecast_end": -316.05,
+      "actual_end": -566.05
+     },
+     {
+      "account_id": 2,
+      "account_name": "Savings",
+      "totals": {
+       "income_actual": 12.34,
+       "spending_actual": 0,
+       "net_actual": 12.34,
+       "income_forecast": 12.34,
+       "spending_forecast": 0,
+       "net_forecast": 12.34
+      },
+      "categories": [],
+      "balance_trend": [
+       {
+        "date": "2026-05-01",
+        "balance": 10000
+       },
+       {
+        "date": "2026-05-02",
+        "balance": 10000
+       },
+       {
+        "date": "2026-05-03",
+        "balance": 10000
+       },
+       {
+        "date": "2026-05-04",
+        "balance": 10000
+       },
+       {
+        "date": "2026-05-05",
+        "balance": 10000
+       },
+       {
+        "date": "2026-05-06",
+        "balance": 10000
+       },
+       {
+        "date": "2026-05-07",
+        "balance": 10000
+       },
+       {
+        "date": "2026-05-08",
+        "balance": 10000
+       },
+       {
+        "date": "2026-05-09",
+        "balance": 10000
+       },
+       {
+        "date": "2026-05-10",
+        "balance": 10250
+       },
+       {
+        "date": "2026-05-11",
+        "balance": 10250
+       },
+       {
+        "date": "2026-05-12",
+        "balance": 10250
+       },
+       {
+        "date": "2026-05-13",
+        "balance": 10250
+       },
+       {
+        "date": "2026-05-14",
+        "balance": 10250
+       },
+       {
+        "date": "2026-05-15",
+        "balance": 10250
+       },
+       {
+        "date": "2026-05-16",
+        "balance": 10250
+       },
+       {
+        "date": "2026-05-17",
+        "balance": 10250
+       },
+       {
+        "date": "2026-05-18",
+        "balance": 10250
+       },
+       {
+        "date": "2026-05-19",
+        "balance": 10250
+       },
+       {
+        "date": "2026-05-20",
+        "balance": 10250
+       },
+       {
+        "date": "2026-05-21",
+        "balance": 10250
+       },
+       {
+        "date": "2026-05-22",
+        "balance": 10250
+       },
+       {
+        "date": "2026-05-23",
+        "balance": 10250
+       },
+       {
+        "date": "2026-05-24",
+        "balance": 10250
+       },
+       {
+        "date": "2026-05-25",
+        "balance": 10250
+       },
+       {
+        "date": "2026-05-26",
+        "balance": 10250
+       },
+       {
+        "date": "2026-05-27",
+        "balance": 10250
+       },
+       {
+        "date": "2026-05-28",
+        "balance": 10262.34
+       },
+       {
+        "date": "2026-05-29",
+        "balance": 10262.34
+       },
+       {
+        "date": "2026-05-30",
+        "balance": 10262.34
+       },
+       {
+        "date": "2026-05-31",
+        "balance": 10262.34
+       }
+      ],
+      "opening_balance": 10000,
+      "forecast_end": 10012.34,
+      "actual_end": 10262.34
+     },
+     {
+      "account_id": 3,
+      "account_name": "Empty",
+      "totals": {
+       "income_actual": 0,
+       "spending_actual": 0,
+       "net_actual": 0,
+       "income_forecast": 0,
+       "spending_forecast": 0,
+       "net_forecast": 0
+      },
+      "categories": [],
+      "balance_trend": [
+       {
+        "date": "2026-05-01",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-02",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-03",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-04",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-05",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-06",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-07",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-08",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-09",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-10",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-11",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-12",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-13",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-14",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-15",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-16",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-17",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-18",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-19",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-20",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-21",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-22",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-23",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-24",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-25",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-26",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-27",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-28",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-29",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-30",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-31",
+        "balance": 0.1
+       }
+      ],
+      "opening_balance": 0.1,
+      "forecast_end": 0.1,
+      "actual_end": 0.1
+     }
+    ]
+   }
+  },
+  {
+   "name": "Dashboard charts, 30d, on 2026-05-20",
+   "function": "dashboardCharts",
+   "input": {
+    "window": "30d",
+    "today": "2026-05-20",
+    "categories": [
+     {
+      "id": 1,
+      "name": "Groceries",
+      "color": "#3fb950"
+     },
+     {
+      "id": 2,
+      "name": "Dining",
+      "color": "#f0883e"
+     },
+     {
+      "id": 3,
+      "name": "Transportation",
+      "color": "#58a6ff"
+     },
+     {
+      "id": 4,
+      "name": "Utilities",
+      "color": "#56d4dd"
+     },
+     {
+      "id": 5,
+      "name": "Rent/Mortgage",
+      "color": "#a371f7"
+     },
+     {
+      "id": 6,
+      "name": "Insurance",
+      "color": "#2ea043"
+     },
+     {
+      "id": 7,
+      "name": "Healthcare",
+      "color": "#ff7b72"
+     },
+     {
+      "id": 8,
+      "name": "Entertainment",
+      "color": "#e3b341"
+     },
+     {
+      "id": 9,
+      "name": "Shopping",
+      "color": "#db61a2"
+     },
+     {
+      "id": 10,
+      "name": "Subscriptions",
+      "color": "#7c6be6"
+     },
+     {
+      "id": 11,
+      "name": "Income",
+      "color": "#3fb950"
+     },
+     {
+      "id": 12,
+      "name": "Savings",
+      "color": "#d29922"
+     },
+     {
+      "id": 13,
+      "name": "Other",
+      "color": "#8b949e"
+     },
+     {
+      "id": 14,
+      "name": "Bills",
+      "color": "#e5534b"
+     },
+     {
+      "id": 15,
+      "name": "Food",
+      "color": null
+     }
+    ],
+    "accounts": [
+     {
+      "id": 1,
+      "name": "Checking",
+      "starting_balance": 500.0,
+      "transactions": [
+       {
+        "id": 1,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": 1,
+        "description": "To savings",
+        "notes": null,
+        "amount": -250.0,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-05-10",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 3,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "zebra",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 4,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "Apple",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 5,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "Éclair café",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 6,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "🍕 Pizza",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 7,
+        "recurring_id": null,
+        "category_id": 15,
+        "category": "Food",
+        "transfer_id": null,
+        "description": "apple pie",
+        "notes": null,
+        "amount": -3.21,
+        "forecast_amount": null,
+        "forecast_date": "2026-05-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "trip",
+          "color": null
+         }
+        ]
+       }
+      ],
+      "recurring": [
+       {
+        "id": 1,
+        "frequency": "monthly_day",
+        "day_of_month": 1,
+        "anchor_date": null,
+        "end_date": null,
+        "active": true,
+        "amount": -800.0,
+        "description": "Rent",
+        "notes": null,
+        "category": "Bills",
+        "category_id": 14,
+        "tags": []
+       }
+      ],
+      "skips": []
+     },
+     {
+      "id": 2,
+      "name": "Savings",
+      "starting_balance": 10000.0,
+      "transactions": [
+       {
+        "id": 2,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": 1,
+        "description": "To savings",
+        "notes": null,
+        "amount": 250.0,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-05-10",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       }
+      ],
+      "recurring": [
+       {
+        "id": 2,
+        "frequency": "monthly_day",
+        "day_of_month": 28,
+        "anchor_date": null,
+        "end_date": null,
+        "active": true,
+        "amount": 12.34,
+        "description": "Interest",
+        "notes": null,
+        "category": null,
+        "category_id": null,
+        "tags": []
+       }
+      ],
+      "skips": []
+     },
+     {
+      "id": 3,
+      "name": "Empty",
+      "starting_balance": 0.1,
+      "transactions": [],
+      "recurring": [],
+      "skips": []
+     }
+    ]
+   },
+   "expected": {
+    "window": "30d",
+    "label": "Last 30 days",
+    "start": "2026-04-21",
+    "end": "2026-05-20",
+    "accounts": [
+     {
+      "account_id": 1,
+      "account_name": "Checking",
+      "totals": {
+       "income_actual": 0,
+       "spending_actual": 816.05,
+       "net_actual": -816.05,
+       "income_forecast": 0,
+       "spending_forecast": 816.05,
+       "net_forecast": -816.05
+      },
+      "categories": [
+       {
+        "name": "Bills",
+        "color": "#e5534b",
+        "spending_actual": 800,
+        "spending_forecast": 800
+       },
+       {
+        "name": "Food",
+        "color": null,
+        "spending_actual": 16.05,
+        "spending_forecast": 16.05
+       }
+      ],
+      "balance_trend": [
+       {
+        "date": "2026-04-21",
+        "balance": 500
+       },
+       {
+        "date": "2026-04-22",
+        "balance": 500
+       },
+       {
+        "date": "2026-04-23",
+        "balance": 500
+       },
+       {
+        "date": "2026-04-24",
+        "balance": 500
+       },
+       {
+        "date": "2026-04-25",
+        "balance": 500
+       },
+       {
+        "date": "2026-04-26",
+        "balance": 500
+       },
+       {
+        "date": "2026-04-27",
+        "balance": 500
+       },
+       {
+        "date": "2026-04-28",
+        "balance": 500
+       },
+       {
+        "date": "2026-04-29",
+        "balance": 500
+       },
+       {
+        "date": "2026-04-30",
+        "balance": 500
+       },
+       {
+        "date": "2026-05-01",
+        "balance": -300
+       },
+       {
+        "date": "2026-05-02",
+        "balance": -300
+       },
+       {
+        "date": "2026-05-03",
+        "balance": -300
+       },
+       {
+        "date": "2026-05-04",
+        "balance": -300
+       },
+       {
+        "date": "2026-05-05",
+        "balance": -300
+       },
+       {
+        "date": "2026-05-06",
+        "balance": -300
+       },
+       {
+        "date": "2026-05-07",
+        "balance": -300
+       },
+       {
+        "date": "2026-05-08",
+        "balance": -300
+       },
+       {
+        "date": "2026-05-09",
+        "balance": -300
+       },
+       {
+        "date": "2026-05-10",
+        "balance": -550
+       },
+       {
+        "date": "2026-05-11",
+        "balance": -550
+       },
+       {
+        "date": "2026-05-12",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-13",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-14",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-15",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-16",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-17",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-18",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-19",
+        "balance": -566.05
+       },
+       {
+        "date": "2026-05-20",
+        "balance": -566.05
+       }
+      ],
+      "opening_balance": 500,
+      "forecast_end": -316.05,
+      "actual_end": -566.05
+     },
+     {
+      "account_id": 2,
+      "account_name": "Savings",
+      "totals": {
+       "income_actual": 12.34,
+       "spending_actual": 0,
+       "net_actual": 12.34,
+       "income_forecast": 12.34,
+       "spending_forecast": 0,
+       "net_forecast": 12.34
+      },
+      "categories": [],
+      "balance_trend": [
+       {
+        "date": "2026-04-21",
+        "balance": 10000
+       },
+       {
+        "date": "2026-04-22",
+        "balance": 10000
+       },
+       {
+        "date": "2026-04-23",
+        "balance": 10000
+       },
+       {
+        "date": "2026-04-24",
+        "balance": 10000
+       },
+       {
+        "date": "2026-04-25",
+        "balance": 10000
+       },
+       {
+        "date": "2026-04-26",
+        "balance": 10000
+       },
+       {
+        "date": "2026-04-27",
+        "balance": 10000
+       },
+       {
+        "date": "2026-04-28",
+        "balance": 10012.34
+       },
+       {
+        "date": "2026-04-29",
+        "balance": 10012.34
+       },
+       {
+        "date": "2026-04-30",
+        "balance": 10012.34
+       },
+       {
+        "date": "2026-05-01",
+        "balance": 10012.34
+       },
+       {
+        "date": "2026-05-02",
+        "balance": 10012.34
+       },
+       {
+        "date": "2026-05-03",
+        "balance": 10012.34
+       },
+       {
+        "date": "2026-05-04",
+        "balance": 10012.34
+       },
+       {
+        "date": "2026-05-05",
+        "balance": 10012.34
+       },
+       {
+        "date": "2026-05-06",
+        "balance": 10012.34
+       },
+       {
+        "date": "2026-05-07",
+        "balance": 10012.34
+       },
+       {
+        "date": "2026-05-08",
+        "balance": 10012.34
+       },
+       {
+        "date": "2026-05-09",
+        "balance": 10012.34
+       },
+       {
+        "date": "2026-05-10",
+        "balance": 10262.34
+       },
+       {
+        "date": "2026-05-11",
+        "balance": 10262.34
+       },
+       {
+        "date": "2026-05-12",
+        "balance": 10262.34
+       },
+       {
+        "date": "2026-05-13",
+        "balance": 10262.34
+       },
+       {
+        "date": "2026-05-14",
+        "balance": 10262.34
+       },
+       {
+        "date": "2026-05-15",
+        "balance": 10262.34
+       },
+       {
+        "date": "2026-05-16",
+        "balance": 10262.34
+       },
+       {
+        "date": "2026-05-17",
+        "balance": 10262.34
+       },
+       {
+        "date": "2026-05-18",
+        "balance": 10262.34
+       },
+       {
+        "date": "2026-05-19",
+        "balance": 10262.34
+       },
+       {
+        "date": "2026-05-20",
+        "balance": 10262.34
+       }
+      ],
+      "opening_balance": 10000,
+      "forecast_end": 10012.34,
+      "actual_end": 10262.34
+     },
+     {
+      "account_id": 3,
+      "account_name": "Empty",
+      "totals": {
+       "income_actual": 0,
+       "spending_actual": 0,
+       "net_actual": 0,
+       "income_forecast": 0,
+       "spending_forecast": 0,
+       "net_forecast": 0
+      },
+      "categories": [],
+      "balance_trend": [
+       {
+        "date": "2026-04-21",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-04-22",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-04-23",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-04-24",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-04-25",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-04-26",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-04-27",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-04-28",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-04-29",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-04-30",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-01",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-02",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-03",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-04",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-05",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-06",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-07",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-08",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-09",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-10",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-11",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-12",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-13",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-14",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-15",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-16",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-17",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-18",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-19",
+        "balance": 0.1
+       },
+       {
+        "date": "2026-05-20",
+        "balance": 0.1
+       }
+      ],
+      "opening_balance": 0.1,
+      "forecast_end": 0.1,
+      "actual_end": 0.1
+     }
+    ]
    }
   }
  ]

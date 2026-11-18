@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.81.0"
+APP_VERSION = "1.82.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -610,7 +610,8 @@ from .db import (
 from . import twofactor
 from . import simplefin
 from . import mailbox, alerts
-from .forecast import build_forecast, actual_balance_as_of, upcoming_dates, _occurrences
+from . import jscore
+from .forecast import build_forecast, actual_balance_as_of, upcoming_dates, _occurrences, account_rows
 from .backup import (export_user, import_user, seal, unwrap, passphrase_problem,
                      BackupLocked, SEALED_MARKER)
 
@@ -6116,102 +6117,22 @@ def dashboard(today: date | None = None,
       - actual low (min of actual_balance) — no date per spec
       - opening / forecast_end / actual_end balances
       - current_balance: today's actual balance, as the Forecast page shows it
-    `today` is the viewer's date (see _viewer_today).
+    `today` is the viewer's date (see _viewer_today). Worked out by the
+    shared core (`dashboard` in packages/core, #233).
     """
     today = _viewer_today(today)
-    # First and last day of current month
-    start = date(today.year, today.month, 1)
-    if today.month == 12:
-        end = date(today.year, 12, 31)
-    else:
-        end = date(today.year, today.month + 1, 1) - timedelta(days=1)
-    today_iso = today.isoformat()
-
-    def _upcoming(rows: list[dict]) -> tuple[int, float]:
-        """Count and net amount of not-yet-cleared rows from today through
-        month end — the "what's still coming up" figure for the rest-of-
-        month dashboard widget."""
-        count = 0
-        net = 0.0
-        for r in rows:
-            if r["is_actual_real"]:
-                continue
-            ref = r["forecast_date"] or r["actual_date"]
-            if ref and ref >= today_iso:
-                count += 1
-                net += r["forecast_amount"] or 0.0
-        return count, net
-
-    cards = []
-    for acc in _user_visible_accounts(db, user):
-        data = build_forecast(db, acc, start, end)
-        rows = data["rows"]
-        upcoming_count, upcoming_net = _upcoming(rows)
-        current = round(_current_balance(db, acc, today), 2)
-
-        # Defaults: if there are no rows in this month, treat the opening
-        # balance as the only "value" we know about for high/low purposes.
-        if not rows:
-            cards.append({
-                "id": acc.id,
-                "name": acc.name,
-                "month_label": start.strftime("%B %Y"),
-                "opening_balance": data["opening_balance"],
-                "forecast_end": data["forecast_ending_balance"],
-                "actual_end": data["actual_ending_balance"],
-                "forecast_high": data["opening_balance"],
-                "forecast_high_date": None,
-                "forecast_low": data["opening_balance"],
-                "forecast_low_date": None,
-                "actual_high": data["opening_balance"],
-                "actual_low": data["opening_balance"],
-                "row_count": 0,
-                "upcoming_count": upcoming_count,
-                "upcoming_net": round(upcoming_net, 2),
-                "current_balance": current,
-            })
-            continue
-
-        # Walk rows once to find min/max of both balances and the dates of
-        # the forecast extremes (we don't need actual extreme dates).
-        f_high = f_low = rows[0]["forecast_balance"]
-        f_high_date = f_low_date = rows[0]["forecast_date"]
-        a_high = a_low = rows[0]["actual_balance"]
-        for r in rows:
-            if r["forecast_balance"] > f_high:
-                f_high = r["forecast_balance"]
-                f_high_date = r["forecast_date"]
-            if r["forecast_balance"] < f_low:
-                f_low = r["forecast_balance"]
-                f_low_date = r["forecast_date"]
-            if r["actual_balance"] > a_high:
-                a_high = r["actual_balance"]
-            if r["actual_balance"] < a_low:
-                a_low = r["actual_balance"]
-
-        cards.append({
-            "id": acc.id,
-            "name": acc.name,
-            "month_label": start.strftime("%B %Y"),
-            "opening_balance": data["opening_balance"],
-            "forecast_end": data["forecast_ending_balance"],
-            "actual_end": data["actual_ending_balance"],
-            "forecast_high": f_high,
-            "forecast_high_date": f_high_date,
-            "forecast_low": f_low,
-            "forecast_low_date": f_low_date,
-            "actual_high": a_high,
-            "actual_low": a_low,
-            "row_count": len(rows),
-            "upcoming_count": upcoming_count,
-            "upcoming_net": round(upcoming_net, 2),
-            "current_balance": current,
-        })
-
-    return {"cards": cards}
+    start, end, _label = _resolve_dashboard_window("month", today)
+    return jscore.run("dashboard", {"today": today.isoformat(),
+                                    "accounts": account_rows(db, _user_visible_accounts(db, user), start, end)})
 
 
 ALLOWED_DASHBOARD_WINDOWS = {"month", "30d", "90d"}
+
+
+def _category_rows(db: Session, user: User) -> list[dict]:
+    """The caller's categories as the shared core takes them."""
+    return [{"id": c.id, "name": c.name, "color": c.color}
+            for c in db.query(Category).filter_by(owner_id=user.id).order_by(Category.id)]
 
 
 def _resolve_dashboard_window(window: str,
@@ -6251,106 +6172,14 @@ def dashboard_charts(window: str = "month", today: date | None = None,
     if window not in ALLOWED_DASHBOARD_WINDOWS:
         raise HTTPException(400, f"window must be one of {sorted(ALLOWED_DASHBOARD_WINDOWS)}")
 
-    start, end, label = _resolve_dashboard_window(window, _viewer_today(today))
-
-    # Category color lookup is per user, not per account.
-    cat_colors: dict[str, str | None] = {}
-    for c in db.query(Category).filter_by(owner_id=user.id).all():
-        cat_colors[c.name] = c.color
-
-    UNCAT = "(uncategorized)"
-    accounts_out = []
-
-    for acc in _user_visible_accounts(db, user):
-        data = build_forecast(db, acc, start, end)
-        rows = data["rows"]
-
-        # --- Category spend buckets (magnitude, positive) ---------------------
-        buckets: dict[str, dict] = {}
-        f_income = 0.0
-        a_income = 0.0
-        f_spend = 0.0   # negative
-        a_spend = 0.0   # negative
-        for r in rows:
-            # Skip transfer legs — they're internal money movement, not spend
-            # or income, and counting them would double-book on a per-account
-            # donut and make the totals tile lie.
-            if r.get("transfer_id") is not None:
-                continue
-            cat = r.get("category") or UNCAT
-            f = r.get("forecast_amount")
-            a = r.get("actual_amount")
-            if f is not None:
-                if f > 0:
-                    f_income += f
-                elif f < 0:
-                    f_spend += f
-                    buckets.setdefault(cat, {"spending_actual": 0.0, "spending_forecast": 0.0})
-                    buckets[cat]["spending_forecast"] += -f
-            if a is not None:
-                if a > 0:
-                    a_income += a
-                elif a < 0:
-                    a_spend += a
-                    buckets.setdefault(cat, {"spending_actual": 0.0, "spending_forecast": 0.0})
-                    buckets[cat]["spending_actual"] += -a
-
-        # Sort categories by actual spending desc (falling back to forecast) and
-        # drop any that have zero in both columns.
-        cats = [
-            {"name": n, "color": cat_colors.get(n),
-             "spending_actual": round(b["spending_actual"], 2),
-             "spending_forecast": round(b["spending_forecast"], 2)}
-            for n, b in buckets.items()
-            if b["spending_actual"] > 0 or b["spending_forecast"] > 0
-        ]
-        cats.sort(key=lambda x: (x["spending_actual"], x["spending_forecast"]), reverse=True)
-
-        # --- Daily balance trend ---------------------------------------------
-        # Walk each day in the window, carrying the last-known actual_balance
-        # forward. We take the LAST row on each day (events are already sorted
-        # by anchor_date).
-        day_to_balance: dict[str, float] = {}
-        for r in rows:
-            d = r.get("actual_date") or r.get("forecast_date")
-            if d:
-                day_to_balance[d] = r["actual_balance"]
-
-        trend = []
-        running = data["opening_balance"]
-        d = start
-        while d <= end:
-            key = d.isoformat()
-            if key in day_to_balance:
-                running = day_to_balance[key]
-            trend.append({"date": key, "balance": round(running, 2)})
-            d += timedelta(days=1)
-
-        accounts_out.append({
-            "account_id": acc.id,
-            "account_name": acc.name,
-            "totals": {
-                "income_actual": round(a_income, 2),
-                "spending_actual": round(-a_spend, 2),     # magnitude
-                "net_actual": round(a_income + a_spend, 2),
-                "income_forecast": round(f_income, 2),
-                "spending_forecast": round(-f_spend, 2),   # magnitude
-                "net_forecast": round(f_income + f_spend, 2),
-            },
-            "categories": cats,
-            "balance_trend": trend,
-            "opening_balance": round(data["opening_balance"], 2),
-            "forecast_end": round(data["forecast_ending_balance"], 2),
-            "actual_end": round(data["actual_ending_balance"], 2),
-        })
-
-    return {
-        "window": window,
-        "label": label,
-        "start": start.isoformat(),
-        "end": end.isoformat(),
-        "accounts": accounts_out,
-    }
+    # Worked out by the shared core (`dashboardCharts` in packages/core, #233).
+    today = _viewer_today(today)
+    start, end, _label = _resolve_dashboard_window(window, today)
+    return jscore.run("dashboardCharts", {
+        "window": window, "today": today.isoformat(),
+        "categories": _category_rows(db, user),
+        "accounts": account_rows(db, _user_visible_accounts(db, user), start, end),
+    })
 
 
 # ---------- Account transfers ----------
@@ -7663,70 +7492,13 @@ def calendar_events(start: date, end: date,
         if not visible:
             raise HTTPException(404, "Account not found")
 
-    # Per-user category color lookup (forecast rows only carry name).
-    cat_meta: dict[str, dict] = {}
-    for c in db.query(Category).filter_by(owner_id=user.id).all():
-        cat_meta[c.name] = {"id": c.id, "color": c.color}
-
-    events: list[dict] = []
-    # Running balance per day, only computed in single-account mode ("the
-    # account being viewed") — there's no one meaningful balance to show
-    # across multiple accounts. Same carry-forward walk as dashboard_charts/
-    # net_worth: take the last row's actual_balance on each day, carrying it
-    # forward across days with no events.
-    daily_balances: dict[str, float] | None = {} if account_id is not None else None
-    for acc in visible:
-        data = build_forecast(db, acc, start, end)
-        if daily_balances is not None:
-            day_to_balance: dict[str, float] = {}
-            for r in data["rows"]:
-                d_key = r.get("actual_date") or r.get("forecast_date")
-                if d_key:
-                    day_to_balance[d_key] = r["actual_balance"]
-            running = data["opening_balance"]
-            day = start
-            while day <= end:
-                key = day.isoformat()
-                if key in day_to_balance:
-                    running = day_to_balance[key]
-                daily_balances[key] = round(running, 2)
-                day += timedelta(days=1)
-        for r in data["rows"]:
-            d = r.get("forecast_date") or r.get("actual_date")
-            if not d:
-                continue
-            cat_name = r.get("category")
-            meta = cat_meta.get(cat_name) if cat_name else None
-            events.append({
-                "date": d,
-                "account_id": acc.id,
-                "account_name": acc.name,
-                "description": r.get("description") or "",
-                "amount": r.get("actual_amount")
-                          if r.get("actual_amount") is not None
-                          else r.get("forecast_amount"),
-                "forecast_amount": r.get("forecast_amount"),
-                "actual_amount": r.get("actual_amount"),
-                "category_id": meta["id"] if meta else None,
-                "category_name": cat_name,
-                "category_color": meta["color"] if meta else None,
-                "tags": r.get("tags") or [],
-                "recurring_id": r.get("recurring_id"),
-                "transaction_id": r.get("transaction_id"),
-                "transfer_id": r.get("transfer_id"),
-                "is_actual_real": r.get("is_actual_real", False),
-                "notes": r.get("notes"),
-            })
-
-    # Sort by date then by account name for a stable render — the UI does
-    # its own per-day sort, but a deterministic server order helps caching.
-    events.sort(key=lambda e: (e["date"], e["account_name"], e["description"].lower()))
-    return {
-        "start": start.isoformat(),
-        "end": end.isoformat(),
-        "events": events,
-        "daily_balances": daily_balances,
-    }
+    # Worked out by the shared core (`calendar` in packages/core, #233).
+    return jscore.run("calendar", {
+        "start": start.isoformat(), "end": end.isoformat(),
+        "single_account": account_id is not None,
+        "categories": _category_rows(db, user),
+        "accounts": account_rows(db, visible, start, end),
+    })
 
 
 # ---------- Permissions ----------

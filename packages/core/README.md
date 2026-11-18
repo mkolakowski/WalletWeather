@@ -9,10 +9,16 @@ tracking issue #240).
 | `walletweather-core.js` | The core: one classic script, no dependencies and no build step, defining `WalletWeatherCore`. Hosts call `WalletWeatherCore.run(name, json)` with a JSON string in and a JSON string out. |
 | `answer-key/` | Cases written by today's server code: the rows the core is given and the JSON the server answered. The core must match every one exactly. |
 
-What it works out so far: `forecast` (an account's Forecast page),
+What it works out: `forecast` (an account's Forecast page),
 `actualBalanceAsOf` (the Actual bal column on a day), `upcomingDates` (a
-bill's next dates) and `calendar` (the Calendar page). Each function's input
-is described above it in the source.
+bill's next dates), `occurrences` (a bill's dates in a window), `calendar`
+(the Calendar page), `dashboard` (the Dashboard's cards) and
+`dashboardCharts` (its charts). Each function's input is described above it
+in the source.
+
+**Who runs it.** The server, since 1.82.0: `apps/server/app/forecast.py`
+reads the rows and `apps/server/app/jscore.py` runs the core in quickjs-ng.
+The iPhone app from phase 3 of the plan, in JavaScriptCore.
 
 **Checking it.** The server's tests run the core in quickjs-ng over every
 case, and check that the cases still match what the server answers:

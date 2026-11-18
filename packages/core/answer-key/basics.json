@@ -28,14 +28,14 @@
       "bank_left": false,
       "tags": [
        {
-        "id": 3,
-        "name": "zeta",
-        "color": "#aaaaaa"
-       },
-       {
         "id": 1,
         "name": "home",
         "color": "#58a6ff"
+       },
+       {
+        "id": 3,
+        "name": "zeta",
+        "color": "#aaaaaa"
        }
       ]
      },
@@ -294,12 +294,12 @@
       "day_of_month": 1,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -1500.0,
       "description": "Rent",
       "notes": null,
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": [
        {
         "id": 1,
@@ -319,12 +319,12 @@
       "day_of_month": null,
       "anchor_date": "2026-01-09",
       "end_date": null,
+      "active": true,
       "amount": 2000.0,
       "description": "Paycheck",
       "notes": null,
       "category": "Income",
       "category_id": 15,
-      "active": true,
       "tags": []
      },
      {
@@ -333,12 +333,12 @@
       "day_of_month": 31,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -65.43,
       "description": "Phone",
       "notes": "family plan",
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": []
      },
      {
@@ -347,12 +347,12 @@
       "day_of_month": null,
       "anchor_date": "2026-02-03",
       "end_date": "2026-04-15",
+      "active": true,
       "amount": -12.5,
       "description": "Gym",
       "notes": null,
       "category": "Fun",
       "category_id": 16,
-      "active": true,
       "tags": []
      },
      {
@@ -361,12 +361,12 @@
       "day_of_month": 15,
       "anchor_date": "2026-03-10",
       "end_date": null,
+      "active": true,
       "amount": -120.1,
       "description": "Insurance",
       "notes": null,
       "category": null,
       "category_id": null,
-      "active": true,
       "tags": []
      }
     ],
@@ -382,7 +382,7 @@
     ]
    },
    "expected": {
-    "opening_balance": 1000.0,
+    "opening_balance": 1000,
     "forecast_ending_balance": -565.4300000000001,
     "actual_ending_balance": -565.4300000000001,
     "rows": [
@@ -393,12 +393,12 @@
       "category": "Bills",
       "category_id": 14,
       "notes": null,
-      "forecast_amount": -1500.0,
-      "forecast_balance": -500.0,
-      "actual_amount": -1500.0,
-      "actual_balance": -500.0,
-      "diff_amount": 0.0,
-      "diff_balance": 0.0,
+      "forecast_amount": -1500,
+      "forecast_balance": -500,
+      "actual_amount": -1500,
+      "actual_balance": -500,
+      "diff_amount": 0,
+      "diff_balance": 0,
       "is_actual_real": false,
       "recurring_id": 1,
       "transaction_id": null,
@@ -430,8 +430,8 @@
       "forecast_balance": -565.4300000000001,
       "actual_amount": -65.43,
       "actual_balance": -565.4300000000001,
-      "diff_amount": 0.0,
-      "diff_balance": 0.0,
+      "diff_amount": 0,
+      "diff_balance": 0,
       "is_actual_real": false,
       "recurring_id": 3,
       "transaction_id": null,
@@ -471,14 +471,14 @@
       "bank_left": false,
       "tags": [
        {
-        "id": 3,
-        "name": "zeta",
-        "color": "#aaaaaa"
-       },
-       {
         "id": 1,
         "name": "home",
         "color": "#58a6ff"
+       },
+       {
+        "id": 3,
+        "name": "zeta",
+        "color": "#aaaaaa"
        }
       ]
      },
@@ -737,12 +737,12 @@
       "day_of_month": 1,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -1500.0,
       "description": "Rent",
       "notes": null,
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": [
        {
         "id": 1,
@@ -762,12 +762,12 @@
       "day_of_month": null,
       "anchor_date": "2026-01-09",
       "end_date": null,
+      "active": true,
       "amount": 2000.0,
       "description": "Paycheck",
       "notes": null,
       "category": "Income",
       "category_id": 15,
-      "active": true,
       "tags": []
      },
      {
@@ -776,12 +776,12 @@
       "day_of_month": 31,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -65.43,
       "description": "Phone",
       "notes": "family plan",
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": []
      },
      {
@@ -790,12 +790,12 @@
       "day_of_month": null,
       "anchor_date": "2026-02-03",
       "end_date": "2026-04-15",
+      "active": true,
       "amount": -12.5,
       "description": "Gym",
       "notes": null,
       "category": "Fun",
       "category_id": 16,
-      "active": true,
       "tags": []
      },
      {
@@ -804,12 +804,12 @@
       "day_of_month": 15,
       "anchor_date": "2026-03-10",
       "end_date": null,
+      "active": true,
       "amount": -120.1,
       "description": "Insurance",
       "notes": null,
       "category": null,
       "category_id": null,
-      "active": true,
       "tags": []
      }
     ],
@@ -825,7 +825,7 @@
     ]
    },
    "expected": {
-    "opening_balance": 1000.0,
+    "opening_balance": 1000,
     "forecast_ending_balance": 3434.57,
     "actual_ending_balance": 3429.82,
     "rows": [
@@ -836,12 +836,12 @@
       "category": "Bills",
       "category_id": 14,
       "notes": null,
-      "forecast_amount": -1500.0,
-      "forecast_balance": -500.0,
-      "actual_amount": -1500.0,
-      "actual_balance": -500.0,
-      "diff_amount": 0.0,
-      "diff_balance": 0.0,
+      "forecast_amount": -1500,
+      "forecast_balance": -500,
+      "actual_amount": -1500,
+      "actual_balance": -500,
+      "diff_amount": 0,
+      "diff_balance": 0,
       "is_actual_real": false,
       "recurring_id": 1,
       "transaction_id": null,
@@ -870,7 +870,7 @@
       "category_id": 16,
       "notes": null,
       "forecast_amount": null,
-      "forecast_balance": -500.0,
+      "forecast_balance": -500,
       "actual_amount": -4.75,
       "actual_balance": -504.75,
       "diff_amount": null,
@@ -902,11 +902,11 @@
       "category": "Income",
       "category_id": 15,
       "notes": null,
-      "forecast_amount": 2000.0,
-      "forecast_balance": 1500.0,
-      "actual_amount": 2000.0,
+      "forecast_amount": 2000,
+      "forecast_balance": 1500,
+      "actual_amount": 2000,
       "actual_balance": 1495.25,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -4.75,
       "is_actual_real": false,
       "recurring_id": 2,
@@ -924,11 +924,11 @@
       "category": "Income",
       "category_id": 15,
       "notes": null,
-      "forecast_amount": 2000.0,
-      "forecast_balance": 3500.0,
-      "actual_amount": 2000.0,
+      "forecast_amount": 2000,
+      "forecast_balance": 3500,
+      "actual_amount": 2000,
       "actual_balance": 3495.25,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -4.75,
       "is_actual_real": false,
       "recurring_id": 2,
@@ -950,7 +950,7 @@
       "forecast_balance": 3434.57,
       "actual_amount": -65.43,
       "actual_balance": 3429.82,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -4.75,
       "is_actual_real": false,
       "recurring_id": 3,
@@ -991,14 +991,14 @@
       "bank_left": false,
       "tags": [
        {
-        "id": 3,
-        "name": "zeta",
-        "color": "#aaaaaa"
-       },
-       {
         "id": 1,
         "name": "home",
         "color": "#58a6ff"
+       },
+       {
+        "id": 3,
+        "name": "zeta",
+        "color": "#aaaaaa"
        }
       ]
      },
@@ -1257,12 +1257,12 @@
       "day_of_month": 1,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -1500.0,
       "description": "Rent",
       "notes": null,
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": [
        {
         "id": 1,
@@ -1282,12 +1282,12 @@
       "day_of_month": null,
       "anchor_date": "2026-01-09",
       "end_date": null,
+      "active": true,
       "amount": 2000.0,
       "description": "Paycheck",
       "notes": null,
       "category": "Income",
       "category_id": 15,
-      "active": true,
       "tags": []
      },
      {
@@ -1296,12 +1296,12 @@
       "day_of_month": 31,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -65.43,
       "description": "Phone",
       "notes": "family plan",
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": []
      },
      {
@@ -1310,12 +1310,12 @@
       "day_of_month": null,
       "anchor_date": "2026-02-03",
       "end_date": "2026-04-15",
+      "active": true,
       "amount": -12.5,
       "description": "Gym",
       "notes": null,
       "category": "Fun",
       "category_id": 16,
-      "active": true,
       "tags": []
      },
      {
@@ -1324,12 +1324,12 @@
       "day_of_month": 15,
       "anchor_date": "2026-03-10",
       "end_date": null,
+      "active": true,
       "amount": -120.1,
       "description": "Insurance",
       "notes": null,
       "category": null,
       "category_id": null,
-      "active": true,
       "tags": []
      }
     ],
@@ -1356,12 +1356,12 @@
       "category": "Bills",
       "category_id": 14,
       "notes": null,
-      "forecast_amount": -1500.0,
+      "forecast_amount": -1500,
       "forecast_balance": -504.75,
-      "actual_amount": -1500.0,
+      "actual_amount": -1500,
       "actual_balance": -504.75,
-      "diff_amount": 0.0,
-      "diff_balance": 0.0,
+      "diff_amount": 0,
+      "diff_balance": 0,
       "is_actual_real": true,
       "recurring_id": 1,
       "transaction_id": 2,
@@ -1382,8 +1382,8 @@
       "forecast_balance": -517.25,
       "actual_amount": -12.5,
       "actual_balance": -517.25,
-      "diff_amount": 0.0,
-      "diff_balance": 0.0,
+      "diff_amount": 0,
+      "diff_balance": 0,
       "is_actual_real": false,
       "recurring_id": 4,
       "transaction_id": null,
@@ -1400,12 +1400,12 @@
       "category": "Income",
       "category_id": 15,
       "notes": null,
-      "forecast_amount": 2000.0,
+      "forecast_amount": 2000,
       "forecast_balance": 1482.75,
-      "actual_amount": 2000.0,
+      "actual_amount": 2000,
       "actual_balance": 1482.75,
-      "diff_amount": 0.0,
-      "diff_balance": 0.0,
+      "diff_amount": 0,
+      "diff_balance": 0,
       "is_actual_real": false,
       "recurring_id": 2,
       "transaction_id": null,
@@ -1448,7 +1448,7 @@
       "forecast_balance": 1470.25,
       "actual_amount": -12.5,
       "actual_balance": 1470.35,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": 0.09999999999990905,
       "is_actual_real": false,
       "recurring_id": 4,
@@ -1490,7 +1490,7 @@
       "notes": null,
       "forecast_amount": null,
       "forecast_balance": 1470.25,
-      "actual_amount": -5.0,
+      "actual_amount": -5,
       "actual_balance": 1465.55,
       "diff_amount": null,
       "diff_balance": -4.7000000000000455,
@@ -1532,11 +1532,11 @@
       "category": "Income",
       "category_id": 15,
       "notes": null,
-      "forecast_amount": 2000.0,
+      "forecast_amount": 2000,
       "forecast_balance": 3470.25,
-      "actual_amount": 2000.0,
+      "actual_amount": 2000,
       "actual_balance": 3423.38,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -46.86999999999989,
       "is_actual_real": false,
       "recurring_id": 2,
@@ -1558,7 +1558,7 @@
       "forecast_balance": 3457.75,
       "actual_amount": -12.5,
       "actual_balance": 3410.88,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -46.86999999999989,
       "is_actual_real": false,
       "recurring_id": 4,
@@ -1621,14 +1621,14 @@
       "bank_left": false,
       "tags": [
        {
-        "id": 3,
-        "name": "zeta",
-        "color": "#aaaaaa"
-       },
-       {
         "id": 1,
         "name": "home",
         "color": "#58a6ff"
+       },
+       {
+        "id": 3,
+        "name": "zeta",
+        "color": "#aaaaaa"
        }
       ]
      },
@@ -1887,12 +1887,12 @@
       "day_of_month": 1,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -1500.0,
       "description": "Rent",
       "notes": null,
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": [
        {
         "id": 1,
@@ -1912,12 +1912,12 @@
       "day_of_month": null,
       "anchor_date": "2026-01-09",
       "end_date": null,
+      "active": true,
       "amount": 2000.0,
       "description": "Paycheck",
       "notes": null,
       "category": "Income",
       "category_id": 15,
-      "active": true,
       "tags": []
      },
      {
@@ -1926,12 +1926,12 @@
       "day_of_month": 31,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -65.43,
       "description": "Phone",
       "notes": "family plan",
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": []
      },
      {
@@ -1940,12 +1940,12 @@
       "day_of_month": null,
       "anchor_date": "2026-02-03",
       "end_date": "2026-04-15",
+      "active": true,
       "amount": -12.5,
       "description": "Gym",
       "notes": null,
       "category": "Fun",
       "category_id": 16,
-      "active": true,
       "tags": []
      },
      {
@@ -1954,12 +1954,12 @@
       "day_of_month": 15,
       "anchor_date": "2026-03-10",
       "end_date": null,
+      "active": true,
       "amount": -120.1,
       "description": "Insurance",
       "notes": null,
       "category": null,
       "category_id": null,
-      "active": true,
       "tags": []
      }
     ],
@@ -2008,11 +2008,11 @@
       "category": "Bills",
       "category_id": 14,
       "notes": null,
-      "forecast_amount": -1500.0,
+      "forecast_amount": -1500,
       "forecast_balance": -2107.045,
-      "actual_amount": -1500.0,
+      "actual_amount": -1500,
       "actual_balance": -2041.615,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": 65.43000000000006,
       "is_actual_real": true,
       "recurring_id": 1,
@@ -2034,7 +2034,7 @@
       "forecast_balance": -2119.545,
       "actual_amount": -12.5,
       "actual_balance": -2124.125,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -4.579999999999927,
       "is_actual_real": false,
       "recurring_id": 4,
@@ -2052,11 +2052,11 @@
       "category": null,
       "category_id": null,
       "notes": null,
-      "forecast_amount": 0.0,
+      "forecast_amount": 0,
       "forecast_balance": -2119.545,
-      "actual_amount": 25.0,
+      "actual_amount": 25,
       "actual_balance": -2099.125,
-      "diff_amount": 25.0,
+      "diff_amount": 25,
       "diff_balance": 20.420000000000073,
       "is_actual_real": true,
       "recurring_id": null,
@@ -2078,7 +2078,7 @@
       "forecast_balance": -2132.045,
       "actual_amount": -12.5,
       "actual_balance": -2111.625,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": 20.420000000000073,
       "is_actual_real": false,
       "recurring_id": 4,
@@ -2096,11 +2096,11 @@
       "category": null,
       "category_id": null,
       "notes": "estimate",
-      "forecast_amount": -300.0,
+      "forecast_amount": -300,
       "forecast_balance": -2432.045,
-      "actual_amount": -300.0,
+      "actual_amount": -300,
       "actual_balance": -2411.625,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": 20.420000000000073,
       "is_actual_real": false,
       "recurring_id": null,
@@ -2122,7 +2122,7 @@
       "forecast_balance": -2552.145,
       "actual_amount": -120.1,
       "actual_balance": -2531.725,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": 20.420000000000073,
       "is_actual_real": false,
       "recurring_id": 5,
@@ -2144,7 +2144,7 @@
       "forecast_balance": -2564.645,
       "actual_amount": -12.5,
       "actual_balance": -2544.225,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": 20.420000000000073,
       "is_actual_real": false,
       "recurring_id": 4,
@@ -2164,7 +2164,7 @@
       "notes": null,
       "forecast_amount": null,
       "forecast_balance": -2564.645,
-      "actual_amount": -8.0,
+      "actual_amount": -8,
       "actual_balance": -2552.225,
       "diff_amount": null,
       "diff_balance": 12.420000000000073,
@@ -2184,11 +2184,11 @@
       "category": "Income",
       "category_id": 15,
       "notes": null,
-      "forecast_amount": 2000.0,
+      "forecast_amount": 2000,
       "forecast_balance": -564.645,
-      "actual_amount": 2000.0,
+      "actual_amount": 2000,
       "actual_balance": -552.2249999999999,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": 12.420000000000073,
       "is_actual_real": false,
       "recurring_id": 2,
@@ -2210,7 +2210,7 @@
       "forecast_balance": -577.145,
       "actual_amount": -12.5,
       "actual_balance": -624.7149999999999,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -47.569999999999936,
       "is_actual_real": false,
       "recurring_id": 4,
@@ -2254,7 +2254,7 @@
       "forecast_balance": -589.645,
       "actual_amount": -12.5,
       "actual_balance": -637.2149999999999,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -47.569999999999936,
       "is_actual_real": false,
       "recurring_id": 4,
@@ -2295,14 +2295,14 @@
       "bank_left": false,
       "tags": [
        {
-        "id": 3,
-        "name": "zeta",
-        "color": "#aaaaaa"
-       },
-       {
         "id": 1,
         "name": "home",
         "color": "#58a6ff"
+       },
+       {
+        "id": 3,
+        "name": "zeta",
+        "color": "#aaaaaa"
        }
       ]
      },
@@ -2561,12 +2561,12 @@
       "day_of_month": 1,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -1500.0,
       "description": "Rent",
       "notes": null,
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": [
        {
         "id": 1,
@@ -2586,12 +2586,12 @@
       "day_of_month": null,
       "anchor_date": "2026-01-09",
       "end_date": null,
+      "active": true,
       "amount": 2000.0,
       "description": "Paycheck",
       "notes": null,
       "category": "Income",
       "category_id": 15,
-      "active": true,
       "tags": []
      },
      {
@@ -2600,12 +2600,12 @@
       "day_of_month": 31,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -65.43,
       "description": "Phone",
       "notes": "family plan",
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": []
      },
      {
@@ -2614,12 +2614,12 @@
       "day_of_month": null,
       "anchor_date": "2026-02-03",
       "end_date": "2026-04-15",
+      "active": true,
       "amount": -12.5,
       "description": "Gym",
       "notes": null,
       "category": "Fun",
       "category_id": 16,
-      "active": true,
       "tags": []
      },
      {
@@ -2628,12 +2628,12 @@
       "day_of_month": 15,
       "anchor_date": "2026-03-10",
       "end_date": null,
+      "active": true,
       "amount": -120.1,
       "description": "Insurance",
       "notes": null,
       "category": null,
       "category_id": null,
-      "active": true,
       "tags": []
      }
     ],
@@ -2660,12 +2660,12 @@
       "category": "Bills",
       "category_id": 14,
       "notes": null,
-      "forecast_amount": -1500.0,
+      "forecast_amount": -1500,
       "forecast_balance": -3654.615,
-      "actual_amount": -1500.0,
+      "actual_amount": -1500,
       "actual_balance": -3654.615,
-      "diff_amount": 0.0,
-      "diff_balance": 0.0,
+      "diff_amount": 0,
+      "diff_balance": 0,
       "is_actual_real": false,
       "recurring_id": 1,
       "transaction_id": null,
@@ -2693,12 +2693,12 @@
       "category": "Income",
       "category_id": 15,
       "notes": null,
-      "forecast_amount": 2000.0,
+      "forecast_amount": 2000,
       "forecast_balance": -1654.6149999999998,
-      "actual_amount": 2000.0,
+      "actual_amount": 2000,
       "actual_balance": -1654.6149999999998,
-      "diff_amount": 0.0,
-      "diff_balance": 0.0,
+      "diff_amount": 0,
+      "diff_balance": 0,
       "is_actual_real": false,
       "recurring_id": 2,
       "transaction_id": null,
@@ -2719,8 +2719,8 @@
       "forecast_balance": -1667.1149999999998,
       "actual_amount": -12.5,
       "actual_balance": -1667.1149999999998,
-      "diff_amount": 0.0,
-      "diff_balance": 0.0,
+      "diff_amount": 0,
+      "diff_balance": 0,
       "is_actual_real": false,
       "recurring_id": 4,
       "transaction_id": null,
@@ -2741,8 +2741,8 @@
       "forecast_balance": -1679.6149999999998,
       "actual_amount": -12.5,
       "actual_balance": -1679.6149999999998,
-      "diff_amount": 0.0,
-      "diff_balance": 0.0,
+      "diff_amount": 0,
+      "diff_balance": 0,
       "is_actual_real": false,
       "recurring_id": 4,
       "transaction_id": null,
@@ -2763,8 +2763,8 @@
       "forecast_balance": -1799.7149999999997,
       "actual_amount": -120.1,
       "actual_balance": -1799.7149999999997,
-      "diff_amount": 0.0,
-      "diff_balance": 0.0,
+      "diff_amount": 0,
+      "diff_balance": 0,
       "is_actual_real": false,
       "recurring_id": 5,
       "transaction_id": null,
@@ -2781,12 +2781,12 @@
       "category": "Income",
       "category_id": 15,
       "notes": null,
-      "forecast_amount": 2000.0,
+      "forecast_amount": 2000,
       "forecast_balance": 200.2850000000003,
-      "actual_amount": 2000.0,
+      "actual_amount": 2000,
       "actual_balance": 200.2850000000003,
-      "diff_amount": 0.0,
-      "diff_balance": 0.0,
+      "diff_amount": 0,
+      "diff_balance": 0,
       "is_actual_real": false,
       "recurring_id": 2,
       "transaction_id": null,
@@ -2807,7 +2807,7 @@
       "forecast_balance": 134.8550000000003,
       "actual_amount": -65.43,
       "actual_balance": 134.8550000000003,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": 2.8421709430404007e-13,
       "is_actual_real": false,
       "recurring_id": 3,
@@ -2848,14 +2848,14 @@
       "bank_left": false,
       "tags": [
        {
-        "id": 3,
-        "name": "zeta",
-        "color": "#aaaaaa"
-       },
-       {
         "id": 1,
         "name": "home",
         "color": "#58a6ff"
+       },
+       {
+        "id": 3,
+        "name": "zeta",
+        "color": "#aaaaaa"
        }
       ]
      },
@@ -3114,12 +3114,12 @@
       "day_of_month": 1,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -1500.0,
       "description": "Rent",
       "notes": null,
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": [
        {
         "id": 1,
@@ -3139,12 +3139,12 @@
       "day_of_month": null,
       "anchor_date": "2026-01-09",
       "end_date": null,
+      "active": true,
       "amount": 2000.0,
       "description": "Paycheck",
       "notes": null,
       "category": "Income",
       "category_id": 15,
-      "active": true,
       "tags": []
      },
      {
@@ -3153,12 +3153,12 @@
       "day_of_month": 31,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -65.43,
       "description": "Phone",
       "notes": "family plan",
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": []
      },
      {
@@ -3167,12 +3167,12 @@
       "day_of_month": null,
       "anchor_date": "2026-02-03",
       "end_date": "2026-04-15",
+      "active": true,
       "amount": -12.5,
       "description": "Gym",
       "notes": null,
       "category": "Fun",
       "category_id": 16,
-      "active": true,
       "tags": []
      },
      {
@@ -3181,12 +3181,12 @@
       "day_of_month": 15,
       "anchor_date": "2026-03-10",
       "end_date": null,
+      "active": true,
       "amount": -120.1,
       "description": "Insurance",
       "notes": null,
       "category": null,
       "category_id": null,
-      "active": true,
       "tags": []
      }
     ],
@@ -3235,11 +3235,11 @@
       "category": "Income",
       "category_id": 15,
       "notes": null,
-      "forecast_amount": 2000.0,
+      "forecast_amount": 2000,
       "forecast_balance": 1490.55,
-      "actual_amount": 2000.0,
+      "actual_amount": 2000,
       "actual_balance": 1448.38,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -42.169999999999845,
       "is_actual_real": false,
       "recurring_id": 2,
@@ -3261,7 +3261,7 @@
       "forecast_balance": 1478.05,
       "actual_amount": -12.5,
       "actual_balance": 1435.88,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -42.169999999999845,
       "is_actual_real": false,
       "recurring_id": 4,
@@ -3323,11 +3323,11 @@
       "category": "Bills",
       "category_id": 14,
       "notes": null,
-      "forecast_amount": -1500.0,
+      "forecast_amount": -1500,
       "forecast_balance": -87.38000000000011,
-      "actual_amount": -1500.0,
+      "actual_amount": -1500,
       "actual_balance": -54.11499999999978,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": 33.265000000000214,
       "is_actual_real": true,
       "recurring_id": 1,
@@ -3349,7 +3349,7 @@
       "forecast_balance": -99.88000000000011,
       "actual_amount": -12.5,
       "actual_balance": -136.62499999999977,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -36.74499999999978,
       "is_actual_real": false,
       "recurring_id": 4,
@@ -3367,11 +3367,11 @@
       "category": null,
       "category_id": null,
       "notes": null,
-      "forecast_amount": 0.0,
+      "forecast_amount": 0,
       "forecast_balance": -99.88000000000011,
-      "actual_amount": 25.0,
+      "actual_amount": 25,
       "actual_balance": -111.62499999999977,
-      "diff_amount": 25.0,
+      "diff_amount": 25,
       "diff_balance": -11.744999999999777,
       "is_actual_real": true,
       "recurring_id": null,
@@ -3393,7 +3393,7 @@
       "forecast_balance": -112.38000000000011,
       "actual_amount": -12.5,
       "actual_balance": -124.12499999999977,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -11.744999999999777,
       "is_actual_real": false,
       "recurring_id": 4,
@@ -3411,11 +3411,11 @@
       "category": null,
       "category_id": null,
       "notes": "estimate",
-      "forecast_amount": -300.0,
+      "forecast_amount": -300,
       "forecast_balance": -412.3800000000001,
-      "actual_amount": -300.0,
+      "actual_amount": -300,
       "actual_balance": -424.1249999999998,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -11.744999999999777,
       "is_actual_real": false,
       "recurring_id": null,
@@ -3437,7 +3437,7 @@
       "forecast_balance": -532.4800000000001,
       "actual_amount": -120.1,
       "actual_balance": -544.2249999999998,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -11.744999999999777,
       "is_actual_real": false,
       "recurring_id": 5,
@@ -3459,7 +3459,7 @@
       "forecast_balance": -544.9800000000001,
       "actual_amount": -12.5,
       "actual_balance": -556.7249999999998,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -11.744999999999777,
       "is_actual_real": false,
       "recurring_id": 4,
@@ -3479,7 +3479,7 @@
       "notes": null,
       "forecast_amount": null,
       "forecast_balance": -544.9800000000001,
-      "actual_amount": -8.0,
+      "actual_amount": -8,
       "actual_balance": -564.7249999999998,
       "diff_amount": null,
       "diff_balance": -19.744999999999777,
@@ -3499,11 +3499,11 @@
       "category": "Income",
       "category_id": 15,
       "notes": null,
-      "forecast_amount": 2000.0,
+      "forecast_amount": 2000,
       "forecast_balance": 1455.02,
-      "actual_amount": 2000.0,
+      "actual_amount": 2000,
       "actual_balance": 1435.275,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -19.74499999999989,
       "is_actual_real": false,
       "recurring_id": 2,
@@ -3525,7 +3525,7 @@
       "forecast_balance": 1442.52,
       "actual_amount": -12.5,
       "actual_balance": 1362.785,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -79.7349999999999,
       "is_actual_real": false,
       "recurring_id": 4,
@@ -3569,7 +3569,7 @@
       "forecast_balance": 1430.02,
       "actual_amount": -12.5,
       "actual_balance": 1350.285,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -79.7349999999999,
       "is_actual_real": false,
       "recurring_id": 4,
@@ -3587,11 +3587,11 @@
       "category": "Bills",
       "category_id": 14,
       "notes": null,
-      "forecast_amount": -1500.0,
+      "forecast_amount": -1500,
       "forecast_balance": -69.98000000000002,
-      "actual_amount": -1500.0,
+      "actual_amount": -1500,
       "actual_balance": -149.71499999999992,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -79.73499999999996,
       "is_actual_real": false,
       "recurring_id": 1,
@@ -3620,11 +3620,11 @@
       "category": "Income",
       "category_id": 15,
       "notes": null,
-      "forecast_amount": 2000.0,
+      "forecast_amount": 2000,
       "forecast_balance": 1930.02,
-      "actual_amount": 2000.0,
+      "actual_amount": 2000,
       "actual_balance": 1850.285,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -79.73499999999967,
       "is_actual_real": false,
       "recurring_id": 2,
@@ -3646,7 +3646,7 @@
       "forecast_balance": 1917.52,
       "actual_amount": -12.5,
       "actual_balance": 1837.785,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -79.73499999999967,
       "is_actual_real": false,
       "recurring_id": 4,
@@ -3668,7 +3668,7 @@
       "forecast_balance": 1905.02,
       "actual_amount": -12.5,
       "actual_balance": 1825.285,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -79.73499999999967,
       "is_actual_real": false,
       "recurring_id": 4,
@@ -3690,7 +3690,7 @@
       "forecast_balance": 1784.92,
       "actual_amount": -120.1,
       "actual_balance": 1705.1850000000002,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -79.73499999999967,
       "is_actual_real": false,
       "recurring_id": 5,
@@ -3708,11 +3708,11 @@
       "category": "Income",
       "category_id": 15,
       "notes": null,
-      "forecast_amount": 2000.0,
+      "forecast_amount": 2000,
       "forecast_balance": 3784.92,
-      "actual_amount": 2000.0,
+      "actual_amount": 2000,
       "actual_balance": 3705.1850000000004,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -79.73499999999967,
       "is_actual_real": false,
       "recurring_id": 2,
@@ -3734,7 +3734,7 @@
       "forecast_balance": 3719.4900000000002,
       "actual_amount": -65.43,
       "actual_balance": 3639.7550000000006,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -79.73499999999922,
       "is_actual_real": false,
       "recurring_id": 3,
@@ -3752,11 +3752,11 @@
       "category": "Bills",
       "category_id": 14,
       "notes": null,
-      "forecast_amount": -1500.0,
+      "forecast_amount": -1500,
       "forecast_balance": 2219.4900000000002,
-      "actual_amount": -1500.0,
+      "actual_amount": -1500,
       "actual_balance": 2139.7550000000006,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -79.73499999999967,
       "is_actual_real": false,
       "recurring_id": 1,
@@ -3785,11 +3785,11 @@
       "category": "Income",
       "category_id": 15,
       "notes": null,
-      "forecast_amount": 2000.0,
+      "forecast_amount": 2000,
       "forecast_balance": 4219.49,
-      "actual_amount": 2000.0,
+      "actual_amount": 2000,
       "actual_balance": 4139.755000000001,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -79.73499999999876,
       "is_actual_real": false,
       "recurring_id": 2,
@@ -3807,11 +3807,11 @@
       "category": "Income",
       "category_id": 15,
       "notes": null,
-      "forecast_amount": 2000.0,
+      "forecast_amount": 2000,
       "forecast_balance": 6219.49,
-      "actual_amount": 2000.0,
+      "actual_amount": 2000,
       "actual_balance": 6139.755000000001,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -79.73499999999876,
       "is_actual_real": false,
       "recurring_id": 2,
@@ -3833,7 +3833,7 @@
       "forecast_balance": 6099.389999999999,
       "actual_amount": -120.1,
       "actual_balance": 6019.655000000001,
-      "diff_amount": 0.0,
+      "diff_amount": 0,
       "diff_balance": -79.73499999999967,
       "is_actual_real": false,
       "recurring_id": 5,
@@ -4128,12 +4128,12 @@
       "day_of_month": 1,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -1500.0,
       "description": "Rent",
       "notes": null,
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": []
      },
      {
@@ -4142,12 +4142,12 @@
       "day_of_month": null,
       "anchor_date": "2026-01-09",
       "end_date": null,
+      "active": true,
       "amount": 2000.0,
       "description": "Paycheck",
       "notes": null,
       "category": "Income",
       "category_id": 15,
-      "active": true,
       "tags": []
      },
      {
@@ -4156,12 +4156,12 @@
       "day_of_month": 31,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -65.43,
       "description": "Phone",
       "notes": "family plan",
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": []
      },
      {
@@ -4170,12 +4170,12 @@
       "day_of_month": null,
       "anchor_date": "2026-02-03",
       "end_date": "2026-04-15",
+      "active": true,
       "amount": -12.5,
       "description": "Gym",
       "notes": null,
       "category": "Fun",
       "category_id": 16,
-      "active": true,
       "tags": []
      },
      {
@@ -4184,12 +4184,12 @@
       "day_of_month": 15,
       "anchor_date": "2026-03-10",
       "end_date": null,
+      "active": true,
       "amount": -120.1,
       "description": "Insurance",
       "notes": null,
       "category": null,
       "category_id": null,
-      "active": true,
       "tags": []
      }
     ],
@@ -4487,12 +4487,12 @@
       "day_of_month": 1,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -1500.0,
       "description": "Rent",
       "notes": null,
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": []
      },
      {
@@ -4501,12 +4501,12 @@
       "day_of_month": null,
       "anchor_date": "2026-01-09",
       "end_date": null,
+      "active": true,
       "amount": 2000.0,
       "description": "Paycheck",
       "notes": null,
       "category": "Income",
       "category_id": 15,
-      "active": true,
       "tags": []
      },
      {
@@ -4515,12 +4515,12 @@
       "day_of_month": 31,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -65.43,
       "description": "Phone",
       "notes": "family plan",
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": []
      },
      {
@@ -4529,12 +4529,12 @@
       "day_of_month": null,
       "anchor_date": "2026-02-03",
       "end_date": "2026-04-15",
+      "active": true,
       "amount": -12.5,
       "description": "Gym",
       "notes": null,
       "category": "Fun",
       "category_id": 16,
-      "active": true,
       "tags": []
      },
      {
@@ -4543,12 +4543,12 @@
       "day_of_month": 15,
       "anchor_date": "2026-03-10",
       "end_date": null,
+      "active": true,
       "amount": -120.1,
       "description": "Insurance",
       "notes": null,
       "category": null,
       "category_id": null,
-      "active": true,
       "tags": []
      }
     ],
@@ -4846,12 +4846,12 @@
       "day_of_month": 1,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -1500.0,
       "description": "Rent",
       "notes": null,
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": []
      },
      {
@@ -4860,12 +4860,12 @@
       "day_of_month": null,
       "anchor_date": "2026-01-09",
       "end_date": null,
+      "active": true,
       "amount": 2000.0,
       "description": "Paycheck",
       "notes": null,
       "category": "Income",
       "category_id": 15,
-      "active": true,
       "tags": []
      },
      {
@@ -4874,12 +4874,12 @@
       "day_of_month": 31,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -65.43,
       "description": "Phone",
       "notes": "family plan",
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": []
      },
      {
@@ -4888,12 +4888,12 @@
       "day_of_month": null,
       "anchor_date": "2026-02-03",
       "end_date": "2026-04-15",
+      "active": true,
       "amount": -12.5,
       "description": "Gym",
       "notes": null,
       "category": "Fun",
       "category_id": 16,
-      "active": true,
       "tags": []
      },
      {
@@ -4902,12 +4902,12 @@
       "day_of_month": 15,
       "anchor_date": "2026-03-10",
       "end_date": null,
+      "active": true,
       "amount": -120.1,
       "description": "Insurance",
       "notes": null,
       "category": null,
       "category_id": null,
-      "active": true,
       "tags": []
      }
     ],
@@ -5205,12 +5205,12 @@
       "day_of_month": 1,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -1500.0,
       "description": "Rent",
       "notes": null,
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": []
      },
      {
@@ -5219,12 +5219,12 @@
       "day_of_month": null,
       "anchor_date": "2026-01-09",
       "end_date": null,
+      "active": true,
       "amount": 2000.0,
       "description": "Paycheck",
       "notes": null,
       "category": "Income",
       "category_id": 15,
-      "active": true,
       "tags": []
      },
      {
@@ -5233,12 +5233,12 @@
       "day_of_month": 31,
       "anchor_date": null,
       "end_date": null,
+      "active": true,
       "amount": -65.43,
       "description": "Phone",
       "notes": "family plan",
       "category": "Bills",
       "category_id": 14,
-      "active": true,
       "tags": []
      },
      {
@@ -5247,12 +5247,12 @@
       "day_of_month": null,
       "anchor_date": "2026-02-03",
       "end_date": "2026-04-15",
+      "active": true,
       "amount": -12.5,
       "description": "Gym",
       "notes": null,
       "category": "Fun",
       "category_id": 16,
-      "active": true,
       "tags": []
      },
      {
@@ -5261,12 +5261,12 @@
       "day_of_month": 15,
       "anchor_date": "2026-03-10",
       "end_date": null,
+      "active": true,
       "amount": -120.1,
       "description": "Insurance",
       "notes": null,
       "category": null,
       "category_id": null,
-      "active": true,
       "tags": []
      }
     ],
@@ -5294,12 +5294,12 @@
      "day_of_month": 1,
      "anchor_date": null,
      "end_date": null,
+     "active": true,
      "amount": -1500.0,
      "description": "Rent",
      "notes": null,
      "category": "Bills",
      "category_id": 14,
-     "active": true,
      "tags": []
     },
     "skipped": [],
@@ -5327,12 +5327,12 @@
      "day_of_month": null,
      "anchor_date": "2026-01-09",
      "end_date": null,
+     "active": true,
      "amount": 2000.0,
      "description": "Paycheck",
      "notes": null,
      "category": "Income",
      "category_id": 15,
-     "active": true,
      "tags": []
     },
     "skipped": [
@@ -5360,12 +5360,12 @@
      "day_of_month": 31,
      "anchor_date": null,
      "end_date": null,
+     "active": true,
      "amount": -65.43,
      "description": "Phone",
      "notes": "family plan",
      "category": "Bills",
      "category_id": 14,
-     "active": true,
      "tags": []
     },
     "skipped": [],
@@ -5394,12 +5394,12 @@
      "day_of_month": null,
      "anchor_date": "2026-02-03",
      "end_date": "2026-04-15",
+     "active": true,
      "amount": -12.5,
      "description": "Gym",
      "notes": null,
      "category": "Fun",
      "category_id": 16,
-     "active": true,
      "tags": []
     },
     "skipped": [
@@ -5427,12 +5427,12 @@
      "day_of_month": 15,
      "anchor_date": "2026-03-10",
      "end_date": null,
+     "active": true,
      "amount": -120.1,
      "description": "Insurance",
      "notes": null,
      "category": null,
      "category_id": null,
-     "active": true,
      "tags": []
     },
     "skipped": [],
@@ -5458,12 +5458,12 @@
      "day_of_month": 20,
      "anchor_date": null,
      "end_date": null,
+     "active": false,
      "amount": -9.99,
      "description": "Old magazine",
      "notes": null,
      "category": null,
      "category_id": null,
-     "active": false,
      "tags": []
     },
     "skipped": [],
@@ -5482,12 +5482,12 @@
      "day_of_month": 1,
      "anchor_date": null,
      "end_date": null,
+     "active": true,
      "amount": -1500.0,
      "description": "Rent",
      "notes": null,
      "category": "Bills",
      "category_id": 14,
-     "active": true,
      "tags": []
     },
     "skipped": [],
@@ -5515,12 +5515,12 @@
      "day_of_month": null,
      "anchor_date": "2026-01-09",
      "end_date": null,
+     "active": true,
      "amount": 2000.0,
      "description": "Paycheck",
      "notes": null,
      "category": "Income",
      "category_id": 15,
-     "active": true,
      "tags": []
     },
     "skipped": [
@@ -5548,12 +5548,12 @@
      "day_of_month": 31,
      "anchor_date": null,
      "end_date": null,
+     "active": true,
      "amount": -65.43,
      "description": "Phone",
      "notes": "family plan",
      "category": "Bills",
      "category_id": 14,
-     "active": true,
      "tags": []
     },
     "skipped": [],
@@ -5581,12 +5581,12 @@
      "day_of_month": null,
      "anchor_date": "2026-02-03",
      "end_date": "2026-04-15",
+     "active": true,
      "amount": -12.5,
      "description": "Gym",
      "notes": null,
      "category": "Fun",
      "category_id": 16,
-     "active": true,
      "tags": []
     },
     "skipped": [],
@@ -5612,12 +5612,12 @@
      "day_of_month": 15,
      "anchor_date": "2026-03-10",
      "end_date": null,
+     "active": true,
      "amount": -120.1,
      "description": "Insurance",
      "notes": null,
      "category": null,
      "category_id": null,
-     "active": true,
      "tags": []
     },
     "skipped": [],
@@ -5643,12 +5643,12 @@
      "day_of_month": 20,
      "anchor_date": null,
      "end_date": null,
+     "active": false,
      "amount": -9.99,
      "description": "Old magazine",
      "notes": null,
      "category": null,
      "category_id": null,
-     "active": false,
      "tags": []
     },
     "skipped": [],
@@ -5770,14 +5770,14 @@
         "bank_left": false,
         "tags": [
          {
-          "id": 3,
-          "name": "zeta",
-          "color": "#aaaaaa"
-         },
-         {
           "id": 1,
           "name": "home",
           "color": "#58a6ff"
+         },
+         {
+          "id": 3,
+          "name": "zeta",
+          "color": "#aaaaaa"
          }
         ]
        },
@@ -6036,12 +6036,12 @@
         "day_of_month": 1,
         "anchor_date": null,
         "end_date": null,
+        "active": true,
         "amount": -1500.0,
         "description": "Rent",
         "notes": null,
         "category": "Bills",
         "category_id": 14,
-        "active": true,
         "tags": [
          {
           "id": 1,
@@ -6061,12 +6061,12 @@
         "day_of_month": null,
         "anchor_date": "2026-01-09",
         "end_date": null,
+        "active": true,
         "amount": 2000.0,
         "description": "Paycheck",
         "notes": null,
         "category": "Income",
         "category_id": 15,
-        "active": true,
         "tags": []
        },
        {
@@ -6075,12 +6075,12 @@
         "day_of_month": 31,
         "anchor_date": null,
         "end_date": null,
+        "active": true,
         "amount": -65.43,
         "description": "Phone",
         "notes": "family plan",
         "category": "Bills",
         "category_id": 14,
-        "active": true,
         "tags": []
        },
        {
@@ -6089,12 +6089,12 @@
         "day_of_month": null,
         "anchor_date": "2026-02-03",
         "end_date": "2026-04-15",
+        "active": true,
         "amount": -12.5,
         "description": "Gym",
         "notes": null,
         "category": "Fun",
         "category_id": 16,
-        "active": true,
         "tags": []
        },
        {
@@ -6103,12 +6103,12 @@
         "day_of_month": 15,
         "anchor_date": "2026-03-10",
         "end_date": null,
+        "active": true,
         "amount": -120.1,
         "description": "Insurance",
         "notes": null,
         "category": null,
         "category_id": null,
-        "active": true,
         "tags": []
        }
       ],
@@ -6134,9 +6134,9 @@
       "account_id": 1,
       "account_name": "Checking",
       "description": "Rent",
-      "amount": -1500.0,
-      "forecast_amount": -1500.0,
-      "actual_amount": -1500.0,
+      "amount": -1500,
+      "forecast_amount": -1500,
+      "actual_amount": -1500,
       "category_id": 14,
       "category_name": "Bills",
       "category_color": "#e5534b",
@@ -6170,9 +6170,9 @@
       "account_id": 1,
       "account_name": "Checking",
       "description": "Paycheck",
-      "amount": 2000.0,
-      "forecast_amount": 2000.0,
-      "actual_amount": 2000.0,
+      "amount": 2000,
+      "forecast_amount": 2000,
+      "actual_amount": 2000,
       "category_id": 15,
       "category_name": "Income",
       "category_color": "#3fb950",
@@ -6242,9 +6242,9 @@
       "account_id": 1,
       "account_name": "Checking",
       "description": "Odd line",
-      "amount": -5.0,
+      "amount": -5,
       "forecast_amount": null,
-      "actual_amount": -5.0,
+      "actual_amount": -5,
       "category_id": null,
       "category_name": null,
       "category_color": null,
@@ -6278,9 +6278,9 @@
       "account_id": 1,
       "account_name": "Checking",
       "description": "Paycheck",
-      "amount": 2000.0,
-      "forecast_amount": 2000.0,
-      "actual_amount": 2000.0,
+      "amount": 2000,
+      "forecast_amount": 2000,
+      "actual_amount": 2000,
       "category_id": 15,
       "category_name": "Income",
       "category_color": "#3fb950",
@@ -6474,14 +6474,14 @@
         "bank_left": false,
         "tags": [
          {
-          "id": 3,
-          "name": "zeta",
-          "color": "#aaaaaa"
-         },
-         {
           "id": 1,
           "name": "home",
           "color": "#58a6ff"
+         },
+         {
+          "id": 3,
+          "name": "zeta",
+          "color": "#aaaaaa"
          }
         ]
        },
@@ -6740,12 +6740,12 @@
         "day_of_month": 1,
         "anchor_date": null,
         "end_date": null,
+        "active": true,
         "amount": -1500.0,
         "description": "Rent",
         "notes": null,
         "category": "Bills",
         "category_id": 14,
-        "active": true,
         "tags": [
          {
           "id": 1,
@@ -6765,12 +6765,12 @@
         "day_of_month": null,
         "anchor_date": "2026-01-09",
         "end_date": null,
+        "active": true,
         "amount": 2000.0,
         "description": "Paycheck",
         "notes": null,
         "category": "Income",
         "category_id": 15,
-        "active": true,
         "tags": []
        },
        {
@@ -6779,12 +6779,12 @@
         "day_of_month": 31,
         "anchor_date": null,
         "end_date": null,
+        "active": true,
         "amount": -65.43,
         "description": "Phone",
         "notes": "family plan",
         "category": "Bills",
         "category_id": 14,
-        "active": true,
         "tags": []
        },
        {
@@ -6793,12 +6793,12 @@
         "day_of_month": null,
         "anchor_date": "2026-02-03",
         "end_date": "2026-04-15",
+        "active": true,
         "amount": -12.5,
         "description": "Gym",
         "notes": null,
         "category": "Fun",
         "category_id": 16,
-        "active": true,
         "tags": []
        },
        {
@@ -6807,12 +6807,12 @@
         "day_of_month": 15,
         "anchor_date": "2026-03-10",
         "end_date": null,
+        "active": true,
         "amount": -120.1,
         "description": "Insurance",
         "notes": null,
         "category": null,
         "category_id": null,
-        "active": true,
         "tags": []
        }
       ],
@@ -6856,9 +6856,9 @@
       "account_id": 1,
       "account_name": "Checking",
       "description": "Rent",
-      "amount": -1500.0,
-      "forecast_amount": -1500.0,
-      "actual_amount": -1500.0,
+      "amount": -1500,
+      "forecast_amount": -1500,
+      "actual_amount": -1500,
       "category_id": 14,
       "category_name": "Bills",
       "category_color": "#e5534b",
@@ -6892,9 +6892,9 @@
       "account_id": 1,
       "account_name": "Checking",
       "description": "Refund expected",
-      "amount": 25.0,
-      "forecast_amount": 0.0,
-      "actual_amount": 25.0,
+      "amount": 25,
+      "forecast_amount": 0,
+      "actual_amount": 25,
       "category_id": null,
       "category_name": null,
       "category_color": null,
@@ -6928,9 +6928,9 @@
       "account_id": 1,
       "account_name": "Checking",
       "description": "Car repair",
-      "amount": -300.0,
-      "forecast_amount": -300.0,
-      "actual_amount": -300.0,
+      "amount": -300,
+      "forecast_amount": -300,
+      "actual_amount": -300,
       "category_id": null,
       "category_name": null,
       "category_color": null,
@@ -6982,9 +6982,9 @@
       "account_id": 1,
       "account_name": "Checking",
       "description": "Parking",
-      "amount": -8.0,
+      "amount": -8,
       "forecast_amount": null,
-      "actual_amount": -8.0,
+      "actual_amount": -8,
       "category_id": null,
       "category_name": null,
       "category_color": null,
@@ -7000,9 +7000,9 @@
       "account_id": 1,
       "account_name": "Checking",
       "description": "Paycheck",
-      "amount": 2000.0,
-      "forecast_amount": 2000.0,
-      "actual_amount": 2000.0,
+      "amount": 2000,
+      "forecast_amount": 2000,
+      "actual_amount": 2000,
       "category_id": 15,
       "category_name": "Income",
       "category_color": "#3fb950",
@@ -7069,6 +7069,2968 @@
      }
     ],
     "daily_balances": null
+   }
+  },
+  {
+   "name": "Dashboard on 2026-02-15",
+   "function": "dashboard",
+   "input": {
+    "today": "2026-02-15",
+    "accounts": [
+     {
+      "id": 1,
+      "name": "Checking",
+      "starting_balance": 1000.0,
+      "transactions": [
+       {
+        "id": 1,
+        "recurring_id": null,
+        "category_id": 16,
+        "category": "Fun",
+        "transfer_id": null,
+        "description": "Coffee",
+        "notes": null,
+        "amount": -4.75,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-01-03",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "home",
+          "color": "#58a6ff"
+         },
+         {
+          "id": 3,
+          "name": "zeta",
+          "color": "#aaaaaa"
+         }
+        ]
+       },
+       {
+        "id": 2,
+        "recurring_id": 1,
+        "category_id": 14,
+        "category": "Bills",
+        "transfer_id": null,
+        "description": "Rent",
+        "notes": null,
+        "amount": -1500.0,
+        "forecast_amount": -1500.0,
+        "forecast_date": "2026-02-01",
+        "actual_date": "2026-02-03",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 3,
+        "recurring_id": 3,
+        "category_id": 14,
+        "category": "Bills",
+        "transfer_id": null,
+        "description": "Phone",
+        "notes": null,
+        "amount": -70.01,
+        "forecast_amount": -65.43,
+        "forecast_date": "2026-02-28",
+        "actual_date": "2026-03-02",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 4,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Car repair",
+        "notes": "estimate",
+        "amount": -300.0,
+        "forecast_amount": null,
+        "forecast_date": "2026-03-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 5,
+        "recurring_id": 2,
+        "category_id": 15,
+        "category": "Income",
+        "transfer_id": null,
+        "description": "Paycheck",
+        "notes": null,
+        "amount": 2100.0,
+        "forecast_amount": 2000.0,
+        "forecast_date": "2026-02-20",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 6,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Cashback",
+        "notes": null,
+        "amount": 0.1,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-10",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 7,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Cashback",
+        "notes": null,
+        "amount": 0.2,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-11",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 8,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Interest",
+        "notes": null,
+        "amount": 10.005,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-27",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 9,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Refund expected",
+        "notes": null,
+        "amount": 25.0,
+        "forecast_amount": 0.0,
+        "forecast_date": "2026-03-05",
+        "actual_date": "2026-03-06",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 10,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Odd line",
+        "notes": null,
+        "amount": -5.0,
+        "forecast_amount": null,
+        "forecast_date": "2026-02-14",
+        "actual_date": null,
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 11,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "AMZN Mktp",
+        "notes": null,
+        "amount": -42.17,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-16",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": true,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 12,
+        "recurring_id": 1,
+        "category_id": 14,
+        "category": "Bills",
+        "transfer_id": null,
+        "description": "Rent",
+        "notes": null,
+        "amount": -1500.0,
+        "forecast_amount": -1500.0,
+        "forecast_date": "2026-03-01",
+        "actual_date": "2026-03-01",
+        "is_actual": true,
+        "bank_match": "auto",
+        "has_bank_ref": false,
+        "has_mail_ref": true,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 13,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Parking",
+        "notes": null,
+        "amount": -8.0,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-03-20",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": true,
+        "has_mail_ref": false,
+        "bank_left": true,
+        "tags": []
+       },
+       {
+        "id": 14,
+        "recurring_id": 3,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Example Internet",
+        "notes": null,
+        "amount": -59.99,
+        "forecast_amount": null,
+        "forecast_date": "2026-03-31",
+        "actual_date": "2026-03-21",
+        "is_actual": true,
+        "bank_match": "hand",
+        "has_bank_ref": true,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       }
+      ],
+      "recurring": [
+       {
+        "id": 1,
+        "frequency": "monthly_day",
+        "day_of_month": 1,
+        "anchor_date": null,
+        "end_date": null,
+        "active": true,
+        "amount": -1500.0,
+        "description": "Rent",
+        "notes": null,
+        "category": "Bills",
+        "category_id": 14,
+        "tags": [
+         {
+          "id": 1,
+          "name": "home",
+          "color": "#58a6ff"
+         },
+         {
+          "id": 2,
+          "name": "Autopay",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 2,
+        "frequency": "biweekly",
+        "day_of_month": null,
+        "anchor_date": "2026-01-09",
+        "end_date": null,
+        "active": true,
+        "amount": 2000.0,
+        "description": "Paycheck",
+        "notes": null,
+        "category": "Income",
+        "category_id": 15,
+        "tags": []
+       },
+       {
+        "id": 3,
+        "frequency": "monthly_day",
+        "day_of_month": 31,
+        "anchor_date": null,
+        "end_date": null,
+        "active": true,
+        "amount": -65.43,
+        "description": "Phone",
+        "notes": "family plan",
+        "category": "Bills",
+        "category_id": 14,
+        "tags": []
+       },
+       {
+        "id": 4,
+        "frequency": "weekly",
+        "day_of_month": null,
+        "anchor_date": "2026-02-03",
+        "end_date": "2026-04-15",
+        "active": true,
+        "amount": -12.5,
+        "description": "Gym",
+        "notes": null,
+        "category": "Fun",
+        "category_id": 16,
+        "tags": []
+       },
+       {
+        "id": 5,
+        "frequency": "monthly_day",
+        "day_of_month": 15,
+        "anchor_date": "2026-03-10",
+        "end_date": null,
+        "active": true,
+        "amount": -120.1,
+        "description": "Insurance",
+        "notes": null,
+        "category": null,
+        "category_id": null,
+        "tags": []
+       }
+      ],
+      "skips": [
+       {
+        "recurring_id": 2,
+        "date": "2026-03-06"
+       },
+       {
+        "recurring_id": 4,
+        "date": "2026-02-17"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": {
+    "cards": [
+     {
+      "id": 1,
+      "name": "Checking",
+      "month_label": "February 2026",
+      "opening_balance": 995.25,
+      "forecast_end": 3457.75,
+      "actual_end": 3420.885,
+      "forecast_high": 3470.25,
+      "forecast_high_date": "2026-02-20",
+      "forecast_low": -517.25,
+      "forecast_low_date": "2026-02-03",
+      "actual_high": 3423.38,
+      "actual_low": -517.25,
+      "row_count": 11,
+      "upcoming_count": 2,
+      "upcoming_net": 1987.5,
+      "current_balance": 1465.55
+     }
+    ]
+   }
+  },
+  {
+   "name": "Dashboard on 2026-03-31",
+   "function": "dashboard",
+   "input": {
+    "today": "2026-03-31",
+    "accounts": [
+     {
+      "id": 1,
+      "name": "Checking",
+      "starting_balance": 1000.0,
+      "transactions": [
+       {
+        "id": 1,
+        "recurring_id": null,
+        "category_id": 16,
+        "category": "Fun",
+        "transfer_id": null,
+        "description": "Coffee",
+        "notes": null,
+        "amount": -4.75,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-01-03",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "home",
+          "color": "#58a6ff"
+         },
+         {
+          "id": 3,
+          "name": "zeta",
+          "color": "#aaaaaa"
+         }
+        ]
+       },
+       {
+        "id": 2,
+        "recurring_id": 1,
+        "category_id": 14,
+        "category": "Bills",
+        "transfer_id": null,
+        "description": "Rent",
+        "notes": null,
+        "amount": -1500.0,
+        "forecast_amount": -1500.0,
+        "forecast_date": "2026-02-01",
+        "actual_date": "2026-02-03",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 3,
+        "recurring_id": 3,
+        "category_id": 14,
+        "category": "Bills",
+        "transfer_id": null,
+        "description": "Phone",
+        "notes": null,
+        "amount": -70.01,
+        "forecast_amount": -65.43,
+        "forecast_date": "2026-02-28",
+        "actual_date": "2026-03-02",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 4,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Car repair",
+        "notes": "estimate",
+        "amount": -300.0,
+        "forecast_amount": null,
+        "forecast_date": "2026-03-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 5,
+        "recurring_id": 2,
+        "category_id": 15,
+        "category": "Income",
+        "transfer_id": null,
+        "description": "Paycheck",
+        "notes": null,
+        "amount": 2100.0,
+        "forecast_amount": 2000.0,
+        "forecast_date": "2026-02-20",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 6,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Cashback",
+        "notes": null,
+        "amount": 0.1,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-10",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 7,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Cashback",
+        "notes": null,
+        "amount": 0.2,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-11",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 8,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Interest",
+        "notes": null,
+        "amount": 10.005,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-27",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 9,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Refund expected",
+        "notes": null,
+        "amount": 25.0,
+        "forecast_amount": 0.0,
+        "forecast_date": "2026-03-05",
+        "actual_date": "2026-03-06",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 10,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Odd line",
+        "notes": null,
+        "amount": -5.0,
+        "forecast_amount": null,
+        "forecast_date": "2026-02-14",
+        "actual_date": null,
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 11,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "AMZN Mktp",
+        "notes": null,
+        "amount": -42.17,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-16",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": true,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 12,
+        "recurring_id": 1,
+        "category_id": 14,
+        "category": "Bills",
+        "transfer_id": null,
+        "description": "Rent",
+        "notes": null,
+        "amount": -1500.0,
+        "forecast_amount": -1500.0,
+        "forecast_date": "2026-03-01",
+        "actual_date": "2026-03-01",
+        "is_actual": true,
+        "bank_match": "auto",
+        "has_bank_ref": false,
+        "has_mail_ref": true,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 13,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Parking",
+        "notes": null,
+        "amount": -8.0,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-03-20",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": true,
+        "has_mail_ref": false,
+        "bank_left": true,
+        "tags": []
+       },
+       {
+        "id": 14,
+        "recurring_id": 3,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Example Internet",
+        "notes": null,
+        "amount": -59.99,
+        "forecast_amount": null,
+        "forecast_date": "2026-03-31",
+        "actual_date": "2026-03-21",
+        "is_actual": true,
+        "bank_match": "hand",
+        "has_bank_ref": true,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       }
+      ],
+      "recurring": [
+       {
+        "id": 1,
+        "frequency": "monthly_day",
+        "day_of_month": 1,
+        "anchor_date": null,
+        "end_date": null,
+        "active": true,
+        "amount": -1500.0,
+        "description": "Rent",
+        "notes": null,
+        "category": "Bills",
+        "category_id": 14,
+        "tags": [
+         {
+          "id": 1,
+          "name": "home",
+          "color": "#58a6ff"
+         },
+         {
+          "id": 2,
+          "name": "Autopay",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 2,
+        "frequency": "biweekly",
+        "day_of_month": null,
+        "anchor_date": "2026-01-09",
+        "end_date": null,
+        "active": true,
+        "amount": 2000.0,
+        "description": "Paycheck",
+        "notes": null,
+        "category": "Income",
+        "category_id": 15,
+        "tags": []
+       },
+       {
+        "id": 3,
+        "frequency": "monthly_day",
+        "day_of_month": 31,
+        "anchor_date": null,
+        "end_date": null,
+        "active": true,
+        "amount": -65.43,
+        "description": "Phone",
+        "notes": "family plan",
+        "category": "Bills",
+        "category_id": 14,
+        "tags": []
+       },
+       {
+        "id": 4,
+        "frequency": "weekly",
+        "day_of_month": null,
+        "anchor_date": "2026-02-03",
+        "end_date": "2026-04-15",
+        "active": true,
+        "amount": -12.5,
+        "description": "Gym",
+        "notes": null,
+        "category": "Fun",
+        "category_id": 16,
+        "tags": []
+       },
+       {
+        "id": 5,
+        "frequency": "monthly_day",
+        "day_of_month": 15,
+        "anchor_date": "2026-03-10",
+        "end_date": null,
+        "active": true,
+        "amount": -120.1,
+        "description": "Insurance",
+        "notes": null,
+        "category": null,
+        "category_id": null,
+        "tags": []
+       }
+      ],
+      "skips": [
+       {
+        "recurring_id": 2,
+        "date": "2026-03-06"
+       },
+       {
+        "recurring_id": 4,
+        "date": "2026-02-17"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": {
+    "cards": [
+     {
+      "id": 1,
+      "name": "Checking",
+      "month_label": "March 2026",
+      "opening_balance": -541.615,
+      "forecast_end": -589.645,
+      "actual_end": -637.2149999999999,
+      "forecast_high": -564.645,
+      "forecast_high_date": "2026-03-20",
+      "forecast_low": -2564.645,
+      "forecast_low_date": "2026-03-17",
+      "actual_high": -552.2249999999999,
+      "actual_low": -2552.225,
+      "row_count": 13,
+      "upcoming_count": 1,
+      "upcoming_net": -12.5,
+      "current_balance": -637.22
+     }
+    ]
+   }
+  },
+  {
+   "name": "Dashboard charts, month, on 2026-03-15",
+   "function": "dashboardCharts",
+   "input": {
+    "window": "month",
+    "today": "2026-03-15",
+    "categories": [
+     {
+      "id": 1,
+      "name": "Groceries",
+      "color": "#3fb950"
+     },
+     {
+      "id": 2,
+      "name": "Dining",
+      "color": "#f0883e"
+     },
+     {
+      "id": 3,
+      "name": "Transportation",
+      "color": "#58a6ff"
+     },
+     {
+      "id": 4,
+      "name": "Utilities",
+      "color": "#56d4dd"
+     },
+     {
+      "id": 5,
+      "name": "Rent/Mortgage",
+      "color": "#a371f7"
+     },
+     {
+      "id": 6,
+      "name": "Insurance",
+      "color": "#2ea043"
+     },
+     {
+      "id": 7,
+      "name": "Healthcare",
+      "color": "#ff7b72"
+     },
+     {
+      "id": 8,
+      "name": "Entertainment",
+      "color": "#e3b341"
+     },
+     {
+      "id": 9,
+      "name": "Shopping",
+      "color": "#db61a2"
+     },
+     {
+      "id": 10,
+      "name": "Subscriptions",
+      "color": "#7c6be6"
+     },
+     {
+      "id": 11,
+      "name": "Income",
+      "color": "#3fb950"
+     },
+     {
+      "id": 12,
+      "name": "Savings",
+      "color": "#d29922"
+     },
+     {
+      "id": 13,
+      "name": "Other",
+      "color": "#8b949e"
+     },
+     {
+      "id": 14,
+      "name": "Bills",
+      "color": "#e5534b"
+     },
+     {
+      "id": 15,
+      "name": "Income",
+      "color": "#3fb950"
+     },
+     {
+      "id": 16,
+      "name": "Fun",
+      "color": null
+     }
+    ],
+    "accounts": [
+     {
+      "id": 1,
+      "name": "Checking",
+      "starting_balance": 1000.0,
+      "transactions": [
+       {
+        "id": 1,
+        "recurring_id": null,
+        "category_id": 16,
+        "category": "Fun",
+        "transfer_id": null,
+        "description": "Coffee",
+        "notes": null,
+        "amount": -4.75,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-01-03",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "home",
+          "color": "#58a6ff"
+         },
+         {
+          "id": 3,
+          "name": "zeta",
+          "color": "#aaaaaa"
+         }
+        ]
+       },
+       {
+        "id": 2,
+        "recurring_id": 1,
+        "category_id": 14,
+        "category": "Bills",
+        "transfer_id": null,
+        "description": "Rent",
+        "notes": null,
+        "amount": -1500.0,
+        "forecast_amount": -1500.0,
+        "forecast_date": "2026-02-01",
+        "actual_date": "2026-02-03",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 3,
+        "recurring_id": 3,
+        "category_id": 14,
+        "category": "Bills",
+        "transfer_id": null,
+        "description": "Phone",
+        "notes": null,
+        "amount": -70.01,
+        "forecast_amount": -65.43,
+        "forecast_date": "2026-02-28",
+        "actual_date": "2026-03-02",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 4,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Car repair",
+        "notes": "estimate",
+        "amount": -300.0,
+        "forecast_amount": null,
+        "forecast_date": "2026-03-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 5,
+        "recurring_id": 2,
+        "category_id": 15,
+        "category": "Income",
+        "transfer_id": null,
+        "description": "Paycheck",
+        "notes": null,
+        "amount": 2100.0,
+        "forecast_amount": 2000.0,
+        "forecast_date": "2026-02-20",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 6,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Cashback",
+        "notes": null,
+        "amount": 0.1,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-10",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 7,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Cashback",
+        "notes": null,
+        "amount": 0.2,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-11",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 8,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Interest",
+        "notes": null,
+        "amount": 10.005,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-27",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 9,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Refund expected",
+        "notes": null,
+        "amount": 25.0,
+        "forecast_amount": 0.0,
+        "forecast_date": "2026-03-05",
+        "actual_date": "2026-03-06",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 10,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Odd line",
+        "notes": null,
+        "amount": -5.0,
+        "forecast_amount": null,
+        "forecast_date": "2026-02-14",
+        "actual_date": null,
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 11,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "AMZN Mktp",
+        "notes": null,
+        "amount": -42.17,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-16",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": true,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 12,
+        "recurring_id": 1,
+        "category_id": 14,
+        "category": "Bills",
+        "transfer_id": null,
+        "description": "Rent",
+        "notes": null,
+        "amount": -1500.0,
+        "forecast_amount": -1500.0,
+        "forecast_date": "2026-03-01",
+        "actual_date": "2026-03-01",
+        "is_actual": true,
+        "bank_match": "auto",
+        "has_bank_ref": false,
+        "has_mail_ref": true,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 13,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Parking",
+        "notes": null,
+        "amount": -8.0,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-03-20",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": true,
+        "has_mail_ref": false,
+        "bank_left": true,
+        "tags": []
+       },
+       {
+        "id": 14,
+        "recurring_id": 3,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Example Internet",
+        "notes": null,
+        "amount": -59.99,
+        "forecast_amount": null,
+        "forecast_date": "2026-03-31",
+        "actual_date": "2026-03-21",
+        "is_actual": true,
+        "bank_match": "hand",
+        "has_bank_ref": true,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       }
+      ],
+      "recurring": [
+       {
+        "id": 1,
+        "frequency": "monthly_day",
+        "day_of_month": 1,
+        "anchor_date": null,
+        "end_date": null,
+        "active": true,
+        "amount": -1500.0,
+        "description": "Rent",
+        "notes": null,
+        "category": "Bills",
+        "category_id": 14,
+        "tags": [
+         {
+          "id": 1,
+          "name": "home",
+          "color": "#58a6ff"
+         },
+         {
+          "id": 2,
+          "name": "Autopay",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 2,
+        "frequency": "biweekly",
+        "day_of_month": null,
+        "anchor_date": "2026-01-09",
+        "end_date": null,
+        "active": true,
+        "amount": 2000.0,
+        "description": "Paycheck",
+        "notes": null,
+        "category": "Income",
+        "category_id": 15,
+        "tags": []
+       },
+       {
+        "id": 3,
+        "frequency": "monthly_day",
+        "day_of_month": 31,
+        "anchor_date": null,
+        "end_date": null,
+        "active": true,
+        "amount": -65.43,
+        "description": "Phone",
+        "notes": "family plan",
+        "category": "Bills",
+        "category_id": 14,
+        "tags": []
+       },
+       {
+        "id": 4,
+        "frequency": "weekly",
+        "day_of_month": null,
+        "anchor_date": "2026-02-03",
+        "end_date": "2026-04-15",
+        "active": true,
+        "amount": -12.5,
+        "description": "Gym",
+        "notes": null,
+        "category": "Fun",
+        "category_id": 16,
+        "tags": []
+       },
+       {
+        "id": 5,
+        "frequency": "monthly_day",
+        "day_of_month": 15,
+        "anchor_date": "2026-03-10",
+        "end_date": null,
+        "active": true,
+        "amount": -120.1,
+        "description": "Insurance",
+        "notes": null,
+        "category": null,
+        "category_id": null,
+        "tags": []
+       }
+      ],
+      "skips": [
+       {
+        "recurring_id": 2,
+        "date": "2026-03-06"
+       },
+       {
+        "recurring_id": 4,
+        "date": "2026-02-17"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": {
+    "window": "month",
+    "label": "March 2026",
+    "start": "2026-03-01",
+    "end": "2026-03-31",
+    "accounts": [
+     {
+      "account_id": 1,
+      "account_name": "Checking",
+      "totals": {
+       "income_actual": 2025,
+       "spending_actual": 2120.6,
+       "net_actual": -95.6,
+       "income_forecast": 2000,
+       "spending_forecast": 2048.03,
+       "net_forecast": -48.03
+      },
+      "categories": [
+       {
+        "name": "Bills",
+        "color": "#e5534b",
+        "spending_actual": 1570.01,
+        "spending_forecast": 1565.43
+       },
+       {
+        "name": "(uncategorized)",
+        "color": null,
+        "spending_actual": 488.09,
+        "spending_forecast": 420.1
+       },
+       {
+        "name": "Fun",
+        "color": null,
+        "spending_actual": 62.5,
+        "spending_forecast": 62.5
+       }
+      ],
+      "balance_trend": [
+       {
+        "date": "2026-03-01",
+        "balance": -2041.62
+       },
+       {
+        "date": "2026-03-02",
+        "balance": -2111.62
+       },
+       {
+        "date": "2026-03-03",
+        "balance": -2124.12
+       },
+       {
+        "date": "2026-03-04",
+        "balance": -2124.12
+       },
+       {
+        "date": "2026-03-05",
+        "balance": -2124.12
+       },
+       {
+        "date": "2026-03-06",
+        "balance": -2099.12
+       },
+       {
+        "date": "2026-03-07",
+        "balance": -2099.12
+       },
+       {
+        "date": "2026-03-08",
+        "balance": -2099.12
+       },
+       {
+        "date": "2026-03-09",
+        "balance": -2099.12
+       },
+       {
+        "date": "2026-03-10",
+        "balance": -2111.62
+       },
+       {
+        "date": "2026-03-11",
+        "balance": -2111.62
+       },
+       {
+        "date": "2026-03-12",
+        "balance": -2411.62
+       },
+       {
+        "date": "2026-03-13",
+        "balance": -2411.62
+       },
+       {
+        "date": "2026-03-14",
+        "balance": -2411.62
+       },
+       {
+        "date": "2026-03-15",
+        "balance": -2531.72
+       },
+       {
+        "date": "2026-03-16",
+        "balance": -2531.72
+       },
+       {
+        "date": "2026-03-17",
+        "balance": -2544.22
+       },
+       {
+        "date": "2026-03-18",
+        "balance": -2544.22
+       },
+       {
+        "date": "2026-03-19",
+        "balance": -2544.22
+       },
+       {
+        "date": "2026-03-20",
+        "balance": -552.22
+       },
+       {
+        "date": "2026-03-21",
+        "balance": -612.21
+       },
+       {
+        "date": "2026-03-22",
+        "balance": -612.21
+       },
+       {
+        "date": "2026-03-23",
+        "balance": -612.21
+       },
+       {
+        "date": "2026-03-24",
+        "balance": -624.71
+       },
+       {
+        "date": "2026-03-25",
+        "balance": -624.71
+       },
+       {
+        "date": "2026-03-26",
+        "balance": -624.71
+       },
+       {
+        "date": "2026-03-27",
+        "balance": -624.71
+       },
+       {
+        "date": "2026-03-28",
+        "balance": -624.71
+       },
+       {
+        "date": "2026-03-29",
+        "balance": -624.71
+       },
+       {
+        "date": "2026-03-30",
+        "balance": -624.71
+       },
+       {
+        "date": "2026-03-31",
+        "balance": -637.21
+       }
+      ],
+      "opening_balance": -541.62,
+      "forecast_end": -589.64,
+      "actual_end": -637.21
+     }
+    ]
+   }
+  },
+  {
+   "name": "Dashboard charts, 30d, on 2026-03-15",
+   "function": "dashboardCharts",
+   "input": {
+    "window": "30d",
+    "today": "2026-03-15",
+    "categories": [
+     {
+      "id": 1,
+      "name": "Groceries",
+      "color": "#3fb950"
+     },
+     {
+      "id": 2,
+      "name": "Dining",
+      "color": "#f0883e"
+     },
+     {
+      "id": 3,
+      "name": "Transportation",
+      "color": "#58a6ff"
+     },
+     {
+      "id": 4,
+      "name": "Utilities",
+      "color": "#56d4dd"
+     },
+     {
+      "id": 5,
+      "name": "Rent/Mortgage",
+      "color": "#a371f7"
+     },
+     {
+      "id": 6,
+      "name": "Insurance",
+      "color": "#2ea043"
+     },
+     {
+      "id": 7,
+      "name": "Healthcare",
+      "color": "#ff7b72"
+     },
+     {
+      "id": 8,
+      "name": "Entertainment",
+      "color": "#e3b341"
+     },
+     {
+      "id": 9,
+      "name": "Shopping",
+      "color": "#db61a2"
+     },
+     {
+      "id": 10,
+      "name": "Subscriptions",
+      "color": "#7c6be6"
+     },
+     {
+      "id": 11,
+      "name": "Income",
+      "color": "#3fb950"
+     },
+     {
+      "id": 12,
+      "name": "Savings",
+      "color": "#d29922"
+     },
+     {
+      "id": 13,
+      "name": "Other",
+      "color": "#8b949e"
+     },
+     {
+      "id": 14,
+      "name": "Bills",
+      "color": "#e5534b"
+     },
+     {
+      "id": 15,
+      "name": "Income",
+      "color": "#3fb950"
+     },
+     {
+      "id": 16,
+      "name": "Fun",
+      "color": null
+     }
+    ],
+    "accounts": [
+     {
+      "id": 1,
+      "name": "Checking",
+      "starting_balance": 1000.0,
+      "transactions": [
+       {
+        "id": 1,
+        "recurring_id": null,
+        "category_id": 16,
+        "category": "Fun",
+        "transfer_id": null,
+        "description": "Coffee",
+        "notes": null,
+        "amount": -4.75,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-01-03",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "home",
+          "color": "#58a6ff"
+         },
+         {
+          "id": 3,
+          "name": "zeta",
+          "color": "#aaaaaa"
+         }
+        ]
+       },
+       {
+        "id": 2,
+        "recurring_id": 1,
+        "category_id": 14,
+        "category": "Bills",
+        "transfer_id": null,
+        "description": "Rent",
+        "notes": null,
+        "amount": -1500.0,
+        "forecast_amount": -1500.0,
+        "forecast_date": "2026-02-01",
+        "actual_date": "2026-02-03",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 3,
+        "recurring_id": 3,
+        "category_id": 14,
+        "category": "Bills",
+        "transfer_id": null,
+        "description": "Phone",
+        "notes": null,
+        "amount": -70.01,
+        "forecast_amount": -65.43,
+        "forecast_date": "2026-02-28",
+        "actual_date": "2026-03-02",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 4,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Car repair",
+        "notes": "estimate",
+        "amount": -300.0,
+        "forecast_amount": null,
+        "forecast_date": "2026-03-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 5,
+        "recurring_id": 2,
+        "category_id": 15,
+        "category": "Income",
+        "transfer_id": null,
+        "description": "Paycheck",
+        "notes": null,
+        "amount": 2100.0,
+        "forecast_amount": 2000.0,
+        "forecast_date": "2026-02-20",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 6,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Cashback",
+        "notes": null,
+        "amount": 0.1,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-10",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 7,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Cashback",
+        "notes": null,
+        "amount": 0.2,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-11",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 8,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Interest",
+        "notes": null,
+        "amount": 10.005,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-27",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 9,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Refund expected",
+        "notes": null,
+        "amount": 25.0,
+        "forecast_amount": 0.0,
+        "forecast_date": "2026-03-05",
+        "actual_date": "2026-03-06",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 10,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Odd line",
+        "notes": null,
+        "amount": -5.0,
+        "forecast_amount": null,
+        "forecast_date": "2026-02-14",
+        "actual_date": null,
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 11,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "AMZN Mktp",
+        "notes": null,
+        "amount": -42.17,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-16",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": true,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 12,
+        "recurring_id": 1,
+        "category_id": 14,
+        "category": "Bills",
+        "transfer_id": null,
+        "description": "Rent",
+        "notes": null,
+        "amount": -1500.0,
+        "forecast_amount": -1500.0,
+        "forecast_date": "2026-03-01",
+        "actual_date": "2026-03-01",
+        "is_actual": true,
+        "bank_match": "auto",
+        "has_bank_ref": false,
+        "has_mail_ref": true,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 13,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Parking",
+        "notes": null,
+        "amount": -8.0,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-03-20",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": true,
+        "has_mail_ref": false,
+        "bank_left": true,
+        "tags": []
+       },
+       {
+        "id": 14,
+        "recurring_id": 3,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Example Internet",
+        "notes": null,
+        "amount": -59.99,
+        "forecast_amount": null,
+        "forecast_date": "2026-03-31",
+        "actual_date": "2026-03-21",
+        "is_actual": true,
+        "bank_match": "hand",
+        "has_bank_ref": true,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       }
+      ],
+      "recurring": [
+       {
+        "id": 1,
+        "frequency": "monthly_day",
+        "day_of_month": 1,
+        "anchor_date": null,
+        "end_date": null,
+        "active": true,
+        "amount": -1500.0,
+        "description": "Rent",
+        "notes": null,
+        "category": "Bills",
+        "category_id": 14,
+        "tags": [
+         {
+          "id": 1,
+          "name": "home",
+          "color": "#58a6ff"
+         },
+         {
+          "id": 2,
+          "name": "Autopay",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 2,
+        "frequency": "biweekly",
+        "day_of_month": null,
+        "anchor_date": "2026-01-09",
+        "end_date": null,
+        "active": true,
+        "amount": 2000.0,
+        "description": "Paycheck",
+        "notes": null,
+        "category": "Income",
+        "category_id": 15,
+        "tags": []
+       },
+       {
+        "id": 3,
+        "frequency": "monthly_day",
+        "day_of_month": 31,
+        "anchor_date": null,
+        "end_date": null,
+        "active": true,
+        "amount": -65.43,
+        "description": "Phone",
+        "notes": "family plan",
+        "category": "Bills",
+        "category_id": 14,
+        "tags": []
+       },
+       {
+        "id": 4,
+        "frequency": "weekly",
+        "day_of_month": null,
+        "anchor_date": "2026-02-03",
+        "end_date": "2026-04-15",
+        "active": true,
+        "amount": -12.5,
+        "description": "Gym",
+        "notes": null,
+        "category": "Fun",
+        "category_id": 16,
+        "tags": []
+       },
+       {
+        "id": 5,
+        "frequency": "monthly_day",
+        "day_of_month": 15,
+        "anchor_date": "2026-03-10",
+        "end_date": null,
+        "active": true,
+        "amount": -120.1,
+        "description": "Insurance",
+        "notes": null,
+        "category": null,
+        "category_id": null,
+        "tags": []
+       }
+      ],
+      "skips": [
+       {
+        "recurring_id": 2,
+        "date": "2026-03-06"
+       },
+       {
+        "recurring_id": 4,
+        "date": "2026-02-17"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": {
+    "window": "30d",
+    "label": "Last 30 days",
+    "start": "2026-02-14",
+    "end": "2026-03-15",
+    "accounts": [
+     {
+      "account_id": 1,
+      "account_name": "Checking",
+      "totals": {
+       "income_actual": 2035.01,
+       "spending_actual": 2074.78,
+       "net_actual": -39.78,
+       "income_forecast": 2000,
+       "spending_forecast": 2023.03,
+       "net_forecast": -23.03
+      },
+      "categories": [
+       {
+        "name": "Bills",
+        "color": "#e5534b",
+        "spending_actual": 1570.01,
+        "spending_forecast": 1565.43
+       },
+       {
+        "name": "(uncategorized)",
+        "color": null,
+        "spending_actual": 467.27,
+        "spending_forecast": 420.1
+       },
+       {
+        "name": "Fun",
+        "color": null,
+        "spending_actual": 37.5,
+        "spending_forecast": 37.5
+       }
+      ],
+      "balance_trend": [
+       {
+        "date": "2026-02-14",
+        "balance": -509.45
+       },
+       {
+        "date": "2026-02-15",
+        "balance": -509.45
+       },
+       {
+        "date": "2026-02-16",
+        "balance": -551.62
+       },
+       {
+        "date": "2026-02-17",
+        "balance": -551.62
+       },
+       {
+        "date": "2026-02-18",
+        "balance": -551.62
+       },
+       {
+        "date": "2026-02-19",
+        "balance": -551.62
+       },
+       {
+        "date": "2026-02-20",
+        "balance": 1448.38
+       },
+       {
+        "date": "2026-02-21",
+        "balance": 1448.38
+       },
+       {
+        "date": "2026-02-22",
+        "balance": 1448.38
+       },
+       {
+        "date": "2026-02-23",
+        "balance": 1448.38
+       },
+       {
+        "date": "2026-02-24",
+        "balance": 1435.88
+       },
+       {
+        "date": "2026-02-25",
+        "balance": 1435.88
+       },
+       {
+        "date": "2026-02-26",
+        "balance": 1435.88
+       },
+       {
+        "date": "2026-02-27",
+        "balance": 1445.89
+       },
+       {
+        "date": "2026-02-28",
+        "balance": 1445.89
+       },
+       {
+        "date": "2026-03-01",
+        "balance": -54.11
+       },
+       {
+        "date": "2026-03-02",
+        "balance": -124.12
+       },
+       {
+        "date": "2026-03-03",
+        "balance": -136.62
+       },
+       {
+        "date": "2026-03-04",
+        "balance": -136.62
+       },
+       {
+        "date": "2026-03-05",
+        "balance": -136.62
+       },
+       {
+        "date": "2026-03-06",
+        "balance": -111.62
+       },
+       {
+        "date": "2026-03-07",
+        "balance": -111.62
+       },
+       {
+        "date": "2026-03-08",
+        "balance": -111.62
+       },
+       {
+        "date": "2026-03-09",
+        "balance": -111.62
+       },
+       {
+        "date": "2026-03-10",
+        "balance": -124.12
+       },
+       {
+        "date": "2026-03-11",
+        "balance": -124.12
+       },
+       {
+        "date": "2026-03-12",
+        "balance": -424.12
+       },
+       {
+        "date": "2026-03-13",
+        "balance": -424.12
+       },
+       {
+        "date": "2026-03-14",
+        "balance": -424.12
+       },
+       {
+        "date": "2026-03-15",
+        "balance": -544.22
+       }
+      ],
+      "opening_balance": -504.45,
+      "forecast_end": -527.48,
+      "actual_end": -544.22
+     }
+    ]
+   }
+  },
+  {
+   "name": "Dashboard charts, 90d, on 2026-03-15",
+   "function": "dashboardCharts",
+   "input": {
+    "window": "90d",
+    "today": "2026-03-15",
+    "categories": [
+     {
+      "id": 1,
+      "name": "Groceries",
+      "color": "#3fb950"
+     },
+     {
+      "id": 2,
+      "name": "Dining",
+      "color": "#f0883e"
+     },
+     {
+      "id": 3,
+      "name": "Transportation",
+      "color": "#58a6ff"
+     },
+     {
+      "id": 4,
+      "name": "Utilities",
+      "color": "#56d4dd"
+     },
+     {
+      "id": 5,
+      "name": "Rent/Mortgage",
+      "color": "#a371f7"
+     },
+     {
+      "id": 6,
+      "name": "Insurance",
+      "color": "#2ea043"
+     },
+     {
+      "id": 7,
+      "name": "Healthcare",
+      "color": "#ff7b72"
+     },
+     {
+      "id": 8,
+      "name": "Entertainment",
+      "color": "#e3b341"
+     },
+     {
+      "id": 9,
+      "name": "Shopping",
+      "color": "#db61a2"
+     },
+     {
+      "id": 10,
+      "name": "Subscriptions",
+      "color": "#7c6be6"
+     },
+     {
+      "id": 11,
+      "name": "Income",
+      "color": "#3fb950"
+     },
+     {
+      "id": 12,
+      "name": "Savings",
+      "color": "#d29922"
+     },
+     {
+      "id": 13,
+      "name": "Other",
+      "color": "#8b949e"
+     },
+     {
+      "id": 14,
+      "name": "Bills",
+      "color": "#e5534b"
+     },
+     {
+      "id": 15,
+      "name": "Income",
+      "color": "#3fb950"
+     },
+     {
+      "id": 16,
+      "name": "Fun",
+      "color": null
+     }
+    ],
+    "accounts": [
+     {
+      "id": 1,
+      "name": "Checking",
+      "starting_balance": 1000.0,
+      "transactions": [
+       {
+        "id": 1,
+        "recurring_id": null,
+        "category_id": 16,
+        "category": "Fun",
+        "transfer_id": null,
+        "description": "Coffee",
+        "notes": null,
+        "amount": -4.75,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-01-03",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": [
+         {
+          "id": 1,
+          "name": "home",
+          "color": "#58a6ff"
+         },
+         {
+          "id": 3,
+          "name": "zeta",
+          "color": "#aaaaaa"
+         }
+        ]
+       },
+       {
+        "id": 2,
+        "recurring_id": 1,
+        "category_id": 14,
+        "category": "Bills",
+        "transfer_id": null,
+        "description": "Rent",
+        "notes": null,
+        "amount": -1500.0,
+        "forecast_amount": -1500.0,
+        "forecast_date": "2026-02-01",
+        "actual_date": "2026-02-03",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 3,
+        "recurring_id": 3,
+        "category_id": 14,
+        "category": "Bills",
+        "transfer_id": null,
+        "description": "Phone",
+        "notes": null,
+        "amount": -70.01,
+        "forecast_amount": -65.43,
+        "forecast_date": "2026-02-28",
+        "actual_date": "2026-03-02",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 4,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Car repair",
+        "notes": "estimate",
+        "amount": -300.0,
+        "forecast_amount": null,
+        "forecast_date": "2026-03-12",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 5,
+        "recurring_id": 2,
+        "category_id": 15,
+        "category": "Income",
+        "transfer_id": null,
+        "description": "Paycheck",
+        "notes": null,
+        "amount": 2100.0,
+        "forecast_amount": 2000.0,
+        "forecast_date": "2026-02-20",
+        "actual_date": null,
+        "is_actual": false,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 6,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Cashback",
+        "notes": null,
+        "amount": 0.1,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-10",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 7,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Cashback",
+        "notes": null,
+        "amount": 0.2,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-11",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 8,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Interest",
+        "notes": null,
+        "amount": 10.005,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-27",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 9,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Refund expected",
+        "notes": null,
+        "amount": 25.0,
+        "forecast_amount": 0.0,
+        "forecast_date": "2026-03-05",
+        "actual_date": "2026-03-06",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 10,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Odd line",
+        "notes": null,
+        "amount": -5.0,
+        "forecast_amount": null,
+        "forecast_date": "2026-02-14",
+        "actual_date": null,
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": false,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 11,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "AMZN Mktp",
+        "notes": null,
+        "amount": -42.17,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-02-16",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": true,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 12,
+        "recurring_id": 1,
+        "category_id": 14,
+        "category": "Bills",
+        "transfer_id": null,
+        "description": "Rent",
+        "notes": null,
+        "amount": -1500.0,
+        "forecast_amount": -1500.0,
+        "forecast_date": "2026-03-01",
+        "actual_date": "2026-03-01",
+        "is_actual": true,
+        "bank_match": "auto",
+        "has_bank_ref": false,
+        "has_mail_ref": true,
+        "bank_left": false,
+        "tags": []
+       },
+       {
+        "id": 13,
+        "recurring_id": null,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Parking",
+        "notes": null,
+        "amount": -8.0,
+        "forecast_amount": null,
+        "forecast_date": null,
+        "actual_date": "2026-03-20",
+        "is_actual": true,
+        "bank_match": null,
+        "has_bank_ref": true,
+        "has_mail_ref": false,
+        "bank_left": true,
+        "tags": []
+       },
+       {
+        "id": 14,
+        "recurring_id": 3,
+        "category_id": null,
+        "category": null,
+        "transfer_id": null,
+        "description": "Example Internet",
+        "notes": null,
+        "amount": -59.99,
+        "forecast_amount": null,
+        "forecast_date": "2026-03-31",
+        "actual_date": "2026-03-21",
+        "is_actual": true,
+        "bank_match": "hand",
+        "has_bank_ref": true,
+        "has_mail_ref": false,
+        "bank_left": false,
+        "tags": []
+       }
+      ],
+      "recurring": [
+       {
+        "id": 1,
+        "frequency": "monthly_day",
+        "day_of_month": 1,
+        "anchor_date": null,
+        "end_date": null,
+        "active": true,
+        "amount": -1500.0,
+        "description": "Rent",
+        "notes": null,
+        "category": "Bills",
+        "category_id": 14,
+        "tags": [
+         {
+          "id": 1,
+          "name": "home",
+          "color": "#58a6ff"
+         },
+         {
+          "id": 2,
+          "name": "Autopay",
+          "color": null
+         }
+        ]
+       },
+       {
+        "id": 2,
+        "frequency": "biweekly",
+        "day_of_month": null,
+        "anchor_date": "2026-01-09",
+        "end_date": null,
+        "active": true,
+        "amount": 2000.0,
+        "description": "Paycheck",
+        "notes": null,
+        "category": "Income",
+        "category_id": 15,
+        "tags": []
+       },
+       {
+        "id": 3,
+        "frequency": "monthly_day",
+        "day_of_month": 31,
+        "anchor_date": null,
+        "end_date": null,
+        "active": true,
+        "amount": -65.43,
+        "description": "Phone",
+        "notes": "family plan",
+        "category": "Bills",
+        "category_id": 14,
+        "tags": []
+       },
+       {
+        "id": 4,
+        "frequency": "weekly",
+        "day_of_month": null,
+        "anchor_date": "2026-02-03",
+        "end_date": "2026-04-15",
+        "active": true,
+        "amount": -12.5,
+        "description": "Gym",
+        "notes": null,
+        "category": "Fun",
+        "category_id": 16,
+        "tags": []
+       },
+       {
+        "id": 5,
+        "frequency": "monthly_day",
+        "day_of_month": 15,
+        "anchor_date": "2026-03-10",
+        "end_date": null,
+        "active": true,
+        "amount": -120.1,
+        "description": "Insurance",
+        "notes": null,
+        "category": null,
+        "category_id": null,
+        "tags": []
+       }
+      ],
+      "skips": [
+       {
+        "recurring_id": 2,
+        "date": "2026-03-06"
+       },
+       {
+        "recurring_id": 4,
+        "date": "2026-02-17"
+       }
+      ]
+     }
+    ]
+   },
+   "expected": {
+    "window": "90d",
+    "label": "Last 90 days",
+    "start": "2025-12-16",
+    "end": "2026-03-15",
+    "accounts": [
+     {
+      "account_id": 1,
+      "account_name": "Checking",
+      "totals": {
+       "income_actual": 8035.31,
+       "spending_actual": 5235.39,
+       "net_actual": 2799.91,
+       "income_forecast": 8000,
+       "spending_forecast": 5178.89,
+       "net_forecast": 2821.11
+      },
+      "categories": [
+       {
+        "name": "Bills",
+        "color": "#e5534b",
+        "spending_actual": 4700.87,
+        "spending_forecast": 4696.29
+       },
+       {
+        "name": "(uncategorized)",
+        "color": null,
+        "spending_actual": 467.27,
+        "spending_forecast": 420.1
+       },
+       {
+        "name": "Fun",
+        "color": null,
+        "spending_actual": 67.25,
+        "spending_forecast": 62.5
+       }
+      ],
+      "balance_trend": [
+       {
+        "date": "2025-12-16",
+        "balance": 1000
+       },
+       {
+        "date": "2025-12-17",
+        "balance": 1000
+       },
+       {
+        "date": "2025-12-18",
+        "balance": 1000
+       },
+       {
+        "date": "2025-12-19",
+        "balance": 1000
+       },
+       {
+        "date": "2025-12-20",
+        "balance": 1000
+       },
+       {
+        "date": "2025-12-21",
+        "balance": 1000
+       },
+       {
+        "date": "2025-12-22",
+        "balance": 1000
+       },
+       {
+        "date": "2025-12-23",
+        "balance": 1000
+       },
+       {
+        "date": "2025-12-24",
+        "balance": 1000
+       },
+       {
+        "date": "2025-12-25",
+        "balance": 1000
+       },
+       {
+        "date": "2025-12-26",
+        "balance": 1000
+       },
+       {
+        "date": "2025-12-27",
+        "balance": 1000
+       },
+       {
+        "date": "2025-12-28",
+        "balance": 1000
+       },
+       {
+        "date": "2025-12-29",
+        "balance": 1000
+       },
+       {
+        "date": "2025-12-30",
+        "balance": 1000
+       },
+       {
+        "date": "2025-12-31",
+        "balance": 934.57
+       },
+       {
+        "date": "2026-01-01",
+        "balance": -565.43
+       },
+       {
+        "date": "2026-01-02",
+        "balance": -565.43
+       },
+       {
+        "date": "2026-01-03",
+        "balance": -570.18
+       },
+       {
+        "date": "2026-01-04",
+        "balance": -570.18
+       },
+       {
+        "date": "2026-01-05",
+        "balance": -570.18
+       },
+       {
+        "date": "2026-01-06",
+        "balance": -570.18
+       },
+       {
+        "date": "2026-01-07",
+        "balance": -570.18
+       },
+       {
+        "date": "2026-01-08",
+        "balance": -570.18
+       },
+       {
+        "date": "2026-01-09",
+        "balance": 1429.82
+       },
+       {
+        "date": "2026-01-10",
+        "balance": 1429.82
+       },
+       {
+        "date": "2026-01-11",
+        "balance": 1429.82
+       },
+       {
+        "date": "2026-01-12",
+        "balance": 1429.82
+       },
+       {
+        "date": "2026-01-13",
+        "balance": 1429.82
+       },
+       {
+        "date": "2026-01-14",
+        "balance": 1429.82
+       },
+       {
+        "date": "2026-01-15",
+        "balance": 1429.82
+       },
+       {
+        "date": "2026-01-16",
+        "balance": 1429.82
+       },
+       {
+        "date": "2026-01-17",
+        "balance": 1429.82
+       },
+       {
+        "date": "2026-01-18",
+        "balance": 1429.82
+       },
+       {
+        "date": "2026-01-19",
+        "balance": 1429.82
+       },
+       {
+        "date": "2026-01-20",
+        "balance": 1429.82
+       },
+       {
+        "date": "2026-01-21",
+        "balance": 1429.82
+       },
+       {
+        "date": "2026-01-22",
+        "balance": 1429.82
+       },
+       {
+        "date": "2026-01-23",
+        "balance": 3429.82
+       },
+       {
+        "date": "2026-01-24",
+        "balance": 3429.82
+       },
+       {
+        "date": "2026-01-25",
+        "balance": 3429.82
+       },
+       {
+        "date": "2026-01-26",
+        "balance": 3429.82
+       },
+       {
+        "date": "2026-01-27",
+        "balance": 3429.82
+       },
+       {
+        "date": "2026-01-28",
+        "balance": 3429.82
+       },
+       {
+        "date": "2026-01-29",
+        "balance": 3429.82
+       },
+       {
+        "date": "2026-01-30",
+        "balance": 3429.82
+       },
+       {
+        "date": "2026-01-31",
+        "balance": 3364.39
+       },
+       {
+        "date": "2026-02-01",
+        "balance": 3364.39
+       },
+       {
+        "date": "2026-02-02",
+        "balance": 3364.39
+       },
+       {
+        "date": "2026-02-03",
+        "balance": 1851.89
+       },
+       {
+        "date": "2026-02-04",
+        "balance": 1851.89
+       },
+       {
+        "date": "2026-02-05",
+        "balance": 1851.89
+       },
+       {
+        "date": "2026-02-06",
+        "balance": 3851.89
+       },
+       {
+        "date": "2026-02-07",
+        "balance": 3851.89
+       },
+       {
+        "date": "2026-02-08",
+        "balance": 3851.89
+       },
+       {
+        "date": "2026-02-09",
+        "balance": 3851.89
+       },
+       {
+        "date": "2026-02-10",
+        "balance": 3839.49
+       },
+       {
+        "date": "2026-02-11",
+        "balance": 3839.69
+       },
+       {
+        "date": "2026-02-12",
+        "balance": 3839.69
+       },
+       {
+        "date": "2026-02-13",
+        "balance": 3839.69
+       },
+       {
+        "date": "2026-02-14",
+        "balance": 3834.69
+       },
+       {
+        "date": "2026-02-15",
+        "balance": 3834.69
+       },
+       {
+        "date": "2026-02-16",
+        "balance": 3792.52
+       },
+       {
+        "date": "2026-02-17",
+        "balance": 3792.52
+       },
+       {
+        "date": "2026-02-18",
+        "balance": 3792.52
+       },
+       {
+        "date": "2026-02-19",
+        "balance": 3792.52
+       },
+       {
+        "date": "2026-02-20",
+        "balance": 5792.52
+       },
+       {
+        "date": "2026-02-21",
+        "balance": 5792.52
+       },
+       {
+        "date": "2026-02-22",
+        "balance": 5792.52
+       },
+       {
+        "date": "2026-02-23",
+        "balance": 5792.52
+       },
+       {
+        "date": "2026-02-24",
+        "balance": 5780.02
+       },
+       {
+        "date": "2026-02-25",
+        "balance": 5780.02
+       },
+       {
+        "date": "2026-02-26",
+        "balance": 5780.02
+       },
+       {
+        "date": "2026-02-27",
+        "balance": 5790.02
+       },
+       {
+        "date": "2026-02-28",
+        "balance": 5790.02
+       },
+       {
+        "date": "2026-03-01",
+        "balance": 4290.02
+       },
+       {
+        "date": "2026-03-02",
+        "balance": 4220.01
+       },
+       {
+        "date": "2026-03-03",
+        "balance": 4207.51
+       },
+       {
+        "date": "2026-03-04",
+        "balance": 4207.51
+       },
+       {
+        "date": "2026-03-05",
+        "balance": 4207.51
+       },
+       {
+        "date": "2026-03-06",
+        "balance": 4232.51
+       },
+       {
+        "date": "2026-03-07",
+        "balance": 4232.51
+       },
+       {
+        "date": "2026-03-08",
+        "balance": 4232.51
+       },
+       {
+        "date": "2026-03-09",
+        "balance": 4232.51
+       },
+       {
+        "date": "2026-03-10",
+        "balance": 4220.01
+       },
+       {
+        "date": "2026-03-11",
+        "balance": 4220.01
+       },
+       {
+        "date": "2026-03-12",
+        "balance": 3920.01
+       },
+       {
+        "date": "2026-03-13",
+        "balance": 3920.01
+       },
+       {
+        "date": "2026-03-14",
+        "balance": 3920.01
+       },
+       {
+        "date": "2026-03-15",
+        "balance": 3799.91
+       }
+      ],
+      "opening_balance": 1000,
+      "forecast_end": 3821.11,
+      "actual_end": 3799.91
+     }
+    ]
    }
   }
  ]

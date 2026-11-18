@@ -82,9 +82,17 @@
 
   // ---------- Strings and numbers ----------
 
+  // Two "YYYY-MM-DD" dates: plain string order is date order.
+  function cmpIso(a, b) {
+    return a < b ? -1 : a > b ? 1 : 0;
+  }
+
   // Python's str < str: by code point, not UTF-16 unit or locale.
+  const SURROGATE = /[\uD800-\uDFFF]/;
   function cmpStr(a, b) {
     if (a === b) return 0;
+    // Without surrogate pairs, UTF-16 order is code point order.
+    if (!SURROGATE.test(a) && !SURROGATE.test(b)) return a < b ? -1 : 1;
     const ia = a[Symbol.iterator]();
     const ib = b[Symbol.iterator]();
     for (;;) {
@@ -226,7 +234,7 @@
     let opening = input.starting_balance;
     for (const t of txns) {
       const ref = t.actual_date || t.forecast_date;
-      if (ref && dayNumber(ref) < start && truthy(t.is_actual)) opening += t.amount;
+      if (ref && ref < input.start && truthy(t.is_actual)) opening += t.amount;
     }
 
     const events = [];
@@ -239,9 +247,7 @@
       let anchor;
       if (truthy(t.is_actual) && t.actual_date) anchor = t.actual_date;
       else anchor = t.forecast_date || t.actual_date;
-      if (!anchor) continue;
-      const a = dayNumber(anchor);
-      if (!(start <= a && a <= end)) continue;
+      if (!anchor || anchor < input.start || anchor > input.end) continue;
 
       const forecastAmt = t.forecast_amount != null ? t.forecast_amount : (!truthy(t.is_actual) ? t.amount : null);
       let shownAmount, shownDate;
@@ -307,7 +313,7 @@
 
     // By planned date, cleared lines after pending ones on the same day.
     const sortDay = (e) => e.forecast_date || e.anchor_date;
-    events.sort((x, y) => cmpStr(sortDay(x), sortDay(y))
+    events.sort((x, y) => cmpIso(sortDay(x), sortDay(y))
       || (x.actual_amount == null ? 0 : 1) - (y.actual_amount == null ? 0 : 1));
 
     // Planned running balance, in that order.
@@ -321,7 +327,7 @@
     // Actual running balance (actual amount, else planned), in actual-date
     // order, so a line that cleared late picks up that day's balance.
     const actualDay = (e) => e.actual_date || e.anchor_date;
-    const byActual = events.map((_, i) => i).sort((i, j) => cmpStr(actualDay(events[i]), actualDay(events[j])));
+    const byActual = events.map((_, i) => i).sort((i, j) => cmpIso(actualDay(events[i]), actualDay(events[j])));
     const abals = new Array(events.length).fill(0.0);
     let abal = opening;
     for (const i of byActual) {
@@ -341,7 +347,7 @@
       const amounts = [];
       events.forEach((other, j) => {
         const od = plannedDay(other);
-        if (cmpStr(od, d) < 0 || (od === d && pos[j] <= pos[i])) amounts.push(truthy(other.forecast_amount) ? other.forecast_amount : 0.0);
+        if (od < d || (od === d && pos[j] <= pos[i])) amounts.push(truthy(other.forecast_amount) ? other.forecast_amount : 0.0);
       });
       return opening + pySum(amounts);
     });
@@ -393,7 +399,7 @@
     const cutoff = input.as_of;
     const amounts = [];
     for (const r of data.rows) {
-      if (cmpStr(r.actual_date || r.forecast_date || "", cutoff) <= 0) {
+      if ((r.actual_date || r.forecast_date || "") <= cutoff) {
         amounts.push(r.actual_amount != null ? r.actual_amount : (truthy(r.forecast_amount) ? r.forecast_amount : 0.0));
       }
     }
@@ -457,16 +463,195 @@
       }
     }
 
-    events.sort((x, y) => cmpStr(x.date, y.date)
+    events.sort((x, y) => cmpIso(x.date, y.date)
       || cmpStr(x.account_name, y.account_name)
       || cmpStr(x.description.toLowerCase(), y.description.toLowerCase()));
     return { start: input.start, end: input.end, events: events, daily_balances: daily };
   }
 
+  // ---------- Dashboard ----------
+
+  const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August",
+    "September", "October", "November", "December"];
+
+  // strftime("%B %Y") in the C locale, which the server runs in.
+  function monthLabel(iso) {
+    const [y, m] = ymd(iso);
+    return MONTHS[m - 1] + " " + y;
+  }
+
+  function monthWindow(today) {
+    const [y, m] = ymd(today);
+    return [isoFromParts(y, m, 1), isoFromParts(y, m, monthLength(y, m))];
+  }
+
+  // main.dashboard: one card per account for today's month. `input`:
+  //   today       the viewer's date
+  //   accounts    [{id, name, ...a forecast input without start/end}]
+  function dashboard(input) {
+    const today = input.today;
+    const [start, end] = monthWindow(today);
+    const label = monthLabel(start);
+    const cards = [];
+    for (const acc of input.accounts || []) {
+      const data = forecast(Object.assign({}, acc, { start: start, end: end }));
+      const rows = data.rows;
+      // Lines not cleared yet, from today to the month's end.
+      let upcomingCount = 0;
+      let upcomingNet = 0.0;
+      for (const r of rows) {
+        if (truthy(r.is_actual_real)) continue;
+        const ref = r.forecast_date || r.actual_date;
+        if (ref && ref >= today) {
+          upcomingCount += 1;
+          upcomingNet += truthy(r.forecast_amount) ? r.forecast_amount : 0.0;
+        }
+      }
+      const current = round2(actualBalanceAsOf(Object.assign({}, acc, { as_of: today })));
+      const card = {
+        id: acc.id,
+        name: acc.name,
+        month_label: label,
+        opening_balance: data.opening_balance,
+        forecast_end: data.forecast_ending_balance,
+        actual_end: data.actual_ending_balance,
+      };
+      if (!rows.length) {
+        Object.assign(card, {
+          forecast_high: data.opening_balance, forecast_high_date: null,
+          forecast_low: data.opening_balance, forecast_low_date: null,
+          actual_high: data.opening_balance, actual_low: data.opening_balance,
+          row_count: 0,
+        });
+      } else {
+        let fHigh = rows[0].forecast_balance, fLow = fHigh;
+        let fHighDate = rows[0].forecast_date, fLowDate = fHighDate;
+        let aHigh = rows[0].actual_balance, aLow = aHigh;
+        for (const r of rows) {
+          if (r.forecast_balance > fHigh) { fHigh = r.forecast_balance; fHighDate = r.forecast_date; }
+          if (r.forecast_balance < fLow) { fLow = r.forecast_balance; fLowDate = r.forecast_date; }
+          if (r.actual_balance > aHigh) aHigh = r.actual_balance;
+          if (r.actual_balance < aLow) aLow = r.actual_balance;
+        }
+        Object.assign(card, {
+          forecast_high: fHigh, forecast_high_date: fHighDate,
+          forecast_low: fLow, forecast_low_date: fLowDate,
+          actual_high: aHigh, actual_low: aLow,
+          row_count: rows.length,
+        });
+      }
+      card.upcoming_count = upcomingCount;
+      card.upcoming_net = round2(upcomingNet);
+      card.current_balance = current;
+      cards.push(card);
+    }
+    return { cards: cards };
+  }
+
+  // main._resolve_dashboard_window: [start, end, label].
+  function dashboardWindow(window, today) {
+    const t = dayNumber(today);
+    if (window === "30d") return [isoOf(t - 29), today, "Last 30 days"];
+    if (window === "90d") return [isoOf(t - 89), today, "Last 90 days"];
+    const [start, end] = monthWindow(today);
+    return [start, end, monthLabel(start)];
+  }
+
+  // main.dashboard_charts: spending by category, totals and the daily
+  // balance for each account. `input`:
+  //   window       "month", "30d" or "90d" (checked by the host)
+  //   today        the viewer's date
+  //   categories   the caller's categories [{id, name, color}]
+  //   accounts     [{id, name, ...a forecast input without start/end}]
+  function dashboardCharts(input) {
+    const [start, end, label] = dashboardWindow(input.window, input.today);
+    const colors = new Map();
+    for (const c of input.categories || []) colors.set(c.name, c.color == null ? null : c.color);
+    const UNCAT = "(uncategorized)";
+    const accountsOut = [];
+    for (const acc of input.accounts || []) {
+      const data = forecast(Object.assign({}, acc, { start: start, end: end }));
+      const rows = data.rows;
+      const buckets = new Map();
+      const bucket = (cat) => {
+        if (!buckets.has(cat)) buckets.set(cat, { spending_actual: 0.0, spending_forecast: 0.0 });
+        return buckets.get(cat);
+      };
+      let fIncome = 0.0, aIncome = 0.0, fSpend = 0.0, aSpend = 0.0;
+      for (const r of rows) {
+        // Transfer legs move money between accounts: not spending or income.
+        if (r.transfer_id != null) continue;
+        const cat = truthy(r.category) ? r.category : UNCAT;
+        const f = r.forecast_amount;
+        const a = r.actual_amount;
+        if (f != null) {
+          if (f > 0) fIncome += f;
+          else if (f < 0) { fSpend += f; bucket(cat).spending_forecast += -f; }
+        }
+        if (a != null) {
+          if (a > 0) aIncome += a;
+          else if (a < 0) { aSpend += a; bucket(cat).spending_actual += -a; }
+        }
+      }
+      const cats = [];
+      for (const [name, b] of buckets) {
+        if (b.spending_actual > 0 || b.spending_forecast > 0) {
+          cats.push({
+            name: name, color: colors.has(name) ? colors.get(name) : null,
+            spending_actual: round2(b.spending_actual), spending_forecast: round2(b.spending_forecast),
+          });
+        }
+      }
+      // Most spent first; Python's reverse sort keeps ties in their order.
+      cats.sort((x, y) => (y.spending_actual - x.spending_actual) || (y.spending_forecast - x.spending_forecast));
+
+      const dayToBalance = new Map();
+      for (const r of rows) {
+        const d = r.actual_date || r.forecast_date;
+        if (d) dayToBalance.set(d, r.actual_balance);
+      }
+      const trend = [];
+      let running = data.opening_balance;
+      for (let d = dayNumber(start); d <= dayNumber(end); d++) {
+        const key = isoOf(d);
+        if (dayToBalance.has(key)) running = dayToBalance.get(key);
+        trend.push({ date: key, balance: round2(running) });
+      }
+      accountsOut.push({
+        account_id: acc.id,
+        account_name: acc.name,
+        totals: {
+          income_actual: round2(aIncome),
+          spending_actual: round2(-aSpend),
+          net_actual: round2(aIncome + aSpend),
+          income_forecast: round2(fIncome),
+          spending_forecast: round2(-fSpend),
+          net_forecast: round2(fIncome + fSpend),
+        },
+        categories: cats,
+        balance_trend: trend,
+        opening_balance: round2(data.opening_balance),
+        forecast_end: round2(data.forecast_ending_balance),
+        actual_end: round2(data.actual_ending_balance),
+      });
+    }
+    return { window: input.window, label: label, start: start, end: end, accounts: accountsOut };
+  }
+
   // ---------- Entry point ----------
+
+  // forecast._occurrences for the hosts: a repeating item's dates in a
+  // window, [{date, amount, description}].
+  function occurrenceDates(input) {
+    return occurrences(input.recurring, dayNumber(input.start), dayNumber(input.end))
+      .map((o) => ({ date: isoOf(o.day), amount: o.amount, description: o.description }));
+  }
 
   const functions = {
     forecast: forecast,
+    occurrences: occurrenceDates,
+    dashboard: dashboard,
+    dashboardCharts: dashboardCharts,
     actualBalanceAsOf: actualBalanceAsOf,
     upcomingDates: upcomingDates,
     calendar: calendar,
@@ -480,12 +665,15 @@
   }
 
   root.WalletWeatherCore = {
-    version: "0.1.0",
+    version: "0.2.0",
     run: run,
     forecast: forecast,
     actualBalanceAsOf: actualBalanceAsOf,
     upcomingDates: upcomingDates,
     calendar: calendar,
+    dashboard: dashboard,
+    dashboardCharts: dashboardCharts,
+    occurrences: occurrenceDates,
     // For the tests: the date and rounding helpers.
     _dayNumber: dayNumber,
     _isoOf: isoOf,

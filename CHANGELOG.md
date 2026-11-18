@@ -69,7 +69,12 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.81.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.17.1**
+App version: **1.82.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.17.1**
+
+### Changed
+
+- Balances, the Forecast, the Calendar, the Dashboard and its charts are now worked out by a new shared engine, the same code the iPhone app will use to run without a server. Nothing should look different: before the switch, the old and new code were checked against each other on 63 test households, and they agreed to the last digit. Pages built on the forecast (Budgets, Net worth, Reports, Search and bank matching) use it too. If a number looks different from before, please open an issue. (`packages/core/`, run by `apps/server/app/jscore.py`.)
+- The container image grows by about 8 MB for the JavaScript engine that runs it (quickjs-ng, MIT).
 
 ## [1.81.0] — 2026-11-18
 

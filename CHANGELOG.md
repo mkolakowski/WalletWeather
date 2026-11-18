@@ -71,6 +71,10 @@ same commit (or session) that introduces it.
 
 App version: **1.76.0** · Web version: **1.90.0** · Schema version: **30** · iOS version: **0.17.0**
 
+## [1.76.0] — 2026-11-17
+
+App version: **1.76.0** · Web version: **1.90.0** · Schema version: **30** · iOS version: **0.17.0**
+
 ### Added
 
 - **Make a new account from a bank account (Settings → Bank sync):** a bank account with no match has a **New account…** choice in its Your account list. Pick it, check the name (it starts as the bank's own), and Save matches makes the account, matches it from the "Bring in from" date and syncs straight away. Its starting balance is worked out from the bank's balance and the lines that come in, so its balance today is the bank's. If the sync can't run (the day's limit, SimpleFIN down) nothing is made, and you can try again. If the bank sends no balance, the account starts at 0 and says so. It uses one of the day's 20 syncs. (app 1.76.0, web 1.90.0, #215)
@@ -2577,7 +2581,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.75.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.76.0...HEAD
+[1.76.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.76.0
 [1.75.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.75.0
 [1.74.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.74.0
 [1.73.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.73.0

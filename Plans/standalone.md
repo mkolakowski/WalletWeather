@@ -12,6 +12,7 @@ Tracking issue: #240
 | 4. Use without a server | iOS | #235 | Not started |
 | 5. Move between a server and the phone | iOS, Server | #236 | Not started |
 | 6. Backup to iCloud Drive | iOS | #237 | Not started |
+| 9. CSV import from Files (runs after 6, before 7) | iOS, Core | #243 | Not started |
 | 7. Live iCloud sync between devices | iOS | #238 | Not started |
 | 8. Bank sync on the phone | iOS, Core | #239 | Not started |
 
@@ -32,6 +33,7 @@ Sessions: may span — eight phases across the server, a new shared core and the
 | 4. Use without a server | iOS | Opus | Sonnet: tests for the local store and the local answers | A privacy decision (financial data stored on the phone) and a new way into the app. |
 | 5. Move between a server and the phone | iOS, Server | Opus | Sonnet: server tests that import a file the phone made | scrypt written in Swift has to match `backup.py` byte for byte; a wrong key loses a backup. |
 | 6. Backup to iCloud Drive | iOS | Sonnet | none | Writes the phase 5 file on a timer into the app's iCloud folder. Switch to Opus if the passphrase handling changes. |
+| 9. CSV import from Files | iOS, Core | Opus | Sonnet: the importer's answer key cases and tests | The web app's importer (column mapping, dates, amounts, de-duplication, tag rules) moves into the core, and the server switches to it as in phase 2; a wrong de-duplication drops or doubles lines. |
 | 7. Live iCloud sync between devices | iOS | Opus | Sonnet: conflict tests | CloudKit, its rules for what the store may hold, and what happens when two devices edit at once. |
 | 8. Bank sync on the phone | iOS, Core | Opus | Sonnet: matching tests over the answer key | Moves bank matching into the core and keeps a SimpleFIN token on the phone. |
 
@@ -39,11 +41,11 @@ Sessions: may span — eight phases across the server, a new shared core and the
 
 1. ~~**The server's JavaScript engine.**~~ Decided 2026-11-18 ([decision](../docs/dev/decisions/standalone.md)): **quickjs-ng** (MIT, 2.5 MB wheel, 8 MB installed). Set aside: mini-racer (V8, ISC, 74 MB installed), dukpy (ES5 only), a Node service in Compose.
 2. ~~**What standalone shows for what it can't do.**~~ Decided 2026-11-18 ([decision](../docs/dev/decisions/standalone.md)): **shown, marked "Needs a server".** Sharing, bank-alert emails, email alerts, Net worth, Budgets and Reports stay where they are, greyed, and open a short note on what a server adds, with a link to the setup.
-3. **How transactions get in before phase 8.** Blocks nothing. Assumed: typing them, and importing a server backup (phase 5). CSV import on the phone is a later idea.
+3. ~~**How transactions get in before phase 8.**~~ Decided 2026-11-18 ([decision](../docs/dev/decisions/standalone.md)): **CSV import from the Files app**, as its own phase (9, run after phase 6 and before 7; numbered 9 so phases 7 and 8 keep their issues).
 4. ~~**The backup passphrase.**~~ Decided 2026-11-18 ([decision](../docs/dev/decisions/standalone.md)): **chosen once when backup is turned on and kept in iCloud Keychain**, so a new phone opens the backups by itself, with a plain warning that a lost passphrase can't be recovered.
 5. ~~**How often iCloud Drive backups are written, and how many are kept.**~~ Decided 2026-11-18 ([decision](../docs/dev/decisions/standalone.md)): **at most once a day, only on days something changed, keeping the last 14.**
 6. ~~**When two devices edit the same thing.**~~ Decided 2026-11-18 ([decision](../docs/dev/decisions/standalone.md)): **the later edit wins, per record** (CloudKit's own rule), with no note, and a deleted record stays deleted.
-7. **Standalone and the App Store listing.** Blocks nothing. The app becomes useful without a server, which changes what `ios-app` phase 6 (#92) says to Apple's reviewer and in the listing.
+7. ~~**Standalone and the App Store listing.**~~ Decided 2026-11-18 ([decision](../docs/dev/decisions/standalone.md)): **the app asks at onboarding**, showing the pros and cons of both: on this iPhone, or connected to your own server. The listing presents the two the same way (its wording is for `ios-app` phase 6, #92).
 
 ## The plan
 
@@ -55,7 +57,7 @@ Sessions: may span — eight phases across the server, a new shared core and the
 - **The money logic is written once, in JavaScript**, and run by all three: the server (an embedded engine), the iPhone (JavaScriptCore, part of iOS), and later the web app as-is. Compared against a shared Python core embedded in the app (tens of MB, no help for the web) and a Rust core (exact decimals, but a new toolchain on the Mac, in Docker and in Xcode, and a WebAssembly build for the web).
 - **Today's server is the answer key.** Before the server switches to the core, the server produces test cases (data in, the API's JSON out) and the core must match them all. Both CI (pytest) and `swift test` run them.
 - **iCloud: both.** A sealed backup file in iCloud Drive, in the server's own backup format (`backup.py`: scrypt + AES-256-GCM) so the server's Import takes it, and live sync between the person's devices.
-- **Scope:** the first usable version is standalone + backup + moving (phases 4–6). Bank sync on the phone and live sync are in this plan, after it. The web app working in the browser, and Net worth, Budgets and Reports in standalone, wait (roadmap items 32 and 33).
+- **Scope:** the first usable version is standalone + backup + moving (phases 4–6), then CSV import (phase 9). Bank sync on the phone and live sync are in this plan, after it. The web app working in the browser, and Net worth, Budgets and Reports in standalone, wait (roadmap items 32 and 33).
 - **Checked by** the answer key in CI and `swift test`, plus your try of each app phase on TestFlight.
 
 **How the core is shaped:**
@@ -95,7 +97,11 @@ Sessions: may span — eight phases across the server, a new shared core and the
 
 ### Phase 4: Use without a server
 
-- **iOS:** the Connect screen offers "Use without a server" next to connecting and the demo. The data lives in a store on the phone (SwiftData, with complete file protection, as kept numbers are today). A local connection answers the app's API calls from the store through the core, as the demo does, so the screens don't change. It covers Dashboard, Forecast, Bills & income, Calendar, moving money, search, and adding, editing and deleting.
+- **iOS:** the first screen asks how to use the app (open question 7), with the pros and cons of each:
+  - **On this iPhone:** no server to run, the data stays on your devices and backs up to iCloud; but no web app, no sharing, no bank-alert emails or email alerts, and bank sync only while the app runs.
+  - **Your own server:** the web app and the phone, sharing, bank sync on a schedule and alerts; but you run and update a server.
+  - "Try the demo" stays, smaller, under both.
+- **iOS:** The data lives in a store on the phone (SwiftData, with complete file protection, as kept numbers are today). A local connection answers the app's API calls from the store through the core, as the demo does, so the screens don't change. It covers Dashboard, Forecast, Bills & income, Calendar, moving money, search, and adding, editing and deleting.
 - What standalone can't do (sharing, bank-alert emails, email alerts, Net worth, Budgets, Reports) stays in place, greyed and marked "Needs a server", and opens a short note on what a server adds with a link to the setup (open question 2). No sign-in, but the app lock still works.
 - `docs/privacy.md` and the iOS README updated.
 - **You:** set up a standalone household from scratch on TestFlight and use it for a few days.
@@ -115,6 +121,15 @@ Sessions: may span — eight phases across the server, a new shared core and the
 - The release that ships this is the first standalone version worth announcing (README, changelog).
 - **You:** turn backup on, delete the app, put it back and restore.
 - **Done when:** a restore on a fresh install gives the same Forecast; old backups are pruned to the number kept.
+
+### Phase 9: CSV import from Files
+
+Runs after phase 6 and before phase 7 (decided 2026-11-18, open question 3).
+
+- **Core:** the web app's CSV importer (`_parse_csv_rows`, the column mapping, dates and amounts, de-duplication against lines already there, the auto-tag rules) moves into the core, with its own answer-key cases, and the server's preview and import endpoints switch to it as in phase 2.
+- **iOS:** a standalone phone can pick a bank's CSV export in the Files app, map its columns (remembered per account, as on the web), preview what lands and what's a duplicate, and import.
+- **You:** import a CSV export from your bank into a standalone phone.
+- **Done when:** the importer's answer key passes on both sides; the same file imported twice adds nothing the second time.
 
 ### Phase 7: Live iCloud sync between devices
 

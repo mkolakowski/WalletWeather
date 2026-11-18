@@ -68,3 +68,10 @@ Decisions made while planning [`Plans/standalone.md`](../../../Plans/standalone.
 - **The backup passphrase is kept in iCloud Keychain** (phase 5, #236). It's chosen once, when backup or export is first used, and synced so a new phone opens the backups by itself, with a plain warning that a lost passphrase can't be recovered. Typing it every time was set aside because automatic backups couldn't run.
 - **iCloud Drive backups: at most once a day, only on days something changed, keeping the last 14** (phase 6, #237).
 - **Sync conflicts: the later edit wins, per record** (phase 7, #238), as CloudKit does by itself, with no note; a deleted record stays deleted. A rare edit made on two devices before they sync can be lost.
+
+## 2026-11-18: CSV import on the phone, and asking at onboarding
+
+**Decided:** 2026-11-18, by Matthew (`/resolve-open-questions`). **Status:** accepted, planned. Answers open questions 3 and 7.
+
+- **CSV import from the Files app** gets standalone transactions in before bank sync on the phone (phase 8). It's a new phase, numbered 9 so phases 7 and 8 keep their issues, run after phase 6 and before 7. The web app's importer moves into the core so both import the same way.
+- **The app asks at onboarding** whether to use it on this iPhone or with your own server, showing the pros and cons of both (phase 4). Asked as "how should the App Store listing present standalone?", Matthew answered with this instead of picking one to lead with. So the listing presents the two the same way, and its wording is left to `ios-app` phase 6 (#92).

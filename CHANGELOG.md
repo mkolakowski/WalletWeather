@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.76.3** · Web version: **1.92.0** · Schema version: **30** · iOS version: **0.17.1**
+App version: **1.77.0** · Web version: **1.93.0** · Schema version: **30** · iOS version: **0.17.1**
+
+### Changed
+
+- **Matching a bank line by hand is a pop-in:** Match… on Settings → Bank sync → Unmatched (and on Email alerts) now opens a box with the bank's line at the top (name, amount, date and the bank's full text) and a card for each planned line it could pay. Each card says in plain words how the bank's line compares, such as "$2.17 more · 1 day earlier", the closest one is highlighted, and Pay this is on the card. A bill now shows once, at its nearest unpaid date, with its other dates in a menu on the card. Before, it was listed again for every date in the 60 days. (1.77.0, web 1.93.0, #222)
 
 ## [1.76.3] — 2026-11-17
 

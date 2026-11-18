@@ -311,6 +311,36 @@
   dialog.app-dialog input { width:100%; box-sizing:border-box; }
   dialog.app-dialog .dlg-err { color:var(--bad); font-size:12px; min-height:16px; margin-top:4px; }
   dialog.app-dialog .dlg-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+  /* The match pop-in (#222): the bank line pinned on top, the planned lines
+     as cards that scroll, Leave and Close pinned at the bottom. */
+  dialog.match-dialog { width:min(560px, calc(100vw - 16px)); max-height:calc(100dvh - 32px); padding:0; overflow:hidden; }
+  dialog.match-dialog[open] { display:flex; flex-direction:column; }
+  .match-head { padding:16px 18px 12px; border-bottom:1px solid var(--border); }
+  .match-line { display:flex; justify-content:space-between; align-items:baseline; gap:12px; font-size:16px; font-weight:600; }
+  .match-line .ml-name { overflow-wrap:anywhere; min-width:0; }
+  .match-line .ml-amt { white-space:nowrap; }
+  .match-sub { color:var(--muted); font-size:12px; margin-top:3px; }
+  .match-raw { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .match-body { overflow-y:auto; padding:12px 18px 4px; flex:1; min-height:0; }
+  .match-hint { font-size:12px; color:var(--muted); margin:0 0 10px; }
+  .match-card { display:flex; align-items:center; gap:12px; border:1px solid var(--border); border-radius:8px;
+                padding:10px 12px; margin-bottom:8px; }
+  .match-card.best { border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+  .match-card .mc-main { flex:1; min-width:0; }
+  .match-card .mc-best { font-size:11px; font-weight:600; color:var(--accent); margin-bottom:2px; }
+  .match-card .mc-top { display:flex; justify-content:space-between; gap:10px; font-size:14px; }
+  .match-card .mc-name { font-weight:500; overflow-wrap:anywhere; min-width:0; }
+  .match-card .mc-amt { white-space:nowrap; }
+  .match-card .mc-words { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; margin-top:4px;
+                          font-size:12px; color:var(--muted); }
+  .match-card select { padding:2px 6px; font-size:12px; }
+  .match-card > button { white-space:nowrap; }
+  .match-foot { display:flex; justify-content:space-between; gap:8px; padding:12px 18px;
+                border-top:1px solid var(--border); }
+  @media (max-width:480px) {
+    .match-card { flex-direction:column; align-items:stretch; }
+    .match-card > button { width:100%; }
+  }
   input, select { background:var(--bg-deep); border:1px solid var(--border); color:var(--text);
                   padding:7px 10px; border-radius:6px; font:inherit; }
   label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
@@ -331,8 +361,6 @@
   table.fc-like td button { padding:3px 8px; }
   table.fc-like:not(.tw-wrapped) th.fit, table.fc-like:not(.tw-wrapped) td.fit { width:1%; white-space:nowrap; }
   table.fc-like:not(.tw-wrapped) td.notes-col { max-width:0; width:30%; }
-  table.fc-like.fc-nested { margin:2px 0 6px; }
-  table.fc-like.fc-nested th, table.fc-like.fc-nested td { font-size:12px; }
   /* Paired columns — Forecast/Actual date (2,3), amt (5,6), bal (8,9) — are
      grouped: they hug their content instead of stretching with the table
      (the slack goes to Description/Category/Notes), the divider between the
@@ -2740,6 +2768,8 @@
     </div>
   </form>
 </dialog>
+<!-- The match pop-in (#222): filled by openMatchPopin(). -->
+<dialog id="matchDialog" class="app-dialog match-dialog" aria-label="Match a bank line"></dialog>
 
 <!-- Global footer — sits outside #login and #app so it's visible on every
      screen (including the auth screen). Values populated by applyVersionFooter
@@ -2780,7 +2810,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.92.0";
+const WEB_VERSION = "1.93.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2790,6 +2820,7 @@ const WEB_VERSION = "1.92.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.93.0 (2026-11-17, claude+mkolakowski): (#222) The match pop-in. Match… on the Unmatched list (Bank sync and Email alerts) opens <dialog id="matchDialog"> (openMatchPopin) instead of a table under the row: the bank or alert line on top (name, amount, date, the bank's full text) and a card per planned line from the candidates response's new `choices` (one per bill, at its nearest open date, other dates in a picker), each saying in words how the bank's line compares ("$2.17 more · 1 day earlier"), the closest highlighted, with Pay this; Leave as its own line and Close at the bottom. opts.onDone lets Forecast reuse it (phase 2).
 // 1.92.0 (2026-11-18, claude+mkolakowski): (#227) Bank sync links to its provider. BANK_PROVIDERS holds each provider's name and pages (SimpleFIN Bridge: home, sign-in, account, new setup token) and _bankProviderLinks(key) draws a "SimpleFIN Bridge: Sign in · Your account · Make a setup token" line at the top of Settings → Bank sync (connect and connected views) and of Admin → Bank sync (#adminBankSyncLinks). The links use beta-bridge.simplefin.org, since bridge.simplefin.org now sends every path to that site's homepage; the "no longer accepts this connection" note links to the setup-token page too.
 // 1.91.0 (2026-11-18, claude+mkolakowski): (#220) The Unmatched panel's tables wear Forecast's grid (table.fc-like: the same cell dividers, padding and button size, green and red amounts, a truncating Notes column). bankShowUnmatched lists Description, Actual date, Actual amt, Notes and the buttons, in a box as wide as the page (the sync log keeps its 720px); bankShowCandidates lists the planned lines it can pay as Planned line, Forecast date, Forecast amt, Δ Amt against the bank's line, Days apart and Pay this. Also on Settings → Email alerts, which shares the panel.
 // 1.90.0 (2026-11-17, claude+mkolakowski): (#215) Create an account from Settings → Bank sync. A bank account that isn't matched yet gets a first choice "New account…" in its "Your account" select (BANK_NEW_ACCOUNT, bankLinkChanged) that shows a name box prefilled with the bank account's name; Save matches (bankSaveLinks) sends the other rows to PUT /api/bank/links as before, then makes each new account with POST /api/bank/accounts (name, start date), shows how many lines came in and the starting balance, and refreshes the bank panel and the account lists (loadAccounts, loadManageAccounts, loadExportAccounts).
@@ -9553,9 +9584,9 @@ async function bankShowUnmatched(accountId, boxId) {
       <td class="fit">${escapeHtml(l.date)}</td>
       <td class="num fit ${l.amount >= 0 ? 'pos' : 'neg'}">${escapeHtml(fmt(l.amount))}</td>
       ${l.notes ? `<td class="notes-col" title="${escapeAttr(l.notes)}">${escapeHtml(l.notes)}</td>` : '<td class="notes-col muted">—</td>'}
-      <td class="fit"><button class="ghost" onclick="bankShowCandidates(${accountId}, ${l.id})">Match…</button>
+      <td class="fit"><button class="ghost" onclick="openMatchPopin(${accountId}, ${l.id})">Match…</button>
         <button class="ghost" onclick="bankLeaveLine(${accountId}, ${l.id})">Leave as its own line</button></td>
-    </tr><tr class="hidden" id="bankCand${l.id}"><td colspan="5"></td></tr>`).join('');
+    </tr>`).join('');
   box.style.maxWidth = 'none';   // wide enough for the Forecast-style columns; the sync log keeps its own width
   box.innerHTML = `<h3 class="backup-subhead">Unmatched lines${acc ? ': ' + escapeHtml(acc.name) : ''}
       <button class="ghost" style="float:right" onclick="document.getElementById('${_unmatchedBoxId}').classList.add('hidden')">Close</button></h3>
@@ -9571,46 +9602,145 @@ function _bankUnmatchedSay(text, color) {
   if (el) { el.textContent = text; el.style.color = color || 'var(--muted)'; }
 }
 
-async function bankShowCandidates(accountId, txnId) {
-  const row = document.getElementById('bankCand' + txnId);
-  if (!row) return;
-  row.classList.remove('hidden');
-  const cell = row.firstElementChild;
-  cell.innerHTML = '<span style="color:var(--muted)">Loading…</span>';
-  try {
-    const data = await api(`/api/accounts/${accountId}/bank-unmatched/${txnId}/candidates`);
-    _bankCandidates[txnId] = data.candidates;
-    // Δ Amt: how far the bank's line is from each planned amount, as Forecast shows it.
-    const diffOf = (c) => {
-      const d = Math.round((data.line.amount - c.amount) * 100) / 100;
-      return `<td class="num fit ${d > 0 ? 'diff-pos' : (d < 0 ? 'diff-neg' : 'diff-zero')}">${escapeHtml(fmt(d))}</td>`;
-    };
-    cell.innerHTML = data.candidates.length
-      ? `<div style="overflow-x:auto"><table class="fc-like fc-nested"><thead><tr><th>Planned line</th>
-          <th class="fit">Forecast date</th><th class="num fit">Forecast amt</th><th class="num fit">Δ Amt</th>
-          <th class="num fit">Days apart</th><th></th></tr></thead><tbody>` + data.candidates.map((c, i) =>
-          `<tr><td>${escapeHtml(c.description)}</td>
-            <td class="fit">${escapeHtml(c.forecast_date)}</td>
-            <td class="num fit ${c.amount >= 0 ? 'pos' : 'neg'}">${escapeHtml(fmt(c.amount))}</td>
-            ${diffOf(c)}
-            <td class="num fit">${c.days_apart}</td>
-            <td class="fit"><button class="ghost" onclick="bankPayCandidate(${accountId}, ${txnId}, ${i})">Pay this</button></td></tr>`).join('')
-          + '</tbody></table></div>'
-      : '<span style="color:var(--muted);font-size:13px">No planned line within 60 days to pay with this one.</span>';
-  } catch (e) { cell.innerHTML = `<span style="color:var(--bad)">${escapeHtml(errText(e))}</span>`; }
-}
-const _bankCandidates = {};
+// The match pop-in (#222): an unmatched bank or alert line on top, and a
+// card per planned line it could pay, in words. A bill is one card at its
+// nearest open date, with its other dates in a picker. Shown in
+// <dialog id="matchDialog">; opts.onDone(message) runs after Pay this or
+// Leave (the Unmatched list refreshes itself by default).
+let _match = null;   // { accountId, txnId, line, choices, picked: [date index per card], onDone }
 
-async function bankPayCandidate(accountId, txnId, idx) {
-  const c = (_bankCandidates[txnId] || [])[idx];
+async function openMatchPopin(accountId, txnId, opts) {
+  opts = opts || {};
+  const dlg = document.getElementById('matchDialog');
+  _match = { accountId, txnId, line: null, choices: [], picked: [],
+             onDone: opts.onDone || (said => _bankRefreshUnmatched(accountId, said)) };
+  dlg.innerHTML = `<div class="match-head"><h3>Match a bank line</h3></div>
+    <div class="match-body"><span style="color:var(--muted)">Loading…</span></div>
+    <div class="match-foot"><span></span><button type="button" class="ghost" onclick="closeMatchPopin()">Close</button></div>`;
+  dlg.onkeydown = ev => { if (ev.key === 'Escape') { ev.preventDefault(); closeMatchPopin(); } };
+  dlg.oncancel = ev => { ev.preventDefault(); closeMatchPopin(); };
+  dlg.onclick = ev => { if (ev.target === dlg) closeMatchPopin(); };   // a tap on the backdrop
+  if (typeof dlg.showModal === 'function') { if (!dlg.open) dlg.showModal(); } else dlg.setAttribute('open', '');
+  let data;
+  try { data = await api(`/api/accounts/${accountId}/bank-unmatched/${txnId}/candidates`); }
+  catch (e) {
+    dlg.querySelector('.match-body').innerHTML = `<span style="color:var(--bad)">${escapeHtml(errText(e))}</span>`;
+    return;
+  }
+  if (!_match || _match.txnId !== txnId) return;   // closed or reopened meanwhile
+  _match.line = data.line;
+  _match.choices = data.choices || [];
+  _match.picked = _match.choices.map(c => Math.max(0, c.dates.findIndex(d => d.forecast_date === c.forecast_date)));
+  _renderMatchPopin();
+}
+
+function closeMatchPopin() {
+  const dlg = document.getElementById('matchDialog');
+  if (typeof dlg.close === 'function') { if (dlg.open) dlg.close(); } else dlg.removeAttribute('open');
+  _match = null;
+}
+
+// "$2.17 more" / "same amount" and "1 day earlier" / "same day": how the
+// bank's line compares with one planned date.
+function _matchWords(d) {
+  const diff = Math.round(d.amount_diff * 100) / 100;
+  let amt;
+  if (!d.same_direction) amt = `<span style="color:var(--warn)">planned as ${d.amount >= 0 ? 'money in' : 'money out'}</span>`;
+  else if (diff === 0) amt = '<span class="pos">same amount</span>';
+  else {
+    const bigger = Math.abs(_match.line.amount) > Math.abs(d.amount);
+    amt = `${escapeHtml(fmt(Math.abs(diff)))} ${bigger ? 'more' : 'less'}`;
+  }
+  const n = Math.abs(d.days_after);
+  const days = n === 0 ? 'same day' : `${n} day${n === 1 ? '' : 's'} ${d.days_after < 0 ? 'earlier' : 'later'}`;
+  return `${amt} · ${days}`;
+}
+
+function _matchCard(c, i) {
+  const d = c.dates[_match.picked[i]] || c;
+  const best = i === 0 && c.same_direction;
+  const when = c.dates.length > 1
+    ? `<select aria-label="Which date of ${escapeAttr(c.description)}" onchange="_matchPick(${i}, this.value)">${
+        c.dates.map((o, j) => `<option value="${j}"${j === _match.picked[i] ? ' selected' : ''}>${escapeHtml(_gsDay(o.forecast_date))}${
+          o.amount !== c.amount ? ' · ' + escapeHtml(fmt(o.amount)) : ''}</option>`).join('')}</select>`
+    : `<span>${escapeHtml(_gsDay(d.forecast_date))}</span>`;
+  return `<div class="match-card${best ? ' best' : ''}" id="matchCard${i}">
+      <div class="mc-main">
+        ${best ? '<div class="mc-best">Closest match</div>' : ''}
+        <div class="mc-top"><span class="mc-name">${escapeHtml(d.description)}</span>
+          <span class="mc-amt ${d.amount >= 0 ? 'pos' : 'neg'}">${escapeHtml(fmt(d.amount))}</span></div>
+        <div class="mc-words">${when}<span id="matchWords${i}">${_matchWords(d)}</span></div>
+      </div>
+      <button type="button"${best ? '' : ' class="ghost"'} onclick="_matchPay(${i})">Pay this</button>
+    </div>`;
+}
+
+function _renderMatchPopin() {
+  const dlg = document.getElementById('matchDialog');
+  const l = _match.line;
+  const alert = l.source === 'alert';
+  const cards = _match.choices.map(_matchCard).join('');
+  dlg.innerHTML = `<div class="match-head">
+      <h3>${alert ? 'Match an email alert' : 'Match a bank line'}</h3>
+      <div class="match-line"><span class="ml-name">${escapeHtml(l.description)}</span>
+        <span class="ml-amt ${l.amount >= 0 ? 'pos' : 'neg'}">${escapeHtml(fmt(l.amount))}</span></div>
+      <div class="match-sub">${escapeHtml(_gsDay(l.date))}${alert ? ' · from an email alert' : ' · from your bank'}</div>
+      ${l.bank_text ? `<div class="match-sub match-raw" title="${escapeAttr(l.bank_text)}">${escapeHtml(l.bank_text)}</div>` : ''}
+    </div>
+    <div class="match-body">
+      ${cards
+        ? `<p class="match-hint">Which planned line did this pay? Each one says how the ${alert ? "alert's" : "bank's"} line compares with it.</p>${cards}`
+        : '<p class="match-hint">No planned line within 60 days to pay with this one. Leave it as its own line, or add the planned line on Forecast first.</p>'}
+      <div class="dlg-err" id="matchErr" role="alert"></div>
+    </div>
+    <div class="match-foot">
+      <button type="button" class="ghost" onclick="_matchLeave()">Leave as its own line</button>
+      <button type="button" class="ghost" onclick="closeMatchPopin()">Close</button>
+    </div>`;
+}
+
+function _matchPick(i, j) {
+  _match.picked[i] = Number(j);
+  const c = _match.choices[i], d = c.dates[_match.picked[i]];
+  const card = document.getElementById('matchCard' + i);
+  if (!card || !d) return;
+  card.querySelector('.mc-amt').textContent = fmt(d.amount);
+  document.getElementById('matchWords' + i).innerHTML = _matchWords(d);
+}
+
+async function _matchPay(i) {
+  const m = _match;
+  const c = m && m.choices[i];
   if (!c) return;
-  const body = c.transaction_id != null
-    ? { transaction_id: c.transaction_id }
-    : { recurring_id: c.recurring_id, forecast_date: c.forecast_date };
+  const d = c.dates[m.picked[i]] || c;
+  const body = d.transaction_id != null
+    ? { transaction_id: d.transaction_id }
+    : { recurring_id: d.recurring_id, forecast_date: d.forecast_date };
+  document.querySelectorAll('#matchDialog button').forEach(b => { b.disabled = true; });
   try {
-    await api(`/api/accounts/${accountId}/bank-unmatched/${txnId}/match`, { method: 'POST', body: JSON.stringify(body) });
-  } catch (e) { _bankUnmatchedSay(errText(e), 'var(--bad)'); return; }
-  await _bankRefreshUnmatched(accountId, 'Paid.');
+    await api(`/api/accounts/${m.accountId}/bank-unmatched/${m.txnId}/match`, { method: 'POST', body: JSON.stringify(body) });
+  } catch (e) {
+    document.querySelectorAll('#matchDialog button').forEach(b => { b.disabled = false; });
+    const err = document.getElementById('matchErr');
+    if (err) err.textContent = errText(e);
+    return;
+  }
+  closeMatchPopin();
+  await m.onDone(`Paid ${d.description} (${_gsDay(d.forecast_date)}) with ${m.line.description}.`);
+}
+
+async function _matchLeave() {
+  const m = _match;
+  if (!m) return;
+  try {
+    await api(`/api/accounts/${m.accountId}/bank-unmatched/${m.txnId}/leave`, { method: 'POST' });
+  } catch (e) {
+    const err = document.getElementById('matchErr');
+    if (err) err.textContent = errText(e);
+    return;
+  }
+  closeMatchPopin();
+  await m.onDone(`Left ${m.line.description} as its own line.`);
 }
 
 async function bankLeaveLine(accountId, txnId) {

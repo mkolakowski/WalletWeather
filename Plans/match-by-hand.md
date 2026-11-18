@@ -6,9 +6,11 @@ Tracking issue: #225
 
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
-| 1. The match pop-in | Server, Web | #222 | Open |
+| 1. The match pop-in | Server, Web | #222 | Built in 1.77.0 (web 1.93.0), 2026-11-17; waits for the release and your try |
 | 2. Match from Forecast | Server, Web | #223 | Open |
 | 3. Bills learn bank text | Server, Web | #224 | Open |
+
+Phase 1 built 2026-11-17 in 1.77.0 (web 1.93.0, no schema change): the candidates response keeps `candidates` and adds `choices` (one per bill, its dates in `dates`, with `amount_diff`, `days_after` and `same_direction`) and the line's `source` and `bank_text`. Verified by API tests in `apps/server/tests/test_bank_match_popin.py` (4) with the full suite, and headless Chromium at 1280 and 390px with the API stubbed (cards, picking another date updates the card and is what Pay this sends, the box closes and the list refreshes, no page errors). Set in building, not asked: a planned line going the other way says "planned as money in/out" and sorts last; "earlier/later" and "more/less" are the bank's line against the planned one, with a hint line saying so; a tap on the backdrop closes the box.
 
 Planned 2026-11-17 (9:30 PM ET), from your look at the Unmatched panel after web 1.91.0 (#220).
 

@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.76.3"
+APP_VERSION = "1.77.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -4643,9 +4643,38 @@ def bank_unmatched_candidates(account_id: int, txn_id: int, user: User = Depends
                         "forecast_date": occ.isoformat(), "description": desc,
                         "amount": float(amount), "days_apart": abs((occ - day).days)})
     out.sort(key=lambda c: (c["days_apart"], c["forecast_date"], c["description"].lower()))
+    bank_text = _bank_text_of(line)
     return {"line": {"id": line.id, "date": day.isoformat(), "description": line.description,
-                     "amount": float(line.amount)},
-            "candidates": out[:50]}
+                     "amount": float(line.amount), "source": _line_source(line),
+                     "bank_text": bank_text if bank_text != line.description else None},
+            "candidates": out[:50],
+            "choices": _match_choices(out, line.amount, day)[:50]}
+
+
+def _match_choices(cands: list[dict], amount: Decimal, day: date) -> list[dict]:
+    """The candidates as the match pop-in shows them (#222): one entry per
+    bill, at its nearest open date, with all its open dates in `dates`; a
+    planned line that isn't a bill's is an entry of its own. Each date says
+    how the bank's line differs from it: `amount_diff` (bank minus planned)
+    and `days_after` (the bank's date minus the planned date, so negative is
+    early). Entries going the bank line's way come first, then the nearest."""
+    groups: dict = {}
+    for c in cands:
+        planned = Decimal(str(c["amount"]))
+        opt = {k: c[k] for k in ("transaction_id", "recurring_id", "forecast_date", "amount",
+                                 "description", "days_apart")}
+        opt["days_after"] = (day - date.fromisoformat(c["forecast_date"])).days
+        opt["amount_diff"] = float(amount - planned)
+        opt["same_direction"] = (planned < 0) == (amount < 0) and planned != 0
+        key = ("r", c["recurring_id"]) if c["recurring_id"] is not None else ("t", c["transaction_id"])
+        groups.setdefault(key, []).append(opt)
+    choices = []
+    for opts in groups.values():
+        best = min(opts, key=lambda o: (o["days_apart"], o["forecast_date"]))
+        choices.append({**best, "dates": sorted(opts, key=lambda o: o["forecast_date"])})
+    choices.sort(key=lambda o: (not o["same_direction"], o["days_apart"], abs(o["amount_diff"]),
+                                o["description"].lower()))
+    return choices
 
 
 class BankMatchIn(BaseModel):

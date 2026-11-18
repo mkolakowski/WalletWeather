@@ -114,3 +114,16 @@ def test_near_checks(connected, fake):
     assert near(c, acc, transaction_id=999999).status_code == 404
     paid = next(x for x in unmatched(c, acc)["lines"] if x["description"] == "PAYROLL ACME")
     assert near(c, acc, transaction_id=paid["id"]).status_code == 409          # already paid
+
+
+def test_near_lines_say_whether_they_are_within_the_bills_days(connected, fake):
+    """#231: the bill's match_days decide within_days, and come back too."""
+    c, u, acc, status = connected
+    rec = bill(c, acc, "Groceries", -60.00, GROCERY_DAY, match_days=0)
+    link(c, status, acc)
+    sync(c)
+    data = near(c, acc, recurring_id=rec, forecast_date=GROCERY_DAY.isoformat()).json()
+    assert data["match_days"] == 0
+    by = {x["description"]: x for x in data["lines"]}
+    assert by["CORNER GROCERY"]["within_days"] is True          # the same day
+    assert by["PAYROLL ACME"]["within_days"] is False           # a day later

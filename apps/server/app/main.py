@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.80.0"
+APP_VERSION = "1.81.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -4704,16 +4704,24 @@ def bank_unmatched_candidates(account_id: int, txn_id: int, user: User = Depends
                      "bank_text": bank_text if bank_text != line.description else None,
                      "learn_name": _line_name(line)},
             "candidates": out[:50],
-            "choices": _match_choices(out, line.amount, day)[:50]}
+            "choices": _match_choices(out, line.amount, day,
+                                      {r.id: r.match_days for r in bills["recs"]})[:50]}
 
 
-def _match_choices(cands: list[dict], amount: Decimal, day: date) -> list[dict]:
+DEFAULT_MATCH_DAYS = 5   # a planned line that isn't a bill's: the bills' default reach (#231)
+
+
+def _match_choices(cands: list[dict], amount: Decimal, day: date,
+                   reach: dict[int, int] | None = None) -> list[dict]:
     """The candidates as the match pop-in shows them (#222): one entry per
     bill, at its nearest open date, with all its open dates in `dates`; a
     planned line that isn't a bill's is an entry of its own. Each date says
     how the bank's line differs from it: `amount_diff` (bank minus planned)
     and `days_after` (the bank's date minus the planned date, so negative is
-    early). Entries going the bank line's way come first, then the nearest."""
+    early), and `within_days` whether it's inside the bill's bank-match days
+    (#231; 5 for a planned line that isn't a bill's). Entries going the bank
+    line's way come first, then the nearest."""
+    reach = reach or {}
     groups: dict = {}
     for c in cands:
         planned = Decimal(str(c["amount"]))
@@ -4722,6 +4730,7 @@ def _match_choices(cands: list[dict], amount: Decimal, day: date) -> list[dict]:
         opt["days_after"] = (day - date.fromisoformat(c["forecast_date"])).days
         opt["amount_diff"] = float(amount - planned)
         opt["same_direction"] = (planned < 0) == (amount < 0) and planned != 0
+        opt["within_days"] = c["days_apart"] <= reach.get(c["recurring_id"], DEFAULT_MATCH_DAYS)
         key = ("r", c["recurring_id"]) if c["recurring_id"] is not None else ("t", c["transaction_id"])
         groups.setdefault(key, []).append(opt)
     choices = []
@@ -4745,6 +4754,8 @@ def bank_unmatched_near(account_id: int, transaction_id: int | None = None,
     acc = _sync_log_account(db, user, account_id)
     planned = _planned_target(db, acc, transaction_id, recurring_id, forecast_date)
     day, want = date.fromisoformat(planned["forecast_date"]), Decimal(str(planned["amount"]))
+    rec = db.get(RecurringTransaction, planned["recurring_id"]) if planned["recurring_id"] else None
+    days = rec.match_days if rec else DEFAULT_MATCH_DAYS
     lo, hi = day - timedelta(days=MATCH_BY_HAND_DAYS), day + timedelta(days=MATCH_BY_HAND_DAYS)
     out = []
     for t in _unmatched_query(db, acc.id):
@@ -4758,9 +4769,10 @@ def bank_unmatched_near(account_id: int, transaction_id: int | None = None,
                     "learn_name": _line_name(t),
                     "days_apart": abs((when - day).days), "days_after": (when - day).days,
                     "amount_diff": float(t.amount - want),
-                    "same_direction": (t.amount < 0) == (want < 0) and want != 0})
+                    "same_direction": (t.amount < 0) == (want < 0) and want != 0,
+                    "within_days": abs((when - day).days) <= days})
     out.sort(key=lambda x: (not x["same_direction"], x["days_apart"], abs(x["amount_diff"]), x["id"]))
-    return {"planned": planned, "lines": out[:50]}
+    return {"planned": planned, "match_days": days, "lines": out[:50]}
 
 
 def _planned_target(db: Session, acc: Account, transaction_id: int | None,

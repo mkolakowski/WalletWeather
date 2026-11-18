@@ -69,11 +69,12 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.80.0** · Web version: **1.95.0** · Schema version: **31** · iOS version: **0.17.1**
+App version: **1.81.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.17.1**
 
 ### Changed
 
 - **Learned bank names ignore codes:** a bill that learned a bank line's name now also takes lines whose name differs only by numbers or a code after `*` or `#`. A bill taught "AMAZON MKTPL*2K4AB1" takes next month's "AMAZON MKTPL*9XZ3", while "AMAZON PRIME" is still a different name. (1.80.0, #230)
+- **Shorter lists when matching by hand:** Match… and "Paid by a bank line…" now show only what falls within the bill's own bank-match days (5 days for a planned line that isn't a bill), with "Show N more, up to 60 days away" for the rest. When nothing falls within those days, everything shows, with a line saying so. (1.81.0, web 1.96.0, #231)
 
 ## [1.79.0] — 2026-11-18
 

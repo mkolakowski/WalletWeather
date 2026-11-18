@@ -105,3 +105,26 @@ def test_no_choices_for_a_line_left_as_its_own(connected, fake):
     assert r.status_code == 404
     r = c.get(f"/api/accounts/{acc}/bank-unmatched/999999/candidates")
     assert r.status_code == 404
+
+
+def test_choices_say_whether_they_are_within_the_bills_days(connected, fake):
+    """#231: within_days is inside the bill's match_days, or 5 days for a
+    planned line that isn't a bill's."""
+    c, u, acc, status = connected
+    rec = bill(c, acc, "Groceries", -60.00, GROCERY_DAY, match_days=3)
+    near_shop = c.post(f"/api/accounts/{acc}/transactions", json={
+        "description": "Near shop", "amount": -45.00, "is_actual": False,
+        "forecast_date": (GROCERY_DAY + timedelta(days=4)).isoformat()}).json()["id"]
+    far_shop = c.post(f"/api/accounts/{acc}/transactions", json={
+        "description": "Far shop", "amount": -45.00, "is_actual": False,
+        "forecast_date": (GROCERY_DAY + timedelta(days=20)).isoformat()}).json()["id"]
+    link(c, status, acc)
+    sync(c)
+    choices = candidates(c, acc, grocery_line(c, acc)["id"])["choices"]
+    by = {(x["recurring_id"], x["transaction_id"]): x for x in choices}
+    groceries = by[(rec, None)]
+    assert groceries["within_days"] is True                     # its nearest date, 0 days off
+    assert all(d["within_days"] is (d["days_apart"] <= 3) for d in groceries["dates"])
+    assert any(d["within_days"] is False for d in groceries["dates"])
+    assert by[(None, near_shop)]["within_days"] is True         # 4 days, the default 5
+    assert by[(None, far_shop)]["within_days"] is False         # 20 days

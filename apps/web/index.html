@@ -323,6 +323,8 @@
   .match-raw { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .match-body { overflow-y:auto; padding:12px 18px 4px; flex:1; min-height:0; }
   .match-hint { font-size:12px; color:var(--muted); margin:0 0 10px; }
+  .match-more { font-size:13px; margin:2px 0 10px; }
+  .match-more a { color:var(--accent); }
   .match-remember { display:flex; align-items:flex-start; gap:8px; font-size:13px; color:var(--text); margin:0 0 10px; cursor:pointer; }
   dialog.match-dialog .match-remember input { width:auto; flex:none; margin:2px 0 0; }
   .rec-learned { font-size:11px; color:var(--muted); margin-top:4px; overflow-wrap:anywhere; }
@@ -2814,7 +2816,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.95.0";
+const WEB_VERSION = "1.96.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2824,6 +2826,7 @@ const WEB_VERSION = "1.95.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.96.0 (2026-11-18, claude+mkolakowski): (#231) The match pop-ins show what's within the bill's own bank-match days first (the answers' new within_days; _matchSplit), with "Show N more, up to 60 days away" (_matchMoreLink, _matchShowMore) for the rest; when nothing is within, everything shows with a line saying so. The "Closest match" highlight goes to the first shown card going the line's way.
 // 1.95.0 (2026-11-17, claude+mkolakowski): (#224) Bills learn bank text. Both pop-ins show "Match lines named … from now on" (_matchRememberBox, ticked) when a bill can be taught; Pay this / This paid it send remember (_matchRemember) and the note adds "and N more lines like it matched" from the answer's also_matched (_matchSaid). The bill editor shows the taught name (r.match_text) with Forget (forgetRecMatch → DELETE /api/recurring/{id}/match-text). A taught name pays its bill at any amount within the bill's days (decided 2026-11-17).
 // 1.94.0 (2026-11-17, claude+mkolakowski): (#223) Matching from Forecast. Rows for a line on the Unmatched list (the forecast's new bank_unmatched) wear an "Unmatched" pill (_bankMatchPill). While the forecast's bank_unmatched_count is above 0 (the owner only), a row's open line offers Match… on such a row (openMatchPopin with onDone _forecastMatched, which reloads the forecast and says what was paid) or "Paid by a bank line…" on a planned one (openPaidByPopin → GET /api/accounts/{id}/bank-unmatched/near, the pop-in turned round: the planned line on top, the bank lines as cards with "This paid it"). _matchWords takes the bank and planned amounts, so both directions word it from the bank's line.
 // 1.93.0 (2026-11-17, claude+mkolakowski): (#222) The match pop-in. Match… on the Unmatched list (Bank sync and Email alerts) opens <dialog id="matchDialog"> (openMatchPopin) instead of a table under the row: the bank or alert line on top (name, amount, date, the bank's full text) and a card per planned line from the candidates response's new `choices` (one per bill, at its nearest open date, other dates in a picker), each saying in words how the bank's line compares ("$2.17 more · 1 day earlier"), the closest highlighted, with Pay this; Leave as its own line and Close at the bottom. opts.onDone lets Forecast reuse it (phase 2).
@@ -9686,15 +9689,34 @@ function _matchWords(d, bankAmount, plannedAmount, cardIsBank) {
   return `${amt} · ${days}`;
 }
 
+// Which cards show straight away (#231): those within the bill's own
+// bank-match days, unless none are, then all. `far` marks the rest, shown by
+// "Show N more"; `best` is the first shown card going the line's way.
+function _matchSplit(items) {
+  const anyNear = items.some(x => x.within_days !== false);
+  const far = items.map(x => anyNear && x.within_days === false);
+  const best = items.findIndex((x, i) => !far[i] && x.same_direction);
+  return { anyNear, far, best, hidden: far.filter(Boolean).length };
+}
+function _matchMoreLink(split, what) {
+  if (!split.hidden) return split.anyNear ? '' : `<p class="match-hint">Nothing is within ${what}, so everything up to 60 days away is shown.</p>`;
+  return `<p class="match-more"><a href="#" onclick="_matchShowMore(this);return false">Show ${split.hidden} more, up to 60 days away</a></p>`;
+}
+function _matchShowMore(link) {
+  document.querySelectorAll('#matchDialog .match-card.mc-far').forEach(el => el.classList.remove('hidden'));
+  if (link && link.parentElement) link.parentElement.remove();
+}
+
 function _matchCard(c, i) {
   const d = c.dates[_match.picked[i]] || c;
-  const best = i === 0 && c.same_direction;
+  const best = i === _match.split.best;
+  const far = _match.split.far[i];
   const when = c.dates.length > 1
     ? `<select aria-label="Which date of ${escapeAttr(c.description)}" onchange="_matchPick(${i}, this.value)">${
         c.dates.map((o, j) => `<option value="${j}"${j === _match.picked[i] ? ' selected' : ''}>${escapeHtml(_gsDay(o.forecast_date))}${
           o.amount !== c.amount ? ' · ' + escapeHtml(fmt(o.amount)) : ''}</option>`).join('')}</select>`
     : `<span>${escapeHtml(_gsDay(d.forecast_date))}</span>`;
-  return `<div class="match-card${best ? ' best' : ''}" id="matchCard${i}">
+  return `<div class="match-card${best ? ' best' : ''}${far ? ' mc-far hidden' : ''}" id="matchCard${i}">
       <div class="mc-main">
         ${best ? '<div class="mc-best">Closest match</div>' : ''}
         <div class="mc-top"><span class="mc-name">${escapeHtml(d.description)}</span>
@@ -9709,7 +9731,8 @@ function _renderMatchPopin() {
   const dlg = document.getElementById('matchDialog');
   const l = _match.line;
   const alert = l.source === 'alert';
-  const cards = _match.choices.map(_matchCard).join('');
+  _match.split = _matchSplit(_match.choices);
+  const cards = _match.choices.map(_matchCard).join('') + _matchMoreLink(_match.split, "each bill's bank-match days");
   dlg.innerHTML = `<div class="match-head">
       <h3>${alert ? 'Match an email alert' : 'Match a bank line'}</h3>
       <div class="match-line"><span class="ml-name">${escapeHtml(l.description)}</span>
@@ -9795,9 +9818,10 @@ async function openPaidByPopin(accountId, ref, opts) {
   m.planned = data.planned;
   m.lines = data.lines || [];
   const p = m.planned;
+  const split = _matchSplit(m.lines);
   const cards = m.lines.map((l, i) => {
-    const best = i === 0 && l.same_direction;
-    return `<div class="match-card${best ? ' best' : ''}">
+    const best = i === split.best;
+    return `<div class="match-card${best ? ' best' : ''}${split.far[i] ? ' mc-far hidden' : ''}">
       <div class="mc-main">
         ${best ? '<div class="mc-best">Closest match</div>' : ''}
         <div class="mc-top"><span class="mc-name">${escapeHtml(l.description)}</span>
@@ -9808,7 +9832,7 @@ async function openPaidByPopin(accountId, ref, opts) {
       </div>
       <button type="button"${best ? '' : ' class="ghost"'} onclick="_paidByPay(${i})">This paid it</button>
     </div>`;
-  }).join('');
+  }).join('') + (m.lines.length ? _matchMoreLink(split, `this bill's ± ${Number(data.match_days != null ? data.match_days : 5)} days`) : '');
   dlg.innerHTML = `<div class="match-head">
       <h3>Paid by a bank line</h3>
       <div class="match-line"><span class="ml-name">${escapeHtml(p.description)}</span>

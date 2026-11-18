@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.76.0** · Web version: **1.90.0** · Schema version: **30** · iOS version: **0.17.0**
+App version: **1.76.0** · Web version: **1.91.0** · Schema version: **30** · iOS version: **0.17.0**
+
+### Changed
+
+- **The Unmatched lists look like Forecast:** the lines that paid no bill (Settings → Bank sync, and Settings → Email alerts) are in a table with Forecast's columns and grid: Description, Actual date, Actual amt and Notes, with green and red amounts. **Match…** opens the planned lines a line can pay in the same style, with the date, the planned amount, how far the line's amount is from it (Δ Amt, coloured as in Forecast) and how many days apart. (web 1.91.0, #220)
 
 ## [1.76.0] — 2026-11-17
 

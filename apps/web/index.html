@@ -323,6 +323,16 @@
   #forecastTable th, #forecastTable td { border-right:1px solid var(--border); padding:4px 6px; }
   #forecastTable td button { padding:3px 8px; }
   #forecastTable th:last-child, #forecastTable td:last-child { border-right:none; }
+  /* The Unmatched panel's tables (#220) wear Forecast's grid: the same cell
+     dividers, padding and button size, amounts coloured as Forecast colours
+     them, and a notes column that truncates. */
+  table.fc-like th, table.fc-like td { border-right:1px solid var(--border); padding:4px 6px; }
+  table.fc-like th:last-child, table.fc-like td:last-child { border-right:none; }
+  table.fc-like td button { padding:3px 8px; }
+  table.fc-like:not(.tw-wrapped) th.fit, table.fc-like:not(.tw-wrapped) td.fit { width:1%; white-space:nowrap; }
+  table.fc-like:not(.tw-wrapped) td.notes-col { max-width:0; width:30%; }
+  table.fc-like.fc-nested { margin:2px 0 6px; }
+  table.fc-like.fc-nested th, table.fc-like.fc-nested td { font-size:12px; }
   /* Paired columns — Forecast/Actual date (2,3), amt (5,6), bal (8,9) — are
      grouped: they hug their content instead of stretching with the table
      (the slack goes to Description/Category/Notes), the divider between the
@@ -2769,7 +2779,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.90.0";
+const WEB_VERSION = "1.91.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2779,6 +2789,7 @@ const WEB_VERSION = "1.90.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.91.0 (2026-11-18, claude+mkolakowski): (#220) The Unmatched panel's tables wear Forecast's grid (table.fc-like: the same cell dividers, padding and button size, green and red amounts, a truncating Notes column). bankShowUnmatched lists Description, Actual date, Actual amt, Notes and the buttons, in a box as wide as the page (the sync log keeps its 720px); bankShowCandidates lists the planned lines it can pay as Planned line, Forecast date, Forecast amt, Δ Amt against the bank's line, Days apart and Pay this. Also on Settings → Email alerts, which shares the panel.
 // 1.90.0 (2026-11-17, claude+mkolakowski): (#215) Create an account from Settings → Bank sync. A bank account that isn't matched yet gets a first choice "New account…" in its "Your account" select (BANK_NEW_ACCOUNT, bankLinkChanged) that shows a name box prefilled with the bank account's name; Save matches (bankSaveLinks) sends the other rows to PUT /api/bank/links as before, then makes each new account with POST /api/bank/accounts (name, start date), shows how many lines came in and the starting balance, and refreshes the bank panel and the account lists (loadAccounts, loadManageAccounts, loadExportAccounts).
 // 1.89.0 (2026-11-17, claude+mkolakowski): (#209) Email alerts matched to bills. A bill an alert paid shows an "Email alert" pill (_bankMatchPill reads match_source) and its Un-match asks about the alert; Settings → Email alerts lists the accounts with alerts that paid no bill (bankShowUnmatched(accountId, 'mailLog'), _mailRefreshUnmatchedCounts), and the check log and Check now say how many matched a bill.
 // 1.88.0 (2026-11-17, claude+mkolakowski): (#207) Email alerts checked by themselves. Settings → Email alerts gains a "Check every" 5/15/60 minutes setting (mailSaveSettings → PUT /api/mail/settings {check_minutes}; the folder is optional now), says when the next check is due or why checking waits or has stopped, and a Check log (loadMail → GET /api/mail/checks; mailShowRun → GET /api/mail/checks/{id}). The Dashboard shows #dashMailWarn (loadDashMailWarn → GET /api/mail/status) when checks have failed for over a day, the sign-in needs making again, or alerts couldn't be read.
@@ -9448,6 +9459,7 @@ function _renderBankConnected(body, owned) {
 async function bankShowLog(accountId) {
   const box = document.getElementById('bankLog');
   if (!box) return;
+  box.style.maxWidth = '720px';
   box.classList.remove('hidden');
   box.innerHTML = '<span style="color:var(--muted)">Loading…</span>';
   let runs;
@@ -9502,17 +9514,20 @@ async function bankShowUnmatched(accountId, boxId) {
   catch (e) { box.innerHTML = `<span style="color:var(--bad)">${escapeHtml(errText(e))}</span>`; return; }
   const acc = (accounts || []).find(a => a.id === accountId);
   const rows = data.lines.map(l => `<tr>
-      <td>${escapeHtml(l.date)}</td>
       <td>${escapeHtml(l.description)}</td>
-      <td style="text-align:right" class="${l.amount >= 0 ? 'pos' : 'neg'}">${escapeHtml(fmt(l.amount))}</td>
-      <td style="white-space:nowrap"><button class="ghost" onclick="bankShowCandidates(${accountId}, ${l.id})">Match…</button>
+      <td class="fit">${escapeHtml(l.date)}</td>
+      <td class="num fit ${l.amount >= 0 ? 'pos' : 'neg'}">${escapeHtml(fmt(l.amount))}</td>
+      ${l.notes ? `<td class="notes-col" title="${escapeAttr(l.notes)}">${escapeHtml(l.notes)}</td>` : '<td class="notes-col muted">—</td>'}
+      <td class="fit"><button class="ghost" onclick="bankShowCandidates(${accountId}, ${l.id})">Match…</button>
         <button class="ghost" onclick="bankLeaveLine(${accountId}, ${l.id})">Leave as its own line</button></td>
-    </tr><tr class="hidden" id="bankCand${l.id}"><td colspan="4"></td></tr>`).join('');
+    </tr><tr class="hidden" id="bankCand${l.id}"><td colspan="5"></td></tr>`).join('');
+  box.style.maxWidth = 'none';   // wide enough for the Forecast-style columns; the sync log keeps its own width
   box.innerHTML = `<h3 class="backup-subhead">Unmatched lines${acc ? ': ' + escapeHtml(acc.name) : ''}
       <button class="ghost" style="float:right" onclick="document.getElementById('${_unmatchedBoxId}').classList.add('hidden')">Close</button></h3>
     <div id="bankUnmatchedStatus" role="status" style="font-size:12px;margin-bottom:6px"></div>`
-    + (data.lines.length ? `<table style="width:100%"><thead><tr><th>Date</th><th>Description</th>
-        <th style="text-align:right">Amount</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
+    + (data.lines.length ? `<div style="overflow-x:auto"><table class="fc-like"><thead><tr><th>Description</th>
+        <th class="fit">Actual date</th><th class="num fit">Actual amt</th><th>Notes</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table></div>`
       : '<div style="color:var(--muted);font-size:13px">Nothing to look at: every synced or alert line paid a planned line or was left as its own.</div>');
 }
 
@@ -9530,11 +9545,22 @@ async function bankShowCandidates(accountId, txnId) {
   try {
     const data = await api(`/api/accounts/${accountId}/bank-unmatched/${txnId}/candidates`);
     _bankCandidates[txnId] = data.candidates;
+    // Δ Amt: how far the bank's line is from each planned amount, as Forecast shows it.
+    const diffOf = (c) => {
+      const d = Math.round((data.line.amount - c.amount) * 100) / 100;
+      return `<td class="num fit ${d > 0 ? 'diff-pos' : (d < 0 ? 'diff-neg' : 'diff-zero')}">${escapeHtml(fmt(d))}</td>`;
+    };
     cell.innerHTML = data.candidates.length
-      ? '<ul style="margin:0;padding-left:18px;font-size:13px;list-style:none">' + data.candidates.map((c, i) =>
-          `<li style="margin:3px 0">${escapeHtml(c.description)} · planned ${escapeHtml(c.forecast_date)} · ${escapeHtml(fmt(c.amount))}
-            · ${c.days_apart} day${c.days_apart === 1 ? '' : 's'} apart
-            <button class="ghost" onclick="bankPayCandidate(${accountId}, ${txnId}, ${i})">Pay this</button></li>`).join('') + '</ul>'
+      ? `<div style="overflow-x:auto"><table class="fc-like fc-nested"><thead><tr><th>Planned line</th>
+          <th class="fit">Forecast date</th><th class="num fit">Forecast amt</th><th class="num fit">Δ Amt</th>
+          <th class="num fit">Days apart</th><th></th></tr></thead><tbody>` + data.candidates.map((c, i) =>
+          `<tr><td>${escapeHtml(c.description)}</td>
+            <td class="fit">${escapeHtml(c.forecast_date)}</td>
+            <td class="num fit ${c.amount >= 0 ? 'pos' : 'neg'}">${escapeHtml(fmt(c.amount))}</td>
+            ${diffOf(c)}
+            <td class="num fit">${c.days_apart}</td>
+            <td class="fit"><button class="ghost" onclick="bankPayCandidate(${accountId}, ${txnId}, ${i})">Pay this</button></td></tr>`).join('')
+          + '</tbody></table></div>'
       : '<span style="color:var(--muted);font-size:13px">No planned line within 60 days to pay with this one.</span>';
   } catch (e) { cell.innerHTML = `<span style="color:var(--bad)">${escapeHtml(errText(e))}</span>`; }
 }

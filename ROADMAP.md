@@ -288,6 +288,28 @@ a real mailbox; the checking by itself, its status and log shipped in
 1.74.0 (#207); alerts paying your planned bills are built in 1.75.0 (#209),
 not released yet.
 
+### 31. Standalone iPhone app (no server)
+Use WalletWeather on an iPhone with no server: the data lives on the phone,
+backs up to iCloud Drive in the server's backup format, syncs between the
+person's devices, and moves to a server (or back) with the existing Import.
+The money logic becomes one JavaScript core run by the server, the phone
+(JavaScriptCore) and later the web, checked against an answer key made by
+today's server. Bank sync can run on the phone. Overlaps item 27, which is
+offline editing for people who use a server. Planned 2026-11-18 in
+`Plans/standalone.md` (#240). **Effort: large.**
+
+### 32. The web app without a server
+The web app working entirely in the browser, its data kept there, on the
+same JavaScript core as item 31. Browser storage can be wiped, so it needs
+the backup and export that item 31 builds. Waits for item 31 (decided
+2026-11-18). **Effort: medium.**
+
+### 33. Net worth, Budgets and Reports in standalone
+The More pages in the standalone iPhone app (item 31), which starts with
+Dashboard, Forecast, Bills & income and Calendar. Their logic moves into
+the shared core first. Waits for item 31 (decided 2026-11-18).
+**Effort: medium.**
+
 ---
 
 ## What's already in good shape (don't re-prioritize these)

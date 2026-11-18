@@ -1,10 +1,10 @@
 """Bills learn bank text (match-by-hand phase 3, #224).
 
 Matching a line by hand with `remember: true` teaches the bill the line's
-name. Among the bills a later line fits (by the bill's days and %), one
-taught its name is preferred, so a tie between two bills goes to the taught
-one; lines already on the Unmatched list with that name are caught up; the
-bill's Forget clears it. Two weekly bills a day either side of each bank
+name. A taught bill takes a later line with that name at any amount going
+its way within its days, and is preferred over bills that fit by amount, so
+a tie between two bills goes to the taught one; lines already on the
+Unmatched list with that name are caught up; the bill's Forget clears it. Two weekly bills a day either side of each bank
 line make the tie: Gym A from GROCERY_DAY - 8, Gym B from GROCERY_DAY - 6.
 """
 from datetime import timedelta
@@ -76,6 +76,26 @@ def test_a_taught_bill_takes_the_next_tie(connected, fake):
     assert sorted(names(c, acc)) == ["OTHER SHOP", "PAYROLL ACME"]
 
 
+def test_a_taught_name_pays_at_any_amount_within_the_days(connected, fake):
+    c, u, acc, status = connected
+    a, b = gyms(c, acc)
+    link(c, status, acc)
+    sync(c)
+    match(c, acc, grocery(c, acc)["id"], recurring_id=a, forecast_date=(G - timedelta(days=1)).isoformat(),
+          remember=True)
+    bank_line(fake, "T-12", LATER_LINE_DAY, -95.00, "OTHER SHOP")        # 137% off, no taught name
+    bank_line(fake, "T-9", LATER_LINE_DAY, -95.00, "CORNER GROCERY")     # 137% off, the taught name
+    bank_line(fake, "T-13", LATER_LINE_DAY, 95.00, "CORNER GROCERY")     # a refund: the other way
+    assert sync(c)["matched"] == 1
+    paid = row(c, acc, a, G - timedelta(days=8))
+    assert paid["bank_match"] == "auto" and paid["actual_amount"] == -95.0
+    left = sorted((x["description"], x["amount"]) for x in unmatched(c, acc)["lines"])
+    assert left == [("CORNER GROCERY", 95.0), ("OTHER SHOP", -95.0), ("PAYROLL ACME", 2500.0)]
+    # Outside the bill's days it still waits: Gym A's next open date is 13 days on.
+    bank_line(fake, "T-14", G, -95.00, "CORNER GROCERY")
+    assert sync(c)["matched"] == 0
+
+
 def test_without_remember_the_tie_stays(connected, fake):
     c, u, acc, status = connected
     a, b = gyms(c, acc)
@@ -94,7 +114,7 @@ def test_teaching_catches_up_lines_already_unmatched(connected, fake):
     c, u, acc, status = connected
     a, b = gyms(c, acc)
     bank_line(fake, "T-9", LATER_LINE_DAY, -41.00, "CORNER GROCERY")
-    bank_line(fake, "T-11", LATER_LINE_DAY, -80.00, "CORNER GROCERY")   # 100% off: doesn't fit Gym A
+    bank_line(fake, "T-11", LATER_LINE_DAY, -80.00, "CORNER GROCERY")   # no open date of Gym A is left for it
     link(c, status, acc)
     sync(c)
     lines = [x for x in unmatched(c, acc)["lines"] if x["description"] == "CORNER GROCERY"]

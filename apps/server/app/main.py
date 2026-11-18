@@ -4539,22 +4539,24 @@ def _line_name(t: Transaction) -> str:
 
 
 def _bill_for_bank_line(bills: dict, day: date, amount: Decimal, name: str | None = None):
-    """(bill, date) the bank line pays, or None (no match, or a tie). Among
-    the bills that fit, those taught the line's name (#224) are preferred."""
+    """(bill, date) the bank line pays, or None (no match, or a tie). A bill
+    taught the line's name (#224) takes it at any amount going its way within
+    its days, and is preferred over the bills that fit by amount."""
+    taught = bills.get("taught") or {}
+    key = _match_key(name) if name and taught else None
     found = []
     for rec in bills["recs"]:
         planned = rec.amount
         if not planned or not amount or (planned < 0) != (amount < 0):
             continue
-        if abs(amount - planned) > abs(planned) * Decimal(rec.match_percent) / 100:
+        named = key is not None and taught.get(rec.id) == key
+        if not named and abs(amount - planned) > abs(planned) * Decimal(rec.match_percent) / 100:
             continue
         reach = timedelta(days=rec.match_days)
         for occ, _amount, _desc in _occurrences(rec, day - reach, day + reach):
             if (rec.id, occ) not in bills["covered"] and (rec.id, occ) not in bills["skipped"]:
                 found.append((abs((occ - day).days), rec, occ))
-    taught = bills.get("taught") or {}
-    if name and taught:
-        key = _match_key(name)
+    if key is not None:
         mine = [f for f in found if taught.get(f[1].id) == key]
         if mine:
             found = mine
@@ -4791,7 +4793,7 @@ class BankMatchIn(BaseModel):
     recurring_id: int | None = None
     forecast_date: date | None = None
     # Teach the bill this line's name (#224): later lines with it pay the
-    # bill (within its days and %), and those already unmatched are caught up.
+    # bill (within its days, any amount), and those already unmatched are caught up.
     remember: bool = False
 
 
@@ -4852,7 +4854,7 @@ def bank_match_by_hand(account_id: int, txn_id: int, body: BankMatchIn,
 def _catch_up_taught(db: Session, acc: Account, rec: RecurringTransaction) -> int:
     """After a bill is taught a name (#224): lines already on the Unmatched
     list with that name pay its open dates, oldest first, each within the
-    bill's days and %. How many did."""
+    bill's days (at any amount going its way). How many did."""
     key = _match_key(rec.match_text)
     bills = _bills_to_match(db, acc.id)
     only = {"recs": [rec], "covered": bills["covered"], "skipped": bills["skipped"], "taught": {rec.id: key}}

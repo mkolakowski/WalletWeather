@@ -74,7 +74,7 @@ App version: **1.79.0** · Web version: **1.95.0** · Schema version: **31** · 
 ### Added
 
 - **Match bank lines from Forecast:** a line from your bank that paid no planned line yet shows an "Unmatched" mark on Forecast, and its open line has Match…, which opens the same box as on Settings → Bank sync. A planned line's open line has "Paid by a bank line…", which lists the unmatched bank lines within 60 days of it, closest first, with "This paid it" on each. Either way, Forecast then shows one paid line where there were two. Only the account's owner sees these buttons. (1.78.0, web 1.94.0, #223)
-- **Bills learn which bank lines are theirs:** when you match a bank line to a bill by hand, a ticked box "Match lines named … from now on" teaches the bill that name. From then on, when a new line with that name fits two bills equally well (by each bill's ± days and amount %), it pays the taught bill instead of waiting on the Unmatched list. Lines with that name already on the list are matched straight away when they fit, and the note says how many. The bill's editor shows the name it learned, with Forget. (1.79.0, web 1.95.0, #224)
+- **Bills learn which bank lines are theirs:** when you match a bank line to a bill by hand, a ticked box "Match lines named … from now on" teaches the bill that name. From then on, a new line with that name pays that bill when it lands within the bill's ± days, whatever the amount, so a bill that varies (power, phone) is matched too, and it wins over other bills that fit by amount. Lines with that name already on the Unmatched list are matched straight away when they fall within the bill's days, and the note says how many. The bill's editor shows the name it learned, with Forget. (1.79.0, web 1.95.0, #224)
 
 ### Changed
 

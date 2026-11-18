@@ -20,7 +20,7 @@ settings:
     SWIFT_APPROACHABLE_CONCURRENCY: YES
     # The iOS app's version (CHANGELOG.md tracks it beside the app, web and
     # schema versions). Keep AppInfo.version in WalletWeatherKit equal to it.
-    MARKETING_VERSION: "0.17.0"
+    MARKETING_VERSION: "0.17.1"
     CURRENT_PROJECT_VERSION: "1"
     IPHONEOS_DEPLOYMENT_TARGET: "26.0"
     # iPhone only for now (decided 2026-11-14): no iPad, no Mac.
@@ -54,8 +54,11 @@ targets:
         # screen (#90).
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: true
+        # All four: App Store Connect refuses an app with more than one
+        # window (the Duo's side by side, above) without upside-down too.
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         # walletweather://: the sign-in sheet's answer and the "Open in

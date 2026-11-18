@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.76.1** · Web version: **1.91.0** · Schema version: **30** · iOS version: **0.17.0**
+App version: **1.76.1** · Web version: **1.91.0** · Schema version: **30** · iOS version: **0.17.1**
+
+### Changed
+
+- **The iPhone app turns upside down too:** it now follows the phone into upside-down portrait as well as portrait and both landscapes. The App Store requires this of an app that can open a second window, as WalletWeather can on the Duo, and it lets the app go on TestFlight. (iOS 0.17.1)
 
 ## [1.76.1] — 2026-11-18
 

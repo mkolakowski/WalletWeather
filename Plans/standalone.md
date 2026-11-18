@@ -38,11 +38,11 @@ Sessions: may span — eight phases across the server, a new shared core and the
 ## Open questions
 
 1. ~~**The server's JavaScript engine.**~~ Decided 2026-11-18 ([decision](../docs/dev/decisions/standalone.md)): **quickjs-ng** (MIT, 2.5 MB wheel, 8 MB installed). Set aside: mini-racer (V8, ISC, 74 MB installed), dukpy (ES5 only), a Node service in Compose.
-2. **What standalone shows for what it can't do.** Blocks phase 4. Sharing, bank-alert emails, email alerts, and (until a later item) Net worth, Budgets and Reports. Assumed: hidden from the tabs and More, with one line in Settings listing what a server adds and linking to the setup.
+2. ~~**What standalone shows for what it can't do.**~~ Decided 2026-11-18 ([decision](../docs/dev/decisions/standalone.md)): **shown, marked "Needs a server".** Sharing, bank-alert emails, email alerts, Net worth, Budgets and Reports stay where they are, greyed, and open a short note on what a server adds, with a link to the setup.
 3. **How transactions get in before phase 8.** Blocks nothing. Assumed: typing them, and importing a server backup (phase 5). CSV import on the phone is a later idea.
-4. **The backup passphrase.** Blocks phase 5. The server's backup format needs one. Assumed: chosen when backup is turned on, kept in iCloud Keychain so a new phone can open the backup, with a plain warning that a lost passphrase can't be recovered.
-5. **How often iCloud Drive backups are written, and how many are kept.** Blocks phase 6. Assumed: after changes, at most once a day, keeping the last 14.
-6. **When two devices edit the same thing.** Blocks phase 7. Assumed: the later edit wins, per record (CloudKit's own rule), and a deleted record stays deleted.
+4. ~~**The backup passphrase.**~~ Decided 2026-11-18 ([decision](../docs/dev/decisions/standalone.md)): **chosen once when backup is turned on and kept in iCloud Keychain**, so a new phone opens the backups by itself, with a plain warning that a lost passphrase can't be recovered.
+5. ~~**How often iCloud Drive backups are written, and how many are kept.**~~ Decided 2026-11-18 ([decision](../docs/dev/decisions/standalone.md)): **at most once a day, only on days something changed, keeping the last 14.**
+6. ~~**When two devices edit the same thing.**~~ Decided 2026-11-18 ([decision](../docs/dev/decisions/standalone.md)): **the later edit wins, per record** (CloudKit's own rule), with no note, and a deleted record stays deleted.
 7. **Standalone and the App Store listing.** Blocks nothing. The app becomes useful without a server, which changes what `ios-app` phase 6 (#92) says to Apple's reviewer and in the listing.
 
 ## The plan
@@ -96,7 +96,7 @@ Sessions: may span — eight phases across the server, a new shared core and the
 ### Phase 4: Use without a server
 
 - **iOS:** the Connect screen offers "Use without a server" next to connecting and the demo. The data lives in a store on the phone (SwiftData, with complete file protection, as kept numbers are today). A local connection answers the app's API calls from the store through the core, as the demo does, so the screens don't change. It covers Dashboard, Forecast, Bills & income, Calendar, moving money, search, and adding, editing and deleting.
-- What standalone can't do is handled as open question 2 decides. No sign-in, but the app lock still works.
+- What standalone can't do (sharing, bank-alert emails, email alerts, Net worth, Budgets, Reports) stays in place, greyed and marked "Needs a server", and opens a short note on what a server adds with a link to the setup (open question 2). No sign-in, but the app lock still works.
 - `docs/privacy.md` and the iOS README updated.
 - **You:** set up a standalone household from scratch on TestFlight and use it for a few days.
 - **Done when:** a household can be set up and edited with no server; the store's tests pass; nothing is sent over the network in standalone (checked by a test with a session that fails every request).
@@ -105,20 +105,20 @@ Sessions: may span — eight phases across the server, a new shared core and the
 
 - **iOS:** "Export for a server" writes a sealed backup in `backup.py`'s format (version, scrypt, AES-256-GCM; scrypt written in Swift, since CryptoKit has none). "Import a server backup" fills a standalone phone from a file the server made.
 - **Server:** a test that imports a file the phone made, committed as a fixture, so a change on either side that breaks the move fails CI.
-- The passphrase as open question 4 decides.
+- The passphrase is chosen once, when backup or export is first used, and kept in iCloud Keychain, with a plain warning that it can't be recovered (open question 4).
 - **You:** export from the phone, import it on your instance, and the other way round.
 - **Done when:** a round trip (phone → server → phone) gives the same Forecast; the key-derivation tests match Python's for the same passphrase and salt.
 
 ### Phase 6: Backup to iCloud Drive
 
-- **iOS:** with backup on, the phase 5 file is written to the app's iCloud Drive folder, as often as open question 5 decides. Restore from a backup on a new phone, and the backups can be seen in the Files app.
+- **iOS:** with backup on, the phase 5 file is written to the app's iCloud Drive folder, at most once a day and only on days something changed, keeping the last 14 (open question 5). Restore from a backup on a new phone, and the backups can be seen in the Files app.
 - The release that ships this is the first standalone version worth announcing (README, changelog).
 - **You:** turn backup on, delete the app, put it back and restore.
 - **Done when:** a restore on a fresh install gives the same Forecast; old backups are pruned to the number kept.
 
 ### Phase 7: Live iCloud sync between devices
 
-- **iOS:** the store syncs through the person's private CloudKit database, so an iPhone and an iPad (or two phones) stay in step. Conflicts are handled as open question 6 decides. The store is reshaped where CloudKit needs it (no unique constraints, every field optional or defaulted), with a migration.
+- **iOS:** the store syncs through the person's private CloudKit database, so an iPhone and an iPad (or two phones) stay in step. When two devices edit the same record, the later edit wins and a deleted record stays deleted (open question 6). The store is reshaped where CloudKit needs it (no unique constraints, every field optional or defaulted), with a migration.
 - **You:** create the CloudKit container in the Apple developer website (the one setup step only you can do), then edit on two devices.
 - **Done when:** an edit on one device shows on the other; the conflict tests pass; turning sync off leaves the data on the phone.
 

@@ -59,3 +59,12 @@ Decisions made while planning [`Plans/standalone.md`](../../../Plans/standalone.
 **What was found:** the server accepts amounts as unrounded floats (`Money` in `main.py`), stores them as the Decimal of that float, and adds balances as Python floats, with Python 3.12's compensated `sum()` in two places (the Δ Bal planned balance and `actual_balance_as_of`). Whole cents would change the numbers for any amount with more than two decimals, and plain addition put one balance a half cent the other way after rounding.
 
 **The decision:** the core adds the same doubles in the same order and copies `sum()`'s compensation and `round()`'s half-to-even rounding. Its answers then match the server's exactly, and the answer key compares with no tolerance.
+
+## 2026-11-18: what standalone shows, the passphrase, backups and conflicts
+
+**Decided:** 2026-11-18, by Matthew (`/resolve-open-questions`). **Status:** accepted, planned. Answers open questions 2, 4, 5 and 6.
+
+- **What standalone can't do is shown, marked "Needs a server"** (phase 4, #235). Sharing, bank-alert emails, email alerts, Net worth, Budgets and Reports stay where they are, greyed, and open a short note on what a server adds, with a link to the setup. Chosen over hiding them behind one Settings line (cheaper) so people see what a server would add.
+- **The backup passphrase is kept in iCloud Keychain** (phase 5, #236). It's chosen once, when backup or export is first used, and synced so a new phone opens the backups by itself, with a plain warning that a lost passphrase can't be recovered. Typing it every time was set aside because automatic backups couldn't run.
+- **iCloud Drive backups: at most once a day, only on days something changed, keeping the last 14** (phase 6, #237).
+- **Sync conflicts: the later edit wins, per record** (phase 7, #238), as CloudKit does by itself, with no note; a deleted record stays deleted. A rare edit made on two devices before they sync can be lost.

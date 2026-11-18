@@ -71,6 +71,12 @@ same commit (or session) that introduces it.
 
 App version: **1.81.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.17.1**
 
+## [1.81.0] — 2026-11-18
+
+App version: **1.81.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.17.1**
+
+Two refinements to matching bank lines by hand: learned names ignore changing codes, and the match lists show the bill's own days first. No database change.
+
 ### Changed
 
 - **Learned bank names ignore codes:** a bill that learned a bank line's name now also takes lines whose name differs only by numbers or a code after `*` or `#`. A bill taught "AMAZON MKTPL*2K4AB1" takes next month's "AMAZON MKTPL*9XZ3", while "AMAZON PRIME" is still a different name. (1.80.0, #230)
@@ -2639,7 +2645,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.79.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.81.0...HEAD
+[1.81.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.81.0
 [1.79.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.79.0
 [1.76.3]: https://github.com/mkolakowski/walletweather/releases/tag/v1.76.3
 [1.76.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.76.2

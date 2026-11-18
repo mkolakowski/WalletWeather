@@ -33,8 +33,8 @@ Sessions: may span — each phase ships its own version and you check it on your
 ## Open questions
 
 1. ~~**What a taught bill adds.**~~ Decided 2026-11-17 ([decision](../docs/dev/decisions/match-by-hand.md)): a line with the name a bill learned pays it **at any amount** going its way, within the bill's ± days, and wins over bills that fit by amount. (Changed from the first answer, text + days + %, after phase 3 showed that the taught text would then only break ties.)
-2. **What "lines like this" means.** Blocks phase 3. Assumed: the line's short name (what Description shows after #213's shortening, e.g. "Example Internet"), compared ignoring case and extra spaces, exactly. Lines you renamed by hand are compared by the bank's text in their notes.
-3. **How far the planned row's list reaches** ("Paid by a bank line…", phase 2). Blocks nothing. Assumed: unmatched lines within 60 days of the planned date, the same reach as Match….
+2. ~~**What "lines like this" means.**~~ Decided 2026-11-18 ([decision](../docs/dev/decisions/match-by-hand.md)): the learned name, **ignoring codes**: names are compared with digits and codes after `*` or `#` stripped, so "AMAZON MKTPL*2K4AB1" and "AMAZON MKTPL*9XZ3" are the same. Built in #230 (released 1.79.0 used the short name exactly).
+3. ~~**How far the lists reach.**~~ Decided 2026-11-18 ([decision](../docs/dev/decisions/match-by-hand.md)): Match… and "Paid by a bank line…" show what's within the bill's own ± days first, with "Show N more, up to 60 days away". Built in #231 (released 1.79.0 showed all 60 days).
 
 ## The plan
 

@@ -12,8 +12,9 @@ AMOLED black, Sepia), the app lock and the app-switcher cover; phase 7
 (#100) adds email and password and QR-code sign-in; phase 10 (#112) makes
 Search find everything through the server's `/api/search` (server 1.56.0;
 an older server searches transactions only). It works with a server on
-1.54.0 or later. It isn't on TestFlight or the App Store yet (phase 6, #92);
-for now it's built from source and put on a phone from Xcode. **Try the
+1.54.0 or later. It's on TestFlight for internal testers (from iOS 0.17.1) but
+not on the App Store yet (phase 6, #92); otherwise it's built from source and
+put on a phone from Xcode. **Try the
 demo** on the Connect screen opens it on sample numbers with no server.
 Bank sync (phase 5 of `Plans/bank-sync.md`, #197) shows its status and Sync
 now under Settings, and a bill's bank match settings in its editor; the sync

@@ -31,6 +31,9 @@ services:
       # The web client too, read-only: the server serves /sw.js and the icons
       # from it, and the tests check those routes.
       - ./apps/web:/src/apps/web:ro
+      # The shared JavaScript core and its answer key (#232). Writable so
+      # WRITE_ANSWER_KEY=1 can rewrite the key (see tests/answer_key.py).
+      - ./packages/core:/src/packages/core
       # And the settings files, read-only: test_settings_wiring.py checks that
       # every setting the server reads is passed through and documented (#200).
       - ./docker-compose.yml:/src/docker-compose.yml:ro

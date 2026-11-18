@@ -35,3 +35,27 @@ Decisions made while planning [`Plans/standalone.md`](../../../Plans/standalone.
 - **The first usable version** is standalone + backup + moving between a server and the phone (phases 4–6). Live sync (phase 7) and bank sync on the phone (phase 8) follow in the same plan.
 - **Waiting:** the web app working in the browser (roadmap item 32), and Net worth, Budgets and Reports in standalone (roadmap item 33).
 - **Checked by** the answer key in CI and `swift test`, plus Matthew's try of each app phase on TestFlight.
+
+## 2026-11-18: the server embeds quickjs-ng
+
+**Decided:** 2026-11-18, by Matthew. **Status:** accepted; in the tests from phase 1 (#232), in the image from phase 2. Answers open question 1.
+
+**The question:** which JavaScript engine the server embeds to run the shared core.
+
+**The options weighed** (checked on PyPI on 2026-11-18):
+
+- **quickjs-ng 0.18.0.2:** MIT (the wrapper and the quickjs-ng engine), a 2.5 MB wheel and 8 MB installed, abi3 wheels for Linux x86_64 and aarch64 and macOS arm64, released the day before. Its Python wrapper has one maintainer, and its metadata names no licence, so it is on `test_licences.py`'s reviewed list.
+- **mini-racer 0.14.1** (V8): ISC, actively maintained, but a 22 MB wheel and 74 MB installed.
+- **dukpy 0.6.0:** MIT, but it runs ES5 only, which would force old syntax on the core for the iPhone and the web.
+- **A Node service in Compose:** no Python package, but a second container to keep patched and a network call for every calculation.
+- The original `quickjs` binding was last released in 2023 and is archived.
+
+**The decision:** quickjs-ng. If its wrapper is abandoned, the core moves to another engine unchanged, since it is plain JavaScript.
+
+## 2026-11-18: the core adds floats as the server does, not whole cents
+
+**Decided:** 2026-11-18, while building phase 1 (#232). **Status:** accepted. Replaces the plan's first assumption ("money as whole cents").
+
+**What was found:** the server accepts amounts as unrounded floats (`Money` in `main.py`), stores them as the Decimal of that float, and adds balances as Python floats, with Python 3.12's compensated `sum()` in two places (the Δ Bal planned balance and `actual_balance_as_of`). Whole cents would change the numbers for any amount with more than two decimals, and plain addition put one balance a half cent the other way after rounding.
+
+**The decision:** the core adds the same doubles in the same order and copies `sum()`'s compensation and `round()`'s half-to-even rounding. Its answers then match the server's exactly, and the answer key compares with no tolerance.

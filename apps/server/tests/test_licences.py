@@ -22,7 +22,11 @@ REVIEWED_COPYLEFT = {
 }
 
 # Packages that state no licence in their metadata but were checked by hand.
-REVIEWED_UNSTATED: dict[str, str] = {}
+REVIEWED_UNSTATED: dict[str, str] = {
+    # The engine for the shared JavaScript core (Plans/standalone.md, #232):
+    # the MIT licence file ships in the wheel, the metadata doesn't name it.
+    "quickjs-ng": "MIT (licence file in the wheel; the bundled quickjs-ng engine is MIT)",
+}
 
 _COPYLEFT = re.compile(
     r"\b(A?GPL|LGPL|MPL|EPL|CDDL|EUPL|OSL|SSPL)\b"

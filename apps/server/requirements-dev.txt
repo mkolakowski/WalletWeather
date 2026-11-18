@@ -1,3 +1,5 @@
 # Test-only dependencies, on top of the app's. Not installed in the image.
 -r requirements.txt
 pytest==8.3.3
+# Runs the shared JavaScript core (packages/core/) in the tests (#232).
+quickjs-ng==0.18.0.2

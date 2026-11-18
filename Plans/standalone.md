@@ -6,7 +6,7 @@ Tracking issue: #240
 
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
-| 1. The answer key and first core numbers | Server (tests), Core | #232 | Not started |
+| 1. The answer key and first core numbers | Server (tests), Core | #232 | Done 2026-11-18, no version (tests only) |
 | 2. The server runs on the core | Server, Core | #233 | Not started |
 | 3. The core on the iPhone | iOS, Core | #234 | Not started |
 | 4. Use without a server | iOS | #235 | Not started |
@@ -14,6 +14,8 @@ Tracking issue: #240
 | 6. Backup to iCloud Drive | iOS | #237 | Not started |
 | 7. Live iCloud sync between devices | iOS | #238 | Not started |
 | 8. Bank sync on the phone | iOS, Core | #239 | Not started |
+
+Phase 1 done 2026-11-18, with no version (nothing in the image changed). `packages/core/walletweather-core.js` (core 0.1.0) works out the forecast, the Actual bal as of a day, a bill's next dates and the Calendar. `apps/server/tests/answer_key.py` builds three households (basics, edges, two accounts) and writes 51 cases from today's server code to `packages/core/answer-key/`. `tests/test_core_answer_key.py` runs the core over every case in quickjs-ng and checks that the key still matches the server. The engine was chosen by you (open question 1). Findings that changed the plan: the server keeps amounts unrounded and adds them as floats, with Python 3.12's compensated `sum()` in two places, so the core adds the same doubles in the same order instead of using whole cents. Its answers then match the server's **exactly**, to the last bit. Verified by the 51 cases plus date, rounding and summation checks against Python, a deliberate bug (month ends clamped to the 28th) failing 19 cases, and the full suite (797 passed). Dashboard numbers weren't in phase 1's key; they move to phase 2.
 
 The first version worth telling people about is phase 6: the app on its own, with an iCloud Drive backup and a way to move to a server and back. Phases 7 and 8 follow it.
 
@@ -25,7 +27,6 @@ Sessions: may span — eight phases across the server, a new shared core and the
 
 | Phase | Apps | Main session | Subagents | Why |
 | --- | --- | --- | --- | --- |
-| 1. The answer key and first core numbers | Server, Core | Opus | Haiku: list what `forecast.py` and the forecast routes read and write; Sonnet: the case generator and the pytest that runs the core | Sets how the core is shaped (data in, the API's JSON out) and picks a new dependency for the server, which has to pass the licence check. |
 | 2. The server runs on the core | Server, Core | Opus | Sonnet: runs the full suite and reports; Haiku: pulls failures out of long test output | Swaps the engine under the numbers every page shows; a mismatch moves real balances. |
 | 3. The core on the iPhone | iOS, Core | Opus | Sonnet: `swift test` over the answer key | JavaScriptCore in WalletWeatherKit, and the demo moving from recorded months to computed ones. |
 | 4. Use without a server | iOS | Opus | Sonnet: tests for the local store and the local answers | A privacy decision (financial data stored on the phone) and a new way into the app. |
@@ -36,7 +37,7 @@ Sessions: may span — eight phases across the server, a new shared core and the
 
 ## Open questions
 
-1. **The server's JavaScript engine.** Blocks phase 2. Phase 1 compares the candidates on licence (it must pass `test_licences.py`), upkeep, image size and speed, and brings the findings to you: an embedded QuickJS binding, an embedded V8 binding (about 30 MB more image), or a Node service in Compose. Assumed: embedded QuickJS, if its binding passes the checks.
+1. ~~**The server's JavaScript engine.**~~ Decided 2026-11-18 ([decision](../docs/dev/decisions/standalone.md)): **quickjs-ng** (MIT, 2.5 MB wheel, 8 MB installed). Set aside: mini-racer (V8, ISC, 74 MB installed), dukpy (ES5 only), a Node service in Compose.
 2. **What standalone shows for what it can't do.** Blocks phase 4. Sharing, bank-alert emails, email alerts, and (until a later item) Net worth, Budgets and Reports. Assumed: hidden from the tabs and More, with one line in Settings listing what a server adds and linking to the setup.
 3. **How transactions get in before phase 8.** Blocks nothing. Assumed: typing them, and importing a server backup (phase 5). CSV import on the phone is a later idea.
 4. **The backup passphrase.** Blocks phase 5. The server's backup format needs one. Assumed: chosen when backup is turned on, kept in iCloud Keychain so a new phone can open the backup, with a plain warning that a lost passphrase can't be recovered.
@@ -59,15 +60,16 @@ Sessions: may span — eight phases across the server, a new shared core and the
 
 **How the core is shaped:**
 
-- `packages/core/`: plain ES modules, no build step, no dependencies. It's copied into the server image (the build already runs from the repo root) and into the iOS app's bundle.
+- `packages/core/`: plain JavaScript, no build step, no dependencies. It's copied into the server image (the build already runs from the repo root) and into the iOS app's bundle.
 - Pure functions: the rows go in (accounts, transactions, bills and their skips, tags), and the same JSON the API sends today comes out, so the server and the phone answer in one shape and the app's decoding doesn't change.
-- Money is whole cents and dates are plain year/month/day, never JavaScript `Date`, so no time zone or floating-point drift. Where the server rounds a `Decimal`, the core rounds the same way, and the answer key proves it.
+- Money is a JavaScript number, the same double as the server's Python float, added up in the same order (with Python's compensated `sum()` where the server uses it), so the answers match exactly. The server keeps amounts unrounded, so whole cents (the first assumption) would have changed numbers people see (found in phase 1). Dates are plain "YYYY-MM-DD", never JavaScript `Date`, so no time zone moves a day.
+- One classic script defining `WalletWeatherCore`, not ES modules, because JavaScriptCore and the server's engine evaluate scripts. `run(name, json)` is the one entry point.
 
 **Out of scope:** the web app running without a server; sharing between people in standalone; bank-alert emails and email alerts in standalone; Net worth, Budgets and Reports in standalone; offline editing for people who use a server (roadmap item 27, which needs sync with the server rather than iCloud).
 
 ### Phase 1: The answer key and first core numbers
 
-- **Server (tests only):** a generator that runs today's forecast, Calendar, bills' upcoming dates and Dashboard numbers over a set of fixture households (monthly, weekly, every-N-days and yearly bills, skips, paid lines, transfers, month ends, leap days, accounts that start mid-month) and writes each case as JSON: the rows in, the response out. The cases are committed.
+- **Server (tests only):** a generator that runs today's forecast, Calendar, bills' upcoming dates and Dashboard numbers over a set of fixture households (monthly, weekly and every-two-weeks bills, the only rhythms the server has; skips, paid lines, transfers, month ends, leap days, accounts that start mid-month) and writes each case as JSON: the rows in, the response out. The cases are committed.
 - **Core:** `packages/core/` with the forecast (`_occurrences`, `upcoming_dates`, `build_forecast`'s maths and the running balance) and the Calendar month.
 - **The engine:** the candidates in open question 1 compared, and the chosen one added to the test requirements only (not the image yet), passing `test_licences.py` and listed in `THIRD_PARTY_NOTICES.md`.
 - A pytest that runs the core over every case through the engine.

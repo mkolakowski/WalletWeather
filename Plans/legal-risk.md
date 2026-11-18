@@ -55,7 +55,7 @@ None open. Resolved 2026-11-14, all recorded in [`docs/dev/decisions/legal-risk.
 
 **Decided 2026-11-14:**
 - The plan covers everything the review found, account deletion and contribution terms included.
-- The `LICENSE` copyright line stays "WalletWeather Contributors".
+- ~~The `LICENSE` copyright line stays "WalletWeather Contributors".~~ Replaced 2026-11-18: it names Matthew Kolakowski (#242).
 - The disclaimer goes in the README and in a notice each user acknowledges once.
 - WalletWeather stays self-hosted, with iOS and Android apps in app stores expected later. No public demo is planned.
 
@@ -69,7 +69,7 @@ None open. Resolved 2026-11-14, all recorded in [`docs/dev/decisions/legal-risk.
 | 2 | The published image redistributes third-party code (LGPL `psycopg`, a Debian base with GPL parts) with no notices file and no licence check | Medium | Phases 1 and 3 |
 | 3 | No security policy, while the README advertises "Encryption at rest" without its limits | Medium | Phase 1 |
 | 4 | No privacy note for people who run an instance for others; users can't delete their own account | Low to medium | Phases 1, 4 and 5 |
-| 5 | The copyright line names "WalletWeather Contributors" | Low | Accepted as is (decided above) |
+| 5 | The copyright line names "WalletWeather Contributors" | Low | ~~Accepted as is~~ Closed 2026-11-18: the line names Matthew Kolakowski (#242) |
 | 6 | The name isn't cleared as a trademark | Low | Phase 5 |
 | 7 | AI-assisted code may have thin copyright protection; an employment agreement could claim side projects | Low | Phase 5 (your check) |
 | 8 | Real brand names in demo data and CSV samples | Low | Phase 3 |

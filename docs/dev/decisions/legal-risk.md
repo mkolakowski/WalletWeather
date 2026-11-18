@@ -7,7 +7,7 @@ Decisions made while planning [`Plans/legal-risk.md`](../../../Plans/legal-risk.
 **Decided:** 2026-11-14, by Matthew. **Status:** accepted.
 
 - **The plan covers everything the review found.** The options were documents only, documents plus the in-app and CI work, or everything including self-serve account deletion and contribution terms. Everything was chosen.
-- **The `LICENSE` copyright line stays "WalletWeather Contributors".** The options were naming Matthew Kolakowski, naming him and the contributors, or leaving it. It was left as is: common in open source, and accepted as slightly vague about who holds the copyright.
+- ~~**The `LICENSE` copyright line stays "WalletWeather Contributors".**~~ *Superseded 2026-11-18: the line now names Matthew Kolakowski (see below).* The options were naming Matthew Kolakowski, naming him and the contributors, or leaving it. It was left as is: common in open source, and accepted as slightly vague about who holds the copyright.
 - **Distribution:** self-hosted, with iOS and Android apps in app stores expected later. No public demo instance is planned, so no hosted terms of service are needed.
 
 ## 2026-11-14: the disclaimer's wording
@@ -91,3 +91,18 @@ Decisions made while planning [`Plans/legal-risk.md`](../../../Plans/legal-risk.
 **The decision:** `DELETE /api/admin/users/{uid}` is refused with a conflict that names the accounts. The admin makes someone else an owner of each, or removes the other people's access, under the Admin panel's All permissions, then deletes the user. One rule for both ways of deleting a user.
 
 **What it changes:** app 1.24.1 and web 1.48.1: the admin endpoint and the Admin panel's delete button (#57).
+
+## 2026-11-18: the copyright line names Matthew Kolakowski
+
+**Decided:** 2026-11-18, by Matthew. **Status:** accepted. Replaces the copyright-line part of "scope of the plan" above.
+
+**The question:** Matthew asked whether the licence lets him sell copies of the app. MIT does, and as the copyright holder he isn't bound by it anyway, but the line "WalletWeather Contributors" didn't say who holds the copyright.
+
+**Options considered:**
+- "Matthew Kolakowski": chosen. Nearly every commit is his, and it's the clearest basis for selling the app or offering it under other terms later.
+- "Matthew Kolakowski and WalletWeather Contributors": covers future pull requests from others, but they keep their own copyright under `CONTRIBUTING.md` either way.
+- Keep "WalletWeather Contributors", as decided on 2026-11-14.
+
+**The decision:** `LICENSE` reads `Copyright (c) 2026 Matthew Kolakowski`. The terms stay MIT.
+
+**What it changes:** `LICENSE` only; no app version (#242).

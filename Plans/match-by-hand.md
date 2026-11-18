@@ -7,8 +7,10 @@ Tracking issue: #225
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
 | 1. The match pop-in | Server, Web | #222 | Built in 1.77.0 (web 1.93.0), 2026-11-17; waits for the release and your try |
-| 2. Match from Forecast | Server, Web | #223 | Open |
+| 2. Match from Forecast | Server, Web | #223 | Built in 1.78.0 (web 1.94.0), 2026-11-17; waits for the release and your try |
 | 3. Bills learn bank text | Server, Web | #224 | Open |
+
+Phase 2 built 2026-11-17 in 1.78.0 (web 1.94.0, no schema change): Forecast rows carry `bank_unmatched`, the forecast carries `bank_unmatched_count` (the owner's only, 0 for people it's shared with), and `GET /api/accounts/{id}/bank-unmatched/near` lists the lines that could pay a planned line. Verified by API tests in `apps/server/tests/test_bank_match_forecast.py` (5) with the full suite, and headless Chromium with the API stubbed: the buttons appear only on the right rows and only while lines wait, the turned-round pop-in sends the right match, reloads the forecast and says what was paid, no page errors. Not seen in a real browser: the buttons inside Forecast's open line (the stubbed check renders them on their own). Set in building, not asked: the pill isn't a button (a tap opens the line, as for every row); the turned-round cards say "money in, not out" for a line going the other way; the button reads "This paid it".
 
 Phase 1 built 2026-11-17 in 1.77.0 (web 1.93.0, no schema change): the candidates response keeps `candidates` and adds `choices` (one per bill, its dates in `dates`, with `amount_diff`, `days_after` and `same_direction`) and the line's `source` and `bank_text`. Verified by API tests in `apps/server/tests/test_bank_match_popin.py` (4) with the full suite, and headless Chromium at 1280 and 390px with the API stubbed (cards, picking another date updates the card and is what Pay this sends, the box closes and the list refreshes, no page errors). Set in building, not asked: a planned line going the other way says "planned as money in/out" and sorts last; "earlier/later" and "more/less" are the bank's line against the planned one, with a hint line saying so; a tap on the backdrop closes the box.
 

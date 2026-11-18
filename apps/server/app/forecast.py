@@ -189,6 +189,10 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
             "bank_match": t.bank_match,
             # 'alert' or 'bank': what paid the line (#209); None when nothing did.
             "match_source": (("alert" if t.mail_ref else "bank") if t.bank_match else None),
+            # A bank or alert line that paid no planned line and is still on
+            # the Unmatched list (#223): the same test as main._unmatched_query.
+            "bank_unmatched": bool((t.bank_ref or t.mail_ref) and t.bank_match is None and not t.bank_left
+                                   and t.recurring_id is None and t.transfer_id is None and t.is_actual),
             "tags": tags_by_txn.get(t.id, []),
         })
 
@@ -317,6 +321,7 @@ def build_forecast(db, account: Account, start: date, end: date, with_tags: bool
             "transfer_id": ev["transfer_id"],
             "bank_match": ev.get("bank_match"),
             "match_source": ev.get("match_source"),
+            "bank_unmatched": ev.get("bank_unmatched", False),
             "tags": ev.get("tags", []),
         })
 

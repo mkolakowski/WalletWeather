@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.77.0** · Web version: **1.93.0** · Schema version: **30** · iOS version: **0.17.1**
+App version: **1.78.0** · Web version: **1.94.0** · Schema version: **30** · iOS version: **0.17.1**
+
+### Added
+
+- **Match bank lines from Forecast:** a line from your bank that paid no planned line yet shows an "Unmatched" mark on Forecast, and its open line has Match…, which opens the same box as on Settings → Bank sync. A planned line's open line has "Paid by a bank line…", which lists the unmatched bank lines within 60 days of it, closest first, with "This paid it" on each. Either way, Forecast then shows one paid line where there were two. Only the account's owner sees these buttons. (1.78.0, web 1.94.0, #223)
 
 ### Changed
 

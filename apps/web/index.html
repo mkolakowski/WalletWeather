@@ -438,6 +438,7 @@
   .pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px;
           background:var(--chip-bg); color:var(--muted); }
   .pill.actual { background:var(--good-bg); color:var(--good); }
+  .pill.unmatched { background:transparent; color:var(--warn); box-shadow:inset 0 0 0 1px var(--warn); }
   .rec-match { display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; font-size:11px; color:var(--muted); }
   .rec-match label { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; }
   tr.le-inline .rec-match input { width:56px; min-width:0; }
@@ -2810,7 +2811,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.93.0";
+const WEB_VERSION = "1.94.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2820,6 +2821,7 @@ const WEB_VERSION = "1.93.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.94.0 (2026-11-17, claude+mkolakowski): (#223) Matching from Forecast. Rows for a line on the Unmatched list (the forecast's new bank_unmatched) wear an "Unmatched" pill (_bankMatchPill). While the forecast's bank_unmatched_count is above 0 (the owner only), a row's open line offers Match… on such a row (openMatchPopin with onDone _forecastMatched, which reloads the forecast and says what was paid) or "Paid by a bank line…" on a planned one (openPaidByPopin → GET /api/accounts/{id}/bank-unmatched/near, the pop-in turned round: the planned line on top, the bank lines as cards with "This paid it"). _matchWords takes the bank and planned amounts, so both directions word it from the bank's line.
 // 1.93.0 (2026-11-17, claude+mkolakowski): (#222) The match pop-in. Match… on the Unmatched list (Bank sync and Email alerts) opens <dialog id="matchDialog"> (openMatchPopin) instead of a table under the row: the bank or alert line on top (name, amount, date, the bank's full text) and a card per planned line from the candidates response's new `choices` (one per bill, at its nearest open date, other dates in a picker), each saying in words how the bank's line compares ("$2.17 more · 1 day earlier"), the closest highlighted, with Pay this; Leave as its own line and Close at the bottom. opts.onDone lets Forecast reuse it (phase 2).
 // 1.92.0 (2026-11-18, claude+mkolakowski): (#227) Bank sync links to its provider. BANK_PROVIDERS holds each provider's name and pages (SimpleFIN Bridge: home, sign-in, account, new setup token) and _bankProviderLinks(key) draws a "SimpleFIN Bridge: Sign in · Your account · Make a setup token" line at the top of Settings → Bank sync (connect and connected views) and of Admin → Bank sync (#adminBankSyncLinks). The links use beta-bridge.simplefin.org, since bridge.simplefin.org now sends every path to that site's homepage; the "no longer accepts this connection" note links to the setup-token page too.
 // 1.91.0 (2026-11-18, claude+mkolakowski): (#220) The Unmatched panel's tables wear Forecast's grid (table.fc-like: the same cell dividers, padding and button size, green and red amounts, a truncating Notes column). bankShowUnmatched lists Description, Actual date, Actual amt, Notes and the buttons, in a box as wide as the page (the sync log keeps its 720px); bankShowCandidates lists the planned lines it can pay as Planned line, Forecast date, Forecast amt, Δ Amt against the bank's line, Days apart and Pay this. Also on Settings → Email alerts, which shares the panel.
@@ -8388,6 +8390,7 @@ function _renderForecastEditRow(r) {
       <button title="Save" onclick="saveForecastRowEdit('${rowKey}')">✓</button>
       <button class="ghost" title="Cancel" onclick="cancelEditForecastRow()">✕</button>
       ${_forecastUnmatchBtn(r, 'ghost', 'Un-match')}
+      ${_forecastMatchBtn(r, 'ghost')}
       ${_forecastDeleteBtn(r, 'danger')}
     </td>`;
 }
@@ -8471,6 +8474,7 @@ function _bankMatchPill(r) {
   if (r.bank_match === 'auto') return alert
     ? ' <span class="pill actual" title="An email alert from your bank paid this bill by itself, using its bank match settings.">Email alert</span>'
     : ' <span class="pill actual" title="A bank-synced line paid this bill by itself, using its bank match settings.">Bank sync</span>';
+  if (r.bank_unmatched) return ' <span class="pill unmatched" title="A line from your bank that paid no planned line yet. Open the line and use Match…, or Leave as its own line on Settings → Bank sync.">Unmatched</span>';
   if (r.bank_match === 'hand') return alert
     ? ' <span class="pill actual" title="You matched an email alert to this bill by hand.">Matched by hand</span>'
     : ' <span class="pill actual" title="You matched a bank-synced line to this bill by hand.">Matched by hand</span>';
@@ -8697,6 +8701,7 @@ function _renderForecastLineEditor(r) {
     _leNotesActionsTd(_leField('Notes', 'fcEdit_notes', inp('notes', 'text', r.notes, ' maxlength="256" placeholder="Notes"')),
       `<button onclick="saveEditedForecastRow('${k}')" title="Save (Enter)">Save</button>
               ${_forecastUnmatchBtn(r, 'ghost')}
+              ${_forecastMatchBtn(r, 'ghost')}
               ${_forecastDeleteBtn(r, 'danger', '🗑 Delete')}
               <button class="ghost" onclick="cancelEditForecastRow()" title="Cancel (Esc)">Cancel</button>`),
   ].join('');
@@ -8744,7 +8749,7 @@ function _renderForecastGridRow(r, rowIdx, opts) {
   const delBtn = _forecastUnmatchBtn(r, 'ghost') + _forecastDeleteBtn(r, 'ghost');
   const actionsTd = editing
     ? `<td style="white-space:nowrap"><button title="Save and close this line (Enter)" onclick="saveEditedForecastRow('${escapeAttr(rowKey)}')">✓</button>
-         ${delBtn}
+         ${_forecastMatchBtn(r, 'ghost')}${delBtn}
          <button class="ghost close-btn" title="Cancel (Esc)" onclick="cancelEditForecastRow()">✕</button></td>`
     : `<td>${delBtn}</td>`;
   const input = (field, c, extra) =>
@@ -9611,16 +9616,9 @@ let _match = null;   // { accountId, txnId, line, choices, picked: [date index p
 
 async function openMatchPopin(accountId, txnId, opts) {
   opts = opts || {};
-  const dlg = document.getElementById('matchDialog');
   _match = { accountId, txnId, line: null, choices: [], picked: [],
              onDone: opts.onDone || (said => _bankRefreshUnmatched(accountId, said)) };
-  dlg.innerHTML = `<div class="match-head"><h3>Match a bank line</h3></div>
-    <div class="match-body"><span style="color:var(--muted)">Loading…</span></div>
-    <div class="match-foot"><span></span><button type="button" class="ghost" onclick="closeMatchPopin()">Close</button></div>`;
-  dlg.onkeydown = ev => { if (ev.key === 'Escape') { ev.preventDefault(); closeMatchPopin(); } };
-  dlg.oncancel = ev => { ev.preventDefault(); closeMatchPopin(); };
-  dlg.onclick = ev => { if (ev.target === dlg) closeMatchPopin(); };   // a tap on the backdrop
-  if (typeof dlg.showModal === 'function') { if (!dlg.open) dlg.showModal(); } else dlg.setAttribute('open', '');
+  const dlg = _showMatchDialog('Match a bank line');
   let data;
   try { data = await api(`/api/accounts/${accountId}/bank-unmatched/${txnId}/candidates`); }
   catch (e) {
@@ -9634,6 +9632,19 @@ async function openMatchPopin(accountId, txnId, opts) {
   _renderMatchPopin();
 }
 
+// Opens the empty pop-in with a title and "Loading…"; the caller fills it.
+function _showMatchDialog(title) {
+  const dlg = document.getElementById('matchDialog');
+  dlg.innerHTML = `<div class="match-head"><h3>${escapeHtml(title)}</h3></div>
+    <div class="match-body"><span style="color:var(--muted)">Loading…</span></div>
+    <div class="match-foot"><span></span><button type="button" class="ghost" onclick="closeMatchPopin()">Close</button></div>`;
+  dlg.onkeydown = ev => { if (ev.key === 'Escape') { ev.preventDefault(); closeMatchPopin(); } };
+  dlg.oncancel = ev => { ev.preventDefault(); closeMatchPopin(); };
+  dlg.onclick = ev => { if (ev.target === dlg) closeMatchPopin(); };   // a tap on the backdrop
+  if (typeof dlg.showModal === 'function') { if (!dlg.open) dlg.showModal(); } else dlg.setAttribute('open', '');
+  return dlg;
+}
+
 function closeMatchPopin() {
   const dlg = document.getElementById('matchDialog');
   if (typeof dlg.close === 'function') { if (dlg.open) dlg.close(); } else dlg.removeAttribute('open');
@@ -9641,14 +9652,18 @@ function closeMatchPopin() {
 }
 
 // "$2.17 more" / "same amount" and "1 day earlier" / "same day": how the
-// bank's line compares with one planned date.
-function _matchWords(d) {
+// bank's line compares with one planned line. `d` carries amount_diff,
+// days_after and same_direction; the card is a planned line (Match…) or,
+// turned round (Paid by a bank line…), a bank line.
+function _matchWords(d, bankAmount, plannedAmount, cardIsBank) {
   const diff = Math.round(d.amount_diff * 100) / 100;
   let amt;
-  if (!d.same_direction) amt = `<span style="color:var(--warn)">planned as ${d.amount >= 0 ? 'money in' : 'money out'}</span>`;
+  if (!d.same_direction) amt = `<span style="color:var(--warn)">${cardIsBank
+    ? (bankAmount >= 0 ? 'money in, not out' : 'money out, not in')
+    : `planned as ${plannedAmount >= 0 ? 'money in' : 'money out'}`}</span>`;
   else if (diff === 0) amt = '<span class="pos">same amount</span>';
   else {
-    const bigger = Math.abs(_match.line.amount) > Math.abs(d.amount);
+    const bigger = Math.abs(bankAmount) > Math.abs(plannedAmount);
     amt = `${escapeHtml(fmt(Math.abs(diff)))} ${bigger ? 'more' : 'less'}`;
   }
   const n = Math.abs(d.days_after);
@@ -9669,7 +9684,7 @@ function _matchCard(c, i) {
         ${best ? '<div class="mc-best">Closest match</div>' : ''}
         <div class="mc-top"><span class="mc-name">${escapeHtml(d.description)}</span>
           <span class="mc-amt ${d.amount >= 0 ? 'pos' : 'neg'}">${escapeHtml(fmt(d.amount))}</span></div>
-        <div class="mc-words">${when}<span id="matchWords${i}">${_matchWords(d)}</span></div>
+        <div class="mc-words">${when}<span id="matchWords${i}">${_matchWords(d, _match.line.amount, d.amount)}</span></div>
       </div>
       <button type="button"${best ? '' : ' class="ghost"'} onclick="_matchPay(${i})">Pay this</button>
     </div>`;
@@ -9705,7 +9720,7 @@ function _matchPick(i, j) {
   const card = document.getElementById('matchCard' + i);
   if (!card || !d) return;
   card.querySelector('.mc-amt').textContent = fmt(d.amount);
-  document.getElementById('matchWords' + i).innerHTML = _matchWords(d);
+  document.getElementById('matchWords' + i).innerHTML = _matchWords(d, _match.line.amount, d.amount);
 }
 
 async function _matchPay(i) {
@@ -9727,6 +9742,97 @@ async function _matchPay(i) {
   }
   closeMatchPopin();
   await m.onDone(`Paid ${d.description} (${_gsDay(d.forecast_date)}) with ${m.line.description}.`);
+}
+
+// The pop-in turned round (#223): a planned line on top, and the Unmatched
+// list's lines within 60 days as cards, from a planned row on Forecast.
+// `ref` is { transaction_id } or { recurring_id, forecast_date }.
+async function openPaidByPopin(accountId, ref, opts) {
+  opts = opts || {};
+  const m = _match = { accountId, ref, planned: null, lines: [], onDone: opts.onDone || _forecastMatched };
+  const dlg = _showMatchDialog('Paid by a bank line');
+  const q = new URLSearchParams(Object.entries(ref).filter(([, v]) => v != null)).toString();
+  let data;
+  try { data = await api(`/api/accounts/${accountId}/bank-unmatched/near?${q}`); }
+  catch (e) {
+    dlg.querySelector('.match-body').innerHTML = `<span style="color:var(--bad)">${escapeHtml(errText(e))}</span>`;
+    return;
+  }
+  if (_match !== m) return;
+  m.planned = data.planned;
+  m.lines = data.lines || [];
+  const p = m.planned;
+  const cards = m.lines.map((l, i) => {
+    const best = i === 0 && l.same_direction;
+    return `<div class="match-card${best ? ' best' : ''}">
+      <div class="mc-main">
+        ${best ? '<div class="mc-best">Closest match</div>' : ''}
+        <div class="mc-top"><span class="mc-name">${escapeHtml(l.description)}</span>
+          <span class="mc-amt ${l.amount >= 0 ? 'pos' : 'neg'}">${escapeHtml(fmt(l.amount))}</span></div>
+        <div class="mc-words"><span>${escapeHtml(_gsDay(l.date))}${l.source === 'alert' ? ' · email alert' : ''}</span>
+          <span>${_matchWords(l, l.amount, p.amount, true)}</span></div>
+        ${l.bank_text ? `<div class="match-sub match-raw" title="${escapeAttr(l.bank_text)}">${escapeHtml(l.bank_text)}</div>` : ''}
+      </div>
+      <button type="button"${best ? '' : ' class="ghost"'} onclick="_paidByPay(${i})">This paid it</button>
+    </div>`;
+  }).join('');
+  dlg.innerHTML = `<div class="match-head">
+      <h3>Paid by a bank line</h3>
+      <div class="match-line"><span class="ml-name">${escapeHtml(p.description)}</span>
+        <span class="ml-amt ${p.amount >= 0 ? 'pos' : 'neg'}">${escapeHtml(fmt(p.amount))}</span></div>
+      <div class="match-sub">Planned for ${escapeHtml(_gsDay(p.forecast_date))}</div>
+    </div>
+    <div class="match-body">
+      ${cards
+        ? `<p class="match-hint">Which bank line paid this? Each one says how it compares with the planned line.</p>${cards}`
+        : '<p class="match-hint">No unmatched bank line within 60 days of this date.</p>'}
+      <div class="dlg-err" id="matchErr" role="alert"></div>
+    </div>
+    <div class="match-foot"><span></span>
+      <button type="button" class="ghost" onclick="closeMatchPopin()">Close</button>
+    </div>`;
+}
+
+async function _paidByPay(i) {
+  const m = _match;
+  const l = m && m.lines && m.lines[i];
+  if (!l) return;
+  const p = m.planned;
+  const body = p.transaction_id != null
+    ? { transaction_id: p.transaction_id }
+    : { recurring_id: p.recurring_id, forecast_date: p.forecast_date };
+  document.querySelectorAll('#matchDialog button').forEach(b => { b.disabled = true; });
+  try {
+    await api(`/api/accounts/${m.accountId}/bank-unmatched/${l.id}/match`, { method: 'POST', body: JSON.stringify(body) });
+  } catch (e) {
+    document.querySelectorAll('#matchDialog button').forEach(b => { b.disabled = false; });
+    const err = document.getElementById('matchErr');
+    if (err) err.textContent = errText(e);
+    return;
+  }
+  closeMatchPopin();
+  await m.onDone(`Paid ${p.description} (${_gsDay(p.forecast_date)}) with ${l.description}.`);
+}
+
+// Forecast's buttons for the pop-in (#223), in a row's open line, for the
+// account's owner while lines wait on the Unmatched list: Match… on an
+// unmatched bank row, "Paid by a bank line…" on a planned one.
+function _forecastMatchBtn(r, cls) {
+  if (!forecastData || !(forecastData.bank_unmatched_count > 0)) return '';
+  const acc = Number(currentAccountId);
+  if (r.bank_unmatched && r.transaction_id)
+    return `<button class="${cls}" title="Pick the planned line this bank line paid" onclick="openMatchPopin(${acc}, ${Number(r.transaction_id)}, { onDone: _forecastMatched })">Match…</button>`;
+  if (!r.is_actual_real && !r.transfer_id && r.forecast_date && (r.transaction_id || r.recurring_id)) {
+    const ref = r.transaction_id ? `{ transaction_id: ${Number(r.transaction_id)} }`
+      : `{ recurring_id: ${Number(r.recurring_id)}, forecast_date: '${escapeAttr(r.forecast_date)}' }`;
+    return `<button class="${cls}" title="Pick the bank line that paid this" onclick="openPaidByPopin(${acc}, ${ref})">Paid by a bank line…</button>`;
+  }
+  return '';
+}
+async function _forecastMatched(said) {
+  editingForecastRowKey = null;
+  await loadForecast();
+  notify(said, 'ok');
 }
 
 async function _matchLeave() {

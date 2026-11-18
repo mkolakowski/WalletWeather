@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.77.0"
+APP_VERSION = "1.78.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -3933,6 +3933,10 @@ def forecast(account_id: int, days: int = 90,
     # Today-dated cleared balance, independent of the requested window, so
     # the UI can show "where the account is right now" next to the forecast.
     data["current_balance"] = round(_current_balance(db, acc, today), 2)
+    # How many lines wait on the Unmatched list, for the owner only (only
+    # the owner can match them, #223); 0 for the people it's shared with.
+    data["bank_unmatched_count"] = (_unmatched_query(db, acc.id).count()
+                                    if _user_level(db, user, acc.id) == "owner" else 0)
     return data
 
 
@@ -4675,6 +4679,64 @@ def _match_choices(cands: list[dict], amount: Decimal, day: date) -> list[dict]:
     choices.sort(key=lambda o: (not o["same_direction"], o["days_apart"], abs(o["amount_diff"]),
                                 o["description"].lower()))
     return choices
+
+
+@app.get("/api/accounts/{account_id}/bank-unmatched/near")
+def bank_unmatched_near(account_id: int, transaction_id: int | None = None,
+                        recurring_id: int | None = None, forecast_date: date | None = None,
+                        user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """The Unmatched list's lines that could pay one planned line (#223): a
+    saved one by `transaction_id`, or a bill's date by `recurring_id` and
+    `forecast_date`. Within 60 days of its date; lines going its way first,
+    then the nearest. Each says how it compares, as the candidates' choices
+    do (amount_diff and days_after are the bank's line minus the planned)."""
+    acc = _sync_log_account(db, user, account_id)
+    planned = _planned_target(db, acc, transaction_id, recurring_id, forecast_date)
+    day, want = date.fromisoformat(planned["forecast_date"]), Decimal(str(planned["amount"]))
+    lo, hi = day - timedelta(days=MATCH_BY_HAND_DAYS), day + timedelta(days=MATCH_BY_HAND_DAYS)
+    out = []
+    for t in _unmatched_query(db, acc.id):
+        when = t.actual_date or t.forecast_date
+        if when is None or not lo <= when <= hi:
+            continue
+        text = _bank_text_of(t)
+        out.append({"id": t.id, "date": when.isoformat(), "description": t.description,
+                    "amount": float(t.amount), "source": _line_source(t),
+                    "bank_text": text if text != t.description else None,
+                    "days_apart": abs((when - day).days), "days_after": (when - day).days,
+                    "amount_diff": float(t.amount - want),
+                    "same_direction": (t.amount < 0) == (want < 0) and want != 0})
+    out.sort(key=lambda x: (not x["same_direction"], x["days_apart"], abs(x["amount_diff"]), x["id"]))
+    return {"planned": planned, "lines": out[:50]}
+
+
+def _planned_target(db: Session, acc: Account, transaction_id: int | None,
+                    recurring_id: int | None, forecast_date: date | None) -> dict:
+    """A planned line that a bank line could pay, or the error saying why
+    not: the same checks as matching by hand."""
+    if transaction_id is not None:
+        t = db.get(Transaction, transaction_id)
+        if t is None or t.account_id != acc.id:
+            raise HTTPException(404, "Planned line not found")
+        if t.is_actual or t.transfer_id is not None or t.forecast_date is None:
+            raise HTTPException(409, "That line is already paid, or is a transfer: pick a planned line.")
+        return {"transaction_id": t.id, "recurring_id": t.recurring_id,
+                "forecast_date": t.forecast_date.isoformat(), "description": t.description,
+                "amount": float(t.amount)}
+    if recurring_id is not None and forecast_date is not None:
+        rec = db.get(RecurringTransaction, recurring_id)
+        if rec is None or rec.account_id != acc.id:
+            raise HTTPException(404, "Bill not found")
+        occ = next(((d, a, s) for d, a, s in _occurrences(rec, forecast_date, forecast_date)
+                    if d == forecast_date), None)
+        if occ is None:
+            raise HTTPException(400, "That bill has no date on that day.")
+        bills = _bills_to_match(db, acc.id)
+        if (rec.id, forecast_date) in bills["covered"] or (rec.id, forecast_date) in bills["skipped"]:
+            raise HTTPException(409, "That date is already paid or was deleted: pick a planned line.")
+        return {"transaction_id": None, "recurring_id": rec.id, "forecast_date": forecast_date.isoformat(),
+                "description": occ[2], "amount": float(occ[1])}
+    raise HTTPException(400, "Give transaction_id, or recurring_id and forecast_date.")
 
 
 class BankMatchIn(BaseModel):

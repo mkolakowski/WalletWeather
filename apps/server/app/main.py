@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.78.0"
+APP_VERSION = "1.79.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -2698,6 +2698,9 @@ class AccountIn(BaseModel):
 MATCH_DAYS_MAX, MATCH_PERCENT_MAX = 31, 100   # a bill's bank-match settings (#196)
 
 
+MATCH_TEXT_MAX = 120   # a taught bill's bank-line name (#224)
+
+
 class RecurringIn(BaseModel):
     description: str = Field(max_length=DESCRIPTION_MAX)
     amount: Money  # signed: negative = withdraw
@@ -2715,6 +2718,9 @@ class RecurringIn(BaseModel):
     # leaves them as they are (a new item starts at 5 days and 10%).
     match_days: int | None = Field(default=None, ge=0, le=MATCH_DAYS_MAX)
     match_percent: int | None = Field(default=None, ge=0, le=MATCH_PERCENT_MAX)
+    # The bank lines' name the bill was taught (#224): left out leaves it as
+    # it is, null or "" forgets it.
+    match_text: str | None = Field(default=None, max_length=MATCH_TEXT_MAX)
 
     @model_validator(mode="after")
     def _one_the_forecast_can_run(self):
@@ -3396,6 +3402,7 @@ def _recurring_row(r: RecurringTransaction, today: date,
         "tags": (tags_by_rec or {}).get(r.id, []),
         "match_days": r.match_days,
         "match_percent": r.match_percent,
+        "match_text": r.match_text,
     }
 
 
@@ -3526,6 +3533,7 @@ def create_recurring(account_id: int, payload: RecurringIn,
     rec.description = payload.description
     rec.amount = Decimal(str(payload.amount))
     rec.notes = payload.notes
+    rec.match_text = (payload.match_text or "").strip() or None
     db.add(rec)
     db.flush()  # need rec.id before attaching tags
     _apply_recurring_tags(db, user, rec, payload.tag_ids)
@@ -3558,7 +3566,21 @@ def update_recurring(rec_id: int, payload: RecurringIn,
         rec.match_days = payload.match_days
     if payload.match_percent is not None:
         rec.match_percent = payload.match_percent
+    if "match_text" in payload.model_fields_set:
+        rec.match_text = (payload.match_text or "").strip() or None
     _apply_recurring_tags(db, user, rec, payload.tag_ids)
+    db.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/recurring/{rec_id}/match-text")
+def forget_match_text(rec_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Forget: the bill stops preferring the bank lines it was taught (#224)."""
+    rec = db.get(RecurringTransaction, rec_id)
+    if not rec:
+        raise HTTPException(404)
+    _account_with_perm(db, user, rec.account_id, "edit")
+    rec.match_text = None
     db.commit()
     return {"ok": True}
 
@@ -4443,7 +4465,7 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
                 continue
             # A planned bill or income line close in date and amount is
             # paid by this line instead of a second line landing (#196).
-            hit = _bill_for_bank_line(bills, tx["date"], tx["amount"])
+            hit = _bill_for_bank_line(bills, tx["date"], tx["amount"], short or raw)
             if hit:
                 rec, occ = hit
                 _pay_bill_from_bank(db, rec, occ, tx["date"], tx["amount"], ref, raw, "auto", run.id)
@@ -4499,11 +4521,26 @@ def _bills_to_match(db: Session, account_id: int) -> dict:
     if recs:
         skipped = set(db.query(RecurringSkip.recurring_id, RecurringSkip.skip_date)
                       .filter(RecurringSkip.recurring_id.in_([r.id for r in recs])))
-    return {"recs": recs, "covered": covered, "skipped": skipped}
+    taught = {r.id: _match_key(r.match_text) for r in recs if r.match_text_enc}
+    return {"recs": recs, "covered": covered, "skipped": skipped, "taught": taught}
 
 
-def _bill_for_bank_line(bills: dict, day: date, amount: Decimal):
-    """(bill, date) the bank line pays, or None (no match, or a tie)."""
+def _match_key(text: str | None) -> str:
+    """How a taught name is compared (#224): ignoring case and extra spaces."""
+    return " ".join((text or "").lower().split())
+
+
+def _line_name(t: Transaction) -> str:
+    """The name a bill learns from a synced or alert line (#224): its short
+    name, worked out again from the bank's text in its notes when the line
+    was renamed by hand."""
+    short = simplefin.short_name(t.notes) if t.notes else None
+    return short or t.description
+
+
+def _bill_for_bank_line(bills: dict, day: date, amount: Decimal, name: str | None = None):
+    """(bill, date) the bank line pays, or None (no match, or a tie). Among
+    the bills that fit, those taught the line's name (#224) are preferred."""
     found = []
     for rec in bills["recs"]:
         planned = rec.amount
@@ -4515,6 +4552,12 @@ def _bill_for_bank_line(bills: dict, day: date, amount: Decimal):
         for occ, _amount, _desc in _occurrences(rec, day - reach, day + reach):
             if (rec.id, occ) not in bills["covered"] and (rec.id, occ) not in bills["skipped"]:
                 found.append((abs((occ - day).days), rec, occ))
+    taught = bills.get("taught") or {}
+    if name and taught:
+        key = _match_key(name)
+        mine = [f for f in found if taught.get(f[1].id) == key]
+        if mine:
+            found = mine
     if not found:
         return None
     found.sort(key=lambda f: f[0])
@@ -4650,7 +4693,8 @@ def bank_unmatched_candidates(account_id: int, txn_id: int, user: User = Depends
     bank_text = _bank_text_of(line)
     return {"line": {"id": line.id, "date": day.isoformat(), "description": line.description,
                      "amount": float(line.amount), "source": _line_source(line),
-                     "bank_text": bank_text if bank_text != line.description else None},
+                     "bank_text": bank_text if bank_text != line.description else None,
+                     "learn_name": _line_name(line)},
             "candidates": out[:50],
             "choices": _match_choices(out, line.amount, day)[:50]}
 
@@ -4703,6 +4747,7 @@ def bank_unmatched_near(account_id: int, transaction_id: int | None = None,
         out.append({"id": t.id, "date": when.isoformat(), "description": t.description,
                     "amount": float(t.amount), "source": _line_source(t),
                     "bank_text": text if text != t.description else None,
+                    "learn_name": _line_name(t),
                     "days_apart": abs((when - day).days), "days_after": (when - day).days,
                     "amount_diff": float(t.amount - want),
                     "same_direction": (t.amount < 0) == (want < 0) and want != 0})
@@ -4745,6 +4790,9 @@ class BankMatchIn(BaseModel):
     transaction_id: int | None = None
     recurring_id: int | None = None
     forecast_date: date | None = None
+    # Teach the bill this line's name (#224): later lines with it pay the
+    # bill (within its days and %), and those already unmatched are caught up.
+    remember: bool = False
 
 
 @app.post("/api/accounts/{account_id}/bank-unmatched/{txn_id}/match")
@@ -4788,9 +4836,45 @@ def bank_match_by_hand(account_id: int, txn_id: int, body: BankMatchIn,
             line.mail_run_id if src == "alert" else line.bank_sync_run_id, src)
     else:
         raise HTTPException(400, "Give transaction_id, or recurring_id and forecast_date.")
+    name = _line_name(line)
     db.delete(line)
+    db.flush()
+    also, learned = 0, None
+    if body.remember and paid.recurring_id is not None:
+        rec = db.get(RecurringTransaction, paid.recurring_id)
+        rec.match_text = name[:MATCH_TEXT_MAX]
+        learned = rec.match_text
+        also = _catch_up_taught(db, acc, rec)
     db.commit()
-    return {"ok": True, "transaction_id": paid.id}
+    return {"ok": True, "transaction_id": paid.id, "learned": learned, "also_matched": also}
+
+
+def _catch_up_taught(db: Session, acc: Account, rec: RecurringTransaction) -> int:
+    """After a bill is taught a name (#224): lines already on the Unmatched
+    list with that name pay its open dates, oldest first, each within the
+    bill's days and %. How many did."""
+    key = _match_key(rec.match_text)
+    bills = _bills_to_match(db, acc.id)
+    only = {"recs": [rec], "covered": bills["covered"], "skipped": bills["skipped"], "taught": {rec.id: key}}
+    n = 0
+    for t in (_unmatched_query(db, acc.id)
+              .order_by(Transaction.actual_date, Transaction.id).all()):
+        name = _line_name(t)
+        if _match_key(name) != key:
+            continue
+        day = t.actual_date or t.forecast_date
+        hit = _bill_for_bank_line(only, day, t.amount, name)
+        if not hit:
+            continue
+        occ = hit[1]
+        src = _line_source(t)
+        _pay_bill_from_bank(db, rec, occ, day, t.amount, t.mail_ref or t.bank_ref, _bank_text_of(t), "auto",
+                            t.mail_run_id if src == "alert" else t.bank_sync_run_id, src)
+        only["covered"].add((rec.id, occ))
+        db.delete(t)
+        db.flush()
+        n += 1
+    return n
 
 
 @app.post("/api/accounts/{account_id}/bank-unmatched/{txn_id}/leave")
@@ -5680,7 +5764,7 @@ def _mail_land(db: Session, user: User, conn: MailConnection, sender: MailSender
     bills = cache.get(acc.id)
     if bills is None:
         bills = cache[acc.id] = _bills_to_match(db, acc.id)
-    hit = _bill_for_bank_line(bills, when, amount)
+    hit = _bill_for_bank_line(bills, when, amount, merchant)
     if hit:
         rec, occ = hit
         paid = _pay_bill_from_bank(db, rec, occ, when, amount, ref, merchant, "auto", run_id, "alert")

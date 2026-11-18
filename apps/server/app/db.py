@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "30"
+SCHEMA_VERSION = "31"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,9 @@ SCHEMA_VERSION = "30"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v31 (2026-11-17, claude+mkolakowski): bills learn bank text (match-by-hand
+#     phase 3, #224). recurring_transactions.match_text_enc, the encrypted
+#     name of the bank lines a bill was taught to take.
 # v30 (2026-11-17, claude+mkolakowski): email alerts matched to bills
 #     (bank-alert-emails phase 4, #209). mail_check_runs.matched, how many of
 #     a check's alerts paid a planned bill.
@@ -350,6 +353,17 @@ class RecurringTransaction(Base):
     # either side, and how far the amount may differ, in percent.
     match_days = Column(Integer, nullable=False, default=5)
     match_percent = Column(Integer, nullable=False, default=10)
+    # The name of the bank lines this bill was taught to take (#224),
+    # encrypted like the bank's text on a line.
+    match_text_enc = Column(LargeBinary, nullable=True)
+
+    @property
+    def match_text(self) -> str | None:
+        return decrypt_str(self.match_text_enc) if self.match_text_enc else None
+
+    @match_text.setter
+    def match_text(self, v: str | None):
+        self.match_text_enc = encrypt_str(v) if v else None
 
     account = relationship("Account", back_populates="recurring")
     category = relationship("Category")
@@ -932,6 +946,8 @@ def init_db():
     from sqlalchemy import text
     Base.metadata.create_all(engine)
     migrations = [
+        # v30 → v31: bills learn bank text (#224).
+        "ALTER TABLE recurring_transactions ADD COLUMN IF NOT EXISTS match_text_enc BYTEA",
         # v29 → v30: email alerts matched to bills (#209).
         "ALTER TABLE mail_check_runs ADD COLUMN IF NOT EXISTS matched INTEGER NOT NULL DEFAULT 0",
         # v28 → v29: email alerts checked by themselves (#207). mail_check_runs

@@ -237,6 +237,9 @@ def export_user(db: Session, user: User, accounts: list | None = None,
                     # Bank-match settings (#196). Older backups lack them.
                     "match_days": r.match_days,
                     "match_percent": r.match_percent,
+                    # The bank lines' name it was taught (#224). Older
+                    # backups lack it.
+                    "match_text": r.match_text,
                     # Occurrences deleted from the forecast. Older backups
                     # lack this key; restore treats that as "none".
                     "skipped_dates": sorted(
@@ -646,6 +649,7 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
             rec.notes = _text(r_data.get("notes"), 256) or None   # (#191)
             rec.match_days = _bounded_int(r_data.get("match_days"), 0, 31, 5)
             rec.match_percent = _bounded_int(r_data.get("match_percent"), 0, 100, 10)
+            rec.match_text = _text(r_data.get("match_text"), 120) or None   # (#224)
             db.add(rec)
             db.flush()
             for sd in {_parse_date(x) for x in r_data.get("skipped_dates") or []} - {None}:

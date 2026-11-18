@@ -323,6 +323,9 @@
   .match-raw { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .match-body { overflow-y:auto; padding:12px 18px 4px; flex:1; min-height:0; }
   .match-hint { font-size:12px; color:var(--muted); margin:0 0 10px; }
+  .match-remember { display:flex; align-items:flex-start; gap:8px; font-size:13px; color:var(--text); margin:0 0 10px; cursor:pointer; }
+  dialog.match-dialog .match-remember input { width:auto; flex:none; margin:2px 0 0; }
+  .rec-learned { font-size:11px; color:var(--muted); margin-top:4px; overflow-wrap:anywhere; }
   .match-card { display:flex; align-items:center; gap:12px; border:1px solid var(--border); border-radius:8px;
                 padding:10px 12px; margin-bottom:8px; }
   .match-card.best { border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
@@ -2811,7 +2814,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.94.0";
+const WEB_VERSION = "1.95.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2821,6 +2824,7 @@ const WEB_VERSION = "1.94.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.95.0 (2026-11-17, claude+mkolakowski): (#224) Bills learn bank text. Both pop-ins show "Match lines named … from now on" (_matchRememberBox, ticked) when a bill can be taught; Pay this / This paid it send remember (_matchRemember) and the note adds "and N more lines like it matched" from the answer's also_matched (_matchSaid). The bill editor shows the taught name (r.match_text) with Forget (forgetRecMatch → DELETE /api/recurring/{id}/match-text).
 // 1.94.0 (2026-11-17, claude+mkolakowski): (#223) Matching from Forecast. Rows for a line on the Unmatched list (the forecast's new bank_unmatched) wear an "Unmatched" pill (_bankMatchPill). While the forecast's bank_unmatched_count is above 0 (the owner only), a row's open line offers Match… on such a row (openMatchPopin with onDone _forecastMatched, which reloads the forecast and says what was paid) or "Paid by a bank line…" on a planned one (openPaidByPopin → GET /api/accounts/{id}/bank-unmatched/near, the pop-in turned round: the planned line on top, the bank lines as cards with "This paid it"). _matchWords takes the bank and planned amounts, so both directions word it from the bank's line.
 // 1.93.0 (2026-11-17, claude+mkolakowski): (#222) The match pop-in. Match… on the Unmatched list (Bank sync and Email alerts) opens <dialog id="matchDialog"> (openMatchPopin) instead of a table under the row: the bank or alert line on top (name, amount, date, the bank's full text) and a card per planned line from the candidates response's new `choices` (one per bill, at its nearest open date, other dates in a picker), each saying in words how the bank's line compares ("$2.17 more · 1 day earlier"), the closest highlighted, with Pay this; Leave as its own line and Close at the bottom. opts.onDone lets Forecast reuse it (phase 2).
 // 1.92.0 (2026-11-18, claude+mkolakowski): (#227) Bank sync links to its provider. BANK_PROVIDERS holds each provider's name and pages (SimpleFIN Bridge: home, sign-in, account, new setup token) and _bankProviderLinks(key) draws a "SimpleFIN Bridge: Sign in · Your account · Make a setup token" line at the top of Settings → Bank sync (connect and connected views) and of Admin → Bank sync (#adminBankSyncLinks). The links use beta-bridge.simplefin.org, since bridge.simplefin.org now sends every path to that site's homepage; the "no longer accepts this connection" note links to the setup-token page too.
@@ -7510,6 +7514,15 @@ function _recMatchFields(daysId, pctId, days, pct) {
     <label for="${pctId}" title="A bank line whose amount is within this percent of the bill's can pay it. 0 means the exact amount.">Amount may differ by %
       <input id="${pctId}" type="number" min="0" max="100" step="1" value="${Number(pct)}"></label></div>`;
 }
+// Forget a bill's taught bank-line name (#224), straight away.
+async function forgetRecMatch(id) {
+  try { await api(`/api/recurring/${id}/match-text`, { method: 'DELETE' }); }
+  catch (e) { notifyError('Could not forget it', e); return; }
+  const r = (recurringData || []).find(x => x.id === id);
+  if (r) r.match_text = null;
+  const el = document.getElementById('recLearned_' + id);
+  if (el) el.textContent = 'Forgotten: lines are matched by date and amount only.';
+}
 // Reads the two fields back; null for a blank or out-of-range one.
 function _readRecMatch(daysId, pctId) {
   const days = document.getElementById(daysId), pct = document.getElementById(pctId);
@@ -7550,6 +7563,8 @@ function renderEditRow(r, opts) {
     _leTd(_leField('Description', `editDesc_${id}`, `<input id="editDesc_${id}" maxlength="120" value="${escapeAttr(r.description)}">`)
           + (skipNote ? `<div class="le-ro">${skipNote}</div>` : '')
           + _recMatchFields(`editMatchDays_${id}`, `editMatchPct_${id}`, r.match_days != null ? r.match_days : 5, r.match_percent != null ? r.match_percent : 10)
+          + (r.match_text ? `<div class="rec-learned" id="recLearned_${id}" title="You matched a bank line named this to this bill, so lines named the same pay it first (still within its days and %).">Takes bank lines named “${escapeHtml(r.match_text)}” first ·
+              <a href="#" onclick="forgetRecMatch(${id});return false">Forget</a></div>` : '')
           + `<div class="le-status" id="editStatus_${id}" role="alert"></div>`),
     _leTd(_leField('Start date', `editAnchor_${id}`,
                `<input id="editAnchor_${id}" type="date" value="${anchorVal}" data-prefilled="${prefilled}"
@@ -9704,7 +9719,9 @@ function _renderMatchPopin() {
     </div>
     <div class="match-body">
       ${cards
-        ? `<p class="match-hint">Which planned line did this pay? Each one says how the ${alert ? "alert's" : "bank's"} line compares with it.</p>${cards}`
+        ? `<p class="match-hint">Which planned line did this pay? Each one says how the ${alert ? "alert's" : "bank's"} line compares with it.</p>${
+            _match.choices.some(c => c.recurring_id != null)
+              ? _matchRememberBox(`Match lines named “${escapeHtml(l.learn_name || l.description)}” to the bill I pick, from now on`) : ''}${cards}`
         : '<p class="match-hint">No planned line within 60 days to pay with this one. Leave it as its own line, or add the planned line on Forecast first.</p>'}
       <div class="dlg-err" id="matchErr" role="alert"></div>
     </div>
@@ -9712,6 +9729,20 @@ function _renderMatchPopin() {
       <button type="button" class="ghost" onclick="_matchLeave()">Leave as its own line</button>
       <button type="button" class="ghost" onclick="closeMatchPopin()">Close</button>
     </div>`;
+}
+
+// "Match lines like this to … from now on" (#224), ticked by default, shown
+// when there's a bill to teach.
+function _matchRememberBox(text) {
+  return `<label class="match-remember"><input type="checkbox" id="matchRemember" checked> ${text}</label>`;
+}
+function _matchRemember(recurringId) {
+  const box = document.getElementById('matchRemember');
+  return recurringId != null && !!(box && box.checked);
+}
+function _matchSaid(paidText, res) {
+  const n = (res && res.also_matched) || 0;
+  return paidText + (n ? `, and ${n} more line${n === 1 ? '' : 's'} like it matched` : '') + '.';
 }
 
 function _matchPick(i, j) {
@@ -9731,9 +9762,11 @@ async function _matchPay(i) {
   const body = d.transaction_id != null
     ? { transaction_id: d.transaction_id }
     : { recurring_id: d.recurring_id, forecast_date: d.forecast_date };
+  body.remember = _matchRemember(d.recurring_id);
   document.querySelectorAll('#matchDialog button').forEach(b => { b.disabled = true; });
+  let res;
   try {
-    await api(`/api/accounts/${m.accountId}/bank-unmatched/${m.txnId}/match`, { method: 'POST', body: JSON.stringify(body) });
+    res = await api(`/api/accounts/${m.accountId}/bank-unmatched/${m.txnId}/match`, { method: 'POST', body: JSON.stringify(body) });
   } catch (e) {
     document.querySelectorAll('#matchDialog button').forEach(b => { b.disabled = false; });
     const err = document.getElementById('matchErr');
@@ -9741,7 +9774,7 @@ async function _matchPay(i) {
     return;
   }
   closeMatchPopin();
-  await m.onDone(`Paid ${d.description} (${_gsDay(d.forecast_date)}) with ${m.line.description}.`);
+  await m.onDone(_matchSaid(`Paid ${d.description} (${_gsDay(d.forecast_date)}) with ${m.line.description}`, res));
 }
 
 // The pop-in turned round (#223): a planned line on top, and the Unmatched
@@ -9784,7 +9817,9 @@ async function openPaidByPopin(accountId, ref, opts) {
     </div>
     <div class="match-body">
       ${cards
-        ? `<p class="match-hint">Which bank line paid this? Each one says how it compares with the planned line.</p>${cards}`
+        ? `<p class="match-hint">Which bank line paid this? Each one says how it compares with the planned line.</p>${
+            p.recurring_id != null
+              ? _matchRememberBox(`Match lines named like the one I pick to ${escapeHtml(p.description)}, from now on`) : ''}${cards}`
         : '<p class="match-hint">No unmatched bank line within 60 days of this date.</p>'}
       <div class="dlg-err" id="matchErr" role="alert"></div>
     </div>
@@ -9801,9 +9836,11 @@ async function _paidByPay(i) {
   const body = p.transaction_id != null
     ? { transaction_id: p.transaction_id }
     : { recurring_id: p.recurring_id, forecast_date: p.forecast_date };
+  body.remember = _matchRemember(p.recurring_id);
   document.querySelectorAll('#matchDialog button').forEach(b => { b.disabled = true; });
+  let res;
   try {
-    await api(`/api/accounts/${m.accountId}/bank-unmatched/${l.id}/match`, { method: 'POST', body: JSON.stringify(body) });
+    res = await api(`/api/accounts/${m.accountId}/bank-unmatched/${l.id}/match`, { method: 'POST', body: JSON.stringify(body) });
   } catch (e) {
     document.querySelectorAll('#matchDialog button').forEach(b => { b.disabled = false; });
     const err = document.getElementById('matchErr');
@@ -9811,7 +9848,7 @@ async function _paidByPay(i) {
     return;
   }
   closeMatchPopin();
-  await m.onDone(`Paid ${p.description} (${_gsDay(p.forecast_date)}) with ${l.description}.`);
+  await m.onDone(_matchSaid(`Paid ${p.description} (${_gsDay(p.forecast_date)}) with ${l.description}`, res));
 }
 
 // Forecast's buttons for the pop-in (#223), in a row's open line, for the

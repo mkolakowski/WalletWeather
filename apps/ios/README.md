@@ -67,6 +67,27 @@ Then build for the phone from Xcode, or from the command line with
 The bundle ID is `net.iptater.walletweather`. Don't change it: the phone's
 sign-in is kept in the Keychain under it.
 
+**Uploading to TestFlight.** `Scripts/testflight.sh` archives a Release
+build and uploads it with an App Store Connect API key, making the
+distribution certificate and profile itself if they're missing. It needs:
+
+- the app's record in App Store Connect, for bundle ID
+  `net.iptater.walletweather`;
+- an API key with the App Manager role (App Store Connect, Users and Access,
+  Integrations). The `.p8` file goes in
+  `~/.appstoreconnect/private_keys/AuthKey_<key ID>.p8`, outside the repo;
+- `Config/AppStoreConnect.local.env` (gitignored), with the key's ID and the
+  issuer ID:
+
+  ```
+  ASC_KEY_ID=<key ID>
+  ASC_ISSUER_ID=<issuer ID>
+  ```
+
+The build number is the number of commits on `HEAD`, so commit before
+uploading again. Builds are for internal testers only until the name is
+cleared (#49); `TESTFLIGHT_INTERNAL_ONLY=false` lifts that.
+
 **Screenshots without signing in by hand.** In Debug builds only, the app
 opens signed in when it's launched with a server and a token:
 

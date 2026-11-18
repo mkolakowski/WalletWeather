@@ -53,6 +53,8 @@ PROMPT_LOG.md
 
 # The iOS app's signing team, kept on the Mac that builds for a phone (apps/ios/README.md).
 apps/ios/Config/Signing.local.xcconfig
+# The App Store Connect API key's ID and issuer for TestFlight uploads (apps/ios/Scripts/testflight.sh).
+apps/ios/Config/AppStoreConnect.local.env
 # Swift package build output (apps/ios/WalletWeatherKit)
 .build/
 .swiftpm/

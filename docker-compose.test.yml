@@ -36,6 +36,10 @@ services:
       - ./packages/core:/src/packages/core
       # The iPhone app's copy of the core, read-only, to check it matches (#234).
       - ./apps/ios/WalletWeatherKit/Sources/WalletWeatherKit/Core:/src/apps/ios/WalletWeatherKit/Sources/WalletWeatherKit/Core:ro
+      # The backups that move between a server and the iPhone (#236). Writable
+      # so WRITE_BACKUP_FIXTURES=1 can rewrite from-server.json (see
+      # tests/test_backup_moves.py).
+      - ./apps/ios/WalletWeatherKit/Tests/WalletWeatherKitTests/Samples/moves:/src/apps/ios/WalletWeatherKit/Tests/WalletWeatherKitTests/Samples/moves
       # And the settings files, read-only: test_settings_wiring.py checks that
       # every setting the server reads is passed through and documented (#200).
       - ./docker-compose.yml:/src/docker-compose.yml:ro

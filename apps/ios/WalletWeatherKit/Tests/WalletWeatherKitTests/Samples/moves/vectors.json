@@ -1,0 +1,97 @@
+{
+ "made_by": "Python cryptography's Scrypt and json.dumps (apps/server/tests/test_backup_moves.py checks it)",
+ "vectors": [
+  {
+   "name": "RFC 7914, empty",
+   "passphrase": "",
+   "salt": "",
+   "n": 16,
+   "r": 1,
+   "p": 1,
+   "length": 64,
+   "key": "77d6576238657b203b19ca42c18a0497f16b4844e3074ae8dfdffa3fede21442fcd0069ded0948f8326a753a0fc81f17e8d3e0fb2e0d3628cf35e20c38d18906"
+  },
+  {
+   "name": "RFC 7914, NaCl",
+   "passphrase": "password",
+   "salt": "TmFDbA==",
+   "n": 1024,
+   "r": 8,
+   "p": 16,
+   "length": 64,
+   "key": "fdbabe1c9d3472007856e7190d01e9fe7c6ad7cbc8237830e77376634b3731622eaf30d92e22a3886ff109279d9830dac727afb94a83ee6d8360cbdfa2cc0640"
+  },
+  {
+   "name": "RFC 7914, SodiumChloride",
+   "passphrase": "pleaseletmein",
+   "salt": "U29kaXVtQ2hsb3JpZGU=",
+   "n": 16384,
+   "r": 8,
+   "p": 1,
+   "length": 64,
+   "key": "7023bdcb3afd7348461c06cd81fd38ebfda8fbba904f8e3ea9b543f6545da1f2d5432955613f0fcf62d49705242a9af9e61e85dc0d651e40dfcf017b45575887"
+  },
+  {
+   "name": "backup cost",
+   "passphrase": "orange kettle window 42",
+   "salt": "AAECAwQFBgcICQoLDA0ODw==",
+   "n": 131072,
+   "r": 8,
+   "p": 1,
+   "length": 32,
+   "key": "06b24b202f4d529d9272075ac1da6a7fc471202044eb16046d2a9d806455dd3d"
+  },
+  {
+   "name": "backup cost, beyond ASCII",
+   "passphrase": "Grüße aus Köln, ΣΑΣ 🍕 2026",
+   "salt": "8OHSw7Sllod4aVpLPC0eDw==",
+   "n": 131072,
+   "r": 8,
+   "p": 1,
+   "length": 32,
+   "key": "d3c761cbcb3d6e0ca0646e5e73301cd53cb8392358907421fc1618cbf43cf1e7"
+  }
+ ],
+ "headers": [
+  {
+   "header": {
+    "walletweather": "walletweather-encrypted-backup",
+    "format": 1,
+    "kind": "user",
+    "exported_at": "2026-11-18T23:40:32.123456Z",
+    "kdf": {
+     "name": "scrypt",
+     "n": 131072,
+     "r": 8,
+     "p": 1,
+     "salt": "AAECAwQFBgcICQoLDA0ODw=="
+    },
+    "cipher": {
+     "name": "AES-256-GCM",
+     "nonce": "AAECAwQFBgcICQoL"
+    }
+   },
+   "bytes": "{\"cipher\":{\"name\":\"AES-256-GCM\",\"nonce\":\"AAECAwQFBgcICQoL\"},\"exported_at\":\"2026-11-18T23:40:32.123456Z\",\"format\":1,\"kdf\":{\"n\":131072,\"name\":\"scrypt\",\"p\":1,\"r\":8,\"salt\":\"AAECAwQFBgcICQoLDA0ODw==\"},\"kind\":\"user\",\"walletweather\":\"walletweather-encrypted-backup\"}"
+  },
+  {
+   "header": {
+    "kind": "Grüße \"quoted\" back\\slash\n tab\t ΣΑΣ 🍕 /",
+    "exported_at": null,
+    "flag": true,
+    "list": [
+     1,
+     false,
+     null,
+     "é"
+    ],
+    "B": 2,
+    "a": 3,
+    "ab": {
+     "z": 1,
+     "Z": 2
+    }
+   },
+   "bytes": "{\"B\":2,\"a\":3,\"ab\":{\"Z\":2,\"z\":1},\"exported_at\":null,\"flag\":true,\"kind\":\"Gr\\u00fc\\u00dfe \\\"quoted\\\" back\\\\slash\\n tab\\t \\u03a3\\u0391\\u03a3 \\ud83c\\udf55 \\u007f/\",\"list\":[1,false,null,\"\\u00e9\"]}"
+  }
+ ]
+}

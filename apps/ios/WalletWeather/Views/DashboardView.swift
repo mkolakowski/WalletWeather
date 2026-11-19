@@ -14,6 +14,8 @@ struct DashboardView: View {
     @SceneStorage("dashboard.window") private var window: ChartWindow = .month
     @State private var startTask: StartTask?
     @State private var addingAccount = false
+    @State private var importingBackup = false
+    @State private var importNote: String?
 
     @State private var summary: Loadable<Dashboard> = .loading
     @State private var charts: Loadable<DashboardCharts> = .loading
@@ -56,6 +58,7 @@ struct DashboardView: View {
         .task(id: window) { await loadCharts() }
         .sheet(item: $startTask) { StartTaskSheet(task: $0) }
         .sheet(isPresented: $addingAccount) { NewAccountSheet { model.reload() } }
+        .backupImporter(isPresented: $importingBackup) { message, _ in importNote = message }
         .onAppear {
             // Debug only: `WW_DEBUG_START=tour` (or a task's name) opens its sheet.
             if let debug = AppModel.debugSetting("WW_DEBUG_START") {
@@ -108,6 +111,9 @@ struct DashboardView: View {
                 Text("Start with the account your pay goes into, with its balance today. Bills, income and spending go on it next.")
             } actions: {
                 Button("Add an account") { addingAccount = true }.buttonStyle(.glassProminent)
+                // Or bring a household from a server (#236).
+                Button("Import a server backup") { importingBackup = true }.buttonStyle(.borderless)
+                if let importNote { Text(importNote).font(.footnote).foregroundStyle(.secondary) }
             }
         } else if dashboard.cards.isEmpty {
             ContentUnavailableView("No accounts yet", systemImage: "building.columns",

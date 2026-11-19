@@ -159,6 +159,12 @@ struct SettingsView: View {
         Text("WalletWeather \(AppInfo.version), with no server. Back to the first screen keeps your numbers on this iPhone: choose On this iPhone there to open them again. Net worth, Budgets, Reports, bank sync and sharing need a server.")
             .font(.footnote).foregroundStyle(.secondary)
             .padding(.horizontal, 4)
+        // Moving to or from a server (#236).
+        SectionTitle("Move to or from a server")
+        MoveRows().card()
+        Text("Export for a server saves your numbers as your server's own encrypted backup, for its Settings → Restore. Import a server backup replaces what's on this iPhone with a backup your server made. Tags and bank links aren't kept on this iPhone.")
+            .font(.footnote).foregroundStyle(.secondary)
+            .padding(.horizontal, 4)
     }
 
     @ViewBuilder private var yourServer: some View {

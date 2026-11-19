@@ -84,3 +84,12 @@ Decisions made while planning [`Plans/standalone.md`](../../../Plans/standalone.
 - **Accounts are added from an empty Dashboard ("Add your first account") and from Settings → On this iPhone → Add an account,** with the web app's fields: a name, a starting balance (a leading minus for money owed) and the date it starts. Chosen over a set-up step before the Dashboard and over a "New account" item in the + menu.
 
 **Set in building, not asked:** the household is included in the phone's own iCloud or computer backup (it's the only copy until phase 6), unlike kept numbers, which stay out; rows get random ids below 2^52 rather than counts, so phase 7's sync can't have two devices pick the same id; the Important notice is asked once, as after signing up on the web; the server's default categories are made with a new household; Try the demo moved from the sign-in screen to the first screen.
+
+## 2026-11-18: importing onto a phone, and transfers in backups
+
+**Decided:** 2026-11-18, by Matthew, asked while building phase 5 (#236). **Status:** accepted, built in 1.84.0 and iOS 0.20.0.
+
+- **Importing a server backup onto a phone that already has a household replaces it, after asking.** The confirmation names the accounts that will replace the phone's, as the server's "replace" import does. An empty phone just imports. Chosen over importing only into an empty phone, and over offering replace or add alongside.
+- **Backups record transfers (backup version 5).** Each transfer is listed with its two accounts' places in the file, its date, amount, name and notes, and its two lines point at it, so a restore or a move keeps them linked. Before, the server's own backups turned a transfer into two plain lines. It's an optional addition, so older backups still import; a version 5 file needs a server on 1.84.0 or later. Chosen over keeping plain lines.
+
+**Set in building, not asked:** the passphrase is chosen the first time Export for a server is used, typed twice, and shown in Settings → Backup passphrase after Face ID, Touch ID or the passcode (so it can be typed on the server); the import tries the passphrase in iCloud Keychain first and asks only when it doesn't open the file; tags, tag rules and bank and email-alert links are left behind on the way onto the phone, which has none of them; the files that make the trip are committed in the iOS app's test samples and checked from both sides.

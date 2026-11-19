@@ -79,7 +79,7 @@ def only_account(c):
 
 def test_export_carries_tags_rules_and_links(source):
     data = export(source)
-    assert data["version"] == 4
+    assert data["version"] >= 4   # tags came in 4; 5 added transfers (#236)
     assert {(t["name"], t["color"]) for t in data["tags"]} == {("Health", "#44aa88"), ("Fixed", None)}
     assert data["tag_rules"] == [{
         "name": "Gym spend", "description_pattern": "gym", "category_name": "Gym stuff",

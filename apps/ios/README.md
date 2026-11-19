@@ -271,6 +271,23 @@ server and get the server's shapes back.
   once, as after signing up), Back to the first screen (the numbers stay;
   On this iPhone opens them again) and Delete everything on this iPhone.
 
+**Moving to or from a server** (phase 5, #236): Settings → On this iPhone →
+Move to or from a server. **Export for a server** writes the server's own
+sealed backup (`BackupFile.swift`: scrypt, then AES-256-GCM, the header bound
+as Python's `json.dumps` writes it; `Scrypt.swift`, since CryptoKit has none),
+in backup version 5 (`LocalBackup.swift`, as `export_user`), and saves it
+with the system's Save to Files; the server's Settings → Restore takes it.
+**Import a server backup** opens one the server made and replaces the
+household after asking (decided 2026-11-18), as the server's "replace"
+import does, with its checks. Tags, tag rules and bank and email-alert links
+aren't kept on the phone. The backup passphrase is chosen the first time and
+kept in iCloud Keychain (`BackupPassphrase` in `Keychain.swift`, synced);
+Settings → Backup passphrase shows it after Face ID, Touch ID or the
+passcode. The files that make the trip are committed in
+`Tests/WalletWeatherKitTests/Samples/moves/` and checked from both sides:
+`BackupTests` and `ScryptTests` here, `apps/server/tests/test_backup_moves.py`
+on the server (phone → server → phone gives the same Forecasts).
+
 Debug builds open it from the command line with `WW_DEBUG_LOCAL=1`, or
 `empty` / `sample` for a fresh household with the notice agreed to (and a
 few bills and lines with `sample`), and the first screen with

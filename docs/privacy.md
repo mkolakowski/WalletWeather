@@ -80,6 +80,13 @@ iCloud backup is encrypted by Apple, and end to end with Advanced Data
 Protection on). **Delete everything on this iPhone** in the app's Settings
 deletes them.
 
+**Export for a server** saves them as an encrypted backup file wherever you
+choose (for example the Files app), to restore on your own server. It's
+locked with a backup passphrase you choose, which is kept in your iCloud
+Keychain so your other Apple devices can open your backups. Nobody else,
+including WalletWeather's authors, can recover the passphrase or open the
+file without it.
+
 Removing the app removes all of it.
 
 The app asks for the camera only when you choose **Scan a QR code** to sign

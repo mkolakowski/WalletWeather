@@ -21,13 +21,15 @@ from sqlalchemy.orm import Session
 
 from .db import (
     User, Account, RecurringTransaction, RecurringSkip, RecurringTag, Transaction,
-    TransactionTag, Category, AccountPermission, Tag, TagRule, BankConnection, BankAccountLink,
+    TransactionTag, Transfer, Category, AccountPermission, Tag, TagRule, BankConnection, BankAccountLink,
     MailConnection, MailSender, MailAlertKind, encrypt_str, decrypt_str,
 )
 
 # 4 (#117): tags, tag rules, and each recurring item's and transaction's tag
-# names. Every addition is an optional key, so older backups still import.
-BACKUP_VERSION = 4
+# names. 5 (#236): transfers, so moving between a server and the iPhone (or a
+# restore) keeps a transfer's two lines linked. Every addition is an optional
+# key, so older backups still import.
+BACKUP_VERSION = 5
 TAG_NAME_MAX = 60          # Tag.name's column size
 TAG_RULE_PATTERN_MAX = 120
 _HEX_COLOR = re.compile(r"#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?")
@@ -214,9 +216,39 @@ def export_user(db: Session, user: User, accounts: list | None = None,
         accounts = db.query(Account).filter_by(owner_id=user.id).all()
 
     accounts_out = []
+    # Transfers (version 5, #236): {transfer id: [(account index, line), ...]}
+    # for the lines that are one.
+    legs: dict[int, list] = {}
+    index_of = {a.id: i for i, a in enumerate(accounts)}
     for acc in accounts:
         rec_tags = _tag_names(db, RecurringTag, "recurring_id", [r.id for r in acc.recurring])
         txn_tags = _tag_names(db, TransactionTag, "transaction_id", [t.id for t in acc.transactions])
+        lines = []
+        for t in acc.transactions:
+            line = {
+                "description": t.description,
+                "amount": float(t.amount),
+                "forecast_date": t.forecast_date.isoformat() if t.forecast_date else None,
+                "actual_date": t.actual_date.isoformat() if t.actual_date else None,
+                "forecast_amount": float(t.forecast_amount) if t.forecast_amount is not None else None,
+                "is_actual": t.is_actual,
+                "recurring_description": _rec_desc_for(t),
+                "category_name": t.category.name if t.category else None,
+                "notes": t.notes,
+                "tags": txn_tags.get(t.id, []),
+                # A hash of the bank's ids, so a restored line isn't
+                # synced again (#194). Older backups lack it.
+                "bank_ref": t.bank_ref,
+                # The same for a line from an email alert (#206).
+                "mail_ref": t.mail_ref,
+                # Bills matched by bank sync (#196). Older backups lack them.
+                "bank_match": t.bank_match,
+                "bank_text": t.bank_text,
+                "bank_left": bool(t.bank_left),
+            }
+            if t.transfer_id is not None:
+                legs.setdefault(t.transfer_id, []).append((len(accounts_out), line))
+            lines.append(line)
         accounts_out.append({
             "name": acc.name,
             "starting_balance": float(acc.starting_balance),
@@ -249,30 +281,26 @@ def export_user(db: Session, user: User, accounts: list | None = None,
                 }
                 for r in acc.recurring
             ],
-            "transactions": [
-                {
-                    "description": t.description,
-                    "amount": float(t.amount),
-                    "forecast_date": t.forecast_date.isoformat() if t.forecast_date else None,
-                    "actual_date": t.actual_date.isoformat() if t.actual_date else None,
-                    "forecast_amount": float(t.forecast_amount) if t.forecast_amount is not None else None,
-                    "is_actual": t.is_actual,
-                    "recurring_description": _rec_desc_for(t),
-                    "category_name": t.category.name if t.category else None,
-                    "notes": t.notes,
-                    "tags": txn_tags.get(t.id, []),
-                    # A hash of the bank's ids, so a restored line isn't
-                    # synced again (#194). Older backups lack it.
-                    "bank_ref": t.bank_ref,
-                    # The same for a line from an email alert (#206).
-                    "mail_ref": t.mail_ref,
-                    # Bills matched by bank sync (#196). Older backups lack them.
-                    "bank_match": t.bank_match,
-                    "bank_text": t.bank_text,
-                    "bank_left": bool(t.bank_left),
-                }
-                for t in acc.transactions
-            ],
+            "transactions": lines,
+        })
+
+    # Each transfer whose two accounts are both in the backup, by account
+    # index, with its lines pointing at it by index. A transfer to an account
+    # left out stays as plain lines, as before version 5.
+    transfers_out = []
+    for tid in sorted(legs):
+        tr = db.get(Transfer, tid)
+        if tr is None or tr.from_account_id not in index_of or tr.to_account_id not in index_of:
+            continue
+        for _, line in legs[tid]:
+            line["transfer"] = len(transfers_out)
+        transfers_out.append({
+            "from_account": index_of[tr.from_account_id],
+            "to_account": index_of[tr.to_account_id],
+            "transfer_date": tr.transfer_date.isoformat(),
+            "amount": float(tr.amount),
+            "description": tr.description,
+            "notes": tr.notes,
         })
 
     out = {
@@ -283,6 +311,7 @@ def export_user(db: Session, user: User, accounts: list | None = None,
         "tags": tags_out,
         "tag_rules": tag_rules_out,
         "accounts": accounts_out,
+        "transfers": transfers_out,
     }
     if include_bank:
         bank = _export_bank(db, user, accounts)
@@ -525,7 +554,7 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
     account_names  — if provided, only import accounts whose name is in this list.
                      If None, every account in the backup is imported.
 
-    Returns a small summary dict. Accepts backups from versions 1 to 4.
+    Returns a small summary dict. Accepts backups from versions 1 to 5.
     """
     if not isinstance(payload, dict) or "accounts" not in payload:
         raise ValueError("Not a valid backup file (missing 'accounts').")
@@ -556,8 +585,12 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
         db.flush()
 
     counts = {"categories": 0, "accounts": 0, "recurring": 0, "transactions": 0,
-              "tags": 0, "tag_rules": 0}
+              "tags": 0, "tag_rules": 0, "transfers": 0}
     acc_by_name: dict[str, Account] = {}
+    # Transfers (version 5, #236): the accounts made, by their place in the
+    # file, and each transfer's lines, by the transfer's place.
+    acc_by_index: dict[int, Account] = {}
+    legs_by_transfer: dict[int, list] = {}
 
     cat_by_name: dict[str, Category] = {}
     for c in db.query(Category).filter_by(owner_id=user.id).all():
@@ -611,7 +644,7 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
                        active=bool(rd.get("active", True))))
         counts["tag_rules"] += 1
 
-    for acc_data in payload["accounts"]:
+    for acc_index, acc_data in enumerate(payload["accounts"]):
         if not isinstance(acc_data, dict):
             raise ValueError("Each account must be an object")
         acc_name = _text(acc_data.get("name", "Imported account"), 120)
@@ -631,6 +664,7 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
         db.add(AccountPermission(account_id=acc.id, user_id=user.id, level="owner"))
         counts["accounts"] += 1
         acc_by_name.setdefault(acc.name, acc)
+        acc_by_index[acc_index] = acc
 
         rec_by_desc: dict[str, RecurringTransaction] = {}
         for r_data in acc_data.get("recurring", []):
@@ -693,16 +727,54 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
                 t.recurring_id = rec_by_desc[rec_desc].id
             db.add(t)
             counts["transactions"] += 1
+            if _bounded_int(t_data.get("transfer"), 0, 10 ** 9, -1) >= 0:
+                legs_by_transfer.setdefault(t_data["transfer"], []).append(t)
             t_tags = {tg.id: tg for tg in (get_tag(n) for n in t_data.get("tags") or []) if tg}
             if t_tags:
                 db.flush()   # need t.id for the links
                 for tag in t_tags.values():
                     db.add(TransactionTag(transaction_id=t.id, tag_id=tag.id))
 
+    counts["transfers"] = _import_transfers(db, user, payload.get("transfers"), acc_by_index, legs_by_transfer)
     counts["bank_connection"] = int(_import_bank(db, user, payload.get("bank_connection"), acc_by_name))
     counts["mail_connection"] = int(_import_mail(db, user, payload.get("mail_connection"), acc_by_name))
     db.commit()
     return counts
+
+
+def _import_transfers(db: Session, user: User, data, acc_by_index: dict, legs_by_transfer: dict) -> int:
+    """Link each transfer's two lines again (version 5, #236). A transfer
+    whose accounts weren't both imported, or that a hand-edited file got
+    wrong, is skipped, and its lines stay plain lines (as before version 5).
+    Returns how many were restored."""
+    if not isinstance(data, list):
+        return 0
+    restored = 0
+    for index, tr_data in enumerate(data):
+        if not isinstance(tr_data, dict):
+            continue
+        src = acc_by_index.get(_bounded_int(tr_data.get("from_account"), 0, 10 ** 9, -1))
+        dst = acc_by_index.get(_bounded_int(tr_data.get("to_account"), 0, 10 ** 9, -1))
+        legs = [t for t in legs_by_transfer.get(index, []) if t.account_id in {getattr(src, "id", None), getattr(dst, "id", None)}]
+        if src is None or dst is None or src.id == dst.id or not legs:
+            continue
+        try:
+            day = _parse_date(tr_data.get("transfer_date"))
+            amount = _amount(tr_data.get("amount", 0))
+        except (TypeError, ValueError):
+            continue
+        if day is None or amount <= 0:
+            continue
+        transfer = Transfer(owner_id=user.id, from_account_id=src.id, to_account_id=dst.id, transfer_date=day)
+        transfer.description = _text(tr_data.get("description") or "Transfer", 120) or "Transfer"
+        transfer.amount = amount
+        transfer.notes = _text(tr_data.get("notes"), 256) or None
+        db.add(transfer)
+        db.flush()
+        for t in legs:
+            t.transfer_id = transfer.id
+        restored += 1
+    return restored
 
 
 def export_full_system(db: Session) -> dict:

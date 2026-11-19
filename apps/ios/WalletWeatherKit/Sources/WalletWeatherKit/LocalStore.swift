@@ -74,6 +74,9 @@ enum LocalModels {
     var active: Bool = true
     var matchDays: Int = 5
     var matchPercent: Int = 10
+    /// The bank lines' name a server taught it (#224), kept so a move back
+    /// to a server keeps it (#236).
+    var matchText: String?
     var added: Date = Date.now
 
     init(accountID: Int) {

@@ -23,11 +23,11 @@ public final class LocalServer: @unchecked Sendable {
     public static let host = "this-iphone.walletweather.invalid"
     public static let connection = Connection(server: URL(string: "https://\(host)")!)
     /// The server version whose answers the phone gives.
-    public static let answersAs = "1.83.0"
+    public static let answersAs = "1.84.0"
 
     public let connection: Connection
-    private let container: ModelContainer
-    private let lock = NSLock()
+    let container: ModelContainer
+    let lock = NSLock()
 
     init(container: ModelContainer, host: String) {
         self.container = container
@@ -54,6 +54,12 @@ public final class LocalServer: @unchecked Sendable {
     /// categories) the first time.
     @discardableResult
     public static func openShared() throws -> LocalServer {
+        serversLock.lock()
+        if let found = servers[host] {
+            serversLock.unlock()
+            return found
+        }
+        serversLock.unlock()
         let container = try LocalStore.container(at: LocalStore.folder)
         serversLock.lock()
         let server = servers[host] ?? LocalServer(container: container, host: host)
@@ -106,9 +112,10 @@ public final class LocalServer: @unchecked Sendable {
 
     // MARK: - Answers
 
-    struct Problem: Error {
+    struct Problem: Error, LocalizedError {
         let status: Int
         let detail: String
+        var errorDescription: String? { detail }
         static func notFound(_ what: String = "Not found") -> Problem { Problem(status: 404, detail: what) }
         static func invalid(_ detail: String) -> Problem { Problem(status: 400, detail: detail) }
     }
@@ -210,7 +217,7 @@ public final class LocalServer: @unchecked Sendable {
 
     // MARK: Reading the rows
 
-    private func ordered<T: PersistentModel>(_ type: T.Type, _ context: ModelContext,
+    func ordered<T: PersistentModel>(_ type: T.Type, _ context: ModelContext,
                                              added: KeyPath<T, Date>, id: KeyPath<T, Int>) throws -> [T] {
         try context.fetch(FetchDescriptor<T>()).sorted {
             $0[keyPath: added] != $1[keyPath: added] ? $0[keyPath: added] < $1[keyPath: added] : $0[keyPath: id] < $1[keyPath: id]
@@ -256,7 +263,7 @@ public final class LocalServer: @unchecked Sendable {
             row["category_color"] = r.categoryID.flatMap { categories[$0]?.color } as Any? ?? NSNull()
             row["match_days"] = r.matchDays
             row["match_percent"] = r.matchPercent
-            row["match_text"] = NSNull()
+            row["match_text"] = r.matchText as Any? ?? NSNull()
         }
         return row
     }

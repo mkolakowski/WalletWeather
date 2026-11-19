@@ -73,3 +73,28 @@ public struct LocalDay: Sendable, Hashable, Comparable, Codable, CustomStringCon
         (lhs.year, lhs.month, lhs.day) < (rhs.year, rhs.month, rhs.day)
     }
 }
+
+extension LocalDay {
+    private static let gregorian: Calendar = {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "UTC")!
+        return c
+    }()
+
+    private var utcNoon: Date {
+        Self.gregorian.date(from: DateComponents(year: year, month: month, day: day, hour: 12)) ?? .distantPast
+    }
+
+    /// The day `days` later (earlier when negative).
+    func adding(days: Int) -> LocalDay {
+        let moved = Self.gregorian.date(byAdding: .day, value: days, to: utcNoon) ?? utcNoon
+        let c = Self.gregorian.dateComponents([.year, .month, .day], from: moved)
+        return LocalDay(year: c.year!, month: c.month!, day: c.day!)
+    }
+
+    /// Days from `other` to this day.
+    func days(since other: LocalDay) -> Int {
+        Self.gregorian.dateComponents([.day], from: other.utcNoon, to: utcNoon).day ?? 0
+    }
+}
+

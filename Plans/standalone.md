@@ -8,13 +8,15 @@ Tracking issue: #240
 | --- | --- | --- | --- |
 | 1. The answer key and first core numbers | Server (tests), Core | #232 | Done 2026-11-18, no version (tests only) |
 | 2. The server runs on the core | Server, Core | #233 | Built in 1.82.0, 2026-11-18; waits for the release and your look |
-| 3. The core on the iPhone | iOS, Core | #234 | Not started |
+| 3. The core on the iPhone | iOS, Core | #234 | Built in iOS 0.18.0, 2026-11-18; waits for TestFlight and your try |
 | 4. Use without a server | iOS | #235 | Not started |
 | 5. Move between a server and the phone | iOS, Server | #236 | Not started |
 | 6. Backup to iCloud Drive | iOS | #237 | Not started |
 | 9. CSV import from Files (runs after 6, before 7) | iOS, Core | #243 | Not started |
 | 7. Live iCloud sync between devices | iOS | #238 | Not started |
 | 8. Bank sync on the phone | iOS, Core | #239 | Not started |
+
+Phase 3 built 2026-11-18 in iOS 0.18.0. `Core.swift` runs a copy of the core (`WalletWeatherKit/Sources/WalletWeatherKit/Core/`, refreshed by `Scripts/copy-core.sh`) in JavaScriptCore, one context behind a lock. `CoreTests` runs every answer-key case inside JavaScript, so numbers are compared to the last bit, and fails when the copy differs from `packages/core`. "Try the demo" now works out its Dashboard, charts, Forecast, Calendar and account balances with the core from `Demo/household.json`: the demo household's rows, recorded by `Scripts/record-household.py` from the server's demo seed for 2026-11-15. The household is moved by days to today, so its purchases stay in the past. Six recorded answers left the app. Verified by all 63 answer-key cases exact in JavaScriptCore (and in Node's V8 by hand); by the household reproducing the recorded demo samples on its day (Dashboard, both charts, Forecast, both Calendars, balances); by `swift test` (138 passed); and by an app build. Not tried on a phone yet.
 
 Phase 2 built 2026-11-18 in 1.82.0 (core 0.2.0), not released yet. The server's forecast, Actual bal, a bill's next and in-window dates, Calendar, Dashboard and Dashboard charts now come from the core: `app/forecast.py` reads the rows, `app/jscore.py` runs the core in quickjs-ng (one thread behind a lock, memory and time limits, clean-up every 100 calls), and the Python copies are gone. Budgets, Net worth, Reports, Search and bank matching use it through `build_forecast` and `_occurrences`. The Dashboard and charts were added to the answer key first, written by the old Python (63 cases), and the core matched them exactly before the switch. Speed (an account with 1,458 lines): a month's forecast took 24 ms against 23.5 ms before, 90 days 28 ms against 26 ms. The first version was 3–4× slower: it decrypted every line, the engine cleaned up after every call, and strings compared one character at a time; all three were fixed without changing an answer. Found and fixed: the server read lines and categories in no set order, which can reorder lines on the same date in a busy database; it now reads each kind in id order. Image: +8 MB (quickjs-ng). Verified by the answer key, the full suite (810 passed) and an image build (the core at `/app/packages/core/`, run inside the image). Left for phase 4, where the phone first needs them: Bills & income's list and totals and Search (transfers are saves, not worked-out numbers).
 
@@ -30,7 +32,6 @@ Sessions: may span — eight phases across the server, a new shared core and the
 
 | Phase | Apps | Main session | Subagents | Why |
 | --- | --- | --- | --- | --- |
-| 3. The core on the iPhone | iOS, Core | Opus | Sonnet: `swift test` over the answer key | JavaScriptCore in WalletWeatherKit, and the demo moving from recorded months to computed ones. |
 | 4. Use without a server | iOS | Opus | Sonnet: tests for the local store and the local answers | A privacy decision (financial data stored on the phone) and a new way into the app. |
 | 5. Move between a server and the phone | iOS, Server | Opus | Sonnet: server tests that import a file the phone made | scrypt written in Swift has to match `backup.py` byte for byte; a wrong key loses a backup. |
 | 6. Backup to iCloud Drive | iOS | Sonnet | none | Writes the phase 5 file on a timer into the app's iCloud folder. Switch to Opus if the passphrase handling changes. |

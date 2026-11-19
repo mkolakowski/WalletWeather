@@ -1,0 +1,388 @@
+{
+ "recorded": "2026-11-15",
+ "categories": [
+  {
+   "id": 1,
+   "name": "Groceries",
+   "color": "#3fb950"
+  },
+  {
+   "id": 2,
+   "name": "Dining",
+   "color": "#f0883e"
+  },
+  {
+   "id": 3,
+   "name": "Transportation",
+   "color": "#58a6ff"
+  },
+  {
+   "id": 4,
+   "name": "Utilities",
+   "color": "#56d4dd"
+  },
+  {
+   "id": 5,
+   "name": "Rent/Mortgage",
+   "color": "#a371f7"
+  },
+  {
+   "id": 6,
+   "name": "Insurance",
+   "color": "#2ea043"
+  },
+  {
+   "id": 7,
+   "name": "Healthcare",
+   "color": "#ff7b72"
+  },
+  {
+   "id": 8,
+   "name": "Entertainment",
+   "color": "#e3b341"
+  },
+  {
+   "id": 9,
+   "name": "Shopping",
+   "color": "#db61a2"
+  },
+  {
+   "id": 10,
+   "name": "Subscriptions",
+   "color": "#7c6be6"
+  },
+  {
+   "id": 11,
+   "name": "Income",
+   "color": "#3fb950"
+  },
+  {
+   "id": 12,
+   "name": "Savings",
+   "color": "#d29922"
+  },
+  {
+   "id": 13,
+   "name": "Other",
+   "color": "#8b949e"
+  }
+ ],
+ "accounts": [
+  {
+   "id": 1,
+   "name": "Checking",
+   "starting_balance": 4250.0,
+   "transactions": [
+    {
+     "id": 1,
+     "recurring_id": null,
+     "category_id": 1,
+     "category": "Groceries",
+     "transfer_id": null,
+     "description": "Grocery store",
+     "notes": null,
+     "amount": -87.42,
+     "forecast_amount": -87.42,
+     "forecast_date": "2026-11-13",
+     "actual_date": "2026-11-13",
+     "is_actual": true,
+     "bank_match": null,
+     "has_bank_ref": false,
+     "has_mail_ref": false,
+     "bank_left": false,
+     "tags": []
+    },
+    {
+     "id": 2,
+     "recurring_id": null,
+     "category_id": 1,
+     "category": "Groceries",
+     "transfer_id": null,
+     "description": "Organic market",
+     "notes": null,
+     "amount": -54.91,
+     "forecast_amount": -54.91,
+     "forecast_date": "2026-11-06",
+     "actual_date": "2026-11-06",
+     "is_actual": true,
+     "bank_match": null,
+     "has_bank_ref": false,
+     "has_mail_ref": false,
+     "bank_left": false,
+     "tags": []
+    },
+    {
+     "id": 3,
+     "recurring_id": null,
+     "category_id": 1,
+     "category": "Groceries",
+     "transfer_id": null,
+     "description": "Warehouse club",
+     "notes": null,
+     "amount": -142.33,
+     "forecast_amount": -142.33,
+     "forecast_date": "2026-10-30",
+     "actual_date": "2026-10-30",
+     "is_actual": true,
+     "bank_match": null,
+     "has_bank_ref": false,
+     "has_mail_ref": false,
+     "bank_left": false,
+     "tags": []
+    },
+    {
+     "id": 4,
+     "recurring_id": null,
+     "category_id": 3,
+     "category": "Transportation",
+     "transfer_id": null,
+     "description": "Gas station",
+     "notes": null,
+     "amount": -48.7,
+     "forecast_amount": -48.7,
+     "forecast_date": "2026-11-11",
+     "actual_date": "2026-11-11",
+     "is_actual": true,
+     "bank_match": null,
+     "has_bank_ref": false,
+     "has_mail_ref": false,
+     "bank_left": false,
+     "tags": []
+    },
+    {
+     "id": 5,
+     "recurring_id": null,
+     "category_id": 9,
+     "category": "Shopping",
+     "transfer_id": null,
+     "description": "Department store",
+     "notes": null,
+     "amount": -72.18,
+     "forecast_amount": -72.18,
+     "forecast_date": "2026-11-04",
+     "actual_date": "2026-11-04",
+     "is_actual": true,
+     "bank_match": null,
+     "has_bank_ref": false,
+     "has_mail_ref": false,
+     "bank_left": false,
+     "tags": []
+    }
+   ],
+   "recurring": [
+    {
+     "id": 1,
+     "frequency": "biweekly",
+     "day_of_month": null,
+     "anchor_date": "2026-11-11",
+     "end_date": null,
+     "active": true,
+     "amount": 2800.0,
+     "description": "Paycheck",
+     "notes": null,
+     "category": "Income",
+     "category_id": 11,
+     "tags": []
+    },
+    {
+     "id": 2,
+     "frequency": "monthly_day",
+     "day_of_month": 1,
+     "anchor_date": null,
+     "end_date": null,
+     "active": true,
+     "amount": -1650.0,
+     "description": "Rent",
+     "notes": null,
+     "category": "Rent/Mortgage",
+     "category_id": 5,
+     "tags": []
+    },
+    {
+     "id": 3,
+     "frequency": "monthly_day",
+     "day_of_month": 12,
+     "anchor_date": null,
+     "end_date": null,
+     "active": true,
+     "amount": -85.0,
+     "description": "Electric",
+     "notes": null,
+     "category": "Utilities",
+     "category_id": 4,
+     "tags": []
+    },
+    {
+     "id": 4,
+     "frequency": "monthly_day",
+     "day_of_month": 18,
+     "anchor_date": null,
+     "end_date": null,
+     "active": true,
+     "amount": -59.99,
+     "description": "Internet",
+     "notes": null,
+     "category": "Utilities",
+     "category_id": 4,
+     "tags": []
+    },
+    {
+     "id": 5,
+     "frequency": "monthly_day",
+     "day_of_month": 5,
+     "anchor_date": null,
+     "end_date": null,
+     "active": true,
+     "amount": -39.0,
+     "description": "Gym",
+     "notes": null,
+     "category": "Subscriptions",
+     "category_id": 10,
+     "tags": []
+    },
+    {
+     "id": 6,
+     "frequency": "monthly_day",
+     "day_of_month": 15,
+     "anchor_date": null,
+     "end_date": null,
+     "active": true,
+     "amount": -15.49,
+     "description": "Streaming service",
+     "notes": null,
+     "category": "Subscriptions",
+     "category_id": 10,
+     "tags": []
+    }
+   ],
+   "skips": []
+  },
+  {
+   "id": 2,
+   "name": "Savings",
+   "starting_balance": 18500.0,
+   "transactions": [],
+   "recurring": [],
+   "skips": []
+  },
+  {
+   "id": 3,
+   "name": "Credit Card",
+   "starting_balance": -842.33,
+   "transactions": [
+    {
+     "id": 6,
+     "recurring_id": null,
+     "category_id": 2,
+     "category": "Dining",
+     "transfer_id": null,
+     "description": "Burrito shop",
+     "notes": null,
+     "amount": -14.25,
+     "forecast_amount": -14.25,
+     "forecast_date": "2026-11-14",
+     "actual_date": "2026-11-14",
+     "is_actual": true,
+     "bank_match": null,
+     "has_bank_ref": false,
+     "has_mail_ref": false,
+     "bank_left": false,
+     "tags": []
+    },
+    {
+     "id": 7,
+     "recurring_id": null,
+     "category_id": 2,
+     "category": "Dining",
+     "transfer_id": null,
+     "description": "Coffee shop",
+     "notes": null,
+     "amount": -8.5,
+     "forecast_amount": -8.5,
+     "forecast_date": "2026-11-12",
+     "actual_date": "2026-11-12",
+     "is_actual": true,
+     "bank_match": null,
+     "has_bank_ref": false,
+     "has_mail_ref": false,
+     "bank_left": false,
+     "tags": []
+    },
+    {
+     "id": 8,
+     "recurring_id": null,
+     "category_id": 3,
+     "category": "Transportation",
+     "transfer_id": null,
+     "description": "Ride share",
+     "notes": null,
+     "amount": -22.4,
+     "forecast_amount": -22.4,
+     "forecast_date": "2026-11-10",
+     "actual_date": "2026-11-10",
+     "is_actual": true,
+     "bank_match": null,
+     "has_bank_ref": false,
+     "has_mail_ref": false,
+     "bank_left": false,
+     "tags": []
+    },
+    {
+     "id": 9,
+     "recurring_id": null,
+     "category_id": 8,
+     "category": "Entertainment",
+     "transfer_id": null,
+     "description": "Movie theater",
+     "notes": null,
+     "amount": -28.0,
+     "forecast_amount": -28.0,
+     "forecast_date": "2026-11-03",
+     "actual_date": "2026-11-03",
+     "is_actual": true,
+     "bank_match": null,
+     "has_bank_ref": false,
+     "has_mail_ref": false,
+     "bank_left": false,
+     "tags": []
+    },
+    {
+     "id": 10,
+     "recurring_id": null,
+     "category_id": 7,
+     "category": "Healthcare",
+     "transfer_id": null,
+     "description": "Doctor copay",
+     "notes": null,
+     "amount": -40.0,
+     "forecast_amount": -40.0,
+     "forecast_date": "2026-10-28",
+     "actual_date": "2026-10-28",
+     "is_actual": true,
+     "bank_match": null,
+     "has_bank_ref": false,
+     "has_mail_ref": false,
+     "bank_left": false,
+     "tags": []
+    }
+   ],
+   "recurring": [
+    {
+     "id": 7,
+     "frequency": "monthly_day",
+     "day_of_month": 20,
+     "anchor_date": null,
+     "end_date": null,
+     "active": true,
+     "amount": -65.0,
+     "description": "Phone bill",
+     "notes": null,
+     "category": "Utilities",
+     "category_id": 4,
+     "tags": []
+    }
+   ],
+   "skips": []
+  }
+ ]
+}

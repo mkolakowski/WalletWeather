@@ -105,3 +105,13 @@ def test_sum_matches_python():
                   for _ in range(rng.randint(0, 40))]
         js = "[" + ",".join(repr(v) for v in values) + "]"
         assert jscore.context().eval(f"WalletWeatherCore._pySum({js})") == sum(values), values
+
+
+def test_the_iphone_copy_matches():
+    """The iPhone app runs a copy of the core (SwiftPM can't take a file from
+    outside its package, #234). CI doesn't run the app's tests, so the copy
+    is checked here: after changing the core, run
+    apps/ios/WalletWeatherKit/Scripts/copy-core.sh."""
+    copy = (answer_key.KEY_DIR.parents[2] / "apps" / "ios" / "WalletWeatherKit" / "Sources"
+            / "WalletWeatherKit" / "Core" / "walletweather-core.js")
+    assert copy.read_bytes() == jscore.CORE.read_bytes(), "run apps/ios/WalletWeatherKit/Scripts/copy-core.sh"

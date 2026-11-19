@@ -14,14 +14,20 @@ import Foundation
 ///   2026, so every date in an answer moves by whole months, to the month
 ///   asked for (Forecast, Calendar) or to this month. Each month looks like
 ///   the recorded one.
+///
+/// Since phase 3 of Plans/standalone.md (#234), Dashboard, its charts,
+/// Forecast, Calendar and the accounts' balances aren't recorded answers:
+/// the shared core (`Core`) works them out from the demo household's rows
+/// (`Demo/household.json`, recorded by `Scripts/record-household.py`),
+/// moved by days so the household's "today" is today. Every account and
+/// every month is then worked out as the server would.
 public enum Demo {
     public static let server = URL(string: "https://demo.walletweather.invalid")!
     public static let connection = Connection(server: server)
     /// The month the samples were recorded in.
     static let recorded = YearMonth(year: 2026, month: 11)
-    /// The account the Forecast and Calendar samples were recorded on;
-    /// the other accounts' are built from the Calendar's lines.
-    static let recordedAccount = 1
+    /// The day the household was recorded on.
+    static let recordedDay = LocalDay(year: 2026, month: 11, day: 15)
 
     /// A session that answers from the samples.
     static func makeSession() -> URLSession {
@@ -45,19 +51,22 @@ public enum Demo {
         guard allows(method, path) else {
             return (403, json(["detail": APIError.demoReadOnly.message]))
         }
-        let thisMonth = query["today"].flatMap(LocalDay.init).map(YearMonth.init) ?? YearMonth(LocalDay.today())
-        let askedMonth = query["start"].flatMap(LocalDay.init).map(YearMonth.init) ?? thisMonth
+        let today = query["today"].flatMap(LocalDay.init) ?? LocalDay.today()
+        let thisMonth = YearMonth(today)
+        let start = query["start"].flatMap(LocalDay.init) ?? thisMonth.start
+        let end = query["end"].flatMap(LocalDay.init) ?? start.endOfMonth
         let parts = path.split(separator: "/").map(String.init)  // ["api", ...]
         let found: (Data, YearMonth)?
         switch (method, parts.dropFirst().first ?? "", parts.count) {
         case ("GET", "version", _): found = (sample("version"), thisMonth)
         case ("GET", "me", 2): found = (sample("me"), thisMonth)
-        case ("GET", "accounts", 2): found = (sample("accounts"), thisMonth)
+        // Worked out by the core: already in today's dates, so not moved.
+        case ("GET", "accounts", 2): found = computed { try accounts(today: today) }
         case ("GET", "accounts", 4) where parts[3] == "forecast":
-            found = Int(parts[2]).map { (forecast(account: $0), askedMonth) }
-        case ("GET", "dashboard", 2): found = (sample("dashboard"), thisMonth)
+            found = Int(parts[2]).flatMap { account in computed { try forecast(account: account, start: start, end: end, today: today) } }
+        case ("GET", "dashboard", 2): found = computed { try dashboard(today: today) }
         case ("GET", "dashboard", 3) where parts[2] == "charts":
-            found = (sample(query["window"] == ChartWindow.days90.rawValue ? "charts-90d" : "charts-month"), thisMonth)
+            found = computed { try charts(window: query["window"] ?? ChartWindow.month.rawValue, today: today) }
         case ("GET", "saved-reports", 2): found = (sample("saved-reports"), thisMonth)
         case ("POST", "saved-reports", 4): found = (sample("report-run"), thisMonth)
         case ("GET", "networth", _): found = (sample("networth"), thisMonth)
@@ -68,7 +77,8 @@ public enum Demo {
         case ("GET", "bank", 3) where parts[2] == "status": found = (bankStatus(), recorded)
         case ("GET", "recurring", 2):
             found = (recurring(account: query["account_id"].flatMap(Int.init), ended: query["archived"] == "true"), thisMonth)
-        case ("GET", "calendar", 2): found = (calendar(account: query["account_id"].flatMap(Int.init)), askedMonth)
+        case ("GET", "calendar", 2):
+            found = computed { try calendar(account: query["account_id"].flatMap(Int.init), start: start, end: end, today: today) }
         case ("GET", "transactions", 3) where parts[2] == "search":
             found = (searchTransactions(query["q"] ?? "", category: query["category_id"].flatMap(Int.init),
                                         tag: query["tag_id"].flatMap(Int.init)), thisMonth)
@@ -81,63 +91,85 @@ public enum Demo {
         return (200, shift(body, by: month.index - recorded.index))
     }
 
-    // MARK: Built from the samples
+    // MARK: Worked out by the core
 
-    /// The recorded account's Forecast; another account's built from the
-    /// Calendar's lines on it, from the Dashboard's opening balance.
-    static func forecast(account: Int) -> Data {
-        if account == recordedAccount { return sample("forecast") }
-        let lines = events(account: account)
-        var forecastBalance = openingBalance(account), actualBalance = forecastBalance
-        let opening = forecastBalance
-        var rows: [[String: Any]] = []
-        for e in lines {
-            let planned = e["forecast_amount"] as? Double ?? e["amount"] as? Double ?? 0
-            let actual = e["actual_amount"] as? Double ?? e["amount"] as? Double ?? planned
-            forecastBalance += planned
-            actualBalance += actual
-            rows.append([
-                "forecast_date": e["date"] ?? NSNull(), "actual_date": e["date"] ?? NSNull(),
-                "description": e["description"] ?? "", "category": e["category_name"] ?? NSNull(),
-                "category_id": e["category_id"] ?? NSNull(), "notes": e["notes"] ?? NSNull(),
-                "forecast_amount": planned, "forecast_balance": forecastBalance,
-                "actual_amount": actual, "actual_balance": actualBalance,
-                "diff_amount": actual - planned, "diff_balance": actualBalance - forecastBalance,
-                "is_actual_real": e["is_actual_real"] ?? false, "recurring_id": e["recurring_id"] ?? NSNull(),
-                "transaction_id": e["transaction_id"] ?? NSNull(), "transfer_id": e["transfer_id"] ?? NSNull(),
-                "tags": e["tags"] ?? [],
-            ])
+    /// An answer worked out by the core, in today's dates (so not moved by
+    /// months); nil when the core couldn't, which reads as a missing page.
+    static func computed(_ work: () throws -> Data) -> (Data, YearMonth)? {
+        (try? work()).map { ($0, recorded) }
+    }
+
+    /// The demo household's rows, every date moved by the days from the day
+    /// it was recorded to `today`: its accounts (each a forecast input) and
+    /// categories.
+    static func household(today: LocalDay) -> [String: Any] {
+        let moved = shift(sample("household"), days: today.days(since: recordedDay))
+        return (try? JSONSerialization.jsonObject(with: moved)) as? [String: Any] ?? [:]
+    }
+
+    static func householdAccounts(_ household: [String: Any]) -> [[String: Any]] {
+        household["accounts"] as? [[String: Any]] ?? []
+    }
+
+    static func run(_ name: String, _ input: [String: Any]) throws -> Data {
+        try Core.shared.run(name, json: JSONSerialization.data(withJSONObject: input))
+    }
+
+    static func balance(_ account: [String: Any], on day: LocalDay) throws -> Double {
+        var input = account
+        input["as_of"] = day.description
+        return try JSONSerialization.jsonObject(with: run("actualBalanceAsOf", input), options: [.fragmentsAllowed]) as? Double ?? 0
+    }
+
+    /// The accounts as recorded, with their start dates moved and today's
+    /// balances worked out.
+    static func accounts(today: LocalDay) throws -> Data {
+        let rows = householdAccounts(household(today: today))
+        let moved = shift(sample("accounts"), days: today.days(since: recordedDay))
+        var list = (try? JSONSerialization.jsonObject(with: moved)) as? [[String: Any]] ?? []
+        for index in list.indices {
+            guard let row = rows.first(where: { $0["id"] as? Int == list[index]["id"] as? Int }) else { continue }
+            list[index]["current_balance"] = try balance(row, on: today)
         }
-        let current = (object("accounts") as? [[String: Any]])?
-            .first { $0["id"] as? Int == account }?["current_balance"] as? Double ?? actualBalance
-        return json([
-            "opening_balance": opening, "forecast_ending_balance": forecastBalance,
-            "actual_ending_balance": actualBalance, "rows": rows, "current_balance": current,
-        ])
+        return json(list)
+    }
+
+    /// One account's Forecast for the window asked, with today's balance,
+    /// as the server's route adds it.
+    static func forecast(account: Int, start: LocalDay, end: LocalDay, today: LocalDay) throws -> Data {
+        guard var input = householdAccounts(household(today: today)).first(where: { $0["id"] as? Int == account }) else {
+            throw Core.Problem.failed("no account \(account)")
+        }
+        let current = try balance(input, on: today)
+        input["start"] = start.description
+        input["end"] = end.description
+        var answer = try JSONSerialization.jsonObject(with: run("forecast", input)) as? [String: Any] ?? [:]
+        answer["current_balance"] = current
+        answer["bank_unmatched_count"] = 0
+        return json(answer)
     }
 
     /// The Calendar across accounts, or one account's with each day's
     /// closing balance.
-    static func calendar(account: Int?) -> Data {
-        guard let account else { return sample("calendar-all") }
-        if account == recordedAccount { return sample("calendar-checking") }
-        var all = object("calendar-all") as? [String: Any] ?? [:]
-        let lines = events(account: account)
-        var balances: [String: Double] = [:]
-        var balance = openingBalance(account)
-        let month = (all["start"] as? String).flatMap(LocalDay.init) ?? recorded.start
-        var day = month
-        while day <= month.endOfMonth {
-            for e in lines where e["date"] as? String == day.description {
-                balance += e["amount"] as? Double ?? 0
-            }
-            balances[day.description] = balance
-            day = LocalDay(year: day.year, month: day.month, day: day.day + 1)
-        }
-        all["events"] = lines
-        all["daily_balances"] = balances
-        return json(all)
+    static func calendar(account: Int?, start: LocalDay, end: LocalDay, today: LocalDay) throws -> Data {
+        let household = household(today: today)
+        let accounts = householdAccounts(household).filter { account == nil || $0["id"] as? Int == account }
+        return try run("calendar", ["start": start.description, "end": end.description, "single_account": account != nil,
+                                    "categories": household["categories"] ?? [], "accounts": accounts])
     }
+
+    static func dashboard(today: LocalDay) throws -> Data {
+        try run("dashboard", ["today": today.description, "accounts": householdAccounts(household(today: today))])
+    }
+
+    static func charts(window: String, today: LocalDay) throws -> Data {
+        let household = household(today: today)
+        return try run("dashboardCharts", ["window": window, "today": today.description,
+                                           "categories": household["categories"] ?? [],
+                                           "accounts": householdAccounts(household)])
+    }
+
+    // MARK: Built from the samples
 
     /// Bills and income on every account or one; nothing has ended in the
     /// demo. The totals are worked out again for what's listed.
@@ -230,16 +262,6 @@ public enum Demo {
         return rows.sorted { day($0) > day($1) }
     }
 
-    static func events(account: Int) -> [[String: Any]] {
-        ((object("calendar-all") as? [String: Any])?["events"] as? [[String: Any]] ?? [])
-            .filter { $0["account_id"] as? Int == account }
-    }
-
-    static func openingBalance(_ account: Int) -> Double {
-        ((object("dashboard") as? [String: Any])?["cards"] as? [[String: Any]])?
-            .first { $0["id"] as? Int == account }?["opening_balance"] as? Double ?? 0
-    }
-
     static func matches(_ row: [String: Any], _ text: String, keys: [String]) -> Bool {
         let text = text.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty else { return false }
@@ -262,6 +284,15 @@ public enum Demo {
 
     private static let monthNames = ["January", "February", "March", "April", "May", "June", "July",
                                      "August", "September", "October", "November", "December"]
+
+    /// Moves every `YYYY-MM-DD` date in an answer by `days`.
+    static func shift(_ data: Data, days: Int) -> Data {
+        guard days != 0, var text = String(data: data, encoding: .utf8) else { return data }
+        text = text.replacing(/(\d{4})-(\d{2})-(\d{2})/) { m in
+            LocalDay(String(m.0))?.adding(days: days).description ?? String(m.0)
+        }
+        return Data(text.utf8)
+    }
 
     /// Moves every `YYYY-MM-DD` date, and every "November 2026" month
     /// name, in an answer by `months`, keeping the day of the month (or the

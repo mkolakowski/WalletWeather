@@ -15,7 +15,10 @@ an older server searches transactions only). It works with a server on
 1.54.0 or later. It's on TestFlight for internal testers (from iOS 0.17.1) but
 not on the App Store yet (phase 6, #92); otherwise it's built from source and
 put on a phone from Xcode. **Try the
-demo** on the Connect screen opens it on sample numbers with no server.
+demo** on the Connect screen opens it on sample numbers with no server; since
+iOS 0.18.0 its Dashboard, charts, Forecast, Calendar and balances are worked
+out on the phone by the shared JavaScript core (phase 3 of
+[`Plans/standalone.md`](../../Plans/standalone.md), #234).
 Bank sync (phase 5 of `Plans/bank-sync.md`, #197) shows its status and Sync
 now under Settings, and a bill's bank match settings in its editor; the sync
 log, the Unmatched list and connecting a bank stay in the web app.
@@ -31,12 +34,13 @@ Changes in this folder don't trigger the container build.
 | `WalletWeather/` | The app: screens, the sign-in sheet, the Keychain. |
 | `WalletWeatherKit/` | A local Swift package with everything that has no screen: the API client, the models, and money and date formatting. |
 | `WalletWeatherKit/Tests/WalletWeatherKitTests/Samples/` | Responses recorded from the demo server, which the tests decode. |
-| `WalletWeatherKit/Sources/WalletWeatherKit/Demo/` | The samples "Try the demo" answers from (copies of the test samples), built into the app. |
+| `WalletWeatherKit/Sources/WalletWeatherKit/Demo/` | The samples "Try the demo" answers from (copies of the test samples), and `household.json`, the demo household's rows the core works the demo's numbers out from (`Scripts/record-household.py` records it). |
+| `WalletWeatherKit/Sources/WalletWeatherKit/Core/` | A copy of the shared JavaScript core (`packages/core`), run in JavaScriptCore by `Core.swift`. `Scripts/copy-core.sh` refreshes it; `CoreTests` fails when it's out of date and runs the core over the whole answer key. |
 | `WalletWeather/PrivacyInfo.xcprivacy` | The privacy manifest: no tracking, no data collected, and why the app reads its settings and file dates. |
 | `Config/Base.xcconfig` | Shared build settings. It reads `Config/Signing.local.xcconfig` if it's there. |
 
 The app uses system frameworks only (SwiftUI, Swift Charts, the Keychain,
-AuthenticationServices, CryptoKit) and no third-party packages, so there's
+AuthenticationServices, CryptoKit, JavaScriptCore) and no third-party packages, so there's
 nothing to add to `THIRD_PARTY_NOTICES.md`. XcodeGen is a build tool on the
 Mac, not part of the app.
 

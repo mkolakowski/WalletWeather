@@ -34,6 +34,8 @@ services:
       # The shared JavaScript core and its answer key (#232). Writable so
       # WRITE_ANSWER_KEY=1 can rewrite the key (see tests/answer_key.py).
       - ./packages/core:/src/packages/core
+      # The iPhone app's copy of the core, read-only, to check it matches (#234).
+      - ./apps/ios/WalletWeatherKit/Sources/WalletWeatherKit/Core:/src/apps/ios/WalletWeatherKit/Sources/WalletWeatherKit/Core:ro
       # And the settings files, read-only: test_settings_wiring.py checks that
       # every setting the server reads is passed through and documented (#200).
       - ./docker-compose.yml:/src/docker-compose.yml:ro

@@ -69,9 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.82.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.17.1**
+App version: **1.82.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.18.0**
 
 ### Changed
+
+- **iOS 0.18.0:** "Try the demo" now works its Dashboard, charts, Forecast, Calendar and account balances out on the phone, with the same shared engine the server uses, instead of showing recorded answers. Every demo account's Forecast and every month is now worked out properly, and the demo's purchases stay in the past whatever today's date is. It's the first step toward using the app without a server.
 
 - Balances, the Forecast, the Calendar, the Dashboard and its charts are now worked out by a new shared engine, the same code the iPhone app will use to run without a server. Nothing should look different: before the switch, the old and new code were checked against each other on 63 test households, and they agreed to the last digit. Pages built on the forecast (Budgets, Net worth, Reports, Search and bank matching) use it too. If a number looks different from before, please open an issue. (`packages/core/`, run by `apps/server/app/jscore.py`.)
 - The container image grows by about 8 MB for the JavaScript engine that runs it (quickjs-ng, MIT).

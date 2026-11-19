@@ -13,6 +13,7 @@ struct DashboardView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @SceneStorage("dashboard.window") private var window: ChartWindow = .month
     @State private var startTask: StartTask?
+    @State private var addingAccount = false
 
     @State private var summary: Loadable<Dashboard> = .loading
     @State private var charts: Loadable<DashboardCharts> = .loading
@@ -54,6 +55,7 @@ struct DashboardView: View {
         .task(id: model.generation) { await load() }
         .task(id: window) { await loadCharts() }
         .sheet(item: $startTask) { StartTaskSheet(task: $0) }
+        .sheet(isPresented: $addingAccount) { NewAccountSheet { model.reload() } }
         .onAppear {
             // Debug only: `WW_DEBUG_START=tour` (or a task's name) opens its sheet.
             if let debug = AppModel.debugSetting("WW_DEBUG_START") {
@@ -98,7 +100,16 @@ struct DashboardView: View {
         if settings.showsStartCard && !model.isDemo {
             GettingStartedCard { startTask = $0 }
         }
-        if dashboard.cards.isEmpty {
+        if dashboard.cards.isEmpty && model.isLocal {
+            // On this iPhone, accounts are added here and in Settings (#235).
+            ContentUnavailableView {
+                Label("Add your first account", systemImage: "building.columns")
+            } description: {
+                Text("Start with the account your pay goes into, with its balance today. Bills, income and spending go on it next.")
+            } actions: {
+                Button("Add an account") { addingAccount = true }.buttonStyle(.glassProminent)
+            }
+        } else if dashboard.cards.isEmpty {
             ContentUnavailableView("No accounts yet", systemImage: "building.columns",
                                    description: Text("Add an account in the web app's Settings, and it shows here."))
         } else {

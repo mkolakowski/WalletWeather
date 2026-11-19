@@ -1,7 +1,8 @@
 # WalletWeather for iOS
 
 A native SwiftUI app for iPhone (iOS 26 and later) that signs in to your own
-WalletWeather server. It's being built in phases from
+WalletWeather server, or, since iOS 0.19.0, keeps your numbers on the iPhone
+with no server at all ("On this iPhone" below). It's being built in phases from
 [`Plans/ios-app.md`](../../Plans/ios-app.md) (tracking issue #93). Phase 1
 (#87) gives it the Connect screen, sign-in and a read-only Dashboard; phase 2
 (#88) adds Forecast, with marking lines paid, adding and deleting
@@ -35,6 +36,7 @@ Changes in this folder don't trigger the container build.
 | `WalletWeatherKit/` | A local Swift package with everything that has no screen: the API client, the models, and money and date formatting. |
 | `WalletWeatherKit/Tests/WalletWeatherKitTests/Samples/` | Responses recorded from the demo server, which the tests decode. |
 | `WalletWeatherKit/Sources/WalletWeatherKit/Demo/` | The samples "Try the demo" answers from (copies of the test samples), and `household.json`, the demo household's rows the core works the demo's numbers out from (`Scripts/record-household.py` records it). |
+| `WalletWeatherKit/Sources/WalletWeatherKit/LocalStore.swift`, `LocalServer.swift` | On this iPhone: the household's SwiftData store, and the local connection that answers the app's requests from it through the core. `LocalTests` checks them. |
 | `WalletWeatherKit/Sources/WalletWeatherKit/Core/` | A copy of the shared JavaScript core (`packages/core`), run in JavaScriptCore by `Core.swift`. `Scripts/copy-core.sh` refreshes it; `CoreTests` fails when it's out of date and runs the core over the whole answer key. |
 | `WalletWeather/PrivacyInfo.xcprivacy` | The privacy manifest: no tracking, no data collected, and why the app reads its settings and file dates. |
 | `Config/Base.xcconfig` | Shared build settings. It reads `Config/Signing.local.xcconfig` if it's there. |
@@ -174,7 +176,8 @@ that's what iOS lets an app reach over plain HTTP.
 
 ## What's kept on the phone
 
-Only the sign-in: the server's address, the token and the Cloudflare sign-in,
+On this iPhone, the household itself: see "On this iPhone" below. With a
+server, only the sign-in: the server's address, the token and the Cloudflare sign-in,
 in the Keychain, on this device only (never in iCloud, never moved by a
 backup). Signing out deletes them. The app's own settings (the look, whether
 the lock is on and whether it was offered, the tab bar, Getting started and
@@ -231,9 +234,51 @@ them, and a save from a server without them leaves them out of the request,
 which leaves them as they are. In the demo the status is a sample made from
 the time now, and Sync now says the demo saves nothing.
 
+## On this iPhone
+
+The first screen asks how to use the app (phase 4 of
+[`Plans/standalone.md`](../../Plans/standalone.md), #235; decided
+2026-11-18): **On this iPhone** or **Your own server**, each with what it
+gives and what it costs (`Standalone.swift`), and **Try the demo**, smaller,
+under both. Your own server goes on to the sign-in screen.
+
+On this iPhone keeps the household in a SwiftData store
+(`LocalStore.swift`) in `Application Support/Household`, with complete file
+protection (unreadable while the phone is locked). It's the only copy, so
+unlike kept numbers it's in the phone's iCloud or computer backup; CloudKit
+is off until phase 7. Its `Connection` points at
+`https://this-iphone.walletweather.invalid`, and `APIClient` answers it on
+the phone (`LocalServer.swift`): the pages make the same requests as with a
+server and get the server's shapes back.
+
+- **Worked out by the core:** Dashboard, its charts, Forecast, the Calendar,
+  balances, Bills & income and its totals, and both searches, from the rows
+  as the server hands them over (`apps/server/app/forecast.py`).
+- **Saved as the server saves:** new accounts (`POST /api/accounts`, from an
+  empty Dashboard or Settings → On this iPhone), lines, bills, skipped dates
+  and Move money, with the server's checks. A new household starts with the
+  server's default categories. Rows get random ids below 2^52, not counts,
+  so two devices can't pick the same one once phase 7 syncs them.
+- **Needs a server** (open question 2): Net worth, Budgets, Reports and bank
+  sync stay where they are, greyed and marked, and open a note on what a
+  server adds; their requests answer 404. Transfers can't be changed or
+  deleted yet, and skipped dates can't be restored (both are in the web app
+  only), and tags can't be made.
+- **No network:** the local session's only handlers are the household's and
+  one that refuses everything else (`RefuseProtocol`); `LocalTests` drives
+  every page and checks nothing was refused.
+- **Settings → On this iPhone:** Add an account, the Important notice (asked
+  once, as after signing up), Back to the first screen (the numbers stay;
+  On this iPhone opens them again) and Delete everything on this iPhone.
+
+Debug builds open it from the command line with `WW_DEBUG_LOCAL=1`, or
+`empty` / `sample` for a fresh household with the notice agreed to (and a
+few bills and lines with `sample`), and the first screen with
+`WW_DEBUG_WELCOME=1`.
+
 ## Try the demo
 
-**Try the demo** on the Connect screen (#92) opens the app on sample numbers,
+**Try the demo** on the first screen (#92) opens the app on sample numbers,
 with no server, for Apple's reviewer and anyone curious. The demo's
 `Connection` points at `https://demo.walletweather.invalid` (an address that
 can't exist), and `APIClient` answers it from

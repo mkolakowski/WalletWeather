@@ -86,7 +86,7 @@ extension LocalDay {
     }
 
     /// The day `days` later (earlier when negative).
-    func adding(days: Int) -> LocalDay {
+    public func adding(days: Int) -> LocalDay {
         let moved = Self.gregorian.date(byAdding: .day, value: days, to: utcNoon) ?? utcNoon
         let c = Self.gregorian.dateComponents([.year, .month, .day], from: moved)
         return LocalDay(year: c.year!, month: c.month!, day: c.day!)

@@ -37,9 +37,15 @@ struct NoticeView: View {
                 }
                 .buttonStyle(.glassProminent)
                 .disabled(saving)
-                Button("Sign out") { Task { await model.signOutEndingToken() } }
-                    .frame(maxWidth: .infinity)
-                    .buttonStyle(.glass)
+                if model.isLocal {
+                    Button("Back") { model.leaveLocal() }
+                        .frame(maxWidth: .infinity)
+                        .buttonStyle(.glass)
+                } else {
+                    Button("Sign out") { Task { await model.signOutEndingToken() } }
+                        .frame(maxWidth: .infinity)
+                        .buttonStyle(.glass)
+                }
             }
             .card()
             .padding(20)

@@ -97,7 +97,9 @@ struct ForecastView: View {
             ProblemView(error: error) { Task { await loadAll() } }
         case (.loaded(let list), _) where list.isEmpty:
             ContentUnavailableView("No accounts yet", systemImage: "building.columns",
-                                   description: Text("Add an account in the web app's Settings, and it shows here."))
+                                   description: Text(model.isLocal
+                                                     ? "Add your first account on the Dashboard or in Settings, and it shows here."
+                                                     : "Add an account in the web app's Settings, and it shows here."))
         case (.loaded, .loaded(let data)):
             if sizeClass == .regular {
                 twoPanes(data)

@@ -14,6 +14,9 @@ struct SettingsView: View {
     @Environment(\.barOnSide) private var barOnSide
     @State private var confirmSignOut = false
     @State private var showingNotice = false
+    /// On this iPhone (#235): New account, and Delete everything's question.
+    @State private var addingAccount = false
+    @State private var confirmErase = false
 
     var body: some View {
         @Bindable var settings = settings
@@ -27,7 +30,16 @@ struct SettingsView: View {
                             ForEach(Array(pages.enumerated()), id: \.element) { index, page in
                                 if index > 0 { Divider() }
                                 NavigationLink { page.view(embedded: true) } label: {
-                                    MoreRow { Label(page.title, systemImage: page.symbol) } trailing: { Chevron() }
+                                    if model.isLocal && page.needsServer {
+                                        // Greyed, opening the note (open question 2).
+                                        MoreRow { Label(page.title, systemImage: page.symbol) } trailing: {
+                                            Text("Needs a server").font(.footnote)
+                                            Chevron()
+                                        }
+                                        .foregroundStyle(.secondary)
+                                    } else {
+                                        MoreRow { Label(page.title, systemImage: page.symbol) } trailing: { Chevron() }
+                                    }
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -36,7 +48,11 @@ struct SettingsView: View {
                     }
 
                     SectionTitle("Bank sync")
-                    BankSyncCard()
+                    if model.isLocal {
+                        NeedsServerCard(what: "Bank sync", symbol: "building.columns")
+                    } else {
+                        BankSyncCard()
+                    }
 
                     SectionTitle("This phone")
                     VStack(alignment: .leading, spacing: 0) {
@@ -53,12 +69,14 @@ struct SettingsView: View {
                                 set: { on in Task { await settings.setLock(on) } }))
                                 .padding(.vertical, 8)
                         }
-                        Divider()
-                        MoreRow { Text("Keep on this phone") } trailing: {
-                            Picker("Keep on this phone", selection: Binding(get: { model.keep }, set: { model.setKeep($0) })) {
-                                ForEach(KeepChoice.allCases) { Text($0.title).tag($0) }
+                        if !model.isLocal {
+                            Divider()
+                            MoreRow { Text("Keep on this phone") } trailing: {
+                                Picker("Keep on this phone", selection: Binding(get: { model.keep }, set: { model.setKeep($0) })) {
+                                    ForEach(KeepChoice.allCases) { Text($0.title).tag($0) }
+                                }
+                                .labelsHidden()
                             }
-                            .labelsHidden()
                         }
                         Divider()
                         NavigationLink { TabBarSettingsView() } label: {
@@ -78,16 +96,72 @@ struct SettingsView: View {
                         } else {
                             Text("The numbers are hidden in the app switcher. Set up Face ID or Touch ID in the phone's Settings to lock the app too.")
                         }
-                        switch model.keep {
-                        case .nothing:
+                        switch model.isLocal ? nil : model.keep {
+                        case nil:
+                            Text("Your numbers are kept on this iPhone. They can't be read while the phone is locked, and they're included in this iPhone's iCloud or computer backup.")
+                        case .nothing?:
                             Text("No numbers are kept on this phone, so the app needs a connection to your server.")
-                        case .lastKnown:
+                        case .lastKnown?:
                             Text("The pages you last loaded are kept on this phone, so they still open, marked with their age, when your server can't be reached. They can't be read while the phone is locked, stay out of iCloud and computer backups, and are deleted when you sign out or choose Nothing.")
                         }
                     }
                     .font(.footnote).foregroundStyle(.secondary)
                     .padding(.horizontal, 4)
 
+                    if model.isLocal {
+                        onThisPhone
+                    } else {
+                        yourServer
+                    }
+                }
+                .padding(.horizontal, 16).padding(.bottom, 24)
+            }
+            .background(PageBackground().ignoresSafeArea())
+            .navigationTitle("Settings")
+            .toolbar { NewWindowItem(place: .more) }
+            .confirmationDialog("Sign out of WalletWeather on this phone?", isPresented: $confirmSignOut,
+                                titleVisibility: .visible) {
+                Button("Sign out", role: .destructive) { Task { await model.signOutEndingToken() } }
+            }
+            .confirmationDialog("Delete everything on this iPhone?", isPresented: $confirmErase,
+                                titleVisibility: .visible) {
+                Button("Delete everything", role: .destructive) { model.eraseLocal() }
+            } message: {
+                Text("Every account, bill and line kept on this iPhone is deleted. This can't be undone.")
+            }
+            .sheet(isPresented: $showingNotice) { NoticeReader() }
+            .sheet(isPresented: $addingAccount) { NewAccountSheet { model.reload() } }
+        }
+    }
+
+    /// The household on this iPhone (#235): adding an account, the notice,
+    /// back to the first screen (the numbers stay) and deleting everything.
+    @ViewBuilder private var onThisPhone: some View {
+        SectionTitle("On this iPhone")
+        VStack(alignment: .leading, spacing: 0) {
+            Button { addingAccount = true } label: {
+                MoreRow { Label("Add an account", systemImage: "plus.circle").foregroundStyle(Palette.accent) } trailing: { EmptyView() }
+            }
+            Divider()
+            Button { showingNotice = true } label: {
+                MoreRow { Text("Important notice").foregroundStyle(Palette.accent) } trailing: { EmptyView() }
+            }
+            Divider()
+            Button { model.leaveLocal() } label: {
+                MoreRow { Text("Back to the first screen").foregroundStyle(Palette.accent) } trailing: { EmptyView() }
+            }
+            Divider()
+            Button(role: .destructive) { confirmErase = true } label: {
+                MoreRow { Text("Delete everything on this iPhone").foregroundStyle(Palette.bad) } trailing: { EmptyView() }
+            }
+        }
+        .card()
+        Text("WalletWeather \(AppInfo.version), with no server. Back to the first screen keeps your numbers on this iPhone: choose On this iPhone there to open them again. Net worth, Budgets, Reports, bank sync and sharing need a server.")
+            .font(.footnote).foregroundStyle(.secondary)
+            .padding(.horizontal, 4)
+    }
+
+    @ViewBuilder private var yourServer: some View {
                     SectionTitle("Your server")
                     VStack(alignment: .leading, spacing: 0) {
                         VStack(alignment: .leading, spacing: 2) {
@@ -124,18 +198,6 @@ struct SettingsView: View {
                     Text("WalletWeather \(AppInfo.version), server \(model.serverVersion?.appVersion ?? "…"). Accounts, categories, budgets, sharing, imports, building reports and backups are set up in the web app. Signing out ends this phone's token on your server, then removes it, the server's address and any kept numbers from the phone.")
                         .font(.footnote).foregroundStyle(.secondary)
                         .padding(.horizontal, 4)
-                }
-                .padding(.horizontal, 16).padding(.bottom, 24)
-            }
-            .background(PageBackground().ignoresSafeArea())
-            .navigationTitle("Settings")
-            .toolbar { NewWindowItem(place: .more) }
-            .confirmationDialog("Sign out of WalletWeather on this phone?", isPresented: $confirmSignOut,
-                                titleVisibility: .visible) {
-                Button("Sign out", role: .destructive) { Task { await model.signOutEndingToken() } }
-            }
-            .sheet(isPresented: $showingNotice) { NoticeReader() }
-        }
     }
 
     private func cloudflareText(_ cf: CloudflareCredential) -> String {

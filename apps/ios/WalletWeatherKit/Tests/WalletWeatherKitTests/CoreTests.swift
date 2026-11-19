@@ -75,7 +75,8 @@ struct CoreTests {
             let object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
             for c in object["cases"] as? [[String: Any]] ?? [] { functions.insert(c["function"] as? String ?? "") }
         }
-        #expect(functions == ["forecast", "actualBalanceAsOf", "upcomingDates", "calendar", "dashboard", "dashboardCharts"])
+        #expect(functions == ["forecast", "actualBalanceAsOf", "upcomingDates", "calendar", "dashboard", "dashboardCharts",
+                             "recurringList", "searchTransactions", "search"])
     }
 
     @Test func plainValuesGoInAndComeOut() throws {

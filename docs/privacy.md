@@ -5,11 +5,12 @@ nav_order: 4
 
 # WalletWeather privacy policy
 
-Last updated: November 16, 2026
+Last updated: November 18, 2026
 
 This policy covers the WalletWeather apps for iOS and Android and the
 WalletWeather web app. WalletWeather is self-hosted: the apps connect to a
-WalletWeather server that you, or someone you know, run. The people who
+WalletWeather server that you, or someone you know, run, or the iOS app
+keeps your numbers on your iPhone with no server at all. The people who
 write WalletWeather do not run a service and do not receive your data.
 
 ## What we collect
@@ -26,6 +27,10 @@ balances, transactions and notes) is sent to that server and stored there,
 and nowhere else. When the iOS app signs in, it names its sign-in after the
 phone's model (for example "iPhone 17"), which you can change first, so you
 can tell it apart in the web app's settings.
+
+**On this iPhone** in the iOS app uses no server: your accounts, bills and
+transactions are kept on the iPhone (see below) and the app sends them
+nowhere.
 
 **Try the demo** in the iOS app shows sample numbers built into the app. It
 connects to nothing and saves nothing you change.
@@ -65,6 +70,15 @@ the app's settings:
   when your server can't be reached. They can't be read while the device is
   locked, are left out of iCloud and computer backups, and never leave the
   device. They're deleted when you sign out or switch back to Nothing.
+
+If you use the iOS app **On this iPhone**, with no server, your accounts,
+bills, income, transactions, notes and categories are kept on the iPhone,
+in the app's own storage, and never leave it except in your iPhone's own
+backup. They can't be read while the iPhone is locked. Because they're the
+only copy, they're included in your iPhone's iCloud or computer backup (an
+iCloud backup is encrypted by Apple, and end to end with Advanced Data
+Protection on). **Delete everything on this iPhone** in the app's Settings
+deletes them.
 
 Removing the app removes all of it.
 

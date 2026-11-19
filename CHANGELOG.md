@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.83.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.18.0**
+App version: **1.83.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.19.0**
+
+### Added
+
+- **iOS 0.19.0, use the iPhone app without a server:** the first screen now asks how you'd like to use WalletWeather. **On this iPhone** keeps your accounts, bills and transactions on the phone, with nothing to set up. **Your own server** signs in as before. Each choice lists what it gives and what it costs, and **Try the demo** is underneath. On this iPhone, Dashboard, Forecast, Bills & income, the Calendar, Move money and Search work as they do with a server, worked out by the same shared engine. You add accounts from an empty Dashboard or Settings → On this iPhone, and a new household starts with the usual categories. Net worth, Budgets, Reports and bank sync stay in their places, greyed and marked "Needs a server", with a note on what a server adds. Your numbers can't be read while the phone is locked, and they're included in the phone's own iCloud or computer backup. Settings → On this iPhone has **Back to the first screen**, which keeps your numbers, and **Delete everything on this iPhone**. Not yet on the phone: changing or deleting a transfer, bringing back a skipped date, and tags. Moving between the phone and a server, and a backup to iCloud Drive, come next. (iOS 0.19.0, #235)
 
 ### Changed
 

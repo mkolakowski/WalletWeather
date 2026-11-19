@@ -29,9 +29,9 @@ extension TabPage {
         case .forecast: ForecastView().environment(\.embeddedPage, embedded)
         case .bills: BillsView().environment(\.embeddedPage, embedded)
         case .calendar: CalendarView().environment(\.embeddedPage, embedded)
-        case .netWorth: PageStack { NetWorthView() }.environment(\.embeddedPage, embedded)
-        case .budgets: PageStack { BudgetsView() }.environment(\.embeddedPage, embedded)
-        case .reports: PageStack { ReportsView() }.environment(\.embeddedPage, embedded)
+        case .netWorth: PageStack { ServerOnly(page: .netWorth) { NetWorthView() } }.environment(\.embeddedPage, embedded)
+        case .budgets: PageStack { ServerOnly(page: .budgets) { BudgetsView() } }.environment(\.embeddedPage, embedded)
+        case .reports: PageStack { ServerOnly(page: .reports) { ReportsView() } }.environment(\.embeddedPage, embedded)
         }
     }
 }

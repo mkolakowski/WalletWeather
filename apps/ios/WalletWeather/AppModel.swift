@@ -15,6 +15,10 @@ import WalletWeatherKit
 /// - **Pasting a token.**
 /// A Cloudflare service token, under Advanced, can stand in for signing in
 /// to Cloudflare.
+///
+/// Or no server at all (Plans/standalone.md, phase 4, #235): the first
+/// screen offers **On this iPhone**, where the household lives in a store on
+/// the phone and a local connection (`LocalServer`) answers the pages.
 @MainActor @Observable
 final class AppModel {
     enum Phase: Equatable { case starting, connect, notice, ready }
@@ -44,6 +48,9 @@ final class AppModel {
     var needsTwoFactorCode = false
     /// The server address typed last, kept in memory only.
     var typedAddress = ""
+    /// The first screen's choice was Your own server: the sign-in screen
+    /// shows. Signing out of a server comes back to it.
+    var choseServer = false
     var pendingLink: PendingLink?
     /// An account Search asked Forecast to show (#112); Forecast takes it
     /// and clears it.
@@ -103,6 +110,56 @@ final class AppModel {
     /// "Try the demo" (#92): the app on its built-in sample numbers.
     var isDemo: Bool { connection?.isDemo == true }
 
+    /// The household on this iPhone, with no server (#235).
+    var isLocal: Bool { connection?.isLocal == true }
+
+    /// On this iPhone: opens the household kept on the phone, setting it up
+    /// (with the server's default categories) the first time. Nothing to
+    /// sign in to; the Important notice and the lock are offered as after a
+    /// first sign-in, and nothing is "kept", since the store is the data.
+    func useOnThisPhone() {
+        connectError = nil
+        connectNotice = nil
+        askKeep = false
+        do {
+            try LocalServer.openShared()
+        } catch {
+            connectError = "WalletWeather couldn't set up its numbers on this iPhone. \(error.localizedDescription)"
+            return
+        }
+        Keychain.saveConnection(LocalServer.connection)
+        connection = LocalServer.connection
+        me = nil
+        serverVersion = nil
+        generation += 1
+        phase = .ready
+        Task { await refreshMe() }
+    }
+
+    /// Loads every page again, after a change made outside them (a new
+    /// account).
+    func reload() { generation += 1 }
+
+    /// Back to the first screen, leaving the household on the phone: On this
+    /// iPhone opens it again.
+    func leaveLocal() {
+        guard isLocal else { return }
+        Keychain.deleteConnection()
+        connection = nil
+        me = nil
+        serverVersion = nil
+        choseServer = false
+        generation += 1
+        phase = .connect
+    }
+
+    /// Deletes everything on this iPhone: the household's store is erased.
+    func eraseLocal() {
+        guard isLocal else { return }
+        leaveLocal()
+        LocalStore.erase()
+    }
+
     /// Opens the demo: no server, nothing saved in the Keychain and nothing
     /// kept, and none of a sign-in's set-up (the notice, what to keep, the
     /// lock).
@@ -154,6 +211,44 @@ final class AppModel {
         #endif
     }
 
+    #if DEBUG
+    /// A fresh household for screenshots (`WW_DEBUG_LOCAL`), made through
+    /// the same calls the pages make.
+    private static func debugHousehold(sample: Bool) async {
+        LocalStore.erase()
+        guard (try? LocalServer.openShared()) != nil else { return }
+        let client = APIClient(connection: LocalServer.connection)
+        try? await client.acknowledgeNotice()
+        guard sample else { return }
+        let today = LocalDay.today()
+        guard let checking = try? await client.createAccount(AccountBody(name: "Checking", startingBalance: 2450, startingDate: YearMonth(today).start)).id,
+              let savings = try? await client.createAccount(AccountBody(name: "Savings", startingBalance: 8000, startingDate: YearMonth(today).start)).id
+        else { return }
+        let categories = (try? await client.categories()) ?? []
+        func category(_ name: String) -> Int? { categories.first { $0.name == name }?.id }
+        for (name, amount, day, income, cat) in [("Rent", "1450", 1, false, "Rent/Mortgage"), ("Paycheck", "2100", 15, true, "Income"),
+                                                 ("Phone", "65.43", 21, false, "Utilities"), ("Streaming", "15.99", 8, false, "Subscriptions")] {
+            var bill = BillDraft(today: today)
+            bill.name = name
+            bill.amountText = amount
+            bill.kind = income ? .income : .spending
+            bill.dayOfMonth = day
+            bill.categoryId = category(cat)
+            try? await client.addRecurring(bill, account: checking)
+        }
+        for (name, amount, back) in [("Groceries", "84.20", 2), ("Coffee", "4.75", 1)] {
+            var line = NewTransactionDraft(today: today.adding(days: -back))
+            line.name = name
+            line.amountText = amount
+            line.categoryId = category(name == "Coffee" ? "Dining" : "Groceries")
+            try? await client.add(line, account: checking)
+        }
+        var move = MoveMoneyDraft(today: today, from: checking, to: savings)
+        move.amountText = "200"
+        if let body = TransferBody(move) { _ = try? await client.moveMoney(body) }
+    }
+    #endif
+
     /// The name this phone's token is given when signing in through the
     /// sheet, shown in the web app's Settings → API tokens (#155). iOS only
     /// tells apps "iPhone" for the name the person gave the phone, so it
@@ -186,15 +281,36 @@ final class AppModel {
             tryDemo()
             return
         }
+        // `WW_DEBUG_LOCAL=1` opens the household on this phone (#235);
+        // `empty` or `sample` starts it again, with the notice agreed to and
+        // no accounts or a small household.
+        if let local = env["WW_DEBUG_LOCAL"] {
+            if local == "1" {
+                useOnThisPhone()
+            } else {
+                Task {
+                    await Self.debugHousehold(sample: local == "sample")
+                    useOnThisPhone()
+                }
+            }
+            return
+        }
         // `WW_DEBUG_ADDRESS` opens on the Connect screen whatever the Keychain
-        // holds (ConnectView's debug settings, #100).
-        if env["WW_DEBUG_ADDRESS"] != nil {
+        // holds (ConnectView's debug settings, #100); `WW_DEBUG_WELCOME=1`
+        // on the first screen.
+        if env["WW_DEBUG_ADDRESS"] != nil || env["WW_DEBUG_WELCOME"] == "1" {
+            choseServer = env["WW_DEBUG_ADDRESS"] != nil
             phase = .connect
             return
         }
         #endif
         guard let saved = Keychain.loadConnection() else {
             phase = .connect
+            return
+        }
+        if saved.isLocal {
+            // Set up the store before the pages ask it anything.
+            useOnThisPhone()
             return
         }
         connection = saved
@@ -451,6 +567,8 @@ final class AppModel {
     /// Removes the token and everything else from the phone, without asking
     /// the server (for a token that has already ended).
     func signOut(keepAddress: Bool = false) {
+        // Back to the sign-in screen, not the first screen's choice.
+        choseServer = true
         if keepAddress, let server = connection?.server { typedAddress = server.absoluteString }
         if !keepAddress { typedAddress = "" }
         Keychain.deleteConnection()

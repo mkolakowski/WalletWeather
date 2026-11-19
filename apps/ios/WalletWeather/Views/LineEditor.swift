@@ -256,7 +256,10 @@ struct LineEditor: View {
     }
 
     private var readOnlyReason: String {
-        if line.isTransfer { return "Transfers between accounts are changed in the web app." }
+        if line.isTransfer {
+            return model.isLocal ? "Transfers between accounts can't be changed on this iPhone yet."
+                                 : "Transfers between accounts are changed in the web app."
+        }
         if model.me?.isReadOnly == true { return "This phone signed in with a read-only token, so nothing can be changed here." }
         return "You can see this account but not change it."
     }
@@ -267,10 +270,12 @@ struct LineEditor: View {
 
     private var deleteMessage: String {
         if line.isProjection {
-            return "The repeating bill or paycheck keeps its other dates; only this one is removed. You can restore deleted dates in the web app's Bills & income."
+            return "The repeating bill or paycheck keeps its other dates; only this one is removed."
+                + (model.isLocal ? "" : " You can restore deleted dates in the web app's Bills & income.")
         }
         if line.recurringId != nil {
-            return "This can't be undone. Its repeating bill or paycheck stays, but this date won't be projected again (restore it in the web app's Bills & income)."
+            return "This can't be undone. Its repeating bill or paycheck stays, but this date won't be projected again"
+                + (model.isLocal ? "." : " (restore it in the web app's Bills & income).")
         }
         return "This can't be undone."
     }

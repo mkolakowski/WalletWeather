@@ -75,3 +75,12 @@ Decisions made while planning [`Plans/standalone.md`](../../../Plans/standalone.
 
 - **CSV import from the Files app** gets standalone transactions in before bank sync on the phone (phase 8). It's a new phase, numbered 9 so phases 7 and 8 keep their issues, run after phase 6 and before 7. The web app's importer moves into the core so both import the same way.
 - **The app asks at onboarding** whether to use it on this iPhone or with your own server, showing the pros and cons of both (phase 4). Asked as "how should the App Store listing present standalone?", Matthew answered with this instead of picking one to lead with. So the listing presents the two the same way, and its wording is left to `ios-app` phase 6 (#92).
+
+## 2026-11-18: leaving standalone, and adding accounts on the phone
+
+**Decided:** 2026-11-18, by Matthew, asked while building phase 4 (#235). **Status:** accepted, built in iOS 0.19.0.
+
+- **Settings → On this iPhone offers Back to the first screen and Delete everything on this iPhone.** Back keeps the household on the phone, and choosing On this iPhone again opens it; Delete asks first, then erases the store. Chosen over a single Delete (nothing to come back to) and over no way out until phase 5.
+- **Accounts are added from an empty Dashboard ("Add your first account") and from Settings → On this iPhone → Add an account,** with the web app's fields: a name, a starting balance (a leading minus for money owed) and the date it starts. Chosen over a set-up step before the Dashboard and over a "New account" item in the + menu.
+
+**Set in building, not asked:** the household is included in the phone's own iCloud or computer backup (it's the only copy until phase 6), unlike kept numbers, which stay out; rows get random ids below 2^52 rather than counts, so phase 7's sync can't have two devices pick the same id; the Important notice is asked once, as after signing up on the web; the server's default categories are made with a new household; Try the demo moved from the sign-in screen to the first screen.

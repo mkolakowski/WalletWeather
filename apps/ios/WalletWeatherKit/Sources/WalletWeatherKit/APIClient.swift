@@ -5,7 +5,7 @@ public enum AppInfo {
     /// The iOS app's own version (CHANGELOG.md tracks it beside the app,
     /// web and schema versions). Keep it equal to MARKETING_VERSION in the
     /// Xcode project.
-    public static let version = "0.18.0"
+    public static let version = "0.19.0"
     /// The first server version with what the app's pages need: the
     /// phone's date on Net worth, Budgets and Reports (#91), on top of each
     /// bill's next dates (#89) and the Forecast's (#88).
@@ -61,12 +61,19 @@ public final class APIClient: Sendable {
     public static let timeout: TimeInterval = 20
 
     /// The demo's connection (`Demo`) answers from the samples built into
-    /// the app and keeps nothing, whatever `session` and `keeper` say.
+    /// the app, and the household on this phone (`LocalServer`) from its
+    /// store; neither keeps anything, whatever `session` and `keeper` say.
     public init(connection: Connection, session: URLSession? = nil,
                 keeper: KeptResponses? = nil, observer: KeptObserver? = nil) {
         self.connection = connection
-        self.session = connection.isDemo ? Demo.makeSession() : session ?? APIClient.makeSession()
-        self.keeper = connection.isDemo ? nil : keeper
+        if connection.isDemo {
+            self.session = Demo.makeSession()
+        } else if connection.isLocal {
+            self.session = LocalServer.makeSession()
+        } else {
+            self.session = session ?? APIClient.makeSession()
+        }
+        self.keeper = connection.isDemo || connection.isLocal ? nil : keeper
         self.observer = observer
     }
 
@@ -187,6 +194,13 @@ public final class APIClient: Sendable {
     /// you can see, newest first.
     public func searchTransactions(_ text: String, limit: Int = 100) async throws(APIError) -> TransactionSearch {
         try await get("/api/transactions/search", query: ["q": text, "limit": String(limit)])
+    }
+
+    /// Adds an account (Plans/standalone.md, phase 4, #235): the web app's
+    /// fields. Used on this phone's own household; a server takes it too.
+    @discardableResult
+    public func createAccount(_ body: AccountBody) async throws(APIError) -> CreatedID {
+        try await send("POST", "/api/accounts", body: body)
     }
 
     // MARK: Bills & income, Calendar, moving money (#89)

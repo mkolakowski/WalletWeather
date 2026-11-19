@@ -44,7 +44,7 @@ struct AppRoot: View {
             case .starting:
                 PageBackground().ignoresSafeArea()
             case .connect:
-                ConnectView()
+                if model.choseServer { ConnectView() } else { WelcomeView() }
             case .notice:
                 NoticeView()
             case .ready:

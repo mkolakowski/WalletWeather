@@ -1,7 +1,8 @@
 import SwiftUI
 import WalletWeatherKit
 
-/// The first screen: the server's address, then Sign in (the sheet). Under
+/// Your own server, from the first screen (`WelcomeView`, #235): the
+/// server's address, then Sign in (the sheet). Under
 /// "Other ways": email and password, scanning the web app's QR code, its
 /// "Open in WalletWeather" button and pasting a token (#100); under
 /// "Advanced", a Cloudflare service token.
@@ -85,21 +86,6 @@ struct ConnectView: View {
                         Text(notice).font(.callout).foregroundStyle(.secondary)
                     }
                     problem(for: .sheet)
-                }
-                .card()
-
-                // Try the demo (#92): no server needed, for Apple's reviewer
-                // and anyone curious.
-                VStack(alignment: .leading, spacing: 8) {
-                    Button(action: model.tryDemo) {
-                        Label("Try the demo", systemImage: "sparkles")
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 4)
-                    }
-                    .buttonStyle(.glass)
-                    .disabled(model.busy)
-                    Text("Sample numbers built into the app, so you can look around before setting up a server. Nothing you change is saved.")
-                        .font(.footnote).foregroundStyle(.secondary)
                 }
                 .card()
 
@@ -232,6 +218,16 @@ struct ConnectView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
+            Button {
+                model.connectError = nil
+                model.choseServer = false
+            } label: {
+                Label("Other ways to use WalletWeather", systemImage: "chevron.left")
+                    .font(.subheadline)
+            }
+            .buttonStyle(.borderless)
+            .disabled(model.busy)
+            .padding(.bottom, 6)
             Image(systemName: "cloud.sun.fill")
                 .font(.system(size: 40))
                 .symbolRenderingMode(.multicolor)

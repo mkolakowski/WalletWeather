@@ -39,6 +39,28 @@ public struct Account: Sendable, Codable, Equatable, Identifiable {
     public var canEdit: Bool { level == "owner" || level == "edit" }
 }
 
+/// A new account: `POST /api/accounts` (#235).
+public struct AccountBody: Sendable, Encodable, Equatable {
+    public let name: String
+    public let startingBalance: Double
+    public let startingDate: LocalDay
+
+    enum CodingKeys: String, CodingKey {
+        case name, startingBalance = "starting_balance", startingDate = "starting_date"
+    }
+
+    public init(name: String, startingBalance: Double, startingDate: LocalDay) {
+        self.name = name
+        self.startingBalance = startingBalance
+        self.startingDate = startingDate
+    }
+}
+
+/// What a create answers: the new row's id.
+public struct CreatedID: Sendable, Decodable, Equatable {
+    public let id: Int
+}
+
 /// `GET /api/dashboard`: a card per account for the current month.
 public struct Dashboard: Sendable, Codable, Equatable {
     public let cards: [Card]

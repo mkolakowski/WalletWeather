@@ -403,7 +403,8 @@ struct SkipDateSheet: View {
                             }
                         }
                     } footer: {
-                        Text("Only that date is skipped; \(item.description) keeps its other dates. Skipped dates can be restored in the web app's Bills & income.")
+                        Text("Only that date is skipped; \(item.description) keeps its other dates."
+                             + (model.isLocal ? "" : " Skipped dates can be restored in the web app's Bills & income."))
                     }
                 }
                 .listRowBackground(Palette.row)

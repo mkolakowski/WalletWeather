@@ -64,7 +64,10 @@ class FakeMicrosoft:
 
     def add(self, mid, subject, html, sender=BANK, auth=GOOD_AUTH, folder="ALERTS",
             received: datetime | None = None):
-        received = received or datetime.now(timezone.utc) - timedelta(minutes=30 - len(self.messages) % 30)
+        # Seconds, not minutes, ago: spread so the order is stable, but never
+        # reaching back past midnight UTC, where a message would be dated
+        # before a connection's start date (the day it connected, #244).
+        received = received or datetime.now(timezone.utc) - timedelta(seconds=30 - len(self.messages) % 30)
         self.messages.append({"id": f"graph-{mid}", "internetMessageId": f"<{mid}@bank.example>",
                               "receivedDateTime": received.strftime("%Y-%m-%dT%H:%M:%SZ"),
                               "from": {"emailAddress": {"name": "Bank", "address": sender}},

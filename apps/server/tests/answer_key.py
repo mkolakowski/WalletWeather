@@ -29,9 +29,10 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from app.db import (Category, RecurringSkip, RecurringTag, RecurringTransaction, SessionLocal, Tag,
-                    Transaction, TransactionTag, Transfer, User)
-from app.forecast import actual_balance_as_of, build_forecast, recurring_row, rows_for_forecast
+from app.db import (AccountPermission, Category, RecurringSkip, RecurringTag, RecurringTransaction,
+                    SavedReport, SessionLocal, Tag, Transaction, TransactionTag, Transfer, User)
+from app.forecast import (actual_balance_as_of, build_forecast, recurring_accounts, recurring_row,
+                          rows_for_forecast, search_rows)
 import app.main as main
 from app.main import _recurring_upcoming, _user_visible_accounts, calendar_events
 from conftest import unique_email
@@ -51,7 +52,7 @@ class Household:
         r = self.client.post("/api/auth/register", json={"email": unique_email(), "password": PASSWORD})
         assert r.status_code == 200, r.text
         self.user = db.get(User, r.json()["id"])
-        self.ids = {k: [] for k in ("acc", "cat", "tag", "rec", "txn", "transfer")}
+        self.ids = {k: [] for k in ("acc", "cat", "tag", "rec", "txn", "transfer", "report")}
         self.accounts, self.cats, self.tags, self.recs = {}, {}, {}, {}
         # A new user starts with the default categories (and any tags):
         # they count first.
@@ -199,11 +200,73 @@ class Household:
                           {"window": window, "today": today, "categories": self._categories(),
                            "accounts": self._accounts()}, expected)
 
+    def report(self, name, pinned=False):
+        return self._note("report", SavedReport(owner_id=self.user.id, name=name, params="{}", pinned=pinned,
+                                                sort_order=len(self.ids["report"])))
+
+    def _levels(self):
+        return dict(self.db.query(AccountPermission.account_id, AccountPermission.level)
+                    .filter(AccountPermission.user_id == self.user.id))
+
+    def recurring_case(self, today, archived=False, account=None):
+        """Bills & income (/api/recurring) on `today`."""
+        db, day = self.db, date.fromisoformat(today)
+        visible = [a for a in _user_visible_accounts(db, self.user) if account is None or a.id == account.id]
+        with _any_today():
+            expected = main.list_all_recurring(archived=archived, account_id=account.id if account else None,
+                                               today=day, user=self.user, db=db)
+        return self._case(f"Bills & income on {today}" + (", ended" if archived else "")
+                          + (f", {account.name} only" if account else ""), "recurringList",
+                          {"today": today, "archived": archived,
+                           "accounts": recurring_accounts(db, visible, self._levels(), day)}, expected)
+
+    def transaction_search_case(self, label, **filters):
+        """/api/transactions/search with `filters` (ids as model objects)."""
+        db = self.db
+        visible = _user_visible_accounts(db, self.user)
+        given = {k: (v.id if hasattr(v, "id") else v) for k, v in filters.items()}
+        expected = main.search_transactions(**{"q": None, "account_id": None, "category_id": None, "tag_id": None,
+                                               "date_from": None, "date_to": None, "min_amount": None,
+                                               "max_amount": None, "kind": None, "include_transfers": True,
+                                               "limit": 100, "offset": 0,
+                                               **{k: date.fromisoformat(v) if k.startswith("date_") else v
+                                                  for k, v in given.items()}},
+                                            user=self.user, db=db)
+        return self._case(f"Transaction search: {label}", "searchTransactions", {
+            **given,
+            "accounts": [{"id": a.id, "name": a.name} for a in visible],
+            "transactions": search_rows(db, db.query(Transaction).filter(
+                Transaction.account_id.in_([a.id for a in visible]))),
+        }, expected)
+
+    def search_case(self, q, today, limit=20):
+        """/api/search for `q` on `today`."""
+        db, day = self.db, date.fromisoformat(today)
+        visible = _user_visible_accounts(db, self.user)
+        accounts = recurring_accounts(db, visible, self._levels(), day)
+        for row, a in zip(accounts, visible):
+            row["current_balance"] = actual_balance_as_of(db, a, day)
+        with _any_today():
+            expected = main.search_everything(q=q, limit=limit, today=day, user=self.user, db=db)
+        return self._case(f"Search {q!r} on {today}" + (f", {limit} a group" if limit != 20 else ""), "search", {
+            "q": q, "limit": limit, "today": today, "accounts": accounts,
+            "transactions": search_rows(db, db.query(Transaction).filter(
+                Transaction.account_id.in_([a.id for a in visible]))),
+            "categories": self._categories(),
+            "tags": [{"id": t.id, "name": t.name, "color": t.color}
+                     for t in db.query(Tag).filter_by(owner_id=self.user.id).order_by(Tag.id)],
+            "reports": [{"id": r.id, "name": r.name, "pinned": bool(r.pinned)}
+                        for r in db.query(SavedReport).filter_by(owner_id=self.user.id)
+                        .order_by(SavedReport.sort_order.asc(), SavedReport.id.asc())],
+        }, expected)
+
     def _case(self, name, function, given, expected):
         # A JSON round trip, so dates and Decimals are what a client would see.
         expected = json.loads(json.dumps(expected, default=str))
+        # A transaction search answers {total, results: [lines]}.
+        kind = "txn" if function == "searchTransactions" else None
         return {"name": name, "function": function,
-                "input": self.renumber(given), "expected": self.renumber(expected)}
+                "input": self.renumber(given), "expected": self.renumber(expected, kind)}
 
     def renumber(self, value, kind=None):
         """Replace every database id with its place in creation order."""
@@ -211,7 +274,8 @@ class Household:
         by_key = {"transaction_id": "txn", "recurring_id": "rec", "transfer_id": "transfer",
                   "category_id": "cat", "account_id": "acc"}
         lists = {"transactions": "txn", "recurring": "rec", "tags": "tag", "categories": "cat",
-                 "accounts": "acc", "cards": "acc"}
+                 "accounts": "acc", "cards": "acc", "reports": "report", "items": "rec"}
+        by_key["tag_id"] = "tag"
 
         def walk(v, kind):
             if isinstance(v, dict):
@@ -219,6 +283,9 @@ class Household:
                 for k, x in v.items():
                     if k == "id" and kind:
                         out[k] = maps[kind][x]
+                    elif k == "results" and kind:
+                        # A search group ({total, results}) holds the kind of its name.
+                        out[k] = walk(x, kind)
                     elif k in by_key and x is not None:
                         out[k] = maps[by_key[k]][x]
                     elif k in lists:
@@ -294,6 +361,18 @@ def _basics(app, db) -> list:
     cases += [h.calendar_case("2026-02-01", "2026-02-28", acc), h.calendar_case("2026-03-01", "2026-03-31")]
     cases += [h.dashboard_case(d) for d in ("2026-02-15", "2026-03-31")]
     cases += [h.charts_case(w, "2026-03-15") for w in ("month", "30d", "90d")]
+    cases += [h.recurring_case("2026-02-15"), h.recurring_case("2026-05-01"),
+              h.recurring_case("2026-05-01", archived=True)]
+    cases += [h.transaction_search_case(label, **f) for label, f in (
+        ("everything", {}), ("rent", {"q": "rent"}), ("padded upper case", {"q": "  PHONE "}),
+        ("notes", {"q": "ESTIMATE"}), ("spending", {"kind": "spending"}), ("income", {"kind": "income"}),
+        ("a category", {"category_id": h.cats["Bills"]}), ("a tag", {"tag_id": h.tags["home"]}),
+        ("February", {"date_from": "2026-02-01", "date_to": "2026-02-28"}),
+        ("amounts", {"min_amount": -100, "max_amount": 0.15}), ("a page", {"limit": 3, "offset": 2}),
+        ("past the end", {"limit": 5, "offset": 50}), ("no limit below one", {"limit": 0}),
+        ("an account", {"account_id": acc, "q": "pay"}))]
+    cases += [h.search_case(q, "2026-03-01") for q in ("rent", "family", "check", "bills", "AUTO", "  ", "zzz")]
+    cases += [h.search_case("e", "2026-03-01", limit=2), h.search_case("gym", "2026-05-01")]
     return cases
 
 
@@ -347,7 +426,54 @@ def _two_accounts(app, db) -> list:
     return cases
 
 
-HOUSEHOLDS = {"basics": _basics, "edges": _edges, "two-accounts": _two_accounts}
+def _words(app, db) -> list:
+    """Searching: names beyond ASCII (ß, final sigma, the dotless ı, an
+    emoji), notes, a transfer, ended and switched-off items on two
+    accounts, and saved reports."""
+    h = Household(app, db, "words")
+    h.category("Straße & Co", "#123456")
+    h.category("ΟΔΟΣ")
+    h.category("Fun")
+    h.tag("Iğdır trip", "#00ff00")
+    h.tag("istanbul")
+    h.tag("Ünder")
+    chk = h.account("Checking", "100.10", "2026-06-01")
+    sav = h.account("Savings ΣΑΣ", 5000, "2026-06-01")
+    h.bill("rent", chk, "Rent on Straße", "-950", "monthly_day", day_of_month=3, category="Straße & Co",
+           notes="landlord: Jürgen", tags=("Ünder", "istanbul"))
+    h.bill("old", chk, "rent (old flat)", "-700", "monthly_day", day_of_month=3, end="2026-06-30")
+    h.bill("paused", chk, "Paused STRASSE fee", "-5", "weekly", anchor="2026-06-02", active=False)
+    h.bill("pay", sav, "Pay", "1234.56", "biweekly", anchor="2026-06-05", notes="via ΟΔΟΣ bank")
+    h.bill("odd", sav, "Yearly thing", "-99", "yearly")
+    h.line(chk, "Café Straße", "-4.20", actual="2026-06-10", cleared=True, category="Straße & Co",
+           tags=("Iğdır trip",))
+    h.line(chk, "strasse parking", "-3", forecast="2026-06-20", notes="meter")
+    h.line(chk, "İstanbul tickets", "-310", forecast="2026-07-01", actual="2026-07-02", cleared=True,
+           category="Fun", tags=("istanbul", "Iğdır trip"))
+    h.line(chk, "\U0001F355 pizza", "-12", actual="2026-06-10", cleared=True, notes="ΣΑΣ")
+    h.line(chk, "Rent on Straße", "-950", forecast="2026-07-03", actual="2026-07-03", cleared=True,
+           bill="rent", forecast_amount="-950")
+    h.line(sav, "Pay", "1234.56", forecast="2026-06-19", actual="2026-06-19", cleared=True, bill="pay")
+    h.line(sav, "no notes", "0", forecast="2026-06-25")
+    h.transfer(chk, sav, "2026-06-15", "50.00", "To savings")
+    h.skip("rent", "2026-08-03")
+    h.report("Monthly Straße")
+    h.report("Fun times", pinned=True)
+    db.flush()
+    cases = [h.recurring_case("2026-07-01"), h.recurring_case("2026-07-01", archived=True),
+             h.recurring_case("2026-07-01", account=sav), h.recurring_case("2026-06-01")]
+    cases += [h.transaction_search_case(label, **f) for label, f in (
+        ("ß", {"q": "STRASSE"}), ("ß typed", {"q": "straße"}), ("dotted İ", {"q": "i̇stanbul"}),
+        ("emoji", {"q": "\U0001F355"}), ("transfers", {"kind": "transfers"}),
+        ("no transfers", {"include_transfers": False}), ("a tag and words", {"tag_id": h.tags["istanbul"], "q": "tick"}),
+        ("from a date", {"date_from": "2026-06-20"}), ("up to a date", {"date_to": "2026-06-15"}))]
+    cases += [h.search_case(q, "2026-07-01") for q in (
+        "STRASSE", "straße", "ς", "σας", "ı", "I", "istanbul", "İSTANBUL", "ünder", "to savings", "fun",
+        "\U0001F355", "rent", "Jürgen", "monthly")]
+    return cases
+
+
+HOUSEHOLDS = {"basics": _basics, "edges": _edges, "two-accounts": _two_accounts, "words": _words}
 
 
 def build_cases(app) -> dict[str, list]:

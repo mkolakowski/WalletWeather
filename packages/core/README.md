@@ -13,10 +13,13 @@ What it works out: `forecast` (an account's Forecast page),
 `actualBalanceAsOf` (the Actual bal column on a day), `upcomingDates` (a
 bill's next dates), `occurrences` (a bill's dates in a window), `calendar`
 (the Calendar page), `dashboard` (the Dashboard's cards) and
-`dashboardCharts` (its charts). Each function's input is described above it
-in the source.
+`dashboardCharts` (its charts), and since core 0.3.0 `recurringList` (Bills &
+income and its totals), `searchTransactions` (transaction search) and `search`
+(the search box's grouped results). Each function's input is described above
+it in the source.
 
-**Who runs it.** The server, since 1.82.0: `apps/server/app/forecast.py`
+**Who runs it.** The server, since 1.82.0 (Bills & income and search since
+1.83.0): `apps/server/app/forecast.py`
 reads the rows and `apps/server/app/jscore.py` runs the core in quickjs-ng.
 The iPhone app from phase 3 of the plan, in JavaScriptCore.
 

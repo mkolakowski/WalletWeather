@@ -174,3 +174,93 @@ def actual_balance_as_of(db, account: Account, as_of: date) -> float:
     end = start.replace(day=monthrange(start.year, start.month)[1])
     return jscore.run("actualBalanceAsOf", {"as_of": as_of.isoformat(),
                                             **rows_for_forecast(db, account, start, end, with_tags=False)})
+
+
+# ---------- Bills & income and search (Plans/standalone.md, phase 4, #235) ----------
+
+def _tags_by(db, link, key, ids: list[int]) -> dict[int, list]:
+    """{row id: [{id, name, color}]} for a batch of lines or repeating items
+    (the core puts each list in name order)."""
+    out: dict[int, list] = {}
+    if not ids:
+        return out
+    for row_id, tid, name, color in (
+            db.query(key, Tag.id, Tag.name, Tag.color).join(Tag, Tag.id == link.tag_id)
+            .filter(key.in_(ids)).order_by(key, Tag.id).all()):
+        out.setdefault(row_id, []).append({"id": tid, "name": name, "color": color})
+    return out
+
+
+def recurring_accounts(db, accounts: list, levels: dict, today: date, keep=None) -> list[dict]:
+    """The core's `accounts` for Bills & income and search: each account's
+    repeating items (switched off ones too) in id order, with every skipped
+    date and the paid dates from `today` on. `keep(rec)` narrows the items
+    (search keeps only those whose text matches, so the rest stay
+    encrypted)."""
+    recs = {a.id: [r for r in sorted(a.recurring, key=lambda r: r.id) if keep is None or keep(r)]
+            for a in accounts}
+    ids = [r.id for rs in recs.values() for r in rs]
+    tags = _tags_by(db, RecurringTag, RecurringTag.recurring_id, ids)
+    skips: dict[int, list] = {}
+    paid: dict[int, list] = {}
+    if ids:
+        for rid, d in (db.query(RecurringSkip.recurring_id, RecurringSkip.skip_date)
+                       .filter(RecurringSkip.recurring_id.in_(ids))
+                       .order_by(RecurringSkip.recurring_id, RecurringSkip.skip_date)):
+            skips.setdefault(rid, []).append({"recurring_id": rid, "date": d.isoformat()})
+        for rid, d in (db.query(Transaction.recurring_id, Transaction.forecast_date)
+                       .filter(Transaction.recurring_id.in_(ids), Transaction.is_actual.is_(True),
+                               Transaction.forecast_date >= today)
+                       .order_by(Transaction.recurring_id, Transaction.forecast_date)):
+            paid.setdefault(rid, []).append({"recurring_id": rid, "date": d.isoformat()})
+    out = []
+    for a in accounts:
+        rows = []
+        for r in recs[a.id]:
+            row = recurring_row(r, tags.get(r.id, []))
+            row.update(category_color=r.category.color if r.category else None,
+                       match_days=r.match_days, match_percent=r.match_percent, match_text=r.match_text)
+            rows.append(row)
+        out.append({"id": a.id, "name": a.name, "level": levels.get(a.id, "read"), "recurring": rows,
+                    "skips": [s for r in recs[a.id] for s in skips.get(r.id, [])],
+                    "paid": [p for r in recs[a.id] for p in paid.get(r.id, [])]})
+    return out
+
+
+def search_rows(db, query, shown=None) -> list[dict]:
+    """The core's `transactions` for the searches: the lines `query`
+    selects, in id order, with their tags. `shown(description, notes)` says
+    which lines' text matches: the others go without their text and amounts
+    (decrypting every line took a third longer than before, #235), which is
+    all the core needs of a line it won't show."""
+    txns = query.order_by(Transaction.id).all()
+    tags: dict[int, list] = {}
+    if txns:
+        for txn_id, tid, name, color in (
+                db.query(TransactionTag.transaction_id, Tag.id, Tag.name, Tag.color)
+                .join(Tag, Tag.id == TransactionTag.tag_id)
+                .filter(TransactionTag.transaction_id.in_(query.with_entities(Transaction.id).order_by(None)))
+                .order_by(TransactionTag.transaction_id, Tag.id)):
+            tags.setdefault(txn_id, []).append({"id": tid, "name": name, "color": color})
+    out = []
+    for t in txns:
+        row = {
+            "id": t.id,
+            "account_id": t.account_id,
+            "actual_date": _iso(t.actual_date),
+            "forecast_date": _iso(t.forecast_date),
+            "is_actual": t.is_actual,
+            "category_id": t.category_id,
+            "recurring_id": t.recurring_id,
+            "transfer_id": t.transfer_id,
+            "tags": tags.get(t.id, []),
+        }
+        description, notes = t.description, t.notes
+        if shown is None or shown(description, notes):
+            row.update(description=description, notes=notes, amount=float(t.amount),
+                       forecast_amount=float(t.forecast_amount) if t.forecast_amount is not None else None,
+                       category=t.category.name if t.category else None)
+        else:
+            row.update(description="", notes=None, amount=0.0, forecast_amount=None, category=None)
+        out.append(row)
+    return out

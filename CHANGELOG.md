@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.82.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.18.0**
+App version: **1.83.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.18.0**
+
+### Changed
+
+- **Bills & income and Search on the shared engine:** the Bills & income list and its monthly and yearly totals, the search box's results, and transaction search are now worked out by the shared engine too, the same code the iPhone app will use without a server. They were checked against the old code on 54 new test cases, including names in other alphabets, and agreed except in one place: a line's or bill's tags are now listed in the same order everywhere, as on Forecast, so tags whose names start with letters beyond plain A–Z (such as "Iğdır") may swap places with their neighbours. On an account with about 1,500 lines, a search that matches every line takes about 10 ms longer. (1.83.0, `packages/core/`, #235)
 
 ## [1.82.0] — 2026-11-18
 

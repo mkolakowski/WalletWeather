@@ -638,6 +638,306 @@
     return { window: input.window, label: label, start: start, end: end, accounts: accountsOut };
   }
 
+  // ---------- Text ----------
+
+  // Python's str.strip(): the characters str.isspace() calls whitespace
+  // (JavaScript's trim() takes a slightly different set).
+  const PY_SPACE = "[\\t\\n\\v\\f\\r\\x1c-\\x1f \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]";
+  const PY_STRIP = new RegExp("^" + PY_SPACE + "+|" + PY_SPACE + "+$", "g");
+  function pyStrip(s) {
+    return s.replace(PY_STRIP, "");
+  }
+
+  // Python's str.casefold(), for matching and sorting without case. Lower,
+  // upper and lower again folds "ß" and "ẞ" to "ss" as casefold() does; a
+  // final sigma becomes σ; the dotless ı stays itself (it has no case pair
+  // in casefold()). Checked against Python over every assigned code point.
+  function casefold(s) {
+    return s.split("ı")
+      .map((p) => p.toLowerCase().toUpperCase().toLowerCase().replace(/ς/g, "σ"))
+      .join("ı");
+  }
+
+  // ---------- Bills & income ----------
+
+  // A month's worth of each rhythm, for the monthly and yearly figures.
+  const MONTHLY_FACTOR = { monthly_day: 1.0, biweekly: 26.0 / 12.0, weekly: 52.0 / 12.0 };
+
+  function monthlyFactor(frequency) {
+    return Object.prototype.hasOwnProperty.call(MONTHLY_FACTOR, frequency) ? MONTHLY_FACTOR[frequency] : null;
+  }
+
+  function byRecurring(list) {
+    const out = {};
+    for (const row of list || []) (out[row.recurring_id] = out[row.recurring_id] || []).push(row.date);
+    return out;
+  }
+
+  function roundOrNull(x) {
+    return x === null ? null : round2(x);
+  }
+
+  // One repeating item as Bills & income lists it (main._recurring_row and
+  // /api/recurring's extras). `skips` and `paid` are its dates, every one.
+  function recurringItem(rec, account, today, skips, paid) {
+    const amount = rec.amount;
+    const factor = monthlyFactor(rec.frequency);
+    // monthly/yearly: the signed amount over a month (income positive,
+    // bills negative); monthly_cost/yearly_cost: bills only, as a positive
+    // cost. Null on a rhythm with no factor.
+    const monthly = factor === null ? null : amount * factor;
+    const cost = monthly !== null && amount < 0 ? -monthly : null;
+    const nexts = upcomingDates({
+      recurring: rec, today: today,
+      skipped: skips.filter((d) => d >= today), paid: paid.filter((d) => d >= today),
+    });
+    return {
+      id: rec.id,
+      description: rec.description,
+      amount: amount,
+      frequency: rec.frequency,
+      day_of_month: rec.day_of_month,
+      anchor_date: rec.anchor_date,
+      end_date: rec.end_date,
+      category_id: rec.category_id,
+      category_name: rec.category == null ? null : rec.category,
+      notes: rec.notes,
+      active: rec.active,
+      expired: rec.end_date != null && rec.end_date < today,
+      monthly: roundOrNull(monthly),
+      yearly: monthly === null ? null : round2(monthly * 12),
+      monthly_cost: roundOrNull(cost),
+      yearly_cost: cost === null ? null : round2(cost * 12),
+      skipped_count: skips.length,
+      tags: sortTags(rec.tags),
+      match_days: rec.match_days,
+      match_percent: rec.match_percent,
+      match_text: rec.match_text,
+      account_id: account.id,
+      account_name: account.name,
+      account_level: account.level || "read",
+      category_color: rec.category_color == null ? null : rec.category_color,
+      // The iOS app's next date and "skip once" choices (#89).
+      next_date: nexts.length ? nexts[0] : null,
+      next_dates: nexts,
+    };
+  }
+
+  // Every account's items with their dates looked up, [{account, rec, item}].
+  function recurringItems(accounts, today, keep) {
+    const out = [];
+    for (const account of accounts || []) {
+      const skips = byRecurring(account.skips);
+      const paid = byRecurring(account.paid);
+      for (const rec of account.recurring || []) {
+        if (keep && !keep(rec)) continue;
+        out.push({ rec: rec, item: recurringItem(rec, account, today, skips[rec.id] || [], paid[rec.id] || []) });
+      }
+    }
+    return out;
+  }
+
+  // /api/recurring: the Bills & income page. `input`:
+  //   today       the viewer's date
+  //   archived    true for the ended items, false for the rest
+  //   accounts    [{id, name, level, recurring, skips, paid}] in the order
+  //               the page covers them:
+  //     recurring   every repeating item on the account, switched off ones
+  //                 too, as the forecast takes them, plus category_color,
+  //                 match_days, match_percent and match_text
+  //     skips       [{recurring_id, date}] every date deleted from the forecast
+  //     paid        [{recurring_id, date}] the planned date of every line
+  //                 from an item that's been marked paid
+  // `totals` covers the listed items that are switched on and have a known
+  // rhythm: bills and income a month and a year, and the net.
+  function recurringList(input) {
+    const today = input.today;
+    const archived = !!input.archived;
+    const items = [];
+    let billsN = 0, incomeN = 0, billsM = 0, incomeM = 0;
+    for (const found of recurringItems(input.accounts, today)) {
+      if (archived !== found.item.expired) continue;
+      items.push(found.item);
+      const factor = monthlyFactor(found.rec.frequency);
+      if (!truthy(found.rec.active) || factor === null) continue;
+      // Unrounded, so the yearly totals don't drift by cents.
+      const monthly = found.rec.amount * factor;
+      if (monthly < 0) { billsN += 1; billsM += -monthly; } else { incomeN += 1; incomeM += monthly; }
+    }
+    items.sort((a, b) => cmpStr(a.description.toLowerCase(), b.description.toLowerCase())
+      || cmpStr(a.account_name.toLowerCase(), b.account_name.toLowerCase()) || a.id - b.id);
+    return {
+      items: items,
+      totals: {
+        bills_count: billsN,
+        bills_monthly: round2(billsM),
+        bills_yearly: round2(billsM * 12),
+        income_count: incomeN,
+        income_monthly: round2(incomeM),
+        income_yearly: round2(incomeM * 12),
+        net_monthly: round2(incomeM - billsM),
+        net_yearly: round2((incomeM - billsM) * 12),
+      },
+    };
+  }
+
+  // ---------- Search ----------
+
+  // Newest first: the paid date, then the planned date (lines without one
+  // last), then the newest line.
+  function laterFirst(x, y) {
+    if (x === y || (x == null && y == null)) return 0;
+    if (x == null) return 1;
+    if (y == null) return -1;
+    return x < y ? 1 : -1;
+  }
+
+  function newestFirst(a, b) {
+    return laterFirst(a.actual_date, b.actual_date) || laterFirst(a.forecast_date, b.forecast_date) || b.id - a.id;
+  }
+
+  function accountNames(accounts) {
+    const out = {};
+    for (const a of accounts || []) out[a.id] = a.name;
+    return out;
+  }
+
+  // A transaction as the searches answer it.
+  function searchRow(t, names) {
+    return {
+      id: t.id,
+      account_id: t.account_id,
+      account_name: Object.prototype.hasOwnProperty.call(names, t.account_id) ? names[t.account_id] : null,
+      description: t.description || "",
+      amount: t.amount,
+      forecast_amount: t.forecast_amount == null ? null : t.forecast_amount,
+      actual_date: t.actual_date == null ? null : t.actual_date,
+      forecast_date: t.forecast_date == null ? null : t.forecast_date,
+      is_actual: t.is_actual,
+      category_id: t.category_id == null ? null : t.category_id,
+      category_name: t.category == null ? null : t.category,
+      recurring_id: t.recurring_id == null ? null : t.recurring_id,
+      transfer_id: t.transfer_id == null ? null : t.transfer_id,
+      notes: t.notes || null,
+    };
+  }
+
+  // /api/transactions/search. `input`:
+  //   q, account_id, category_id, tag_id, date_from, date_to, min_amount,
+  //   max_amount, kind ("income", "spending", "transfers" or null),
+  //   include_transfers, limit, offset   the route's filters (the host
+  //                checks the account and the tag are the viewer's)
+  //   accounts     [{id, name}] the accounts the viewer can see
+  //   transactions every line on those accounts: id, account_id,
+  //                description, notes, amount, forecast_amount,
+  //                actual_date, forecast_date, is_actual, category_id,
+  //                category (its name), recurring_id, transfer_id, tags
+  function searchTransactions(input) {
+    const names = accountNames(input.accounts);
+    const kind = input.kind == null ? null : input.kind;
+    const includeTransfers = input.include_transfers == null ? true : !!input.include_transfers;
+    const dropTransfers = (!includeTransfers || kind === "income" || kind === "spending") && kind !== "transfers";
+    const needle = pyStrip(input.q || "").toLowerCase();
+    const has = (v) => v !== null && v !== undefined;
+    const found = (input.transactions || []).filter((t) => {
+      if (!Object.prototype.hasOwnProperty.call(names, t.account_id)) return false;
+      if (has(input.account_id) && t.account_id !== input.account_id) return false;
+      if (has(input.category_id) && t.category_id !== input.category_id) return false;
+      if (has(input.tag_id) && !(t.tags || []).some((tag) => tag.id === input.tag_id)) return false;
+      if (has(input.date_from) && !((t.actual_date != null && t.actual_date >= input.date_from)
+        || (t.forecast_date != null && t.forecast_date >= input.date_from))) return false;
+      if (has(input.date_to) && !((t.actual_date != null && t.actual_date <= input.date_to)
+        || (t.forecast_date != null && t.forecast_date <= input.date_to))) return false;
+      if (dropTransfers && t.transfer_id != null) return false;
+      if (kind === "transfers" && t.transfer_id == null) return false;
+      const amount = t.amount;
+      if (has(input.min_amount) && amount < input.min_amount) return false;
+      if (has(input.max_amount) && amount > input.max_amount) return false;
+      if (kind === "income" && amount <= 0) return false;
+      if (kind === "spending" && amount >= 0) return false;
+      if (needle && !(t.description || "").toLowerCase().includes(needle)
+        && !(t.notes || "").toLowerCase().includes(needle)) return false;
+      return true;
+    }).sort(newestFirst);
+    const limit = input.limit == null ? 100 : input.limit;
+    const offset = input.offset == null ? 0 : input.offset;
+    const from = Math.max(0, offset);
+    const page = found.slice(from, from + Math.min(Math.max(1, limit), 1000)).map((t) => {
+      const row = searchRow(t, names);
+      row.tags = sortTags(t.tags);
+      return row;
+    });
+    return { total: found.length, results: page, limit: limit, offset: offset };
+  }
+
+  // /api/search: everything matching `q`, grouped by kind, up to `limit` a
+  // group (1 to 100) with each group's full count. `input`:
+  //   q, limit, today
+  //   accounts      the accounts the viewer can see, as recurringList takes
+  //                 them, each with current_balance (unrounded)
+  //   transactions  every line on them, as searchTransactions takes them
+  //   categories    [{id, name, color}] the viewer's own
+  //   tags          [{id, name, color}] the viewer's own
+  //   reports       [{id, name, pinned}] the viewer's saved reports, in
+  //                 their order
+  // Matching is a "contains" on casefolded text: names, and descriptions
+  // and notes for transactions and bills.
+  function search(input) {
+    const q = input.q || "";
+    const limit = Math.max(1, Math.min(input.limit == null ? 20 : input.limit, 100));
+    const needle = casefold(pyStrip(q));
+    const groups = ["transactions", "recurring", "accounts", "categories", "tags", "reports"];
+    const out = { query: needle ? pyStrip(q) : "" };
+    if (!needle) {
+      for (const g of groups) out[g] = { total: 0, results: [] };
+      return out;
+    }
+    const hit = (...texts) => texts.some((t) => truthy(t) && casefold(t).includes(needle));
+    const group = (rows) => ({ total: rows.length, results: rows.slice(0, limit) });
+    const byName = (a, b) => cmpStr(casefold(a.name), casefold(b.name)) || a.id - b.id;
+    const accounts = input.accounts || [];
+    const names = accountNames(accounts);
+    const txns = input.transactions || [];
+
+    const lines = txns.filter((t) => Object.prototype.hasOwnProperty.call(names, t.account_id)
+      && hit(t.description, t.notes)).sort(newestFirst).map((t) => {
+      const row = searchRow(t, names);
+      // Plus the day it's on: paid, or else planned.
+      row.date = t.actual_date != null ? t.actual_date : t.forecast_date != null ? t.forecast_date : null;
+      return row;
+    });
+
+    // Bills and income: those still running first, then the ended ones.
+    const bills = recurringItems(accounts, input.today, (rec) => hit(rec.description, rec.notes))
+      .map((f) => f.item)
+      .sort((a, b) => (a.expired === b.expired ? 0 : a.expired ? 1 : -1)
+        || cmpStr(casefold(a.description), casefold(b.description)) || a.id - b.id);
+
+    const foundAccounts = accounts.filter((a) => hit(a.name)).map((a) => ({
+      id: a.id, name: a.name, current_balance: round2(a.current_balance || 0), level: a.level || "read",
+    })).sort(byName);
+
+    // Categories and tags: with how many lines on the visible accounts carry each.
+    const catCounts = {}, tagCounts = {};
+    for (const t of txns) {
+      if (!Object.prototype.hasOwnProperty.call(names, t.account_id)) continue;
+      if (t.category_id != null) catCounts[t.category_id] = (catCounts[t.category_id] || 0) + 1;
+      for (const tag of t.tags || []) tagCounts[tag.id] = (tagCounts[tag.id] || 0) + 1;
+    }
+    const counted = (rows, counts) => (rows || []).filter((r) => hit(r.name)).map((r) => ({
+      id: r.id, name: r.name, color: r.color == null ? null : r.color, transaction_count: counts[r.id] || 0,
+    })).sort(byName);
+
+    out.transactions = group(lines);
+    out.recurring = group(bills);
+    out.accounts = group(foundAccounts);
+    out.categories = group(counted(input.categories, catCounts));
+    out.tags = group(counted(input.tags, tagCounts));
+    out.reports = group((input.reports || []).filter((r) => hit(r.name))
+      .map((r) => ({ id: r.id, name: r.name, pinned: !!r.pinned })));
+    return out;
+  }
+
   // ---------- Entry point ----------
 
   // forecast._occurrences for the hosts: a repeating item's dates in a
@@ -655,6 +955,9 @@
     actualBalanceAsOf: actualBalanceAsOf,
     upcomingDates: upcomingDates,
     calendar: calendar,
+    recurringList: recurringList,
+    searchTransactions: searchTransactions,
+    search: search,
   };
 
   // What the hosts call: a function name and a JSON string in, a JSON
@@ -665,7 +968,7 @@
   }
 
   root.WalletWeatherCore = {
-    version: "0.2.0",
+    version: "0.3.0",
     run: run,
     forecast: forecast,
     actualBalanceAsOf: actualBalanceAsOf,
@@ -674,10 +977,15 @@
     dashboard: dashboard,
     dashboardCharts: dashboardCharts,
     occurrences: occurrenceDates,
+    recurringList: recurringList,
+    searchTransactions: searchTransactions,
+    search: search,
     // For the tests: the date and rounding helpers.
     _dayNumber: dayNumber,
     _isoOf: isoOf,
     _round2: round2,
     _pySum: pySum,
+    _pyStrip: pyStrip,
+    _casefold: casefold,
   };
 })(typeof globalThis !== "undefined" ? globalThis : this);

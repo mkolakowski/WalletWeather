@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.82.0"
+APP_VERSION = "1.83.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -611,7 +611,8 @@ from . import twofactor
 from . import simplefin
 from . import mailbox, alerts
 from . import jscore
-from .forecast import build_forecast, actual_balance_as_of, upcoming_dates, _occurrences, account_rows
+from .forecast import (build_forecast, actual_balance_as_of, upcoming_dates, _occurrences, account_rows,
+                       recurring_accounts, search_rows)
 from .backup import (export_user, import_user, seal, unwrap, passphrase_problem,
                      BackupLocked, SEALED_MARKER)
 
@@ -3459,59 +3460,22 @@ def list_all_recurring(archived: bool = False, account_id: int | None = None,
         accounts = [_account_with_perm(db, user, account_id, "read")]
     else:
         accounts = _user_visible_accounts(db, user)
-    levels = dict(
+    # Worked out by the shared core since 1.83.0 (Plans/standalone.md,
+    # phase 4, #235), as the iPhone app does without a server.
+    return jscore.run("recurringList", {
+        "today": today.isoformat(), "archived": archived,
+        "accounts": recurring_accounts(db, accounts, _access_levels(db, user, accounts), today),
+    })
+
+
+def _access_levels(db: Session, user: User, accounts: list) -> dict[int, str]:
+    """{account id: the user's level on it} for `accounts`."""
+    return dict(
         db.query(AccountPermission.account_id, AccountPermission.level)
         .filter(AccountPermission.user_id == user.id,
                 AccountPermission.account_id.in_([a.id for a in accounts] or [0]))
         .all()
     )
-    recs = [(a, r) for a in accounts for r in a.recurring]
-    skip_counts = _recurring_skip_counts(db, [r.id for _, r in recs])
-    tags_by_rec = _tags_for_recurring(db, [r.id for _, r in recs])
-    upcoming = _recurring_upcoming(db, [r for _, r in recs], today)
-    items = []
-    bills_n = income_n = 0
-    bills_m = income_m = 0.0
-    for a, r in recs:
-        row = _recurring_row(r, today, skip_counts, tags_by_rec)
-        if archived != row["expired"]:
-            continue
-        nexts = upcoming.get(r.id, [])
-        row.update({
-            "account_id": a.id,
-            "account_name": a.name,
-            "account_level": levels.get(a.id, "read"),
-            "category_color": r.category.color if r.category else None,
-            # The iOS app's next date and "skip once" choices (#89).
-            "next_date": nexts[0].isoformat() if nexts else None,
-            "next_dates": [d.isoformat() for d in nexts],
-        })
-        items.append(row)
-        factor = _MONTHLY_FACTOR.get(r.frequency)
-        if not r.active or factor is None:
-            continue
-        # Sum unrounded figures so the yearly totals don't drift by cents.
-        monthly = float(r.amount) * factor
-        if monthly < 0:
-            bills_n += 1
-            bills_m += -monthly
-        else:
-            income_n += 1
-            income_m += monthly
-    items.sort(key=lambda x: (x["description"].lower(), x["account_name"].lower(), x["id"]))
-    return {
-        "items": items,
-        "totals": {
-            "bills_count": bills_n,
-            "bills_monthly": round(bills_m, 2),
-            "bills_yearly": round(bills_m * 12, 2),
-            "income_count": income_n,
-            "income_monthly": round(income_m, 2),
-            "income_yearly": round(income_m * 12, 2),
-            "net_monthly": round(income_m - bills_m, 2),
-            "net_yearly": round((income_m - bills_m) * 12, 2),
-        },
-    }
 
 
 @app.post("/api/accounts/{account_id}/recurring")
@@ -6559,6 +6523,9 @@ def search_transactions(q: str | None = None,
     if account_id is not None and account_id not in visible_ids:
         raise HTTPException(404, "Account not found")
 
+    # The cheap fields narrow the lines in SQL first, so only those are
+    # decrypted; the shared core (since 1.83.0, #235) applies every filter,
+    # matches the text, sorts and pages, as the iPhone app does.
     base = db.query(Transaction).filter(Transaction.account_id.in_(visible_ids))
     if account_id is not None:
         base = base.filter(Transaction.account_id == account_id)
@@ -6568,9 +6535,8 @@ def search_transactions(q: str | None = None,
         # Validate that the tag belongs to the caller before joining, so we
         # don't leak "tag exists" info across users.
         _own_tag(db, user, tag_id)
-        base = base.join(
-            TransactionTag, TransactionTag.transaction_id == Transaction.id
-        ).filter(TransactionTag.tag_id == tag_id)
+        base = base.filter(Transaction.id.in_(
+            db.query(TransactionTag.transaction_id).filter(TransactionTag.tag_id == tag_id)))
     if date_from is not None:
         base = base.filter(
             (Transaction.actual_date >= date_from) | (Transaction.forecast_date >= date_from)
@@ -6579,62 +6545,29 @@ def search_transactions(q: str | None = None,
         base = base.filter(
             (Transaction.actual_date <= date_to) | (Transaction.forecast_date <= date_to)
         )
-    if not include_transfers or kind == "income" or kind == "spending":
-        # Exclude transfer legs. (Switched on either flag.)
-        if kind != "transfers":
-            base = base.filter(Transaction.transfer_id.is_(None))
     if kind == "transfers":
         base = base.filter(Transaction.transfer_id.isnot(None))
+    elif not include_transfers or kind in ("income", "spending"):
+        base = base.filter(Transaction.transfer_id.is_(None))
+    return jscore.run("searchTransactions", {
+        "q": q, "account_id": account_id, "category_id": category_id, "tag_id": tag_id,
+        "date_from": date_from.isoformat() if date_from else None,
+        "date_to": date_to.isoformat() if date_to else None,
+        "min_amount": min_amount, "max_amount": max_amount, "kind": kind,
+        "include_transfers": include_transfers, "limit": limit, "offset": offset,
+        "accounts": [{"id": a.id, "name": a.name} for a in _user_visible_accounts(db, user)],
+        "transactions": search_rows(db, base, shown=_text_shown(q)),
+    })
 
-    candidates = base.order_by(Transaction.actual_date.desc().nullslast(),
-                               Transaction.forecast_date.desc().nullslast(),
-                               Transaction.id.desc()).all()
 
-    # Decrypt + apply text/amount filter
-    needle = (q or "").strip().lower() or None
-    out = []
-    acc_names = {a.id: a.name for a in _user_visible_accounts(db, user)}
-    for t in candidates:
-        amt = float(t.amount)
-        if min_amount is not None and amt < min_amount:
-            continue
-        if max_amount is not None and amt > max_amount:
-            continue
-        if kind == "income" and amt <= 0:
-            continue
-        if kind == "spending" and amt >= 0:
-            continue
-        desc = t.description or ""
-        notes = t.notes or ""
-        if needle and needle not in desc.lower() and needle not in notes.lower():
-            continue
-        out.append({
-            "id": t.id,
-            "account_id": t.account_id,
-            "account_name": acc_names.get(t.account_id),
-            "description": desc,
-            "amount": amt,
-            "forecast_amount": float(t.forecast_amount) if t.forecast_amount is not None else None,
-            "actual_date": t.actual_date.isoformat() if t.actual_date else None,
-            "forecast_date": t.forecast_date.isoformat() if t.forecast_date else None,
-            "is_actual": t.is_actual,
-            "category_id": t.category_id,
-            "category_name": t.category.name if t.category else None,
-            "recurring_id": t.recurring_id,
-            "transfer_id": t.transfer_id,
-            "notes": notes or None,
-        })
-
-    total = len(out)
-    page = out[max(0, offset): max(0, offset) + min(max(1, limit), 1000)]
-    # Attach tags to the paginated results only (avoid loading tags for
-    # rows the client will never see).
-    page_ids = [r["id"] for r in page]
-    tags_by_txn = _tags_for_transactions(db, page_ids)
-    for r in page:
-        r["tags"] = tags_by_txn.get(r["id"], [])
-    return {"total": total, "results": page,
-            "limit": limit, "offset": offset}
+def _text_shown(q: str | None):
+    """For search_rows: which lines' text holds `q` (all of them for no
+    `q`). Python's lower() and the core's toLowerCase() follow the same
+    Unicode rules; the core checks again."""
+    needle = (q or "").strip().lower()
+    if not needle:
+        return None
+    return lambda description, notes: needle in (description or "").lower() or needle in (notes or "").lower()
 
 
 # ---------- Search across everything (#111) ----------
@@ -6642,17 +6575,14 @@ def search_transactions(q: str | None = None,
 # #112): transactions, bills and income, accounts, categories, tags and saved
 # reports, each group as {total, results}. Matching is a case-insensitive
 # "contains" on names (and descriptions and notes for transactions and bills),
-# done in Python because they're encrypted at rest. Each group holds only
+# decrypted here and matched by the shared core (since 1.83.0, #235). Each
+# group holds only
 # what the caller may see: the accounts they can read (archived ones left
 # out, as on the Dashboard), and their own categories, tags and reports.
 # Decided 2026-11-15 (docs/dev/decisions/search.md): each result carries its
 # name and one detail, and tags are a group of their own.
 SEARCH_GROUP_LIMIT = 20
 SEARCH_GROUP_LIMIT_MAX = 100
-
-
-def _search_group(rows: list[dict], limit: int) -> dict:
-    return {"total": len(rows), "results": rows[:limit]}
 
 
 @app.get("/api/search")
@@ -6664,109 +6594,34 @@ def search_everything(q: str = "", limit: int = SEARCH_GROUP_LIMIT,
     (1-100) with each group's full count. An empty `q` finds nothing."""
     today = _viewer_today(today)
     limit = max(1, min(limit, SEARCH_GROUP_LIMIT_MAX))
+    if not q.strip():
+        return jscore.run("search", {"q": "", "limit": limit, "today": today.isoformat()})
+    # Matched, grouped and sorted by the shared core since 1.83.0 (#235), as
+    # the iPhone app does without a server. Bills and income are read only
+    # when their text matches, so the rest stay encrypted; casefold() here
+    # and the core's casefold agree (tests/test_core_answer_key.py).
     needle = q.strip().casefold()
-    groups = ("transactions", "recurring", "accounts", "categories", "tags", "reports")
-    if not needle:
-        return {"query": "", **{g: {"total": 0, "results": []} for g in groups}}
 
-    def hit(*texts: str | None) -> bool:
+    def hit(*texts):
         return any(t and needle in t.casefold() for t in texts)
 
     accounts = _user_visible_accounts(db, user)
-    acc_by_id = {a.id: a for a in accounts}
-    acc_names = {a.id: a.name for a in accounts}
-    visible_ids = list(acc_by_id) or [0]
-
-    # Transactions: newest first, as /api/transactions/search.
-    txns = []
-    for t in (db.query(Transaction).filter(Transaction.account_id.in_(visible_ids))
-              .order_by(Transaction.actual_date.desc().nullslast(),
-                        Transaction.forecast_date.desc().nullslast(),
-                        Transaction.id.desc())):
-        if not hit(t.description, t.notes):
-            continue
-        day = t.actual_date or t.forecast_date
-        # The fields of /api/transactions/search's rows, so the iOS app opens
-        # a result in its line editor, plus `date` (the actual or planned day).
-        txns.append({
-            "id": t.id, "description": t.description or "",
-            "date": day.isoformat() if day else None,
-            "amount": float(t.amount),
-            "forecast_amount": float(t.forecast_amount) if t.forecast_amount is not None else None,
-            "actual_date": t.actual_date.isoformat() if t.actual_date else None,
-            "forecast_date": t.forecast_date.isoformat() if t.forecast_date else None,
-            "is_actual": t.is_actual,
-            "account_id": t.account_id, "account_name": acc_names.get(t.account_id),
-            "category_id": t.category_id,
-            "category_name": t.category.name if t.category else None,
-            "recurring_id": t.recurring_id, "transfer_id": t.transfer_id,
-            "notes": t.notes or None,
-        })
-
-    # Bills and income: those still running first, then ended ones; by name.
-    # Each as /api/recurring's items, so the iOS app opens it in its editor.
-    recs = [(a, r) for a in accounts for r in a.recurring if hit(r.description, r.notes)]
-    upcoming = _recurring_upcoming(db, [r for _, r in recs], today)
-    skip_counts = _recurring_skip_counts(db, [r.id for _, r in recs])
-    tags_by_rec = _tags_for_recurring(db, [r.id for _, r in recs])
-    levels = dict(db.query(AccountPermission.account_id, AccountPermission.level)
-                  .filter(AccountPermission.user_id == user.id,
-                          AccountPermission.account_id.in_(visible_ids)))
-    bills = []
-    for a, r in recs:
-        nexts = upcoming.get(r.id, [])
-        row = _recurring_row(r, today, skip_counts, tags_by_rec)
-        row.update({
-            "account_id": a.id, "account_name": a.name,
-            "account_level": levels.get(a.id, "read"),
-            "category_color": r.category.color if r.category else None,
-            "next_date": nexts[0].isoformat() if nexts else None,
-            "next_dates": [d.isoformat() for d in nexts],
-        })
-        bills.append(row)
-    bills.sort(key=lambda b: (b["expired"], b["description"].casefold(), b["id"]))
-
-    found_accounts = sorted(
-        ({"id": a.id, "name": a.name,
-          "current_balance": round(_current_balance(db, a, today), 2),
-          "level": levels.get(a.id, "read")}
-         for a in accounts if hit(a.name)),
-        key=lambda x: (x["name"].casefold(), x["id"]))
-
-    # Categories and tags: the caller's own, with how many transactions on
-    # the accounts they can see carry each.
-    cats = [c for c in db.query(Category).filter_by(owner_id=user.id) if hit(c.name)]
-    cat_counts = dict(db.query(Transaction.category_id, func.count(Transaction.id))
-                      .filter(Transaction.account_id.in_(visible_ids),
-                              Transaction.category_id.in_([c.id for c in cats] or [0]))
-                      .group_by(Transaction.category_id))
-    found_cats = sorted(({"id": c.id, "name": c.name, "color": c.color,
-                          "transaction_count": cat_counts.get(c.id, 0)} for c in cats),
-                        key=lambda x: (x["name"].casefold(), x["id"]))
-    tags = [t for t in db.query(Tag).filter_by(owner_id=user.id) if hit(t.name)]
-    tag_counts = dict(db.query(TransactionTag.tag_id, func.count(TransactionTag.transaction_id))
-                      .join(Transaction, Transaction.id == TransactionTag.transaction_id)
-                      .filter(Transaction.account_id.in_(visible_ids),
-                              TransactionTag.tag_id.in_([t.id for t in tags] or [0]))
-                      .group_by(TransactionTag.tag_id))
-    found_tags = sorted(({"id": t.id, "name": t.name, "color": t.color,
-                          "transaction_count": tag_counts.get(t.id, 0)} for t in tags),
-                        key=lambda x: (x["name"].casefold(), x["id"]))
-
-    reports = [{"id": r.id, "name": r.name, "pinned": bool(r.pinned)}
-               for r in (db.query(SavedReport).filter_by(owner_id=user.id)
-                         .order_by(SavedReport.sort_order.asc(), SavedReport.id.asc()))
-               if hit(r.name)]
-
-    return {
-        "query": q.strip(),
-        "transactions": _search_group(txns, limit),
-        "recurring": _search_group(bills, limit),
-        "accounts": _search_group(found_accounts, limit),
-        "categories": _search_group(found_cats, limit),
-        "tags": _search_group(found_tags, limit),
-        "reports": _search_group(reports, limit),
-    }
+    found = recurring_accounts(db, accounts, _access_levels(db, user, accounts), today,
+                               keep=lambda r: hit(r.description, r.notes))
+    for row, a in zip(found, accounts):
+        row["current_balance"] = _current_balance(db, a, today) if needle in a.name.casefold() else 0.0
+    return jscore.run("search", {
+        "q": q, "limit": limit, "today": today.isoformat(), "accounts": found,
+        "transactions": search_rows(db, db.query(Transaction).filter(
+            Transaction.account_id.in_([a.id for a in accounts] or [0])), shown=hit),
+        "categories": [{"id": c.id, "name": c.name, "color": c.color}
+                       for c in db.query(Category).filter_by(owner_id=user.id).order_by(Category.id)],
+        "tags": [{"id": t.id, "name": t.name, "color": t.color}
+                 for t in db.query(Tag).filter_by(owner_id=user.id).order_by(Tag.id)],
+        "reports": [{"id": r.id, "name": r.name, "pinned": bool(r.pinned)}
+                    for r in (db.query(SavedReport).filter_by(owner_id=user.id)
+                              .order_by(SavedReport.sort_order.asc(), SavedReport.id.asc()))],
+    })
 
 
 # ---------- Bulk tag operations ----------

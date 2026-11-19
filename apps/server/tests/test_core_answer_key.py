@@ -59,7 +59,7 @@ def test_the_core_gives_the_servers_answer(name, case):
 def test_the_key_has_every_function():
     functions = {case["function"] for _, case in _committed()}
     assert functions == {"forecast", "actualBalanceAsOf", "upcomingDates", "calendar", "dashboard",
-                         "dashboardCharts"}
+                         "dashboardCharts", "recurringList", "searchTransactions", "search"}
 
 
 def test_the_key_still_matches_the_server(app_started):
@@ -115,3 +115,34 @@ def test_the_iphone_copy_matches():
     copy = (answer_key.KEY_DIR.parents[2] / "apps" / "ios" / "WalletWeatherKit" / "Sources"
             / "WalletWeatherKit" / "Core" / "walletweather-core.js")
     assert copy.read_bytes() == jscore.CORE.read_bytes(), "run apps/ios/WalletWeatherKit/Scripts/copy-core.sh"
+
+
+def test_casefold_matches_python():
+    """Search matches casefolded text (#235). Over every assigned code point,
+    two characters fold together in the core exactly when they do in
+    Python, and realistic words fold to the same text."""
+    import json
+    import unicodedata
+    chars = [chr(c) for c in range(0x110000)
+             if not 0xD800 <= c <= 0xDFFF and unicodedata.category(chr(c)) != "Cn"]
+    folded = json.loads(jscore.context().eval(
+        f"JSON.stringify({json.dumps(chars)}.map(WalletWeatherCore._casefold))"))
+    py_groups, js_groups = {}, {}
+    for ch, js in zip(chars, folded):
+        py_groups.setdefault(ch.casefold(), []).append(ch)
+        js_groups.setdefault(js, []).append(ch)
+    py_partition = {ch: tuple(py_groups[ch.casefold()]) for ch in chars}
+    js_partition = {ch: tuple(js_groups[js]) for ch, js in zip(chars, folded)}
+    wrong = [ch for ch in chars if py_partition[ch] != js_partition[ch]]
+    assert not wrong, [f"U+{ord(c):04X}" for c in wrong[:20]]
+    for word in ("Straße", "STRASSE", "ΣΑΣ", "σας", "İstanbul", "Iğdır", "ǅungla", "ﬁne", "Ŀeft", "Éclair"):
+        assert jscore.context().eval(f"WalletWeatherCore._casefold({json.dumps(word)})") == word.casefold(), word
+
+
+def test_strip_matches_python():
+    import json
+    # From U+0001: the engine's Python binding cuts a returned string at a NUL.
+    for c in range(1, 0x3100):
+        text = f"{chr(c)}a{chr(c)}b{chr(c)}"
+        got = jscore.context().eval(f"WalletWeatherCore._pyStrip({json.dumps(text)})")
+        assert got == text.strip(), f"U+{c:04X}"

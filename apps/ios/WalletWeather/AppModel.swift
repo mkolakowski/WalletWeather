@@ -212,6 +212,30 @@ final class AppModel {
     }
 
     #if DEBUG
+    /// `WW_DEBUG_IMPORT` and `WW_DEBUG_EXPORT`: what Import a server backup
+    /// and Export for a server do, without the file pickers. What happened
+    /// is written to `debug-import.txt` beside the files.
+    private static func debugImport(_ file: String, export: String?, passphrase: String?) async {
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        var log = ""
+        LocalStore.erase()
+        do {
+            let server = try LocalServer.openShared()
+            try? await APIClient(connection: LocalServer.connection).acknowledgeNotice()
+            let data = try Data(contentsOf: documents.appending(path: file))
+            let opened = try BackupFile.open(data, passphrase: passphrase)
+            let summary = try server.importBackup(opened.payload)
+            log += "imported \(summary) encrypted=\(opened.encrypted)\n"
+            if let export, let passphrase {
+                try BackupFile.seal(try server.backupPayload(), passphrase: passphrase).write(to: documents.appending(path: export))
+                log += "exported \(export)\n"
+            }
+        } catch {
+            log += "failed: \(error)\n"
+        }
+        try? Data(log.utf8).write(to: documents.appending(path: "debug-import.txt"))
+    }
+
     /// A fresh household for screenshots (`WW_DEBUG_LOCAL`), made through
     /// the same calls the pages make.
     private static func debugHousehold(sample: Bool) async {
@@ -284,6 +308,18 @@ final class AppModel {
         // `WW_DEBUG_LOCAL=1` opens the household on this phone (#235);
         // `empty` or `sample` starts it again, with the notice agreed to and
         // no accounts or a small household.
+        // `WW_DEBUG_IMPORT=<file>` imports a backup from the app's Documents
+        // folder onto a fresh household, through the same code as Import a
+        // server backup, with `WW_DEBUG_PASSPHRASE`; `WW_DEBUG_EXPORT=<file>`
+        // then writes the household back there as Export for a server does
+        // (#236). For end-to-end checks from the command line.
+        if let file = env["WW_DEBUG_IMPORT"] {
+            Task {
+                await Self.debugImport(file, export: env["WW_DEBUG_EXPORT"], passphrase: env["WW_DEBUG_PASSPHRASE"])
+                useOnThisPhone()
+            }
+            return
+        }
         if let local = env["WW_DEBUG_LOCAL"] {
             if local == "1" {
                 useOnThisPhone()

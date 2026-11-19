@@ -291,7 +291,12 @@ on the server (phone → server → phone gives the same Forecasts).
 Debug builds open it from the command line with `WW_DEBUG_LOCAL=1`, or
 `empty` / `sample` for a fresh household with the notice agreed to (and a
 few bills and lines with `sample`), and the first screen with
-`WW_DEBUG_WELCOME=1`.
+`WW_DEBUG_WELCOME=1`. `WW_DEBUG_IMPORT=<file>` (with `WW_DEBUG_PASSPHRASE`)
+imports a backup from the app's Documents folder onto a fresh household,
+through the same code as Import a server backup, and `WW_DEBUG_EXPORT=<file>`
+then writes the household back there as Export for a server does; what
+happened goes to `debug-import.txt` beside them. Copy files in and out with
+`xcrun simctl get_app_container <device> net.iptater.walletweather data`.
 
 ## Try the demo
 

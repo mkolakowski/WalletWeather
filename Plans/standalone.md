@@ -7,7 +7,7 @@ Tracking issue: #240
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
 | 1. The answer key and first core numbers | Server (tests), Core | #232 | Done 2026-11-18, no version (tests only) |
-| 2. The server runs on the core | Server, Core | #233 | Built in 1.82.0, 2026-11-18; waits for the release and your look |
+| 2. The server runs on the core | Server, Core | #233 | Built in 1.82.0, released 2026-11-18 (v1.82.0); waits for your look at the numbers |
 | 3. The core on the iPhone | iOS, Core | #234 | Built in iOS 0.18.0, 2026-11-18; waits for TestFlight and your try |
 | 4. Use without a server | iOS | #235 | Not started |
 | 5. Move between a server and the phone | iOS, Server | #236 | Not started |

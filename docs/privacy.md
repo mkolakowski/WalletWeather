@@ -73,12 +73,24 @@ the app's settings:
 
 If you use the iOS app **On this iPhone**, with no server, your accounts,
 bills, income, transactions, notes and categories are kept on the iPhone,
-in the app's own storage, and never leave it except in your iPhone's own
-backup. They can't be read while the iPhone is locked. Because they're the
-only copy, they're included in your iPhone's iCloud or computer backup (an
+in the app's own storage, and in your iPhone's iCloud or computer backup (an
 iCloud backup is encrypted by Apple, and end to end with Advanced Data
-Protection on). **Delete everything on this iPhone** in the app's Settings
-deletes them.
+Protection on). Two iCloud features, both in your own iCloud account, which
+WalletWeather's authors can't see:
+
+- **Sync with iCloud** (on unless you turn it off in the app's Settings)
+  keeps them in your private iCloud database (CloudKit), so your devices
+  signed in to the same Apple ID share the same numbers. While it's on, they
+  can be read on the iPhone after its first unlock, so they can sync in the
+  background; with it off, they can't be read while the iPhone is locked.
+- **Backup to iCloud Drive** (on from your first account, unless you turn it
+  off) keeps an encrypted copy in your iCloud Drive's WalletWeather folder,
+  at most once a day and the last 14, locked with your backup passphrase.
+
+**Delete everything on this iPhone** in the app's Settings deletes them from
+the iPhone. A synced copy stays in your iCloud and on your other devices, and
+the backups stay in iCloud Drive: delete those on each device, or remove
+WalletWeather's data in your iPhone's Settings → your name → iCloud.
 
 **Export for a server** saves them as an encrypted backup file wherever you
 choose (for example the Files app), to restore on your own server. It's

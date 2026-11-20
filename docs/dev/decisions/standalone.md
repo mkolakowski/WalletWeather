@@ -112,3 +112,13 @@ Decisions made while planning [`Plans/standalone.md`](../../../Plans/standalone.
 - **The columns are remembered per account.** The columns, the signs and "first row is column names" are kept on the phone for each account and used again when the next file has the same headings; otherwise they're worked out from the names. Chosen over working them out every time, as the web app does.
 
 **Set in building, not asked:** the sheet shows the summary first and folds the columns away, opening them by itself when the date or amount column wasn't found; a byte order mark at the start of a file is dropped, as a browser drops it for the web app; a file that isn't UTF-8 is read as Latin-1.
+
+## 2026-11-20: syncing with iCloud
+
+**Decided:** 2026-11-20, by Matthew, asked while building phase 7 (#238). **Status:** accepted, built in iOS 0.24.0.
+
+- **On by default.** The household on this iPhone syncs through the person's private CloudKit database when the phone is signed in to iCloud; "Sync with iCloud" in Settings → On this iPhone turns it off, per device, keeping every number on that phone. Chosen over off until turned on.
+- **In the background too.** CloudKit's silent pushes bring another device's changes while the app is closed. That needs the household's file readable after the phone's first unlock, so while sync is on its protection is "complete until first user authentication" instead of "complete" (a privacy decision; the privacy policy and Settings say so). Chosen over syncing only while the app is open, which kept complete protection.
+- **A second device's numbers merge.** A device that had its own household adds it to the shared one (CloudKit has one private database per Apple ID); the default categories each device started with are joined by name. Chosen over asking first whether to merge or replace.
+
+**Set in building, not asked:** the copy kept when devices made the same thing apart is the one with the lowest id, so every device keeps the same one; a category kept takes a colour from its twin if it had none; joined settings take the latest change and backup stamps, and "agreed" or "on" if any copy says so; **Delete everything on this iPhone** deletes the phone's copy only, and now says a synced copy stays in iCloud (whether it should also clear iCloud is open).

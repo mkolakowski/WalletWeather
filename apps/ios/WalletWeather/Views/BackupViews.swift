@@ -211,3 +211,42 @@ struct RestoreFromICloudSheet: View {
 nonisolated private struct SendablePayload: @unchecked Sendable {
     let value: [String: Any]
 }
+
+/// Settings → On this iPhone → Sync with iCloud (Plans/standalone.md, phase
+/// 7, #238): on by default (decided 2026-11-20). Off keeps every number on
+/// this phone and stops sending changes; on joins them with iCloud's.
+struct SyncRow: View {
+    @Environment(AppModel.self) private var model
+    @State private var on = LocalStore.syncOn
+    @State private var syncing = LocalStore.syncing
+    @State private var problem: String?
+
+    var body: some View {
+        Toggle(isOn: Binding(get: { on }, set: { turn($0) })) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Sync with iCloud")
+                Text(status).font(.footnote).foregroundStyle(problem == nil ? Color.secondary : Palette.bad)
+            }
+        }
+        .frame(minHeight: 44)
+    }
+
+    private var status: String {
+        if let problem { return problem }
+        if !on { return "Off: these numbers are on this iPhone only" }
+        if FileManager.default.ubiquityIdentityToken == nil { return "Waiting for iCloud: sign in to iCloud in the Settings app" }
+        return syncing ? "On: your devices with this Apple ID share these numbers" : "Waiting for iCloud"
+    }
+
+    private func turn(_ value: Bool) {
+        do {
+            try LocalStore.setSync(value)
+            on = value
+            syncing = LocalStore.syncing
+            problem = nil
+            model.reload()
+        } catch {
+            problem = "Couldn't switch: \(error.localizedDescription)"
+        }
+    }
+}

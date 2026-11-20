@@ -1,8 +1,19 @@
 import SwiftUI
 import WalletWeatherKit
 
+/// Registers for CloudKit's silent pushes, which bring another device's
+/// changes in, also while the app is in the background (#238).
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        application.registerForRemoteNotifications()
+        return true
+    }
+}
+
 @main
 struct WalletWeatherApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var model = AppModel()
     @State private var settings = AppSettings()
 

@@ -1,3 +1,4 @@
+import CoreData
 import Observation
 import SwiftUI
 import UIKit
@@ -143,6 +144,29 @@ final class AppModel {
         backup.refresh()
         Task { await refreshMe() }
         Task { await backup.runIfDue() }
+        watchOtherDevices()
+    }
+
+    private var otherDevices: Task<Void, Never>?
+    private var settling: Task<Void, Never>?
+
+    /// Sync with iCloud (#238): when another device's changes land, join
+    /// what both made apart (`reconcile`), then load the pages again. A
+    /// burst of changes is waited out first.
+    private func watchOtherDevices() {
+        guard otherDevices == nil else { return }
+        otherDevices = Task { [weak self] in
+            for await _ in NotificationCenter.default.notifications(named: .NSPersistentStoreRemoteChange) {
+                guard let self, self.isLocal else { continue }
+                self.settling?.cancel()
+                self.settling = Task { [weak self] in
+                    try? await Task.sleep(for: .seconds(1))
+                    guard !Task.isCancelled else { return }
+                    await Task.detached(priority: .utility) { _ = try? LocalServer.openShared().reconcile() }.value
+                    self?.reload()
+                }
+            }
+        }
     }
 
     /// Loads every page again, after a change made outside them (a new

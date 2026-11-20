@@ -69,9 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.85.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.23.0**
+App version: **1.85.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.24.0**
 
 ### Added
+
+- **iOS 0.24.0, sync with iCloud:** on an iPhone used without a server, your accounts, bills and lines now stay the same on every iPhone signed in to your Apple ID, through your own private iCloud. An edit on one shows on the others, also while the app is closed. When two devices change the same thing, the later change wins, and something deleted stays deleted. A second device that already had numbers of its own adds them to the shared ones, and the usual categories each device started with become one set. It's on unless you turn off **Sync with iCloud** in Settings → On this iPhone; turning it off keeps every number on that iPhone. While it's on, your numbers can be read on the iPhone after its first unlock (so they can sync in the background) instead of only while it's unlocked. **Delete everything on this iPhone** now says that a synced copy stays in iCloud and on your other devices.
 
 - **iOS 0.23.0, import a bank's CSV on the iPhone:** **Import a CSV…** in Settings, and in Forecast's **+** menu for the account on screen, opens a CSV from the Files app (your bank's export, for example). Pick the account, check how the amounts are signed, and see what will happen before anything changes: how many lines will be added, which are already on the account, which repeat, and which rows are left out and why. The columns are worked out from their names; open **Columns** to change any, and the phone remembers your choices per account for the next file with the same headings. **Import** adds each row as a paid line on its date. A line with the same date, amount and description as one already there is left out, so importing the same file twice adds nothing. Rows marked as repeating join their bill, or make one. It works on an iPhone with no server, and on one signed in to a server, for accounts you can change.
 

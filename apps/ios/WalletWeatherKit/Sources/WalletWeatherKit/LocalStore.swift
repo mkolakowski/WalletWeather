@@ -11,8 +11,11 @@ import SwiftData
 /// - **Backed up with the phone:** unlike kept numbers, which are a copy of
 ///   the server's, this is the only copy, so it goes into the phone's own
 ///   iCloud or computer backup. Phase 6 adds a sealed backup to iCloud Drive.
-/// - **Never synced:** CloudKit is off (`cloudKitDatabase: .none`) until
-///   phase 7 decides how.
+/// - **Synced through iCloud** (phase 7, #238): with "Sync with iCloud" on
+///   (the default, decided 2026-11-20) the store mirrors to the person's
+///   private CloudKit database, also in the background, so the file then
+///   stays readable after the phone's first unlock instead of only while
+///   it's unlocked. Two devices' copies are joined by `LocalServer.reconcile`.
 ///
 /// Every row's `id` is a random number below 2^52, not a count: phase 7
 /// syncs between devices, where two phones adding a row at once mustn't pick
@@ -85,12 +88,15 @@ enum LocalModels {
     }
 }
 
-/// A date deleted from a repeating item's forecast.
+/// A date deleted from a repeating item's forecast. `id` (random, phase 7)
+/// lets two devices that skipped the same date keep the same one.
 @Model final class LocalSkip {
+    var id: Int = 0
     var recurringID: Int = 0
     var date: String = ""
 
     init(recurringID: Int, date: String) {
+        id = LocalModels.newID()
         self.recurringID = recurringID
         self.date = date
     }
@@ -140,12 +146,15 @@ enum LocalModels {
     }
 }
 
-/// A named setting of the household, such as the Important notice agreed to.
+/// A named setting of the household, such as the Important notice agreed
+/// to. `id` (random, phase 7) picks which of two devices' copies stays.
 @Model final class LocalFlag {
+    var id: Int = 0
     var name: String = ""
     var value: String = ""
 
     init(name: String, value: String) {
+        id = LocalModels.newID()
         self.name = name
         self.value = value
     }
@@ -164,23 +173,69 @@ public enum LocalStore {
     /// Whether a household has been set up on this phone.
     public static var exists: Bool { FileManager.default.fileExists(atPath: file.path) }
 
+    // MARK: Sync with iCloud (#238)
+
+    private static let syncKey = "household.icloudSync"
+
+    /// "Sync with iCloud", this device's own choice: on unless turned off.
+    public static var syncOn: Bool {
+        get { UserDefaults.standard.object(forKey: syncKey) as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: syncKey) }
+    }
+
+    /// Turns sync on or off and opens the household again with it. Off
+    /// leaves every number on the phone; on joins it with iCloud's.
+    public static func setSync(_ on: Bool) throws {
+        syncOn = on
+        LocalServer.closeShared()
+        try LocalServer.openShared()
+    }
+
+    /// Whether the open store is syncing: sync on, and CloudKit took it.
+    nonisolated(unsafe) public private(set) static var syncing = false
+
     /// The store on disk, made (with its protected folder) the first time.
-    static func container(at folder: URL) throws -> ModelContainer {
+    /// With sync on it mirrors to the private CloudKit database; when
+    /// CloudKit can't be used (no iCloud entitlement, as in the tests) it
+    /// opens on the phone alone.
+    static func container(at folder: URL, sync: Bool = syncOn) throws -> ModelContainer {
         let fm = FileManager.default
         if !fm.fileExists(atPath: folder.path) {
             try fm.createDirectory(at: folder, withIntermediateDirectories: true)
         }
-        protect(folder)
-        let config = ModelConfiguration("Household", schema: Schema(LocalModels.all),
-                                        url: folder.appending(path: "household.store"),
-                                        cloudKitDatabase: .none)
-        let container = try ModelContainer(for: Schema(LocalModels.all), configurations: [config])
+        // Background sync opens the file while the phone is locked.
+        let level: FileProtectionType = sync ? .completeUntilFirstUserAuthentication : .complete
+        protect(folder, level)
+        func open(_ database: ModelConfiguration.CloudKitDatabase) throws -> ModelContainer {
+            let config = ModelConfiguration("Household", schema: Schema(LocalModels.all),
+                                            url: folder.appending(path: "household.store"),
+                                            cloudKitDatabase: database)
+            return try ModelContainer(for: Schema(LocalModels.all), configurations: [config])
+        }
+        let container: ModelContainer
+        if sync, cloudKitAvailable, let synced = try? open(.private(CloudBackup.containerID)) {
+            container = synced
+            syncing = true
+        } else {
+            container = try open(.none)
+            syncing = false
+        }
         // SQLite's own files (-wal, -shm) are made inside the folder and take
         // its protection; set it on each as well.
         for name in (try? fm.contentsOfDirectory(atPath: folder.path)) ?? [] {
-            protect(folder.appending(path: name))
+            protect(folder.appending(path: name), level)
         }
         return container
+    }
+
+    /// CloudKit needs the app's iCloud entitlement; a test runner or a
+    /// build without it has none.
+    static var cloudKitAvailable: Bool {
+        #if os(iOS)
+        return Bundle.main.bundleIdentifier == "net.iptater.walletweather"
+        #else
+        return false
+        #endif
     }
 
     /// A store in memory only, for the tests.
@@ -190,10 +245,11 @@ public enum LocalStore {
         return try ModelContainer(for: Schema(LocalModels.all), configurations: [config])
     }
 
-    /// Complete file protection: unreadable while the phone is locked.
-    static func protect(_ url: URL) {
+    /// File protection: complete (unreadable while the phone is locked), or
+    /// until the first unlock while syncing in the background.
+    static func protect(_ url: URL, _ level: FileProtectionType = .complete) {
         #if os(iOS)
-        try? FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: url.path)
+        try? FileManager.default.setAttributes([.protectionKey: level], ofItemAtPath: url.path)
         #endif
     }
 

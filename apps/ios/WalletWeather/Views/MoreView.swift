@@ -99,7 +99,9 @@ struct SettingsView: View {
                         }
                         switch model.isLocal ? nil : model.keep {
                         case nil:
-                            Text("Your numbers are kept on this iPhone. They can't be read while the phone is locked, and they're included in this iPhone's iCloud or computer backup.")
+                            Text(LocalStore.syncOn
+                                 ? "Your numbers are kept on this iPhone and synced through your private iCloud. So they can sync in the background, they can be read after the phone's first unlock; they're included in this iPhone's iCloud or computer backup."
+                                 : "Your numbers are kept on this iPhone. They can't be read while the phone is locked, and they're included in this iPhone's iCloud or computer backup.")
                         case .nothing?:
                             Text("No numbers are kept on this phone, so the app needs a connection to your server.")
                         case .lastKnown?:
@@ -128,7 +130,9 @@ struct SettingsView: View {
                                 titleVisibility: .visible) {
                 Button("Delete everything", role: .destructive) { model.eraseLocal() }
             } message: {
-                Text("Every account, bill and line kept on this iPhone is deleted. This can't be undone.")
+                Text(LocalStore.syncOn
+                     ? "Every account, bill and line kept on this iPhone is deleted. A synced copy stays in your iCloud and on your other devices, and comes back if you choose On this iPhone again with sync on."
+                     : "Every account, bill and line kept on this iPhone is deleted. This can't be undone.")
             }
             .sheet(isPresented: $showingNotice) { NoticeReader() }
             .sheet(isPresented: $addingAccount) { NewAccountSheet { model.accountAdded() } }
@@ -149,6 +153,8 @@ struct SettingsView: View {
                 MoreRow { Label("Import a CSV…", systemImage: "doc.text").foregroundStyle(Palette.accent) } trailing: { EmptyView() }
             }
             Divider()
+            SyncRow()
+            Divider()
             Button { showingNotice = true } label: {
                 MoreRow { Text("Important notice").foregroundStyle(Palette.accent) } trailing: { EmptyView() }
             }
@@ -162,7 +168,7 @@ struct SettingsView: View {
             }
         }
         .card()
-        Text("WalletWeather \(AppInfo.version), with no server. Back to the first screen keeps your numbers on this iPhone: choose On this iPhone there to open them again. Net worth, Budgets, Reports, bank sync and sharing need a server.")
+        Text("WalletWeather \(AppInfo.version), with no server. Sync with iCloud keeps these numbers the same on your iPhones signed in to the same Apple ID, through your own private iCloud, also in the background, so while it's on they stay readable after the phone's first unlock; off, they're readable only while it's unlocked, and stay on this iPhone. Back to the first screen keeps your numbers on this iPhone: choose On this iPhone there to open them again. Net worth, Budgets, Reports, bank sync and sharing need a server.")
             .font(.footnote).foregroundStyle(.secondary)
             .padding(.horizontal, 4)
         // The iCloud Drive backup (#237).

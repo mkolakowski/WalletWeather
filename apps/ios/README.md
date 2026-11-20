@@ -246,7 +246,17 @@ On this iPhone keeps the household in a SwiftData store
 (`LocalStore.swift`) in `Application Support/Household`, with complete file
 protection (unreadable while the phone is locked). It's the only copy, so
 unlike kept numbers it's in the phone's iCloud or computer backup, and phase 6
-adds a sealed backup to iCloud Drive (below); CloudKit is off until phase 7. Its `Connection` points at
+adds a sealed backup to iCloud Drive (below). **Sync with iCloud** (phase 7,
+#238; on unless turned off in Settings → On this iPhone, a choice kept per
+device) mirrors the store to the private CloudKit database of the container
+`iCloud.net.iptater.walletweather`, also in the background through silent
+pushes (`UIBackgroundModes: remote-notification`, `aps-environment`), so
+while it's on the files are protected until the first unlock instead.
+CloudKit keeps a record's later edit and a deleted record deleted;
+`LocalSync.swift`'s `reconcile` joins what two devices made apart (the
+default categories by name, settings, a skipped date) the same way on every
+device, when the store opens and when another device's changes land
+(`NSPersistentStoreRemoteChange`). `SyncTests` checks it. Its `Connection` points at
 `https://this-iphone.walletweather.invalid`, and `APIClient` answers it on
 the phone (`LocalServer.swift`): the pages make the same requests as with a
 server and get the server's shapes back.

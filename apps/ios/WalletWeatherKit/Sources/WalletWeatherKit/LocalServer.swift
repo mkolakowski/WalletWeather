@@ -66,6 +66,7 @@ public final class LocalServer: @unchecked Sendable {
         servers[host] = server
         serversLock.unlock()
         server.seedIfEmpty()
+        server.reconcile()
         return server
     }
 
@@ -75,14 +76,15 @@ public final class LocalServer: @unchecked Sendable {
         serversLock.unlock()
     }
 
-    /// A household in memory at an address of its own, for the tests.
-    static func inMemory() throws -> LocalServer {
+    /// A household in memory at an address of its own, for the tests;
+    /// `seeded: false` leaves out the default categories too.
+    static func inMemory(seeded: Bool = true) throws -> LocalServer {
         let host = "t\(UUID().uuidString.lowercased().prefix(8)).\(Self.host)"
         let server = LocalServer(container: try LocalStore.memoryContainer(), host: host)
         serversLock.lock()
         servers[host] = server
         serversLock.unlock()
-        server.seedIfEmpty()
+        if seeded { server.seedIfEmpty() }
         return server
     }
 
@@ -213,15 +215,20 @@ public final class LocalServer: @unchecked Sendable {
          "has_password": false]
     }
 
+    /// A setting's value. Two devices may each have made it before syncing
+    /// (#238): until `reconcile` joins them, read them as it would.
     func flag(_ name: String, _ context: ModelContext) -> String? {
-        (try? context.fetch(FetchDescriptor<LocalFlag>(predicate: #Predicate { $0.name == name })))?.first?.value
+        let found = (try? context.fetch(FetchDescriptor<LocalFlag>(predicate: #Predicate { $0.name == name }))) ?? []
+        return Self.joinedFlag(name, found)
     }
 
+    /// Sets a setting, on every copy of it.
     func setFlag(_ name: String, _ value: String, _ context: ModelContext) {
-        if let found = (try? context.fetch(FetchDescriptor<LocalFlag>(predicate: #Predicate { $0.name == name })))?.first {
-            found.value = value
-        } else {
+        let found = (try? context.fetch(FetchDescriptor<LocalFlag>(predicate: #Predicate { $0.name == name }))) ?? []
+        if found.isEmpty {
             context.insert(LocalFlag(name: name, value: value))
+        } else {
+            for row in found where row.value != value { row.value = value }
         }
     }
 

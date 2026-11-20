@@ -71,6 +71,12 @@ same commit (or session) that introduces it.
 
 App version: **1.85.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.28.0**
 
+## [1.85.0] — 2026-11-20
+
+App version: **1.85.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.28.0**
+
+The iPhone app can now be used without a server: your numbers live on the iPhone, sync between your devices through your own iCloud, back up to iCloud Drive by themselves, and move to a server and back. It imports a bank's CSV and has tags and auto-tag rules, with or without a server. On the server, CSV import, Bills & income and search now run on the shared engine, with the same results, and two CSV import bugs are fixed. No database change and no settings to add.
+
 ### Added
 
 - **iOS 0.28.0, auto-tag rules on the iPhone:** Settings → Tags now lists your auto-tag rules, as in the web app: "a description containing these words gets this tag", optionally only in one category. Add, change, switch off or delete them on the iPhone. On an iPhone with no server they work as on a server: a line gets the tag when it's added, changed or imported, and **Apply to existing lines** adds it to the ones already there. With a server, the list edits your server's rules.
@@ -2690,7 +2696,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.82.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.85.0...HEAD
+[1.85.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.85.0
 [1.82.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.82.0
 [1.81.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.81.0
 [1.79.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.79.0

@@ -336,6 +336,7 @@ final class AppModel {
             if name == "Coffee" { line.tagIds = [holiday?.id, work?.id].compactMap { $0 } }
             try? await client.add(line, account: checking)
         }
+        if let holiday { try? await client.createTagRule(TagRuleBody(name: "Trips", descriptionPattern: "hotel", tagId: holiday.id)) }
         var move = MoveMoneyDraft(today: today, from: checking, to: savings)
         move.amountText = "200"
         if let body = TransferBody(move) { _ = try? await client.moveMoney(body) }

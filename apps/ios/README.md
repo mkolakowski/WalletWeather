@@ -278,7 +278,8 @@ server and get the server's shapes back.
   its lines) but not changed, skipped dates are brought back from a bill's
   editor (#246), and tags are kept (on lines, bills and in rules, moved and
   synced; `LocalTags.swift`, #250) and since phone-tags phase 2 (#251)
-  made and chosen on the phone (`TagViews.swift`), as with a server.
+  made and chosen on the phone (`TagViews.swift`), as with a server, and auto-tag
+  rules applied on the phone as the server applies them (#252).
 - **No network:** the local session's only handlers are the household's and
   one that refuses everything else (`RefuseProtocol`); `LocalTests` drives
   every page and checks nothing was refused.
@@ -327,7 +328,7 @@ bills and the categories to the core's `csvPreview` and `csvCommit` (the
 server's same code) and makes the bills and lines the plan lists. It's in
 Settings and Forecast's + menu, with or without a server; the columns and
 signs are kept per account in the app's settings. Debug builds open it on a
-file in the app's Documents folder with `WW_DEBUG_CSV=<file>`. `LocalTests`
+file in the app's Documents folder with `WW_DEBUG_CSV=<file>`. `WW_DEBUG_TAGS=1` opens Settings → Tags (#252). `LocalTests`
 covers the import and its checks, `CoreTests` the core's answers.
 
 Debug builds open it from the command line with `WW_DEBUG_LOCAL=1`, or

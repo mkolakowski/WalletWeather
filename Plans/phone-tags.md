@@ -8,7 +8,9 @@ Tracking issue: #247
 | --- | --- | --- | --- |
 | 1. Tags in the household | iOS | #250 | Built in iOS 0.26.0, 2026-11-20; waits for a release |
 | 2. Tag screens | iOS | #251 | Built in iOS 0.27.0, 2026-11-20; waits for a release and your try |
-| 3. Auto-tag rules on the phone | iOS | #252 | Not started |
+| 3. Auto-tag rules on the phone | iOS | #252 | Built in iOS 0.28.0, 2026-11-20; waits for a release and your try |
+
+Phase 3 built 2026-11-20 in iOS 0.28.0, not released. `LocalServer` answers `/api/tag-rules` (list newest first, make, change, delete, and `/backfill`) with the server's checks, and applies the active rules as the server's `_apply_tag_rules` does (description contains the pattern without case, the category gate, a tag already there skipped) when a line is added, changed or imported. Settings → Tags lists the rules below the tags, with a rule editor and **Apply to existing lines**, with or without a server. Verified: `LocalTagTests` (rules on add, change, import and replay; switched-off and category-gated rules; the server's checks), the package's tests, and the page on the simulator.
 
 Phase 2 built 2026-11-20 in iOS 0.27.0, not released. Tag chips on rows (Forecast's list and table, Bills & income, a tag's lines in Search), a tag picker with **New tag…** in the line editor, Add transaction and the bill editor, and Settings → **Tags** (add, rename, recolour, delete), with or without a server. Tags are sent with a line or bill only when changed, so a bill's date marked paid still takes the bill's tags (a test caught the first version sending an empty list). Set in building: the search box's own transaction results carry no tags (the server's answer, from the core), so chips show in a tag's list of lines rather than there. Verified: `LocalTagTests` through the app's own calls, 172 package tests, the screens on the simulator (Bills & income's chip, Search finding a tag with its line).
 

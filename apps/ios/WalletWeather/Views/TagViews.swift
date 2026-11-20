@@ -173,10 +173,17 @@ struct TagEditSheet: View {
     }
 }
 
-/// Settings → Tags: every tag; add, change, delete.
+/// Settings → Tags: every tag (add, change, delete), and the auto-tag
+/// rules below them (#252).
 struct TagsPage: View {
     @Environment(AppModel.self) private var model
     @State private var tags: Loadable<[TagInfo]> = .loading
+    @State private var rules: [TagRule] = []
+    @State private var categories: [TransactionCategory] = []
+    @State private var editingRule: TagRule?
+    @State private var addingRule = false
+    @State private var applying = false
+    @State private var applied: String?
     @State private var editing: TagInfo?
     @State private var adding = false
     @State private var deleting: TagInfo?
@@ -214,6 +221,7 @@ struct TagsPage: View {
                         }
                     }
                     if let problem { Text(problem).foregroundStyle(Palette.bad) }
+                    rulesSection(list)
                 }
             }
         }
@@ -226,6 +234,12 @@ struct TagsPage: View {
         .task(id: model.generation) { await load() }
         .refreshable { await load() }
         .sheet(item: $editing) { tag in TagEditSheet(tag: tag) { _ in Task { await load() } } }
+        .sheet(item: $editingRule) { rule in
+            RuleEditSheet(rule: rule, tags: tags.value ?? [], categories: categories) { Task { await load() } }
+        }
+        .sheet(isPresented: $addingRule) {
+            RuleEditSheet(rule: nil, tags: tags.value ?? [], categories: categories) { Task { await load() } }
+        }
         .sheet(isPresented: $adding) { TagEditSheet(tag: nil) { _ in Task { await load() } } }
         .confirmationDialog(deleting.map { "Delete \($0.name)?" } ?? "", isPresented: Binding(
             get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible, presenting: deleting) { tag in
@@ -238,6 +252,69 @@ struct TagsPage: View {
     private func load() async {
         guard let client = model.client else { return }
         do { tags = .loaded(try await client.tags()) } catch { tags = .failed(error) }
+        rules = (try? await client.tagRules()) ?? []
+        categories = (try? await client.categories()) ?? categories
+    }
+
+    @ViewBuilder
+    private func rulesSection(_ list: [TagInfo]) -> some View {
+        Section {
+            ForEach(rules) { rule in
+                Button { if canEdit { editingRule = rule } } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text("“\(rule.descriptionPattern)”").foregroundStyle(Color.primary)
+                            Image(systemName: "arrow.right").font(.caption).foregroundStyle(.secondary)
+                            TagChips(tags: [TagInfo(id: rule.tagId, name: rule.tagName ?? "?", color: rule.tagColor)])
+                            if !rule.active { Text("Off").font(.caption).foregroundStyle(.secondary) }
+                        }
+                        Text([rule.name, rule.categoryName.map { "only in \($0)" }].compactMap { $0 }.joined(separator: " · "))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .swipeActions {
+                    if canEdit {
+                        Button("Delete", role: .destructive) { Task { await deleteRule(rule) } }
+                    }
+                }
+            }
+            if canEdit {
+                Button { addingRule = true } label: { Label("Add a rule", systemImage: "plus.circle") }
+                    .disabled(list.isEmpty)
+                if !rules.isEmpty {
+                    Button { Task { await applyRules() } } label: {
+                        Label(applying ? "Applying…" : "Apply to existing lines", systemImage: "wand.and.stars")
+                    }
+                    .disabled(applying)
+                }
+            }
+            if let applied { Text(applied).font(.footnote).foregroundStyle(.secondary) }
+        } header: {
+            Text("Auto-tag rules")
+        } footer: {
+            Text(list.isEmpty ? "Make a tag first, then a rule to add it by itself."
+                 : "A rule adds its tag to a line whose description contains the words, when it's added, changed or imported. Apply to existing lines adds it to the ones already here.")
+        }
+    }
+
+    private func deleteRule(_ rule: TagRule) async {
+        do { try await model.client?.deleteTagRule(rule.id) } catch { problem = AppModel.describe(error) }
+        await load()
+    }
+
+    private func applyRules() async {
+        guard let client = model.client else { return }
+        applying = true
+        defer { applying = false }
+        do {
+            let done = try await client.applyTagRules()
+            applied = done.tagsAdded == 0 ? "Nothing new to tag." : "Added \(done.tagsAdded) tag\(done.tagsAdded == 1 ? "" : "s") to existing lines."
+            model.reload()
+        } catch {
+            problem = AppModel.describe(error)
+        }
     }
 
     private func delete(_ tag: TagInfo) async {
@@ -248,5 +325,70 @@ struct TagsPage: View {
             problem = AppModel.describe(error)
         }
         await load()
+    }
+}
+
+/// Add or change an auto-tag rule: the words to look for, the tag, and
+/// optionally a category the line must be in and a name.
+struct RuleEditSheet: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    let rule: TagRule?
+    let tags: [TagInfo]
+    let categories: [TransactionCategory]
+    let onSaved: () -> Void
+    @State private var body_ = TagRuleBody()
+    @State private var saving = false
+    @State private var problem: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Words to look for, such as café", text: $body_.descriptionPattern)
+                        .textInputAutocapitalization(.never)
+                    Picker("Add the tag", selection: $body_.tagId) {
+                        if body_.tagId == nil { Text("Choose").tag(Int?.none) }
+                        ForEach(tags) { Text($0.name).tag(Optional($0.id)) }
+                    }
+                } footer: {
+                    Text("A line whose description contains these words, in any case, gets the tag.")
+                }
+                Section {
+                    Picker("Only in category", selection: $body_.categoryId) {
+                        Text("Any").tag(Int?.none)
+                        ForEach(categories) { Text($0.name).tag(Optional($0.id)) }
+                    }
+                    TextField("Name (optional)", text: $body_.name)
+                    Toggle("On", isOn: $body_.active)
+                } footer: {
+                    if let problem = problem ?? (body_.descriptionPattern.isEmpty ? nil : body_.problem) {
+                        Text(problem).foregroundStyle(Palette.bad)
+                    }
+                }
+            }
+            .navigationTitle(rule == nil ? "New rule" : "Change rule")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(rule == nil ? "Add" : "Save") { Task { await save() } }.disabled(saving || body_.problem != nil)
+                }
+            }
+            .onAppear { body_ = rule.map(TagRuleBody.init) ?? TagRuleBody(tagId: tags.count == 1 ? tags[0].id : nil) }
+        }
+    }
+
+    private func save() async {
+        guard let client = model.client else { return }
+        saving = true
+        defer { saving = false }
+        do {
+            if let rule { try await client.updateTagRule(rule.id, body_) } else { try await client.createTagRule(body_) }
+            onSaved()
+            dismiss()
+        } catch {
+            problem = AppModel.describe(error)
+        }
     }
 }

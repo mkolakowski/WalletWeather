@@ -136,3 +136,110 @@ extension LocalServer {
         for link in try context.fetch(FetchDescriptor<LocalTagLink>(predicate: #Predicate { $0.transactionID == line })) { context.delete(link) }
     }
 }
+
+// MARK: - Auto-tag rules (phone-tags phase 3, #252)
+
+extension LocalServer {
+    static let rulePatternMin = 2, rulePatternMax = 120, ruleNameMax = 80
+
+    private func ruleRow(_ r: LocalTagRule, _ tags: [Int: LocalTag], _ categories: [Int: LocalCategory]) -> [String: Any] {
+        let tag = tags[r.tagID]
+        let category = r.categoryID.flatMap { categories[$0] }
+        return ["id": r.id, "name": r.name as Any? ?? NSNull(), "description_pattern": r.pattern,
+                "category_id": r.categoryID as Any? ?? NSNull(), "category_name": category?.name as Any? ?? NSNull(),
+                "tag_id": r.tagID, "tag_name": tag?.name as Any? ?? NSNull(), "tag_color": tag?.color as Any? ?? NSNull(),
+                "active": r.active]
+    }
+
+    /// `GET /api/tag-rules`: newest first, as the server's ORDER BY id DESC.
+    func listRules(_ context: ModelContext) throws -> Any {
+        let tags = Dictionary(try context.fetch(FetchDescriptor<LocalTag>()).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let categories = Dictionary(try context.fetch(FetchDescriptor<LocalCategory>()).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        return try ordered(LocalTagRule.self, context, added: \.added, id: \.id).reversed().map { ruleRow($0, tags, categories) }
+    }
+
+    /// A rule's fields with the server's checks (TagRuleIn, then the route's).
+    private func ruleFields(_ body: [String: Any], _ context: ModelContext) throws
+        -> (name: String?, pattern: String, category: Int?, tag: Int, active: Bool) {
+        guard let raw = body["description_pattern"] as? String,
+              (Self.rulePatternMin...Self.rulePatternMax).contains(raw.count) else {
+            throw Problem(status: 422, detail: "description_pattern must be 2 to 120 characters")
+        }
+        if let name = body["name"] as? String, name.count > Self.ruleNameMax {
+            throw Problem(status: 422, detail: "name must be at most 80 characters")
+        }
+        guard let tagID = body["tag_id"] as? Int else { throw Problem(status: 422, detail: "tag_id is required") }
+        let pattern = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard pattern.count >= Self.rulePatternMin else { throw Problem.invalid("Pattern too short") }
+        _ = try tag(tagID, context)
+        let categoryID = body["category_id"] as? Int
+        if let categoryID, try context.fetch(FetchDescriptor<LocalCategory>(predicate: #Predicate { $0.id == categoryID })).isEmpty {
+            throw Problem.notFound("Category not found")
+        }
+        let name = (body["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (name?.isEmpty == false ? name : nil, pattern, categoryID, tagID, body["active"] as? Bool ?? true)
+    }
+
+    func createRule(_ body: [String: Any], _ context: ModelContext) throws -> Any {
+        let f = try ruleFields(body, context)
+        let rule = LocalTagRule(name: f.name, pattern: f.pattern, categoryID: f.category, tagID: f.tag, active: f.active)
+        context.insert(rule)
+        return ["id": rule.id]
+    }
+
+    private func rule(_ id: Int?, _ context: ModelContext) throws -> LocalTagRule {
+        guard let id, let found = try context.fetch(FetchDescriptor<LocalTagRule>(predicate: #Predicate { $0.id == id })).first else {
+            throw Problem.notFound("Rule not found")
+        }
+        return found
+    }
+
+    func updateRule(_ id: Int?, _ body: [String: Any], _ context: ModelContext) throws -> Any {
+        let found = try rule(id, context)
+        let f = try ruleFields(body, context)
+        found.name = f.name
+        found.pattern = f.pattern
+        found.categoryID = f.category
+        found.tagID = f.tag
+        found.active = f.active
+        return ["ok": true]
+    }
+
+    func deleteRule(_ id: Int?, _ context: ModelContext) throws -> Any {
+        context.delete(try rule(id, context))
+        return ["ok": true]
+    }
+
+    /// The server's `_apply_tag_rules`: every active rule whose pattern is in
+    /// the line's description (without case), and whose category, if it has
+    /// one, is the line's, adds its tag unless the line has it. Returns how
+    /// many tags it added.
+    @discardableResult
+    func applyRules(to line: LocalTransaction, _ context: ModelContext) throws -> Int {
+        guard !line.name.isEmpty else { return 0 }
+        let rules = try context.fetch(FetchDescriptor<LocalTagRule>(predicate: #Predicate { $0.active }))
+        guard !rules.isEmpty else { return 0 }
+        let description = line.name.lowercased()
+        let lineID = line.id
+        var existing = Set(try context.fetch(FetchDescriptor<LocalTagLink>(predicate: #Predicate { $0.transactionID == lineID })).map(\.tagID))
+        var added = 0
+        for rule in rules.sorted(by: { $0.id < $1.id }) {
+            if let category = rule.categoryID, line.categoryID != category { continue }
+            guard description.contains(rule.pattern), !existing.contains(rule.tagID) else { continue }
+            context.insert(LocalTagLink(tagID: rule.tagID, transactionID: lineID))
+            existing.insert(rule.tagID)
+            added += 1
+        }
+        return added
+    }
+
+    /// `POST /api/tag-rules/backfill`: every rule over every line.
+    func backfillRules(_ context: ModelContext) throws -> Any {
+        let visible = Set(try context.fetch(FetchDescriptor<LocalAccount>()).map(\.id))
+        let lines = try context.fetch(FetchDescriptor<LocalTransaction>()).filter { visible.contains($0.accountID) }
+        guard !lines.isEmpty else { return ["transactions_scanned": 0, "tags_added": 0] }
+        var added = 0
+        for line in lines { added += try applyRules(to: line, context) }
+        return ["transactions_scanned": lines.count, "tags_added": added]
+    }
+}

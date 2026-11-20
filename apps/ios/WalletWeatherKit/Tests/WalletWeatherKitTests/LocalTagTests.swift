@@ -162,4 +162,89 @@ struct LocalTagTests {
         try await client.deleteTag(food.id)
         #expect(try await client.tags() == [TagInfo(id: trip.id, name: "Travel", color: nil)])
     }
+
+    /// Auto-tag rules on the phone (#252), as the server's _apply_tag_rules:
+    /// on a line added, changed or imported, and over every line on request.
+    @Test func rulesTagLinesAsTheServersDo() async throws {
+        let coffee = try await client.createTag(name: "coffee", color: nil)
+        let trip = try await client.createTag(name: "trip", color: nil)
+        let categories = try await client.categories()
+        let dining = try #require(categories.first { $0.name == "Dining" }?.id)
+        let checking = try await client.createAccount(AccountBody(name: "Checking", startingBalance: 0, startingDate: day)).id
+        // A line from before the rules: only the replay tags it.
+        var old = NewTransactionDraft(today: day)
+        old.name = "Old CAFÉ visit"
+        old.amountText = "3"
+        try await client.add(old, account: checking)
+
+        try await client.createTagRule(TagRuleBody(name: "Coffee", descriptionPattern: "  Café ", tagId: coffee.id))
+        try await client.createTagRule(TagRuleBody(descriptionPattern: "hotel", categoryId: dining, tagId: trip.id))
+        try await client.createTagRule(TagRuleBody(descriptionPattern: "taxi", tagId: trip.id, active: false))
+        let rules = try await client.tagRules()
+        // Newest first; the pattern kept lowercase and trimmed; names resolved.
+        #expect(rules.map(\.descriptionPattern) == ["taxi", "hotel", "café"])
+        #expect(rules.last?.name == "Coffee" && rules.last?.tagName == "coffee")
+        #expect(rules[1].categoryName == "Dining")
+
+        func add(_ name: String, category: Int? = nil) async throws {
+            var line = NewTransactionDraft(today: day)
+            line.name = name
+            line.amountText = "10"
+            line.categoryId = category
+            try await client.add(line, account: checking)
+        }
+        try await add("Morning café crème")          // matches, any category
+        try await add("Hotel bar")                   // hotel, but not in Dining: no tag
+        try await add("Hotel dinner", category: dining)
+        try await add("Taxi")                        // the rule is switched off
+        let rows = try await client.forecast(account: checking, month: YearMonth(day), today: day).rows
+        func tags(_ name: String) -> [String] { rows.first { $0.description == name }?.tags?.map(\.name) ?? ["?"] }
+        #expect(tags("Morning café crème") == ["coffee"])
+        #expect(tags("Hotel bar") == [])
+        #expect(tags("Hotel dinner") == ["trip"])
+        #expect(tags("Taxi") == [])
+        #expect(tags("Old CAFÉ visit") == [])
+
+        // Changing a line's category re-runs the rules.
+        let bar = try #require(rows.first { $0.description == "Hotel bar" })
+        var draft = LineDraft(bar, today: day)
+        draft.categoryId = dining
+        try await client.save(bar, draft: draft, account: checking)
+        // The replay tags the old line; running it again adds nothing.
+        let first = try await client.applyTagRules()
+        #expect(first.tagsAdded == 1 && first.transactionsScanned == 5)
+        #expect(try await client.applyTagRules().tagsAdded == 0)
+        let after = try await client.forecast(account: checking, month: YearMonth(day), today: day).rows
+        #expect(after.first { $0.description == "Hotel bar" }?.tags?.map(\.name) == ["trip"])
+        #expect(after.first { $0.description == "Old CAFÉ visit" }?.tags?.map(\.name) == ["coffee"])
+
+        // A CSV import runs them too.
+        var csv = CSVImportBody(csvText: "Date,Description,Amount\n2026-03-04,CAFÉ NOIR,-2\n")
+        csv.mapping = try await client.previewImport(csv, account: checking).mapping
+        _ = try await client.commitImport(csv, account: checking)
+        let imported = try await client.searchTransactions("noir")
+        #expect(imported.results.first?.tags?.map(\.name) == ["coffee"])
+
+        // Changing and deleting a rule; deleting a tag takes its rules.
+        let hotel = try #require(rules.first { $0.descriptionPattern == "hotel" })
+        try await client.updateTagRule(hotel.id, TagRuleBody(descriptionPattern: "motel", tagId: trip.id, active: false))
+        #expect(try await client.tagRules().first { $0.id == hotel.id }?.descriptionPattern == "motel")
+        try await client.deleteTagRule(hotel.id)
+        try await client.deleteTag(coffee.id)
+        #expect(try await client.tagRules().map(\.descriptionPattern) == ["taxi"])
+    }
+
+    @Test func aRuleChecksWhatTheServerChecks() throws {
+        let tag = try id(try call("POST", "/api/tags", ["name": "t"]))
+        #expect(try call("POST", "/api/tag-rules", ["description_pattern": "a", "tag_id": tag]).0 == 422)
+        #expect(try call("POST", "/api/tag-rules", ["description_pattern": "  a  ", "tag_id": tag]).0 == 400)
+        #expect(try call("POST", "/api/tag-rules", ["description_pattern": "abc"]).0 == 422)
+        #expect(try call("POST", "/api/tag-rules", ["description_pattern": "abc", "tag_id": 424242]).0 == 404)
+        #expect(try call("POST", "/api/tag-rules", ["description_pattern": "abc", "tag_id": tag, "category_id": 424242]).0 == 404)
+        #expect(try call("PATCH", "/api/tag-rules/424242", ["description_pattern": "abc", "tag_id": tag]).0 == 404)
+        #expect(try call("DELETE", "/api/tag-rules/424242").0 == 404)
+        #expect(try call("POST", "/api/tag-rules", ["description_pattern": "abc", "tag_id": tag, "name": "  "]).0 == 200)
+        let (_, list) = try call("GET", "/api/tag-rules")
+        #expect(((list as? [[String: Any]])?.first?["name"]) is NSNull)
+    }
 }

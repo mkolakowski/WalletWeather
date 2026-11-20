@@ -17,6 +17,8 @@ struct SettingsView: View {
     /// On this iPhone (#235): New account, and Delete everything's question.
     @State private var addingAccount = false
     @State private var importingCSV = false
+    /// `WW_DEBUG_TAGS=1` (debug builds): opens the Tags page, for screenshots.
+    @State private var debugTags = AppModel.debugSetting("WW_DEBUG_TAGS") == "1"
     @State private var confirmErase = false
 
     var body: some View {
@@ -150,6 +152,7 @@ struct SettingsView: View {
             .sheet(isPresented: $showingNotice) { NoticeReader() }
             .sheet(isPresented: $addingAccount) { NewAccountSheet { model.accountAdded() } }
             .csvImporter(isPresented: $importingCSV, account: nil) { model.reload() }
+            .navigationDestination(isPresented: $debugTags) { TagsPage() }
         }
     }
 

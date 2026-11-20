@@ -169,6 +169,16 @@ public final class LocalServer: @unchecked Sendable {
             return try updateTag(id, body, context)
         case ("DELETE", "tags", 2):
             return try deleteTag(id, context)
+        case ("GET", "tag-rules", 1):
+            return try listRules(context)
+        case ("POST", "tag-rules", 1):
+            return try createRule(body, context)
+        case ("POST", "tag-rules", 2) where rest[1] == "backfill":
+            return try backfillRules(context)
+        case ("PATCH", "tag-rules", 2):
+            return try updateRule(id, body, context)
+        case ("DELETE", "tag-rules", 2):
+            return try deleteRule(id, context)
         case ("GET", "categories", 1):
             return try categories(context).map { ["id": $0.id, "name": $0.name, "color": $0.color as Any? ?? NSNull()] }
         case ("GET", "accounts", 1):
@@ -531,6 +541,8 @@ public final class LocalServer: @unchecked Sendable {
         // A line saved from a bill starts with its tags (#118).
         if let ids { try setTags(ids, line: line.id, context) }
         else if let rid = line.recurringID { try setTags(try billTagIDs(rid, context), line: line.id, context) }
+        // Auto-tag rules after the line's own tags, as the server (#252).
+        try applyRules(to: line, context)
         return ["id": line.id]
     }
 
@@ -557,6 +569,8 @@ public final class LocalServer: @unchecked Sendable {
         let found = try line(id, context)
         try fill(found, body, context, creating: false)
         if let ids = try tagIDs(body, context) { try setTags(ids, line: found.id, context) }
+        // A changed name or category can match other rules (#252).
+        try applyRules(to: found, context)
         return ["ok": true]
     }
 
@@ -788,6 +802,7 @@ public final class LocalServer: @unchecked Sendable {
             line.added = next()
             context.insert(line)
             for case let tag as Int in row["tag_ids"] as? [Any] ?? [] { context.insert(LocalTagLink(tagID: tag, transactionID: line.id)) }
+            try applyRules(to: line, context)
         }
         return result
     }

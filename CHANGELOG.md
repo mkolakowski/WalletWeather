@@ -69,9 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.85.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.27.0**
+App version: **1.85.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.28.0**
 
 ### Added
+
+- **iOS 0.28.0, auto-tag rules on the iPhone:** Settings → Tags now lists your auto-tag rules, as in the web app: "a description containing these words gets this tag", optionally only in one category. Add, change, switch off or delete them on the iPhone. On an iPhone with no server they work as on a server: a line gets the tag when it's added, changed or imported, and **Apply to existing lines** adds it to the ones already there. With a server, the list edits your server's rules.
 
 - **iOS 0.27.0, tags on the iPhone:** lines and bills now show their tags as small chips in each tag's colour, in Forecast, Bills & income and a tag's list of lines. Open a line or a bill to choose its tags, or make one on the spot with **New tag…**. Settings has a new **Tags** page to add, rename, recolour and delete tags (deleting one takes it off every line and bill). Search finds tags, and tapping one lists its lines. It works on an iPhone with no server and on one signed in to a server, on the same tags as the web app. A bill's date marked paid still takes the bill's tags.
 

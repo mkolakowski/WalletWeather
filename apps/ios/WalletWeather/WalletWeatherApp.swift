@@ -62,7 +62,12 @@ struct AppRoot: View {
                 PrivacyCover()
             }
         }
-        .onChange(of: scenePhase) { _, phase in settings.scenePhaseChanged(to: phase) }
+        .onChange(of: scenePhase) { _, phase in
+            settings.scenePhaseChanged(to: phase)
+            // The iCloud Drive backup runs when the app opens or leaves (#237).
+            if model.isLocal, model.phase == .ready, phase != .inactive { Task { await model.backup.runIfDue() } }
+        }
+        .sheet(isPresented: $model.offeringBackup) { BackupOfferSheet() }
         // After a sign-in: what this phone keeps (asked at each sign-in),
         // then the lock (offered once: at first sign-in, or after updating
         // for someone already signed in).

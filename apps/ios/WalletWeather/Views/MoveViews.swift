@@ -121,6 +121,11 @@ struct BackupDocument: FileDocument {
 /// least 12 characters, with a plain warning that nobody can recover it.
 struct ChoosePassphraseSheet: View {
     @Environment(\.dismiss) private var dismiss
+    var title = "Backup passphrase"
+    /// Why it's asked, above the warning (the iCloud Drive backup's offer).
+    var intro: String?
+    var cancelTitle = "Cancel"
+    var onCancel: () -> Void = {}
     let onChosen: () -> Void
     @State private var first = ""
     @State private var second = ""
@@ -134,6 +139,7 @@ struct ChoosePassphraseSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                if let intro { Section { Text(intro).font(.callout) } }
                 Section {
                     SecureField("Passphrase", text: $first).textContentType(.newPassword)
                     SecureField("Again", text: $second).textContentType(.newPassword)
@@ -148,10 +154,10 @@ struct ChoosePassphraseSheet: View {
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle("Backup passphrase")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(cancelTitle) { dismiss(); onCancel() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         guard BackupPassphrase.save(first) else { return }

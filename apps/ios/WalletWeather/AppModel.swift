@@ -36,6 +36,11 @@ final class AppModel {
     /// Bumped when the connection changes (a new Cloudflare sign-in), so
     /// pages load again.
     private(set) var generation = 0
+    /// The iCloud Drive backup of the household on this iPhone (#237).
+    let backup = CloudBackupModel()
+    /// The first account was just added and the backup isn't decided yet:
+    /// the app offers it.
+    var offeringBackup = false
 
     /// What the Connect screen shows while it works, or why it stopped.
     var busy = false
@@ -133,12 +138,25 @@ final class AppModel {
         serverVersion = nil
         generation += 1
         phase = .ready
+        backup.refresh()
         Task { await refreshMe() }
+        Task { await backup.runIfDue() }
     }
 
     /// Loads every page again, after a change made outside them (a new
     /// account).
     func reload() { generation += 1 }
+
+    /// An account was added on this iPhone. The first one turns the iCloud
+    /// Drive backup on (decided 2026-11-20, #237): at once when a backup
+    /// passphrase is already chosen, otherwise by asking for one.
+    func accountAdded() {
+        reload()
+        guard isLocal else { return }
+        backup.refresh()
+        guard backup.on == nil else { return }
+        if BackupPassphrase.load() != nil { backup.setOn(true) } else { offeringBackup = true }
+    }
 
     /// Back to the first screen, leaving the household on the phone: On this
     /// iPhone opens it again.

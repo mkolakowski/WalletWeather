@@ -20,7 +20,7 @@ settings:
     SWIFT_APPROACHABLE_CONCURRENCY: YES
     # The iOS app's version (CHANGELOG.md tracks it beside the app, web and
     # schema versions). Keep AppInfo.version in WalletWeatherKit equal to it.
-    MARKETING_VERSION: "0.20.0"
+    MARKETING_VERSION: "0.21.0"
     CURRENT_PROJECT_VERSION: "1"
     IPHONEOS_DEPLOYMENT_TARGET: "26.0"
     # iPhone only for now (decided 2026-11-14): no iPad, no Mac.
@@ -75,7 +75,22 @@ targets:
         # The app lock (#91), when turned on in More.
         NSFaceIDUsageDescription: "WalletWeather uses Face ID to unlock the app when you turn its lock on."
         # Scanning the web app's QR code to sign in (#100), only when chosen.
+        # The backups folder shows in the Files app under iCloud Drive (#237).
+        NSUbiquitousContainers:
+          iCloud.net.iptater.walletweather:
+            NSUbiquitousContainerIsDocumentScopePublic: true
+            NSUbiquitousContainerName: WalletWeather
+            NSUbiquitousContainerSupportedFolderLevels: Any
         NSCameraUsageDescription: "WalletWeather uses the camera to scan the sign-in QR code from your WalletWeather server's Settings, only when you choose to."
+    # iCloud Drive (#237): the backup of the household on this iPhone goes to
+    # this container's Backups folder. Xcode registers the container with the
+    # team the first time it signs the app with this capability.
+    entitlements:
+      path: WalletWeather/WalletWeather.entitlements
+      properties:
+        com.apple.developer.icloud-container-identifiers: [iCloud.net.iptater.walletweather]
+        com.apple.developer.icloud-services: [CloudDocuments]
+        com.apple.developer.ubiquity-container-identifiers: [iCloud.net.iptater.walletweather]
     settings:
       base:
         # The bundle ID is what keeps the phone's Keychain sign-in: never change it.

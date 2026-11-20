@@ -7,6 +7,7 @@ import WalletWeatherKit
 /// smaller, under both. Your own server goes on to the sign-in screen.
 struct WelcomeView: View {
     @Environment(AppModel.self) private var model
+    @State private var restoring = false
 
     var body: some View {
         ScrollView {
@@ -34,6 +35,18 @@ struct WelcomeView: View {
                 }
 
                 VStack(spacing: 6) {
+                    Button { restoring = true } label: {
+                        Label("Restore from an iCloud backup", systemImage: "icloud.and.arrow.down")
+                    }
+                    .buttonStyle(.borderless)
+                    Text("On a new iPhone, bring back the numbers your old one backed up to iCloud Drive.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 4)
+
+                VStack(spacing: 6) {
                     Button(action: model.tryDemo) {
                         Label("Try the demo", systemImage: "sparkles")
                     }
@@ -51,6 +64,7 @@ struct WelcomeView: View {
             .frame(maxWidth: .infinity)
         }
         .background(PageBackground().ignoresSafeArea())
+        .sheet(isPresented: $restoring) { RestoreFromICloudSheet { model.useOnThisPhone() } }
     }
 }
 

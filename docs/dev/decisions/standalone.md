@@ -93,3 +93,12 @@ Decisions made while planning [`Plans/standalone.md`](../../../Plans/standalone.
 - **Backups record transfers (backup version 5).** Each transfer is listed with its two accounts' places in the file, its date, amount, name and notes, and its two lines point at it, so a restore or a move keeps them linked. Before, the server's own backups turned a transfer into two plain lines. It's an optional addition, so older backups still import; a version 5 file needs a server on 1.84.0 or later. Chosen over keeping plain lines.
 
 **Set in building, not asked:** the passphrase is chosen the first time Export for a server is used, typed twice, and shown in Settings → Backup passphrase after Face ID, Touch ID or the passcode (so it can be typed on the server); the import tries the passphrase in iCloud Keychain first and asks only when it doesn't open the file; tags, tag rules and bank and email-alert links are left behind on the way onto the phone, which has none of them; the files that make the trip are committed in the iOS app's test samples and checked from both sides.
+
+## 2026-11-20: when the iCloud Drive backup starts, and where restore is
+
+**Decided:** 2026-11-20, by Matthew, asked while building phase 6 (#237). **Status:** accepted, built in iOS 0.21.0.
+
+- **The backup is on from the first account.** Adding the first account on the phone turns it on: at once when a backup passphrase is already chosen, otherwise a sheet asks for one ("Not now" leaves it off, and Settings → On this iPhone → Backup turns it on later). Chosen over off until turned on, and over off with a reminder, so a household that only lives on the phone is never left without a copy because nobody found the switch.
+- **Restore is on the first screen and in Settings.** "Restore from an iCloud backup" on the first screen is the new-phone path; "Restore from a backup…" in the Backup card does the same on a phone that already has a household, after asking. Both list the backups newest first.
+
+**Set in building, not asked:** a restore turns the backup back on, and saves a typed passphrase to iCloud Keychain so the next backup uses it; the household stamps every change in its own store, so "only when something changed" survives the app closing; the backup is checked when the app opens and when it goes to the background, since iOS gives an app no timer.

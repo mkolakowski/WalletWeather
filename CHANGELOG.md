@@ -69,9 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.84.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.20.0**
+App version: **1.84.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.21.0**
 
 ### Added
+
+- **iOS 0.21.0, automatic backup to iCloud Drive:** on an iPhone used without a server, WalletWeather now backs your numbers up to your iCloud Drive by itself. It turns on when you add your first account, asking for your backup passphrase if you haven't chosen one (**Not now** leaves it off). A backup is made at most once a day, only when something changed, and the last 14 are kept. They're the same encrypted files as Export for a server, so a server's Settings → Restore opens them too. They sit in the Files app under iCloud Drive → WalletWeather → Backups. Settings → On this iPhone has a new Backup card with the switch, the date of the last backup, **Back up now** and **Restore from a backup…**. On a new iPhone, the first screen's **Restore from an iCloud backup** lists the backups, asks before replacing anything, opens the chosen one with your backup passphrase from iCloud Keychain (or one you type) and turns backup on again. It needs iCloud Drive turned on for WalletWeather in the phone's Settings; the app says so when it isn't.
 
 - **iOS 0.20.0, move between your server and the iPhone:** on an iPhone used without a server, Settings has a new card, "Move to or from a server". **Export for a server** saves your numbers as your server's own encrypted backup, which its Settings → Restore takes. **Import a server backup** replaces what's on the iPhone with a backup your server made. It asks first, naming the accounts that will replace yours, and an empty Dashboard offers it too. Backups are locked with a backup passphrase you choose the first time you export. It's kept in your iCloud Keychain, so your other Apple devices know it, and Settings → Backup passphrase shows it after Face ID, Touch ID or your passcode. Nobody can recover a lost passphrase, and the app says so when you choose it. Tags, tag rules and bank and email-alert links stay on the server, because the iPhone doesn't have them yet. (iOS 0.20.0, #236)
 

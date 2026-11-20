@@ -57,7 +57,7 @@ struct DashboardView: View {
         .task(id: model.generation) { await load() }
         .task(id: window) { await loadCharts() }
         .sheet(item: $startTask) { StartTaskSheet(task: $0) }
-        .sheet(isPresented: $addingAccount) { NewAccountSheet { model.reload() } }
+        .sheet(isPresented: $addingAccount) { NewAccountSheet { model.accountAdded() } }
         .backupImporter(isPresented: $importingBackup) { message, _ in importNote = message }
         .onAppear {
             // Debug only: `WW_DEBUG_START=tour` (or a task's name) opens its sheet.

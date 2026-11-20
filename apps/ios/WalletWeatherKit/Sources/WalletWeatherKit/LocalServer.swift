@@ -132,7 +132,11 @@ public final class LocalServer: @unchecked Sendable {
             let given = body.flatMap { try? JSONSerialization.jsonObject(with: $0) } as? [String: Any] ?? [:]
             let value = try route(method: method, parts: path.split(separator: "/").map(String.init),
                                   query: query, body: given, context: context)
-            if context.hasChanges { try context.save() }
+            if context.hasChanges {
+                // iCloud Drive backup (#237) backs up only what changed since.
+                markChanged(context)
+                try context.save()
+            }
             return (200, Self.json(value))
         } catch let problem as Problem {
             return (problem.status, Self.json(["detail": problem.detail]))
@@ -203,11 +207,11 @@ public final class LocalServer: @unchecked Sendable {
          "has_password": false]
     }
 
-    private func flag(_ name: String, _ context: ModelContext) -> String? {
+    func flag(_ name: String, _ context: ModelContext) -> String? {
         (try? context.fetch(FetchDescriptor<LocalFlag>(predicate: #Predicate { $0.name == name })))?.first?.value
     }
 
-    private func setFlag(_ name: String, _ value: String, _ context: ModelContext) {
+    func setFlag(_ name: String, _ value: String, _ context: ModelContext) {
         if let found = (try? context.fetch(FetchDescriptor<LocalFlag>(predicate: #Predicate { $0.name == name })))?.first {
             found.value = value
         } else {

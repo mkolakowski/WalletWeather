@@ -211,6 +211,7 @@ extension LocalServer {
             for leg in legs { leg.transferID = transfer.id }
             counts.transfers += 1
         }
+        markChanged(context)
         try context.save()
         return ImportSummary(accounts: counts.accounts, recurring: counts.recurring,
                              transactions: counts.transactions, transfers: counts.transfers)

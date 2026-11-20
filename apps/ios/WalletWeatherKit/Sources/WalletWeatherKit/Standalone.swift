@@ -18,7 +18,7 @@ public enum Standalone {
         summary: "Your numbers live on this iPhone. Nothing to set up.",
         pros: ["No server to run or update",
                "Your numbers stay on your own devices",
-               "Saved in this iPhone's iCloud or computer backup"],
+               "Backed up to your iCloud Drive by itself"],
         cons: ["No web app and no sharing with others",
                "No bank-alert emails or email alerts",
                "No Net worth, Budgets or Reports yet"])

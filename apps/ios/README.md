@@ -245,8 +245,8 @@ under both. Your own server goes on to the sign-in screen.
 On this iPhone keeps the household in a SwiftData store
 (`LocalStore.swift`) in `Application Support/Household`, with complete file
 protection (unreadable while the phone is locked). It's the only copy, so
-unlike kept numbers it's in the phone's iCloud or computer backup; CloudKit
-is off until phase 7. Its `Connection` points at
+unlike kept numbers it's in the phone's iCloud or computer backup, and phase 6
+adds a sealed backup to iCloud Drive (below); CloudKit is off until phase 7. Its `Connection` points at
 `https://this-iphone.walletweather.invalid`, and `APIClient` answers it on
 the phone (`LocalServer.swift`): the pages make the same requests as with a
 server and get the server's shapes back.
@@ -287,6 +287,21 @@ passcode. The files that make the trip are committed in
 `Tests/WalletWeatherKitTests/Samples/moves/` and checked from both sides:
 `BackupTests` and `ScryptTests` here, `apps/server/tests/test_backup_moves.py`
 on the server (phone → server → phone gives the same Forecasts).
+
+**Backup to iCloud Drive** (phase 6, #237): `CloudBackup.swift` writes that
+same sealed file to the app's iCloud Drive container
+(`iCloud.net.iptater.walletweather`, `Documents/Backups/walletweather-YYYY-MM-DD.json`,
+shown in Files through `NSUbiquitousContainers`; the entitlements come from
+`project.yml`). It runs from `CloudBackupModel` when the app opens or goes to
+the background: on, something changed since the last backup (the household
+stamps every change in its store, `LocalServer.markChanged`), and none made
+today yet; the newest 14 are kept. It turns on with the first account
+(`AppModel.accountAdded`) and Settings → On this iPhone → Backup switches it.
+**Restore** (`BackupViews.swift`) is on the first screen and in that card:
+it lists the folder, asks iCloud for a file not yet downloaded, opens it with
+the iCloud Keychain passphrase (or one typed) and replaces the household.
+`CloudBackupTests` runs it all in a temporary folder; the real iCloud round
+trip is checked on a phone.
 
 Debug builds open it from the command line with `WW_DEBUG_LOCAL=1`, or
 `empty` / `sample` for a fresh household with the notice agreed to (and a

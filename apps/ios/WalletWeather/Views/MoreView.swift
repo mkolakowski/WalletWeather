@@ -130,7 +130,7 @@ struct SettingsView: View {
                 Text("Every account, bill and line kept on this iPhone is deleted. This can't be undone.")
             }
             .sheet(isPresented: $showingNotice) { NoticeReader() }
-            .sheet(isPresented: $addingAccount) { NewAccountSheet { model.reload() } }
+            .sheet(isPresented: $addingAccount) { NewAccountSheet { model.accountAdded() } }
         }
     }
 
@@ -157,6 +157,12 @@ struct SettingsView: View {
         }
         .card()
         Text("WalletWeather \(AppInfo.version), with no server. Back to the first screen keeps your numbers on this iPhone: choose On this iPhone there to open them again. Net worth, Budgets, Reports, bank sync and sharing need a server.")
+            .font(.footnote).foregroundStyle(.secondary)
+            .padding(.horizontal, 4)
+        // The iCloud Drive backup (#237).
+        SectionTitle("Backup")
+        CloudBackupRows().card()
+        Text("Your numbers live only on this iPhone, so WalletWeather keeps a sealed copy in your iCloud Drive (the Files app, WalletWeather folder): at most one a day, when something changed, and the last 14. They open with your backup passphrase, which iCloud Keychain keeps for your other devices. Restore brings one back on a new iPhone.")
             .font(.footnote).foregroundStyle(.secondary)
             .padding(.horizontal, 4)
         // Moving to or from a server (#236).

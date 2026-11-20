@@ -1,0 +1,43 @@
+# Phone tags: tags on the iPhone
+
+Tracking issue: #247
+
+## Status
+
+| Phase | Apps | Issue | State |
+| --- | --- | --- | --- |
+| 1. Tags in the household | iOS | #250 | In progress |
+| 2. Tag screens | iOS | #251 | Not started |
+| 3. Auto-tag rules on the phone | iOS | #252 | Not started |
+
+Planned 2026-11-20 (about 2:00 AM ET), from #247 (split from #246).
+
+Sessions: may span — three iOS versions, each with your try on TestFlight.
+
+## Agents and tools
+
+| Phase | Main session | Subagents | Why |
+| --- | --- | --- | --- |
+| 1. Tags in the household | Opus | none | The store, the routes, the backup format both ways and sync. |
+| 2. Tag screens | Opus | none | Screens across many files. |
+| 3. Auto-tag rules | Opus | none | Rules that match the server's exactly. |
+
+## Open questions
+
+None. Settled 2026-11-20 ([decision](../docs/dev/decisions/standalone.md)): tags are managed on a Tags page in Settings and inline from a picker; chips show on rows and Search filters by tag; a phone signed in to a server gets the same screens; auto-tag rules come to the phone too.
+
+## The plan
+
+Today the iPhone app has no tag screens, even with a server, and a household on the phone has no tags: its backups carry empty `tags`, and a server's tags and rules are dropped on the way in.
+
+### Phase 1: Tags in the household
+
+The household's store gains tags (name, colour), links from lines and bills to tags, and tag rules (kept for phase 3). `LocalServer` answers the server's routes with its checks: `GET/POST /api/tags`, `PATCH/DELETE /api/tags/{id}`, `tag_ids` on lines and bills, `tags` in every row and in search, and a line made from a bill starting with the bill's tags. Backups and moves keep tags and rules both ways. Sync joins tags made apart by name, as it does categories. Checked by `LocalTests`, `BackupTests` with the server's `test_backup_moves.py`, and `SyncTests`.
+
+### Phase 2: Tag screens
+
+With or without a server: a tag picker on a line and on a bill, with **New tag…**; a **Tags** page in Settings (add, rename, colour, delete); chips in the tag's colour under lines in Forecast and Search and on bills in Bills & income; Search finds tags and tapping one lists its lines. Checked on the simulator and by you on TestFlight.
+
+### Phase 3: Auto-tag rules on the phone
+
+A **Rules** list under Settings → Tags, as the web app's: "description contains … (in category …) → tag". On the phone they're applied as the server applies them (a line added, changed or imported); with a server the list edits the server's rules. Checked against the server's own behaviour, and by you on TestFlight.

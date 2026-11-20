@@ -131,3 +131,12 @@ Decisions made while planning [`Plans/standalone.md`](../../../Plans/standalone.
 - **The iCloud Drive backups stay** after either, as the way back from a mistaken delete; the confirmation says where they are. Chosen over deleting them too.
 
 **Set in building, not asked:** this phone's files go only once CloudKit confirms an export after the deletes (up to 30 seconds); otherwise the emptied store is kept so the deletes go up the next time the app runs, and the first screen says so.
+
+## 2026-11-20: tags on the iPhone
+
+**Decided:** 2026-11-20, by Matthew, starting #247 (plan `Plans/phone-tags.md`). **Status:** accepted, being built.
+
+- **Tags are made on a Tags page in Settings and inline**, from **New tag…** in a line's or bill's tag picker; the page renames, recolours and deletes them. Chosen over inline only and the page only.
+- **Chips on rows and a Search filter:** tags show as small chips in their colour under lines in Forecast and Search and on bills, and Search finds tags and lists a tag's lines. Chosen over showing them in the editors only.
+- **With a server too:** a phone signed in to a server gets the same screens, on the server's tags. Chosen over keeping them to the phone with no server.
+- **Auto-tag rules come to the phone** (phase 3), applied on the phone as the server applies them. Chosen over leaving rules to the web app.

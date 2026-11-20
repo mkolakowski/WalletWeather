@@ -15,6 +15,8 @@ import SwiftData
 /// - **Settings with the same name** become one, the lowest id, holding the
 ///   joined value (`joinedFlag`).
 /// - **The same skipped date** of a bill is kept once.
+/// - **Tags with the same name** become one, like categories, and a tag on
+///   the same line or bill, or the same rule, is kept once (#250).
 ///
 /// Rows from before phase 7 have no id (0); they get one first.
 extension LocalServer {
@@ -70,6 +72,34 @@ extension LocalServer {
                 }
             }
 
+            // Tags by name, as categories; their links and rules follow.
+            var keptTags: [String: LocalTag] = [:]
+            var movedTags: [Int: Int] = [:]
+            for tag in try context.fetch(FetchDescriptor<LocalTag>()).sorted(by: { $0.id < $1.id }) {
+                if let keeper = keptTags[tag.name] {
+                    movedTags[tag.id] = keeper.id
+                    if keeper.color == nil, let color = tag.color { keeper.color = color }
+                    context.delete(tag)
+                } else {
+                    keptTags[tag.name] = tag
+                }
+            }
+            let links = try context.fetch(FetchDescriptor<LocalTagLink>()).sorted(by: { $0.id < $1.id })
+            let rules = try context.fetch(FetchDescriptor<LocalTagRule>()).sorted(by: { $0.id < $1.id })
+            for link in links { if let to = movedTags[link.tagID] { link.tagID = to } }
+            for rule in rules {
+                if let to = movedTags[rule.tagID] { rule.tagID = to }
+                if let from = rule.categoryID, let to = moved[from] { rule.categoryID = to }
+            }
+            var seenLinks = Set<String>()
+            for link in links where !seenLinks.insert("\(link.tagID)/\(link.transactionID ?? 0)/\(link.recurringID ?? 0)").inserted {
+                context.delete(link)
+            }
+            var seenRules = Set<String>()
+            for rule in rules where !seenRules.insert("\(rule.pattern)\u{0}\(rule.tagID)\u{0}\(rule.categoryID ?? 0)").inserted {
+                context.delete(rule)
+            }
+
             // Settings by name.
             for (name, rows) in Dictionary(grouping: try context.fetch(FetchDescriptor<LocalFlag>()), by: \.name) where rows.count > 1 {
                 let sorted = rows.sorted { $0.id < $1.id }
@@ -111,6 +141,9 @@ extension LocalServer {
         try context.delete(model: LocalAccount.self)
         try context.delete(model: LocalCategory.self)
         try context.delete(model: LocalFlag.self)
+        try context.delete(model: LocalTagLink.self)
+        try context.delete(model: LocalTagRule.self)
+        try context.delete(model: LocalTag.self)
         try context.save()
     }
 }

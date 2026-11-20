@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import Testing
 @testable import WalletWeatherKit
 
@@ -103,6 +104,24 @@ import Testing
         move.amountText = "250"
         move.description = "Rainy day"
         _ = try await client.moveMoney(try #require(TransferBody(move)))
+
+        // Tags (phone-tags phase 1, #250): two tags, one on a bill and both on
+        // a line, and a rule, so the move keeps all three.
+        func makeTag(_ name: String, _ color: Any) throws -> Int {
+            let body = try JSONSerialization.data(withJSONObject: ["name": name, "color": color])
+            let (status, data) = server.answer(method: "POST", path: "/api/tags", query: [:], body: body)
+            try #require(status == 200)
+            return try #require((try JSONSerialization.jsonObject(with: data) as? [String: Any])?["id"] as? Int)
+        }
+        let holiday = try makeTag("Holiday ✈️", "#e3b341"), work = try makeTag("work", NSNull())
+        let context = ModelContext(server.container)
+        let phone = try #require(try context.fetch(FetchDescriptor<LocalRecurring>()).first { $0.name == "Phone" })
+        let cafe = try #require(try context.fetch(FetchDescriptor<LocalTransaction>()).first { $0.name == "Café crème" })
+        context.insert(LocalTagLink(tagID: work, recurringID: phone.id))
+        context.insert(LocalTagLink(tagID: holiday, transactionID: cafe.id))
+        context.insert(LocalTagLink(tagID: work, transactionID: cafe.id))
+        context.insert(LocalTagRule(name: "Coffee", pattern: "café", categoryID: category("Dining"), tagID: holiday, active: true))
+        try context.save()
         return server
     }
 
@@ -132,8 +151,11 @@ import Testing
         for key in ["current_balance", "bank_unmatched_count"] { out.removeValue(forKey: key) }
         out["rows"] = (forecast["rows"] as? [[String: Any]] ?? []).map { row in
             var clean: [String: Any] = [:]
-            for (key, value) in row where key != "tags" {
-                if key.hasSuffix("_id") { clean["has_" + key.dropLast(3)] = !(value is NSNull) } else { clean[key] = value }
+            for (key, value) in row {
+                if key == "tags" {
+                    // Ids differ between stores: a row's tags by name.
+                    clean[key] = (value as? [[String: Any]] ?? []).compactMap { $0["name"] as? String }
+                } else if key.hasSuffix("_id") { clean["has_" + key.dropLast(3)] = !(value is NSNull) } else { clean[key] = value }
             }
             return clean
         }
@@ -244,5 +266,13 @@ import Testing
         #expect(summary.transfers == 1)
         let committed = try #require(try JSONSerialization.jsonObject(with: try Self.sample("forecast")) as? [String: Any])
         #expect(NSDictionary(dictionary: try Self.forecasts(phone)) == NSDictionary(dictionary: committed))
+        // The tags and the rule came back (#250).
+        let context = ModelContext(phone.container)
+        let tags = try context.fetch(FetchDescriptor<LocalTag>())
+        #expect(Set(tags.map(\.name)) == ["Holiday ✈️", "work"])
+        #expect(tags.first { $0.name == "Holiday ✈️" }?.color == "#e3b341")
+        let rules = try context.fetch(FetchDescriptor<LocalTagRule>())
+        #expect(rules.map(\.pattern) == ["café"] && rules.first?.tagID == tags.first { $0.name == "Holiday ✈️" }?.id)
+        #expect(rules.first?.categoryID != nil && rules.first?.name == "Coffee")
     }
 }

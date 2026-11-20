@@ -46,8 +46,9 @@ def normalized(forecast: dict) -> dict:
     """A Forecast without what differs between stores: ids become whether
     there is one, today's balance goes (BackupTests.normalized does the same)."""
     out = {k: v for k, v in forecast.items() if k not in ("current_balance", "bank_unmatched_count")}
-    out["rows"] = [{(f"has_{k[:-3]}" if k.endswith("_id") else k): (v is not None if k.endswith("_id") else v)
-                    for k, v in row.items() if k != "tags"} for row in forecast["rows"]]
+    out["rows"] = [{(f"has_{k[:-3]}" if k.endswith("_id") else k):
+                    ([t["name"] for t in v] if k == "tags" else v is not None if k.endswith("_id") else v)
+                    for k, v in row.items()} for row in forecast["rows"]]
     return out
 
 
@@ -87,6 +88,11 @@ def test_the_phones_backup_imports_with_the_same_forecast(imported):
     transfer = client.get("/api/transfers").json()["transfers"][0]
     assert (transfer["from_account_name"], transfer["to_account_name"], transfer["amount"]) == ("Checking", "Épargne 🍕", 250.0)
     assert forecasts(client) == _load("forecast")
+    # Tags and their rule came too (phone-tags phase 1, #250).
+    assert [(t["name"], t["color"]) for t in client.get("/api/tags").json()] == [("Holiday ✈️", "#e3b341"), ("work", None)]
+    rules = client.get("/api/tag-rules").json()
+    assert [(r["description_pattern"], r["tag_name"] if "tag_name" in r else r["tag_id"] is not None) for r in rules] \
+        in ([("café", "Holiday ✈️")], [("café", True)])
 
 
 def test_the_servers_backup_of_it_is_committed_for_the_phone(imported):

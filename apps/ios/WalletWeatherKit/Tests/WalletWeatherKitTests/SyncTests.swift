@@ -126,6 +126,31 @@ import Testing
         #expect(!phone.reconcile())
     }
 
+    /// Tags two devices made apart (#250): one per name, links and rules moved
+    /// to it and kept once.
+    @Test func tagsMadeApartBecomeOne() throws {
+        let server = try LocalServer.inMemory(seeded: false)
+        let c = ModelContext(server.container)
+        let a = LocalTag(name: "trip", color: nil), b = LocalTag(name: "trip", color: "#123456")
+        a.id = 10; b.id = 20
+        c.insert(a); c.insert(b)
+        c.insert(LocalTagLink(tagID: 10, transactionID: 1))
+        c.insert(LocalTagLink(tagID: 20, transactionID: 1))   // the same line, the twin tag
+        c.insert(LocalTagLink(tagID: 20, recurringID: 5))
+        c.insert(LocalTagRule(name: nil, pattern: "taxi", categoryID: nil, tagID: 10, active: true))
+        c.insert(LocalTagRule(name: "dup", pattern: "taxi", categoryID: nil, tagID: 20, active: true))
+        try c.save()
+        #expect(server.reconcile())
+        let after = ModelContext(server.container)
+        let tags = try after.fetch(FetchDescriptor<LocalTag>())
+        #expect(tags.map(\.id) == [10] && tags.first?.color == "#123456")
+        let links = try after.fetch(FetchDescriptor<LocalTagLink>())
+        #expect(links.count == 2 && links.allSatisfy { $0.tagID == 10 })
+        let rules = try after.fetch(FetchDescriptor<LocalTagRule>())
+        #expect(rules.count == 1 && rules.first?.tagID == 10)
+        #expect(!server.reconcile())
+    }
+
     @Test func theSameSkippedDateIsKeptOnceAndSettingsJoin() throws {
         let server = try LocalServer.inMemory()
         let c = ModelContext(server.container)

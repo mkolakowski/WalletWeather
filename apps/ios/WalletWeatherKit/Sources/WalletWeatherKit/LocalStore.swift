@@ -26,6 +26,7 @@ enum LocalModels {
     static let all: [any PersistentModel.Type] = [
         LocalAccount.self, LocalCategory.self, LocalRecurring.self, LocalSkip.self,
         LocalTransaction.self, LocalTransfer.self, LocalFlag.self,
+        LocalTag.self, LocalTagLink.self, LocalTagRule.self,
     ]
 
     static func newID() -> Int { Int.random(in: 1..<(1 << 52)) }
@@ -143,6 +144,58 @@ enum LocalModels {
         self.date = date
         self.name = name
         self.notes = notes
+    }
+}
+
+/// A tag (the server's Tag; Plans/phone-tags.md, phase 1, #250).
+@Model final class LocalTag {
+    var id: Int = 0
+    var name: String = ""
+    var color: String?
+    var added: Date = Date.now
+
+    init(name: String, color: String?) {
+        id = LocalModels.newID()
+        self.name = name
+        self.color = color
+    }
+}
+
+/// A tag on a line (`transactionID`) or on a bill (`recurringID`): the
+/// server's transaction_tags and recurring_tags in one table.
+@Model final class LocalTagLink {
+    var id: Int = 0
+    var tagID: Int = 0
+    var transactionID: Int?
+    var recurringID: Int?
+
+    init(tagID: Int, transactionID: Int? = nil, recurringID: Int? = nil) {
+        id = LocalModels.newID()
+        self.tagID = tagID
+        self.transactionID = transactionID
+        self.recurringID = recurringID
+    }
+}
+
+/// An auto-tag rule (the server's TagRule): a line whose description holds
+/// `pattern` (kept lowercase), and is in `categoryID` when there is one,
+/// gets `tagID`. Applied on the phone from phase 3 (#252).
+@Model final class LocalTagRule {
+    var id: Int = 0
+    var name: String?
+    var pattern: String = ""
+    var categoryID: Int?
+    var tagID: Int = 0
+    var active: Bool = true
+    var added: Date = Date.now
+
+    init(name: String?, pattern: String, categoryID: Int?, tagID: Int, active: Bool) {
+        id = LocalModels.newID()
+        self.name = name
+        self.pattern = pattern
+        self.categoryID = categoryID
+        self.tagID = tagID
+        self.active = active
     }
 }
 

@@ -6,9 +6,11 @@ Tracking issue: #247
 
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
-| 1. Tags in the household | iOS | #250 | In progress |
+| 1. Tags in the household | iOS | #250 | Built in iOS 0.26.0, 2026-11-20; waits for a release |
 | 2. Tag screens | iOS | #251 | Not started |
 | 3. Auto-tag rules on the phone | iOS | #252 | Not started |
+
+Phase 1 built 2026-11-20 in iOS 0.26.0 (no server code change), not released. The household holds tags, their links to lines and bills (one table), and tag rules; `LocalServer` answers `/api/tags` (list in name order, make, rename, recolour, delete with its links and rules) with the server's checks, `tag_ids` on lines and bills (a line saved from a bill starts with its tags), tags on every row, tag search and the search box's tags. Backups and moves carry tags and rules both ways, sync joins tags made apart by name, Delete everywhere empties them. Verified: `LocalTagTests` (3), `BackupTests` with the fixtures rewritten on both sides (the round trip compares each row's tags by name, and the server's `test_backup_moves.py` checks the tags and rule arrive), `SyncTests` (tags made apart), 172 package tests, the server's move and tag-backup tests.
 
 Planned 2026-11-20 (about 2:00 AM ET), from #247 (split from #246).
 

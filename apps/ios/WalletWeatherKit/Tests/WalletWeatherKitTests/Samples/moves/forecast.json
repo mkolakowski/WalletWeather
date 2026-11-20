@@ -24,7 +24,10 @@
           "has_transfer" : false,
           "is_actual_real" : true,
           "match_source" : null,
-          "notes" : "landlord: Jürgen"
+          "notes" : "landlord: Jürgen",
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : -84.200000000000003,
@@ -45,7 +48,10 @@
           "has_transfer" : false,
           "is_actual_real" : true,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : -12.5,
@@ -66,7 +72,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : 2100,
@@ -87,7 +96,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : -4.75,
@@ -108,7 +120,11 @@
           "has_transfer" : false,
           "is_actual_real" : true,
           "match_source" : null,
-          "notes" : "with Sam"
+          "notes" : "with Sam",
+          "tags" : [
+            "Holiday ✈️",
+            "work"
+          ]
         },
         {
           "actual_amount" : -12.5,
@@ -129,7 +145,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : -250,
@@ -150,7 +169,10 @@
           "has_transfer" : true,
           "is_actual_real" : true,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : -12.5,
@@ -171,7 +193,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : -300,
@@ -192,7 +217,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : "estimate"
+          "notes" : "estimate",
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : 2100,
@@ -213,7 +241,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : -12.5,
@@ -234,7 +265,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : -65.430000000000007,
@@ -255,7 +289,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+            "work"
+          ]
         }
       ]
     },
@@ -283,7 +320,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : "landlord: Jürgen"
+          "notes" : "landlord: Jürgen",
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : -12.5,
@@ -304,7 +344,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : -12.5,
@@ -325,7 +368,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : -12.5,
@@ -346,7 +392,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : 2100,
@@ -367,7 +416,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : -65.430000000000007,
@@ -388,7 +440,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+            "work"
+          ]
         }
       ]
     },
@@ -416,7 +471,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : "landlord: Jürgen"
+          "notes" : "landlord: Jürgen",
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : 2100,
@@ -437,7 +495,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : 2100,
@@ -458,7 +519,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : -65.430000000000007,
@@ -479,7 +543,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+            "work"
+          ]
         }
       ]
     }
@@ -509,7 +576,10 @@
           "has_transfer" : true,
           "is_actual_real" : true,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+
+          ]
         },
         {
           "actual_amount" : 4.1699999999999999,
@@ -530,7 +600,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+
+          ]
         }
       ]
     },
@@ -558,7 +631,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+
+          ]
         }
       ]
     },
@@ -586,7 +662,10 @@
           "has_transfer" : false,
           "is_actual_real" : false,
           "match_source" : null,
-          "notes" : null
+          "notes" : null,
+          "tags" : [
+
+          ]
         }
       ]
     }

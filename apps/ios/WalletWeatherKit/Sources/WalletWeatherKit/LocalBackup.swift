@@ -8,10 +8,10 @@ import SwiftData
 /// 2026-11-18).
 ///
 /// Accounts, categories, bills and income with their skipped dates and
-/// bank-match settings, lines and transfers move both ways. A server's tags,
-/// tag rules, bank and email-alert links and its bank connection aren't kept
-/// on the phone (it has none of them yet), so they're left behind on the way
-/// in.
+/// bank-match settings, lines, transfers, and since phone-tags phase 1
+/// (#250) tags and tag rules move both ways. A server's bank and email-alert
+/// links and its bank connection aren't kept on the phone (it has none of
+/// them yet), so they're left behind on the way in.
 extension LocalServer {
     public static let backupVersion = 5
 
@@ -32,6 +32,16 @@ extension LocalServer {
         let lines = try ordered(LocalTransaction.self, context, added: \.added, id: \.id)
         let transfers = try ordered(LocalTransfer.self, context, added: \.added, id: \.id)
         let skips = try context.fetch(FetchDescriptor<LocalSkip>())
+        let tags = try context.fetch(FetchDescriptor<LocalTag>())
+            .sorted { $0.name.unicodeScalars.lexicographicallyPrecedes($1.name.unicodeScalars) }
+        let tagName = Dictionary(tags.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
+        var lineTags: [Int: [String]] = [:], billTags: [Int: [String]] = [:]
+        for link in try context.fetch(FetchDescriptor<LocalTagLink>()) {
+            guard let name = tagName[link.tagID] else { continue }
+            if let t = link.transactionID { lineTags[t, default: []].append(name) }
+            if let r = link.recurringID { billTags[r, default: []].append(name) }
+        }
+        let rules = try ordered(LocalTagRule.self, context, added: \.added, id: \.id)
         let categoryName = Dictionary(categories.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
         let recByID = Dictionary(recs.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         let accountIndex = Dictionary(accounts.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { a, _ in a })
@@ -49,7 +59,7 @@ extension LocalServer {
                         "description": r.name, "amount": r.amount, "frequency": r.frequency,
                         "day_of_month": null(r.dayOfMonth), "anchor_date": null(r.anchorDate), "end_date": null(r.endDate),
                         "active": r.active, "category_name": null(r.categoryID.flatMap { categoryName[$0] }),
-                        "notes": null(r.notes), "tags": [String](), "match_days": r.matchDays,
+                        "notes": null(r.notes), "tags": (billTags[r.id] ?? []).sorted(), "match_days": r.matchDays,
                         "match_percent": r.matchPercent, "match_text": null(r.matchText),
                         "skipped_dates": skips.filter { $0.recurringID == r.id }.map(\.date).sorted(),
                     ] as [String: Any]
@@ -60,7 +70,7 @@ extension LocalServer {
                         "actual_date": null(t.actualDate), "forecast_amount": null(t.forecastAmount),
                         "is_actual": t.isActual, "recurring_description": null(t.recurringID.flatMap { recByID[$0]?.name }),
                         "category_name": null(t.categoryID.flatMap { categoryName[$0] }), "notes": null(t.notes),
-                        "tags": [String](), "bank_ref": NSNull(), "mail_ref": NSNull(), "bank_match": NSNull(),
+                        "tags": (lineTags[t.id] ?? []).sorted(), "bank_ref": NSNull(), "mail_ref": NSNull(), "bank_match": NSNull(),
                         "bank_text": NSNull(), "bank_left": false,
                     ]
                     if let tid = t.transferID, let index = transferIndex[tid] { line["transfer"] = index }
@@ -78,7 +88,12 @@ extension LocalServer {
             "exported_at": Self.isoTime(now),
             "user": ["email": NSNull(), "name": NSNull()],
             "categories": categories.map { ["name": $0.name, "color": null($0.color)] },
-            "tags": [Any](), "tag_rules": [Any](),
+            "tags": tags.map { ["name": $0.name, "color": null($0.color)] },
+            "tag_rules": rules.compactMap { r -> [String: Any]? in
+                guard let tag = tagName[r.tagID] else { return nil }
+                return ["name": null(r.name), "description_pattern": r.pattern,
+                        "category_name": null(r.categoryID.flatMap { categoryName[$0] }), "tag_name": tag, "active": r.active]
+            },
             "accounts": accountsOut,
             "transfers": transfersOut,
         ]
@@ -115,6 +130,9 @@ extension LocalServer {
         for row in try context.fetch(FetchDescriptor<LocalSkip>()) { context.delete(row) }
         for row in try context.fetch(FetchDescriptor<LocalTransaction>()) { context.delete(row) }
         for row in try context.fetch(FetchDescriptor<LocalTransfer>()) { context.delete(row) }
+        for row in try context.fetch(FetchDescriptor<LocalTag>()) { context.delete(row) }
+        for row in try context.fetch(FetchDescriptor<LocalTagLink>()) { context.delete(row) }
+        for row in try context.fetch(FetchDescriptor<LocalTagRule>()) { context.delete(row) }
 
         // Rows keep the file's order: each is "added" a moment after the last.
         let start = Date.now
@@ -133,6 +151,40 @@ extension LocalServer {
         func categoryID(_ value: Any?) -> Int? {
             guard let name = value as? String, !name.isEmpty else { return nil }
             return categoryByName[name]?.id
+        }
+
+        // Tags by name; one used but not listed is made without a colour
+        // (the server's get_tag).
+        var tagByName: [String: LocalTag] = [:]
+        func tagID(_ value: Any?, color: Any? = nil) -> Int? {
+            let name = String(Self.text(value, 1000).trimmingCharacters(in: .whitespacesAndNewlines).prefix(Self.tagNameMax))
+            guard !name.isEmpty else { return nil }
+            if let found = tagByName[name] { return found.id }
+            let tag = LocalTag(name: name, color: Self.color(color))
+            tag.added = next()
+            context.insert(tag)
+            tagByName[name] = tag
+            return tag.id
+        }
+        for case let tg as [String: Any] in payload["tags"] as? [Any] ?? [] { _ = tagID(tg["name"], color: tg["color"]) }
+        var seenRules = Set<String>()
+        for case let rd as [String: Any] in payload["tag_rules"] as? [Any] ?? [] {
+            let pattern = String(Self.text(rd["description_pattern"], 1000).trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased().prefix(120))
+            guard !pattern.isEmpty, let tag = tagID(rd["tag_name"]) else { continue }
+            let category = categoryID(rd["category_name"])
+            guard seenRules.insert("\(pattern)\u{0}\(tag)\u{0}\(category ?? 0)").inserted else { continue }
+            let rule = LocalTagRule(name: Self.text(rd["name"], 80).nilIfEmpty, pattern: pattern, categoryID: category,
+                                    tagID: tag, active: rd.keys.contains("active") ? Self.truthy(rd["active"]) : true)
+            rule.added = next()
+            context.insert(rule)
+        }
+        func link(_ names: Any?, line: Int? = nil, bill: Int? = nil) {
+            var done = Set<Int>()
+            for name in names as? [Any] ?? [] {
+                guard let id = tagID(name), done.insert(id).inserted else { continue }
+                context.insert(LocalTagLink(tagID: id, transactionID: line, recurringID: bill))
+            }
         }
 
         var counts = (accounts: 0, recurring: 0, transactions: 0, transfers: 0)
@@ -173,6 +225,7 @@ extension LocalServer {
                     if let day = try Self.day(value) { skipped.insert(day) }
                 }
                 for day in skipped.sorted() { context.insert(LocalSkip(recurringID: rec.id, date: day)) }
+                link(r["tags"], bill: rec.id)
                 recByName[rec.name] = rec
                 counts.recurring += 1
             }
@@ -190,6 +243,7 @@ extension LocalServer {
                 if let name = t["recurring_description"] as? String, !name.isEmpty { line.recurringID = recByName[name]?.id }
                 line.added = next()
                 context.insert(line)
+                link(t["tags"], line: line.id)
                 counts.transactions += 1
                 if let index = BackupFile.int(t["transfer"]), index >= 0 { legsByTransfer[index, default: []].append(line) }
             }

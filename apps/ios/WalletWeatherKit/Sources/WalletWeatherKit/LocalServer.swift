@@ -161,6 +161,14 @@ public final class LocalServer: @unchecked Sendable {
         case ("POST", "me", 2) where rest[1] == "acknowledge-notice":
             setFlag("notice_acknowledged", "yes", context)
             return ["ok": true]
+        case ("GET", "tags", 1):
+            return try tagList(context)
+        case ("POST", "tags", 1):
+            return try createTag(body, context)
+        case ("PATCH", "tags", 2):
+            return try updateTag(id, body, context)
+        case ("DELETE", "tags", 2):
+            return try deleteTag(id, context)
         case ("GET", "categories", 1):
             return try categories(context).map { ["id": $0.id, "name": $0.name, "color": $0.color as Any? ?? NSNull()] }
         case ("GET", "accounts", 1):
@@ -269,13 +277,13 @@ public final class LocalServer: @unchecked Sendable {
     }
 
     private func recurringRow(_ r: LocalRecurring, _ categories: [Int: LocalCategory], forList: Bool = false,
-                              skipCounts: [Int: Int] = [:]) -> [String: Any] {
+                              skipCounts: [Int: Int] = [:], tags: TagIndex = TagIndex()) -> [String: Any] {
         var row: [String: Any] = [
             "id": r.id, "frequency": r.frequency, "day_of_month": r.dayOfMonth as Any? ?? NSNull(),
             "anchor_date": r.anchorDate as Any? ?? NSNull(), "end_date": r.endDate as Any? ?? NSNull(),
             "active": r.active, "amount": r.amount, "description": r.name, "notes": r.notes as Any? ?? NSNull(),
             "category": r.categoryID.flatMap { categories[$0]?.name } as Any? ?? NSNull(),
-            "category_id": r.categoryID as Any? ?? NSNull(), "tags": [Any](),
+            "category_id": r.categoryID as Any? ?? NSNull(), "tags": tags.bill(r.id),
         ]
         if forList {
             row["category_color"] = r.categoryID.flatMap { categories[$0]?.color } as Any? ?? NSNull()
@@ -287,7 +295,7 @@ public final class LocalServer: @unchecked Sendable {
         return row
     }
 
-    private func lineRow(_ t: LocalTransaction, _ categories: [Int: LocalCategory]) -> [String: Any] {
+    private func lineRow(_ t: LocalTransaction, _ categories: [Int: LocalCategory], tags: TagIndex = TagIndex()) -> [String: Any] {
         [
             "id": t.id, "recurring_id": t.recurringID as Any? ?? NSNull(),
             "category_id": t.categoryID as Any? ?? NSNull(),
@@ -297,13 +305,14 @@ public final class LocalServer: @unchecked Sendable {
             "forecast_amount": t.forecastAmount as Any? ?? NSNull(),
             "forecast_date": t.forecastDate as Any? ?? NSNull(), "actual_date": t.actualDate as Any? ?? NSNull(),
             "is_actual": t.isActual, "bank_match": NSNull(), "has_bank_ref": false, "has_mail_ref": false,
-            "bank_left": false, "tags": [Any](),
+            "bank_left": false, "tags": tags.line(t.id),
         ]
     }
 
     /// The core's forecast input for every account (forecast.account_rows).
     private func accountRows(_ context: ModelContext, only: Int? = nil) throws -> [[String: Any]] {
         let categories = try categoryNames(context)
+        let tags = try tagIndex(context)
         let lines = try ordered(LocalTransaction.self, context, added: \.added, id: \.id)
         let recs = try ordered(LocalRecurring.self, context, added: \.added, id: \.id)
         let skips = try context.fetch(FetchDescriptor<LocalSkip>()).sorted {
@@ -314,8 +323,8 @@ public final class LocalServer: @unchecked Sendable {
             let ids = Set(active.map(\.id))
             return [
                 "id": account.id, "name": account.name, "starting_balance": account.startingBalance,
-                "transactions": lines.filter { $0.accountID == account.id }.map { lineRow($0, categories) },
-                "recurring": active.map { recurringRow($0, categories) },
+                "transactions": lines.filter { $0.accountID == account.id }.map { lineRow($0, categories, tags: tags) },
+                "recurring": active.map { recurringRow($0, categories, tags: tags) },
                 "skips": skips.filter { ids.contains($0.recurringID) }.map { ["recurring_id": $0.recurringID, "date": $0.date] },
             ]
         }
@@ -378,6 +387,7 @@ public final class LocalServer: @unchecked Sendable {
     private func recurringAccounts(_ list: [LocalAccount], today: LocalDay, _ context: ModelContext,
                                    keep: (LocalRecurring) -> Bool = { _ in true }) throws -> [[String: Any]] {
         let categories = try categoryNames(context)
+        let tags = try tagIndex(context)
         let recs = try ordered(LocalRecurring.self, context, added: \.added, id: \.id).filter(keep)
         let skips = try context.fetch(FetchDescriptor<LocalSkip>())
         let skipCounts = Dictionary(grouping: skips, by: \.recurringID).mapValues(\.count)
@@ -388,7 +398,7 @@ public final class LocalServer: @unchecked Sendable {
             let ids = Set(mine.map(\.id))
             return [
                 "id": account.id, "name": account.name, "level": "owner",
-                "recurring": mine.map { recurringRow($0, categories, forList: true, skipCounts: skipCounts) },
+                "recurring": mine.map { recurringRow($0, categories, forList: true, skipCounts: skipCounts, tags: tags) },
                 "skips": skips.filter { ids.contains($0.recurringID) }
                     .sorted { $0.recurringID != $1.recurringID ? $0.recurringID < $1.recurringID : $0.date < $1.date }
                     .map { ["recurring_id": $0.recurringID, "date": $0.date] },
@@ -411,6 +421,7 @@ public final class LocalServer: @unchecked Sendable {
 
     private func searchLines(_ context: ModelContext) throws -> [[String: Any]] {
         let categories = try categoryNames(context)
+        let tags = try tagIndex(context)
         let visible = Set(try accounts(context).map(\.id))
         return try ordered(LocalTransaction.self, context, added: \.added, id: \.id)
             .filter { visible.contains($0.accountID) }
@@ -421,7 +432,7 @@ public final class LocalServer: @unchecked Sendable {
                  "is_actual": t.isActual, "category_id": t.categoryID as Any? ?? NSNull(),
                  "category": t.categoryID.flatMap { categories[$0]?.name } as Any? ?? NSNull(),
                  "recurring_id": t.recurringID as Any? ?? NSNull(), "transfer_id": t.transferID as Any? ?? NSNull(),
-                 "tags": [Any]()]
+                 "tags": tags.line(t.id)]
             }
     }
 
@@ -430,7 +441,7 @@ public final class LocalServer: @unchecked Sendable {
         func number(_ key: String) -> Any { query[key].flatMap(Double.init) as Any? ?? NSNull() }
         func text(_ key: String) -> Any { query[key] as Any? ?? NSNull() }
         if let only = query["account_id"].flatMap(Int.init) { _ = try account(only, context) }
-        // Tags can't be made on the phone yet: a tag filter finds nothing.
+        if let only = query["tag_id"].flatMap(Int.init) { _ = try tag(only, context) }
         return try run("searchTransactions", [
             "q": text("q"), "account_id": int("account_id"), "category_id": int("category_id"), "tag_id": int("tag_id"),
             "date_from": text("date_from"), "date_to": text("date_to"), "min_amount": number("min_amount"),
@@ -451,7 +462,7 @@ public final class LocalServer: @unchecked Sendable {
         return try run("search", ["q": query["q"] ?? "", "limit": query["limit"].flatMap(Int.init) ?? 20,
                                   "today": today.description, "accounts": found,
                                   "transactions": searchLines(context), "categories": categoryRows(context),
-                                  "tags": [Any](), "reports": [Any]()])
+                                  "tags": try tagList(context), "reports": [Any]()])
     }
 
     // MARK: Saving
@@ -515,7 +526,11 @@ public final class LocalServer: @unchecked Sendable {
             line.recurringID = rid
         }
         try fill(line, body, context, creating: true)
+        let ids = try tagIDs(body, context)
         context.insert(line)
+        // A line saved from a bill starts with its tags (#118).
+        if let ids { try setTags(ids, line: line.id, context) }
+        else if let rid = line.recurringID { try setTags(try billTagIDs(rid, context), line: line.id, context) }
         return ["id": line.id]
     }
 
@@ -541,6 +556,7 @@ public final class LocalServer: @unchecked Sendable {
     private func updateTransaction(_ id: Int?, _ body: [String: Any], _ context: ModelContext) throws -> Any {
         let found = try line(id, context)
         try fill(found, body, context, creating: false)
+        if let ids = try tagIDs(body, context) { try setTags(ids, line: found.id, context) }
         return ["ok": true]
     }
 
@@ -548,6 +564,7 @@ public final class LocalServer: @unchecked Sendable {
         let found = try line(id, context)
         // A line from a bill would be projected again on its date: skip it.
         if let rid = found.recurringID, let day = found.forecastDate { addSkip(rid, day, context) }
+        try dropLinks(line: found.id, context)
         context.delete(found)
         return ["ok": true]
     }
@@ -595,12 +612,16 @@ public final class LocalServer: @unchecked Sendable {
         let account = try account(id, context)
         let rec = LocalRecurring(accountID: account.id)
         try fill(rec, body, context, creating: true)
+        let ids = try tagIDs(body, context)
         context.insert(rec)
+        if let ids { try setTags(ids, bill: rec.id, context) }
         return ["id": rec.id]
     }
 
     private func updateRecurring(_ id: Int?, _ body: [String: Any], _ context: ModelContext) throws -> Any {
-        try fill(try recurring(id, context), body, context, creating: false)
+        let rec = try recurring(id, context)
+        try fill(rec, body, context, creating: false)
+        if let ids = try tagIDs(body, context) { try setTags(ids, bill: rec.id, context) }
         return ["ok": true]
     }
 
@@ -632,6 +653,7 @@ public final class LocalServer: @unchecked Sendable {
               let transfer = try context.fetch(FetchDescriptor<LocalTransfer>(predicate: #Predicate { $0.id == id })).first
         else { throw Problem.notFound("Transfer not found") }
         for leg in try context.fetch(FetchDescriptor<LocalTransaction>(predicate: #Predicate { $0.transferID == id })) {
+            try dropLinks(line: leg.id, context)
             context.delete(leg)
         }
         context.delete(transfer)
@@ -714,7 +736,7 @@ public final class LocalServer: @unchecked Sendable {
         let recs = try ordered(LocalRecurring.self, context, added: \.added, id: \.id).filter { $0.accountID == account.id }
         input["recurring"] = recs.map { ["id": $0.id, "frequency": $0.frequency, "description": $0.name] as [String: Any] }
         input["categories"] = try categories(context).map { ["id": $0.id, "name": $0.name] as [String: Any] }
-        input["tags"] = [Any]()   // none on the phone yet (#247)
+        input["tags"] = try context.fetch(FetchDescriptor<LocalTag>()).sorted { $0.id < $1.id }.map { ["id": $0.id, "name": $0.name] as [String: Any] }
 
         let answer: Any
         do {
@@ -765,6 +787,7 @@ public final class LocalServer: @unchecked Sendable {
             line.isActual = true
             line.added = next()
             context.insert(line)
+            for case let tag as Int in row["tag_ids"] as? [Any] ?? [] { context.insert(LocalTagLink(tagID: tag, transactionID: line.id)) }
         }
         return result
     }

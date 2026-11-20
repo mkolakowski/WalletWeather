@@ -16,6 +16,7 @@ struct SettingsView: View {
     @State private var showingNotice = false
     /// On this iPhone (#235): New account, and Delete everything's question.
     @State private var addingAccount = false
+    @State private var importingCSV = false
     @State private var confirmErase = false
 
     var body: some View {
@@ -131,6 +132,7 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showingNotice) { NoticeReader() }
             .sheet(isPresented: $addingAccount) { NewAccountSheet { model.accountAdded() } }
+            .csvImporter(isPresented: $importingCSV, account: nil) { model.reload() }
         }
     }
 
@@ -141,6 +143,10 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 0) {
             Button { addingAccount = true } label: {
                 MoreRow { Label("Add an account", systemImage: "plus.circle").foregroundStyle(Palette.accent) } trailing: { EmptyView() }
+            }
+            Divider()
+            Button { importingCSV = true } label: {
+                MoreRow { Label("Import a CSV…", systemImage: "doc.text").foregroundStyle(Palette.accent) } trailing: { EmptyView() }
             }
             Divider()
             Button { showingNotice = true } label: {
@@ -194,6 +200,12 @@ struct SettingsView: View {
                                 MoreRow { Text("Open the web app").foregroundStyle(Palette.accent) } trailing: {
                                     Text("accounts, categories, import").font(.footnote).foregroundStyle(.secondary)
                                 }
+                            }
+                        }
+                        if model.me?.isReadOnly != true {
+                            Divider()
+                            Button { importingCSV = true } label: {
+                                MoreRow { Label("Import a CSV…", systemImage: "doc.text").foregroundStyle(Palette.accent) } trailing: { EmptyView() }
                             }
                         }
                         Divider()

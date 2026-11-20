@@ -29,6 +29,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from app.csv_import import csv_rows
 from app.db import (AccountPermission, Category, RecurringSkip, RecurringTag, RecurringTransaction,
                     SavedReport, SessionLocal, Tag, Transaction, TransactionTag, Transfer, User)
 from app.forecast import (actual_balance_as_of, build_forecast, recurring_accounts, recurring_row,
@@ -260,6 +261,53 @@ class Household:
                         .order_by(SavedReport.sort_order.asc(), SavedReport.id.asc())],
         }, expected)
 
+    def csv_case(self, label, account, body, commit=False):
+        """CSV import (#243): /import/preview, or /import/commit and the rows
+        it made (new bills in id order, then new lines with the bill each
+        links to: one made by this import by its place, or an earlier one)."""
+        db = self.db
+        given = {**body, **csv_rows(db, self.user, account)}
+        if not commit:
+            expected = main.csv_import_preview(account.id, main.CSVPreviewIn(**body), user=self.user, db=db)
+            return self._case(f"CSV preview: {label}", "csvPreview", given, expected)
+
+        def last(model):
+            return max([row.id for row in db.query(model).filter(model.account_id == account.id)] or [0])
+        rec_from, txn_from = last(RecurringTransaction), last(Transaction)
+        real_commit, db.commit = db.commit, db.flush   # keep the household's rows in one rollback
+        try:
+            result = main.csv_import_commit(account.id, main.CSVCommitIn(**body), user=self.user, db=db)
+        finally:
+            db.commit = real_commit
+        db.flush()
+        recs = (db.query(RecurringTransaction).filter(RecurringTransaction.account_id == account.id,
+                                                      RecurringTransaction.id > rec_from)
+                .order_by(RecurringTransaction.id).all())
+        txns = (db.query(Transaction).filter(Transaction.account_id == account.id, Transaction.id > txn_from)
+                .order_by(Transaction.id).all())
+        made = {r.id: i for i, r in enumerate(recs)}
+        expected = {
+            "result": result,
+            "templates": [{"category_id": r.category_id, "frequency": r.frequency, "day_of_month": r.day_of_month,
+                           "anchor_date": r.anchor_date.isoformat() if r.anchor_date else None,
+                           "end_date": r.end_date.isoformat() if r.end_date else None,
+                           "description": r.description, "amount": float(r.amount), "notes": r.notes}
+                          for r in recs],
+            "transactions": [{"date": t.actual_date.isoformat(), "description": t.description,
+                              "amount": float(t.amount), "notes": t.notes, "category_id": t.category_id,
+                              "recurring": (None if t.recurring_id is None else
+                                            {"new": made[t.recurring_id]} if t.recurring_id in made
+                                            else {"id": t.recurring_id}),
+                              "tag_ids": [tid for (tid,) in db.query(TransactionTag.tag_id)
+                                          .filter_by(transaction_id=t.id).order_by(TransactionTag.tag_id)]}
+                             for t in txns],
+        }
+        case = self._case(f"CSV import: {label}", "csvCommit", given, expected)
+        # What this import made is part of the household from here on.
+        self.ids["rec"] += [r.id for r in recs]
+        self.ids["txn"] += [t.id for t in txns]
+        return case
+
     def _case(self, name, function, given, expected):
         # A JSON round trip, so dates and Decimals are what a client would see.
         expected = json.loads(json.dumps(expected, default=str))
@@ -272,7 +320,7 @@ class Household:
         """Replace every database id with its place in creation order."""
         maps = {k: {v: i + 1 for i, v in enumerate(ids)} for k, ids in self.ids.items()}
         by_key = {"transaction_id": "txn", "recurring_id": "rec", "transfer_id": "transfer",
-                  "category_id": "cat", "account_id": "acc"}
+                  "category_id": "cat", "account_id": "acc", "default_category_id": "cat"}
         lists = {"transactions": "txn", "recurring": "rec", "tags": "tag", "categories": "cat",
                  "accounts": "acc", "cards": "acc", "reports": "report", "items": "rec"}
         by_key["tag_id"] = "tag"
@@ -286,6 +334,8 @@ class Household:
                     elif k == "results" and kind:
                         # A search group ({total, results}) holds the kind of its name.
                         out[k] = walk(x, kind)
+                    elif k == "tag_ids":
+                        out[k] = [maps["tag"][t] for t in x]
                     elif k in by_key and x is not None:
                         out[k] = maps[by_key[k]][x]
                     elif k in lists:
@@ -473,7 +523,134 @@ def _words(app, db) -> list:
     return cases
 
 
-HOUSEHOLDS = {"basics": _basics, "edges": _edges, "two-accounts": _two_accounts, "words": _words}
+def _imports(app, db) -> list:
+    """CSV import (#243): bank exports with every column, quoting the way
+    Python's csv reader takes it, dates and amounts in every accepted form
+    (and some that aren't), debit and credit columns, a file with no header,
+    repeating rows linked to a bill old and new, duplicates of lines already
+    there and within the file, and the same file imported twice."""
+    h = Household(app, db, "imports")
+    h.category("groceries")          # two categories that match "Groceries"
+    h.tag("reimbursable")
+    h.tag("Work Trip")
+    chk = h.account("Checking", "1000", "2026-01-01")
+    card = h.account("Card", "-250", "2026-01-01")
+    h.bill("stream", chk, "Streaming service", "-15.99", "monthly_day", day_of_month=1)
+    h.line(chk, "  COFFEE shop ", "-4.5", actual="2026-01-05", cleared=True)
+    h.line(chk, "Planned rent", "-900", forecast="2026-02-01")
+    h.line(chk, "No date at all", "-1")
+    db.flush()
+
+    bank = "\r\n".join([
+        "Date,Description,Amount,Category,Tags,Notes",
+        "2026-01-05,Coffee Shop,-4.50,Dining,,",                     # a line already there
+        '01/07/2026,"Grocery store, Main St",-84.23, groceries ,reimbursable; work trip ,  ',
+        '1/9/2026,"Says ""hi""",$1,234.56,Income,,paid',
+        '2026-01-10,"Two\r\nlines",(12.00),Unknown,nope,"note, with comma"',
+        "13/01/2026,Day first,€5,,,",
+        "02/30/2026,Not a day,-1,,,",
+        "Jan 15, 2026,Month name,-2,,,",
+        '"Jan 16, 2026",Quoted month name,-3,,,',
+        "16 Jan 2026,Day month year,-4,,,",
+        "",
+        "2026-01-17,No amount,,,,",
+        "someday,Bad date,-5,,,",
+        "2026-01-18,,-6,,,",
+        "2026-01-19,Short row",
+        "2026-01-20,Café Straße \U0001F355,-7.25,,reimbursable;Work Trip,",
+        "2026-01-20,Café Straße \U0001F355,-7.25,,,",          # the same line twice in one file
+        "2026-01-21," + "x" * 520 + ",-8,,,",
+        '2026-01-22,"unterminated, quote,-9',
+        "",
+    ])
+    cards = "\n".join([
+        "Posted Date,Payee,Withdrawal,Deposit",
+        "2026-01-03,Hardware,25.00,",
+        "2026-01-04,Refund,,10.50",
+        "2026-01-05,Both,3,1",
+        "2026-01-06,Neither,,",
+        "2026-01-07,Zeroes,0,0.00",
+        "2026-01-08,Negative withdrawal,-2,",
+    ])
+    bare = "\n".join([
+        "1/5/26,Bakery,12.5",
+        "12/31/69,Old,1",
+        "1/1/68,New,1",
+        "2026-1-5,Single digits,2",
+        "1-5-2026,Dashes,3",
+        "2026/01/06,Slashes,4",
+        "05-01-2026,Day first dashes,5",
+        "sep 3, 2026,Lower month,6",
+        "SEP  4, 2026,Two spaces,7",
+        "2026-02-29,Not a leap day,8",
+        "2028-02-29,Leap day,9",
+        "\u0662\u0660\u0662\u0666-\u0660\u0661-\u0660\u0665,Other digits,\u0661\u0662\u0663",
+    ])
+    numbers = "\n".join([
+        "date,memo,value",
+        "2026-03-01,underscores,1_000",
+        "2026-03-01,exponent,1e3",
+        "2026-03-01,not a number,nan",
+        "2026-03-01,infinite,-inf",
+        "2026-03-01,too big,1e13",
+        "2026-03-01,just a sign,-",
+        "2026-03-01,plus,+5",
+        "2026-03-01,leading point,.5",
+        "2026-03-01,trailing point,5.",
+        "2026-03-01,spaced, ( 3.50 ) ",
+        "2026-03-01,pounds,£1,000",
+        "2026-03-01,double underscore,1__0",
+        "2026-03-01,thin space,1\u20092",
+        "2026-03-01,zero in brackets,(0)",
+        "2026-03-01,tiny,0.004",
+        "2026-03-01,half cent,2.675",
+    ])
+    repeating = "\n".join([
+        "Date,Description,Amount,Category,Frequency,End Date,Recurring Group",
+        "2026-01-01,Streaming service,-15.99,Subscriptions,Monthly,,",
+        "2026-02-01,streaming SERVICE,-17.99,,monthly,,",
+        "2026-01-02,Gym JAN,-39,,Monthly,2026-12-31,gym",
+        "2026-02-02,Gym FEB,-41,Fun,monthly,,GYM",
+        "2026-01-03,Allowance,20,,bi-weekly,,",
+        "2026-01-17,Allowance,20,,every 2 weeks,,",
+        "2026-01-04,Lawn,-30,,Weekly,,",
+        "2026-01-05,Taxes,-500,,quarterly,,",
+        "2026-01-06,Once,-1,,,,",
+    ])
+
+    cases = [
+        h.csv_case("a bank's export", chk, {"csv_text": bank}),
+        h.csv_case("debit and credit", card, {"csv_text": cards, "sign_convention": "debit_credit"}),
+        h.csv_case("no header, columns given, signs flipped", chk, {
+            "csv_text": bare, "has_header": False, "sign_convention": "amount_invert",
+            "mapping": {"date": 0, "description": 1, "amount": 2, "notes": 7, "category": -1}}),
+        h.csv_case("numbers", chk, {"csv_text": numbers}),
+        h.csv_case("repeating rows", chk, {"csv_text": repeating}),
+        h.csv_case("a blank first line", chk, {"csv_text": "\nDate,Description,Amount\n2026-01-05,x,1\n"}),
+        h.csv_case("only a header", chk, {"csv_text": "Date,Amount\n"}),
+    ]
+    utilities = h.db.query(Category).filter_by(owner_id=h.user.id, name="Utilities").first()
+    detected = cases[0]["expected"]["mapping"]
+    cases += [
+        h.csv_case("a bank's export, a default category", chk, {
+            "csv_text": bank, "mapping": detected, "default_category_id": utilities.id}, commit=True),
+        h.csv_case("the same file again", chk, {
+            "csv_text": bank, "mapping": detected, "default_category_id": utilities.id}, commit=True),
+        h.csv_case("repeating rows", chk, {
+            "csv_text": repeating, "mapping": cases[4]["expected"]["mapping"]}, commit=True),
+        h.csv_case("repeating rows again, duplicates kept", chk, {
+            "csv_text": repeating, "mapping": cases[4]["expected"]["mapping"], "skip_duplicates": False},
+            commit=True),
+        h.csv_case("debit and credit", card, {
+            "csv_text": cards, "mapping": cases[1]["expected"]["mapping"], "sign_convention": "debit_credit"},
+            commit=True),
+        h.csv_case("after importing", chk, {"csv_text": bank}),
+    ]
+    return cases
+
+
+HOUSEHOLDS = {"basics": _basics, "edges": _edges, "two-accounts": _two_accounts, "words": _words,
+              "imports": _imports}
 
 
 def build_cases(app) -> dict[str, list]:

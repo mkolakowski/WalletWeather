@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.84.0"
+APP_VERSION = "1.85.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -6690,268 +6690,13 @@ def bulk_tag_transactions(payload: BulkTagIn,
 import csv
 import io as _csvio
 
-
-def _detect_columns(headers: list[str]) -> dict[str, int | None]:
-    """Heuristic auto-mapping for common bank CSV column names."""
-    mapping = {"date": None, "description": None, "amount": None,
-               "debit": None, "credit": None, "category": None, "notes": None,
-               "tags": None, "frequency": None, "end_date": None, "recurring_group": None}
-    lowered = [(i, (h or "").strip().lower()) for i, h in enumerate(headers)]
-    for i, h in lowered:
-        if mapping["date"] is None and h in ("date", "transaction date", "posted date", "post date"):
-            mapping["date"] = i
-        elif mapping["description"] is None and h in ("description", "details", "memo", "merchant", "name", "payee"):
-            mapping["description"] = i
-        elif mapping["amount"] is None and h in ("amount", "value", "transaction amount"):
-            mapping["amount"] = i
-        elif mapping["debit"] is None and h in ("debit", "withdrawal", "withdrawals", "outflow"):
-            mapping["debit"] = i
-        elif mapping["credit"] is None and h in ("credit", "deposit", "deposits", "inflow"):
-            mapping["credit"] = i
-        elif mapping["category"] is None and h in ("category",):
-            mapping["category"] = i
-        elif mapping["tags"] is None and h in ("tags", "tag", "labels"):
-            mapping["tags"] = i
-        elif mapping["notes"] is None and h in ("notes", "note"):
-            mapping["notes"] = i
-        elif mapping["frequency"] is None and h in ("frequency", "recurring", "repeat", "recurrence"):
-            mapping["frequency"] = i
-        elif mapping["end_date"] is None and h in ("end date", "recurring end date", "until"):
-            mapping["end_date"] = i
-        elif mapping["recurring_group"] is None and h in ("recurring group", "group"):
-            mapping["recurring_group"] = i
-    return mapping
+from .csv_import import csv_rows
 
 
-# Accepted values for the optional `frequency` CSV column. A row with a
-# recognized frequency becomes a recurring transaction template (using the
-# row's date as anchor date / day-of-month) instead of a one-time actual
-# transaction. Keys are matched case-insensitively.
-FREQUENCY_ALIASES = {
-    "monthly": "monthly_day", "monthly_day": "monthly_day", "month": "monthly_day",
-    "weekly": "weekly", "week": "weekly",
-    "biweekly": "biweekly", "bi-weekly": "biweekly", "bi weekly": "biweekly",
-    "fortnightly": "biweekly", "every 2 weeks": "biweekly", "every two weeks": "biweekly",
-}
-
-
-def _normalize_frequency(raw: str | None) -> str | None:
-    if not raw:
-        return None
-    return FREQUENCY_ALIASES.get(str(raw).strip().lower())
-
-
-def _parse_csv_amount(raw: str | None) -> float | None:
-    if raw is None:
-        return None
-    s = str(raw).strip()
-    if not s:
-        return None
-    # Strip currency symbols, thousands separators, parentheses-as-negative
-    neg = s.startswith("(") and s.endswith(")")
-    s = s.replace("(", "").replace(")", "")
-    s = s.replace("$", "").replace("£", "").replace("€", "").replace(",", "").strip()
-    try:
-        v = float(s)
-    except ValueError:
-        return None
-    if not math.isfinite(v) or abs(v) > 1e12:
-        return None   # "nan", "inf" and absurd sizes aren't amounts (#185)
-    return -v if neg else v
-
-
-def _parse_csv_date(raw: str | None) -> date | None:
-    if raw is None:
-        return None
-    s = str(raw).strip()
-    if not s:
-        return None
-    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", "%d/%m/%Y", "%d/%m/%y",
-                "%Y/%m/%d", "%m-%d-%Y", "%d-%m-%Y", "%b %d, %Y", "%d %b %Y"):
-        try:
-            return datetime.strptime(s, fmt).date()
-        except ValueError:
-            continue
-    return None
-
-
-def _parse_csv_rows(csv_text: str, has_header: bool, mapping: dict | None,
-                    sign_convention: str = "amount"):
-    """Yield dicts describing each row from a CSV blob.
-
-    sign_convention:
-      - 'amount':            single signed column (negative = withdraw)
-      - 'amount_invert':     single signed column where positive = withdraw
-      - 'debit_credit':      two columns: debit (positive=withdraw), credit (positive=deposit)
-
-    A row with a recognized value in the optional `frequency` column (see
-    FREQUENCY_ALIASES) is imported as an actual transaction *and* linked to a
-    recurring transaction template — rows sharing the same frequency and
-    description (or the same optional `recurring_group` override, for series
-    whose description text drifts) are treated as past occurrences of one
-    series; see _recurring_group_key / _recurring_template_identity. An
-    unrecognized, non-empty frequency value skips the row rather than
-    silently importing it as one-time, so a typo doesn't quietly drop a bill
-    out of its series.
-    """
-    reader = csv.reader(_csvio.StringIO(csv_text))
-    rows = list(reader)
-    if not rows:
-        return [], [], [], mapping or {}
-    if has_header:
-        headers, body = rows[0], rows[1:]
-    else:
-        headers = [f"col_{i+1}" for i in range(len(rows[0]))]
-        body = rows
-    if mapping is None:
-        mapping = _detect_columns(headers)
-
-    out = []
-    skipped = []
-    for idx, row in enumerate(body):
-        def cell(key):
-            i = mapping.get(key)
-            if i is None or not 0 <= i < len(row):
-                return None
-            return row[i]
-        d = _parse_csv_date(cell("date"))
-        desc = (cell("description") or "").strip()[:DESCRIPTION_MAX] or "(no description)"
-        amt: float | None = None
-        if sign_convention == "debit_credit":
-            deb = _parse_csv_amount(cell("debit")) or 0.0
-            cred = _parse_csv_amount(cell("credit")) or 0.0
-            amt = (cred - deb) if (deb or cred) else None
-        else:
-            amt = _parse_csv_amount(cell("amount"))
-            if sign_convention == "amount_invert" and amt is not None:
-                amt = -amt
-        notes = cell("notes")
-        if notes:
-            notes = str(notes).strip()[:NOTES_MAX_LEN] or None
-        category_name = (cell("category") or "").strip() or None
-        tags_raw = cell("tags")
-        tag_names = [p.strip() for p in re.split(r"[;,]", str(tags_raw)) if p.strip()] \
-            if tags_raw else []
-        freq_raw = (cell("frequency") or "").strip() or None
-        frequency = _normalize_frequency(freq_raw) if freq_raw else None
-        if freq_raw and frequency is None:
-            skipped.append({"row_index": idx, "row": row,
-                            "reason": f'unrecognized frequency "{freq_raw}"'})
-            continue
-        end_date = _parse_csv_date(cell("end_date"))
-        recurring_group = (cell("recurring_group") or "").strip() or None
-        if d is None or amt is None:
-            skipped.append({"row_index": idx, "row": row,
-                            "reason": "missing date or amount"})
-            continue
-        out.append({
-            "row_index": idx,
-            "date": d.isoformat(),
-            "description": desc,
-            "amount": amt,
-            "notes": notes,
-            "category_name": category_name,
-            "tag_names": tag_names,
-            "frequency": frequency,
-            "end_date": end_date.isoformat() if end_date else None,
-            "recurring_group": recurring_group,
-            "raw": row,
-        })
-    return out, skipped, headers, mapping
-
-
-def _category_lookup(db: Session, user: User) -> dict[str, int]:
-    """Case-insensitive category name -> id lookup for the current user."""
-    cats = db.query(Category).filter_by(owner_id=user.id).all()
-    return {c.name.strip().lower(): c.id for c in cats}
-
-
-def _resolve_row_category(row: dict, lookup: dict[str, int],
-                          default_category_id: int | None) -> int | None:
-    """CSV category column wins if it matches an existing category by name
-    (case-insensitive); unmapped/unmatched names fall back to the chosen
-    default category rather than silently dropping the row's category."""
-    name = row.get("category_name")
-    if name:
-        matched = lookup.get(name.strip().lower())
-        if matched is not None:
-            return matched
-    return default_category_id
-
-
-def _tag_lookup(db: Session, user: User) -> dict[str, int]:
-    """Case-insensitive tag name -> id lookup for the current user."""
-    tags = db.query(Tag).filter_by(owner_id=user.id).all()
-    return {t.name.strip().lower(): t.id for t in tags}
-
-
-def _resolve_row_tags(row: dict, lookup: dict[str, int]) -> tuple[list[int], list[str]]:
-    """Split the CSV tags cell on comma/semicolon and match each piece
-    against the user's existing tags by name (case-insensitive). Unmatched
-    names are returned separately rather than auto-created — same
-    conservative policy as category, so a typo doesn't spawn a stray tag."""
-    matched, unmatched = [], []
-    for name in row.get("tag_names") or []:
-        tid = lookup.get(name.strip().lower())
-        if tid is not None:
-            matched.append(tid)
-        else:
-            unmatched.append(name)
-    return matched, unmatched
-
-
-def _recurring_group_key(r: dict) -> str:
-    """Key used to cluster rows within a single import into one recurring
-    series. The optional `recurring_group` column overrides the default of
-    grouping by description (case-insensitive) — useful when a bill's
-    description text drifts between statements (e.g. an embedded date) but
-    the user still wants every occurrence linked to one template."""
-    label = r.get("recurring_group") or r["description"]
-    return label.strip().lower()
-
-
-def _recurring_template_identity(db: Session, account_id: int) -> dict[tuple, RecurringTransaction]:
-    """(frequency, description_lower) -> existing RecurringTransaction on
-    this account. Used to reuse a template across separate import runs
-    (e.g. importing more months of the same bill later) instead of creating
-    a duplicate template every time. Keyed on the template's own stored
-    description, since that's all that's persisted — a `recurring_group`
-    label used to create the template isn't itself stored anywhere."""
-    out: dict[tuple, RecurringTransaction] = {}
-    recs = db.query(RecurringTransaction).filter(RecurringTransaction.account_id == account_id).all()
-    for r in recs:
-        out.setdefault((r.frequency, (r.description or "").strip().lower()), r)
-    return out
-
-
-def _resolve_recurring_groups(rows: list[dict],
-                              existing_templates: dict[tuple, RecurringTransaction]) -> dict[tuple, dict]:
-    """For every (frequency, _recurring_group_key) among Frequency-flagged
-    rows, decide whether it attaches to an existing RecurringTransaction or
-    needs a new one. Identity is checked against the group's most-recent row
-    (its date seeds the new template's anchor/day-of-month, and its amount/
-    category/notes seed the template's baseline — recent rows best reflect
-    the "current" state of a series whose amount may have drifted).
-
-    Shared by preview and commit so the two can't disagree about grouping.
-    Returns {(frequency, group_key): {"status": "existing"|"new",
-                                       "template": RecurringTransaction|None,
-                                       "seed_row": dict}}.
-    """
-    groups: dict[tuple, list[dict]] = {}
-    for r in rows:
-        if r["frequency"]:
-            groups.setdefault((r["frequency"], _recurring_group_key(r)), []).append(r)
-    resolved = {}
-    for gkey, group_rows in groups.items():
-        seed = max(group_rows, key=lambda x: x["date"])
-        identity_key = (gkey[0], seed["description"].strip().lower())
-        tmpl = existing_templates.get(identity_key)
-        resolved[gkey] = {"status": "existing" if tmpl else "new",
-                          "template": tmpl, "seed_row": seed}
-    return resolved
-
-
+# The parsing, the duplicate check and the grouping of repeating rows are the
+# shared core's (`csvPreview`, `csvCommit`; Plans/standalone.md, phase 9,
+# #243), so an iPhone with no server imports a file exactly as this does.
+# app/csv_import.py reads what the core compares the file with.
 class CSVPreviewIn(BaseModel):
     csv_text: str
     has_header: bool = True
@@ -6968,24 +6713,15 @@ class CSVCommitIn(BaseModel):
     skip_duplicates: bool = True
 
 
-def _existing_keys_for_account(db: Session, account_id: int) -> set[tuple]:
-    """Build a dedupe set of (date_iso, amount, description_lower) for an account.
-
-    Description is decrypted in-memory; for typical personal-finance volumes
-    this is fine — the alternative would be a hash column we'd have to backfill.
-    """
-    keys = set()
-    txns = db.query(Transaction).filter(Transaction.account_id == account_id).all()
-    for t in txns:
-        d = t.actual_date or t.forecast_date
-        if not d:
-            continue
-        try:
-            keys.add((d.isoformat(), round(float(t.amount), 2),
-                      (t.description or "").strip().lower()))
-        except Exception:
-            continue
-    return keys
+def _csv_core(name: str, payload, db: Session, user: User, acc: Account, **extra) -> dict:
+    """Runs one of the core's CSV functions over the request and the account."""
+    given = {"csv_text": payload.csv_text, "has_header": payload.has_header, "mapping": payload.mapping,
+             "sign_convention": payload.sign_convention, **extra, **csv_rows(db, user, acc)}
+    try:
+        return jscore.run(name, given)
+    except jscore.CoreError as e:
+        # Python's csv reader refused it too (a stray line break, a huge field).
+        raise HTTPException(400, f"That file couldn't be read as CSV: {e}")
 
 
 @app.post("/api/accounts/{account_id}/import/preview")
@@ -6996,42 +6732,7 @@ def csv_import_preview(account_id: int, payload: CSVPreviewIn,
         raise HTTPException(400, "csv_text is empty")
     if payload.sign_convention not in ("amount", "amount_invert", "debit_credit"):
         raise HTTPException(400, "Invalid sign_convention")
-    rows, skipped, headers, mapping = _parse_csv_rows(
-        payload.csv_text, payload.has_header, payload.mapping, payload.sign_convention)
-    existing = _existing_keys_for_account(db, acc.id)
-    existing_templates = _recurring_template_identity(db, acc.id)
-    recurring_groups = _resolve_recurring_groups(rows, existing_templates)
-    cat_lookup = _category_lookup(db, user)
-    tag_lookup = _tag_lookup(db, user)
-    dup_count = 0
-    recurring_count = 0
-    for r in rows:
-        key = (r["date"], round(r["amount"], 2), r["description"].strip().lower())
-        r["duplicate"] = key in existing
-        if r["duplicate"]:
-            dup_count += 1
-        r["category_matched"] = bool(r.get("category_name")) and \
-            r["category_name"].strip().lower() in cat_lookup
-        _, unmatched_tags = _resolve_row_tags(r, tag_lookup)
-        r["tags_unmatched"] = unmatched_tags
-        if r["frequency"]:
-            recurring_count += 1
-            gkey = (r["frequency"], _recurring_group_key(r))
-            r["recurring_template"] = recurring_groups[gkey]["status"]
-        else:
-            r["recurring_template"] = None
-    return {
-        "headers": headers,
-        "mapping": mapping,
-        "rows": rows[:200],   # cap preview
-        "row_count": len(rows),
-        "skipped": skipped[:50],
-        "skipped_count": len(skipped),
-        "duplicate_count": dup_count,
-        "recurring_count": recurring_count,
-        "sign_convention": payload.sign_convention,
-        "has_header": payload.has_header,
-    }
+    return _csv_core("csvPreview", payload, db, user, acc)
 
 
 @app.post("/api/accounts/{account_id}/import/commit")
@@ -7042,94 +6743,48 @@ def csv_import_commit(account_id: int, payload: CSVCommitIn,
         _own_category(db, user, payload.default_category_id)
     if payload.sign_convention not in ("amount", "amount_invert", "debit_credit"):
         raise HTTPException(400, "Invalid sign_convention")
-    rows, _skipped, _headers, _mapping = _parse_csv_rows(
-        payload.csv_text, payload.has_header, payload.mapping, payload.sign_convention)
-    existing = _existing_keys_for_account(db, acc.id) if payload.skip_duplicates else set()
-    existing_templates = _recurring_template_identity(db, acc.id)
-    recurring_groups = _resolve_recurring_groups(rows, existing_templates)
-    new_templates: dict[tuple, RecurringTransaction] = {}
-    cat_lookup = _category_lookup(db, user)
-    tag_lookup = _tag_lookup(db, user)
-    inserted = 0
-    recurring_created = 0
-    recurring_linked = 0
-    duplicates = 0
-    for r in rows:
-        category_id = _resolve_row_category(r, cat_lookup, payload.default_category_id)
-
-        recurring_id = None
-        if r["frequency"]:
-            gkey = (r["frequency"], _recurring_group_key(r))
-            info = recurring_groups[gkey]
-            if info["status"] == "existing":
-                tmpl = info["template"]
-            else:
-                tmpl = new_templates.get(gkey)
-                if tmpl is None:
-                    # Seed the new template from the group's most-recent row —
-                    # its date sets the anchor/day-of-month and its amount/
-                    # category/notes become the template's forward-looking
-                    # baseline (individual historical rows below keep their
-                    # own actual amount, so forecast-vs-actual still reflects
-                    # any price drift across the series).
-                    seed = info["seed_row"]
-                    seed_category_id = _resolve_row_category(seed, cat_lookup, payload.default_category_id)
-                    sd = date.fromisoformat(seed["date"])
-                    tmpl = RecurringTransaction(
-                        account_id=acc.id,
-                        category_id=seed_category_id,
-                        frequency=seed["frequency"],
-                        day_of_month=sd.day if seed["frequency"] == "monthly_day" else None,
-                        anchor_date=None if seed["frequency"] == "monthly_day" else sd,
-                        end_date=date.fromisoformat(seed["end_date"]) if seed["end_date"] else None,
-                        active=True,
-                    )
-                    tmpl.description = seed["description"]
-                    tmpl.amount = Decimal(str(seed["amount"]))
-                    if seed.get("notes"):
-                        tmpl.notes = seed["notes"]
-                    db.add(tmpl)
-                    db.flush()  # populate tmpl.id for the Transaction rows below
-                    new_templates[gkey] = tmpl
-                    recurring_created += 1
-            recurring_id = tmpl.id
-
-        key = (r["date"], round(r["amount"], 2), r["description"].strip().lower())
-        if payload.skip_duplicates and key in existing:
-            duplicates += 1
-            continue
-        existing.add(key)  # protect against duplicates within the file too
-        d = _parse_csv_date(r["date"])
-        if not d:
-            continue
-        t = Transaction(
+    plan = _csv_core("csvCommit", payload, db, user, acc,
+                     default_category_id=payload.default_category_id, skip_duplicates=payload.skip_duplicates)
+    # New bills first, seeded from each series' latest row: their own amount
+    # and category become the bill's, while each line below keeps its own
+    # amount, so forecast-vs-actual still shows a price that drifted.
+    made: list[RecurringTransaction] = []
+    for tpl in plan["templates"]:
+        tmpl = RecurringTransaction(
             account_id=acc.id,
-            category_id=category_id,
-            recurring_id=recurring_id,
-            actual_date=d,
-            forecast_date=d,
-            is_actual=True,
+            category_id=tpl["category_id"],
+            frequency=tpl["frequency"],
+            day_of_month=tpl["day_of_month"],
+            anchor_date=date.fromisoformat(tpl["anchor_date"]) if tpl["anchor_date"] else None,
+            end_date=date.fromisoformat(tpl["end_date"]) if tpl["end_date"] else None,
+            active=True,
         )
-        t.description = r["description"]
-        t.amount = Decimal(str(r["amount"]))
-        if r.get("notes"):
-            t.notes = r["notes"]
-        db.add(t)
-        # Explicit CSV tags first, then auto-tag rules (same ordering as the
-        # manual create endpoint). Need to flush so the row has an id before
-        # we touch transaction_tags.
+        tmpl.description = tpl["description"]
+        tmpl.amount = Decimal(str(tpl["amount"]))
+        if tpl["notes"]:
+            tmpl.notes = tpl["notes"]
+        db.add(tmpl)
         db.flush()
-        tag_ids, _unmatched = _resolve_row_tags(r, tag_lookup)
-        if tag_ids:
-            _apply_tags(db, user, t, tag_ids)
+        made.append(tmpl)
+    for row in plan["transactions"]:
+        link = row["recurring"]
+        recurring_id = None if link is None else made[link["new"]].id if "new" in link else link["id"]
+        d = date.fromisoformat(row["date"])
+        t = Transaction(account_id=acc.id, category_id=row["category_id"], recurring_id=recurring_id,
+                        actual_date=d, forecast_date=d, is_actual=True)
+        t.description = row["description"]
+        t.amount = Decimal(str(row["amount"]))
+        if row["notes"]:
+            t.notes = row["notes"]
+        db.add(t)
+        # The file's tags first (each once, #248), then auto-tag rules, as
+        # the manual create endpoint does. The row needs its id first.
+        db.flush()
+        if row["tag_ids"]:
+            _apply_tags(db, user, t, row["tag_ids"])
         _apply_tag_rules(db, user, t)
-        inserted += 1
-        if recurring_id is not None:
-            recurring_linked += 1
     db.commit()
-    return {"ok": True, "inserted": inserted, "recurring_created": recurring_created,
-            "recurring_linked": recurring_linked, "duplicates_skipped": duplicates,
-            "total_rows": len(rows)}
+    return plan["result"]
 
 
 @app.get("/api/accounts/{account_id}/import/template")

@@ -181,6 +181,69 @@ struct LocalTests {
         #expect(status == 404)
     }
 
+    /// CSV import on the phone (#243): the core reads the file as the
+    /// server does; importing makes paid lines, links repeating rows to a
+    /// bill (an existing one, or one it makes), and the same file again
+    /// adds nothing.
+    @Test func aBanksCSVImportsOnceAndRepeatingRowsBecomeABill() async throws {
+        let checking = try await account("Checking", 1000, starting: LocalDay(year: 2026, month: 1, day: 1))
+        try await bill("Streaming service", "15.99", day: 1, account: checking)
+        let text = """
+        Date,Description,Amount,Category,Frequency
+        2026-01-05,Coffee,-4.50,dining,
+        01/07/2026,"Grocery store, Main St",-84.23,Groceries,
+        2026-02-01,streaming service,-15.99,,Monthly
+        2026-01-10,Gym,-39,,monthly
+        2026-02-10,Gym,-41,,monthly
+        someday,Bad date,-5,,
+        """
+        let preview = try await client.previewImport(CSVImportBody(csvText: text), account: checking)
+        #expect(preview.headers == ["Date", "Description", "Amount", "Category", "Frequency"])
+        #expect(preview.mapping.date == 0 && preview.mapping.frequency == 4 && preview.mapping.endDate == nil)
+        #expect((preview.rowCount, preview.skippedCount, preview.duplicateCount, preview.recurringCount) == (5, 1, 0, 3))
+        #expect(preview.rows.map(\.description) == ["Coffee", "Grocery store, Main St", "streaming service", "Gym", "Gym"])
+        #expect(preview.rows[1].date == LocalDay(year: 2026, month: 1, day: 7) && preview.rows[1].categoryMatched)
+        #expect(preview.rows.map(\.recurringTemplate) == [nil, nil, "existing", "new", "new"])
+        #expect(preview.skipped.first?.reason == "missing date or amount")
+
+        var body = CSVImportBody(csvText: text)
+        body.mapping = preview.mapping
+        let result = try await client.commitImport(body, account: checking)
+        #expect(result == CSVImportResult(inserted: 5, recurringCreated: 1, recurringLinked: 3, duplicatesSkipped: 0, totalRows: 5))
+        let bills = try await client.recurring(today: day)
+        let gym = try #require(bills.items.first { $0.description == "Gym" })
+        // A new bill takes the series' latest row: its day and its amount.
+        #expect(gym.dayOfMonth == 10 && gym.amount == Money(Decimal(-41)))
+        let january = try await client.forecast(account: checking, month: YearMonth(year: 2026, month: 1), today: day)
+        let coffee = try #require(january.rows.first { $0.description == "Coffee" })
+        #expect(coffee.isPaid && coffee.actualAmount == Money(Decimal(string: "-4.5")!))
+        #expect(january.rows.first { $0.description == "Grocery store, Main St" }?.categoryId != nil)
+
+        // The same file again: every row is a duplicate, nothing is added.
+        let again = try await client.previewImport(body, account: checking)
+        #expect(again.duplicateCount == 5)
+        let second = try await client.commitImport(body, account: checking)
+        #expect(second.inserted == 0 && second.duplicatesSkipped == 5 && second.recurringCreated == 0)
+        #expect(try await client.recurring(today: day).items.count == bills.items.count)
+    }
+
+    @Test func aCSVImportChecksWhatTheServerChecks() async throws {
+        let checking = try await account("Checking", 0)
+        func status(_ text: String, _ path: String = "preview", extra: [String: Any] = [:]) throws -> Int {
+            let body = try JSONSerialization.data(withJSONObject: ["csv_text": text].merging(extra) { $1 })
+            return server.answer(method: "POST", path: "/api/accounts/\(checking)/import/\(path)", query: [:], body: body).status
+        }
+        #expect(try status("  \n") == 400)
+        #expect(try status("a,b\n", extra: ["sign_convention": "sideways"]) == 400)
+        // Python's csv reader refuses a bare line break inside a field; so does the phone.
+        #expect(try status("Date,Description\n2026-01-05,Coffee\rshop\n") == 400)
+        #expect(try status("a,b\n", "commit") == 422)   // no mapping
+        #expect(try status("a,b\n", "commit", extra: ["mapping": [String: Any](), "default_category_id": 424242]) == 404)
+        let (missing, _) = server.answer(method: "POST", path: "/api/accounts/999999/import/preview", query: [:],
+                                         body: try JSONSerialization.data(withJSONObject: ["csv_text": "a\n"]))
+        #expect(missing == 404)
+    }
+
     @Test func whatNeedsAServerSaysSo() async throws {
         // Bank sync reads as a server without it.
         #expect(try await client.bankStatus() == nil)

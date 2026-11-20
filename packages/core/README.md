@@ -15,7 +15,11 @@ bill's next dates), `occurrences` (a bill's dates in a window), `calendar`
 (the Calendar page), `dashboard` (the Dashboard's cards) and
 `dashboardCharts` (its charts), and since core 0.3.0 `recurringList` (Bills &
 income and its totals), `searchTransactions` (transaction search) and `search`
-(the search box's grouped results). Each function's input is described above
+(the search box's grouped results), and since core 0.4.0 `csvPreview` and
+`csvCommit` (CSV import's preview, and the bills and lines an import makes;
+Python's csv reader, strptime and float() are copied, and
+`apps/server/tests/test_csv_import.py` checks them against Python itself).
+Each function's input is described above
 it in the source.
 
 **Who runs it.** The server, since 1.82.0 (Bills & income and search since

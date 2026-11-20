@@ -23,7 +23,7 @@ public final class LocalServer: @unchecked Sendable {
     public static let host = "this-iphone.walletweather.invalid"
     public static let connection = Connection(server: URL(string: "https://\(host)")!)
     /// The server version whose answers the phone gives.
-    public static let answersAs = "1.84.0"
+    public static let answersAs = "1.85.0"
 
     public let connection: Connection
     let container: ModelContainer
@@ -169,6 +169,8 @@ public final class LocalServer: @unchecked Sendable {
             return try forecast(account: id, query: query, today: today, context)
         case ("POST", "accounts", 3) where rest[2] == "transactions":
             return try createTransaction(account: id, body, context)
+        case ("POST", "accounts", 4) where rest[2] == "import" && (rest[3] == "preview" || rest[3] == "commit"):
+            return try csvImport(account: id, body, commit: rest[3] == "commit", context)
         case ("POST", "accounts", 3) where rest[2] == "recurring":
             return try createRecurring(account: id, body, context)
         case ("GET", "dashboard", 1):
@@ -660,6 +662,104 @@ public final class LocalServer: @unchecked Sendable {
                 "to_account_name": to.name, "amount": amount, "transfer_date": date, "description": name,
                 "notes": notes as Any? ?? NSNull(), "transaction_ids": legs.sorted(),
                 "created_at": ISO8601DateFormatter().string(from: transfer.added)]
+    }
+
+    // MARK: CSV import (#243)
+
+    /// `/api/accounts/{id}/import/preview` and `/commit`, with the server's
+    /// checks: the core reads the file against the account's lines and
+    /// bills; an import then makes the bills and lines it plans.
+    private func csvImport(account id: Int?, _ body: [String: Any], commit: Bool, _ context: ModelContext) throws -> Any {
+        let account = try account(id, context)
+        guard let text = body["csv_text"] as? String else { throw Problem(status: 422, detail: "csv_text is required") }
+        if !commit, text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { throw Problem.invalid("csv_text is empty") }
+        let signs = body["sign_convention"] as? String ?? "amount"
+        guard ["amount", "amount_invert", "debit_credit"].contains(signs) else { throw Problem.invalid("Invalid sign_convention") }
+        var mapping: Any = NSNull()
+        if let given = body["mapping"] as? [String: Any] {
+            var clean: [String: Any] = [:]
+            for (key, value) in given {
+                if value is NSNull { clean[key] = NSNull() } else if let n = value as? Int { clean[key] = n } else {
+                    throw Problem(status: 422, detail: "mapping.\(key) must be a whole number or null")
+                }
+            }
+            mapping = clean
+        } else if commit {
+            throw Problem(status: 422, detail: "mapping is required")
+        }
+        var input: [String: Any] = [
+            "csv_text": text, "has_header": body["has_header"] as? Bool ?? true, "mapping": mapping,
+            "sign_convention": signs,
+        ]
+        let fallback = body["default_category_id"] as? Int
+        if commit {
+            if let fallback, try categories(context).first(where: { $0.id == fallback }) == nil {
+                throw Problem.notFound("Category not found")
+            }
+            input["default_category_id"] = fallback as Any? ?? NSNull()
+            input["skip_duplicates"] = body["skip_duplicates"] as? Bool ?? true
+        }
+        let lines = try ordered(LocalTransaction.self, context, added: \.added, id: \.id).filter { $0.accountID == account.id }
+        input["lines"] = lines.compactMap { t -> [String: Any]? in
+            guard let day = t.actualDate ?? t.forecastDate else { return nil }
+            return ["date": day, "amount": t.amount, "description": t.name]
+        }
+        let recs = try ordered(LocalRecurring.self, context, added: \.added, id: \.id).filter { $0.accountID == account.id }
+        input["recurring"] = recs.map { ["id": $0.id, "frequency": $0.frequency, "description": $0.name] as [String: Any] }
+        input["categories"] = try categories(context).map { ["id": $0.id, "name": $0.name] as [String: Any] }
+        input["tags"] = [Any]()   // none on the phone yet (#247)
+
+        let answer: Any
+        do {
+            answer = try Core.shared.run(commit ? "csvCommit" : "csvPreview", input)
+        } catch let .failed(message) {
+            let said = message.hasPrefix("Error: ") ? String(message.dropFirst(7)) : message
+            throw Problem.invalid("That file couldn't be read as CSV: \(said)")
+        } catch {
+            throw Problem(status: 500, detail: "The file couldn't be read: \(error)")
+        }
+        guard commit else { return answer }
+        guard let plan = answer as? [String: Any], let result = plan["result"] else {
+            throw Problem(status: 500, detail: "The import couldn't be worked out.")
+        }
+        // Rows keep the file's order: each is "added" a moment after the last.
+        let start = Date.now
+        var step = 0.0
+        func next() -> Date { step += 1; return start.addingTimeInterval(step / 1_000_000) }
+        func optionalText(_ value: Any?) -> String? { (value as? String).flatMap { $0.isEmpty ? nil : $0 } }
+        var made: [LocalRecurring] = []
+        for case let tpl as [String: Any] in plan["templates"] as? [Any] ?? [] {
+            let rec = LocalRecurring(accountID: account.id)
+            rec.name = tpl["description"] as? String ?? ""
+            rec.amount = (tpl["amount"] as? NSNumber)?.doubleValue ?? 0
+            rec.frequency = tpl["frequency"] as? String ?? "monthly_day"
+            rec.dayOfMonth = tpl["day_of_month"] as? Int
+            rec.anchorDate = tpl["anchor_date"] as? String
+            rec.endDate = tpl["end_date"] as? String
+            rec.categoryID = tpl["category_id"] as? Int
+            rec.notes = optionalText(tpl["notes"])
+            rec.added = next()
+            context.insert(rec)
+            made.append(rec)
+        }
+        for case let row as [String: Any] in plan["transactions"] as? [Any] ?? [] {
+            let line = LocalTransaction(accountID: account.id)
+            if let link = row["recurring"] as? [String: Any] {
+                if let place = link["new"] as? Int, made.indices.contains(place) { line.recurringID = made[place].id }
+                else { line.recurringID = link["id"] as? Int }
+            }
+            line.categoryID = row["category_id"] as? Int
+            line.name = row["description"] as? String ?? ""
+            line.amount = (row["amount"] as? NSNumber)?.doubleValue ?? 0
+            line.notes = optionalText(row["notes"])
+            let day = row["date"] as? String
+            line.actualDate = day
+            line.forecastDate = day
+            line.isActual = true
+            line.added = next()
+            context.insert(line)
+        }
+        return result
     }
 
     static func json(_ value: Any) -> Data {

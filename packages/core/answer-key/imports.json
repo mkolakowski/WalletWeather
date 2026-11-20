@@ -1,0 +1,3737 @@
+{
+ "household": "imports",
+ "cases": [
+  {
+   "name": "CSV preview: a bank's export",
+   "function": "csvPreview",
+   "input": {
+    "csv_text": "Date,Description,Amount,Category,Tags,Notes\r\n2026-01-05,Coffee Shop,-4.50,Dining,,\r\n01/07/2026,\"Grocery store, Main St\",-84.23, groceries ,reimbursable; work trip ,  \r\n1/9/2026,\"Says \"\"hi\"\"\",$1,234.56,Income,,paid\r\n2026-01-10,\"Two\r\nlines\",(12.00),Unknown,nope,\"note, with comma\"\r\n13/01/2026,Day first,€5,,,\r\n02/30/2026,Not a day,-1,,,\r\nJan 15, 2026,Month name,-2,,,\r\n\"Jan 16, 2026\",Quoted month name,-3,,,\r\n16 Jan 2026,Day month year,-4,,,\r\n\r\n2026-01-17,No amount,,,,\r\nsomeday,Bad date,-5,,,\r\n2026-01-18,,-6,,,\r\n2026-01-19,Short row\r\n2026-01-20,Café Straße 🍕,-7.25,,reimbursable;Work Trip,\r\n2026-01-20,Café Straße 🍕,-7.25,,,\r\n2026-01-21,xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,-8,,,\r\n2026-01-22,\"unterminated, quote,-9\r\n",
+    "lines": [
+     {
+      "date": "2026-01-05",
+      "amount": -4.5,
+      "description": "  COFFEE shop "
+     },
+     {
+      "date": "2026-02-01",
+      "amount": -900.0,
+      "description": "Planned rent"
+     }
+    ],
+    "recurring": [
+     {
+      "id": 1,
+      "frequency": "monthly_day",
+      "description": "Streaming service"
+     }
+    ],
+    "categories": [
+     {
+      "id": 1,
+      "name": "Groceries"
+     },
+     {
+      "id": 2,
+      "name": "Dining"
+     },
+     {
+      "id": 3,
+      "name": "Transportation"
+     },
+     {
+      "id": 4,
+      "name": "Utilities"
+     },
+     {
+      "id": 5,
+      "name": "Rent/Mortgage"
+     },
+     {
+      "id": 6,
+      "name": "Insurance"
+     },
+     {
+      "id": 7,
+      "name": "Healthcare"
+     },
+     {
+      "id": 8,
+      "name": "Entertainment"
+     },
+     {
+      "id": 9,
+      "name": "Shopping"
+     },
+     {
+      "id": 10,
+      "name": "Subscriptions"
+     },
+     {
+      "id": 11,
+      "name": "Income"
+     },
+     {
+      "id": 12,
+      "name": "Savings"
+     },
+     {
+      "id": 13,
+      "name": "Other"
+     },
+     {
+      "id": 14,
+      "name": "groceries"
+     }
+    ],
+    "tags": [
+     {
+      "id": 1,
+      "name": "reimbursable"
+     },
+     {
+      "id": 2,
+      "name": "Work Trip"
+     }
+    ]
+   },
+   "expected": {
+    "headers": [
+     "Date",
+     "Description",
+     "Amount",
+     "Category",
+     "Tags",
+     "Notes"
+    ],
+    "mapping": {
+     "date": 0,
+     "description": 1,
+     "amount": 2,
+     "debit": null,
+     "credit": null,
+     "category": 3,
+     "notes": 5,
+     "tags": 4,
+     "frequency": null,
+     "end_date": null,
+     "recurring_group": null
+    },
+    "rows": [
+     {
+      "row_index": 0,
+      "date": "2026-01-05",
+      "description": "Coffee Shop",
+      "amount": -4.5,
+      "notes": "",
+      "category_name": "Dining",
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-05",
+       "Coffee Shop",
+       "-4.50",
+       "Dining",
+       "",
+       ""
+      ],
+      "duplicate": true,
+      "category_matched": true,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 1,
+      "date": "2026-01-07",
+      "description": "Grocery store, Main St",
+      "amount": -84.23,
+      "notes": null,
+      "category_name": "groceries",
+      "tag_names": [
+       "reimbursable",
+       "work trip"
+      ],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "01/07/2026",
+       "Grocery store, Main St",
+       "-84.23",
+       " groceries ",
+       "reimbursable; work trip ",
+       "  "
+      ],
+      "duplicate": false,
+      "category_matched": true,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 2,
+      "date": "2026-01-09",
+      "description": "Says \"hi\"",
+      "amount": 1.0,
+      "notes": "",
+      "category_name": "234.56",
+      "tag_names": [
+       "Income"
+      ],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "1/9/2026",
+       "Says \"hi\"",
+       "$1",
+       "234.56",
+       "Income",
+       "",
+       "paid"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [
+       "Income"
+      ],
+      "recurring_template": null
+     },
+     {
+      "row_index": 3,
+      "date": "2026-01-10",
+      "description": "Two\r\nlines",
+      "amount": -12.0,
+      "notes": "note, with comma",
+      "category_name": "Unknown",
+      "tag_names": [
+       "nope"
+      ],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-10",
+       "Two\r\nlines",
+       "(12.00)",
+       "Unknown",
+       "nope",
+       "note, with comma"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [
+       "nope"
+      ],
+      "recurring_template": null
+     },
+     {
+      "row_index": 4,
+      "date": "2026-01-13",
+      "description": "Day first",
+      "amount": 5.0,
+      "notes": "",
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "13/01/2026",
+       "Day first",
+       "€5",
+       "",
+       "",
+       ""
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 7,
+      "date": "2026-01-16",
+      "description": "Quoted month name",
+      "amount": -3.0,
+      "notes": "",
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "Jan 16, 2026",
+       "Quoted month name",
+       "-3",
+       "",
+       "",
+       ""
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 8,
+      "date": "2026-01-16",
+      "description": "Day month year",
+      "amount": -4.0,
+      "notes": "",
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "16 Jan 2026",
+       "Day month year",
+       "-4",
+       "",
+       "",
+       ""
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 12,
+      "date": "2026-01-18",
+      "description": "(no description)",
+      "amount": -6.0,
+      "notes": "",
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-18",
+       "",
+       "-6",
+       "",
+       "",
+       ""
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 14,
+      "date": "2026-01-20",
+      "description": "Café Straße 🍕",
+      "amount": -7.25,
+      "notes": "",
+      "category_name": null,
+      "tag_names": [
+       "reimbursable",
+       "Work Trip"
+      ],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-20",
+       "Café Straße 🍕",
+       "-7.25",
+       "",
+       "reimbursable;Work Trip",
+       ""
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 15,
+      "date": "2026-01-20",
+      "description": "Café Straße 🍕",
+      "amount": -7.25,
+      "notes": "",
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-20",
+       "Café Straße 🍕",
+       "-7.25",
+       "",
+       "",
+       ""
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 16,
+      "date": "2026-01-21",
+      "description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "amount": -8.0,
+      "notes": "",
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-21",
+       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+       "-8",
+       "",
+       "",
+       ""
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     }
+    ],
+    "row_count": 11,
+    "skipped": [
+     {
+      "row_index": 5,
+      "row": [
+       "02/30/2026",
+       "Not a day",
+       "-1",
+       "",
+       "",
+       ""
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 6,
+      "row": [
+       "Jan 15",
+       " 2026",
+       "Month name",
+       "-2",
+       "",
+       "",
+       ""
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 9,
+      "row": [],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 10,
+      "row": [
+       "2026-01-17",
+       "No amount",
+       "",
+       "",
+       "",
+       ""
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 11,
+      "row": [
+       "someday",
+       "Bad date",
+       "-5",
+       "",
+       "",
+       ""
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 13,
+      "row": [
+       "2026-01-19",
+       "Short row"
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 17,
+      "row": [
+       "2026-01-22",
+       "unterminated, quote,-9\r\n"
+      ],
+      "reason": "missing date or amount"
+     }
+    ],
+    "skipped_count": 7,
+    "duplicate_count": 1,
+    "recurring_count": 0,
+    "sign_convention": "amount",
+    "has_header": true
+   }
+  },
+  {
+   "name": "CSV preview: debit and credit",
+   "function": "csvPreview",
+   "input": {
+    "csv_text": "Posted Date,Payee,Withdrawal,Deposit\n2026-01-03,Hardware,25.00,\n2026-01-04,Refund,,10.50\n2026-01-05,Both,3,1\n2026-01-06,Neither,,\n2026-01-07,Zeroes,0,0.00\n2026-01-08,Negative withdrawal,-2,",
+    "sign_convention": "debit_credit",
+    "lines": [],
+    "recurring": [],
+    "categories": [
+     {
+      "id": 1,
+      "name": "Groceries"
+     },
+     {
+      "id": 2,
+      "name": "Dining"
+     },
+     {
+      "id": 3,
+      "name": "Transportation"
+     },
+     {
+      "id": 4,
+      "name": "Utilities"
+     },
+     {
+      "id": 5,
+      "name": "Rent/Mortgage"
+     },
+     {
+      "id": 6,
+      "name": "Insurance"
+     },
+     {
+      "id": 7,
+      "name": "Healthcare"
+     },
+     {
+      "id": 8,
+      "name": "Entertainment"
+     },
+     {
+      "id": 9,
+      "name": "Shopping"
+     },
+     {
+      "id": 10,
+      "name": "Subscriptions"
+     },
+     {
+      "id": 11,
+      "name": "Income"
+     },
+     {
+      "id": 12,
+      "name": "Savings"
+     },
+     {
+      "id": 13,
+      "name": "Other"
+     },
+     {
+      "id": 14,
+      "name": "groceries"
+     }
+    ],
+    "tags": [
+     {
+      "id": 1,
+      "name": "reimbursable"
+     },
+     {
+      "id": 2,
+      "name": "Work Trip"
+     }
+    ]
+   },
+   "expected": {
+    "headers": [
+     "Posted Date",
+     "Payee",
+     "Withdrawal",
+     "Deposit"
+    ],
+    "mapping": {
+     "date": 0,
+     "description": 1,
+     "amount": null,
+     "debit": 2,
+     "credit": 3,
+     "category": null,
+     "notes": null,
+     "tags": null,
+     "frequency": null,
+     "end_date": null,
+     "recurring_group": null
+    },
+    "rows": [
+     {
+      "row_index": 0,
+      "date": "2026-01-03",
+      "description": "Hardware",
+      "amount": -25.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-03",
+       "Hardware",
+       "25.00",
+       ""
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 1,
+      "date": "2026-01-04",
+      "description": "Refund",
+      "amount": 10.5,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-04",
+       "Refund",
+       "",
+       "10.50"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 2,
+      "date": "2026-01-05",
+      "description": "Both",
+      "amount": -2.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-05",
+       "Both",
+       "3",
+       "1"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 5,
+      "date": "2026-01-08",
+      "description": "Negative withdrawal",
+      "amount": 2.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-08",
+       "Negative withdrawal",
+       "-2",
+       ""
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     }
+    ],
+    "row_count": 4,
+    "skipped": [
+     {
+      "row_index": 3,
+      "row": [
+       "2026-01-06",
+       "Neither",
+       "",
+       ""
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 4,
+      "row": [
+       "2026-01-07",
+       "Zeroes",
+       "0",
+       "0.00"
+      ],
+      "reason": "missing date or amount"
+     }
+    ],
+    "skipped_count": 2,
+    "duplicate_count": 0,
+    "recurring_count": 0,
+    "sign_convention": "debit_credit",
+    "has_header": true
+   }
+  },
+  {
+   "name": "CSV preview: no header, columns given, signs flipped",
+   "function": "csvPreview",
+   "input": {
+    "csv_text": "1/5/26,Bakery,12.5\n12/31/69,Old,1\n1/1/68,New,1\n2026-1-5,Single digits,2\n1-5-2026,Dashes,3\n2026/01/06,Slashes,4\n05-01-2026,Day first dashes,5\nsep 3, 2026,Lower month,6\nSEP  4, 2026,Two spaces,7\n2026-02-29,Not a leap day,8\n2028-02-29,Leap day,9\n٢٠٢٦-٠١-٠٥,Other digits,١٢٣",
+    "has_header": false,
+    "sign_convention": "amount_invert",
+    "mapping": {
+     "date": 0,
+     "description": 1,
+     "amount": 2,
+     "notes": 7,
+     "category": -1
+    },
+    "lines": [
+     {
+      "date": "2026-01-05",
+      "amount": -4.5,
+      "description": "  COFFEE shop "
+     },
+     {
+      "date": "2026-02-01",
+      "amount": -900.0,
+      "description": "Planned rent"
+     }
+    ],
+    "recurring": [
+     {
+      "id": 1,
+      "frequency": "monthly_day",
+      "description": "Streaming service"
+     }
+    ],
+    "categories": [
+     {
+      "id": 1,
+      "name": "Groceries"
+     },
+     {
+      "id": 2,
+      "name": "Dining"
+     },
+     {
+      "id": 3,
+      "name": "Transportation"
+     },
+     {
+      "id": 4,
+      "name": "Utilities"
+     },
+     {
+      "id": 5,
+      "name": "Rent/Mortgage"
+     },
+     {
+      "id": 6,
+      "name": "Insurance"
+     },
+     {
+      "id": 7,
+      "name": "Healthcare"
+     },
+     {
+      "id": 8,
+      "name": "Entertainment"
+     },
+     {
+      "id": 9,
+      "name": "Shopping"
+     },
+     {
+      "id": 10,
+      "name": "Subscriptions"
+     },
+     {
+      "id": 11,
+      "name": "Income"
+     },
+     {
+      "id": 12,
+      "name": "Savings"
+     },
+     {
+      "id": 13,
+      "name": "Other"
+     },
+     {
+      "id": 14,
+      "name": "groceries"
+     }
+    ],
+    "tags": [
+     {
+      "id": 1,
+      "name": "reimbursable"
+     },
+     {
+      "id": 2,
+      "name": "Work Trip"
+     }
+    ]
+   },
+   "expected": {
+    "headers": [
+     "col_1",
+     "col_2",
+     "col_3"
+    ],
+    "mapping": {
+     "date": 0,
+     "description": 1,
+     "amount": 2,
+     "notes": 7,
+     "category": -1
+    },
+    "rows": [
+     {
+      "row_index": 0,
+      "date": "2026-01-05",
+      "description": "Bakery",
+      "amount": -12.5,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "1/5/26",
+       "Bakery",
+       "12.5"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 1,
+      "date": "1969-12-31",
+      "description": "Old",
+      "amount": -1.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "12/31/69",
+       "Old",
+       "1"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 2,
+      "date": "2068-01-01",
+      "description": "New",
+      "amount": -1.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "1/1/68",
+       "New",
+       "1"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 3,
+      "date": "2026-01-05",
+      "description": "Single digits",
+      "amount": -2.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-1-5",
+       "Single digits",
+       "2"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 4,
+      "date": "2026-01-05",
+      "description": "Dashes",
+      "amount": -3.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "1-5-2026",
+       "Dashes",
+       "3"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 5,
+      "date": "2026-01-06",
+      "description": "Slashes",
+      "amount": -4.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026/01/06",
+       "Slashes",
+       "4"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 6,
+      "date": "2026-05-01",
+      "description": "Day first dashes",
+      "amount": -5.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "05-01-2026",
+       "Day first dashes",
+       "5"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 10,
+      "date": "2028-02-29",
+      "description": "Leap day",
+      "amount": -9.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2028-02-29",
+       "Leap day",
+       "9"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     }
+    ],
+    "row_count": 8,
+    "skipped": [
+     {
+      "row_index": 7,
+      "row": [
+       "sep 3",
+       " 2026",
+       "Lower month",
+       "6"
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 8,
+      "row": [
+       "SEP  4",
+       " 2026",
+       "Two spaces",
+       "7"
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 9,
+      "row": [
+       "2026-02-29",
+       "Not a leap day",
+       "8"
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 11,
+      "row": [
+       "٢٠٢٦-٠١-٠٥",
+       "Other digits",
+       "١٢٣"
+      ],
+      "reason": "missing date or amount"
+     }
+    ],
+    "skipped_count": 4,
+    "duplicate_count": 0,
+    "recurring_count": 0,
+    "sign_convention": "amount_invert",
+    "has_header": false
+   }
+  },
+  {
+   "name": "CSV preview: numbers",
+   "function": "csvPreview",
+   "input": {
+    "csv_text": "date,memo,value\n2026-03-01,underscores,1_000\n2026-03-01,exponent,1e3\n2026-03-01,not a number,nan\n2026-03-01,infinite,-inf\n2026-03-01,too big,1e13\n2026-03-01,just a sign,-\n2026-03-01,plus,+5\n2026-03-01,leading point,.5\n2026-03-01,trailing point,5.\n2026-03-01,spaced, ( 3.50 ) \n2026-03-01,pounds,£1,000\n2026-03-01,double underscore,1__0\n2026-03-01,thin space,1 2\n2026-03-01,zero in brackets,(0)\n2026-03-01,tiny,0.004\n2026-03-01,half cent,2.675",
+    "lines": [
+     {
+      "date": "2026-01-05",
+      "amount": -4.5,
+      "description": "  COFFEE shop "
+     },
+     {
+      "date": "2026-02-01",
+      "amount": -900.0,
+      "description": "Planned rent"
+     }
+    ],
+    "recurring": [
+     {
+      "id": 1,
+      "frequency": "monthly_day",
+      "description": "Streaming service"
+     }
+    ],
+    "categories": [
+     {
+      "id": 1,
+      "name": "Groceries"
+     },
+     {
+      "id": 2,
+      "name": "Dining"
+     },
+     {
+      "id": 3,
+      "name": "Transportation"
+     },
+     {
+      "id": 4,
+      "name": "Utilities"
+     },
+     {
+      "id": 5,
+      "name": "Rent/Mortgage"
+     },
+     {
+      "id": 6,
+      "name": "Insurance"
+     },
+     {
+      "id": 7,
+      "name": "Healthcare"
+     },
+     {
+      "id": 8,
+      "name": "Entertainment"
+     },
+     {
+      "id": 9,
+      "name": "Shopping"
+     },
+     {
+      "id": 10,
+      "name": "Subscriptions"
+     },
+     {
+      "id": 11,
+      "name": "Income"
+     },
+     {
+      "id": 12,
+      "name": "Savings"
+     },
+     {
+      "id": 13,
+      "name": "Other"
+     },
+     {
+      "id": 14,
+      "name": "groceries"
+     }
+    ],
+    "tags": [
+     {
+      "id": 1,
+      "name": "reimbursable"
+     },
+     {
+      "id": 2,
+      "name": "Work Trip"
+     }
+    ]
+   },
+   "expected": {
+    "headers": [
+     "date",
+     "memo",
+     "value"
+    ],
+    "mapping": {
+     "date": 0,
+     "description": 1,
+     "amount": 2,
+     "debit": null,
+     "credit": null,
+     "category": null,
+     "notes": null,
+     "tags": null,
+     "frequency": null,
+     "end_date": null,
+     "recurring_group": null
+    },
+    "rows": [
+     {
+      "row_index": 0,
+      "date": "2026-03-01",
+      "description": "underscores",
+      "amount": 1000.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-03-01",
+       "underscores",
+       "1_000"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 1,
+      "date": "2026-03-01",
+      "description": "exponent",
+      "amount": 1000.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-03-01",
+       "exponent",
+       "1e3"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 6,
+      "date": "2026-03-01",
+      "description": "plus",
+      "amount": 5.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-03-01",
+       "plus",
+       "+5"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 7,
+      "date": "2026-03-01",
+      "description": "leading point",
+      "amount": 0.5,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-03-01",
+       "leading point",
+       ".5"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 8,
+      "date": "2026-03-01",
+      "description": "trailing point",
+      "amount": 5.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-03-01",
+       "trailing point",
+       "5."
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 9,
+      "date": "2026-03-01",
+      "description": "spaced",
+      "amount": -3.5,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-03-01",
+       "spaced",
+       " ( 3.50 ) "
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 10,
+      "date": "2026-03-01",
+      "description": "pounds",
+      "amount": 1.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-03-01",
+       "pounds",
+       "£1",
+       "000"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 13,
+      "date": "2026-03-01",
+      "description": "zero in brackets",
+      "amount": -0.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-03-01",
+       "zero in brackets",
+       "(0)"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 14,
+      "date": "2026-03-01",
+      "description": "tiny",
+      "amount": 0.004,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-03-01",
+       "tiny",
+       "0.004"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 15,
+      "date": "2026-03-01",
+      "description": "half cent",
+      "amount": 2.675,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-03-01",
+       "half cent",
+       "2.675"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     }
+    ],
+    "row_count": 10,
+    "skipped": [
+     {
+      "row_index": 2,
+      "row": [
+       "2026-03-01",
+       "not a number",
+       "nan"
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 3,
+      "row": [
+       "2026-03-01",
+       "infinite",
+       "-inf"
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 4,
+      "row": [
+       "2026-03-01",
+       "too big",
+       "1e13"
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 5,
+      "row": [
+       "2026-03-01",
+       "just a sign",
+       "-"
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 11,
+      "row": [
+       "2026-03-01",
+       "double underscore",
+       "1__0"
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 12,
+      "row": [
+       "2026-03-01",
+       "thin space",
+       "1 2"
+      ],
+      "reason": "missing date or amount"
+     }
+    ],
+    "skipped_count": 6,
+    "duplicate_count": 0,
+    "recurring_count": 0,
+    "sign_convention": "amount",
+    "has_header": true
+   }
+  },
+  {
+   "name": "CSV preview: repeating rows",
+   "function": "csvPreview",
+   "input": {
+    "csv_text": "Date,Description,Amount,Category,Frequency,End Date,Recurring Group\n2026-01-01,Streaming service,-15.99,Subscriptions,Monthly,,\n2026-02-01,streaming SERVICE,-17.99,,monthly,,\n2026-01-02,Gym JAN,-39,,Monthly,2026-12-31,gym\n2026-02-02,Gym FEB,-41,Fun,monthly,,GYM\n2026-01-03,Allowance,20,,bi-weekly,,\n2026-01-17,Allowance,20,,every 2 weeks,,\n2026-01-04,Lawn,-30,,Weekly,,\n2026-01-05,Taxes,-500,,quarterly,,\n2026-01-06,Once,-1,,,,",
+    "lines": [
+     {
+      "date": "2026-01-05",
+      "amount": -4.5,
+      "description": "  COFFEE shop "
+     },
+     {
+      "date": "2026-02-01",
+      "amount": -900.0,
+      "description": "Planned rent"
+     }
+    ],
+    "recurring": [
+     {
+      "id": 1,
+      "frequency": "monthly_day",
+      "description": "Streaming service"
+     }
+    ],
+    "categories": [
+     {
+      "id": 1,
+      "name": "Groceries"
+     },
+     {
+      "id": 2,
+      "name": "Dining"
+     },
+     {
+      "id": 3,
+      "name": "Transportation"
+     },
+     {
+      "id": 4,
+      "name": "Utilities"
+     },
+     {
+      "id": 5,
+      "name": "Rent/Mortgage"
+     },
+     {
+      "id": 6,
+      "name": "Insurance"
+     },
+     {
+      "id": 7,
+      "name": "Healthcare"
+     },
+     {
+      "id": 8,
+      "name": "Entertainment"
+     },
+     {
+      "id": 9,
+      "name": "Shopping"
+     },
+     {
+      "id": 10,
+      "name": "Subscriptions"
+     },
+     {
+      "id": 11,
+      "name": "Income"
+     },
+     {
+      "id": 12,
+      "name": "Savings"
+     },
+     {
+      "id": 13,
+      "name": "Other"
+     },
+     {
+      "id": 14,
+      "name": "groceries"
+     }
+    ],
+    "tags": [
+     {
+      "id": 1,
+      "name": "reimbursable"
+     },
+     {
+      "id": 2,
+      "name": "Work Trip"
+     }
+    ]
+   },
+   "expected": {
+    "headers": [
+     "Date",
+     "Description",
+     "Amount",
+     "Category",
+     "Frequency",
+     "End Date",
+     "Recurring Group"
+    ],
+    "mapping": {
+     "date": 0,
+     "description": 1,
+     "amount": 2,
+     "debit": null,
+     "credit": null,
+     "category": 3,
+     "notes": null,
+     "tags": null,
+     "frequency": 4,
+     "end_date": 5,
+     "recurring_group": 6
+    },
+    "rows": [
+     {
+      "row_index": 0,
+      "date": "2026-01-01",
+      "description": "Streaming service",
+      "amount": -15.99,
+      "notes": null,
+      "category_name": "Subscriptions",
+      "tag_names": [],
+      "frequency": "monthly_day",
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-01",
+       "Streaming service",
+       "-15.99",
+       "Subscriptions",
+       "Monthly",
+       "",
+       ""
+      ],
+      "duplicate": false,
+      "category_matched": true,
+      "tags_unmatched": [],
+      "recurring_template": "existing"
+     },
+     {
+      "row_index": 1,
+      "date": "2026-02-01",
+      "description": "streaming SERVICE",
+      "amount": -17.99,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": "monthly_day",
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-02-01",
+       "streaming SERVICE",
+       "-17.99",
+       "",
+       "monthly",
+       "",
+       ""
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": "existing"
+     },
+     {
+      "row_index": 2,
+      "date": "2026-01-02",
+      "description": "Gym JAN",
+      "amount": -39.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": "monthly_day",
+      "end_date": "2026-12-31",
+      "recurring_group": "gym",
+      "raw": [
+       "2026-01-02",
+       "Gym JAN",
+       "-39",
+       "",
+       "Monthly",
+       "2026-12-31",
+       "gym"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": "new"
+     },
+     {
+      "row_index": 3,
+      "date": "2026-02-02",
+      "description": "Gym FEB",
+      "amount": -41.0,
+      "notes": null,
+      "category_name": "Fun",
+      "tag_names": [],
+      "frequency": "monthly_day",
+      "end_date": null,
+      "recurring_group": "GYM",
+      "raw": [
+       "2026-02-02",
+       "Gym FEB",
+       "-41",
+       "Fun",
+       "monthly",
+       "",
+       "GYM"
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": "new"
+     },
+     {
+      "row_index": 4,
+      "date": "2026-01-03",
+      "description": "Allowance",
+      "amount": 20.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": "biweekly",
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-03",
+       "Allowance",
+       "20",
+       "",
+       "bi-weekly",
+       "",
+       ""
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": "new"
+     },
+     {
+      "row_index": 5,
+      "date": "2026-01-17",
+      "description": "Allowance",
+      "amount": 20.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": "biweekly",
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-17",
+       "Allowance",
+       "20",
+       "",
+       "every 2 weeks",
+       "",
+       ""
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": "new"
+     },
+     {
+      "row_index": 6,
+      "date": "2026-01-04",
+      "description": "Lawn",
+      "amount": -30.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": "weekly",
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-04",
+       "Lawn",
+       "-30",
+       "",
+       "Weekly",
+       "",
+       ""
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": "new"
+     },
+     {
+      "row_index": 8,
+      "date": "2026-01-06",
+      "description": "Once",
+      "amount": -1.0,
+      "notes": null,
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-06",
+       "Once",
+       "-1",
+       "",
+       "",
+       "",
+       ""
+      ],
+      "duplicate": false,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     }
+    ],
+    "row_count": 8,
+    "skipped": [
+     {
+      "row_index": 7,
+      "row": [
+       "2026-01-05",
+       "Taxes",
+       "-500",
+       "",
+       "quarterly",
+       "",
+       ""
+      ],
+      "reason": "unrecognized frequency \"quarterly\""
+     }
+    ],
+    "skipped_count": 1,
+    "duplicate_count": 0,
+    "recurring_count": 7,
+    "sign_convention": "amount",
+    "has_header": true
+   }
+  },
+  {
+   "name": "CSV preview: a blank first line",
+   "function": "csvPreview",
+   "input": {
+    "csv_text": "\nDate,Description,Amount\n2026-01-05,x,1\n",
+    "lines": [
+     {
+      "date": "2026-01-05",
+      "amount": -4.5,
+      "description": "  COFFEE shop "
+     },
+     {
+      "date": "2026-02-01",
+      "amount": -900.0,
+      "description": "Planned rent"
+     }
+    ],
+    "recurring": [
+     {
+      "id": 1,
+      "frequency": "monthly_day",
+      "description": "Streaming service"
+     }
+    ],
+    "categories": [
+     {
+      "id": 1,
+      "name": "Groceries"
+     },
+     {
+      "id": 2,
+      "name": "Dining"
+     },
+     {
+      "id": 3,
+      "name": "Transportation"
+     },
+     {
+      "id": 4,
+      "name": "Utilities"
+     },
+     {
+      "id": 5,
+      "name": "Rent/Mortgage"
+     },
+     {
+      "id": 6,
+      "name": "Insurance"
+     },
+     {
+      "id": 7,
+      "name": "Healthcare"
+     },
+     {
+      "id": 8,
+      "name": "Entertainment"
+     },
+     {
+      "id": 9,
+      "name": "Shopping"
+     },
+     {
+      "id": 10,
+      "name": "Subscriptions"
+     },
+     {
+      "id": 11,
+      "name": "Income"
+     },
+     {
+      "id": 12,
+      "name": "Savings"
+     },
+     {
+      "id": 13,
+      "name": "Other"
+     },
+     {
+      "id": 14,
+      "name": "groceries"
+     }
+    ],
+    "tags": [
+     {
+      "id": 1,
+      "name": "reimbursable"
+     },
+     {
+      "id": 2,
+      "name": "Work Trip"
+     }
+    ]
+   },
+   "expected": {
+    "headers": [],
+    "mapping": {
+     "date": null,
+     "description": null,
+     "amount": null,
+     "debit": null,
+     "credit": null,
+     "category": null,
+     "notes": null,
+     "tags": null,
+     "frequency": null,
+     "end_date": null,
+     "recurring_group": null
+    },
+    "rows": [],
+    "row_count": 0,
+    "skipped": [
+     {
+      "row_index": 0,
+      "row": [
+       "Date",
+       "Description",
+       "Amount"
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 1,
+      "row": [
+       "2026-01-05",
+       "x",
+       "1"
+      ],
+      "reason": "missing date or amount"
+     }
+    ],
+    "skipped_count": 2,
+    "duplicate_count": 0,
+    "recurring_count": 0,
+    "sign_convention": "amount",
+    "has_header": true
+   }
+  },
+  {
+   "name": "CSV preview: only a header",
+   "function": "csvPreview",
+   "input": {
+    "csv_text": "Date,Amount\n",
+    "lines": [
+     {
+      "date": "2026-01-05",
+      "amount": -4.5,
+      "description": "  COFFEE shop "
+     },
+     {
+      "date": "2026-02-01",
+      "amount": -900.0,
+      "description": "Planned rent"
+     }
+    ],
+    "recurring": [
+     {
+      "id": 1,
+      "frequency": "monthly_day",
+      "description": "Streaming service"
+     }
+    ],
+    "categories": [
+     {
+      "id": 1,
+      "name": "Groceries"
+     },
+     {
+      "id": 2,
+      "name": "Dining"
+     },
+     {
+      "id": 3,
+      "name": "Transportation"
+     },
+     {
+      "id": 4,
+      "name": "Utilities"
+     },
+     {
+      "id": 5,
+      "name": "Rent/Mortgage"
+     },
+     {
+      "id": 6,
+      "name": "Insurance"
+     },
+     {
+      "id": 7,
+      "name": "Healthcare"
+     },
+     {
+      "id": 8,
+      "name": "Entertainment"
+     },
+     {
+      "id": 9,
+      "name": "Shopping"
+     },
+     {
+      "id": 10,
+      "name": "Subscriptions"
+     },
+     {
+      "id": 11,
+      "name": "Income"
+     },
+     {
+      "id": 12,
+      "name": "Savings"
+     },
+     {
+      "id": 13,
+      "name": "Other"
+     },
+     {
+      "id": 14,
+      "name": "groceries"
+     }
+    ],
+    "tags": [
+     {
+      "id": 1,
+      "name": "reimbursable"
+     },
+     {
+      "id": 2,
+      "name": "Work Trip"
+     }
+    ]
+   },
+   "expected": {
+    "headers": [
+     "Date",
+     "Amount"
+    ],
+    "mapping": {
+     "date": 0,
+     "description": null,
+     "amount": 1,
+     "debit": null,
+     "credit": null,
+     "category": null,
+     "notes": null,
+     "tags": null,
+     "frequency": null,
+     "end_date": null,
+     "recurring_group": null
+    },
+    "rows": [],
+    "row_count": 0,
+    "skipped": [],
+    "skipped_count": 0,
+    "duplicate_count": 0,
+    "recurring_count": 0,
+    "sign_convention": "amount",
+    "has_header": true
+   }
+  },
+  {
+   "name": "CSV import: a bank's export, a default category",
+   "function": "csvCommit",
+   "input": {
+    "csv_text": "Date,Description,Amount,Category,Tags,Notes\r\n2026-01-05,Coffee Shop,-4.50,Dining,,\r\n01/07/2026,\"Grocery store, Main St\",-84.23, groceries ,reimbursable; work trip ,  \r\n1/9/2026,\"Says \"\"hi\"\"\",$1,234.56,Income,,paid\r\n2026-01-10,\"Two\r\nlines\",(12.00),Unknown,nope,\"note, with comma\"\r\n13/01/2026,Day first,€5,,,\r\n02/30/2026,Not a day,-1,,,\r\nJan 15, 2026,Month name,-2,,,\r\n\"Jan 16, 2026\",Quoted month name,-3,,,\r\n16 Jan 2026,Day month year,-4,,,\r\n\r\n2026-01-17,No amount,,,,\r\nsomeday,Bad date,-5,,,\r\n2026-01-18,,-6,,,\r\n2026-01-19,Short row\r\n2026-01-20,Café Straße 🍕,-7.25,,reimbursable;Work Trip,\r\n2026-01-20,Café Straße 🍕,-7.25,,,\r\n2026-01-21,xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,-8,,,\r\n2026-01-22,\"unterminated, quote,-9\r\n",
+    "mapping": {
+     "date": 0,
+     "description": 1,
+     "amount": 2,
+     "debit": null,
+     "credit": null,
+     "category": 3,
+     "notes": 5,
+     "tags": 4,
+     "frequency": null,
+     "end_date": null,
+     "recurring_group": null
+    },
+    "default_category_id": 4,
+    "lines": [
+     {
+      "date": "2026-01-05",
+      "amount": -4.5,
+      "description": "  COFFEE shop "
+     },
+     {
+      "date": "2026-02-01",
+      "amount": -900.0,
+      "description": "Planned rent"
+     }
+    ],
+    "recurring": [
+     {
+      "id": 1,
+      "frequency": "monthly_day",
+      "description": "Streaming service"
+     }
+    ],
+    "categories": [
+     {
+      "id": 1,
+      "name": "Groceries"
+     },
+     {
+      "id": 2,
+      "name": "Dining"
+     },
+     {
+      "id": 3,
+      "name": "Transportation"
+     },
+     {
+      "id": 4,
+      "name": "Utilities"
+     },
+     {
+      "id": 5,
+      "name": "Rent/Mortgage"
+     },
+     {
+      "id": 6,
+      "name": "Insurance"
+     },
+     {
+      "id": 7,
+      "name": "Healthcare"
+     },
+     {
+      "id": 8,
+      "name": "Entertainment"
+     },
+     {
+      "id": 9,
+      "name": "Shopping"
+     },
+     {
+      "id": 10,
+      "name": "Subscriptions"
+     },
+     {
+      "id": 11,
+      "name": "Income"
+     },
+     {
+      "id": 12,
+      "name": "Savings"
+     },
+     {
+      "id": 13,
+      "name": "Other"
+     },
+     {
+      "id": 14,
+      "name": "groceries"
+     }
+    ],
+    "tags": [
+     {
+      "id": 1,
+      "name": "reimbursable"
+     },
+     {
+      "id": 2,
+      "name": "Work Trip"
+     }
+    ]
+   },
+   "expected": {
+    "result": {
+     "ok": true,
+     "inserted": 9,
+     "recurring_created": 0,
+     "recurring_linked": 0,
+     "duplicates_skipped": 2,
+     "total_rows": 11
+    },
+    "templates": [],
+    "transactions": [
+     {
+      "date": "2026-01-07",
+      "description": "Grocery store, Main St",
+      "amount": -84.23,
+      "notes": null,
+      "category_id": 14,
+      "recurring": null,
+      "tag_ids": [
+       1,
+       2
+      ]
+     },
+     {
+      "date": "2026-01-09",
+      "description": "Says \"hi\"",
+      "amount": 1.0,
+      "notes": null,
+      "category_id": 4,
+      "recurring": null,
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-10",
+      "description": "Two\r\nlines",
+      "amount": -12.0,
+      "notes": "note, with comma",
+      "category_id": 4,
+      "recurring": null,
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-13",
+      "description": "Day first",
+      "amount": 5.0,
+      "notes": null,
+      "category_id": 4,
+      "recurring": null,
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-16",
+      "description": "Quoted month name",
+      "amount": -3.0,
+      "notes": null,
+      "category_id": 4,
+      "recurring": null,
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-16",
+      "description": "Day month year",
+      "amount": -4.0,
+      "notes": null,
+      "category_id": 4,
+      "recurring": null,
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-18",
+      "description": "(no description)",
+      "amount": -6.0,
+      "notes": null,
+      "category_id": 4,
+      "recurring": null,
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-20",
+      "description": "Café Straße 🍕",
+      "amount": -7.25,
+      "notes": null,
+      "category_id": 4,
+      "recurring": null,
+      "tag_ids": [
+       1,
+       2
+      ]
+     },
+     {
+      "date": "2026-01-21",
+      "description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "amount": -8.0,
+      "notes": null,
+      "category_id": 4,
+      "recurring": null,
+      "tag_ids": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "CSV import: the same file again",
+   "function": "csvCommit",
+   "input": {
+    "csv_text": "Date,Description,Amount,Category,Tags,Notes\r\n2026-01-05,Coffee Shop,-4.50,Dining,,\r\n01/07/2026,\"Grocery store, Main St\",-84.23, groceries ,reimbursable; work trip ,  \r\n1/9/2026,\"Says \"\"hi\"\"\",$1,234.56,Income,,paid\r\n2026-01-10,\"Two\r\nlines\",(12.00),Unknown,nope,\"note, with comma\"\r\n13/01/2026,Day first,€5,,,\r\n02/30/2026,Not a day,-1,,,\r\nJan 15, 2026,Month name,-2,,,\r\n\"Jan 16, 2026\",Quoted month name,-3,,,\r\n16 Jan 2026,Day month year,-4,,,\r\n\r\n2026-01-17,No amount,,,,\r\nsomeday,Bad date,-5,,,\r\n2026-01-18,,-6,,,\r\n2026-01-19,Short row\r\n2026-01-20,Café Straße 🍕,-7.25,,reimbursable;Work Trip,\r\n2026-01-20,Café Straße 🍕,-7.25,,,\r\n2026-01-21,xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,-8,,,\r\n2026-01-22,\"unterminated, quote,-9\r\n",
+    "mapping": {
+     "date": 0,
+     "description": 1,
+     "amount": 2,
+     "debit": null,
+     "credit": null,
+     "category": 3,
+     "notes": 5,
+     "tags": 4,
+     "frequency": null,
+     "end_date": null,
+     "recurring_group": null
+    },
+    "default_category_id": 4,
+    "lines": [
+     {
+      "date": "2026-01-05",
+      "amount": -4.5,
+      "description": "  COFFEE shop "
+     },
+     {
+      "date": "2026-02-01",
+      "amount": -900.0,
+      "description": "Planned rent"
+     },
+     {
+      "date": "2026-01-07",
+      "amount": -84.23,
+      "description": "Grocery store, Main St"
+     },
+     {
+      "date": "2026-01-09",
+      "amount": 1.0,
+      "description": "Says \"hi\""
+     },
+     {
+      "date": "2026-01-10",
+      "amount": -12.0,
+      "description": "Two\r\nlines"
+     },
+     {
+      "date": "2026-01-13",
+      "amount": 5.0,
+      "description": "Day first"
+     },
+     {
+      "date": "2026-01-16",
+      "amount": -3.0,
+      "description": "Quoted month name"
+     },
+     {
+      "date": "2026-01-16",
+      "amount": -4.0,
+      "description": "Day month year"
+     },
+     {
+      "date": "2026-01-18",
+      "amount": -6.0,
+      "description": "(no description)"
+     },
+     {
+      "date": "2026-01-20",
+      "amount": -7.25,
+      "description": "Café Straße 🍕"
+     },
+     {
+      "date": "2026-01-21",
+      "amount": -8.0,
+      "description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+     }
+    ],
+    "recurring": [
+     {
+      "id": 1,
+      "frequency": "monthly_day",
+      "description": "Streaming service"
+     }
+    ],
+    "categories": [
+     {
+      "id": 1,
+      "name": "Groceries"
+     },
+     {
+      "id": 2,
+      "name": "Dining"
+     },
+     {
+      "id": 3,
+      "name": "Transportation"
+     },
+     {
+      "id": 4,
+      "name": "Utilities"
+     },
+     {
+      "id": 5,
+      "name": "Rent/Mortgage"
+     },
+     {
+      "id": 6,
+      "name": "Insurance"
+     },
+     {
+      "id": 7,
+      "name": "Healthcare"
+     },
+     {
+      "id": 8,
+      "name": "Entertainment"
+     },
+     {
+      "id": 9,
+      "name": "Shopping"
+     },
+     {
+      "id": 10,
+      "name": "Subscriptions"
+     },
+     {
+      "id": 11,
+      "name": "Income"
+     },
+     {
+      "id": 12,
+      "name": "Savings"
+     },
+     {
+      "id": 13,
+      "name": "Other"
+     },
+     {
+      "id": 14,
+      "name": "groceries"
+     }
+    ],
+    "tags": [
+     {
+      "id": 1,
+      "name": "reimbursable"
+     },
+     {
+      "id": 2,
+      "name": "Work Trip"
+     }
+    ]
+   },
+   "expected": {
+    "result": {
+     "ok": true,
+     "inserted": 0,
+     "recurring_created": 0,
+     "recurring_linked": 0,
+     "duplicates_skipped": 11,
+     "total_rows": 11
+    },
+    "templates": [],
+    "transactions": []
+   }
+  },
+  {
+   "name": "CSV import: repeating rows",
+   "function": "csvCommit",
+   "input": {
+    "csv_text": "Date,Description,Amount,Category,Frequency,End Date,Recurring Group\n2026-01-01,Streaming service,-15.99,Subscriptions,Monthly,,\n2026-02-01,streaming SERVICE,-17.99,,monthly,,\n2026-01-02,Gym JAN,-39,,Monthly,2026-12-31,gym\n2026-02-02,Gym FEB,-41,Fun,monthly,,GYM\n2026-01-03,Allowance,20,,bi-weekly,,\n2026-01-17,Allowance,20,,every 2 weeks,,\n2026-01-04,Lawn,-30,,Weekly,,\n2026-01-05,Taxes,-500,,quarterly,,\n2026-01-06,Once,-1,,,,",
+    "mapping": {
+     "date": 0,
+     "description": 1,
+     "amount": 2,
+     "debit": null,
+     "credit": null,
+     "category": 3,
+     "notes": null,
+     "tags": null,
+     "frequency": 4,
+     "end_date": 5,
+     "recurring_group": 6
+    },
+    "lines": [
+     {
+      "date": "2026-01-05",
+      "amount": -4.5,
+      "description": "  COFFEE shop "
+     },
+     {
+      "date": "2026-02-01",
+      "amount": -900.0,
+      "description": "Planned rent"
+     },
+     {
+      "date": "2026-01-07",
+      "amount": -84.23,
+      "description": "Grocery store, Main St"
+     },
+     {
+      "date": "2026-01-09",
+      "amount": 1.0,
+      "description": "Says \"hi\""
+     },
+     {
+      "date": "2026-01-10",
+      "amount": -12.0,
+      "description": "Two\r\nlines"
+     },
+     {
+      "date": "2026-01-13",
+      "amount": 5.0,
+      "description": "Day first"
+     },
+     {
+      "date": "2026-01-16",
+      "amount": -3.0,
+      "description": "Quoted month name"
+     },
+     {
+      "date": "2026-01-16",
+      "amount": -4.0,
+      "description": "Day month year"
+     },
+     {
+      "date": "2026-01-18",
+      "amount": -6.0,
+      "description": "(no description)"
+     },
+     {
+      "date": "2026-01-20",
+      "amount": -7.25,
+      "description": "Café Straße 🍕"
+     },
+     {
+      "date": "2026-01-21",
+      "amount": -8.0,
+      "description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+     }
+    ],
+    "recurring": [
+     {
+      "id": 1,
+      "frequency": "monthly_day",
+      "description": "Streaming service"
+     }
+    ],
+    "categories": [
+     {
+      "id": 1,
+      "name": "Groceries"
+     },
+     {
+      "id": 2,
+      "name": "Dining"
+     },
+     {
+      "id": 3,
+      "name": "Transportation"
+     },
+     {
+      "id": 4,
+      "name": "Utilities"
+     },
+     {
+      "id": 5,
+      "name": "Rent/Mortgage"
+     },
+     {
+      "id": 6,
+      "name": "Insurance"
+     },
+     {
+      "id": 7,
+      "name": "Healthcare"
+     },
+     {
+      "id": 8,
+      "name": "Entertainment"
+     },
+     {
+      "id": 9,
+      "name": "Shopping"
+     },
+     {
+      "id": 10,
+      "name": "Subscriptions"
+     },
+     {
+      "id": 11,
+      "name": "Income"
+     },
+     {
+      "id": 12,
+      "name": "Savings"
+     },
+     {
+      "id": 13,
+      "name": "Other"
+     },
+     {
+      "id": 14,
+      "name": "groceries"
+     }
+    ],
+    "tags": [
+     {
+      "id": 1,
+      "name": "reimbursable"
+     },
+     {
+      "id": 2,
+      "name": "Work Trip"
+     }
+    ]
+   },
+   "expected": {
+    "result": {
+     "ok": true,
+     "inserted": 8,
+     "recurring_created": 3,
+     "recurring_linked": 7,
+     "duplicates_skipped": 0,
+     "total_rows": 8
+    },
+    "templates": [
+     {
+      "category_id": null,
+      "frequency": "monthly_day",
+      "day_of_month": 2,
+      "anchor_date": null,
+      "end_date": null,
+      "description": "Gym FEB",
+      "amount": -41.0,
+      "notes": null
+     },
+     {
+      "category_id": null,
+      "frequency": "biweekly",
+      "day_of_month": null,
+      "anchor_date": "2026-01-17",
+      "end_date": null,
+      "description": "Allowance",
+      "amount": 20.0,
+      "notes": null
+     },
+     {
+      "category_id": null,
+      "frequency": "weekly",
+      "day_of_month": null,
+      "anchor_date": "2026-01-04",
+      "end_date": null,
+      "description": "Lawn",
+      "amount": -30.0,
+      "notes": null
+     }
+    ],
+    "transactions": [
+     {
+      "date": "2026-01-01",
+      "description": "Streaming service",
+      "amount": -15.99,
+      "notes": null,
+      "category_id": 10,
+      "recurring": {
+       "id": 1
+      },
+      "tag_ids": []
+     },
+     {
+      "date": "2026-02-01",
+      "description": "streaming SERVICE",
+      "amount": -17.99,
+      "notes": null,
+      "category_id": null,
+      "recurring": {
+       "id": 1
+      },
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-02",
+      "description": "Gym JAN",
+      "amount": -39.0,
+      "notes": null,
+      "category_id": null,
+      "recurring": {
+       "new": 0
+      },
+      "tag_ids": []
+     },
+     {
+      "date": "2026-02-02",
+      "description": "Gym FEB",
+      "amount": -41.0,
+      "notes": null,
+      "category_id": null,
+      "recurring": {
+       "new": 0
+      },
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-03",
+      "description": "Allowance",
+      "amount": 20.0,
+      "notes": null,
+      "category_id": null,
+      "recurring": {
+       "new": 1
+      },
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-17",
+      "description": "Allowance",
+      "amount": 20.0,
+      "notes": null,
+      "category_id": null,
+      "recurring": {
+       "new": 1
+      },
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-04",
+      "description": "Lawn",
+      "amount": -30.0,
+      "notes": null,
+      "category_id": null,
+      "recurring": {
+       "new": 2
+      },
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-06",
+      "description": "Once",
+      "amount": -1.0,
+      "notes": null,
+      "category_id": null,
+      "recurring": null,
+      "tag_ids": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "CSV import: repeating rows again, duplicates kept",
+   "function": "csvCommit",
+   "input": {
+    "csv_text": "Date,Description,Amount,Category,Frequency,End Date,Recurring Group\n2026-01-01,Streaming service,-15.99,Subscriptions,Monthly,,\n2026-02-01,streaming SERVICE,-17.99,,monthly,,\n2026-01-02,Gym JAN,-39,,Monthly,2026-12-31,gym\n2026-02-02,Gym FEB,-41,Fun,monthly,,GYM\n2026-01-03,Allowance,20,,bi-weekly,,\n2026-01-17,Allowance,20,,every 2 weeks,,\n2026-01-04,Lawn,-30,,Weekly,,\n2026-01-05,Taxes,-500,,quarterly,,\n2026-01-06,Once,-1,,,,",
+    "mapping": {
+     "date": 0,
+     "description": 1,
+     "amount": 2,
+     "debit": null,
+     "credit": null,
+     "category": 3,
+     "notes": null,
+     "tags": null,
+     "frequency": 4,
+     "end_date": 5,
+     "recurring_group": 6
+    },
+    "skip_duplicates": false,
+    "lines": [
+     {
+      "date": "2026-01-05",
+      "amount": -4.5,
+      "description": "  COFFEE shop "
+     },
+     {
+      "date": "2026-02-01",
+      "amount": -900.0,
+      "description": "Planned rent"
+     },
+     {
+      "date": "2026-01-07",
+      "amount": -84.23,
+      "description": "Grocery store, Main St"
+     },
+     {
+      "date": "2026-01-09",
+      "amount": 1.0,
+      "description": "Says \"hi\""
+     },
+     {
+      "date": "2026-01-10",
+      "amount": -12.0,
+      "description": "Two\r\nlines"
+     },
+     {
+      "date": "2026-01-13",
+      "amount": 5.0,
+      "description": "Day first"
+     },
+     {
+      "date": "2026-01-16",
+      "amount": -3.0,
+      "description": "Quoted month name"
+     },
+     {
+      "date": "2026-01-16",
+      "amount": -4.0,
+      "description": "Day month year"
+     },
+     {
+      "date": "2026-01-18",
+      "amount": -6.0,
+      "description": "(no description)"
+     },
+     {
+      "date": "2026-01-20",
+      "amount": -7.25,
+      "description": "Café Straße 🍕"
+     },
+     {
+      "date": "2026-01-21",
+      "amount": -8.0,
+      "description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+     },
+     {
+      "date": "2026-01-01",
+      "amount": -15.99,
+      "description": "Streaming service"
+     },
+     {
+      "date": "2026-02-01",
+      "amount": -17.99,
+      "description": "streaming SERVICE"
+     },
+     {
+      "date": "2026-01-02",
+      "amount": -39.0,
+      "description": "Gym JAN"
+     },
+     {
+      "date": "2026-02-02",
+      "amount": -41.0,
+      "description": "Gym FEB"
+     },
+     {
+      "date": "2026-01-03",
+      "amount": 20.0,
+      "description": "Allowance"
+     },
+     {
+      "date": "2026-01-17",
+      "amount": 20.0,
+      "description": "Allowance"
+     },
+     {
+      "date": "2026-01-04",
+      "amount": -30.0,
+      "description": "Lawn"
+     },
+     {
+      "date": "2026-01-06",
+      "amount": -1.0,
+      "description": "Once"
+     }
+    ],
+    "recurring": [
+     {
+      "id": 1,
+      "frequency": "monthly_day",
+      "description": "Streaming service"
+     },
+     {
+      "id": 2,
+      "frequency": "monthly_day",
+      "description": "Gym FEB"
+     },
+     {
+      "id": 3,
+      "frequency": "biweekly",
+      "description": "Allowance"
+     },
+     {
+      "id": 4,
+      "frequency": "weekly",
+      "description": "Lawn"
+     }
+    ],
+    "categories": [
+     {
+      "id": 1,
+      "name": "Groceries"
+     },
+     {
+      "id": 2,
+      "name": "Dining"
+     },
+     {
+      "id": 3,
+      "name": "Transportation"
+     },
+     {
+      "id": 4,
+      "name": "Utilities"
+     },
+     {
+      "id": 5,
+      "name": "Rent/Mortgage"
+     },
+     {
+      "id": 6,
+      "name": "Insurance"
+     },
+     {
+      "id": 7,
+      "name": "Healthcare"
+     },
+     {
+      "id": 8,
+      "name": "Entertainment"
+     },
+     {
+      "id": 9,
+      "name": "Shopping"
+     },
+     {
+      "id": 10,
+      "name": "Subscriptions"
+     },
+     {
+      "id": 11,
+      "name": "Income"
+     },
+     {
+      "id": 12,
+      "name": "Savings"
+     },
+     {
+      "id": 13,
+      "name": "Other"
+     },
+     {
+      "id": 14,
+      "name": "groceries"
+     }
+    ],
+    "tags": [
+     {
+      "id": 1,
+      "name": "reimbursable"
+     },
+     {
+      "id": 2,
+      "name": "Work Trip"
+     }
+    ]
+   },
+   "expected": {
+    "result": {
+     "ok": true,
+     "inserted": 8,
+     "recurring_created": 0,
+     "recurring_linked": 7,
+     "duplicates_skipped": 0,
+     "total_rows": 8
+    },
+    "templates": [],
+    "transactions": [
+     {
+      "date": "2026-01-01",
+      "description": "Streaming service",
+      "amount": -15.99,
+      "notes": null,
+      "category_id": 10,
+      "recurring": {
+       "id": 1
+      },
+      "tag_ids": []
+     },
+     {
+      "date": "2026-02-01",
+      "description": "streaming SERVICE",
+      "amount": -17.99,
+      "notes": null,
+      "category_id": null,
+      "recurring": {
+       "id": 1
+      },
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-02",
+      "description": "Gym JAN",
+      "amount": -39.0,
+      "notes": null,
+      "category_id": null,
+      "recurring": {
+       "id": 2
+      },
+      "tag_ids": []
+     },
+     {
+      "date": "2026-02-02",
+      "description": "Gym FEB",
+      "amount": -41.0,
+      "notes": null,
+      "category_id": null,
+      "recurring": {
+       "id": 2
+      },
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-03",
+      "description": "Allowance",
+      "amount": 20.0,
+      "notes": null,
+      "category_id": null,
+      "recurring": {
+       "id": 3
+      },
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-17",
+      "description": "Allowance",
+      "amount": 20.0,
+      "notes": null,
+      "category_id": null,
+      "recurring": {
+       "id": 3
+      },
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-04",
+      "description": "Lawn",
+      "amount": -30.0,
+      "notes": null,
+      "category_id": null,
+      "recurring": {
+       "id": 4
+      },
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-06",
+      "description": "Once",
+      "amount": -1.0,
+      "notes": null,
+      "category_id": null,
+      "recurring": null,
+      "tag_ids": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "CSV import: debit and credit",
+   "function": "csvCommit",
+   "input": {
+    "csv_text": "Posted Date,Payee,Withdrawal,Deposit\n2026-01-03,Hardware,25.00,\n2026-01-04,Refund,,10.50\n2026-01-05,Both,3,1\n2026-01-06,Neither,,\n2026-01-07,Zeroes,0,0.00\n2026-01-08,Negative withdrawal,-2,",
+    "mapping": {
+     "date": 0,
+     "description": 1,
+     "amount": null,
+     "debit": 2,
+     "credit": 3,
+     "category": null,
+     "notes": null,
+     "tags": null,
+     "frequency": null,
+     "end_date": null,
+     "recurring_group": null
+    },
+    "sign_convention": "debit_credit",
+    "lines": [],
+    "recurring": [],
+    "categories": [
+     {
+      "id": 1,
+      "name": "Groceries"
+     },
+     {
+      "id": 2,
+      "name": "Dining"
+     },
+     {
+      "id": 3,
+      "name": "Transportation"
+     },
+     {
+      "id": 4,
+      "name": "Utilities"
+     },
+     {
+      "id": 5,
+      "name": "Rent/Mortgage"
+     },
+     {
+      "id": 6,
+      "name": "Insurance"
+     },
+     {
+      "id": 7,
+      "name": "Healthcare"
+     },
+     {
+      "id": 8,
+      "name": "Entertainment"
+     },
+     {
+      "id": 9,
+      "name": "Shopping"
+     },
+     {
+      "id": 10,
+      "name": "Subscriptions"
+     },
+     {
+      "id": 11,
+      "name": "Income"
+     },
+     {
+      "id": 12,
+      "name": "Savings"
+     },
+     {
+      "id": 13,
+      "name": "Other"
+     },
+     {
+      "id": 14,
+      "name": "groceries"
+     }
+    ],
+    "tags": [
+     {
+      "id": 1,
+      "name": "reimbursable"
+     },
+     {
+      "id": 2,
+      "name": "Work Trip"
+     }
+    ]
+   },
+   "expected": {
+    "result": {
+     "ok": true,
+     "inserted": 4,
+     "recurring_created": 0,
+     "recurring_linked": 0,
+     "duplicates_skipped": 0,
+     "total_rows": 4
+    },
+    "templates": [],
+    "transactions": [
+     {
+      "date": "2026-01-03",
+      "description": "Hardware",
+      "amount": -25.0,
+      "notes": null,
+      "category_id": null,
+      "recurring": null,
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-04",
+      "description": "Refund",
+      "amount": 10.5,
+      "notes": null,
+      "category_id": null,
+      "recurring": null,
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-05",
+      "description": "Both",
+      "amount": -2.0,
+      "notes": null,
+      "category_id": null,
+      "recurring": null,
+      "tag_ids": []
+     },
+     {
+      "date": "2026-01-08",
+      "description": "Negative withdrawal",
+      "amount": 2.0,
+      "notes": null,
+      "category_id": null,
+      "recurring": null,
+      "tag_ids": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "CSV preview: after importing",
+   "function": "csvPreview",
+   "input": {
+    "csv_text": "Date,Description,Amount,Category,Tags,Notes\r\n2026-01-05,Coffee Shop,-4.50,Dining,,\r\n01/07/2026,\"Grocery store, Main St\",-84.23, groceries ,reimbursable; work trip ,  \r\n1/9/2026,\"Says \"\"hi\"\"\",$1,234.56,Income,,paid\r\n2026-01-10,\"Two\r\nlines\",(12.00),Unknown,nope,\"note, with comma\"\r\n13/01/2026,Day first,€5,,,\r\n02/30/2026,Not a day,-1,,,\r\nJan 15, 2026,Month name,-2,,,\r\n\"Jan 16, 2026\",Quoted month name,-3,,,\r\n16 Jan 2026,Day month year,-4,,,\r\n\r\n2026-01-17,No amount,,,,\r\nsomeday,Bad date,-5,,,\r\n2026-01-18,,-6,,,\r\n2026-01-19,Short row\r\n2026-01-20,Café Straße 🍕,-7.25,,reimbursable;Work Trip,\r\n2026-01-20,Café Straße 🍕,-7.25,,,\r\n2026-01-21,xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,-8,,,\r\n2026-01-22,\"unterminated, quote,-9\r\n",
+    "lines": [
+     {
+      "date": "2026-01-05",
+      "amount": -4.5,
+      "description": "  COFFEE shop "
+     },
+     {
+      "date": "2026-02-01",
+      "amount": -900.0,
+      "description": "Planned rent"
+     },
+     {
+      "date": "2026-01-07",
+      "amount": -84.23,
+      "description": "Grocery store, Main St"
+     },
+     {
+      "date": "2026-01-09",
+      "amount": 1.0,
+      "description": "Says \"hi\""
+     },
+     {
+      "date": "2026-01-10",
+      "amount": -12.0,
+      "description": "Two\r\nlines"
+     },
+     {
+      "date": "2026-01-13",
+      "amount": 5.0,
+      "description": "Day first"
+     },
+     {
+      "date": "2026-01-16",
+      "amount": -3.0,
+      "description": "Quoted month name"
+     },
+     {
+      "date": "2026-01-16",
+      "amount": -4.0,
+      "description": "Day month year"
+     },
+     {
+      "date": "2026-01-18",
+      "amount": -6.0,
+      "description": "(no description)"
+     },
+     {
+      "date": "2026-01-20",
+      "amount": -7.25,
+      "description": "Café Straße 🍕"
+     },
+     {
+      "date": "2026-01-21",
+      "amount": -8.0,
+      "description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+     },
+     {
+      "date": "2026-01-01",
+      "amount": -15.99,
+      "description": "Streaming service"
+     },
+     {
+      "date": "2026-02-01",
+      "amount": -17.99,
+      "description": "streaming SERVICE"
+     },
+     {
+      "date": "2026-01-02",
+      "amount": -39.0,
+      "description": "Gym JAN"
+     },
+     {
+      "date": "2026-02-02",
+      "amount": -41.0,
+      "description": "Gym FEB"
+     },
+     {
+      "date": "2026-01-03",
+      "amount": 20.0,
+      "description": "Allowance"
+     },
+     {
+      "date": "2026-01-17",
+      "amount": 20.0,
+      "description": "Allowance"
+     },
+     {
+      "date": "2026-01-04",
+      "amount": -30.0,
+      "description": "Lawn"
+     },
+     {
+      "date": "2026-01-06",
+      "amount": -1.0,
+      "description": "Once"
+     },
+     {
+      "date": "2026-01-01",
+      "amount": -15.99,
+      "description": "Streaming service"
+     },
+     {
+      "date": "2026-02-01",
+      "amount": -17.99,
+      "description": "streaming SERVICE"
+     },
+     {
+      "date": "2026-01-02",
+      "amount": -39.0,
+      "description": "Gym JAN"
+     },
+     {
+      "date": "2026-02-02",
+      "amount": -41.0,
+      "description": "Gym FEB"
+     },
+     {
+      "date": "2026-01-03",
+      "amount": 20.0,
+      "description": "Allowance"
+     },
+     {
+      "date": "2026-01-17",
+      "amount": 20.0,
+      "description": "Allowance"
+     },
+     {
+      "date": "2026-01-04",
+      "amount": -30.0,
+      "description": "Lawn"
+     },
+     {
+      "date": "2026-01-06",
+      "amount": -1.0,
+      "description": "Once"
+     }
+    ],
+    "recurring": [
+     {
+      "id": 1,
+      "frequency": "monthly_day",
+      "description": "Streaming service"
+     },
+     {
+      "id": 2,
+      "frequency": "monthly_day",
+      "description": "Gym FEB"
+     },
+     {
+      "id": 3,
+      "frequency": "biweekly",
+      "description": "Allowance"
+     },
+     {
+      "id": 4,
+      "frequency": "weekly",
+      "description": "Lawn"
+     }
+    ],
+    "categories": [
+     {
+      "id": 1,
+      "name": "Groceries"
+     },
+     {
+      "id": 2,
+      "name": "Dining"
+     },
+     {
+      "id": 3,
+      "name": "Transportation"
+     },
+     {
+      "id": 4,
+      "name": "Utilities"
+     },
+     {
+      "id": 5,
+      "name": "Rent/Mortgage"
+     },
+     {
+      "id": 6,
+      "name": "Insurance"
+     },
+     {
+      "id": 7,
+      "name": "Healthcare"
+     },
+     {
+      "id": 8,
+      "name": "Entertainment"
+     },
+     {
+      "id": 9,
+      "name": "Shopping"
+     },
+     {
+      "id": 10,
+      "name": "Subscriptions"
+     },
+     {
+      "id": 11,
+      "name": "Income"
+     },
+     {
+      "id": 12,
+      "name": "Savings"
+     },
+     {
+      "id": 13,
+      "name": "Other"
+     },
+     {
+      "id": 14,
+      "name": "groceries"
+     }
+    ],
+    "tags": [
+     {
+      "id": 1,
+      "name": "reimbursable"
+     },
+     {
+      "id": 2,
+      "name": "Work Trip"
+     }
+    ]
+   },
+   "expected": {
+    "headers": [
+     "Date",
+     "Description",
+     "Amount",
+     "Category",
+     "Tags",
+     "Notes"
+    ],
+    "mapping": {
+     "date": 0,
+     "description": 1,
+     "amount": 2,
+     "debit": null,
+     "credit": null,
+     "category": 3,
+     "notes": 5,
+     "tags": 4,
+     "frequency": null,
+     "end_date": null,
+     "recurring_group": null
+    },
+    "rows": [
+     {
+      "row_index": 0,
+      "date": "2026-01-05",
+      "description": "Coffee Shop",
+      "amount": -4.5,
+      "notes": "",
+      "category_name": "Dining",
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-05",
+       "Coffee Shop",
+       "-4.50",
+       "Dining",
+       "",
+       ""
+      ],
+      "duplicate": true,
+      "category_matched": true,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 1,
+      "date": "2026-01-07",
+      "description": "Grocery store, Main St",
+      "amount": -84.23,
+      "notes": null,
+      "category_name": "groceries",
+      "tag_names": [
+       "reimbursable",
+       "work trip"
+      ],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "01/07/2026",
+       "Grocery store, Main St",
+       "-84.23",
+       " groceries ",
+       "reimbursable; work trip ",
+       "  "
+      ],
+      "duplicate": true,
+      "category_matched": true,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 2,
+      "date": "2026-01-09",
+      "description": "Says \"hi\"",
+      "amount": 1.0,
+      "notes": "",
+      "category_name": "234.56",
+      "tag_names": [
+       "Income"
+      ],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "1/9/2026",
+       "Says \"hi\"",
+       "$1",
+       "234.56",
+       "Income",
+       "",
+       "paid"
+      ],
+      "duplicate": true,
+      "category_matched": false,
+      "tags_unmatched": [
+       "Income"
+      ],
+      "recurring_template": null
+     },
+     {
+      "row_index": 3,
+      "date": "2026-01-10",
+      "description": "Two\r\nlines",
+      "amount": -12.0,
+      "notes": "note, with comma",
+      "category_name": "Unknown",
+      "tag_names": [
+       "nope"
+      ],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-10",
+       "Two\r\nlines",
+       "(12.00)",
+       "Unknown",
+       "nope",
+       "note, with comma"
+      ],
+      "duplicate": true,
+      "category_matched": false,
+      "tags_unmatched": [
+       "nope"
+      ],
+      "recurring_template": null
+     },
+     {
+      "row_index": 4,
+      "date": "2026-01-13",
+      "description": "Day first",
+      "amount": 5.0,
+      "notes": "",
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "13/01/2026",
+       "Day first",
+       "€5",
+       "",
+       "",
+       ""
+      ],
+      "duplicate": true,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 7,
+      "date": "2026-01-16",
+      "description": "Quoted month name",
+      "amount": -3.0,
+      "notes": "",
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "Jan 16, 2026",
+       "Quoted month name",
+       "-3",
+       "",
+       "",
+       ""
+      ],
+      "duplicate": true,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 8,
+      "date": "2026-01-16",
+      "description": "Day month year",
+      "amount": -4.0,
+      "notes": "",
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "16 Jan 2026",
+       "Day month year",
+       "-4",
+       "",
+       "",
+       ""
+      ],
+      "duplicate": true,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 12,
+      "date": "2026-01-18",
+      "description": "(no description)",
+      "amount": -6.0,
+      "notes": "",
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-18",
+       "",
+       "-6",
+       "",
+       "",
+       ""
+      ],
+      "duplicate": true,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 14,
+      "date": "2026-01-20",
+      "description": "Café Straße 🍕",
+      "amount": -7.25,
+      "notes": "",
+      "category_name": null,
+      "tag_names": [
+       "reimbursable",
+       "Work Trip"
+      ],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-20",
+       "Café Straße 🍕",
+       "-7.25",
+       "",
+       "reimbursable;Work Trip",
+       ""
+      ],
+      "duplicate": true,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 15,
+      "date": "2026-01-20",
+      "description": "Café Straße 🍕",
+      "amount": -7.25,
+      "notes": "",
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-20",
+       "Café Straße 🍕",
+       "-7.25",
+       "",
+       "",
+       ""
+      ],
+      "duplicate": true,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     },
+     {
+      "row_index": 16,
+      "date": "2026-01-21",
+      "description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "amount": -8.0,
+      "notes": "",
+      "category_name": null,
+      "tag_names": [],
+      "frequency": null,
+      "end_date": null,
+      "recurring_group": null,
+      "raw": [
+       "2026-01-21",
+       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+       "-8",
+       "",
+       "",
+       ""
+      ],
+      "duplicate": true,
+      "category_matched": false,
+      "tags_unmatched": [],
+      "recurring_template": null
+     }
+    ],
+    "row_count": 11,
+    "skipped": [
+     {
+      "row_index": 5,
+      "row": [
+       "02/30/2026",
+       "Not a day",
+       "-1",
+       "",
+       "",
+       ""
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 6,
+      "row": [
+       "Jan 15",
+       " 2026",
+       "Month name",
+       "-2",
+       "",
+       "",
+       ""
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 9,
+      "row": [],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 10,
+      "row": [
+       "2026-01-17",
+       "No amount",
+       "",
+       "",
+       "",
+       ""
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 11,
+      "row": [
+       "someday",
+       "Bad date",
+       "-5",
+       "",
+       "",
+       ""
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 13,
+      "row": [
+       "2026-01-19",
+       "Short row"
+      ],
+      "reason": "missing date or amount"
+     },
+     {
+      "row_index": 17,
+      "row": [
+       "2026-01-22",
+       "unterminated, quote,-9\r\n"
+      ],
+      "reason": "missing date or amount"
+     }
+    ],
+    "skipped_count": 7,
+    "duplicate_count": 11,
+    "recurring_count": 0,
+    "sign_convention": "amount",
+    "has_header": true
+   }
+  }
+ ]
+}

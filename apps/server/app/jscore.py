@@ -45,10 +45,19 @@ def _function():
     return _run
 
 
+class CoreError(Exception):
+    """The core refused its input (e.g. a CSV file Python's csv reader would
+    refuse too); the message is the core's."""
+
+
 def run(name: str, given):
     """Call one of the core's functions with plain Python data and get
     plain Python data back."""
     global _calls
     _calls += 1
-    return json.loads(_function()(name, json.dumps(given), run_gc=_calls % GC_EVERY == 0))
+    try:
+        out = _function()(name, json.dumps(given), run_gc=_calls % GC_EVERY == 0)
+    except quickjs.JSException as e:
+        raise CoreError(str(e).removeprefix("Error: ")) from e
+    return json.loads(out)
 

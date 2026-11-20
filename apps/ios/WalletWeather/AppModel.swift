@@ -38,6 +38,8 @@ final class AppModel {
     private(set) var generation = 0
     /// The iCloud Drive backup of the household on this iPhone (#237).
     let backup = CloudBackupModel()
+    /// A CSV to import, from `WW_DEBUG_CSV` (debug builds only).
+    var debugCSV: CSVFile?
     /// The first account was just added and the backup isn't decided yet:
     /// the app offers it.
     var offeringBackup = false
@@ -337,6 +339,12 @@ final class AppModel {
                 useOnThisPhone()
             }
             return
+        }
+        // `WW_DEBUG_CSV=<file>`: Import a CSV opens on that file from the
+        // app's Documents folder, without the Files picker (#243).
+        if let name = env["WW_DEBUG_CSV"] {
+            let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appending(path: name)
+            debugCSV = (try? Data(contentsOf: url)).flatMap { CSVFile.read($0, name: name) }
         }
         if let local = env["WW_DEBUG_LOCAL"] {
             if local == "1" {

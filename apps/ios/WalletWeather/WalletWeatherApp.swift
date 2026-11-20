@@ -68,6 +68,9 @@ struct AppRoot: View {
             if model.isLocal, model.phase == .ready, phase != .inactive { Task { await model.backup.runIfDue() } }
         }
         .sheet(isPresented: $model.offeringBackup) { BackupOfferSheet() }
+        .sheet(item: Binding(get: { model.phase == .ready ? model.debugCSV : nil }, set: { model.debugCSV = $0 })) {
+            CSVImportSheet(file: $0, startAccount: nil) { model.reload() }
+        }
         // After a sign-in: what this phone keeps (asked at each sign-in),
         // then the lock (offered once: at first sign-in, or after updating
         // for someone already signed in).

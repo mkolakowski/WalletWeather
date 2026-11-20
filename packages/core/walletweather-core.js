@@ -938,6 +938,464 @@
     return out;
   }
 
+  // ---------- CSV import ----------
+
+  // The web app's CSV import (main._parse_csv_rows and the preview and
+  // commit routes around it; Plans/standalone.md, phase 9, #243). Python's
+  // csv.reader, datetime.strptime and float() are copied closely, so a file
+  // gives the same rows here as on the server.
+
+  const PY_SPACE_ONE = new RegExp("^" + PY_SPACE + "$");
+  const ND = /^\p{Nd}$/u;
+
+  // A Unicode decimal digit's value (Python's int() and float() take them
+  // all): its place in its run of ten.
+  function digitValue(ch) {
+    let cp = ch.codePointAt(0);
+    let start = cp;
+    while (start > 0 && ND.test(String.fromCodePoint(start - 1))) start--;
+    return (cp - start) % 10;
+  }
+
+  // Every Unicode decimal digit as its ASCII digit, Python-style.
+  function asciiDigits(s) {
+    let out = "";
+    for (const ch of s) out += ch.length === 1 && ch >= "0" && ch <= "9" ? ch : ND.test(ch) ? String(digitValue(ch)) : ch;
+    return out;
+  }
+
+  // Python's csv.reader, default (excel) dialect, over a StringIO: lines end
+  // at "\n" only, and "\r" or "\n" outside quotes ends a record. Python
+  // raises on a line break inside an unquoted field followed by more text
+  // and on a field over its limit; so does this.
+  const CSV_FIELD_LIMIT = 131072;
+  function csvReader(text) {
+    const rows = [];
+    const START_RECORD = 0, START_FIELD = 1, IN_FIELD = 2, IN_QUOTED_FIELD = 3, QUOTE_IN_QUOTED_FIELD = 4, EAT_CRNL = 5;
+    let state = START_RECORD;
+    let fields = [];
+    let field = [];
+    function save() {
+      fields.push(field.join(""));
+      field = [];
+    }
+    function add(c) {
+      if (field.length >= CSV_FIELD_LIMIT) throw new Error("field larger than field limit (" + CSV_FIELD_LIMIT + ")");
+      field.push(c);
+    }
+    const breaks = (c) => c === "\n" || c === "\r";
+    // c is one character, or null for the end of a line.
+    function step(c) {
+      switch (state) {
+        case START_RECORD:
+          if (c === null) return;
+          if (breaks(c)) { state = EAT_CRNL; return; }
+          state = START_FIELD;
+        // falls through
+        case START_FIELD:
+          if (c === null || breaks(c)) { save(); state = c === null ? START_RECORD : EAT_CRNL; }
+          else if (c === '"') state = IN_QUOTED_FIELD;
+          else if (c === ",") save();
+          else { add(c); state = IN_FIELD; }
+          return;
+        case IN_FIELD:
+          if (c === null || breaks(c)) { save(); state = c === null ? START_RECORD : EAT_CRNL; }
+          else if (c === ",") { save(); state = START_FIELD; }
+          else add(c);
+          return;
+        case IN_QUOTED_FIELD:
+          if (c === null) return;
+          if (c === '"') state = QUOTE_IN_QUOTED_FIELD;
+          else add(c);
+          return;
+        case QUOTE_IN_QUOTED_FIELD:
+          if (c === '"') { add(c); state = IN_QUOTED_FIELD; }
+          else if (c === ",") { save(); state = START_FIELD; }
+          else if (c === null || breaks(c)) { save(); state = c === null ? START_RECORD : EAT_CRNL; }
+          else { add(c); state = IN_FIELD; }
+          return;
+        case EAT_CRNL:
+          if (c !== null && breaks(c)) return;
+          if (c === null) { state = START_RECORD; return; }
+          throw new Error("new-line character seen in unquoted field - do you need to open the file with newline=''?");
+      }
+    }
+    let at = 0;
+    while (at < text.length) {
+      const nl = text.indexOf("\n", at);
+      const line = nl < 0 ? text.slice(at) : text.slice(at, nl + 1);
+      at = nl < 0 ? text.length : nl + 1;
+      for (const c of line) step(c);
+      step(null);
+      if (state === START_RECORD) {
+        rows.push(fields);
+        fields = [];
+      }
+    }
+    // The file ended inside a quoted field: Python keeps what it has.
+    if (state !== START_RECORD && (field.length !== 0 || state === IN_QUOTED_FIELD)) {
+      save();
+      rows.push(fields);
+    }
+    return rows;
+  }
+
+  // Python's str[:n], counting code points.
+  function cutCodePoints(s, n) {
+    if (s.length <= n) return s;
+    return Array.from(s).slice(0, n).join("");
+  }
+
+  // _detect_columns: the usual bank column names.
+  function detectColumns(headers) {
+    const m = { date: null, description: null, amount: null, debit: null, credit: null, category: null, notes: null,
+      tags: null, frequency: null, end_date: null, recurring_group: null };
+    const rules = [
+      ["date", ["date", "transaction date", "posted date", "post date"]],
+      ["description", ["description", "details", "memo", "merchant", "name", "payee"]],
+      ["amount", ["amount", "value", "transaction amount"]],
+      ["debit", ["debit", "withdrawal", "withdrawals", "outflow"]],
+      ["credit", ["credit", "deposit", "deposits", "inflow"]],
+      ["category", ["category"]],
+      ["tags", ["tags", "tag", "labels"]],
+      ["notes", ["notes", "note"]],
+      ["frequency", ["frequency", "recurring", "repeat", "recurrence"]],
+      ["end_date", ["end date", "recurring end date", "until"]],
+      ["recurring_group", ["recurring group", "group"]],
+    ];
+    headers.forEach((raw, i) => {
+      const h = pyStrip(raw || "").toLowerCase();
+      // An if/elif chain: the first rule whose column is still free and
+      // whose names hold the header takes it.
+      for (const [key, names] of rules) {
+        if (m[key] === null && names.indexOf(h) >= 0) { m[key] = i; break; }
+      }
+    });
+    return m;
+  }
+
+  const FREQUENCY_ALIASES = {
+    "monthly": "monthly_day", "monthly_day": "monthly_day", "month": "monthly_day",
+    "weekly": "weekly", "week": "weekly",
+    "biweekly": "biweekly", "bi-weekly": "biweekly", "bi weekly": "biweekly",
+    "fortnightly": "biweekly", "every 2 weeks": "biweekly", "every two weeks": "biweekly",
+  };
+
+  function normalizeFrequency(raw) {
+    if (!raw) return null;
+    const key = pyStrip(raw).toLowerCase();
+    return Object.prototype.hasOwnProperty.call(FREQUENCY_ALIASES, key) ? FREQUENCY_ALIASES[key] : null;
+  }
+
+  // Python's float() on text already stripped: Unicode digits, "_" between
+  // digits, "inf" and "nan" (which _parse_csv_amount turns away anyway).
+  const PY_FLOAT = /^[+-]?(?:(?:\d(?:_?\d)*)?\.\d(?:_?\d)*|\d(?:_?\d)*\.?)(?:[eE][+-]?\d(?:_?\d)*)?$/;
+  const PY_FLOAT_WORD = /^[+-]?(?:inf|infinity|nan)$/i;
+  function pyFloat(s) {
+    let t = "";
+    for (const ch of s) t += PY_SPACE_ONE.test(ch) ? " " : ch;
+    t = asciiDigits(t).replace(/^ +| +$/g, "");
+    if (PY_FLOAT_WORD.test(t)) return t.indexOf("n") >= 0 && /nan/i.test(t) ? NaN : t[0] === "-" ? -Infinity : Infinity;
+    if (!PY_FLOAT.test(t)) return null;
+    return Number(t.replace(/_/g, ""));
+  }
+
+  // _parse_csv_amount.
+  function parseCsvAmount(raw) {
+    if (raw === null || raw === undefined) return null;
+    let s = pyStrip(String(raw));
+    if (!s) return null;
+    const neg = s.startsWith("(") && s.endsWith(")");
+    s = pyStrip(s.replace(/[()$£€,]/g, ""));
+    const v = pyFloat(s);
+    if (v === null || !isFinite(v) || Math.abs(v) > 1e12) return null;
+    return neg ? -v : v;
+  }
+
+  // datetime.strptime for the formats _parse_csv_date tries, built as
+  // Python's _strptime builds them: its patterns for each directive, the
+  // format's whitespace as \s+, case-insensitive, matched from the start
+  // and refused when text is left over.
+  const CSV_MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  const DIRECTIVES = {
+    d: "(3[0-1]|[1-2]\\p{Nd}|0[1-9]|[1-9]| [1-9])",
+    m: "(1[0-2]|0[1-9]|[1-9])",
+    y: "(\\p{Nd}\\p{Nd})",
+    Y: "(\\p{Nd}\\p{Nd}\\p{Nd}\\p{Nd})",
+    b: "(" + CSV_MONTHS.join("|") + ")",
+  };
+  const DATE_FORMATS = ["%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", "%d/%m/%Y", "%d/%m/%y",
+    "%Y/%m/%d", "%m-%d-%Y", "%d-%m-%Y", "%b %d, %Y", "%d %b %Y"].map((format) => {
+    const order = [];
+    let source = "";
+    for (let i = 0; i < format.length; i++) {
+      if (format[i] === "%") {
+        const d = format[++i];
+        order.push(d);
+        source += DIRECTIVES[d];
+      } else if (format[i] === " ") {
+        source += PY_SPACE + "+";
+      } else {
+        source += format[i].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      }
+    }
+    return { re: new RegExp("^(?:" + source + ")", "iu"), order: order };
+  });
+
+  function pyInt(s) {
+    let n = 0;
+    for (const ch of s) n = n * 10 + (ch >= "0" && ch <= "9" ? +ch : digitValue(ch));
+    return n;
+  }
+
+  function daysIn(year, month) {
+    return [31, (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0 ? 29 : 28,
+      31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+  }
+
+  // _parse_csv_date: "YYYY-MM-DD", or null.
+  function parseCsvDate(raw) {
+    if (raw === null || raw === undefined) return null;
+    const s = pyStrip(String(raw));
+    if (!s) return null;
+    for (const f of DATE_FORMATS) {
+      const found = f.re.exec(s);
+      if (!found || found[0].length !== s.length) continue;
+      let year = 1900, month = 1, day = 1, ok = true;
+      f.order.forEach((d, i) => {
+        const v = found[i + 1];
+        if (d === "Y") year = pyInt(v);
+        else if (d === "y") { year = pyInt(v); year += year <= 68 ? 2000 : 1900; }
+        else if (d === "m") month = pyInt(v);
+        else if (d === "d") day = pyInt(pyStrip(v));
+        else if (d === "b") { month = CSV_MONTHS.indexOf(v.toLowerCase()) + 1; if (month === 0) ok = false; }
+      });
+      if (!ok || year < 1 || day > daysIn(year, month)) continue;
+      return pad(year, 4) + "-" + pad(month, 2) + "-" + pad(day, 2);
+    }
+    return null;
+  }
+
+  const DESCRIPTION_MAX = 500;
+  const NOTES_MAX = 256;
+
+  // _parse_csv_rows: {rows, skipped, headers, mapping}.
+  function parseCsvRows(text, hasHeader, mapping, signConvention) {
+    const all = csvReader(text);
+    if (!all.length) return { rows: [], skipped: [], headers: [], mapping: mapping || {} };
+    let headers, body;
+    if (hasHeader) {
+      headers = all[0];
+      body = all.slice(1);
+    } else {
+      headers = all[0].map((_, i) => "col_" + (i + 1));
+      body = all;
+    }
+    if (mapping === null || mapping === undefined) mapping = detectColumns(headers);
+    const rows = [];
+    const skipped = [];
+    body.forEach((row, idx) => {
+      function cell(key) {
+        const i = Object.prototype.hasOwnProperty.call(mapping, key) ? mapping[key] : null;
+        if (i === null || i === undefined || !(i >= 0 && i < row.length)) return null;
+        return row[i];
+      }
+      const d = parseCsvDate(cell("date"));
+      const desc = cutCodePoints(pyStrip(cell("description") || ""), DESCRIPTION_MAX) || "(no description)";
+      let amt;
+      if (signConvention === "debit_credit") {
+        const deb = parseCsvAmount(cell("debit")) || 0;
+        const cred = parseCsvAmount(cell("credit")) || 0;
+        amt = deb || cred ? cred - deb : null;
+      } else {
+        amt = parseCsvAmount(cell("amount"));
+        if (signConvention === "amount_invert" && amt !== null) amt = -amt;
+      }
+      let notes = cell("notes");
+      if (notes) notes = cutCodePoints(pyStrip(notes), NOTES_MAX) || null;
+      const categoryName = pyStrip(cell("category") || "") || null;
+      const tagsRaw = cell("tags");
+      const tagNames = tagsRaw ? tagsRaw.split(/[;,]/).map(pyStrip).filter((p) => p) : [];
+      const freqRaw = pyStrip(cell("frequency") || "") || null;
+      const frequency = freqRaw ? normalizeFrequency(freqRaw) : null;
+      if (freqRaw && frequency === null) {
+        skipped.push({ row_index: idx, row: row, reason: 'unrecognized frequency "' + freqRaw + '"' });
+        return;
+      }
+      const endDate = parseCsvDate(cell("end_date"));
+      const group = pyStrip(cell("recurring_group") || "") || null;
+      if (d === null || amt === null) {
+        skipped.push({ row_index: idx, row: row, reason: "missing date or amount" });
+        return;
+      }
+      rows.push({
+        row_index: idx, date: d, description: desc, amount: amt, notes: notes, category_name: categoryName,
+        tag_names: tagNames, frequency: frequency, end_date: endDate, recurring_group: group, raw: row,
+      });
+    });
+    return { rows: rows, skipped: skipped, headers: headers, mapping: mapping };
+  }
+
+  // What the preview and the import both work from: the file's rows, the
+  // account's lines as duplicate keys, its bills by (rhythm, name), and the
+  // categories and tags by name without case (the last of a name wins, as
+  // in the server's dict).
+  function csvContext(input) {
+    const parsed = parseCsvRows(input.csv_text, input.has_header !== false, input.mapping === undefined ? null : input.mapping,
+      input.sign_convention || "amount");
+    const keyOf = (date, amount, description) => date + "\u0000" + round2(amount) + "\u0000" + pyStrip(description).toLowerCase();
+    const lineKeys = new Set((input.lines || []).map((l) => keyOf(l.date, l.amount, l.description || "")));
+    const templates = {};
+    for (const r of input.recurring || []) {
+      const k = r.frequency + "\u0000" + pyStrip(r.description || "").toLowerCase();
+      if (!Object.prototype.hasOwnProperty.call(templates, k)) templates[k] = r.id;
+    }
+    const byName = (list) => {
+      const out = {};
+      for (const x of list || []) out[pyStrip(x.name).toLowerCase()] = x.id;
+      return out;
+    };
+    const categories = byName(input.categories);
+    const tags = byName(input.tags);
+    const groupKey = (r) => pyStrip(r.recurring_group || r.description).toLowerCase();
+    // _resolve_recurring_groups: each (rhythm, group) and the bill it joins,
+    // judged by the group's latest row (the first of equal dates).
+    const groups = new Map();
+    for (const r of parsed.rows) {
+      if (!r.frequency) continue;
+      const g = r.frequency + "\u0000" + groupKey(r);
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g).push(r);
+    }
+    const resolved = new Map();
+    for (const [g, list] of groups) {
+      let seed = list[0];
+      for (const r of list) if (r.date > seed.date) seed = r;
+      const id = templates[seed.frequency + "\u0000" + pyStrip(seed.description).toLowerCase()];
+      resolved.set(g, { existing: id === undefined ? null : id, seed: seed });
+    }
+    const has = (map, k) => Object.prototype.hasOwnProperty.call(map, k);
+    return {
+      parsed: parsed, lineKeys: lineKeys, keyOf: keyOf, resolved: resolved,
+      groupOf: (r) => r.frequency + "\u0000" + groupKey(r),
+      categoryOf: (r, fallback) => {
+        const name = r.category_name;
+        if (name) {
+          const k = pyStrip(name).toLowerCase();
+          if (has(categories, k)) return categories[k];
+        }
+        return fallback;
+      },
+      categoryMatched: (r) => !!r.category_name && has(categories, pyStrip(r.category_name).toLowerCase()),
+      tagsOf: (r) => {
+        const matched = [], unmatched = [];
+        for (const name of r.tag_names) {
+          const k = pyStrip(name).toLowerCase();
+          if (has(tags, k)) matched.push(tags[k]);
+          else unmatched.push(name);
+        }
+        return { matched: matched, unmatched: unmatched };
+      },
+    };
+  }
+
+  // POST /api/accounts/{id}/import/preview. Input: csv_text, has_header,
+  // mapping (null to detect), sign_convention, and from the account: lines
+  // [{date, amount, description}] (the date paid, else planned), recurring
+  // [{id, frequency, description}], categories and tags [{id, name}].
+  function csvPreview(input) {
+    const ctx = csvContext(input);
+    const rows = ctx.parsed.rows;
+    let duplicates = 0, repeating = 0;
+    for (const r of rows) {
+      r.duplicate = ctx.lineKeys.has(ctx.keyOf(r.date, r.amount, r.description));
+      if (r.duplicate) duplicates++;
+      r.category_matched = ctx.categoryMatched(r);
+      r.tags_unmatched = ctx.tagsOf(r).unmatched;
+      if (r.frequency) {
+        repeating++;
+        r.recurring_template = ctx.resolved.get(ctx.groupOf(r)).existing === null ? "new" : "existing";
+      } else {
+        r.recurring_template = null;
+      }
+    }
+    return {
+      headers: ctx.parsed.headers,
+      mapping: ctx.parsed.mapping,
+      rows: rows.slice(0, 200),
+      row_count: rows.length,
+      skipped: ctx.parsed.skipped.slice(0, 50),
+      skipped_count: ctx.parsed.skipped.length,
+      duplicate_count: duplicates,
+      recurring_count: repeating,
+      sign_convention: input.sign_convention || "amount",
+      has_header: input.has_header !== false,
+    };
+  }
+
+  // POST /api/accounts/{id}/import/commit, as a plan the host carries out:
+  // the bills to make (in the order the server makes them), the lines to
+  // add (each with its bill: {"new": place} or {"id": an existing one}, and
+  // its tags, each once, #248) and the answer. Input as csvPreview, plus
+  // default_category_id and skip_duplicates.
+  function csvCommit(input) {
+    const ctx = csvContext(input);
+    const skip = input.skip_duplicates !== false;
+    const fallback = input.default_category_id === undefined ? null : input.default_category_id;
+    const existing = skip ? ctx.lineKeys : new Set();
+    const made = new Map();
+    const templates = [];
+    const transactions = [];
+    let inserted = 0, linked = 0, duplicates = 0;
+    for (const r of ctx.parsed.rows) {
+      const category = ctx.categoryOf(r, fallback);
+      let recurring = null;
+      if (r.frequency) {
+        const g = ctx.groupOf(r);
+        const info = ctx.resolved.get(g);
+        if (info.existing !== null) {
+          recurring = { id: info.existing };
+        } else {
+          if (!made.has(g)) {
+            const seed = info.seed;
+            const monthly = seed.frequency === "monthly_day";
+            templates.push({
+              category_id: ctx.categoryOf(seed, fallback),
+              frequency: seed.frequency,
+              day_of_month: monthly ? +seed.date.slice(8, 10) : null,
+              anchor_date: monthly ? null : seed.date,
+              end_date: seed.end_date,
+              description: seed.description,
+              amount: seed.amount,
+              notes: seed.notes || null,
+            });
+            made.set(g, templates.length - 1);
+          }
+          recurring = { "new": made.get(g) };
+        }
+      }
+      const key = ctx.keyOf(r.date, r.amount, r.description);
+      if (skip && existing.has(key)) {
+        duplicates++;
+        continue;
+      }
+      existing.add(key);
+      const tagIDs = Array.from(new Set(ctx.tagsOf(r).matched)).sort((a, b) => a - b);
+      transactions.push({
+        date: r.date, description: r.description, amount: r.amount, notes: r.notes || null,
+        category_id: category, recurring: recurring, tag_ids: tagIDs,
+      });
+      inserted++;
+      if (recurring !== null) linked++;
+    }
+    return {
+      result: { ok: true, inserted: inserted, recurring_created: templates.length, recurring_linked: linked,
+        duplicates_skipped: duplicates, total_rows: ctx.parsed.rows.length },
+      templates: templates,
+      transactions: transactions,
+    };
+  }
+
   // ---------- Entry point ----------
 
   // forecast._occurrences for the hosts: a repeating item's dates in a
@@ -958,6 +1416,8 @@
     recurringList: recurringList,
     searchTransactions: searchTransactions,
     search: search,
+    csvPreview: csvPreview,
+    csvCommit: csvCommit,
   };
 
   // What the hosts call: a function name and a JSON string in, a JSON
@@ -968,7 +1428,7 @@
   }
 
   root.WalletWeatherCore = {
-    version: "0.3.0",
+    version: "0.4.0",
     run: run,
     forecast: forecast,
     actualBalanceAsOf: actualBalanceAsOf,
@@ -980,6 +1440,8 @@
     recurringList: recurringList,
     searchTransactions: searchTransactions,
     search: search,
+    csvPreview: csvPreview,
+    csvCommit: csvCommit,
     // For the tests: the date and rounding helpers.
     _dayNumber: dayNumber,
     _isoOf: isoOf,
@@ -987,5 +1449,8 @@
     _pySum: pySum,
     _pyStrip: pyStrip,
     _casefold: casefold,
+    _csvReader: csvReader,
+    _parseCsvDate: parseCsvDate,
+    _parseCsvAmount: parseCsvAmount,
   };
 })(typeof globalThis !== "undefined" ? globalThis : this);

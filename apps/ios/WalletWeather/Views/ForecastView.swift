@@ -25,6 +25,7 @@ struct ForecastView: View {
     @State private var adding = false
     @State private var newDraft = NewTransactionDraft(today: .today())
     @State private var moving = false
+    @State private var importingCSV = false
     @State private var moveDraft = MoveMoneyDraft(today: .today())
     @State private var pendingDelete: ForecastLine?
     @State private var problem: String?
@@ -62,6 +63,7 @@ struct ForecastView: View {
         .sheet(isPresented: $moving) {
             MoveMoneySheet(accounts: editableAccounts, draft: $moveDraft) { await loadMonth() }
         }
+        .csvImporter(isPresented: $importingCSV, account: account?.id) { await loadMonth() }
         .confirmationDialog(pendingDelete.map(deleteTitle) ?? "", isPresented: Binding(
             get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
                             titleVisibility: .visible, presenting: pendingDelete) { line in
@@ -305,7 +307,7 @@ struct ForecastView: View {
             }, onMove: {
                 moveDraft = MoveMoneyDraft(today: .today(), from: account?.id)
                 moving = true
-            })
+            }, onImport: { importingCSV = true })
         }
     }
 

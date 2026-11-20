@@ -303,6 +303,18 @@ the iCloud Keychain passphrase (or one typed) and replaces the household.
 `CloudBackupTests` runs it all in a temporary folder; the real iCloud round
 trip is checked on a phone.
 
+**Import a CSV** (phase 9, #243): `CSVImportViews.swift` picks a file in
+Files and shows one sheet (account, signs, a summary, the columns folded
+away, the rows); `CSVImport.swift` holds its models and the two calls,
+`/api/accounts/{id}/import/preview` and `/commit`. A server answers them
+itself; on the phone `LocalServer` hands the file, the account's lines and
+bills and the categories to the core's `csvPreview` and `csvCommit` (the
+server's same code) and makes the bills and lines the plan lists. It's in
+Settings and Forecast's + menu, with or without a server; the columns and
+signs are kept per account in the app's settings. Debug builds open it on a
+file in the app's Documents folder with `WW_DEBUG_CSV=<file>`. `LocalTests`
+covers the import and its checks, `CoreTests` the core's answers.
+
 Debug builds open it from the command line with `WW_DEBUG_LOCAL=1`, or
 `empty` / `sample` for a fresh household with the notice agreed to (and a
 few bills and lines with `sample`), and the first screen with

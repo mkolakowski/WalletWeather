@@ -9,6 +9,8 @@ struct AddMenu: ToolbarContent {
     let canMove: Bool
     let onAdd: () -> Void
     let onMove: () -> Void
+    /// Import a CSV (#243), where the page offers it.
+    var onImport: (() -> Void)?
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
@@ -16,6 +18,9 @@ struct AddMenu: ToolbarContent {
                 Button(addTitle, systemImage: "plus.circle", action: onAdd)
                 if canMove {
                     Button("Move money", systemImage: "arrow.left.arrow.right", action: onMove)
+                }
+                if let onImport {
+                    Button("Import a CSV…", systemImage: "doc.text", action: onImport)
                 }
             } label: {
                 Label("Add", systemImage: "plus")

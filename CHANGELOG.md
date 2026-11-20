@@ -69,9 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.84.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.22.0**
+App version: **1.85.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.23.0**
 
 ### Added
+
+- **iOS 0.23.0, import a bank's CSV on the iPhone:** **Import a CSV…** in Settings, and in Forecast's **+** menu for the account on screen, opens a CSV from the Files app (your bank's export, for example). Pick the account, check how the amounts are signed, and see what will happen before anything changes: how many lines will be added, which are already on the account, which repeat, and which rows are left out and why. The columns are worked out from their names; open **Columns** to change any, and the phone remembers your choices per account for the next file with the same headings. **Import** adds each row as a paid line on its date. A line with the same date, amount and description as one already there is left out, so importing the same file twice adds nothing. Rows marked as repeating join their bill, or make one. It works on an iPhone with no server, and on one signed in to a server, for accounts you can change.
 
 - **iOS 0.22.0, delete a transfer and bring back skipped dates:** open a transfer between accounts (in Forecast, the Calendar or Search) and **Delete transfer** removes it with both of its lines, on both accounts, after asking. On an iPhone with no server this is the way to undo Move money; with a server it works too, for accounts you can edit. A bill or paycheck that has skipped dates now shows **Bring back the skipped date** (or **Bring back N skipped dates**) in its editor in Bills & income, which puts them all back in the Forecast and Calendar. Before, both were possible only in the web app. Tags still can't be made on an iPhone with no server.
 
@@ -83,8 +85,14 @@ App version: **1.84.0** · Web version: **1.96.0** · Schema version: **31** · 
 
 ### Changed
 
+- **CSV import on the shared engine:** reading a CSV file for import, spotting lines already on the account, and grouping repeating rows into bills are now done by the shared engine, the same code the iPhone uses without a server. The results are the same as before; the server's own code wrote the answers the engine is checked against.
 - **Backups keep transfers:** a backup now records which lines were a transfer between your accounts, so a restore, or a move between your server and the iPhone, brings each transfer back as a transfer. Before, a restored transfer came back as two plain lines (the balances were right). Backups made before this still restore as before. A backup made by this version can't be restored on an older server: update that server first. (1.84.0, backup version 5, `apps/server/app/backup.py`, #236)
 - **Bills & income and Search on the shared engine:** the Bills & income list and its monthly and yearly totals, the search box's results, and transaction search are now worked out by the shared engine too, the same code the iPhone app will use without a server. They were checked against the old code on 54 new test cases, including names in other alphabets, and agreed except in one place: a line's or bill's tags are now listed in the same order everywhere, as on Forecast, so tags whose names start with letters beyond plain A–Z (such as "Iğdır") may swap places with their neighbours. On an account with about 1,500 lines, a search that matches every line takes about 10 ms longer. (1.83.0, `packages/core/`, #235)
+
+### Fixed
+
+- **CSV import with a tag named twice:** a row whose Tags column names the same tag twice (for example "Work trip; work trip") made the whole import fail. Each tag is now added to the line once.
+- **CSV files with a stray line break:** a file with a line break inside an unquoted field now gets a clear "couldn't be read as CSV" message instead of a server error.
 
 ## [1.82.0] — 2026-11-18
 

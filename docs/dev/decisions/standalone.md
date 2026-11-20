@@ -102,3 +102,13 @@ Decisions made while planning [`Plans/standalone.md`](../../../Plans/standalone.
 - **Restore is on the first screen and in Settings.** "Restore from an iCloud backup" on the first screen is the new-phone path; "Restore from a backup…" in the Backup card does the same on a phone that already has a household, after asking. Both list the backups newest first.
 
 **Set in building, not asked:** a restore turns the backup back on, and saves a typed passphrase to iCloud Keychain so the next backup uses it; the household stamps every change in its own store, so "only when something changed" survives the app closing; the backup is checked when the app opens and when it goes to the background, since iOS gives an app no timer.
+
+## 2026-11-20: where CSV import lives on the iPhone
+
+**Decided:** 2026-11-20, by Matthew, asked while building phase 9 (#243). **Status:** accepted, built in iOS 0.23.0.
+
+- **In Settings and in Forecast's + menu.** Settings asks which account (the first one you can change, to start); Forecast's menu imports into the account on screen. Chosen over Settings only and Forecast only.
+- **With a server too.** A phone signed in to a server gets the same screen, for accounts it may change; the server does the import with its same code. Chosen over keeping it to the phone with no server.
+- **The columns are remembered per account.** The columns, the signs and "first row is column names" are kept on the phone for each account and used again when the next file has the same headings; otherwise they're worked out from the names. Chosen over working them out every time, as the web app does.
+
+**Set in building, not asked:** the sheet shows the summary first and folds the columns away, opening them by itself when the date or amount column wasn't found; a byte order mark at the start of a file is dropped, as a browser drops it for the web app; a file that isn't UTF-8 is read as Latin-1.

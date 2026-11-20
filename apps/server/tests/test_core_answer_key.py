@@ -59,7 +59,8 @@ def test_the_core_gives_the_servers_answer(name, case):
 def test_the_key_has_every_function():
     functions = {case["function"] for _, case in _committed()}
     assert functions == {"forecast", "actualBalanceAsOf", "upcomingDates", "calendar", "dashboard",
-                         "dashboardCharts", "recurringList", "searchTransactions", "search"}
+                         "dashboardCharts", "recurringList", "searchTransactions", "search",
+                         "csvPreview", "csvCommit"}
 
 
 def test_the_key_still_matches_the_server(app_started):

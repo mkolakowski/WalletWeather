@@ -184,6 +184,8 @@ public final class LocalServer: @unchecked Sendable {
             return try updateRecurring(id, body, context)
         case ("POST", "recurring", 3) where rest[2] == "skip":
             return try skip(id, body, context)
+        case ("DELETE", "recurring", 3) where rest[2] == "skips":
+            return try restoreSkips(id, context)
         case ("PATCH", "transactions", 2):
             return try updateTransaction(id, body, context)
         case ("DELETE", "transactions", 2):
@@ -192,6 +194,8 @@ public final class LocalServer: @unchecked Sendable {
             return try searchTransactions(query: query, context)
         case ("POST", "transfers", 1):
             return try createTransfer(body, context)
+        case ("DELETE", "transfers", 2):
+            return try deleteTransfer(id, context)
         case ("GET", "search", 1):
             return try search(query: query, today: today, context)
         default:
@@ -255,7 +259,8 @@ public final class LocalServer: @unchecked Sendable {
         Dictionary(try context.fetch(FetchDescriptor<LocalCategory>()).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
     }
 
-    private func recurringRow(_ r: LocalRecurring, _ categories: [Int: LocalCategory], forList: Bool = false) -> [String: Any] {
+    private func recurringRow(_ r: LocalRecurring, _ categories: [Int: LocalCategory], forList: Bool = false,
+                              skipCounts: [Int: Int] = [:]) -> [String: Any] {
         var row: [String: Any] = [
             "id": r.id, "frequency": r.frequency, "day_of_month": r.dayOfMonth as Any? ?? NSNull(),
             "anchor_date": r.anchorDate as Any? ?? NSNull(), "end_date": r.endDate as Any? ?? NSNull(),
@@ -268,6 +273,7 @@ public final class LocalServer: @unchecked Sendable {
             row["match_days"] = r.matchDays
             row["match_percent"] = r.matchPercent
             row["match_text"] = r.matchText as Any? ?? NSNull()
+            row["skipped_count"] = skipCounts[r.id] ?? 0
         }
         return row
     }
@@ -365,6 +371,7 @@ public final class LocalServer: @unchecked Sendable {
         let categories = try categoryNames(context)
         let recs = try ordered(LocalRecurring.self, context, added: \.added, id: \.id).filter(keep)
         let skips = try context.fetch(FetchDescriptor<LocalSkip>())
+        let skipCounts = Dictionary(grouping: skips, by: \.recurringID).mapValues(\.count)
         let lines = try context.fetch(FetchDescriptor<LocalTransaction>())
         let from = today.description
         return list.map { account in
@@ -372,7 +379,7 @@ public final class LocalServer: @unchecked Sendable {
             let ids = Set(mine.map(\.id))
             return [
                 "id": account.id, "name": account.name, "level": "owner",
-                "recurring": mine.map { recurringRow($0, categories, forList: true) },
+                "recurring": mine.map { recurringRow($0, categories, forList: true, skipCounts: skipCounts) },
                 "skips": skips.filter { ids.contains($0.recurringID) }
                     .sorted { $0.recurringID != $1.recurringID ? $0.recurringID < $1.recurringID : $0.date < $1.date }
                     .map { ["recurring_id": $0.recurringID, "date": $0.date] },
@@ -597,6 +604,28 @@ public final class LocalServer: @unchecked Sendable {
         let rec = try recurring(id, context)
         guard let day = try day(body, "skip_date") else { throw Problem.invalid("skip_date is required") }
         addSkip(rec.id, day, context)
+        return ["ok": true]
+    }
+
+    /// Brings back every date deleted from a bill (the server's
+    /// `restore_recurring_occurrences`, #246).
+    private func restoreSkips(_ id: Int?, _ context: ModelContext) throws -> Any {
+        let rec = try recurring(id, context)
+        let rid = rec.id
+        let skips = try context.fetch(FetchDescriptor<LocalSkip>(predicate: #Predicate { $0.recurringID == rid }))
+        for skip in skips { context.delete(skip) }
+        return ["restored": skips.count]
+    }
+
+    /// Deletes a transfer and its two lines (the server's `delete_transfer`).
+    private func deleteTransfer(_ id: Int?, _ context: ModelContext) throws -> Any {
+        guard let id,
+              let transfer = try context.fetch(FetchDescriptor<LocalTransfer>(predicate: #Predicate { $0.id == id })).first
+        else { throw Problem.notFound("Transfer not found") }
+        for leg in try context.fetch(FetchDescriptor<LocalTransaction>(predicate: #Predicate { $0.transferID == id })) {
+            context.delete(leg)
+        }
+        context.delete(transfer)
         return ["ok": true]
     }
 

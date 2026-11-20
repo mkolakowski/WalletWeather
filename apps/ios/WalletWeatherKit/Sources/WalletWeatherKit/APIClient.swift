@@ -5,7 +5,7 @@ public enum AppInfo {
     /// The iOS app's own version (CHANGELOG.md tracks it beside the app,
     /// web and schema versions). Keep it equal to MARKETING_VERSION in the
     /// Xcode project.
-    public static let version = "0.21.0"
+    public static let version = "0.22.0"
     /// The first server version with what the app's pages need: the
     /// phone's date on Net worth, Budgets and Reports (#91), on top of each
     /// bill's next dates (#89) and the Forecast's (#88).
@@ -183,7 +183,9 @@ public final class APIClient: Sendable {
     /// item also stops that date being projected again); a projected date
     /// is skipped, leaving the repeating item and its other dates alone.
     public func delete(_ line: ForecastLine) async throws(APIError) {
-        if let id = line.transactionId {
+        if let transfer = line.transferId {
+            try await deleteTransfer(transfer)
+        } else if let id = line.transactionId {
             let _: EmptyAnswer = try await send("DELETE", "/api/transactions/\(id)", body: Optional<[String: String]>.none)
         } else if let rec = line.recurringId, let day = line.plannedDate {
             let _: EmptyAnswer = try await send("POST", "/api/recurring/\(rec)/skip", body: ["skip_date": day.description])
@@ -220,6 +222,19 @@ public final class APIClient: Sendable {
     /// Saves a bill: the whole item again, as a PATCH replaces it.
     public func updateRecurring(_ id: Int, _ body: RecurringBody) async throws(APIError) {
         let _: EmptyAnswer = try await send("PATCH", "/api/recurring/\(id)", body: body)
+    }
+
+    /// Brings back every date deleted from a bill; says how many came back
+    /// (#246).
+    @discardableResult
+    public func restoreSkippedDates(_ item: RecurringItem) async throws(APIError) -> Int {
+        let answer: RestoredAnswer = try await send("DELETE", "/api/recurring/\(item.id)/skips", body: Optional<[String: String]>.none)
+        return answer.restored
+    }
+
+    /// Deletes a transfer and both its lines, on both accounts (#246).
+    public func deleteTransfer(_ id: Int) async throws(APIError) {
+        let _: EmptyAnswer = try await send("DELETE", "/api/transfers/\(id)", body: Optional<[String: String]>.none)
     }
 
     /// Skips one date, leaving the bill and its other dates alone.
@@ -368,6 +383,9 @@ public final class APIClient: Sendable {
 }
 
 struct EmptyAnswer: Decodable {}
+
+/// `DELETE /api/recurring/{id}/skips`: how many dates came back.
+struct RestoredAnswer: Decodable { let restored: Int }
 
 private final class NoRedirects: NSObject, URLSessionTaskDelegate, Sendable {
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,

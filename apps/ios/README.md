@@ -261,9 +261,9 @@ server and get the server's shapes back.
   so two devices can't pick the same one once phase 7 syncs them.
 - **Needs a server** (open question 2): Net worth, Budgets, Reports and bank
   sync stay where they are, greyed and marked, and open a note on what a
-  server adds; their requests answer 404. Transfers can't be changed or
-  deleted yet, and skipped dates can't be restored (both are in the web app
-  only), and tags can't be made.
+  server adds; their requests answer 404. A transfer can be deleted (both
+  its lines) but not changed, skipped dates are brought back from a bill's
+  editor (#246), and tags can't be made (#247).
 - **No network:** the local session's only handlers are the household's and
   one that refuses everything else (`RefuseProtocol`); `LocalTests` drives
   every page and checks nothing was refused.

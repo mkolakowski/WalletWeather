@@ -69,9 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.84.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.21.0**
+App version: **1.84.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.22.0**
 
 ### Added
+
+- **iOS 0.22.0, delete a transfer and bring back skipped dates:** open a transfer between accounts (in Forecast, the Calendar or Search) and **Delete transfer** removes it with both of its lines, on both accounts, after asking. On an iPhone with no server this is the way to undo Move money; with a server it works too, for accounts you can edit. A bill or paycheck that has skipped dates now shows **Bring back the skipped date** (or **Bring back N skipped dates**) in its editor in Bills & income, which puts them all back in the Forecast and Calendar. Before, both were possible only in the web app. Tags still can't be made on an iPhone with no server.
 
 - **iOS 0.21.0, automatic backup to iCloud Drive:** on an iPhone used without a server, WalletWeather now backs your numbers up to your iCloud Drive by itself. It turns on when you add your first account, asking for your backup passphrase if you haven't chosen one (**Not now** leaves it off). A backup is made at most once a day, only when something changed, and the last 14 are kept. They're the same encrypted files as Export for a server, so a server's Settings → Restore opens them too. They sit in the Files app under iCloud Drive → WalletWeather → Backups. Settings → On this iPhone has a new Backup card with the switch, the date of the last backup, **Back up now** and **Restore from a backup…**. On a new iPhone, the first screen's **Restore from an iCloud backup** lists the backups, asks before replacing anything, opens the chosen one with your backup passphrase from iCloud Keychain (or one you type) and turns backup on again. It needs iCloud Drive turned on for WalletWeather in the phone's Settings; the app says so when it isn't.
 

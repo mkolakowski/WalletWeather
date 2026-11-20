@@ -131,6 +131,56 @@ struct LocalTests {
         #expect(try await client.search("rent").recurring.results.map(\.description) == ["Rent"])
     }
 
+    /// Deleting a transfer and bringing back skipped dates (#246): the
+    /// server's `DELETE /api/transfers/{id}` and `DELETE /api/recurring/{id}/skips`.
+    @Test func aTransferCanBeDeletedAndSkippedDatesBroughtBack() async throws {
+        let checking = try await account("Checking", 1000)
+        let savings = try await account("Savings", 5000)
+        try await bill("Rent", "800", day: 1, account: checking)
+        let move = try #require(TransferBody({
+            var d = MoveMoneyDraft(today: day, from: checking, to: savings)
+            d.amountText = "250"
+            return d
+        }()))
+        let transfer = try await client.moveMoney(move)
+
+        // The transfer's lines say they are one, and deleting either takes both.
+        let march = try await client.forecast(account: checking, month: YearMonth(day), today: day)
+        let leg = try #require(march.rows.first { $0.isTransfer })
+        #expect(leg.transferId == transfer.id)
+        try await client.delete(leg)
+        let after = try await client.accounts(today: day)
+        #expect(after[0].currentBalance == Money(Decimal(200)))  // 1000 - 800 rent
+        #expect(after[1].currentBalance == Money(Decimal(5000)))
+        #expect(try await client.search("transfer").transactions.results.isEmpty)
+
+        // Both lines are gone: an unknown transfer is a 404, as on the server.
+        do {
+            try await client.deleteTransfer(transfer.id)
+            Issue.record("deleted a transfer that was already gone")
+        } catch {
+            guard case let .server(status, _) = error else { Issue.record("\(error)"); return }
+            #expect(status == 404)
+        }
+
+        // Skip two of Rent's dates; the list counts them; restoring brings both back.
+        var rent = try #require(try await client.recurring(today: day).items.first)
+        #expect(rent.skippedCount == 0)
+        try await client.skip(rent, on: LocalDay(year: 2026, month: 4, day: 1))
+        try await client.skip(rent, on: LocalDay(year: 2026, month: 5, day: 1))
+        rent = try #require(try await client.recurring(today: day).items.first)
+        #expect(rent.skippedCount == 2)
+        #expect(try await client.restoreSkippedDates(rent) == 2)
+        let april = try await client.forecast(account: checking, month: YearMonth(day).next, today: day)
+        #expect(april.rows.map(\.description) == ["Rent"])
+        #expect(try await client.recurring(today: day).items.first?.skippedCount == 0)
+        #expect(try await client.restoreSkippedDates(rent) == 0)
+
+        // A bill that isn't there is a 404.
+        let (status, _) = server.answer(method: "DELETE", path: "/api/recurring/999999/skips", query: [:], body: nil)
+        #expect(status == 404)
+    }
+
     @Test func whatNeedsAServerSaysSo() async throws {
         // Bank sync reads as a server without it.
         #expect(try await client.bankStatus() == nil)

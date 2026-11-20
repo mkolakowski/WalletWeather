@@ -8,6 +8,9 @@ struct OpenLine: Identifiable, Equatable {
     let line: ForecastLine
     let account: Account
     let editable: Bool
+    /// A transfer's lines can't be changed, but a person who can edit the
+    /// account may delete the transfer (#246).
+    let canDeleteTransfer: Bool
     var draft: LineDraft
     var id: String { line.id }
 
@@ -15,6 +18,7 @@ struct OpenLine: Identifiable, Equatable {
         self.line = line
         self.account = account
         self.editable = editable && line.canEdit(onEditableAccount: true)
+        canDeleteTransfer = editable && line.isTransfer && line.transactionId != nil
         draft = LineDraft(line, today: today)
     }
 }
@@ -114,6 +118,7 @@ struct LineEditor: View {
                         deleteSection
                     } else {
                         readOnlySection
+                        if open.canDeleteTransfer { deleteSection }
                     }
                 }
                 .listRowBackground(Palette.row)
@@ -130,7 +135,7 @@ struct LineEditor: View {
                 Text(problem ?? "")
             }
             .confirmationDialog(deleteTitle, isPresented: $confirmDelete, titleVisibility: .visible) {
-                Button(line.isProjection ? "Delete this date" : "Delete", role: .destructive) {
+                Button(line.isTransfer ? "Delete transfer" : line.isProjection ? "Delete this date" : "Delete", role: .destructive) {
                     Task { await run { try await $0.delete(line) } }
                 }
             } message: {
@@ -206,7 +211,7 @@ struct LineEditor: View {
 
     private var deleteSection: some View {
         Section {
-            Button(line.isProjection ? "Delete this date" : "Delete transaction", role: .destructive) {
+            Button(line.isTransfer ? "Delete transfer" : line.isProjection ? "Delete this date" : "Delete transaction", role: .destructive) {
                 confirmDelete = true
             }
             .foregroundStyle(Palette.bad)  // kept red under a look's own text colour
@@ -257,7 +262,8 @@ struct LineEditor: View {
 
     private var readOnlyReason: String {
         if line.isTransfer {
-            return model.isLocal ? "Transfers between accounts can't be changed on this iPhone yet."
+            return model.isLocal ? "A transfer can't be changed on this iPhone. Delete it and move the money again."
+                                 : open.canDeleteTransfer ? "Transfers between accounts can be deleted here and changed in the web app."
                                  : "Transfers between accounts are changed in the web app."
         }
         if model.me?.isReadOnly == true { return "This phone signed in with a read-only token, so nothing can be changed here." }
@@ -265,17 +271,19 @@ struct LineEditor: View {
     }
 
     private var deleteTitle: String {
-        line.isProjection ? "Delete the \(line.plannedDate?.short ?? "") date?" : "Delete this transaction?"
+        if line.isTransfer { return "Delete this transfer?" }
+        return line.isProjection ? "Delete the \(line.plannedDate?.short ?? "") date?" : "Delete this transaction?"
     }
 
     private var deleteMessage: String {
+        if line.isTransfer { return "Both its lines, here and on the other account, are removed. This can't be undone." }
         if line.isProjection {
             return "The repeating bill or paycheck keeps its other dates; only this one is removed."
-                + (model.isLocal ? "" : " You can restore deleted dates in the web app's Bills & income.")
+                + " You can bring deleted dates back from the bill's editor in Bills & income."
         }
         if line.recurringId != nil {
             return "This can't be undone. Its repeating bill or paycheck stays, but this date won't be projected again"
-                + (model.isLocal ? "." : " (restore it in the web app's Bills & income).")
+                + " (bring it back from the bill's editor in Bills & income)."
         }
         return "This can't be undone."
     }

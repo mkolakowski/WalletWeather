@@ -68,6 +68,9 @@ public struct RecurringItem: Sendable, Codable, Equatable, Identifiable {
     /// either side, and percent of the amount (server 1.73.0, #196).
     public let matchDays: Int?
     public let matchPercent: Int?
+    /// How many of its dates were deleted and can be brought back (the
+    /// server's `skipped_count`); nil from a server too old to say.
+    public let skippedCount: Int?
 
     public var kind: Frequency? { Frequency(rawValue: frequency) }
     public var isIncome: Bool { !amount.isNegative }

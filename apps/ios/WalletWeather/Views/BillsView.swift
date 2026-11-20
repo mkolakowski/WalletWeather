@@ -575,6 +575,7 @@ struct BillEditor: View {
 
     @State private var saving = false
     @State private var problem: String?
+    @State private var confirmRestore = false
 
     private var isNew: Bool { open.item == nil }
     private var title: String { isNew ? "New bill or income" : open.item?.description ?? "" }
@@ -633,6 +634,30 @@ struct BillEditor: View {
         .alert("Couldn't save", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
             Button("OK", role: .cancel) {}
         } message: { Text(problem ?? "") }
+        .confirmationDialog(restoreTitle, isPresented: $confirmRestore, titleVisibility: .visible) {
+            Button("Bring back", role: .destructive) { Task { await restoreDates() } }
+        } message: {
+            Text("They show in the Forecast and Calendar again, and a synced bank line can pay them.")
+        }
+    }
+
+    private var restoreTitle: String {
+        let n = open.item?.skippedCount ?? 0
+        return n == 1 ? "Bring back the skipped date?" : "Bring back all \(n) skipped dates?"
+    }
+
+    private func restoreDates() async {
+        guard let client = model.client, let item = open.item else { return }
+        saving = true
+        defer { saving = false }
+        do {
+            try await client.restoreSkippedDates(item)
+        } catch {
+            problem = AppModel.describe(error)
+            return
+        }
+        await onSaved()
+        onClose()
     }
 
     @ViewBuilder
@@ -709,6 +734,9 @@ struct BillEditor: View {
             Section {
                 if !item.nextDates.isEmpty {
                     Button("Skip a date…") { onSkip(item) }
+                }
+                if let skipped = item.skippedCount, skipped > 0 {
+                    Button(skipped == 1 ? "Bring back the skipped date…" : "Bring back \(skipped) skipped dates…") { confirmRestore = true }
                 }
                 Button("End…", role: .destructive) { onEnd(item) }
                     .foregroundStyle(Palette.bad)  // kept red under a look's own text colour

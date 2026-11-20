@@ -48,6 +48,14 @@ struct SettingsView: View {
                         .card()
                     }
 
+                    // Tags (#251), on the phone's household or the server's.
+                    SectionTitle("Tags")
+                    NavigationLink { TagsPage() } label: {
+                        MoreRow { Label("Tags", systemImage: "tag") } trailing: { Chevron() }
+                    }
+                    .buttonStyle(.plain)
+                    .card()
+
                     SectionTitle("Bank sync")
                     if model.isLocal {
                         NeedsServerCard(what: "Bank sync", symbol: "building.columns")

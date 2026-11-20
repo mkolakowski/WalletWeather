@@ -315,6 +315,8 @@ final class AppModel {
         else { return }
         let categories = (try? await client.categories()) ?? []
         func category(_ name: String) -> Int? { categories.first { $0.name == name }?.id }
+        let holiday = try? await client.createTag(name: "Holiday", color: "#d29922")
+        let work = try? await client.createTag(name: "Work", color: "#58a6ff")
         for (name, amount, day, income, cat) in [("Rent", "1450", 1, false, "Rent/Mortgage"), ("Paycheck", "2100", 15, true, "Income"),
                                                  ("Phone", "65.43", 21, false, "Utilities"), ("Streaming", "15.99", 8, false, "Subscriptions")] {
             var bill = BillDraft(today: today)
@@ -323,6 +325,7 @@ final class AppModel {
             bill.kind = income ? .income : .spending
             bill.dayOfMonth = day
             bill.categoryId = category(cat)
+            if name == "Phone", let work { bill.tagIds = [work.id] }
             try? await client.addRecurring(bill, account: checking)
         }
         for (name, amount, back) in [("Groceries", "84.20", 2), ("Coffee", "4.75", 1)] {
@@ -330,6 +333,7 @@ final class AppModel {
             line.name = name
             line.amountText = amount
             line.categoryId = category(name == "Coffee" ? "Dining" : "Groceries")
+            if name == "Coffee" { line.tagIds = [holiday?.id, work?.id].compactMap { $0 } }
             try? await client.add(line, account: checking)
         }
         var move = MoveMoneyDraft(today: today, from: checking, to: savings)

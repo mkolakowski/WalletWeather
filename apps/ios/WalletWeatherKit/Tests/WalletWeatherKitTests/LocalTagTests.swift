@@ -111,4 +111,55 @@ struct LocalTagTests {
         let (_, found) = try call("GET", "/api/transactions/search", query: ["tag_id": String(work)])
         #expect(((found as? [String: Any])?["results"] as? [[String: Any]])?.count == 1)
     }
+
+    /// Through the app's own calls (#251): tags read on lines, bills and
+    /// search hits; sent only when changed, so a bill's date marked paid
+    /// still takes the bill's tags.
+    @Test func theAppsCallsReadAndChangeTags() async throws {
+        let trip = try await client.createTag(name: "trip", color: "#58a6ff")
+        let food = try await client.createTag(name: "food", color: nil)
+        #expect(try await client.tags().map(\.name) == ["food", "trip"])
+        let checking = try await client.createAccount(AccountBody(name: "Checking", startingBalance: 100, startingDate: day)).id
+        var bill = BillDraft(today: day)
+        bill.name = "Hotel"
+        bill.amountText = "90"
+        bill.dayOfMonth = 20
+        bill.tagIds = [trip.id]
+        try await client.addRecurring(bill, account: checking)
+        var lunch = NewTransactionDraft(today: day)
+        lunch.name = "Lunch"
+        lunch.amountText = "12"
+        lunch.tagIds = [food.id]
+        try await client.add(lunch, account: checking)
+
+        let month = try await client.forecast(account: checking, month: YearMonth(day), today: day)
+        let hotel = try #require(month.rows.first { $0.description == "Hotel" })
+        #expect(hotel.tags?.map(\.name) == ["trip"] && hotel.isProjection)
+        // Marked paid unchanged: no tag_ids sent, the bill's tags come along.
+        try await client.save(hotel, draft: LineDraft.paidAsPlanned(hotel, today: day), account: checking)
+        let line = try #require(try await client.forecast(account: checking, month: YearMonth(day), today: day)
+            .rows.first { $0.description == "Lunch" })
+        #expect(line.tags?.map(\.name) == ["food"])
+        // Changed: sent.
+        var draft = LineDraft(line, today: day)
+        draft.tagIds = [food.id, trip.id]
+        try await client.save(line, draft: draft, account: checking)
+        let after = try await client.forecast(account: checking, month: YearMonth(day), today: day)
+        #expect(after.rows.first { $0.description == "Hotel" }?.tags?.map(\.name) == ["trip"])
+        #expect(after.rows.first { $0.description == "Lunch" }?.tags?.map(\.name) == ["food", "trip"])
+        // A bill's tags changed through its editor.
+        let item = try #require(try await client.recurring(today: day).items.first)
+        #expect(item.tags?.map(\.name) == ["trip"])
+        var edit = BillDraft(item, today: day)
+        edit.tagIds = []
+        try await client.updateRecurring(item.id, RecurringBody(edit, active: item.active))
+        #expect(try await client.recurring(today: day).items.first?.tags == [])
+        // Search hits carry tags; a tag's lines.
+        let hits = try await client.searchTransactions("lunch")
+        #expect(hits.results.first?.tags?.map(\.name) == ["food", "trip"])
+        #expect(hits.results.first?.line.tags?.count == 2)
+        try await client.updateTag(trip.id, name: "Travel", color: nil)
+        try await client.deleteTag(food.id)
+        #expect(try await client.tags() == [TagInfo(id: trip.id, name: "Travel", color: nil)])
+    }
 }

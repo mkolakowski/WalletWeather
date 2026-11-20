@@ -202,6 +202,7 @@ struct LineEditor: View {
             }
             TextField("Notes", text: $open.draft.notes, axis: .vertical)
                 .lineLimit(1...4)
+            TagsRow(selected: $open.draft.tagIds)
         } footer: {
             if open.draft.notes.count > 256 {
                 Text("Notes can be up to 256 characters.").foregroundStyle(Palette.bad)
@@ -226,6 +227,7 @@ struct LineEditor: View {
                 if let day = line.actualDate { LabeledContent("Paid on", value: day.short) }
             }
             LabeledContent("Category", value: line.category ?? "None")
+            if let tags = line.tags, !tags.isEmpty { LabeledContent("Tags") { TagChips(tags: tags) } }
             if let notes = line.notes, !notes.isEmpty { LabeledContent("Notes", value: notes) }
         } footer: {
             Text(readOnlyReason)
@@ -368,6 +370,7 @@ struct AddTransactionSheet: View {
                             ForEach(categories) { Text($0.name).tag(Optional($0.id)) }
                         }
                         TextField("Notes", text: $draft.notes, axis: .vertical).lineLimit(1...4)
+                        TagsRow(selected: $draft.tagIds)
                     }
                 }
                 .listRowBackground(Palette.row)

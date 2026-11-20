@@ -522,6 +522,7 @@ struct LineCard: View {
                         .background(.quaternary, in: Capsule())
                 }
             }
+            TagChips(tags: line.tags ?? [])
             HStack(spacing: 14) {
                 balance("Balance", line.actualBalance)
                 balance("Planned", line.forecastBalance)
@@ -618,7 +619,10 @@ struct LineTableRow: View {
                     PaidMark(line: line, today: .today()).font(.caption)
                     Text(line.description).lineLimit(2)
                 }
-                Text(line.category ?? " ").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(line.category ?? " ").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                    TagChips(tags: line.tags ?? [])
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             VStack(alignment: .trailing, spacing: 2) {

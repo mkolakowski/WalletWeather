@@ -330,6 +330,7 @@ struct BillCard: View {
                     Text(detail.joined(separator: " · ")).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
+            TagChips(tags: item.tags ?? [])
         }
         .padding(selected ? 2 : 0)
         .card()
@@ -712,6 +713,7 @@ struct BillEditor: View {
                 ForEach(categoryChoices) { Text($0.name).tag(Optional($0.id)) }
             }
             TextField("Notes", text: $open.draft.notes, axis: .vertical).lineLimit(1...4)
+            TagsRow(selected: $open.draft.tagIds)
         } footer: {
             if let problem = open.draft.problem, !open.draft.name.isEmpty || !open.draft.amountText.isEmpty {
                 Text(problem).foregroundStyle(Palette.bad)
@@ -752,6 +754,7 @@ struct BillEditor: View {
             if let end = item.endDate { LabeledContent(item.expired ? "Ended" : "Ends", value: end.short) }
             LabeledContent("Account", value: item.accountName)
             LabeledContent("Category", value: item.categoryName ?? "None")
+            if let tags = item.tags, !tags.isEmpty { LabeledContent("Tags") { TagChips(tags: tags) } }
             if let notes = item.notes, !notes.isEmpty { LabeledContent("Notes", value: notes) }
         } footer: {
             Text(model.me?.isReadOnly == true

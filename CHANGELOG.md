@@ -69,11 +69,13 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.85.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.26.0**
+App version: **1.85.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.27.0**
 
 ### Added
 
-- **iOS 0.26.0, tags kept on the iPhone:** an iPhone used without a server now keeps tags: on lines, on bills and bill payments, and auto-tag rules. Moving between your server and the iPhone (Export for a server, Import a server backup), the iCloud Drive backups and Sync with iCloud all keep them; before, tags were left behind on the way to the phone. A CSV import tags lines with tags you already have, as on a server. Screens for making and choosing tags on the iPhone come next.
+- **iOS 0.27.0, tags on the iPhone:** lines and bills now show their tags as small chips in each tag's colour, in Forecast, Bills & income and a tag's list of lines. Open a line or a bill to choose its tags, or make one on the spot with **New tag…**. Settings has a new **Tags** page to add, rename, recolour and delete tags (deleting one takes it off every line and bill). Search finds tags, and tapping one lists its lines. It works on an iPhone with no server and on one signed in to a server, on the same tags as the web app. A bill's date marked paid still takes the bill's tags.
+
+- **iOS 0.26.0, tags kept on the iPhone:** an iPhone used without a server now keeps tags: on lines, on bills and bill payments, and auto-tag rules. Moving between your server and the iPhone (Export for a server, Import a server backup), the iCloud Drive backups and Sync with iCloud all keep them; before, tags were left behind on the way to the phone. A CSV import tags lines with tags you already have, as on a server.
 
 - **iOS 0.25.0, delete everywhere:** with Sync with iCloud on, **Delete everything on this iPhone** in Settings now offers two choices. **Delete on this iPhone only** clears this phone and leaves the synced copy in your iCloud and on your other devices, as before. **Delete everywhere** deletes every account, bill and line in your iCloud and on every device signed in to it, then on this phone. If iCloud can't be reached at that moment, this phone is emptied and the rest is deleted the next time WalletWeather opens while connected; the first screen says which happened. Your encrypted backups in iCloud Drive are kept either way, as the way back from a mistake.
 

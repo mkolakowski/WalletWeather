@@ -277,8 +277,8 @@ server and get the server's shapes back.
   server adds; their requests answer 404. A transfer can be deleted (both
   its lines) but not changed, skipped dates are brought back from a bill's
   editor (#246), and tags are kept (on lines, bills and in rules, moved and
-  synced; `LocalTags.swift`, #250) but can't be made on the phone until
-  phone-tags phase 2 (#251).
+  synced; `LocalTags.swift`, #250) and since phone-tags phase 2 (#251)
+  made and chosen on the phone (`TagViews.swift`), as with a server.
 - **No network:** the local session's only handlers are the household's and
   one that refuses everything else (`RefuseProtocol`); `LocalTests` drives
   every page and checks nothing was refused.

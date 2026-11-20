@@ -71,6 +71,8 @@ public struct RecurringItem: Sendable, Codable, Equatable, Identifiable {
     /// How many of its dates were deleted and can be brought back (the
     /// server's `skipped_count`); nil from a server too old to say.
     public let skippedCount: Int?
+    /// Its tags (#251); nil from a server too old to send them.
+    public let tags: [TagInfo]?
 
     public var kind: Frequency? { Frequency(rawValue: frequency) }
     public var isIncome: Bool { !amount.isNegative }
@@ -123,6 +125,9 @@ public struct BillDraft: Sendable, Equatable {
     /// yet, and for a new bill, which starts at the server's 5 days and 10%.
     public var matchDays: Int?
     public var matchPercent: Int?
+    /// Its tags (#251), and the ones it had: sent only when changed.
+    public var tagIds: [Int] = []
+    public var savedTagIds: [Int] = []
 
     public var amount: Decimal? { parseAmount(amountText) }
 
@@ -156,6 +161,8 @@ public struct BillDraft: Sendable, Equatable {
         notes = item.notes ?? ""
         matchDays = item.matchDays
         matchPercent = item.matchPercent
+        tagIds = (item.tags ?? []).map(\.id)
+        savedTagIds = tagIds
     }
 
     /// What's wrong before it can be saved, or nil.
@@ -187,11 +194,13 @@ public struct RecurringBody: Sendable, Encodable, Equatable {
     /// Left out of the request when nil, which leaves them as they are.
     public let matchDays: Int?
     public let matchPercent: Int?
+    /// Left out when nil, which leaves the tags as they are (#251).
+    public let tagIds: [Int]?
 
     enum CodingKeys: String, CodingKey {
         case description, amount, frequency, notes, active
         case dayOfMonth = "day_of_month", anchorDate = "anchor_date", endDate = "end_date", categoryId = "category_id"
-        case matchDays = "match_days", matchPercent = "match_percent"
+        case matchDays = "match_days", matchPercent = "match_percent", tagIds = "tag_ids"
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -207,6 +216,7 @@ public struct RecurringBody: Sendable, Encodable, Equatable {
         try c.encode(active, forKey: .active)
         try c.encodeIfPresent(matchDays, forKey: .matchDays)
         try c.encodeIfPresent(matchPercent, forKey: .matchPercent)
+        try c.encodeIfPresent(tagIds, forKey: .tagIds)
     }
 
     /// From the editor. `active` is kept from the item being changed.
@@ -229,6 +239,7 @@ public struct RecurringBody: Sendable, Encodable, Equatable {
         self.active = active
         matchDays = draft.matchDays
         matchPercent = draft.matchPercent
+        tagIds = draft.tagIds != draft.savedTagIds ? draft.tagIds : nil
     }
 
     /// The item as it is, ending after `last` (End, decided 2026-11-15).

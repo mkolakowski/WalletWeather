@@ -325,6 +325,7 @@ struct SearchHitRow: View {
                 Text([hit.accountName, line.plannedDate.map { ($0 == line.actualDate || !line.isPaid) ? $0.short : "paid \(line.actualDate?.short ?? "")" },
                       hit.categoryName].compactMap { $0 }.joined(separator: " · "))
                     .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                TagChips(tags: hit.tags ?? [])
                 if let notes = hit.notes, !notes.isEmpty {
                     Text(notes).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
                 }

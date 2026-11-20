@@ -87,6 +87,8 @@ public struct ForecastLine: Sendable, Codable, Equatable, Identifiable {
     public let recurringId: Int?
     public let transactionId: Int?
     public let transferId: Int?
+    /// Its tags (#251); nil from an answer without them.
+    public var tags: [TagInfo]?
 
     /// Steady across reloads: the transaction, or the repeating item and
     /// its date. Marking a projected line paid saves it as a transaction,
@@ -205,6 +207,7 @@ public struct TransactionSearch: Sendable, Codable, Equatable {
         public let recurringId: Int?
         public let transferId: Int?
         public let notes: String?
+        public let tags: [TagInfo]?
 
         /// The same transaction as a forecast line, so it opens in the same
         /// editor. Balances aren't part of a search result; the editor
@@ -215,7 +218,8 @@ public struct TransactionSearch: Sendable, Codable, Equatable {
                          forecastAmount: forecastAmount ?? (isActual ? nil : amount), forecastBalance: .zero,
                          actualAmount: amount, actualBalance: .zero,
                          diffAmount: forecastAmount.map { Money(amount.amount - $0.amount) }, diffBalance: .zero,
-                         isActualReal: isActual, recurringId: recurringId, transactionId: id, transferId: transferId)
+                         isActualReal: isActual, recurringId: recurringId, transactionId: id, transferId: transferId,
+                         tags: tags)
         }
     }
 }
@@ -232,6 +236,9 @@ public struct LineDraft: Sendable, Equatable {
     public var paidOn: LocalDay
     public var categoryId: Int?
     public var notes: String
+    /// Its tags (#251). Sent only when changed: unchanged, the server keeps
+    /// a line's tags, and a bill's date marked paid takes the bill's.
+    public var tagIds: [Int]
 
     public var paidAmount: Decimal? { parseAmount(amountText) }
 
@@ -248,6 +255,7 @@ public struct LineDraft: Sendable, Equatable {
         paidOn = line.isPaid ? (line.actualDate ?? today) : LineDraft.paidOn(line, today: today)
         categoryId = line.categoryId
         notes = line.notes ?? ""
+        tagIds = (line.tags ?? []).map(\.id)
     }
 
     /// The day a line is marked paid on when no other is given (a swipe):
@@ -288,13 +296,14 @@ public struct TransactionBody: Sendable, Encodable, Equatable {
     public let recurringId: Int?
     public let categoryId: Int?
     public let notes: String?
-    // tag_ids is left out: the server keeps a line's tags, and a line saved
-    // from a repeating item starts with the item's.
+    /// Left out when nil: the server keeps a line's tags, and a line saved
+    /// from a repeating item starts with the item's (#251).
+    public let tagIds: [Int]?
 
     enum CodingKeys: String, CodingKey {
         case description, amount, notes
         case forecastDate = "forecast_date", actualDate = "actual_date", forecastAmount = "forecast_amount"
-        case isActual = "is_actual", recurringId = "recurring_id", categoryId = "category_id"
+        case isActual = "is_actual", recurringId = "recurring_id", categoryId = "category_id", tagIds = "tag_ids"
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -308,6 +317,7 @@ public struct TransactionBody: Sendable, Encodable, Equatable {
         try c.encode(recurringId, forKey: .recurringId)
         try c.encode(categoryId, forKey: .categoryId)
         try c.encode(notes, forKey: .notes)
+        try c.encodeIfPresent(tagIds, forKey: .tagIds)
     }
 
     /// Cents as a plain JSON number (`-812.34`, not `-812.3399999…`).
@@ -326,6 +336,7 @@ public struct TransactionBody: Sendable, Encodable, Equatable {
         categoryId = draft.categoryId
         let trimmed = draft.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         notes = trimmed.isEmpty ? nil : trimmed
+        tagIds = draft.tagIds != (line.tags ?? []).map(\.id) ? draft.tagIds : nil
         if draft.paid {
             amount = sign * abs(draft.paidAmount ?? line.plannedAmount.amount)
             actualDate = draft.paidOn
@@ -350,6 +361,7 @@ public struct TransactionBody: Sendable, Encodable, Equatable {
         categoryId = draft.categoryId
         let trimmed = draft.notes.trimmingCharacters(in: .whitespacesAndNewlines)
         notes = trimmed.isEmpty ? nil : trimmed
+        tagIds = draft.tagIds.isEmpty ? nil : draft.tagIds
     }
 }
 
@@ -369,6 +381,7 @@ public struct NewTransactionDraft: Sendable, Equatable {
     public var paid = true
     public var categoryId: Int?
     public var notes = ""
+    public var tagIds: [Int] = []
 
     public init(today: LocalDay) { date = today }
 

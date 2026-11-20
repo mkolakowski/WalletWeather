@@ -1,3 +1,4 @@
+import CoreData
 import Foundation
 import SwiftData
 
@@ -88,6 +89,71 @@ extension LocalServer {
             return true
         } catch {
             return false
+        }
+    }
+}
+
+// MARK: - Delete everywhere (#249)
+
+extension LocalServer {
+    /// Deletes every row of the household through the store, so with sync on
+    /// CloudKit deletes them in iCloud and on every device too (a deleted
+    /// record stays deleted).
+    public func emptyHousehold() throws {
+        lock.lock()
+        defer { lock.unlock() }
+        let context = ModelContext(container)
+        context.autosaveEnabled = false
+        try context.delete(model: LocalTransaction.self)
+        try context.delete(model: LocalTransfer.self)
+        try context.delete(model: LocalSkip.self)
+        try context.delete(model: LocalRecurring.self)
+        try context.delete(model: LocalAccount.self)
+        try context.delete(model: LocalCategory.self)
+        try context.delete(model: LocalFlag.self)
+        try context.save()
+    }
+}
+
+extension LocalStore {
+    /// Delete everywhere (decided 2026-11-20, #249): empties the household
+    /// through the store, waits for CloudKit to send the deletes to iCloud,
+    /// then deletes this phone's files. When iCloud doesn't confirm in
+    /// `timeout` (offline, say), the emptied store is kept so the deletes go
+    /// up the next time the app runs, and this returns false. Without sync
+    /// there's nothing to wait for. The iCloud Drive backups are left alone.
+    public static func eraseEverywhere(timeout: TimeInterval = 30) async throws -> Bool {
+        let server = try LocalServer.openShared()
+        let syncing = Self.syncing
+        let saved = Date.now
+        // Listen before deleting, so the export that follows isn't missed.
+        let confirmed: Task<Bool, Never>? = syncing ? Task { await exported(after: saved, timeout: timeout) } : nil
+        try server.emptyHousehold()
+        let done = await confirmed?.value ?? true
+        if done { erase() } else { LocalServer.closeShared() }
+        return done
+    }
+
+    /// Waits for a CloudKit export that started after `date` to succeed.
+    static func exported(after date: Date, timeout: TimeInterval) async -> Bool {
+        await withTaskGroup(of: Bool.self) { group in
+            group.addTask {
+                for await note in NotificationCenter.default.notifications(named: NSPersistentCloudKitContainer.eventChangedNotification) {
+                    guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
+                            as? NSPersistentCloudKitContainer.Event else { continue }
+                    if event.type == .export, event.endDate != nil, event.startDate >= date.addingTimeInterval(-1) {
+                        return event.succeeded
+                    }
+                }
+                return false
+            }
+            group.addTask {
+                try? await Task.sleep(for: .seconds(timeout))
+                return false
+            }
+            let first = await group.next() ?? false
+            group.cancelAll()
+            return first
         }
     }
 }

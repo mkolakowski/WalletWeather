@@ -197,6 +197,27 @@ final class AppModel {
         phase = .connect
     }
 
+    /// Delete everywhere (#249): the household is emptied in iCloud and on
+    /// every device, then on this phone; back to the first screen, which
+    /// says how it went.
+    func eraseEverywhere() async {
+        guard isLocal else { return }
+        busy = true
+        defer { busy = false }
+        let result: Bool?
+        do {
+            result = try await LocalStore.eraseEverywhere()
+        } catch {
+            result = nil
+        }
+        leaveLocal()
+        switch result {
+        case true?: connectNotice = "Deleted everywhere: in your iCloud, on your other devices and on this iPhone. Your backups are still in iCloud Drive."
+        case false?: connectNotice = "Deleted on this iPhone. iCloud hasn't confirmed yet: open WalletWeather while connected and the rest is deleted too."
+        case nil: connectError = "Nothing could be deleted. Try again."
+        }
+    }
+
     /// Deletes everything on this iPhone: the household's store is erased.
     func eraseLocal() {
         guard isLocal else { return }

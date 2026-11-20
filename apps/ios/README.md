@@ -256,7 +256,10 @@ CloudKit keeps a record's later edit and a deleted record deleted;
 `LocalSync.swift`'s `reconcile` joins what two devices made apart (the
 default categories by name, settings, a skipped date) the same way on every
 device, when the store opens and when another device's changes land
-(`NSPersistentStoreRemoteChange`). `SyncTests` checks it. Its `Connection` points at
+(`NSPersistentStoreRemoteChange`). With sync on, **Delete everywhere** (#249)
+empties the household through the store (`emptyHousehold`), waits for
+CloudKit's export, then deletes the files (`LocalStore.eraseEverywhere`).
+`SyncTests` checks it. Its `Connection` points at
 `https://this-iphone.walletweather.invalid`, and `APIClient` answers it on
 the phone (`LocalServer.swift`): the pages make the same requests as with a
 server and get the server's shapes back.

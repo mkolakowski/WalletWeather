@@ -128,10 +128,15 @@ struct SettingsView: View {
             }
             .confirmationDialog("Delete everything on this iPhone?", isPresented: $confirmErase,
                                 titleVisibility: .visible) {
-                Button("Delete everything", role: .destructive) { model.eraseLocal() }
+                if LocalStore.syncing {
+                    Button("Delete on this iPhone only", role: .destructive) { model.eraseLocal() }
+                    Button("Delete everywhere", role: .destructive) { Task { await model.eraseEverywhere() } }
+                } else {
+                    Button("Delete everything", role: .destructive) { model.eraseLocal() }
+                }
             } message: {
-                Text(LocalStore.syncOn
-                     ? "Every account, bill and line kept on this iPhone is deleted. A synced copy stays in your iCloud and on your other devices, and comes back if you choose On this iPhone again with sync on."
+                Text(LocalStore.syncing
+                     ? "On this iPhone only: the synced copy stays in your iCloud and on your other devices, and comes back if you choose On this iPhone again. Everywhere: every account, bill and line is deleted in your iCloud and on every device. Either way your backups stay in iCloud Drive (Files → iCloud Drive → WalletWeather). This can't be undone."
                      : "Every account, bill and line kept on this iPhone is deleted. This can't be undone.")
             }
             .sheet(isPresented: $showingNotice) { NoticeReader() }

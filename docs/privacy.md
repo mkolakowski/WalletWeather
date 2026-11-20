@@ -88,9 +88,12 @@ WalletWeather's authors can't see:
   at most once a day and the last 14, locked with your backup passphrase.
 
 **Delete everything on this iPhone** in the app's Settings deletes them from
-the iPhone. A synced copy stays in your iCloud and on your other devices, and
-the backups stay in iCloud Drive: delete those on each device, or remove
-WalletWeather's data in your iPhone's Settings → your name → iCloud.
+the iPhone. With sync on it offers **Delete on this iPhone only**, which
+leaves the synced copy in your iCloud and on your other devices, and **Delete
+everywhere**, which deletes them in your iCloud and on every device too. The
+encrypted backups stay in iCloud Drive either way: delete them in the Files
+app (iCloud Drive → WalletWeather), or remove all of WalletWeather's iCloud
+data in your iPhone's Settings → your name → iCloud.
 
 **Export for a server** saves them as an encrypted backup file wherever you
 choose (for example the Files app), to restore on your own server. It's

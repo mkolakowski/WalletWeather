@@ -27,6 +27,8 @@ struct WelcomeView: View {
                         prominent: true) { model.useOnThisPhone() }
                 if let problem = model.connectError, !model.choseServer {
                     Text(problem).font(.callout).foregroundStyle(Palette.bad)
+                } else if let notice = model.connectNotice, !model.choseServer {
+                    Text(notice).font(.callout).foregroundStyle(.secondary)
                 }
                 WayCard(way: Standalone.ownServer, symbol: "server.rack", button: "Connect to my server",
                         prominent: false) {

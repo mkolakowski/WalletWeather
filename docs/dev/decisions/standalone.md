@@ -121,4 +121,13 @@ Decisions made while planning [`Plans/standalone.md`](../../../Plans/standalone.
 - **In the background too.** CloudKit's silent pushes bring another device's changes while the app is closed. That needs the household's file readable after the phone's first unlock, so while sync is on its protection is "complete until first user authentication" instead of "complete" (a privacy decision; the privacy policy and Settings say so). Chosen over syncing only while the app is open, which kept complete protection.
 - **A second device's numbers merge.** A device that had its own household adds it to the shared one (CloudKit has one private database per Apple ID); the default categories each device started with are joined by name. Chosen over asking first whether to merge or replace.
 
-**Set in building, not asked:** the copy kept when devices made the same thing apart is the one with the lowest id, so every device keeps the same one; a category kept takes a colour from its twin if it had none; joined settings take the latest change and backup stamps, and "agreed" or "on" if any copy says so; **Delete everything on this iPhone** deletes the phone's copy only, and now says a synced copy stays in iCloud (whether it should also clear iCloud is open).
+**Set in building, not asked:** the copy kept when devices made the same thing apart is the one with the lowest id, so every device keeps the same one; a category kept takes a colour from its twin if it had none; joined settings take the latest change and backup stamps, and "agreed" or "on" if any copy says so; **Delete everything on this iPhone** deletes the phone's copy only, and now says a synced copy stays in iCloud (settled the same day, below).
+
+## 2026-11-20: deleting everywhere
+
+**Decided:** 2026-11-20, by Matthew, after phase 7 (#249). **Status:** accepted, built in iOS 0.25.0.
+
+- **With sync on, "Delete everything on this iPhone" offers two choices:** **Delete on this iPhone only** (the synced copy stays in iCloud and on the other devices, and comes back if On this iPhone is chosen again) and **Delete everywhere** (every row deleted through the store, so CloudKit deletes it in iCloud and on every device, then this phone's files). With sync off it's one choice, as before. Chosen over always deleting everywhere while syncing, and over keeping it phone-only.
+- **The iCloud Drive backups stay** after either, as the way back from a mistaken delete; the confirmation says where they are. Chosen over deleting them too.
+
+**Set in building, not asked:** this phone's files go only once CloudKit confirms an export after the deletes (up to 30 seconds); otherwise the emptied store is kept so the deletes go up the next time the app runs, and the first screen says so.

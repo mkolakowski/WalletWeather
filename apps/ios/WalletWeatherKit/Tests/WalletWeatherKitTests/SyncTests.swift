@@ -175,6 +175,27 @@ import Testing
         #expect(server.cloudBackupOn == false)
     }
 
+    /// Delete everywhere (#249) deletes every row through the store, which
+    /// is what CloudKit sends on to iCloud and the other devices.
+    @Test func deleteEverywhereEmptiesTheHouseholdThroughTheStore() async throws {
+        let server = try await device("Checking", bill: "Rent", line: "Market")
+        let client = APIClient(connection: server.connection)
+        _ = try await client.moveMoney(try #require(TransferBody({
+            var d = MoveMoneyDraft(today: day, from: try await client.accounts(today: day)[0].id,
+                                   to: try await client.createAccount(AccountBody(name: "Savings", startingBalance: 0, startingDate: day)).id)
+            d.amountText = "5"
+            return d
+        }())))
+        #expect(try snapshot(server).count >= 19)
+        try server.emptyHousehold()
+        #expect(try snapshot(server).isEmpty)
+        let c = ModelContext(server.container)
+        #expect(try c.fetchCount(FetchDescriptor<LocalAccount>()) == 0 && c.fetchCount(FetchDescriptor<LocalTransfer>()) == 0)
+        try server.emptyHousehold()   // again: nothing to do, no error
+        // With nothing syncing, no export comes: waiting for one gives up.
+        #expect(await LocalStore.exported(after: .now, timeout: 0.2) == false)
+    }
+
     @Test func syncIsOnUnlessTurnedOffAndTheTestsOpenOnThePhoneAlone() throws {
         let saved = UserDefaults.standard.object(forKey: "household.icloudSync")
         defer { UserDefaults.standard.set(saved, forKey: "household.icloudSync") }

@@ -7,13 +7,13 @@ Tracking issue: #212
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
 | 1. Connect Microsoft 365 and Check now | Server, Web | #206 | Released in 1.73.0 (2026-11-17), ahead of the one-release plan; waiting for your try with a real mailbox |
-| 2. The mailbox checked by itself | Server, Web | #207 | Built in 1.74.0 (2026-11-17), not released yet |
+| 2. The mailbox checked by itself | Server, Web | #207 | Released in 1.74.0 (2026-11-17); closed 2026-11-17 |
 | 3. Gmail and other mailboxes | Server, Web | #208 | Not started |
-| 4. Alerts matched to bills, and the first release | Server, Web | #209 | Built in 1.75.0 (2026-11-17), not released yet; it isn't the first release (phase 1 shipped in 1.73.0) |
+| 4. Alerts matched to bills, and the first release | Server, Web | #209 | Released in 1.75.0 (2026-11-17), closed 2026-11-17; it isn't the first release (phase 1 shipped in 1.73.0) |
 | 5. Alerts joined to bank sync rows | Server, Web | #210 | Not started; its questions are settled |
 | 6. Status and Check now in the iOS app | iOS | #211 | Not started |
 
-Phase 4 built 2026-11-17 in 1.75.0 (schema 30, web 1.89.0), not released yet: API tests in `apps/server/tests/test_mail_alerts_matching.py` (bank sync phase 4's matcher called as an alert lands, the Unmatched list and its match by hand, leave and un-match endpoints extended to alert lines), the screens checked in a headless browser. Built on what the plan said (the bill's own settings; the "Email alert" mark and the list in Settings → Email alerts follow bank sync's pattern, not asked). An alert's matched line reuses bank sync's match columns and says where it came from by `mail_ref`.
+Phase 4 built 2026-11-17 in 1.75.0 (schema 30, web 1.89.0), released in 1.75.0 the same day: API tests in `apps/server/tests/test_mail_alerts_matching.py` (bank sync phase 4's matcher called as an alert lands, the Unmatched list and its match by hand, leave and un-match endpoints extended to alert lines), the screens checked in a headless browser. Built on what the plan said (the bill's own settings; the "Email alert" mark and the list in Settings → Email alerts follow bank sync's pattern, not asked). An alert's matched line reuses bank sync's match columns and says where it came from by `mail_ref`.
 
 Phase 2 built 2026-11-17 in 1.74.0 (schema 29, web 1.88.0), released in 1.74.0: API tests in `apps/server/tests/test_mail_alerts_daily.py` (the scheduler called with chosen times), the screens checked in a headless browser. Built on open question 5's answer (5, 15 or 60 minutes per user) and its assumption for the log's retention (as the audit log). The log is **one per mailbox** in Settings, not per account as first planned (your call: an alert with no account yet, or one that failed the sender check, belongs to no account); a failed check is tried again at the user's interval, and the scheduler looks every minute (both set in building).
 

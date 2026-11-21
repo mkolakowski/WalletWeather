@@ -73,3 +73,20 @@ Decisions made while planning and building [`Plans/bank-sync.md`](../../../Plans
 **Why:** a tab of its own leaves room for the sync log and the Unmatched list (phases 3 and 4). SimpleFIN Bridge allows 90 days per request and expects about 24 requests a day, and disables a token that asks much more often, so the guard protects a user's connection from the first release.
 
 **What it changes:** phase 3 builds its "wait N minutes" on the same count.
+
+## 2026-11-20: Teller and Plaid next to SimpleFIN
+
+**Decided:** 2026-11-20, by Matthew, while planning [`Plans/bank-providers.md`](../../../Plans/bank-providers.md) (#259). **Status:** accepted. Replaces 2026-11-16's "Plaid is not planned".
+
+**Why it came back:** SimpleFIN Bridge runs on MX, and Matthew's banks wouldn't connect through it. Teller and Plaid reach banks through their own connections.
+
+**The questions and what was chosen** (the first option listed is the one chosen):
+
+- **Providers:** Teller and Plaid, both next to SimpleFIN; not one of them; not Lunch Flow (resells MX and Finicity); not an enterprise aggregator (MX, Yodlee, Akoya, Finicity direct: contracts with minimums).
+- **Where connecting happens:** on the provider's page, not inside the web app: Plaid through Hosted Link in a new tab with the server checking back (no webhook, no public address), Teller on one small separate page that alone may load `cdn.teller.io`; not both scripts in the Bank sync tab; not the iPhone app only.
+- **Order:** both providers in one phase; not Teller first; not Plaid first.
+- **What waits:** connecting from the iPhone; the providers' categories, the bank's balance and the iPhone list of connections are planned as phases.
+
+**Why:** Hosted Link and a separate page answer two of 2026-11-16's objections to Plaid (a script on the app's pages, a public return address). The third, Plaid's approval, is put off by its Trial plan (10 bank logins free), and Teller needs none for up to 100.
+
+**What it changes:** a user can have many bank connections; `PRIVACY.md` gains Teller and Plaid and names the one page that loads Teller's script. Teller's certificate and Plaid's secret must stay on a server, so a standalone phone (#239) stays SimpleFIN-only.

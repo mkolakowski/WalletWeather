@@ -260,6 +260,12 @@ planned in `Plans/bank-sync.md`; Plaid is not planned:
 (connect a bank and Sync now) in 1.69.0 (#194); phase 3 (the daily sync
 and its log) in 1.70.0 (#195). Matching bills and the iOS part follow.
 
+**2026-11-20:** Plaid is planned after all, with Teller, next to SimpleFIN,
+after SimpleFIN (which runs on MX) couldn't reach your banks:
+`Plans/bank-providers.md` (#259). Plaid connects through its Hosted Link
+page and Teller through one separate connect page, so the objections above
+about its script and a public address no longer apply.
+
 Either one stores a long-lived, read-only bank token, so encrypted backups
 (item 12) and two-factor sign-in (item 14) should come first. `PRIVACY.md`
 ("What leaves the server"), `docs/privacy.md`, `SECURITY.md` ("Known

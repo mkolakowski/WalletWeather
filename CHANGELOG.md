@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.88.0** · Web version: **1.99.0** · Schema version: **34** · iOS version: **0.29.0**
+App version: **1.88.0** · Web version: **1.99.0** · Schema version: **34** · iOS version: **0.29.1**
 
 ### Added
 
@@ -84,6 +84,10 @@ App version: **1.88.0** · Web version: **1.99.0** · Schema version: **34** · 
 - **Disconnecting a Teller or Plaid bank ends it there too,** so the provider stops reading your bank; deleting your user does the same for all of yours. If the provider can't be reached at that moment, the connection is still forgotten here and the message says to remove it in the provider's dashboard. (#254)
 - **Encrypted backups carry every bank connection,** as a list. Backups made before this still restore their one connection. (#254)
 - **The iPhone app keeps working unchanged:** `GET /api/bank/status` keeps its shape, now summing up every connection, and gains a `connections` list; Sync now from the phone syncs them all. (#254)
+
+### Fixed
+
+- **iOS 0.29.1, the open iPhone Duo no longer lets cards slide under a big "Dashboard" title:** with the Duo open, the left column of the Dashboard scrolled up behind the large page title, so its text showed through the title as a ghost inside a hard-edged band. Dashboard, Bills & income, Calendar and Forecast now use the small title in the two-pane layout; the iPhone and the closed Duo keep the large one. (#260)
 
 ### Database
 

@@ -34,6 +34,9 @@ struct BillsView: View {
                 .keptBar(kept)
                 .background(PageBackground().ignoresSafeArea())
                 .navigationTitle("Bills & income")
+                // Two scroll panes side by side leave a large title nothing to collapse against, so cards
+                // slide under it (#260): the open Duo gets the small title.
+                .navigationBarTitleDisplayMode(sizeClass == .regular ? .inline : .automatic)
                 .toolbar { NewWindowItem(place: .bills) }
                 .toolbar {
                     if !editableAccounts.isEmpty {

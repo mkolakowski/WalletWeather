@@ -47,6 +47,9 @@ struct DashboardView: View {
             .keptBar(kept)
             .background(PageBackground().ignoresSafeArea())
             .navigationTitle("Dashboard")
+            // Two scroll panes side by side leave a large title nothing to collapse against, so cards
+            // slide under it (#260): the open Duo gets the small title.
+            .navigationBarTitleDisplayMode(sizeClass == .regular ? .inline : .automatic)
             .toolbar { NewWindowItem(place: .dashboard) }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

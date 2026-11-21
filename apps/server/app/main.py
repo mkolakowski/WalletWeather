@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.87.0"
+APP_VERSION = "1.88.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -3933,7 +3933,84 @@ def forecast(account_id: int, days: int = 90,
     # the owner can match them, #223); 0 for the people it's shared with.
     data["bank_unmatched_count"] = (_unmatched_query(db, acc.id).count()
                                     if _user_level(db, user, acc.id) == "owner" else 0)
+    data["bank_balance"] = _bank_balance_info(db, user, acc, Decimal(str(data["current_balance"])))
     return data
+
+
+# ---------- The bank's balance next to yours (bank-providers phase 3, #256) ----------
+# Decided 2026-11-20: under a linked account's balance, "Bank: $1,234.56 as
+# of …", compared with the balance counting only lines up to today. A
+# difference gets an "Adjust to bank" button that adds one correction line
+# for it; deleting that line (the Undo beside it) takes it back.
+BANK_ADJUST_TEXT = "Adjust to bank"
+
+
+def _bank_link_of(db: Session, user: User, account_id: int):
+    """(link, connection) when this account takes lines from one of the
+    user's own bank connections, else None. Someone an account is shared
+    with has no bank connection on it, so sees no bank balance."""
+    return (db.query(BankAccountLink, BankConnection)
+            .join(BankConnection, BankConnection.id == BankAccountLink.connection_id)
+            .filter(BankAccountLink.account_id == account_id, BankConnection.user_id == user.id)
+            .first())
+
+
+def _bank_balance_info(db: Session, user: User, acc: Account, mine: Decimal) -> dict | None:
+    """What the Accounts screen shows under a linked account's balance: the
+    bank's balance, when the bank had it, which provider, and the gap (the
+    bank's minus yours, in cents, 0 when they agree). None when the account
+    isn't linked to one of the user's connections, the provider gave no
+    balance or bank sync is switched off."""
+    hit = _bank_link_of(db, user, acc.id)
+    if hit is None or not bank_sync_enabled(db):
+        return None
+    link, conn = hit
+    bank = link.bank_balance
+    if bank is None or link.bank_balance_at is None:
+        return None
+    gap = (bank - mine).quantize(Decimal("0.01"))
+    return {"balance": float(bank), "as_of": link.bank_balance_at.isoformat() + "Z",
+            "provider": BANK_PROVIDER_NAMES[_provider(conn)], "gap": float(gap),
+            "can_adjust": LEVEL_RANK[_user_level(db, user, acc.id)] >= LEVEL_RANK["edit"]}
+
+
+class BankAdjustIn(BaseModel):
+    # The gap the person saw. If a sync or an edit has changed it since, the
+    # adjustment is refused instead of landing the wrong amount.
+    gap: Money
+
+
+@app.post("/api/accounts/{account_id}/bank-adjust")
+def bank_adjust(account_id: int, body: BankAdjustIn, request: Request, today: date | None = None,
+                user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Adds one paid line dated today for the gap between the bank's balance
+    and the account's, so the two agree. The line is an ordinary one: delete
+    it (DELETE /api/transactions/{id}, the Undo beside the button) to take it
+    back."""
+    acc = _account_with_perm(db, user, account_id, "edit")
+    _bank_allowed(db, user)
+    hit = _bank_link_of(db, user, acc.id)
+    if hit is None:
+        raise HTTPException(400, "This account isn't matched to one of your bank accounts.")
+    today = _viewer_today(today)
+    mine = Decimal(str(round(_current_balance(db, acc, today), 2)))
+    info = _bank_balance_info(db, user, acc, mine)
+    if info is None:
+        raise HTTPException(400, "The bank hasn't given a balance for this account yet. Sync now first.")
+    gap = Decimal(str(info["gap"]))
+    if gap == 0:
+        raise HTTPException(400, "The balances already agree.")
+    if Decimal(str(body.gap)).quantize(Decimal("0.01")) != gap:
+        raise HTTPException(409, "The balances have changed since you looked. Check the new difference.")
+    t = Transaction(account_id=acc.id, actual_date=today, forecast_date=today, is_actual=True)
+    t.description = BANK_ADJUST_TEXT
+    t.amount = gap
+    db.add(t)
+    db.commit()
+    db.refresh(t)
+    record_event(db, "bank_balance_adjusted", request, user=user, detail=f"account #{acc.id}")
+    return {"ok": True, "transaction_id": t.id, "amount": float(gap),
+            "current_balance": float(mine + gap)}
 
 
 # ---------- Backup: export / import ----------
@@ -4689,7 +4766,7 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
     _note_bank_call(conn, now)
     db.commit()   # the call counts even if it fails
     try:
-        data = _bank_fetch(conn, links, link_start, start, calibrate)
+        data = _bank_fetch(db, conn, links, link_start, start, calibrate, now)
     except simplefin.BankError as e:
         conn.last_sync_at, conn.last_sync_ok, conn.last_sync_status = now, False, str(e)[:300]
         if e.revoked:
@@ -4769,6 +4846,7 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
         added, skipped = added + run.added, skipped + run.skipped
         matched += run.matched
         link.synced_through = today
+        _keep_bank_balance(link, bank_acc, provider, now)
         if acc.id in calibrate and bank_acc.get("balance") is not None:
             # A new account made from this bank account (#215): its starting
             # balance is what makes today's balance the bank's, given the
@@ -4795,7 +4873,23 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
             "calibrated": sorted(calibrated)}
 
 
-def _bank_fetch(conn: BankConnection, links: list, link_start, start: date, calibrate) -> dict:
+def _keep_bank_balance(link: BankAccountLink, bank_acc: dict, provider: str, now: datetime) -> None:
+    """The balance the provider gave for a linked account, kept for the
+    Accounts screen (#256). One it gave none of clears the old one, which
+    would no longer match the lines. Teller is asked only when needed (see
+    _bank_fetch): not asking leaves the kept balance as it is."""
+    if provider == "teller" and not bank_acc.get("asked_balance"):
+        return
+    balance = bank_acc.get("balance")
+    link.bank_balance = balance
+    link.bank_balance_at = (bank_acc.get("balance_at") or now) if balance is not None else None
+
+
+BANK_BALANCE_MAX_AGE = timedelta(days=7)   # Teller's billed balance, at the latest this often
+
+
+def _bank_fetch(db: Session, conn: BankConnection, links: list, link_start, start: date,
+                calibrate, now: datetime) -> dict:
     """The connection's bank accounts and new posted lines, from its
     provider, in SimpleFIN's shape. Raises simplefin.BankError."""
     provider, secret = _provider(conn), decrypt_str(conn.access_url_enc)
@@ -4811,7 +4905,25 @@ def _bank_fetch(conn: BankConnection, links: list, link_start, start: date, cali
     starts = {ids[l.bank_account_ref]: link_start(l) for l in links if l.bank_account_ref in ids}
     made = {ids[l.bank_account_ref] for l in links
             if l.account_id in calibrate and l.bank_account_ref in ids}
-    return teller.fetch(secret, starts, balances_for=made)
+    # Teller bills the balance call in production (decided 2026-11-21, #256),
+    # so it's asked for only when the bank's balance has likely moved: an
+    # account with none kept yet or a week-old one, or lines this sync hasn't
+    # seen before (a posted line is the only thing that moves a posted
+    # balance). A quiet day, or Sync now pressed twice, makes no billed call.
+    by_id = {ids[l.bank_account_ref]: l for l in links if l.bank_account_ref in ids}
+    due = {i for i, l in by_id.items()
+           if l.bank_balance_enc is None or l.bank_balance_at is None
+           or now - l.bank_balance_at > BANK_BALANCE_MAX_AGE}
+
+    def lines_are_new(account_id: str, txns: list[dict]) -> bool:
+        link = by_id.get(account_id)
+        if link is None:
+            return False
+        refs = {r for (r,) in db.query(Transaction.bank_ref)
+                .filter(Transaction.account_id == link.account_id, Transaction.bank_ref.isnot(None))}
+        return any(bank_txn_ref(account_id, t["id"], "teller") not in refs for t in txns)
+
+    return teller.fetch(secret, starts, balances_for=made | due, balance_if=lines_are_new)
 
 
 # ---------- Providers' categories onto the user's (#255) ----------
@@ -8931,7 +9043,7 @@ AUDIT_EVENT_TYPES = (
     "recovery_code_used", "recovery_codes_remade",
     "browser_remembered", "browser_forgotten", "two_factor_requirement_changed",
     "bank_connected", "bank_disconnected", "bank_account_created", "bank_sync_run", "bank_sync_failed",
-    "bank_sync_setting_changed",
+    "bank_balance_adjusted", "bank_sync_setting_changed",
     "mail_connected", "mail_disconnected", "mail_sender_taught", "mail_check_run",
     "mail_check_failed", "mail_alerts_setting_changed",
 )

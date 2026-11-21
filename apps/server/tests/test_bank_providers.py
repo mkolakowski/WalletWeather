@@ -40,6 +40,8 @@ class FakeTeller:
         self.requests: list[httpx.Request] = []
         self.mode = "ok"        # ok | revoked | refused | down
         self.token = TELLER_TOKEN
+        self.balance = "1200.00"   # the ledger balance /balances answers with (#256)
+        self.balance_status = 200
         self.accounts = [{"id": "acc_1", "name": "Teller Checking", "last_four": "1234",
                           "type": "depository", "status": "open",
                           "institution": {"id": "teller_bank", "name": "Teller Bank"}}]
@@ -78,7 +80,9 @@ class FakeTeller:
         if request.method == "GET" and path.endswith("/transactions"):
             return httpx.Response(200, json=self._page(request.url.params))
         if request.method == "GET" and path.endswith("/balances"):
-            return httpx.Response(200, json={"ledger": "1200.00", "available": "1200.00"})
+            if self.balance_status != 200:
+                return httpx.Response(self.balance_status, json={"error": {"code": "x", "message": "?"}})
+            return httpx.Response(200, json={"ledger": self.balance, "available": self.balance})
         return httpx.Response(404, json={"error": {"code": "not_found", "message": "?"}})
 
     def _page(self, params) -> list[dict]:

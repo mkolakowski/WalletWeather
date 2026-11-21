@@ -272,6 +272,45 @@ categories as lines land, by a table at the bottom of the Bank sync tab:
 - **Your auto-tag rules run after the category is set,** so a rule limited
   to a category applies to lines that land in it.
 
+### Your bank's balance next to yours
+
+From 1.88.0, under **Current balance** on an account's Forecast tab, a linked
+account shows the balance your bank reported at the last sync:
+
+> Bank: $1,234.56 as of Nov 21, 2026, 9:05 AM
+
+It's compared with **Current balance**, which counts only lines dated up to
+today. When the two agree it says **Matches your bank**. When they don't, it
+says **Bank differs by** the amount, in amber (positive when the bank has
+more than you), with an **Adjust to bank** button:
+
+- **Adjust to bank** adds one paid line named "Adjust to bank", dated today,
+  for exactly the difference, so the two balances agree. It checks that the
+  difference is still the one you were shown, and says so instead of adding
+  a line if a sync or an edit has changed it.
+- **Undo** appears in its place afterwards and deletes that line. It's an
+  ordinary line, so you can also delete or edit it from the Forecast table
+  like any other.
+- **A gap usually means something is missing or doubled,** such as a line the
+  bank hasn't posted yet, a pending line you entered by hand, or the account's
+  starting balance. Adjust to bank is the quick fix when you'd rather not hunt
+  for it; the correction line stays visible in the table as what it is.
+
+Where it comes from: SimpleFIN and Plaid send each account's balance with
+every sync, and a bank account with no balance shows none. A credit card's
+or loan's balance counts against you, as it does in your own account.
+**Teller bills for each balance it's asked for in production,** so WalletWeather
+asks only when the balance has likely moved: at the first sync of a linked
+account, when the sync brings in a line it hasn't seen, or when the balance it
+has is a week old. Pressing Sync now twice, or a quiet day, makes no billed
+call, and the balance shown keeps the time it was read.
+
+Only you see it, as the owner of the connection: people an account is shared
+with don't see the bank's balance and can't adjust. It isn't shown while an
+admin has bank sync switched off, and it goes when you disconnect or move the
+match to another bank account. It isn't in backups; the next sync brings it
+again.
+
 ### The Unmatched list
 
 Synced lines that didn't pay a bill are kept on an **Unmatched** list, with a
@@ -304,6 +343,8 @@ SimpleFIN has stopped accepting the connection, until you connect again.
   1.71.0), with the full text in its notes.
 - **Teller's and Plaid's category is mapped onto yours** (from 1.87.0): see
   [Categories from your banks](#categories-from-your-banks).
+- **The bank's balance is kept** for each matched account (from 1.88.0): see
+  [Your bank's balance next to yours](#your-banks-balance-next-to-yours).
 - **Your auto-tag rules run** on each new line, as they do for a CSV import,
   after its category is set, so a rule limited to a category sees it.
 - **Nothing comes in twice.** A line already brought in is recognised by the
@@ -366,11 +407,14 @@ at Teller and Plaid.
   Each synced line carries a fingerprint of the bank's id for it, and which
   sync brought it in; for Teller and Plaid, also their own category for it, as
   they gave it (not encrypted, like the line's category of yours), and the
-  table of those categories and where they land. The sync log (when, how many, any error) is kept as
+  table of those categories and where they land. The balance the bank gave
+  for each matched account at the last sync, and when (encrypted, like every
+  amount). The sync log (when, how many, any error) is kept as
   long as the audit log.
 - **In backups:** encrypted backups (Settings → Backup, and the system
-  backups) carry the connection, so a restore keeps it. The readable
-  "Download my data" copy never does.
+  backups) carry the connection, so a restore keeps it, but not the bank's
+  balance, which the next sync brings again. The readable
+  "Download my data" copy never carries the connection.
 - **Sent:** when you connect and each time you sync, the server asks the
   service for your bank accounts and the posted transactions since a date,
   and when you disconnect it tells Teller or Plaid to end the connection.

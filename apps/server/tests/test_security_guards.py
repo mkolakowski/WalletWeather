@@ -85,6 +85,8 @@ MUST_BE_SESSION_ONLY = {
     ("POST", "/api/bank/connect/start"), ("POST", "/api/bank/connect/check"),
     ("GET", "/api/bank/teller/setup"), ("POST", "/api/bank/teller/enroll"),
     ("PUT", "/api/admin/bank-sync"),
+    # Adjust to bank (#256) writes a line from a bank's balance: browser only.
+    ("POST", "/api/accounts/{account_id}/bank-adjust"),
     # Where Teller's and Plaid's categories land (#255): a setting of the
     # account's own, changed from the browser.
     ("GET", "/api/bank/categories"), ("PUT", "/api/bank/categories"),

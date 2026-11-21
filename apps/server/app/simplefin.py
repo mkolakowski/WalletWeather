@@ -196,6 +196,18 @@ def _amount(value) -> Decimal | None:
     return d.quantize(Decimal("0.01"))
 
 
+def _balance_at(value) -> datetime | None:
+    """SimpleFIN's balance-date (epoch seconds) as a naive UTC time, or None
+    when it's missing, nonsense or in the future."""
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        return None
+    try:
+        at = datetime.fromtimestamp(value, tz=timezone.utc).replace(tzinfo=None)
+    except (OverflowError, OSError, ValueError):
+        return None
+    return at if at <= datetime.utcnow() else None
+
+
 def parse(data: dict) -> dict:
     """SimpleFIN's account set as {"accounts": [...], "messages": [...]},
     keeping only what WalletWeather uses. Pending transactions are left out
@@ -227,7 +239,9 @@ def parse(data: dict) -> dict:
         accounts.append({"id": str(a["id"]), "name": _text(a.get("name"), NAME_MAX) or "Bank account",
                          "org": _text(org, NAME_MAX), "transactions": txns,
                          # The bank's balance when it last looked (#215); None if it sent none.
-                         "balance": _amount(a.get("balance"))})
+                         "balance": _amount(a.get("balance")),
+                         # When the bank had it (balance-date), if it said (#256).
+                         "balance_at": _balance_at(a.get("balance-date"))})
     messages = []
     for e in data.get("errlist") or []:
         if isinstance(e, dict) and e.get("msg"):

@@ -115,3 +115,13 @@ Decisions made while planning and building [`Plans/bank-sync.md`](../../../Plans
 - **The same bank account through two connections:** each of your accounts links to one bank account across all connections, and a second link is refused with a message naming the connection that has it; not both feeding one account with duplicates skipped; not moving the link to the new connection.
 
 **Why:** keys in `.env` already decide whether email alerts can be offered, so nothing new is needed in Admin. One link per account means no line can come in twice, and skipping by date and amount could drop a real repeat charge.
+
+## 2026-11-21: when Teller's balance is asked for
+
+**Decided:** 2026-11-21, by Claude while building phase 3 ([#256](https://github.com/mkolakowski/WalletWeather/issues/256)), which left "decide when to ask" open because Teller bills the balance call in production. **Status:** accepted unless Matthew says otherwise.
+
+**What was chosen:** Teller's balance is asked for at a linked account's first sync (and when it's made from a bank account), when a sync brings in a line it hasn't seen, and when the kept balance is a week old; not on every sync; not only on a schedule.
+
+**Why:** a posted balance only moves when a line posts, so a sync with nothing new can't have changed it and a billed call would buy nothing, while asking whenever a new line lands keeps the balance and the lines in step (a balance read before a line lands would show a false gap). The week is a backstop for a bank that reverses or edits a line without a new one. SimpleFIN and Plaid send the balance with every sync at no extra cost, so they keep it every time, and a provider that sends none clears the old one rather than leave a balance that no longer matches the lines.
+
+**What it changes:** at most about one billed Teller call per account per day, and none on quiet days or repeated Sync now. The bank's balance on the Accounts screen carries the time it was read.

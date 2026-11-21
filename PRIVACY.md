@@ -72,7 +72,10 @@ server it runs on:
   Plaid, the category the provider gave it (a short word such as
   `groceries` or `FOOD_AND_DRINK`, not encrypted, like the line's own
   category). The table of those categories and which of the user's
-  categories each lands in is kept too, and deleted with the user. Disconnecting keeps both. A sync log for
+  categories each lands in is kept too, and deleted with the user. For each
+  matched account, the balance the provider gave at the last sync and when
+  (encrypted like every amount; not in backups; deleted with the match or
+  the connection). Disconnecting keeps the lines and the category table. A sync log for
   each matched account (when each sync ran, by schedule or by hand, how
   many lines came in or were already there, and any error), readable by
   the account's owner only and deleted after `AUDIT_RETENTION_DAYS` like
@@ -118,7 +121,8 @@ Nothing, with three exceptions the operator chooses:
   client certificate) or Plaid (`production.plaid.com` or
   `sandbox.plaid.com`, with the instance's keys). It calls when they
   connect, then each time they sync, asking for their bank accounts and
-  posted transactions, about once a day by itself and whenever they press
+  posted transactions (and, from Teller, now and then for a balance, which it
+  bills for), about once a day by itself and whenever they press
   Sync now, and once more when they disconnect, to end the connection at
   Teller or Plaid. Plaid is given an identifier worked out from the user's
   number on the instance, never their name or email.

@@ -171,9 +171,9 @@ def _transactions(c: httpx.Client, token: str, account_id: str, start: date) -> 
 
 
 def _balance(c: httpx.Client, token: str, account: dict):
-    """The bank's posted balance, asked for only when an account is made
-    from a bank account (#215): Teller bills this call in production. A
-    credit card's balance is what's owed, so it counts against you."""
+    """The bank's posted balance. Teller bills this call in production, so
+    the sync asks only when it needs one (#215, #256; see fetch). A credit
+    card's balance is what's owed, so it counts against you."""
     r = _get(c, f"/accounts/{account['id']}/balances", token)
     if r.status_code != 200:
         return None
@@ -184,10 +184,15 @@ def _balance(c: httpx.Client, token: str, account: dict):
     return value
 
 
-def fetch(token: str, starts: dict[str, date], balances_for: set[str] = frozenset()) -> dict:
+def fetch(token: str, starts: dict[str, date], balances_for: set[str] = frozenset(),
+          balance_if=None) -> dict:
     """{"accounts": [...], "messages": [...]} in SimpleFIN's shape: every
     account the enrollment reaches, with posted transactions since its date
-    in `starts` for the ones asked for."""
+    in `starts` for the ones asked for. The billed balance call is made for
+    an account in `balances_for`, or when `balance_if(account_id,
+    transactions)` says so after its lines are read (#256): the caller knows
+    whether anything new came in, and a balance that nothing has moved is
+    not worth paying for."""
     accounts = fetch_accounts(token)
     messages = []
     with _client() as c:
@@ -200,8 +205,9 @@ def fetch(token: str, starts: dict[str, date], balances_for: set[str] = frozense
                 messages.append(f"{a['name']} is closed at the bank.")
                 continue
             a["transactions"] = _transactions(c, token, a["id"], start)
-            if a["id"] in balances_for:
+            if a["id"] in balances_for or (balance_if and balance_if(a["id"], a["transactions"])):
                 a["balance"] = _balance(c, token, a)
+                a["asked_balance"] = True
     for a in accounts:
         a.pop("closed", None)
     return {"accounts": accounts, "messages": messages[:5]}

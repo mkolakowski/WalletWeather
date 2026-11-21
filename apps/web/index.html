@@ -508,6 +508,9 @@
   .stat .l { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
   .stat .d { font-size:11px; color:var(--muted); margin-top:2px; font-variant-numeric:tabular-nums; }
   /* Current balance card: accent outline + soft glow so it stands out. */
+  .stat .bank { font-size:12px; margin-top:8px; padding-top:6px; border-top:1px dashed var(--border); color:var(--muted); font-variant-numeric:tabular-nums; }
+  .stat .bank.gap { color:var(--warn); }
+  .stat .bank button { margin-top:4px; padding:2px 10px; font-size:12px; }
   .stat.current { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 0 14px color-mix(in srgb, var(--accent) 35%, transparent); }
   .stat .io { display:flex; justify-content:space-between; align-items:baseline; gap:8px;
               font-size:16px; font-weight:600; margin-top:3px; font-variant-numeric:tabular-nums; }
@@ -2818,7 +2821,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.98.0";
+const WEB_VERSION = "1.99.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2828,6 +2831,7 @@ const WEB_VERSION = "1.98.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.99.0 (2026-11-21, claude+mkolakowski): (#256) The bank's balance next to yours. The forecast's new bank_balance (balance, as_of, provider, gap, can_adjust; null when the account has no bank balance) is shown by _bankBalanceHtml under "Current balance" in the Forecast summary: "Bank: $… as of …", and when the gap isn't 0 an amber "Bank differs by …" with an "Adjust to bank" button (bankAdjust → POST /api/accounts/{id}/bank-adjust with the gap shown, today= the browser's date). After it, "Adjusted by … Undo" stays in the tile (_bankAdjusted; bankAdjustUndo → DELETE /api/transactions/{id}) until the gap is back or another account opens.
 // 1.98.0 (2026-11-20, claude+mkolakowski): (#255) Settings → Bank sync gets "Categories from your banks" (_bankCategoriesHtml, loaded with the rest in loadBank from GET /api/bank/categories): one row per category Teller or Plaid has given a line, with a dropdown of your categories (blank = Uncategorized), pre-filled by the server where the names match; "Save categories" (bankSaveCategories) sends every row to PUT /api/bank/categories. Shown only once a sync has seen a category.
 // 1.97.0 (2026-11-20, claude+mkolakowski): (#254) Teller and Plaid next to SimpleFIN, many connections. Settings → Bank sync lists each connection from /api/bank's new `connections` (_bankConnHtml: its bank's name and provider, its accounts to match, its own Sync now → POST /api/bank/sync {connection_id} and Disconnect → POST /api/bank/disconnect {connection_id}, which shows the answer's `warning`), with one Save matches for all. "Connect a bank" (_bankConnectHtml) offers each provider /api/bank says is available: Teller and Plaid open their own page in a new tab (bankStartProvider → POST /api/bank/connect/start, the tab opened in the click so it isn't blocked) and #bankWait checks back every 4 seconds (_bankWaitFor → POST /api/bank/connect/check) until done, exited or expired; SimpleFIN keeps its setup-token form behind "Paste a SimpleFIN token". Admin → Bank sync says which providers have their keys. New page /bank/teller (bank-teller.html, bank-teller.js) runs Teller Connect.
 // 1.96.0 (2026-11-18, claude+mkolakowski): (#231) The match pop-ins show what's within the bill's own bank-match days first (the answers' new within_days; _matchSplit), with "Show N more, up to 60 days away" (_matchMoreLink, _matchShowMore) for the rest; when nothing is within, everything shows with a line saying so. The "Closest match" highlight goes to the first shown card going the line's way.
@@ -6556,6 +6560,7 @@ function showAllAccountsView(opts) {
 }
 
 async function selectAccount(id) {
+  if (_bankAdjusted && _bankAdjusted.accountId !== id) _bankAdjusted = null;   // an Undo belongs to its own account (#256)
   currentAccountId = id;
   forecastAllView = false;
   _markForecastTabs();
@@ -8050,6 +8055,60 @@ function _updateCurrentMonthBtn() {
     document.getElementById('forecastYearSel').value === String(now.getFullYear());
 }
 
+// The bank's balance under "Current balance" (#256): the provider's own
+// balance, when the bank had it, and how far it is from this account's
+// balance counting lines up to today. A gap is amber with "Adjust to bank",
+// which adds one correction line for it; "Undo" deletes that line again.
+let _bankAdjusted = null;   // {accountId, txnId, amount} of the last adjustment
+
+function _bankBalanceHtml(b) {
+  if (!b) return '';
+  const when = new Date(b.as_of);
+  const asOf = isNaN(when) ? '' : ' as of ' + when.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  const tip = escapeHtml('From ' + (b.provider || 'your bank') + ': the balance your bank reported at the last sync');
+  let html = `<div class="bank" title="${tip}">Bank: ${fmt(b.balance)}${escapeHtml(asOf)}</div>`;
+  if (Math.abs(b.gap) >= 0.005) {
+    if (_bankAdjusted && _bankAdjusted.accountId === currentAccountId) _bankAdjusted = null;
+    html += `<div class="bank gap">Bank differs by ${b.gap > 0 ? '+' : ''}${fmt(b.gap)}` +
+      (b.can_adjust ? `<br><button type="button" class="ghost" onclick="bankAdjust(${Number(b.gap)})">Adjust to bank</button>` : '') +
+      `</div>`;
+  } else if (_bankAdjusted && _bankAdjusted.accountId === currentAccountId) {
+    html += `<div class="bank">Adjusted by ${_bankAdjusted.amount > 0 ? '+' : ''}${fmt(_bankAdjusted.amount)} ` +
+      `<button type="button" class="ghost" onclick="bankAdjustUndo()">Undo</button></div>`;
+  } else {
+    html += `<div class="bank">Matches your bank</div>`;
+  }
+  return html;
+}
+
+async function bankAdjust(gap) {
+  const accountId = currentAccountId;
+  if (!accountId) return;
+  try {
+    const r = await api(`/api/accounts/${accountId}/bank-adjust?today=${_isoDate(new Date())}`,
+      { method: 'POST', body: JSON.stringify({ gap }) });
+    _bankAdjusted = { accountId, txnId: r.transaction_id, amount: r.amount };
+    await loadForecast();
+    notify('Added a line to match your bank\'s balance.', 'ok');
+  } catch (e) {
+    notifyError('Couldn\'t adjust to the bank', e);
+    await loadForecast();   // the gap may have changed: show the new one
+  }
+}
+
+async function bankAdjustUndo() {
+  const a = _bankAdjusted;
+  if (!a) return;
+  _bankAdjusted = null;
+  try {
+    await api(`/api/transactions/${a.txnId}`, { method: 'DELETE' });
+    notify('Took the adjustment back.', 'ok');
+  } catch (e) {
+    notifyError('Couldn\'t undo the adjustment', e);
+  }
+  await loadForecast();
+}
+
 async function loadForecast() {
   _updateCurrentMonthBtn();
   if (!currentAccountId) return;
@@ -8158,7 +8217,7 @@ function renderForecast() {
   const loDateLabel = minDate || '—';
 
   const curBal = typeof data.current_balance === 'number'
-    ? `<div class="stat current"><div class="l">Current balance</div><div class="v ${data.current_balance<0?'neg':''}">${fmt(data.current_balance)}</div><div class="d" title="Matches the Actual bal column at today">as of today</div></div>`
+    ? `<div class="stat current"><div class="l">Current balance</div><div class="v ${data.current_balance<0?'neg':''}">${fmt(data.current_balance)}</div><div class="d" title="Matches the Actual bal column at today">as of today</div>${_bankBalanceHtml(data.bank_balance)}</div>`
     : '';
   // Outgoing / incoming over the whole loaded window (every row, so
   // Opening + incoming − outgoing = the matching End balance). Actual uses the

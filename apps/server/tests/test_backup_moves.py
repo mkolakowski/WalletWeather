@@ -44,8 +44,10 @@ def _load(name):
 
 def normalized(forecast: dict) -> dict:
     """A Forecast without what differs between stores: ids become whether
-    there is one, today's balance goes (BackupTests.normalized does the same)."""
-    out = {k: v for k, v in forecast.items() if k not in ("current_balance", "bank_unmatched_count")}
+    there is one, today's balance goes (BackupTests.normalized does the same),
+    and so do the fields only the server has (the bank's: #255, #256)."""
+    out = {k: v for k, v in forecast.items()
+           if k not in ("current_balance", "bank_unmatched_count", "bank_balance")}
     out["rows"] = [{(f"has_{k[:-3]}" if k.endswith("_id") else k):
                     ([t["name"] for t in v] if k == "tags" else v is not None if k.endswith("_id") else v)
                     for k, v in row.items()} for row in forecast["rows"]]

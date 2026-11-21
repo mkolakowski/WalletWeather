@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "33"
+SCHEMA_VERSION = "34"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,10 @@ SCHEMA_VERSION = "33"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v34 (2026-11-21, claude+mkolakowski): the bank's balance next to yours
+#     (bank-providers phase 3, #256). bank_account_links.bank_balance_enc
+#     (the balance the provider gave at the last sync, encrypted like every
+#     amount) and .bank_balance_at (when the bank had that balance, UTC).
 # v33 (2026-11-20, claude+mkolakowski): the bank's own category for a synced
 #     line (bank-providers phase 2, #255). transactions.bank_category (what
 #     Teller or Plaid called it, plain text, null for SimpleFIN and for lines
@@ -741,7 +745,11 @@ class BankLinkAttempt(Base):
 class BankAccountLink(Base):
     """A bank account matched to one of the user's own accounts (#194).
     Nothing dated before `start_date` comes in. `synced_through` is the
-    newest date the last good sync covered; None until the first."""
+    newest date the last good sync covered; None until the first.
+    `bank_balance_enc` is the balance the provider gave at the last sync that
+    got one (a card's counts against you), `bank_balance_at` when the bank
+    had it (#256). Kept encrypted like every amount; not part of a backup,
+    since the next sync brings it again."""
     __tablename__ = "bank_account_links"
     id = Column(Integer, primary_key=True)
     connection_id = Column(Integer, ForeignKey("bank_connections.id", ondelete="CASCADE"), nullable=False)
@@ -749,8 +757,18 @@ class BankAccountLink(Base):
     account_id = Column(Integer, ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
     start_date = Column(Date, nullable=False)
     synced_through = Column(Date, nullable=True)
+    bank_balance_enc = Column(LargeBinary, nullable=True)
+    bank_balance_at = Column(DateTime, nullable=True)
     __table_args__ = (UniqueConstraint("connection_id", "bank_account_ref", name="uq_bank_link_ref"),
                       UniqueConstraint("connection_id", "account_id", name="uq_bank_link_account"))
+
+    @property
+    def bank_balance(self) -> Decimal | None:
+        return decrypt_decimal(self.bank_balance_enc)
+
+    @bank_balance.setter
+    def bank_balance(self, v):
+        self.bank_balance_enc = encrypt_decimal(v)
 
 
 class BankCategoryMap(Base):
@@ -1004,6 +1022,9 @@ def init_db():
     from sqlalchemy import text
     Base.metadata.create_all(engine)
     migrations = [
+        # v33 → v34: the bank's balance for a linked account (#256).
+        "ALTER TABLE bank_account_links ADD COLUMN IF NOT EXISTS bank_balance_enc BYTEA",
+        "ALTER TABLE bank_account_links ADD COLUMN IF NOT EXISTS bank_balance_at TIMESTAMP",
         # v32 → v33: the bank's category for a synced line (#255).
         # bank_category_maps comes from create_all.
         "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS bank_category VARCHAR(60)",

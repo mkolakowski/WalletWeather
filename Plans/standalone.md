@@ -12,7 +12,7 @@ Tracking issue: #240
 | 4. Use without a server | Server, Core, iOS | #235 | Built in 1.83.0 and iOS 0.19.0, 2026-11-18; waits for a release, TestFlight and your try |
 | 5. Move between a server and the phone | iOS, Server | #236 | Built in 1.84.0 and iOS 0.20.0, 2026-11-18; waits for a release, TestFlight and your try |
 | 6. Backup to iCloud Drive | iOS | #237 | Built in iOS 0.21.0, 2026-11-20; waits for TestFlight and your try (turn it on, delete the app, reinstall, restore) |
-| 9. CSV import from Files (runs after 6, before 7) | iOS, Core | #243 | Built in 1.85.0 (core 0.4.0) and iOS 0.23.0, 2026-11-20; waits for a release, TestFlight and your import of a real bank export |
+| 9. CSV import from Files (runs after 6, before 7) | iOS, Core | #243 | Built in 1.85.0 (core 0.4.0) and iOS 0.23.0, 2026-11-20; released in v1.85.0 (2026-11-20), closed 2026-11-21; your check left: import a real bank export on TestFlight |
 | 7. Live iCloud sync between devices | iOS | #238 | Built in iOS 0.24.0, 2026-11-20; waits for the CloudKit schema in Production (yours), TestFlight and your try on two devices |
 | 8. Bank sync on the phone | iOS, Core | #239 | Not started |
 

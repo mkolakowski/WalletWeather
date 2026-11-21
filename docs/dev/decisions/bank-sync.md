@@ -90,3 +90,17 @@ Decisions made while planning and building [`Plans/bank-sync.md`](../../../Plans
 **Why:** Hosted Link and a separate page answer two of 2026-11-16's objections to Plaid (a script on the app's pages, a public return address). The third, Plaid's approval, is put off by its Trial plan (10 bank logins free), and Teller needs none for up to 100.
 
 **What it changes:** a user can have many bank connections; `PRIVACY.md` gains Teller and Plaid and names the one page that loads Teller's script. Teller's certificate and Plaid's secret must stay on a server, so a standalone phone (#239) stays SimpleFIN-only.
+
+## 2026-11-20: providers' categories, and the bank's balance
+
+**Decided:** 2026-11-20, by Matthew, settling open questions 3 and 4 of [`Plans/bank-providers.md`](../../../Plans/bank-providers.md) (#259). **Status:** accepted.
+
+**The questions and what was chosen** (the first option listed is the one chosen):
+
+- **How Teller's and Plaid's categories become yours** (phase 2, #255): a mapping table in Settings → Bank sync, one row per provider category seen so far, a dropdown of your categories pre-filled where the names match, blank for uncategorized; not asking "always put X in Y?" the first time you categorize a line; not making new categories from theirs; not a read-only label with no mapping.
+- **Where the bank's balance shows** (phase 3, #256): on the Accounts screen under each linked account's balance; not only in Settings → Bank sync; not both.
+- **What a gap does:** shown in amber with an "Adjust to bank" button that adds one correction line for the difference and can be undone; not marked only; not the two numbers with no highlight.
+
+**Why:** a table is set once and is small to build, and pre-filling by name does most of it. The Accounts screen is seen every day, and a one-tap correction line is how a gap usually gets fixed anyway.
+
+**What it changes:** a line that pays a planned bill keeps the bill's category; the comparison counts only lines up to today, against the bank's posted balance.

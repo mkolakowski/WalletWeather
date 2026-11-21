@@ -7,8 +7,8 @@ Tracking issue: #259
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
 | 1. Teller and Plaid connect and sync | Server, Web | #254 | Not started |
-| 2. Their categories onto yours | Server, Web | #255 | Not started; waits for open question 3 |
-| 3. The bank's balance next to yours | Server, Web | #256 | Not started; waits for open question 4 |
+| 2. Their categories onto yours | Server, Web | #255 | Not started; open question 3 settled 2026-11-20 |
+| 3. The bank's balance next to yours | Server, Web | #256 | Not started; open question 4 settled 2026-11-20 |
 | 4. Every connection in the iPhone app | iOS | #257 | Not started |
 | 5. Connect a bank from the iPhone | iOS, Server | #258 | Waits (your call, 2026-11-20) |
 
@@ -30,8 +30,8 @@ Sessions: may span — phase 1 needs your own Teller and Plaid accounts, and eac
 
 1. **One admin switch, or one per provider?** Blocks nothing; phase 1 is built on this unless you say otherwise. Assumed: the existing Admin → Bank sync switch covers all three, and each provider is offered only when its keys are in `.env` (as email alerts need `MS_CLIENT_ID`).
 2. **The same bank account through two connections** (say SimpleFIN and Teller both reach one checking account). Blocks nothing; phase 1 is built on this unless you say otherwise. Assumed: each of your accounts links to one bank account across all your connections, and a second link is refused with a message naming the connection that has it, so no line comes in twice.
-3. **How their categories map onto yours.** Blocks phase 2. For example: a table you fill in once per provider category; suggested matches by name that you confirm; or a category only when no auto-tag rule applies.
-4. **Where the bank's balance shows, and what a gap means.** Blocks phase 3. For example: next to the account's balance on the Accounts screen; in the account's sync log; a warning when the two differ by more than an amount you set.
+3. ~~**How their categories map onto yours.**~~ Decided 2026-11-20 ([decision](../docs/dev/decisions/bank-sync.md)): a mapping table in Settings → Bank sync, one row per provider category seen so far, each with a dropdown of your categories, pre-filled where the names match; blank lands the line uncategorized. A line that pays a planned bill keeps the bill's category.
+4. ~~**Where the bank's balance shows, and what a gap means.**~~ Decided 2026-11-20 ([decision](../docs/dev/decisions/bank-sync.md)): on the Accounts screen, under each linked account's balance ("Bank: $1,234.56 as of …"), compared with your balance counting only lines up to today. A difference shows in amber with an "Adjust to bank" button that adds one correction line for the gap, which can be undone.
 
 ## The plan
 
@@ -42,7 +42,7 @@ Sessions: may span — phase 1 needs your own Teller and Plaid accounts, and eac
 - **Teller and Plaid, next to SimpleFIN.** This reverses 2026-11-16's "Plaid is not planned". Each instance brings its own keys, as Google sign-in does.
 - **Connecting happens on the provider's page, not inside the web app.** Plaid through Hosted Link: the server asks Plaid for a link, it opens on Plaid's site in a new tab, and the server checks back for the result, so no webhook and no public address are needed. Teller only offers a script, so it runs on one small separate page, the only page allowed to load `cdn.teller.io`; the rest of the web app still loads nothing from other sites, and `PRIVACY.md` names the exception.
 - **Both providers in one phase**, on a reworked base where a user can have many connections.
-- **Connecting from the iPhone waits** (phase 5). Categories and balances are planned (phases 2 and 3).
+- **Connecting from the iPhone waits** (phase 5). Categories and balances are planned (phases 2 and 3), their shapes settled the same day: a mapping table, and the bank's balance on the Accounts screen with an "Adjust to bank" fix.
 - **Done means** API tests in CI against stand-in providers, then a release and your try on your own instance, phase by phase.
 
 **Out of scope:**
@@ -73,11 +73,11 @@ Sessions: may span — phase 1 needs your own Teller and Plaid accounts, and eac
 
 ### Phase 2: Their categories onto yours (#255)
 
-Keep the category each line comes with (Teller's `details.category`, Plaid's `personal_finance_category`) and map it onto your categories as lines land, with the auto-tag rules still winning. The screen waits for open question 3. **Done when:** API tests cover a mapped, an unmapped and a rule-overridden line; the release is out and your synced lines land in your categories.
+Keep the category each line comes with (Teller's `details.category`, Plaid's `personal_finance_category`) and map it onto your categories as lines land, through a mapping table in Settings → Bank sync: one row per provider category seen so far, a dropdown of your categories pre-filled where the names match, blank for uncategorized (open question 3). A line that pays a planned bill keeps the bill's category, and changing the table doesn't touch lines already in. The tag rules run after the category is set, so a rule that asks for a category sees it. **Done when:** API tests cover a mapped line, an unmapped one, a bill-matched one and a pre-filled suggestion; the release is out and your synced lines land in your categories.
 
 ### Phase 3: The bank's balance next to yours (#256)
 
-Keep each provider's balance for a linked account at each sync (SimpleFIN and Plaid give it with the accounts; Teller's balance call is free in development and billed in production) and show it next to the forecast's. Where, and what a gap means, wait for open question 4. **Done when:** API tests cover each provider and one that gives none; the release is out and your linked accounts show both.
+Keep each provider's balance for a linked account at each sync (SimpleFIN and Plaid give it with the accounts; Teller's balance call is free in development and billed in production) and show it on the Accounts screen under the linked account's balance, compared with yours counting only lines up to today. A difference shows in amber with "Adjust to bank", which adds one correction line for the gap and can be undone (open question 4). **Done when:** API tests cover each provider, one that gives none, the gap and its correction line and undo; the release is out and your linked accounts show both.
 
 ### Phase 4: Every connection in the iPhone app (#257)
 

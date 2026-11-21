@@ -59,10 +59,13 @@ struct AppRoot: View {
             case .notice:
                 NoticeView()
             case .ready:
-                RootView(start: start)
-                    .safeAreaInset(edge: .top, spacing: 0) {
-                        if model.isDemo { DemoBar().padding(.horizontal, 16).padding(.bottom, 6) }
-                    }
+                // Stacked above the app, not inset over it: an inset leaves the
+                // navigation bar where it was, and the bar covered the page title (#261).
+                VStack(spacing: 0) {
+                    if model.isDemo { DemoBar().padding(.horizontal, 16).padding(.bottom, 6) }
+                    RootView(start: start)
+                }
+                .background { if model.isDemo { PageBackground().ignoresSafeArea() } }
             }
         }
         .modifier(SepiaText())

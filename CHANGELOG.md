@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.88.0** · Web version: **1.99.0** · Schema version: **34** · iOS version: **0.29.1**
+App version: **1.88.0** · Web version: **1.99.0** · Schema version: **34** · iOS version: **0.29.2**
 
 ### Added
 
@@ -88,6 +88,7 @@ App version: **1.88.0** · Web version: **1.99.0** · Schema version: **34** · 
 ### Fixed
 
 - **iOS 0.29.1, the open iPhone Duo no longer lets cards slide under a big "Dashboard" title:** with the Duo open, the left column of the Dashboard scrolled up behind the large page title, so its text showed through the title as a ghost inside a hard-edged band. Dashboard, Bills & income, Calendar and Forecast now use the small title in the two-pane layout; the iPhone and the closed Duo keep the large one. (#260)
+- **iOS 0.29.2, the demo's bar no longer covers the page title:** in the demo, the "Demo · sample numbers" bar sat over the top of the page and hid part of the title (most visible on the open Duo). The page now starts below the bar. (#261)
 
 ### Database
 

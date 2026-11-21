@@ -7,7 +7,7 @@ Tracking issue: #259
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
 | 1. Teller and Plaid connect and sync | Server, Web | #254 | Built for 1.86.0 (web 1.97.0, schema 32), 2026-11-20; open until the release is out and one of your banks syncs through Teller or Plaid |
-| 2. Their categories onto yours | Server, Web | #255 | Not started; open question 3 settled 2026-11-20 |
+| 2. Their categories onto yours | Server, Web | #255 | Built for 1.87.0 (web 1.98.0, schema 33), 2026-11-20; 964 API tests pass, Settings → Bank sync checked headless at 1100 and 390 px; open until the release is out and your synced lines land in your categories |
 | 3. The bank's balance next to yours | Server, Web | #256 | Not started; open question 4 settled 2026-11-20 |
 | 4. Every connection in the iPhone app | iOS | #257 | Not started |
 | 5. Connect a bank from the iPhone | iOS, Server | #258 | Waits (your call, 2026-11-20) |

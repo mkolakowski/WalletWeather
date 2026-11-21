@@ -45,9 +45,9 @@ class FakeTeller:
                           "institution": {"id": "teller_bank", "name": "Teller Bank"}}]
         self.transactions = [
             {"id": "txn_1", "date": day(1), "amount": "2500.00", "status": "posted",
-             "description": "PAYROLL ACME"},
+             "description": "PAYROLL ACME", "details": {"category": "income"}},
             {"id": "txn_2", "date": day(2), "amount": "-42.50", "status": "posted",
-             "description": "CORNER GROCERY"},
+             "description": "CORNER GROCERY", "details": {"category": "groceries"}},
             {"id": "txn_3", "date": day(0), "amount": "-9.99", "status": "pending",
              "description": "PENDING THING"},
             {"id": "txn_4", "date": day(40), "amount": "-5.00", "status": "posted",
@@ -108,20 +108,23 @@ class FakePlaid:
         self.pages: dict[str, dict] = {}
         self.pages[""] = {"accounts": self.accounts, "has_more": True, "next_cursor": "c1",
                           "transactions_update_status": "HISTORICAL_UPDATE_COMPLETE",
-                          "added": [self.txn("p1", 42.50, 2, "CORNER GROCERY"),
+                          "added": [self.txn("p1", 42.50, 2, "CORNER GROCERY", category="FOOD_AND_DRINK"),
                                     self.txn("p2", 9.99, 0, "PENDING THING", pending=True)]}
         self.pages["c1"] = {"accounts": self.accounts, "has_more": False, "next_cursor": "c2",
                             "transactions_update_status": "HISTORICAL_UPDATE_COMPLETE",
-                            "added": [self.txn("p3", -2500.00, 1, "PAYROLL ACME"),
+                            "added": [self.txn("p3", -2500.00, 1, "PAYROLL ACME", category="INCOME"),
                                       self.txn("p4", 5.00, 40, "OLD COFFEE")]}
         self.pages["c2"] = {"accounts": self.accounts, "has_more": False, "next_cursor": "c3",
                             "transactions_update_status": "HISTORICAL_UPDATE_COMPLETE",
-                            "added": [self.txn("p5", 12.00, 0, "NEW SANDWICH")]}
+                            "added": [self.txn("p5", 12.00, 0, "NEW SANDWICH", category="FOOD_AND_DRINK")]}
 
     @staticmethod
-    def txn(tid, amount, days_ago, name, pending=False):
-        return {"transaction_id": tid, "account_id": "pa_1", "amount": amount,
-                "date": day(days_ago), "name": name, "pending": pending}
+    def txn(tid, amount, days_ago, name, pending=False, category=None):
+        t = {"transaction_id": tid, "account_id": "pa_1", "amount": amount,
+             "date": day(days_ago), "name": name, "pending": pending}
+        if category:   # Plaid's personal_finance_category: a primary and a detailed one
+            t["personal_finance_category"] = {"primary": category, "detailed": category + "_OTHER"}
+        return t
 
     def bodies_for(self, path: str) -> list[dict]:
         return [b for p, b in self.bodies if p == path]

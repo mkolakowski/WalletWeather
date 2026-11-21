@@ -247,6 +247,31 @@ matched, so you choose.
 bill goes back to planned and the bank's line stays as its own paid line. It
 isn't matched again.
 
+### Categories from your banks
+
+Teller and Plaid give each line a category of their own, such as `groceries`
+or `FOOD_AND_DRINK`. SimpleFIN gives none, so this is only for lines that
+come through Teller or Plaid. From 1.87.0 they're turned into your own
+categories as lines land, by a table at the bottom of the Bank sync tab:
+
+- **One row for each category seen so far.** A row appears the first time a
+  sync brings in a line with that category, so the table is empty until
+  then. Teller's and Plaid's categories are separate rows.
+- **Each row says which of your categories it lands in.** It's filled in by
+  itself where one of your categories has the same name, ignoring case and
+  punctuation (Plaid's `FOOD_AND_DRINK` matches your "Food & Drink"; your
+  default Groceries and Income match Teller's). Otherwise it's blank, and the
+  line lands **Uncategorized**. Pick another category, or Uncategorized, and
+  press **Save categories**.
+- **Only lines that come in afterwards use a change.** Lines already here
+  keep the category they landed with; change those by hand as usual. A
+  category you add later isn't matched to a row that's already there: pick it
+  in the table.
+- **A line that pays a planned bill keeps the bill's category**, whatever its
+  row says ([Bills paid by a sync](#bills-paid-by-a-sync)).
+- **Your auto-tag rules run after the category is set,** so a rule limited
+  to a category applies to lines that land in it.
+
 ### The Unmatched list
 
 Synced lines that didn't pay a bill are kept on an **Unmatched** list, with a
@@ -277,9 +302,10 @@ SimpleFIN has stopped accepting the connection, until you connect again.
   sync](#bills-paid-by-a-sync)). A line's name is the bank's description,
   shortened to the company when the bank sends a whole ACH record (from
   1.71.0), with the full text in its notes.
-- **Your auto-tag rules run** on each new line, as they do for a CSV import.
-  Teller's and Plaid's categories aren't used yet (a later version maps them
-  onto yours).
+- **Teller's and Plaid's category is mapped onto yours** (from 1.87.0): see
+  [Categories from your banks](#categories-from-your-banks).
+- **Your auto-tag rules run** on each new line, as they do for a CSV import,
+  after its category is set, so a rule limited to a category sees it.
 - **Nothing comes in twice.** A line already brought in is recognised by the
   bank's own id. A paid line you added by CSV or by hand, with the same date,
   amount and description, is recognised too and isn't doubled.
@@ -338,7 +364,9 @@ at Teller and Plaid.
   and is never shown in the app or written to a log. The server also keeps your bank accounts' names (encrypted), your
   matches, how the last sync went, and the times of the last day's syncs.
   Each synced line carries a fingerprint of the bank's id for it, and which
-  sync brought it in. The sync log (when, how many, any error) is kept as
+  sync brought it in; for Teller and Plaid, also their own category for it, as
+  they gave it (not encrypted, like the line's category of yours), and the
+  table of those categories and where they land. The sync log (when, how many, any error) is kept as
   long as the audit log.
 - **In backups:** encrypted backups (Settings → Backup, and the system
   backups) carry the connection, so a restore keeps it. The readable

@@ -77,6 +77,17 @@ def _text(value, limit: int) -> str:
     return _CONTROL.sub(" ", str(value if value is not None else "")).strip()[:limit]
 
 
+CATEGORY_MAX = 60
+
+
+def category_key(value) -> str | None:
+    """A provider's own category for a line ("FOOD_AND_DRINK", "dining") as
+    the key it's kept and mapped by: trimmed, lowercased, cut to size
+    (#255). None when there's none to keep."""
+    text = _text(value, CATEGORY_MAX).lower() if isinstance(value, str) else ""
+    return text or None
+
+
 def _checked(url: str):
     """The URL split, if it's https on an allowed host and the default port."""
     try:

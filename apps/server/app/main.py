@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.86.0"
+APP_VERSION = "1.87.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -604,7 +604,7 @@ from .db import (
     AccountPermission, AccountInvitation, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
     Tag, TransactionTag, RecurringTag, TagRule, SavedReport, RecurringSkip,
     ApiToken, AuditEvent, AppSignInCode, RecoveryCode, RememberedBrowser, SessionLocal,
-    BankConnection, BankAccountLink, BankLinkAttempt, BankSyncRun, MailConnection, MailSender, MailAlertKind,
+    BankConnection, BankAccountLink, BankLinkAttempt, BankCategoryMap, BankSyncRun, MailConnection, MailSender, MailAlertKind,
     MailUnread, MailCheckRun, encrypt_str, decrypt_str, SCHEMA_VERSION,
 )
 from . import twofactor
@@ -4704,6 +4704,7 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
     if data["accounts"]:
         _set_bank_listing(conn, data["accounts"])
     by_account = {bank_account_ref(a["id"], provider): a for a in data["accounts"]}
+    seen_cats: dict = {}   # the user's categories and mapping rows, read once (#255)
     added = skipped = matched = 0
     calibrated: set[int] = set()
     for link in links:
@@ -4749,16 +4750,21 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
                 unclaimed[claim].pop().bank_ref = ref
                 run.skipped += 1
                 continue
+            # The provider's own category, mapped onto one of the user's (#255).
+            pcat = tx.get("category")
+            mapped = _bank_category_id(db, user, provider, pcat, seen_cats)
             # A planned bill or income line close in date and amount is
             # paid by this line instead of a second line landing (#196).
             hit = _bill_for_bank_line(bills, tx["date"], tx["amount"], short or raw)
             if hit:
                 rec, occ = hit
-                _pay_bill_from_bank(db, rec, occ, tx["date"], tx["amount"], ref, raw, "auto", run.id)
+                _pay_bill_from_bank(db, rec, occ, tx["date"], tx["amount"], ref, raw, "auto", run.id,
+                                    bank_category=pcat)
                 bills["covered"].add((rec.id, occ))
                 run.matched += 1
                 continue
-            _bank_own_line(db, user, acc.id, tx["date"], tx["amount"], raw, ref, run.id)
+            _bank_own_line(db, user, acc.id, tx["date"], tx["amount"], raw, ref, run.id,
+                           category_id=mapped, bank_category=pcat)
             run.added += 1
         added, skipped = added + run.added, skipped + run.skipped
         matched += run.matched
@@ -4806,6 +4812,92 @@ def _bank_fetch(conn: BankConnection, links: list, link_start, start: date, cali
     made = {ids[l.bank_account_ref] for l in links
             if l.account_id in calibrate and l.bank_account_ref in ids}
     return teller.fetch(secret, starts, balances_for=made)
+
+
+# ---------- Providers' categories onto the user's (#255) ----------
+# Teller and Plaid give each line a category of their own. The first time one
+# is seen for a user it gets a row in the mapping table, filled in with the
+# user's category of the same name when there is one and blank (lands
+# uncategorized) when not. Only the user changes a row after that, and
+# changing one never touches lines already in.
+
+def _cat_match_key(name: str | None) -> str:
+    """How a category's name is compared: "Food & Drink", "food and drink"
+    and Plaid's "FOOD_AND_DRINK" are the same name."""
+    return re.sub(r"[^a-z0-9]", "", (name or "").lower().replace("&", "and"))
+
+
+def _cat_title(key: str) -> str:
+    text = key.replace("_", " ").strip()
+    return text[:1].upper() + text[1:]
+
+
+def _bank_category_id(db: Session, user: User, provider: str, key: str | None, seen: dict) -> int | None:
+    """The user's category a provider's category lands in, making its row
+    in the mapping table the first time it is seen. `seen` holds what one
+    sync has already read."""
+    if not key:
+        return None
+    if "mine" not in seen:
+        seen["mine"] = {}
+        for c in db.query(Category).filter_by(owner_id=user.id).order_by(Category.id):
+            seen["mine"].setdefault(_cat_match_key(c.name), c.id)
+    if (provider, key) not in seen:
+        row = db.query(BankCategoryMap).filter_by(user_id=user.id, provider=provider, key=key).first()
+        if row is None:
+            row = BankCategoryMap(user_id=user.id, provider=provider, key=key,
+                                  category_id=seen["mine"].get(_cat_match_key(_cat_title(key))))
+            db.add(row)
+            db.flush()
+        seen[(provider, key)] = row.category_id
+    return seen[(provider, key)]
+
+
+def _bank_category_table(db: Session, user: User) -> dict:
+    rows = db.query(BankCategoryMap).filter_by(user_id=user.id).all()
+    rows.sort(key=lambda r: (BANK_PROVIDER_NAMES.get(r.provider, r.provider), r.key))
+    cats = db.query(Category).filter_by(owner_id=user.id).order_by(Category.name).all()
+    return {"rows": [{"id": r.id, "provider": r.provider,
+                      "provider_name": BANK_PROVIDER_NAMES.get(r.provider, r.provider),
+                      "key": r.key, "name": _cat_title(r.key), "category_id": r.category_id}
+                     for r in rows],
+            "categories": [{"id": c.id, "name": c.name} for c in cats]}
+
+
+@app.get("/api/bank/categories")
+def bank_categories(user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Settings → Bank sync: one row per provider category seen so far and
+    the category of the user's it lands in (null: uncategorized), with the
+    user's categories to choose from."""
+    return _bank_category_table(db, user)
+
+
+class BankCategoryChange(BaseModel):
+    id: int
+    category_id: int | None = None
+
+
+class BankCategoriesIn(BaseModel):
+    maps: list[BankCategoryChange] = Field(max_length=500)
+
+
+@app.put("/api/bank/categories")
+def bank_categories_save(body: BankCategoriesIn, user: User = Depends(current_session_user),
+                         db: Session = Depends(get_db)):
+    """Change where provider categories land. Only the rows sent change, only
+    lines that come in after this are affected, and nothing is saved unless
+    every row and category is the user's."""
+    rows = {r.id: r for r in db.query(BankCategoryMap).filter_by(user_id=user.id)}
+    mine = {c.id for c in db.query(Category).filter_by(owner_id=user.id)}
+    for ch in body.maps:
+        if ch.id not in rows:
+            raise HTTPException(404, "That category row wasn't found.")
+        if ch.category_id is not None and ch.category_id not in mine:
+            raise HTTPException(400, "Pick one of your own categories, or leave it blank.")
+    for ch in body.maps:
+        rows[ch.id].category_id = ch.category_id
+    db.commit()
+    return _bank_category_table(db, user)
 
 
 # ---------- Bills matched by bank sync (#196) ----------
@@ -4892,12 +4984,15 @@ def _source_cols(source: str, ref: str, run_id: int | None) -> dict:
 
 def _pay_bill_from_bank(db: Session, rec: RecurringTransaction, occ: date, day: date,
                         amount: Decimal, ref: str, raw: str, how: str,
-                        run_id: int | None, source: str = "bank") -> Transaction:
+                        run_id: int | None, source: str = "bank",
+                        bank_category: str | None = None) -> Transaction:
     """Marks one of a bill's dates paid with the bank's date and amount (or
     the email alert's, source "alert"), as marking it paid by hand does,
-    keeping the line's own text."""
+    keeping the line's own text. The line keeps the bill's category, whatever
+    the provider called it (#255); what the provider called it is kept."""
     t = Transaction(account_id=rec.account_id, recurring_id=rec.id, category_id=rec.category_id,
                     forecast_date=occ, actual_date=day, is_actual=True, bank_match=how,
+                    bank_category=bank_category,
                     **_source_cols(source, ref, run_id))
     t.description = rec.description
     t.amount = amount
@@ -4912,13 +5007,17 @@ def _pay_bill_from_bank(db: Session, rec: RecurringTransaction, occ: date, day: 
 
 def _bank_own_line(db: Session, user: User, account_id: int, day: date, amount: Decimal,
                    raw: str, ref: str, run_id: int | None, left: bool = False,
-                   source: str = "bank") -> Transaction:
+                   source: str = "bank", category_id: int | None = None,
+                   bank_category: str | None = None) -> Transaction:
     """A bank line (or an email alert's, source "alert") landed as its own
-    paid line. Tag rules see the bank's full text, as they did before names
-    were shortened (#213); then the line takes the short name and keeps the
-    full text in its notes."""
+    paid line, in `category_id` when its provider's category was mapped to
+    one (#255). Tag rules see the bank's full text, as they did before names
+    were shortened (#213), and run after the category is set, so a rule
+    limited to a category sees it; then the line takes the short name and
+    keeps the full text in its notes."""
     t = Transaction(account_id=account_id, actual_date=day, forecast_date=day, is_actual=True,
-                    bank_left=left, **_source_cols(source, ref, run_id))
+                    bank_left=left, category_id=category_id, bank_category=bank_category,
+                    **_source_cols(source, ref, run_id))
     t.description = raw
     t.amount = amount
     db.add(t)

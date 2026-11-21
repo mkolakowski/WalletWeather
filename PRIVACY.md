@@ -68,7 +68,11 @@ server it runs on:
   (to stay within SimpleFIN's limit), and for Plaid where its next sync
   starts. While a Teller or Plaid connection is being made, a short-lived
   record of it (for Plaid, its link token, encrypted), kept a day at most. Each line it brings in is stored like any other, plus a hash of
-  the bank's own id for it and which sync brought it in. A sync log for
+  the bank's own id for it, which sync brought it in and, for Teller and
+  Plaid, the category the provider gave it (a short word such as
+  `groceries` or `FOOD_AND_DRINK`, not encrypted, like the line's own
+  category). The table of those categories and which of the user's
+  categories each lands in is kept too, and deleted with the user. Disconnecting keeps both. A sync log for
   each matched account (when each sync ran, by schedule or by hand, how
   many lines came in or were already there, and any error), readable by
   the account's owner only and deleted after `AUDIT_RETENTION_DAYS` like

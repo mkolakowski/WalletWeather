@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "32"
+SCHEMA_VERSION = "33"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,11 @@ SCHEMA_VERSION = "32"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v33 (2026-11-20, claude+mkolakowski): the bank's own category for a synced
+#     line (bank-providers phase 2, #255). transactions.bank_category (what
+#     Teller or Plaid called it, plain text, null for SimpleFIN and for lines
+#     that didn't come from a bank). New table bank_category_maps (a user's
+#     mapping from a provider's category onto one of their categories).
 # v32 (2026-11-20, claude+mkolakowski): many bank connections, from
 #     SimpleFIN, Teller or Plaid (bank-providers phase 1, #254).
 #     bank_connections loses its one-per-user rule and gains .provider
@@ -443,6 +448,10 @@ class Transaction(Base):
     bank_text_enc = Column(LargeBinary, nullable=True)
     # A synced line taken off the Unmatched list ("Leave as its own line").
     bank_left = Column(Boolean, nullable=False, default=False)
+    # What the bank's provider called the line (Teller's details.category,
+    # Plaid's personal_finance_category.primary), lowercased, as it was when
+    # the line landed (#255). Plain, like category_id. None for SimpleFIN.
+    bank_category = Column(String(60), nullable=True)
 
     @property
     def bank_text(self) -> str | None:
@@ -744,6 +753,23 @@ class BankAccountLink(Base):
                       UniqueConstraint("connection_id", "account_id", name="uq_bank_link_account"))
 
 
+class BankCategoryMap(Base):
+    """One provider category a user's bank sync has seen, and the category of
+    theirs it lands in (#255). `key` is the provider's own name for it,
+    lowercased ("food_and_drink", "dining"); `category_id` None lands the
+    line uncategorized. A row is made when the category is first seen,
+    filled in where a category of the user's has the same name, and changed
+    only by the user. Changing it never touches lines already in."""
+    __tablename__ = "bank_category_maps"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    provider = Column(String(10), nullable=False)
+    key = Column(String(60), nullable=False)
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    __table_args__ = (UniqueConstraint("user_id", "provider", "key", name="uq_bank_category_map"),)
+
+
 class BankSyncRun(Base):
     """One sync of one linked account (#195): the owner's sync log. Kept as
     long as the audit log (AUDIT_RETENTION_DAYS)."""
@@ -978,6 +1004,9 @@ def init_db():
     from sqlalchemy import text
     Base.metadata.create_all(engine)
     migrations = [
+        # v32 → v33: the bank's category for a synced line (#255).
+        # bank_category_maps comes from create_all.
+        "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS bank_category VARCHAR(60)",
         # v31 → v32: many bank connections, from SimpleFIN, Teller or Plaid
         # (#254). bank_link_attempts comes from create_all. The unique
         # constraint's name is PostgreSQL's default for a unique column.

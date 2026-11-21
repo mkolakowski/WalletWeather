@@ -69,10 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.86.0** · Web version: **1.97.0** · Schema version: **32** · iOS version: **0.28.0**
+App version: **1.87.0** · Web version: **1.98.0** · Schema version: **33** · iOS version: **0.28.0**
 
 ### Added
 
+- **Teller's and Plaid's categories land in yours:** Teller and Plaid label each line they send with a category of their own ("groceries", "FOOD_AND_DRINK"). Settings → Bank sync now has a **Categories from your banks** table, one row for each of those categories a sync has seen, with a dropdown of your own categories. A row is filled in by itself where one of your categories has the same name (your Groceries, Income and Dining, for instance, match Teller's and Plaid's out of the box); change it, or pick Uncategorized, and press Save categories. Lines that come in afterwards land in the category their row says. A line that pays one of your planned bills keeps the bill's category, your auto-tag rules run after the category is set (so a rule limited to a category sees it), and changing the table never touches lines already here. SimpleFIN gives no categories, so nothing changes for it. Each line keeps the provider's own category, as stored data (see `PRIVACY.md`). The [bank sync guide](https://mkolakowski.github.io/WalletWeather/bank-sync.html) has the details. (#255)
 - **Bank sync through Teller and Plaid:** besides SimpleFIN Bridge, a bank can now be connected through [Teller](https://teller.io/) or [Plaid](https://plaid.com/), which reach banks their own way, so a bank SimpleFIN can't reach may work through one of them. Each is offered in Settings → Bank sync once the server has its keys in `.env` (Teller: `TELLER_APP_ID`, `TELLER_ENV` and its certificate in `TELLER_CERT_DIR`; Plaid: `PLAID_CLIENT_ID`, `PLAID_SECRET` and `PLAID_ENV`); the one Admin → Bank sync switch covers all three, and Admin says which are set up. You sign in to your bank on the provider's own page in a new tab, never on WalletWeather's: Plaid's Hosted Link, or WalletWeather's Teller page running Teller Connect. Settings notices when you're done; no webhook or public address is needed. Synced lines go through the same path as SimpleFIN's: posted lines only, the daily sync and Sync now, auto-tag rules, bill matching, the Unmatched list and the sync log. The setup is in the [bank sync guide](https://mkolakowski.github.io/WalletWeather/bank-sync.html). (#254)
 - **More than one bank connection:** each bank login is a connection of its own, from any mix of SimpleFIN, Teller and Plaid, listed in Settings → Bank sync with its own Sync now and Disconnect. The SimpleFIN connection you have becomes the first on the list, unchanged. Each of your accounts takes lines from one bank account across all your connections: a second match is refused, naming the connection that has it, so no line comes in twice. A new token from a SimpleFIN Bridge account you already have connected updates that connection and keeps its matches, rather than making a second one that lists the same bank accounts. (#254)
 
@@ -84,6 +85,7 @@ App version: **1.86.0** · Web version: **1.97.0** · Schema version: **32** · 
 
 ### Database
 
+- **Schema 33:** each synced line keeps what Teller or Plaid called its category (`transactions.bank_category`, empty for every line already there and for SimpleFIN), and a new table `bank_category_maps` holds each user's table of provider categories and where they land. Made by itself when the app starts. (#255)
 - **Schema 32:** a user may have many bank connections (`bank_connections` loses its one-per-user rule and gains `provider`, `simplefin` for the ones already there, and `cursor`, where Plaid's next sync starts), and a new table `bank_link_attempts` holds a Teller or Plaid connection while it's being made, a day at most. Made by itself when the app starts. (#254)
 
 ### Security

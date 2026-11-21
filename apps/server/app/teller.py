@@ -20,7 +20,7 @@ from datetime import date
 
 import httpx
 
-from .simplefin import BankError, DESCRIPTION_MAX, NAME_MAX, _amount, _text
+from .simplefin import BankError, DESCRIPTION_MAX, NAME_MAX, _amount, _text, category_key
 
 API = "https://api.teller.io"
 VERSION = "2020-10-12"
@@ -157,8 +157,10 @@ def _transactions(c: httpx.Client, token: str, account_id: str, start: date) -> 
                 continue
             if amount is None or day < start:
                 continue
+            details = t.get("details") if isinstance(t.get("details"), dict) else {}
             out.append({"id": t["id"][:200], "date": day, "amount": amount,
-                        "description": _text(t.get("description"), DESCRIPTION_MAX) or "Bank transaction"})
+                        "description": _text(t.get("description"), DESCRIPTION_MAX) or "Bank transaction",
+                        "category": category_key(details.get("category"))})
         if len(page) < PAGE:
             break
         last = page[-1].get("id") if isinstance(page[-1], dict) else None

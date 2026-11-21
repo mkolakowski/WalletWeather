@@ -85,6 +85,9 @@ MUST_BE_SESSION_ONLY = {
     ("POST", "/api/bank/connect/start"), ("POST", "/api/bank/connect/check"),
     ("GET", "/api/bank/teller/setup"), ("POST", "/api/bank/teller/enroll"),
     ("PUT", "/api/admin/bank-sync"),
+    # Where Teller's and Plaid's categories land (#255): a setting of the
+    # account's own, changed from the browser.
+    ("GET", "/api/bank/categories"), ("PUT", "/api/bank/categories"),
     # Email alerts (#206): a mailbox's sign-in can read mail, so connecting,
     # teaching and the log are browser-session only. GET /api/mail/status and
     # POST /api/mail/check (write tokens) are open to tokens since phase 2

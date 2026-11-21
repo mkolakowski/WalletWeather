@@ -19,7 +19,7 @@ from datetime import date, datetime, timedelta
 
 import httpx
 
-from .simplefin import BankError, DESCRIPTION_MAX, NAME_MAX, _amount, _text
+from .simplefin import BankError, DESCRIPTION_MAX, NAME_MAX, _amount, _text, category_key
 
 HOSTS = {"sandbox": "https://sandbox.plaid.com", "production": "https://production.plaid.com"}
 TIMEOUT = 30.0
@@ -210,7 +210,9 @@ def fetch(access_token: str, cursor: str | None, org: str = "") -> dict:
         by_account.setdefault(t["account_id"], []).append({
             "id": t["transaction_id"][:200], "date": day, "amount": -amount,
             "description": _text(t.get("name") or t.get("merchant_name"), DESCRIPTION_MAX)
-                           or "Bank transaction"})
+                           or "Bank transaction",
+            "category": category_key((t.get("personal_finance_category") or {}).get("primary")
+                                     if isinstance(t.get("personal_finance_category"), dict) else None)})
     out = []
     for acc_id, acc in accounts.items():
         out.append({**acc, "transactions": by_account.pop(acc_id, [])})

@@ -266,7 +266,9 @@ after SimpleFIN (which runs on MX) couldn't reach your banks:
 page and Teller through one separate connect page, so the objections above
 about its script and a public address no longer apply.
 Phase 1 (Teller and Plaid connect and sync, many connections per user) is
-built for 1.86.0 (#254) and out once that release is published.
+built for 1.86.0 (#254) and out once that release is published. Phase 2
+(their categories onto yours, a mapping table in Settings → Bank sync) is
+built for 1.87.0 (#255), also unreleased.
 
 Either one stores a long-lived, read-only bank token, so encrypted backups
 (item 12) and two-factor sign-in (item 14) should come first. `PRIVACY.md`

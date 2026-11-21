@@ -3242,7 +3242,9 @@ def _user_visible_accounts(db: Session, user: User, include_archived: bool = Fal
     )
     if not include_archived:
         q = q.filter(Account.archived == False)
-    return [acc for (acc, _level) in q.all()]
+    # In creation order: without it PostgreSQL returns them in whatever order
+    # its plan or the table's pages give, and that moves after an update.
+    return [acc for (acc, _level) in q.order_by(Account.id).all()]
 
 
 def _user_editable_accounts(db: Session, user: User, include_archived: bool = False) -> list[Account]:
@@ -3255,7 +3257,7 @@ def _user_editable_accounts(db: Session, user: User, include_archived: bool = Fa
     )
     if not include_archived:
         q = q.filter(Account.archived == False)
-    return list(q.all())
+    return list(q.order_by(Account.id).all())
 
 
 def _viewer_today(today: date | None) -> date:

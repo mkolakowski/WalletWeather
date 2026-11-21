@@ -97,3 +97,36 @@ def test_a_date_more_than_a_day_off_is_refused(client, account):
 def test_a_malformed_date_is_refused(client, account):
     r = client.get("/api/accounts", params={"today": "not-a-date"})
     assert r.status_code == 422
+
+
+def test_accounts_come_back_in_creation_order_even_after_one_is_changed(app_started):
+    """Every list of accounts is by id (creation order), whatever order
+    PostgreSQL's plan gives the rows. Guards the ordering; it does not
+    reproduce the rare reorder behind test_core_answer_key's occasional
+    failure (the calendar's accounts came back with the second first), whose
+    cause is taken to be the missing ORDER BY but wasn't reproduced."""
+    from fastapi.testclient import TestClient
+    from conftest import unique_email
+    c = TestClient(app_started)
+    assert c.post("/api/auth/register", json={"email": unique_email(), "password": "correct-horse-battery"}).status_code == 200
+    ids = []
+    for name in ("One", "Two", "Three"):
+        r = c.post("/api/accounts", json={"name": name, "starting_balance": 1, "starting_date": "2026-01-01"})
+        assert r.status_code == 200, r.text
+        ids.append(r.json()["id"])
+    assert c.patch(f"/api/accounts/{ids[0]}", json={"name": "One, renamed"}).status_code == 200
+    assert c.patch(f"/api/accounts/{ids[1]}", json={"name": "Two, renamed"}).status_code == 200
+    # The lists join the permission rows, so an update to the first one's moves
+    # it to the end of that table.
+    from app.db import AccountPermission, SessionLocal
+    db = SessionLocal()
+    try:
+        for i in (0, 1):
+            row = db.query(AccountPermission).filter_by(account_id=ids[i]).one()
+            row.level = "edit"
+            db.commit()
+            row.level = "owner"
+            db.commit()
+    finally:
+        db.close()
+    assert [a["id"] for a in c.get("/api/accounts").json()] == ids

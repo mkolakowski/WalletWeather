@@ -195,9 +195,22 @@ def test_a_token_works_once(app_started, fake, switched_on):
     assert r.status_code == 400 and "already used" in r.json()["detail"]
 
 
-def test_connecting_again_adds_a_second_connection(connected, fake):
-    # Many connections per user since #254 (it was refused before).
+def test_connecting_the_same_bank_again_updates_the_connection(connected, fake):
+    # Since #254 connecting again is allowed (it was refused before). A token
+    # from the same SimpleFIN Bridge lists the same bank accounts, so it
+    # takes the existing connection's place, keeping its matches.
+    c, u, acc, status = connected
+    link(c, status, acc)
+    fake.access = "https://user1:s3cret-pass@bridge.simplefin.org/simplefin"
+    r = c.post("/api/bank/connect", json={"token": fake.token()})
+    assert r.status_code == 200, r.text
+    [conn] = r.json()["connections"]
+    assert next(a for a in conn["accounts"] if a["name"] == "Everyday Checking")["account_id"] == acc
+
+
+def test_connecting_another_bank_adds_a_second_connection(connected, fake):
     c, *_ = connected
+    fake.accounts = [{**fake.accounts[0], "id": "ACT-OTHER", "name": "Other Bank Checking"}]
     r = c.post("/api/bank/connect", json={"token": fake.token()})
     assert r.status_code == 200, r.text
     conns = r.json()["connections"]

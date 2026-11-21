@@ -355,6 +355,20 @@ def _export_bank(db: Session, conn: BankConnection, accounts: list) -> dict:
 _HEX64 = re.compile(r"[0-9a-f]{64}")
 
 
+def _backup_bank_secrets(payload: dict) -> set[str]:
+    many = payload.get("bank_connections")
+    items = many if isinstance(many, list) else [payload.get("bank_connection")]
+    return {d.get("access_token") for d in items if isinstance(d, dict) and d.get("access_token")}
+
+
+def _end_at_provider(provider: str, secret: str) -> None:
+    from . import plaid, simplefin, teller
+    try:
+        (teller if provider == "teller" else plaid).remove(secret)
+    except simplefin.BankError:
+        pass
+
+
 _TOKEN = re.compile(r"[A-Za-z0-9_\-]{8,200}")
 
 
@@ -608,8 +622,14 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
 
     if mode == "replace":
         if isinstance(payload.get("bank_connection"), dict) or payload.get("bank_connections"):
-            # The backup's connections replace theirs (#194, #254).
+            # The backup's connections replace theirs (#194, #254). A Teller
+            # or Plaid one the backup doesn't hold is ended at the provider,
+            # as disconnecting does, so it isn't left reading the bank.
+            kept = _backup_bank_secrets(payload)
             for conn in db.query(BankConnection).filter_by(user_id=user.id).all():
+                secret = decrypt_str(conn.access_url_enc)
+                if conn.provider in ("teller", "plaid") and secret not in kept:
+                    _end_at_provider(conn.provider, secret)
                 db.delete(conn)
         if isinstance(payload.get("mail_connection"), dict):
             # And its mailbox theirs (#206).

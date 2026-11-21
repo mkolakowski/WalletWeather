@@ -4088,7 +4088,10 @@ def _bank_allowed(db: Session, user: User) -> None:
 # account across all their connections.
 BANK_PROVIDER_NAMES = {"simplefin": "SimpleFIN", "teller": "Teller", "plaid": "Plaid"}
 BANK_ATTEMPT_MINUTES = 30
-BANK_OPEN_ATTEMPTS = 5
+BANK_OPEN_ATTEMPTS = 10
+# A connection started in time may still finish later: Plaid keeps a
+# finished Hosted Link's result for six hours.
+BANK_FINISH_GRACE = timedelta(hours=6)
 
 
 def bank_providers() -> dict[str, bool]:
@@ -4196,8 +4199,8 @@ def _bank_status(db: Session, user: User) -> dict:
     if not conns:
         out["connections"] = []
         return out
-    now = datetime.utcnow()
     out.update(_bank_short_status(db, user))
+    short = {c["id"]: c for c in out["connections"]}
     details, every = [], []
     for conn in conns:
         provider = _provider(conn)
@@ -4216,7 +4219,7 @@ def _bank_status(db: Session, user: User) -> dict:
                 "unmatched_count": _unmatched_query(db, link.account_id).count() if link else 0,
             })
         every += accounts
-        details.append({**_bank_conn_short(db, conn, now, out["enabled"]),
+        details.append({**short[conn.id],
                         "connected_at": conn.created_at.isoformat() + "Z", "accounts": accounts})
     out.update({"connected_at": conns[0].created_at.isoformat() + "Z", "accounts": every,
                 "connections": details})
@@ -4250,18 +4253,15 @@ def bank_connect(body: BankConnectIn, request: Request,
     # The token is used up now, so the address is kept even if the listing
     # below fails: the next Sync now lists the accounts again.
     now = datetime.utcnow()
-    conn = BankConnection(user_id=user.id, provider="simplefin", access_url_enc=encrypt_str(access),
-                          calls_json="[]")
-    db.add(conn)
     try:
-        _note_bank_call(conn, now)
-        listing = simplefin.fetch_accounts(access, balances_only=True)
-        _set_bank_listing(conn, listing["accounts"])
+        accounts, failed = simplefin.fetch_accounts(access, balances_only=True)["accounts"], None
     except simplefin.SimpleFINError as e:
-        conn.last_sync_at, conn.last_sync_ok, conn.last_sync_status = now, False, str(e)[:300]
+        accounts, failed = [], e
+    conn = _bank_save_connection(db, user, "simplefin", access, accounts, request)
+    _note_bank_call(conn, now)
+    if failed:
+        conn.last_sync_at, conn.last_sync_ok, conn.last_sync_status = now, False, str(failed)[:300]
     db.commit()
-    record_event(db, "bank_connected", request, user=user,
-                 detail=f"SimpleFIN, {len(_bank_listing(conn))} bank accounts")
     return _bank_status(db, user)
 
 
@@ -4301,16 +4301,49 @@ def _bank_attempt(db: Session, user: User, public_id: str, provider: str | None 
     return a
 
 
-def _bank_new_connection(db: Session, user: User, provider: str, secret: str,
-                         accounts: list[dict], request: Request) -> BankConnection:
-    conn = BankConnection(user_id=user.id, provider=provider, access_url_enc=encrypt_str(secret),
-                          calls_json="[]")
-    _set_bank_listing(conn, accounts)
-    db.add(conn)
+def _bank_remove_secret(provider: str, secret: str) -> None:
+    """End a Teller enrollment or Plaid Item this server won't keep, so it
+    doesn't go on reading the bank. Best effort."""
+    try:
+        if provider == "teller":
+            teller.remove(secret)
+        elif provider == "plaid":
+            plaid.remove(secret)
+    except simplefin.BankError:
+        pass
+
+
+def _bank_save_connection(db: Session, user: User, provider: str, secret: str,
+                          accounts: list[dict], request: Request) -> BankConnection:
+    """A new connection; or, when it reaches a bank account one of the
+    user's connections from the same provider already lists, that
+    connection with the new key, its matches kept: the same bank connected
+    again. Two connections listing one bank account would give it one ref
+    twice. The replaced Teller or Plaid key is ended at the provider."""
+    ids = {a["id"] for a in accounts}
+    same = None
+    if ids:
+        same = next((c for c in _bank_connections(db, user) if _provider(c) == provider
+                     and ids & {a.get("id") for a in _bank_listing(c)}), None)
+    if same is None:
+        conn = BankConnection(user_id=user.id, provider=provider, access_url_enc=encrypt_str(secret),
+                              calls_json="[]")
+        _set_bank_listing(conn, accounts)
+        db.add(conn)
+        db.flush()
+        record_event(db, "bank_connected", request, user=user,
+                     detail=f"{BANK_PROVIDER_NAMES[provider]}, {len(accounts)} bank accounts")
+        return conn
+    old = decrypt_str(same.access_url_enc)
+    if old != secret:
+        _bank_remove_secret(provider, old)
+    same.access_url_enc = encrypt_str(secret)
+    _set_bank_listing(same, accounts)
+    same.needs_reconnect, same.cursor = False, None
     db.flush()
-    record_event(db, "bank_connected", request, user=user,
+    record_event(db, "bank_reconnected", request, user=user,
                  detail=f"{BANK_PROVIDER_NAMES[provider]}, {len(accounts)} bank accounts")
-    return conn
+    return same
 
 
 @app.post("/api/bank/connect/start")
@@ -4324,10 +4357,11 @@ def bank_connect_start(body: BankStartIn, request: Request,
                                  "An admin adds its keys to .env.")
     _confirm_code_for(db, request, user, body.code, "bank connection")
     now = datetime.utcnow()
-    db.query(BankLinkAttempt).filter(BankLinkAttempt.expires_at < now - timedelta(days=1)) \
+    db.query(BankLinkAttempt).filter(BankLinkAttempt.expires_at < now - BANK_FINISH_GRACE - timedelta(days=1)) \
         .delete(synchronize_session=False)
     open_now = db.query(BankLinkAttempt).filter(BankLinkAttempt.user_id == user.id,
                                                 BankLinkAttempt.expires_at > now,
+                                                BankLinkAttempt.exited.is_(False),
                                                 BankLinkAttempt.connection_id.is_(None)).count()
     if open_now >= BANK_OPEN_ATTEMPTS:
         raise HTTPException(429, "Too many connections started and not finished. Wait half an hour, "
@@ -4360,15 +4394,16 @@ def bank_connect_check(body: BankAttemptIn, request: Request,
     _bank_allowed(db, user)
     with _bank_connect_lock(user.id):
         a = _bank_attempt(db, user, body.attempt)
-        if a.connection_id is None and not a.exited and a.expires_at > datetime.utcnow() \
-                and a.provider == "plaid":
+        open_until = a.expires_at + BANK_FINISH_GRACE
+        if a.connection_id is None and not a.exited and open_until > datetime.utcnow() \
+                and a.provider == "plaid" and a.token_enc:
             _bank_finish_plaid(db, user, a, request)
         db.refresh(a)
     if a.connection_id is not None:
         return {"state": "done", "connection_id": a.connection_id, "status": _bank_status(db, user)}
     if a.exited:
         return {"state": "exited"}
-    if a.expires_at <= datetime.utcnow():
+    if open_until <= datetime.utcnow():
         return {"state": "expired"}
     return {"state": "waiting"}
 
@@ -4388,7 +4423,7 @@ def _bank_finish_plaid(db: Session, user: User, a: BankLinkAttempt, request: Req
                 accounts, org = [], result["institution"]
             for acc in accounts:
                 acc["org"] = acc["org"] or org or result["institution"]
-            conn = _bank_new_connection(db, user, "plaid", access, accounts, request)
+            conn = _bank_save_connection(db, user, "plaid", access, accounts, request)
             a.connection_id, a.token_enc = conn.id, None
     except simplefin.BankError as e:
         db.rollback()
@@ -4419,17 +4454,26 @@ def bank_teller_enroll(body: TellerEnrollIn, request: Request,
     _bank_allowed(db, user)
     with _bank_connect_lock(user.id):
         a = _bank_attempt(db, user, body.attempt, "teller")
+        # A token this server won't keep is ended at Teller, so no enrollment
+        # is left reading the bank with nobody able to remove it.
         if a.connection_id is not None:
+            done = db.get(BankConnection, a.connection_id)
+            if done is None or decrypt_str(done.access_url_enc) != body.access_token:
+                _bank_remove_secret("teller", body.access_token)
             raise HTTPException(409, "This bank is connected already. Close this tab.")
-        if a.expires_at <= datetime.utcnow():
+        if a.expires_at + BANK_FINISH_GRACE <= datetime.utcnow():
+            _bank_remove_secret("teller", body.access_token)
             raise HTTPException(410, "This connection was started too long ago. Start again in "
                                      "Settings → Bank sync.")
         try:
             accounts = teller.fetch_accounts(body.access_token)
         except simplefin.BankError as e:
-            raise HTTPException(400 if e.revoked else e.status, str(e))
-        conn = _bank_new_connection(db, user, "teller", body.access_token,
-                                    [{k: x[k] for k in ("id", "name", "org")} for x in accounts], request)
+            if not e.revoked:
+                _bank_remove_secret("teller", body.access_token)
+            raise HTTPException(400 if e.revoked else e.status,
+                                str(e) + ("" if e.revoked else " Nothing was kept: connect again."))
+        conn = _bank_save_connection(db, user, "teller", body.access_token,
+                                     [{k: x[k] for k in ("id", "name", "org")} for x in accounts], request)
         a.connection_id = conn.id
         db.commit()
     return {"connection_id": conn.id, "name": _bank_name(conn), "accounts": len(accounts)}
@@ -4525,7 +4569,11 @@ def _bank_one_link_each(db: Session, after: dict[str, int], wanted: dict, known:
             raise HTTPException(400, f"That account already takes lines{where}. "
                                      "Each of your accounts can be matched to one bank account only.")
         seen[account_id] = ref
-    new_ids = {after[ref] for ref, l in wanted.items() if l.account_id is not None}
+    # Only links this save adds or moves: one already there stays allowed.
+    had = {l.bank_account_ref: l.account_id for l in db.query(BankAccountLink)
+           .filter(BankAccountLink.connection_id.in_(conn_ids))}
+    new_ids = {l.account_id for ref, l in wanted.items()
+               if l.account_id is not None and had.get(ref) != l.account_id}
     if new_ids and db.query(BankAccountLink).filter(BankAccountLink.account_id.in_(new_ids),
                                                     BankAccountLink.connection_id.notin_(conn_ids)).first():
         raise HTTPException(400, "That account already takes lines from another owner's bank "

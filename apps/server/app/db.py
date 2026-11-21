@@ -36,7 +36,7 @@ SCHEMA_VERSION = "32"
 #     bank_connections loses its one-per-user rule and gains .provider
 #     ('simplefin' for the ones already there) and .cursor (where Plaid's
 #     next /transactions/sync starts). New table bank_link_attempts (a
-#     Teller or Plaid connection started in Settings and not finished yet).
+#     Teller or Plaid connection started in Settings, kept a few hours).
 # v31 (2026-11-17, claude+mkolakowski): bills learn bank text (match-by-hand
 #     phase 3, #224). recurring_transactions.match_text_enc, the encrypted
 #     name of the bank lines a bill was taught to take.
@@ -724,7 +724,8 @@ class BankLinkAttempt(Base):
     nonce = Column(String(64), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     expires_at = Column(DateTime, nullable=False)
-    connection_id = Column(Integer, ForeignKey("bank_connections.id", ondelete="SET NULL"), nullable=True)
+    # Goes with its connection, so a disconnected one never reads as open.
+    connection_id = Column(Integer, ForeignKey("bank_connections.id", ondelete="CASCADE"), nullable=True)
     exited = Column(Boolean, nullable=False, default=False)
 
 

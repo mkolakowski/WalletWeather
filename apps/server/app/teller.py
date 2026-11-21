@@ -65,8 +65,12 @@ def _client() -> httpx.Client:
     cert = _cert()
     if cert and _transport is None:
         kw["cert"] = cert
-    return httpx.Client(base_url=API, timeout=TIMEOUT, follow_redirects=False,
-                        transport=_transport, headers={"Teller-Version": VERSION}, **kw)
+    try:
+        return httpx.Client(base_url=API, timeout=TIMEOUT, follow_redirects=False,
+                            transport=_transport, headers={"Teller-Version": VERSION}, **kw)
+    except (OSError, ValueError):   # ssl.SSLError is an OSError
+        raise TellerError("This server can't read its Teller certificate and key. Check the files "
+                          "in TELLER_CERT_DIR and that they're readable.")
 
 
 def _error(r: httpx.Response) -> TellerError:

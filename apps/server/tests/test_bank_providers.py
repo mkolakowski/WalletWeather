@@ -745,3 +745,146 @@ def test_an_old_backup_with_one_simplefin_connection_still_imports(app_started, 
     assert r.json()["imported"]["bank_connection"] == 1
     [conn] = other.get("/api/bank").json()["connections"]
     assert conn["provider"] == "simplefin" and conn["linked_account_ids"]
+
+
+# ---------- Found in review (#254) ----------
+
+def test_teller_connected_again_takes_the_old_connections_place(teller_user, teller_fake):
+    # The same bank accounts through a second enrollment: one connection, its
+    # matches kept, and the old enrollment ended at Teller.
+    c, u, conn_id = teller_user
+    acc = linked(c, conn_id, "Teller Checking")
+    teller_fake.token = "teller_tok_two"
+    again = connect_teller(c, token="teller_tok_two")
+    assert again == conn_id
+    st = c.get("/api/bank").json()
+    assert [x["id"] for x in st["connections"]] == [conn_id]
+    assert bank_account(c, conn_id, "Teller Checking")["account_id"] == acc
+    gone = [r for r in teller_fake.calls("DELETE", "/accounts")
+            if base64.b64decode(r.headers["authorization"].split()[1]).decode().startswith(TELLER_TOKEN + ":")]
+    assert gone, "the replaced enrollment wasn't ended at Teller"
+
+
+def test_a_co_owners_existing_match_doesnt_block_saving_your_own(app_started, simplefin_fake,
+                                                                   teller_fake, switched_on):
+    # Before #254 two owners of one account could each match it from their
+    # own connection. Resending your own match unchanged (as Save matches
+    # does with every row) still works; a new match onto it is refused.
+    import hashlib
+    from datetime import date
+    from conftest import share_account
+    from app.db import BankAccountLink, SessionLocal
+    a, ua = register(app_started)
+    b, ub = register(app_started)
+    a_conn = connect_simplefin(a, simplefin_fake)
+    shared = linked(a, a_conn, "Everyday Checking", "Shared checking")
+    share_account(a, shared, "owner", invitee_client=b)
+    b_conn = connect_teller(b)
+    ref = hashlib.sha256(b"teller-account:acc_1").hexdigest()
+    db = SessionLocal()
+    try:   # the match B made before the upgrade
+        db.add(BankAccountLink(connection_id=b_conn, bank_account_ref=ref, account_id=shared,
+                               start_date=date.today()))
+        db.commit()
+    finally:
+        db.close()
+    r = b.put("/api/bank/links", json={"links": [{"ref": ref, "account_id": shared,
+                                                  "start_date": date.today().isoformat()}]})
+    assert r.status_code == 200, r.text
+    mine = make_account(b, "B's own")
+    teller_fake.accounts.append({**teller_fake.accounts[0], "id": "acc_2", "name": "Teller Savings"})
+    b.post("/api/bank/sync", json={"connection_id": b_conn})
+    other = bank_account(b, b_conn, "Teller Savings")["ref"]
+    r = b.put("/api/bank/links", json={"links": [{"ref": ref, "account_id": mine},
+                                                 {"ref": other, "account_id": shared}]})
+    assert r.status_code == 400 and "another owner" in r.json()["detail"]
+
+
+def test_a_second_teller_token_for_a_finished_attempt_is_ended_at_teller(app_started, teller_fake,
+                                                                          switched_on):
+    c, u = register(app_started)
+    attempt = start(c, "teller").json()["attempt"]
+    assert c.post("/api/bank/teller/enroll",
+                  json={"attempt": attempt, "access_token": TELLER_TOKEN}).status_code == 200
+    r = c.post("/api/bank/teller/enroll", json={"attempt": attempt, "access_token": "teller_tok_stray"})
+    assert r.status_code == 409
+    sent = [base64.b64decode(x.headers["authorization"].split()[1]).decode()
+            for x in teller_fake.calls("DELETE", "/accounts")]
+    assert "teller_tok_stray:" in sent and TELLER_TOKEN + ":" not in sent
+
+
+def test_a_teller_token_that_cant_be_listed_is_ended_at_teller(app_started, teller_fake, switched_on):
+    c, u = register(app_started)
+    attempt = start(c, "teller").json()["attempt"]
+    teller_fake.mode = "down"
+    r = c.post("/api/bank/teller/enroll", json={"attempt": attempt, "access_token": TELLER_TOKEN})
+    assert r.status_code == 502 and "Nothing was kept" in r.json()["detail"]
+    assert teller_fake.calls("DELETE", "/accounts")
+    assert c.get("/api/bank").json()["connections"] == []
+
+
+def test_plaid_finished_after_the_half_hour_still_connects(app_started, plaid_fake, switched_on):
+    from datetime import datetime
+    from app.db import BankLinkAttempt, SessionLocal
+    c, u = register(app_started)
+    attempt = start(c, "plaid").json()["attempt"]
+    db = SessionLocal()
+    try:
+        row = db.query(BankLinkAttempt).filter_by(public_id=attempt).one()
+        row.expires_at = datetime.utcnow() - timedelta(minutes=1)
+        db.commit()
+    finally:
+        db.close()
+    plaid_fake.sessions = [plaid_done_session()]
+    r = c.post("/api/bank/connect/check", json={"attempt": attempt})
+    assert r.status_code == 200 and r.json()["state"] == "done", r.text
+
+
+def test_disconnecting_takes_the_finished_attempt_with_it(app_started, teller_fake, switched_on):
+    c, u = register(app_started)
+    attempt = start(c, "teller").json()["attempt"]
+    r = c.post("/api/bank/teller/enroll", json={"attempt": attempt, "access_token": TELLER_TOKEN})
+    conn_id = r.json()["connection_id"]
+    assert c.post("/api/bank/disconnect", json={"connection_id": conn_id}).status_code == 200
+    assert c.post("/api/bank/connect/check", json={"attempt": attempt}).status_code == 404
+    r = c.post("/api/bank/teller/enroll", json={"attempt": attempt, "access_token": TELLER_TOKEN})
+    assert r.status_code == 404
+
+
+def test_closed_attempts_dont_count_toward_the_limit(app_started, plaid_fake, switched_on):
+    c, u = register(app_started)
+    plaid_fake.sessions = [{"finished_at": "2026-11-20T12:00:00Z", "results": None}]
+    for _ in range(12):
+        attempt = start(c, "plaid")
+        assert attempt.status_code == 200, attempt.text
+        r = c.post("/api/bank/connect/check", json={"attempt": attempt.json()["attempt"]})
+        assert r.json()["state"] == "exited"
+
+
+def test_an_unreadable_teller_certificate_is_a_plain_error(monkeypatch, tmp_path):
+    from app import simplefin, teller
+    bad = tmp_path / "certificate.pem"
+    bad.write_text("not a certificate")
+    monkeypatch.setenv("TELLER_APP_ID", "app_test")
+    monkeypatch.setenv("TELLER_ENV", "development")
+    monkeypatch.setenv("TELLER_CERT_FILE", str(bad))
+    monkeypatch.setenv("TELLER_KEY_FILE", str(bad))
+    monkeypatch.setattr(teller, "_transport", None)
+    with pytest.raises(simplefin.BankError, match="certificate"):
+        teller.remove("token_whatever")
+
+
+def test_a_replace_restore_ends_connections_the_backup_doesnt_hold(app_started, plaid_fake,
+                                                                   simplefin_fake, switched_on):
+    from app.backup import seal
+    c, u = register(app_started)
+    connect_plaid(c, plaid_fake)
+    old = {"version": 5, "accounts": [], "bank_connection": {
+        "access_url": "https://user1:s3cret-pass@bridge.simplefin.org/simplefin",
+        "accounts": [], "links": []}}
+    sealed = seal(old, BACKUP_PASSPHRASE)
+    r = c.post("/api/backup/import", json={"payload": sealed, "passphrase": BACKUP_PASSPHRASE,
+                                           "mode": "replace"})
+    assert r.status_code == 200, r.text
+    assert plaid_fake.bodies_for("/item/remove"), "the dropped Plaid Item wasn't removed"
+    assert [x["provider"] for x in c.get("/api/bank").json()["connections"]] == ["simplefin"]

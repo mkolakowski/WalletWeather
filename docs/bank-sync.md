@@ -154,7 +154,9 @@ code from your authenticator app first.
    notices by itself within a few seconds and lists the bank's accounts.
 
 Each bank login is a connection of its own: for three banks, connect three
-times. If the new tab didn't open, your browser blocked it: use the link
+times. A connection that lists the same bank accounts as one you already
+have from the same service (a new SimpleFIN token from the same Bridge
+account, say) takes the old one's place instead, keeping your matches. If the new tab didn't open, your browser blocked it: use the link
 that appears under the buttons.
 
 ### Through SimpleFIN
@@ -320,7 +322,7 @@ at Teller and Plaid.
 | *Teller didn't accept this server's certificate* | Check `certificate.pem` and `private_key.pem` are in the folder `TELLER_CERT_DIR` names, and that they're the ones for `TELLER_APP_ID`. |
 | *Plaid didn't accept this server's keys* | Check `PLAID_CLIENT_ID`, and that `PLAID_SECRET` is the secret for `PLAID_ENV` (sandbox and production have different secrets). |
 | *Plaid is still gathering your bank's history* | Plaid fetches your history after you connect. Sync again in a few minutes. |
-| *Your bank wants you to sign in again* / *Plaid no longer reaches this bank* | Disconnect that bank and connect it again. |
+| *Your bank wants you to sign in again* / *Plaid no longer reaches this bank* | Disconnect that bank and connect it again, then match its accounts again. |
 | *That account already takes lines from …* | That account is matched to a bank account on another connection. Leave one of them out. |
 | *Bank sync has asked SimpleFIN 20 times in the last 24 hours* | Wait for the time it gives. The daily sync counts toward the 20 too. |
 | *A sync is already running* | The daily sync was running at that moment. Try again in a minute. |

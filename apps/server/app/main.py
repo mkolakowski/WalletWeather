@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.89.0"
+APP_VERSION = "1.90.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,14 @@ APP_VERSION = "1.89.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.90.0 (2026-11-21, claude+mkolakowski): who may connect a bank, per
+#     person and provider (sync-access phase 1, #264; schema 35). An admin
+#     ticks providers per person (PUT /api/admin/users/{id}/bank-access,
+#     session only, audit bank_access_changed; /api/admin/users gains
+#     bank_access); every connect route refuses an unticked provider (admins
+#     always allowed); /api/bank gains providers[].allowed and
+#     providers_allowed; an unticked provider's connections pause (`paused`
+#     in the status, skipped by the daily sync, 403 on Sync now).
 # 1.75.0 (2026-11-17, claude+mkolakowski): email alerts matched to bills
 #     (bank-alert-emails phase 4, #209). An alert that lands pays a planned
 #     bill or income line the way a bank line does (_bill_for_bank_line, the
@@ -604,7 +612,7 @@ from .db import (
     AccountPermission, AccountInvitation, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
     Tag, TransactionTag, RecurringTag, TagRule, SavedReport, RecurringSkip,
     ApiToken, AuditEvent, AppSignInCode, RecoveryCode, RememberedBrowser, SessionLocal,
-    BankConnection, BankAccountLink, BankLinkAttempt, BankCategoryMap, BankSyncRun, MailConnection, MailSender, MailAlertKind,
+    BankConnection, BankAccess, BankAccountLink, BankLinkAttempt, BankCategoryMap, BankSyncRun, MailConnection, MailSender, MailAlertKind,
     MailUnread, MailCheckRun, encrypt_str, decrypt_str, SCHEMA_VERSION,
 )
 from . import twofactor
@@ -4214,6 +4222,37 @@ def bank_providers() -> dict[str, bool]:
     return {"simplefin": True, "teller": teller.available(), "plaid": plaid.available()}
 
 
+# Who may connect through which provider (sync-access phase 1, #264).
+# Decided 2026-11-21: an admin ticks each person for each provider in Admin →
+# Users; admins may always connect; the Admin → Bank sync switch stays as an
+# off-for-everyone kill switch. Unticking a provider pauses that person's
+# connections of it (kept, so ticking again carries on), never deletes them.
+def bank_access(db: Session, user: User) -> set[str]:
+    """The providers this person may connect through: every one for an
+    admin, otherwise those an admin has ticked."""
+    if is_admin(user):
+        return set(BANK_PROVIDER_NAMES)
+    return {p for (p,) in db.query(BankAccess.provider).filter_by(user_id=user.id)}
+
+
+def _bank_paused(db: Session, conn: BankConnection, user: User | None = None) -> bool:
+    """Whether an admin has paused this connection by unticking its person
+    for its provider."""
+    user = user or db.get(User, conn.user_id)
+    return user is None or _provider(conn) not in bank_access(db, user)
+
+
+def _bank_paused_message(conn: BankConnection) -> str:
+    return (f"An admin has paused your {BANK_PROVIDER_NAMES[_provider(conn)]} connection. "
+            "It's kept, and carries on once an admin lets you use it again in Admin → Users.")
+
+
+def _bank_may_connect(db: Session, user: User, provider: str) -> None:
+    if provider not in bank_access(db, user):
+        raise HTTPException(403, f"You can't connect a bank through {BANK_PROVIDER_NAMES[provider]} yet. "
+                                 "An admin can let you in Admin → Users.")
+
+
 def _bank_connections(db: Session, user: User) -> list[BankConnection]:
     return db.query(BankConnection).filter_by(user_id=user.id).order_by(BankConnection.id).all()
 
@@ -4306,10 +4345,14 @@ def _bank_status(db: Session, user: User) -> dict:
     sync fields cover all connections, as they did with one."""
     conns = _bank_connections(db, user)
     offered = bank_providers()
+    access = bank_access(db, user)
     out = {"enabled": bank_sync_enabled(db), "connected": bool(conns),
            "start_max_days": BANK_START_MAX_DAYS,
-           "providers": [{"key": k, "name": BANK_PROVIDER_NAMES[k], "available": v}
-                         for k, v in offered.items()]}
+           # `available`: the instance can offer it; `allowed`: an admin lets
+           # this person connect through it (#264).
+           "providers": [{"key": k, "name": BANK_PROVIDER_NAMES[k], "available": v, "allowed": k in access}
+                         for k, v in offered.items()],
+           "providers_allowed": [k for k, v in offered.items() if v and k in access]}
     if not conns:
         out["connections"] = []
         return out
@@ -4359,6 +4402,7 @@ def bank_connect(body: BankConnectIn, request: Request,
     """Claim a SimpleFIN setup token and list the bank accounts it reaches.
     One more connection next to any the user has (#254)."""
     _bank_allowed(db, user)
+    _bank_may_connect(db, user, "simplefin")
     _confirm_code_for(db, request, user, body.code, "bank connection")
     try:
         access = simplefin.claim(body.token)
@@ -4483,6 +4527,7 @@ def bank_connect_start(body: BankStartIn, request: Request,
     if not bank_providers()[body.provider]:
         raise HTTPException(400, f"{BANK_PROVIDER_NAMES[body.provider]} isn't set up on this instance. "
                                  "An admin adds its keys to .env.")
+    _bank_may_connect(db, user, body.provider)
     _confirm_code_for(db, request, user, body.code, "bank connection")
     now = datetime.utcnow()
     db.query(BankLinkAttempt).filter(BankLinkAttempt.expires_at < now - BANK_FINISH_GRACE - timedelta(days=1)) \
@@ -4523,6 +4568,7 @@ def bank_connect_check(body: BankAttemptIn, request: Request,
     _bank_allowed(db, user)
     with _bank_connect_lock(user.id):
         a = _bank_attempt(db, user, body.attempt)
+        _bank_may_connect(db, user, a.provider)
         open_until = a.expires_at + BANK_FINISH_GRACE
         if a.connection_id is None and not a.exited and open_until > datetime.utcnow() \
                 and a.provider == "plaid" and a.token_enc:
@@ -4565,6 +4611,7 @@ def bank_teller_setup(attempt: str, user: User = Depends(current_session_user),
                       db: Session = Depends(get_db)):
     """What the /bank/teller page sets Teller Connect up with."""
     _bank_allowed(db, user)
+    _bank_may_connect(db, user, "teller")
     a = _bank_attempt(db, user, attempt[:64], "teller")
     if a.connection_id is not None:
         raise HTTPException(409, "This bank is connected already. Close this tab.")
@@ -4581,6 +4628,7 @@ def bank_teller_enroll(body: TellerEnrollIn, request: Request,
     The token is tried at once (listing the bank's accounts) and kept only
     if Teller accepts it."""
     _bank_allowed(db, user)
+    _bank_may_connect(db, user, "teller")
     with _bank_connect_lock(user.id):
         a = _bank_attempt(db, user, body.attempt, "teller")
         # A token this server won't keep is ended at Teller, so no enrollment
@@ -4730,6 +4778,8 @@ def bank_create_account(body: BankNewAccountIn, request: Request,
     if body.ref not in known:
         raise HTTPException(404, "That bank account isn't on this connection.")
     conn = known[body.ref][0]
+    if _bank_paused(db, conn, user):
+        raise HTTPException(403, _bank_paused_message(conn))
     if db.query(BankAccountLink).filter_by(connection_id=conn.id, bank_account_ref=body.ref).first():
         raise HTTPException(400, "That bank account is already matched to one of your accounts.")
     name = body.name.strip()
@@ -4782,6 +4832,8 @@ def _bank_lock(user_id: int) -> threading.Lock:
 
 def _bank_sync(db: Session, user: User, conn: BankConnection, request: Request | None,
                trigger: str = "manual", calibrate: set[int] | None = None) -> dict:
+    if _bank_paused(db, conn, user):
+        raise HTTPException(403, _bank_paused_message(conn))
     lock = _bank_lock(user.id)
     if not lock.acquire(blocking=False):
         raise HTTPException(409, "A sync is already running. Try again in a minute.")
@@ -5562,9 +5614,14 @@ def bank_sync_now(request: Request, body: BankSyncIn | None = None, user: User =
     if connection_id is not None:
         targets = [_bank_connection_of(db, user, connection_id)]
     else:
-        conns = _bank_connections(db, user)
-        if not conns:
+        every = _bank_connections(db, user)
+        if not every:
             raise HTTPException(404, "No bank is connected.")
+        # Connections an admin has paused (#264) sit out; only when every
+        # one is paused is it an error.
+        conns = [c for c in every if not _bank_paused(db, c, user)]
+        if not conns:
+            raise HTTPException(403, _bank_paused_message(every[0]))
         linked = {cid for (cid,) in db.query(BankAccountLink.connection_id)
                   .filter(BankAccountLink.connection_id.in_([c.id for c in conns])).distinct()}
         targets = [c for c in conns if c.id in linked] or conns[:1]
@@ -5622,6 +5679,8 @@ def run_due_bank_syncs(db: Session, now: datetime | None = None) -> dict:
         user = db.get(User, conn.user_id)
         if user is None or user.disabled or is_demo_email(user.email) or not bank_sync_due(db, conn, now):
             continue
+        if _bank_paused(db, conn, user):
+            continue
         try:
             _bank_sync(db, user, conn, None, trigger="schedule")
             out["synced"] += 1
@@ -5648,15 +5707,17 @@ def _iso_z(d: datetime | None) -> str | None:
     return d.isoformat() + "Z" if d else None
 
 
-def _bank_conn_short(db: Session, conn: BankConnection, now: datetime, enabled: bool) -> dict:
-    """One connection's sync state: its bank's name but no account names."""
+def _bank_conn_short(db: Session, conn: BankConnection, now: datetime, enabled: bool,
+                     paused: bool = False) -> dict:
+    """One connection's sync state: its bank's name but no account names.
+    `paused`: an admin has unticked its person for its provider (#264)."""
     linked = [l.account_id for l in db.query(BankAccountLink).filter_by(connection_id=conn.id)]
     failing_since = None
     if conn.last_sync_ok is False:
         failing_since = conn.last_ok_at or conn.created_at
     next_at = None
     wait = _bank_call_wait(conn, now)
-    if linked and not conn.needs_reconnect and enabled:
+    if linked and not conn.needs_reconnect and enabled and not paused:
         gap = BANK_RETRY_AFTER_FAILURE if conn.last_sync_ok is False else BANK_SYNC_EVERY
         next_at = max(now, (conn.last_sync_at + gap) if conn.last_sync_at else now)
         if wait:
@@ -5671,6 +5732,7 @@ def _bank_conn_short(db: Session, conn: BankConnection, now: datetime, enabled: 
         "last_sync_status": conn.last_sync_status,
         "last_ok_at": _iso_z(conn.last_ok_at),
         "needs_reconnect": bool(conn.needs_reconnect),
+        "paused": paused,
         "failing_since": _iso_z(failing_since),
         "failing_over_a_day": bool(failing_since and now - failing_since > BANK_FAILING_WARN_AFTER),
         "next_sync_at": _iso_z(next_at),
@@ -5690,8 +5752,10 @@ def _bank_short_status(db: Session, user: User) -> dict:
     if not conns:
         return out
     now = datetime.utcnow()
-    each = [_bank_conn_short(db, c, now, enabled) for c in conns]
-    linked = [c for c in each if c["linked_account_ids"]] or each
+    access = bank_access(db, user)
+    each = [_bank_conn_short(db, c, now, enabled, _provider(c) not in access) for c in conns]
+    linked = ([c for c in each if c["linked_account_ids"] and not c["paused"]]
+              or [c for c in each if c["linked_account_ids"]] or each)
     failing = [c for c in each if c["last_sync_ok"] is False]
     oks = [c["last_sync_ok"] for c in each if c["last_sync_ok"] is not None]
     stamp = lambda key: [c[key] for c in each if c[key]]
@@ -8764,6 +8828,9 @@ def admin_set_mail_alerts(payload: MailAlertsSettingIn, request: Request,
 def admin_list_users(user: User = Depends(current_admin), db: Session = Depends(get_db)):
     users = db.query(User).order_by(User.id).all()
     banked = {uid for (uid,) in db.query(BankConnection.user_id)}
+    ticked: dict[int, list[str]] = {}
+    for uid, provider in db.query(BankAccess.user_id, BankAccess.provider).order_by(BankAccess.provider):
+        ticked.setdefault(uid, []).append(provider)
     mailed = {uid for (uid,) in db.query(MailConnection.user_id)}
     out = []
     for u in users:
@@ -8786,6 +8853,9 @@ def admin_list_users(user: User = Depends(current_admin), db: Session = Depends(
             "has_google": u.google_sub is not None,
             "two_factor_enabled": u.totp_enabled_at is not None,
             "bank_connected": u.id in banked,
+            # The providers an admin lets them connect through (#264); an
+            # admin may always connect, whatever is ticked.
+            "bank_access": ticked.get(u.id, []),
             "mail_connected": u.id in mailed,
         })
     return out
@@ -8850,6 +8920,39 @@ def admin_update_user(uid: int, payload: AdminUserPatchIn, request: Request,
     for event in events:
         record_event(db, event, request, user=user, detail=audit_target(user, target.id))
     return {"ok": True}
+
+
+class BankAccessIn(BaseModel):
+    providers: list[str] = Field(max_length=3)
+
+
+@app.put("/api/admin/users/{uid}/bank-access")
+def admin_set_bank_access(uid: int, payload: BankAccessIn, request: Request,
+                          user: User = Depends(current_session_admin), db: Session = Depends(get_db)):
+    """Which providers a person may connect a bank through (sync-access phase
+    1, #264): the whole list each time. Unticking one pauses their
+    connections of it; ticking it again carries on. A browser session only,
+    like the Bank sync switch."""
+    target = db.get(User, uid)
+    if not target:
+        raise HTTPException(404, "User not found")
+    want = set(payload.providers)
+    unknown = want - set(BANK_PROVIDER_NAMES)
+    if unknown:
+        raise HTTPException(400, "Unknown provider: " + ", ".join(sorted(unknown)))
+    if want and is_demo_email(target.email):
+        raise HTTPException(400, "The demo user can't connect a bank.")
+    have = {r.provider: r for r in db.query(BankAccess).filter_by(user_id=target.id)}
+    for p in want - set(have):
+        db.add(BankAccess(user_id=target.id, provider=p))
+    for p in set(have) - want:
+        db.delete(have[p])
+    db.commit()
+    if want != set(have):
+        names = [BANK_PROVIDER_NAMES[p] for p in BANK_PROVIDER_NAMES if p in want]
+        record_event(db, "bank_access_changed", request, user=user,
+                     detail=f"{audit_target(user, target.id)}: {', '.join(names) or 'none'}")
+    return {"id": target.id, "bank_access": [p for p in BANK_PROVIDER_NAMES if p in want]}
 
 
 @app.delete("/api/admin/users/{uid}")
@@ -9113,7 +9216,7 @@ AUDIT_EVENT_TYPES = (
     "recovery_code_used", "recovery_codes_remade",
     "browser_remembered", "browser_forgotten", "two_factor_requirement_changed",
     "bank_connected", "bank_disconnected", "bank_account_created", "bank_sync_run", "bank_sync_failed",
-    "bank_balance_adjusted", "bank_sync_setting_changed",
+    "bank_balance_adjusted", "bank_sync_setting_changed", "bank_access_changed",
     "mail_connected", "mail_disconnected", "mail_sender_taught", "mail_check_run",
     "mail_check_failed", "mail_alerts_setting_changed",
 )

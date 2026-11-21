@@ -2821,7 +2821,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.100.0";
+const WEB_VERSION = "1.101.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2831,6 +2831,7 @@ const WEB_VERSION = "1.100.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.101.0 (2026-11-21, claude+mkolakowski): (#264) Who may connect a bank. Admin → Users gets a "Bank sync" column: a tick per provider the instance offers (plus any already ticked), "Always" for an admin; a change sends the row's whole list to PUT /api/admin/users/{id}/bank-access (adminSetBankAccess). Settings → Bank sync shows only when bank sync is on and /api/bank's new providers_allowed isn't empty (or there's a connection to remove), offers only those providers (_bankOffered reads `allowed`), and a connection with `paused` says an admin has paused it, with Sync now off. app-connect-bank.js offers only allowed providers.
 // 1.100.0 (2026-11-21, claude+mkolakowski): (#258) Connecting a bank from the iPhone app: new pages outside the SPA, app-connect-bank.html/.js (/app-connect-bank: signs in, offers Teller and Plaid from /api/bank, asks the two-factor code, POST /api/bank/connect/start {app: true}; back from the provider as ?attempt=, checks /api/bank/connect/check and sends the sheet to walletweather://bank-connected?connection=N or ?state=...). bank-teller.js with ?app=1 sends the sheet back to the app after enrolling and offers Back to the app. index.html itself is unchanged.
 // 1.99.0 (2026-11-21, claude+mkolakowski): (#256) The bank's balance next to yours. The forecast's new bank_balance (balance, as_of, provider, gap, can_adjust; null when the account has no bank balance) is shown by _bankBalanceHtml under "Current balance" in the Forecast summary: "Bank: $… as of …", and when the gap isn't 0 an amber "Bank differs by …" with an "Adjust to bank" button (bankAdjust → POST /api/accounts/{id}/bank-adjust with the gap shown, today= the browser's date). After it, "Adjusted by … Undo" stays in the tile (_bankAdjusted; bankAdjustUndo → DELETE /api/transactions/{id}) until the gap is back or another account opens, and only while the bank's balance is the one it was made against. The bank balance's new unpaid_planned (count, amount of planned lines up to today not yet paid) is named in the tile and asked about in a confirmDialog before adjusting.
 // 1.98.0 (2026-11-20, claude+mkolakowski): (#255) Settings → Bank sync gets "Categories from your banks" (_bankCategoriesHtml, loaded with the rest in loadBank from GET /api/bank/categories): one row per category Teller or Plaid has given a line, with a dropdown of your categories (blank = Uncategorized), pre-filled by the server where the names match; "Save categories" (bankSaveCategories) sends every row to PUT /api/bank/categories. Shown only once a sync has seen a category.
@@ -9551,7 +9552,10 @@ async function loadBank() {
     tab.classList.add('hidden');
     return;
   }
-  tab.classList.toggle('hidden', !(bankState.enabled || bankState.connected));
+  // Shown while an admin lets this person connect through something (#264),
+  // or while they still have a connection to see or remove.
+  const mayConnect = bankState.enabled && (bankState.providers_allowed || []).length > 0;
+  tab.classList.toggle('hidden', !(mayConnect || bankState.connected));
   let owned = [];
   if (bankState.connected) {
     try { owned = (await api('/api/accounts?include_archived=true')).filter(a => a.level === 'owner'); } catch (_) {}
@@ -9572,7 +9576,8 @@ async function loadBank() {
       + '<div id="bankLog" class="hidden" style="margin-top:14px;max-width:720px"></div>'
       + _bankCategoriesHtml()
     : '')
-    + (bankState.enabled ? _bankConnectHtml(conns.length > 0) : '');
+    + (mayConnect ? _bankConnectHtml(conns.length > 0)
+      : bankState.enabled ? `<p style="color:var(--muted);font-size:13px;margin-top:16px">An admin hasn't let you connect another bank. They can in Admin → Users.</p>` : '');
 }
 
 // Teller's and Plaid's own categories onto yours (#255). Rows are made by the
@@ -9621,11 +9626,11 @@ async function bankSaveCategories() {
 // when their keys are in .env.
 function _bankOffered(key) {
   const p = (bankState.providers || []).find(x => x.key === key);
-  return !!(p && p.available);
+  return !!(p && p.available && p.allowed !== false);   // `allowed`: an admin lets you (#264)
 }
 
 function _bankConnectHtml(more) {
-  const teller = _bankOffered('teller'), plaid = _bankOffered('plaid');
+  const teller = _bankOffered('teller'), plaid = _bankOffered('plaid'), simplefin = _bankOffered('simplefin');
   const choice = (key, label, text) => `<div style="display:flex;gap:12px;align-items:flex-start;margin:0 0 10px">
       <button style="min-width:170px" onclick="bankStartProvider('${key}')">${label}</button>
       <span style="font-size:13px;color:var(--muted)">${text}</span></div>`;
@@ -9638,7 +9643,7 @@ function _bankConnectHtml(more) {
     ${teller ? choice('teller', 'Connect with Teller', 'You sign in to your bank on Teller Connect, on a page of its own in a new tab.') : ''}
     ${plaid ? choice('plaid', 'Connect with Plaid', "You sign in to your bank on Plaid's own site, in a new tab.") : ''}
     ${(teller || plaid) ? _bankCodeField('bankConnectCode') : ''}
-    <details style="margin-top:12px"${(teller || plaid) ? '' : ' open'}>
+    ${simplefin ? `<details style="margin-top:12px"${(teller || plaid) ? '' : ' open'}>
       <summary style="cursor:pointer;font-size:13px">Paste a SimpleFIN token</summary>
       <div style="margin-top:10px">
       ${_bankProviderLinks('simplefin')}
@@ -9656,7 +9661,7 @@ function _bankConnectHtml(more) {
       ${_bankCodeField('bankSimplefinCode')}
       <div style="margin-top:10px"><button onclick="bankConnect()">Connect</button></div>
       </div>
-    </details>`;
+    </details>` : ''}`;
 }
 
 function _bankConnHtml(c, owned) {
@@ -9688,6 +9693,8 @@ function _bankConnHtml(c, owned) {
       ? (simplefin
         ? '<br><strong>SimpleFIN no longer accepts this connection, so daily syncing has stopped.</strong> Disconnect it below, make a new setup token at ' + _bankLink(SIMPLEFIN_CREATE_URL, 'SimpleFIN Bridge') + ' and connect again.'
         : `<br><strong>${pname} no longer reaches this bank, so daily syncing has stopped.</strong> Disconnect it below and connect the bank again.`)
+      : c.paused
+        ? `<br><strong>An admin has paused this connection.</strong> It's kept, and syncs again once an admin lets you use ${pname} in Admin → Users.`
       : c.next_sync_at
         ? `<br>Syncs by itself about once a day; next around ${escapeHtml(_bankWhen(c.next_sync_at))}.`
         : '');
@@ -9702,7 +9709,7 @@ function _bankConnHtml(c, owned) {
       : `<div style="color:var(--muted);font-size:13px">${pname} hasn't listed any bank accounts yet. Press Sync now to ask again.</div>`}
     <div style="font-size:13px;margin-top:10px;color:${c.last_sync_ok === false ? 'var(--bad)' : 'var(--muted)'}">${last}</div>
     <div style="margin-top:8px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-      <button onclick="bankSyncNow(${id})"${c.sync_wait_seconds ? ' disabled' : ''}>Sync now</button>
+      <button onclick="bankSyncNow(${id})"${c.sync_wait_seconds || c.paused ? ' disabled' : ''}>Sync now</button>
       <span style="font-size:12px;color:var(--muted)">${left} sync${left === 1 ? '' : 's'} left in the next 24 hours</span>
       <span style="flex:1"></span>
       <button class="danger" onclick="bankDisconnect(${id})">Disconnect</button>
@@ -10871,10 +10878,37 @@ async function resetAppTitle() {
   }
 }
 
+// Admin → Users, "Bank sync" column (#264): which providers each person may
+// connect through. Offered: the providers with their keys in .env, as
+// /api/admin/bank-sync says; one already ticked stays shown.
+const BANK_PROVIDER_NAMES = { simplefin: 'SimpleFIN', teller: 'Teller', plaid: 'Plaid' };
+let adminBankOffered = ['simplefin'];
+function _adminBankAccessHtml(u) {
+  if (u.is_admin) return '<span style="color:var(--muted);font-size:12px" title="Admins may always connect a bank">Always</span>';
+  const ticked = u.bank_access || [];
+  const keys = Object.keys(BANK_PROVIDER_NAMES).filter(k => adminBankOffered.includes(k) || ticked.includes(k));
+  return keys.map(k => `<label style="display:inline-flex;gap:4px;align-items:center;margin-right:8px;font-size:12px;white-space:nowrap">
+      <input type="checkbox" class="admin-bank-access" data-user="${Number(u.id)}" value="${k}"${ticked.includes(k) ? ' checked' : ''}
+             onchange="adminSetBankAccess(${Number(u.id)}, this)">${BANK_PROVIDER_NAMES[k]}</label>`).join('');
+}
+async function adminSetBankAccess(uid, box) {
+  const boxes = [...document.querySelectorAll(`.admin-bank-access[data-user="${uid}"]`)];
+  boxes.forEach(b => b.disabled = true);
+  try {
+    await api(`/api/admin/users/${uid}/bank-access`, { method: 'PUT',
+      body: JSON.stringify({ providers: boxes.filter(b => b.checked).map(b => b.value) }) });
+    notify(box.checked ? `${BANK_PROVIDER_NAMES[box.value]} allowed.` : `${BANK_PROVIDER_NAMES[box.value]} no longer allowed; any connection of it is paused.`);
+  } catch (e) {
+    box.checked = !box.checked;
+    notifyError('Could not change bank sync access', e);
+  } finally { boxes.forEach(b => b.disabled = false); }
+}
+
 async function loadAdminUsers() {
   const wrap = document.getElementById('adminUsersList');
   try {
-    const users = await api('/api/admin/users');
+    const [users, bankCfg] = await Promise.all([api('/api/admin/users'), api('/api/admin/bank-sync').catch(() => null)]);
+    if (bankCfg && bankCfg.providers) adminBankOffered = Object.keys(bankCfg.providers).filter(k => bankCfg.providers[k]);
     if (!users.length) {
       wrap.innerHTML = '<div style="color:var(--muted)">No users.</div>';
       return;
@@ -10895,6 +10929,7 @@ async function loadAdminUsers() {
         <td style="color:var(--muted);font-size:12px">${authMethods.join(', ')}</td>
         <td class="num">${u.owned_count} owned, ${u.account_count} total</td>
         <td style="color:var(--muted);font-size:12px">${u.created_at ? u.created_at.slice(0,10) : '—'}</td>
+        <td>${_adminBankAccessHtml(u)}</td>
         <td style="white-space:nowrap">
           <button class="ghost" onclick="adminToggleDisable(${u.id}, ${!u.disabled})" title="${u.disabled ? 'Enable' : 'Disable'}">
             ${u.disabled ? '✓ Enable' : '⊘ Disable'}
@@ -10906,7 +10941,7 @@ async function loadAdminUsers() {
       </tr>`;
     }).join('');
     wrap.innerHTML = `<table><thead><tr>
-      <th>Email</th><th>Name</th><th>Auth</th><th>Accounts</th><th>Created</th><th></th>
+      <th>Email</th><th>Name</th><th>Auth</th><th>Accounts</th><th>Created</th><th title="Which providers each person may connect a bank through">Bank sync</th><th></th>
     </tr></thead><tbody>${rows}</tbody></table>`;
   } catch (e) {
     wrap.innerHTML = `<div style="color:var(--bad)">Error: ${escapeHtml(errText(e))}</div>`;

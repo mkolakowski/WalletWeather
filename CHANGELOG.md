@@ -69,7 +69,15 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.89.0** · Web version: **1.100.0** · Schema version: **34** · iOS version: **0.30.0**
+App version: **1.90.0** · Web version: **1.101.0** · Schema version: **35** · iOS version: **0.30.0**
+
+### Changed
+
+- **Breaking: an admin now chooses who may connect a bank, and through which service.** Admin → Users has a **Bank sync** column with a tick for each service your server offers (SimpleFIN, and Teller or Plaid once their keys are in `.env`). Only a ticked person can connect through that service; admins always can. The Admin → Bank sync switch still turns bank sync off for everyone at once. When you update, everyone who already has a bank connected is ticked for its service, so nothing that works today stops, but nobody else can connect a bank until you tick them. Unticking someone pauses their connections of that service instead of removing them: their Settings → Bank sync says an admin has paused it, the daily sync and Sync now skip it, and ticking them again carries on where it left off. The iPhone app's **Connect a bank** offers only the services you're ticked for. Changing the ticks needs an admin signed in in a browser, and each change is recorded in the audit log as `bank_access_changed`. (#264)
+
+### Database
+
+- Schema 35: a new table holds which services each person may connect a bank through. It's filled once, on the first start after updating, from the bank connections people already have. (#264)
 
 ## [1.89.0] — 2026-11-21
 

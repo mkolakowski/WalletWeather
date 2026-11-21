@@ -6,11 +6,13 @@ Tracking issue: #269
 
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
-| 1. Who may connect, per person and provider | Server, Web | #264 | Not started |
+| 1. Who may connect, per person and provider | Server, Web | #264 | Built in 1.90.0 (web 1.101.0, schema 35), 2026-11-21; waits for phases 2 and 3 and their release |
 | 2. The account holds its sync | Server, Web | #265 | Not started |
 | 3. The connection passes on | Server, Web | #266 | Not started |
 | 4. The same on the iPhone | iOS | #267 | Not started; waits for the release of phases 1 to 3 |
 | 5. Email alerts on the same model | Server, Web, iOS | #268 | Not started; waits for the release of phases 1 to 3 |
+
+Phase 1 built 2026-11-21 in 1.90.0 (web 1.101.0, schema 35), not released. The ticks are set with `PUT /api/admin/users/{id}/bank-access` (a browser session, like the Bank sync switch) rather than the `PATCH` the plan first named, so an admin API token can't widen who reaches a bank. API tests in `apps/server/tests/test_bank_access.py` (14: each connect route ticked, unticked and as an admin, a tick taken away mid-connection, the switch, the admin route and its audit event, pausing and carrying on, one provider paused beside another, and the once-only upgrade); the bank tests' `register` now ticks its users. Admin → Users and Settings → Bank sync (paused card, only ticked providers offered, hidden tab) checked in headless Chromium against a stubbed API.
 
 Planned 2026-11-21 (about 2:40 AM ET), from your question in the whats-next round: "is there a way to move the syncing out of the admin, by the admin allowing users to setup syncs as permissions and the sync living with the acct vs the user". Phases 1 to 3 go out together in one release; phases 4 and 5 each ship afterwards.
 
@@ -45,7 +47,7 @@ Today one switch in Admin turns bank sync on for everyone who can sign in (decid
 
 ### Phase 1: Who may connect, per person and provider
 
-**Server:** a table of which providers each person may connect (`user_id`, `provider`; schema bump). Admin → Users gets a tick per provider for each person (Teller and Plaid shown only when their keys are in `.env`), through `PATCH /api/admin/users/{id}` (`current_admin`), recorded in the audit log as `bank_access_changed`. Every way to connect (`/api/bank/connect`, `/connect/start`, `/connect/check`, the Teller enroll route and `/app-connect-bank`) refuses a provider the person isn't ticked for, with a message saying to ask an admin; admins are always allowed. `/api/bank` reports `providers_allowed`. The Admin → Bank sync switch stays: off stops every sync and hides bank sync for everyone, whatever is ticked. Unticking pauses that person's connections of that provider.
+**Server:** a table of which providers each person may connect (`user_id`, `provider`; schema bump). Admin → Users gets a tick per provider for each person (Teller and Plaid shown only when their keys are in `.env`), through `PUT /api/admin/users/{id}/bank-access` (`current_session_admin`), recorded in the audit log as `bank_access_changed`. Every way to connect (`/api/bank/connect`, `/connect/start`, `/connect/check`, the Teller enroll route and `/app-connect-bank`) refuses a provider the person isn't ticked for, with a message saying to ask an admin; admins are always allowed. `/api/bank` reports `providers_allowed`. The Admin → Bank sync switch stays: off stops every sync and hides bank sync for everyone, whatever is ticked. Unticking pauses that person's connections of that provider.
 
 **Upgrade:** each person with a connection gets its provider ticked, so nothing that works today stops; everyone else starts unticked.
 

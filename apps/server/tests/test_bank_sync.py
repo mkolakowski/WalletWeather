@@ -116,11 +116,30 @@ def switched_on():
     set_switch(False)
 
 
-def register(app):
+def allow_bank(user_id: int, providers=("simplefin", "teller", "plaid")):
+    """Tick a person for these providers, as an admin does in Admin → Users
+    (#264); none unticks them all."""
+    from app.db import BankAccess, SessionLocal
+    db = SessionLocal()
+    try:
+        db.query(BankAccess).filter_by(user_id=user_id).delete()
+        for p in providers:
+            db.add(BankAccess(user_id=user_id, provider=p))
+        db.commit()
+    finally:
+        db.close()
+
+
+def register(app, bank=True):
+    """A new signed-in user; ticked for every bank provider unless bank=False,
+    so the bank tests reach what they test (who may connect is
+    test_bank_access.py's)."""
     c = TestClient(app)
     email = unique_email()
     r = c.post("/api/auth/register", json={"email": email, "password": PASSWORD})
     assert r.status_code == 200, r.text
+    if bank:
+        allow_bank(r.json()["id"])
     return c, {"email": email, "id": r.json()["id"], "password": PASSWORD}
 
 

@@ -80,7 +80,14 @@
       stop('Bank sync is off', 'An admin switches it on in the web app\'s Admin page. Then you can connect your bank here.', 'off');
       return;
     }
-    const offered = (bank.providers || []).filter(p => p.available && (p.key === 'teller' || p.key === 'plaid'));
+    const ready = (bank.providers || []).filter(p => p.available && (p.key === 'teller' || p.key === 'plaid'));
+    // Only the providers an admin lets this person use (#264).
+    const offered = ready.filter(p => p.allowed !== false);
+    if (ready.length && !offered.length) {
+      stop("You can't connect a bank yet",
+           'An admin lets you connect through Teller or Plaid in the web app: Admin → Users.', 'off');
+      return;
+    }
     if (!offered.length) {
       stop('No provider to connect with',
            "This server has no Teller or Plaid keys set up. An admin adds them to its .env; SimpleFIN is connected in the web app: Settings → Bank sync.", 'off');

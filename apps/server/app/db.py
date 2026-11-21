@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "34"
+SCHEMA_VERSION = "35"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,11 @@ SCHEMA_VERSION = "34"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v35 (2026-11-21, claude+mkolakowski): who may connect a bank, per person
+#     and provider (sync-access phase 1, #264). New table bank_access (one
+#     row per person and provider an admin has ticked). On the first start
+#     at v35 everyone with a connection is ticked for its provider, once
+#     (admin_settings 'bank_access_seeded' marks it done).
 # v34 (2026-11-21, claude+mkolakowski): the bank's balance next to yours
 #     (bank-providers phase 3, #256). bank_account_links.bank_balance_enc
 #     (the balance the provider gave at the last sync, encrypted like every
@@ -721,6 +726,17 @@ class BankConnection(Base):
     needs_reconnect = Column(Boolean, nullable=False, default=False)
 
 
+class BankAccess(Base):
+    """A provider an admin lets one person connect a bank through
+    (sync-access phase 1, #264): no row, no connecting, and their
+    connections of that provider pause. Admins may always connect, with or
+    without rows. `provider` is 'simplefin', 'teller' or 'plaid'."""
+    __tablename__ = "bank_access"
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    provider = Column(String(10), primary_key=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class BankLinkAttempt(Base):
     """A Teller or Plaid connection started in Settings → Bank sync and not
     finished yet (#254). Made after the two-factor code is checked, so the
@@ -1138,6 +1154,18 @@ def init_db():
     with engine.begin() as conn:
         for sql in migrations:
             conn.execute(text(sql))
+        # v34 → v35: who may connect a bank (#264). bank_access comes from
+        # create_all. Once only, so a person an admin later unticks isn't
+        # ticked again at the next start: everyone with a connection gets its
+        # provider, so nothing that worked before stops.
+        if conn.execute(text("SELECT 1 FROM admin_settings WHERE key = 'bank_access_seeded'")).first() is None:
+            conn.execute(text("""
+                INSERT INTO bank_access (user_id, provider, created_at)
+                SELECT DISTINCT user_id, provider, NOW() FROM bank_connections
+                ON CONFLICT (user_id, provider) DO NOTHING
+            """))
+            conn.execute(text("INSERT INTO admin_settings (key, value) VALUES ('bank_access_seeded', 'true') "
+                              "ON CONFLICT (key) DO NOTHING"))
         # Backfill: every existing account must grant edit to its owner.
         # This is safe to run repeatedly because of ON CONFLICT DO NOTHING.
         conn.execute(text("""

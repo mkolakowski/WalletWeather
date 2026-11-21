@@ -141,3 +141,20 @@ Decisions made while planning and building [`Plans/bank-sync.md`](../../../Plans
 
 **What it changes:** the server gains one page (`/app-connect-bank`) and Plaid is told that page's address for a connection started from the phone; the app gains a Connect a bank button in Settings → Bank sync.
 
+
+## 2026-11-21: who may connect, and the sync kept with the account
+
+**Decided:** 2026-11-21, by Matthew, while planning [`Plans/sync-access.md`](../../../Plans/sync-access.md), from the question "is there a way to move the syncing out of the admin, by the admin allowing users to setup syncs as permissions and the sync living with the acct vs the user". **Status:** accepted; replaces question 3 of 2026-11-16 (one Admin switch for everyone) and the first part of 2026-11-20 (one switch for all providers); question 7 (only the owner links) is kept.
+
+**The questions and what was chosen** (the first option listed is the one chosen):
+
+- **Who may set up a sync:** an admin ticks each person for each provider (SimpleFIN, Teller, Plaid); not a tick per person for all providers; not ticks with no global switch.
+- **The Admin → Bank sync switch:** kept as an off-for-everyone kill switch, with the ticks deciding while it's on; not removed.
+- **On upgrade:** whoever has a connection gets that provider ticked, everyone else starts unticked, and admins can always connect; not everyone ticked for everything; not nobody but admins.
+- **What "the sync lives with the account" means:** the bank login stays the person's who connected it, but each account's link, status, sync log, Unmatched list and Sync now belong to the account, and the connection passes to another owner when its person leaves; not the connection itself belonging to the accounts (any owner reconnecting or disconnecting it); not kept per person.
+- **Who sees and runs a shared account's sync:** owners and editors (status, log, Sync now, matching by hand); read-only people see the synced lines only; not owners only; not everyone with read access.
+- **Who links or unlinks an account:** owners only, as before; not editors too.
+- **Email alerts:** bank sync first, then email alerts on the same model in a later phase of the same plan; not both together; not bank sync only.
+- **What waits for after the first release:** the iPhone (phase 4) and email alerts (phase 5); phases 1 to 3 go out together.
+
+**Why:** a per-provider tick lets an admin keep a paid provider (Plaid's logins, Teller's billed calls) to a few people while still letting others use SimpleFIN, and the kill switch keeps one place to stop everything, which `PRIVACY.md`'s "nothing leaves the server unless the operator chooses" relies on. Keeping the login with its person means nobody else can use or change someone's bank credentials, while the account holding its sync means everyone who keeps the account up to date can see why a line came in and fix a match.

@@ -152,7 +152,12 @@ struct DemoTests {
         #expect(next > .now)
         let summary = status.summary(when: { _ in "earlier" })
         #expect(summary.tone == .ok && summary.canSync && summary.headline == "Synced earlier")
+        // Two connections, one through SimpleFIN and one through Teller (#257).
+        let rows = status.connectionRows(when: { _ in "earlier" })
+        #expect(rows.map(\.provider) == ["SimpleFIN", "Teller"])
+        #expect(rows.allSatisfy { $0.summary.tone == .ok && $0.summary.canSync })
         await #expect(throws: APIError.demoReadOnly) { _ = try await client.syncBankNow() }
+        await #expect(throws: APIError.demoReadOnly) { _ = try await client.syncBankNow(connection: 2) }
     }
 
     @Test func nothingIsKept() async throws {

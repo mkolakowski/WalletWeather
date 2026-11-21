@@ -227,17 +227,37 @@ public enum Demo {
         return json(all)
     }
 
-    /// A sample bank sync status: a bank connected and matched, last synced
-    /// a few hours ago, with the next sync due tomorrow (#197).
+    /// A sample bank sync status: two banks connected (one through SimpleFIN,
+    /// one through Teller) and matched, last synced a few hours ago, with the
+    /// next sync due tomorrow (#197, #257).
     static func bankStatus(now: Date = .now) -> Data {
-        json([
-            "enabled": true, "connected": true, "linked_account_ids": [1],
-            "last_sync_at": BankStatus.text(now.addingTimeInterval(-5 * 3600)), "last_sync_ok": true,
-            "last_sync_status": "2 new lines, 1 matched a bill, 14 already here",
-            "last_ok_at": BankStatus.text(now.addingTimeInterval(-5 * 3600)), "needs_reconnect": false,
+        func connection(_ id: Int, _ provider: String, _ providerName: String, _ name: String, account: Int,
+                        hoursAgo: Double, status: String, left: Int) -> [String: Any] {
+            [
+                "id": id, "provider": provider, "provider_name": providerName, "name": name,
+                "linked_account_ids": [account],
+                "last_sync_at": BankStatus.text(now.addingTimeInterval(-hoursAgo * 3600)), "last_sync_ok": true,
+                "last_sync_status": status,
+                "last_ok_at": BankStatus.text(now.addingTimeInterval(-hoursAgo * 3600)), "needs_reconnect": false,
+                "failing_since": NSNull(), "failing_over_a_day": false,
+                "next_sync_at": BankStatus.text(now.addingTimeInterval((24 - hoursAgo) * 3600)),
+                "syncs_left_today": left, "sync_wait_seconds": 0,
+            ]
+        }
+        return json([
+            "enabled": true, "connected": true, "linked_account_ids": [1, 2],
+            "last_sync_at": BankStatus.text(now.addingTimeInterval(-3 * 3600)), "last_sync_ok": true,
+            "last_sync_status": "Northwind Bank: 2 new lines, 1 matched a bill, 14 already here; Contoso Credit Union: 0 new lines, 6 already here",
+            "last_ok_at": BankStatus.text(now.addingTimeInterval(-3 * 3600)), "needs_reconnect": false,
             "failing_since": NSNull(), "failing_over_a_day": false,
-            "next_sync_at": BankStatus.text(now.addingTimeInterval(18.5 * 3600)),
+            "next_sync_at": BankStatus.text(now.addingTimeInterval(19 * 3600)),
             "syncs_left_today": 19, "sync_wait_seconds": 0,
+            "connections": [
+                connection(1, "simplefin", "SimpleFIN", "Northwind Bank", account: 1, hoursAgo: 5,
+                           status: "2 new lines, 1 matched a bill, 14 already here", left: 19),
+                connection(2, "teller", "Teller", "Contoso Credit Union", account: 2, hoursAgo: 3,
+                           status: "0 new lines, 6 already here", left: 20),
+            ],
         ])
     }
 

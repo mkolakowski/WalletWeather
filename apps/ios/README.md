@@ -21,8 +21,10 @@ iOS 0.18.0 its Dashboard, charts, Forecast, Calendar and balances are worked
 out on the phone by the shared JavaScript core (phase 3 of
 [`Plans/standalone.md`](../../Plans/standalone.md), #234).
 Bank sync (phase 5 of `Plans/bank-sync.md`, #197) shows its status and Sync
-now under Settings, and a bill's bank match settings in its editor; the sync
-log, the Unmatched list and connecting a bank stay in the web app.
+now under Settings, each connection on its own (SimpleFIN, Teller or Plaid,
+phase 4 of `Plans/bank-providers.md`, #257), and a bill's bank match settings
+in its editor; the sync log, the Unmatched list and connecting a bank stay in
+the web app.
 
 Changes in this folder don't trigger the container build.
 
@@ -225,14 +227,20 @@ The app checks `GET /api/version` when it connects. A server older than
 Settings has a **Bank sync** card (`BankSyncCard` in `MoreView.swift`, with
 the words in `BankSync.swift` in `WalletWeatherKit`, which tests check state
 by state). It reads `GET /api/bank/status` (server 1.70.0; an older server
-gets "Bank sync shows here from server 1.70.0") and **Sync now** posts to
-`POST /api/bank/sync`, which a read-only token can't, so the button is hidden
-for one. Over the 20-a-day limit the card shows the web app's wait message
-and disables the button. A bill's editor shows the two match settings
+gets "Bank sync shows here from server 1.70.0"). From server 1.86.0 the
+status lists each bank connection (`connections`: SimpleFIN, Teller or Plaid,
+each with its bank's name, its own last sync and its own 20-a-day limit), and
+the card shows one block for each with its own **Sync now**, which posts
+`POST /api/bank/sync` with that `connection_id`; a server from 1.70.0 to
+1.85.0 sends no list, and the card shows its one connection as before with a
+Sync now that syncs it. A read-only token can't sync, so the button is
+hidden for one. Over a connection's limit its block shows the wait message
+(naming its provider) and disables its button. A bill's editor shows the two match settings
 (`match_days`, `match_percent`, server 1.73.0) only when the server sends
 them, and a save from a server without them leaves them out of the request,
 which leaves them as they are. In the demo the status is a sample made from
-the time now, and Sync now says the demo saves nothing.
+the time now, with two connections (one through SimpleFIN, one through
+Teller), and Sync now says the demo saves nothing.
 
 ## On this iPhone
 

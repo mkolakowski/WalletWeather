@@ -668,15 +668,16 @@ struct ReportResult: View {
 
 // MARK: - More's rows
 
-/// One row of a More card: what it is on the left, its value or action on
-/// the right, tall enough to tap.
-/// Bank sync's state and Sync now (bank-sync phase 5, #197). Connecting a
+/// Bank sync's state and Sync now (bank-sync phase 5, #197), with each bank
+/// connection listed on its own (bank-providers phase 4, #257). Connecting a
 /// bank, the sync log and the Unmatched list are in the web app.
 private struct BankSyncCard: View {
     @Environment(AppModel.self) private var model
     private enum Load { case loading, unavailable, failed(String), shown(BankStatus) }
     @State private var load = Load.loading
-    @State private var syncing = false
+    /// The connection being synced (0 for the one button of a server that
+    /// lists none), so only its button shows the spinner.
+    @State private var syncing: Int?
     /// What the last Sync now said, or why it didn't work.
     @State private var outcome: String?
     @State private var outcomeFailed = false
@@ -703,7 +704,34 @@ private struct BankSyncCard: View {
 
     @ViewBuilder
     private func shown(_ status: BankStatus) -> some View {
-        let summary = status.summary(when: { KeptBar.when($0) })
+        let rows = status.connectionRows(when: { KeptBar.when($0) })
+        if rows.isEmpty {
+            // Nothing connected, switched off, or a server from before the
+            // list (1.70.0 to 1.85.0): one row for the whole.
+            let summary = status.summary(when: { KeptBar.when($0) })
+            summaryView(summary)
+            syncButton(summary, connection: nil)
+        } else {
+            ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                if index > 0 { Divider() }
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(row.title).font(.subheadline.weight(.semibold))
+                        Spacer(minLength: 8)
+                        Text(row.provider).font(.caption).foregroundStyle(.secondary)
+                    }
+                    summaryView(row.summary)
+                    syncButton(row.summary, connection: row.id)
+                }
+            }
+        }
+        if let outcome {
+            Text(outcome).font(.footnote).foregroundStyle(outcomeFailed ? Palette.bad : .secondary)
+        }
+    }
+
+    @ViewBuilder
+    private func summaryView(_ summary: BankSyncSummary) -> some View {
         Label {
             Text(summary.headline).font(.subheadline.weight(.semibold))
         } icon: {
@@ -719,21 +747,24 @@ private struct BankSyncCard: View {
         if let next = summary.next {
             Text(next).font(.footnote).foregroundStyle(.secondary)
         }
+    }
+
+    /// Sync now for one connection, or for all of a server that lists none.
+    @ViewBuilder
+    private func syncButton(_ summary: BankSyncSummary, connection: Int?) -> some View {
         if model.me?.isReadOnly != true, summary.canSync || summary.waitText != nil {
-            Button { Task { await syncNow() } } label: {
+            let key = connection ?? 0
+            Button { Task { await syncNow(connection) } } label: {
                 HStack(spacing: 8) {
-                    if syncing { ProgressView() }
+                    if syncing == key { ProgressView() }
                     Text("Sync now").frame(maxWidth: .infinity)
                 }
             }
             .buttonStyle(.glass)
-            .disabled(syncing || !summary.canSync)
+            .disabled(syncing != nil || !summary.canSync)
             if let wait = summary.waitText {
                 Text(wait).font(.footnote).foregroundStyle(Palette.warn)
             }
-        }
-        if let outcome {
-            Text(outcome).font(.footnote).foregroundStyle(outcomeFailed ? Palette.bad : .secondary)
         }
     }
 
@@ -750,18 +781,21 @@ private struct BankSyncCard: View {
         }
     }
 
-    private func syncNow() async {
+    private func syncNow(_ connection: Int?) async {
         guard let client = model.client else { return }
-        syncing = true
+        syncing = connection ?? 0
         outcome = nil
-        defer { syncing = false }
+        defer { syncing = nil }
         do {
-            let result = try await client.syncBankNow()
+            let result: BankSyncResult
+            if let connection { result = try await client.syncBankNow(connection: connection) } else { result = try await client.syncBankNow() }
             load = .shown(result.status)
-            outcome = "Synced: \(result.status.lastSyncStatus ?? "done")."
+            // A connection's own words when one was synced, else the whole's.
+            let own = connection.flatMap { id in result.status.connections?.first { $0.id == id }?.lastSyncStatus }
+            outcome = "Synced: \(own ?? result.status.lastSyncStatus ?? "done")."
             outcomeFailed = false
         } catch {
-            // The server's own words say what went wrong (the limit, a read-only token, SimpleFIN down).
+            // The server's own words say what went wrong (the limit, a read-only token, the provider down).
             if case let .server(_, detail) = error { outcome = detail } else { outcome = AppModel.describe(error) }
             outcomeFailed = true
             await refresh()
@@ -769,6 +803,8 @@ private struct BankSyncCard: View {
     }
 }
 
+/// One row of a More card: what it is on the left, its value or action on
+/// the right, tall enough to tap.
 private struct MoreRow<Leading: View, Trailing: View>: View {
     @ViewBuilder let leading: Leading
     @ViewBuilder let trailing: Trailing

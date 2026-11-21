@@ -1,0 +1,95 @@
+{
+    "enabled": true,
+    "connected": true,
+    "linked_account_ids": [
+        1,
+        2,
+        3
+    ],
+    "last_sync_at": "2026-11-17T14:06:16.123456Z",
+    "last_sync_ok": false,
+    "last_sync_status": "Contoso Credit Union: Teller answered with an error (HTTP 502). Try again in a while.; Northwind Bank: 2 new lines, 1 matched a bill, 14 already here",
+    "last_ok_at": "2026-11-17T14:06:16.123456Z",
+    "needs_reconnect": true,
+    "failing_since": "2026-11-16T09:00:00.000000Z",
+    "failing_over_a_day": true,
+    "next_sync_at": "2026-11-17T19:36:16.123456Z",
+    "syncs_left_today": 12,
+    "sync_wait_seconds": 0,
+    "connections": [
+        {
+            "id": 1,
+            "provider": "simplefin",
+            "provider_name": "SimpleFIN",
+            "name": "Northwind Bank",
+            "linked_account_ids": [
+                1
+            ],
+            "last_sync_at": "2026-11-17T14:06:16.123456Z",
+            "last_sync_ok": true,
+            "last_sync_status": "2 new lines, 1 matched a bill, 14 already here",
+            "last_ok_at": "2026-11-17T14:06:16.123456Z",
+            "needs_reconnect": false,
+            "failing_since": null,
+            "failing_over_a_day": false,
+            "next_sync_at": "2026-11-18T13:36:16.123456Z",
+            "syncs_left_today": 19,
+            "sync_wait_seconds": 0
+        },
+        {
+            "id": 2,
+            "provider": "teller",
+            "provider_name": "Teller",
+            "name": "Contoso Credit Union",
+            "linked_account_ids": [
+                2
+            ],
+            "last_sync_at": "2026-11-17T13:00:00.000000Z",
+            "last_sync_ok": false,
+            "last_sync_status": "Teller answered with an error (HTTP 502). Try again in a while.",
+            "last_ok_at": "2026-11-16T09:00:00.000000Z",
+            "needs_reconnect": false,
+            "failing_since": "2026-11-16T09:00:00.000000Z",
+            "failing_over_a_day": true,
+            "next_sync_at": "2026-11-17T19:36:16.123456Z",
+            "syncs_left_today": 12,
+            "sync_wait_seconds": 5400
+        },
+        {
+            "id": 3,
+            "provider": "plaid",
+            "provider_name": "Plaid",
+            "name": "Plaid Bank",
+            "linked_account_ids": [
+                3
+            ],
+            "last_sync_at": "2026-11-16T09:00:00.000000Z",
+            "last_sync_ok": false,
+            "last_sync_status": "Your bank wants you to sign in again before Plaid can read it. Disconnect this bank, then connect it again.",
+            "last_ok_at": "2026-11-15T09:00:00.000000Z",
+            "needs_reconnect": true,
+            "failing_since": "2026-11-15T09:00:00.000000Z",
+            "failing_over_a_day": true,
+            "next_sync_at": null,
+            "syncs_left_today": 20,
+            "sync_wait_seconds": 0
+        },
+        {
+            "id": 4,
+            "provider": "teller",
+            "provider_name": "Teller",
+            "name": "Teller",
+            "linked_account_ids": [],
+            "last_sync_at": null,
+            "last_sync_ok": null,
+            "last_sync_status": null,
+            "last_ok_at": null,
+            "needs_reconnect": false,
+            "failing_since": null,
+            "failing_over_a_day": false,
+            "next_sync_at": null,
+            "syncs_left_today": 20,
+            "sync_wait_seconds": 0
+        }
+    ]
+}

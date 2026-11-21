@@ -71,6 +71,10 @@ same commit (or session) that introduces it.
 
 App version: **1.88.0** · Web version: **1.99.0** · Schema version: **34** · iOS version: **0.29.2**
 
+## [1.88.0] — 2026-11-21
+
+App version: **1.88.0** · Web version: **1.99.0** · Schema version: **34** · iOS version: **0.29.2**
+
 ### Added
 
 - **iOS 0.29.0, every bank connection in Settings:** the **Bank sync** card now lists each bank you've connected, whether through SimpleFIN, Teller or Plaid, with its bank's name, the provider, how its last sync went in plain words, when it syncs by itself next, and a **Sync now** of its own that syncs only that connection (each has its own 20-a-day limit, and a connection over it says so, naming its provider). A connection that needs connecting again or has no account matched says so. Try the demo shows a sample with two connections. It needs server 1.86.0 for the list; a server from 1.70.0 to 1.85.0 keeps the one row it had, and connecting a bank stays in the web app. (#257)
@@ -2725,7 +2729,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.85.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.88.0...HEAD
+[1.88.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.88.0
 [1.85.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.85.0
 [1.82.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.82.0
 [1.81.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.81.0

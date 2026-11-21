@@ -124,7 +124,8 @@ Nothing, with three exceptions the operator chooses:
   posted transactions (and, from Teller, now and then for a balance, which it
   bills for), about once a day by itself and whenever they press
   Sync now, and once more when they disconnect, to end the connection at
-  Teller or Plaid. Plaid is given an identifier worked out from the user's
+  Teller or Plaid. For a connection started from the iPhone app, Plaid is also
+  given the address of the server's own connect page to return to. Plaid is given an identifier worked out from the user's
   number on the instance, never their name or email.
   Connecting happens on the provider's own page, so the user's bank sign-in
   goes to the provider, never through the instance: Plaid's Hosted Link opens

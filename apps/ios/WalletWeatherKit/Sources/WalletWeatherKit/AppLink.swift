@@ -10,12 +10,16 @@ import Foundation
 ///   (`error=no-cloudflare` when no Cloudflare is in front).
 /// - `connect?server=…&token=…`: the "Open in WalletWeather" button beside a
 ///   new token in the web app's Settings. The app asks before using it.
+/// - `bank-connected?connection=…` (or `?state=exited|expired|cancelled|failed|off`):
+///   the sheet's answer from the server's "connect a bank" page (#258), which
+///   hands back only the new connection's number, never anything from the bank.
 public enum AppLink: Sendable, Equatable {
     case signedIn(code: String, state: String, cloudflare: String?)
     case cloudflare(state: String, token: String)
     case noCloudflare(state: String)
     case cancelled(state: String)
     case connect(server: String, token: String)
+    case bankConnected(connection: Int?, state: String?)
 
     public static let scheme = "walletweather"
 
@@ -35,6 +39,11 @@ public enum AppLink: Sendable, Equatable {
             if q["error"] == "no-cloudflare" { self = .noCloudflare(state: state); return }
             guard let cf, !state.isEmpty else { return nil }
             self = .cloudflare(state: state, token: cf)
+        case "bank-connected":
+            let connection = q["connection"].flatMap { Int($0) }.flatMap { $0 > 0 ? $0 : nil }
+            let state = q["state"].flatMap { $0.isEmpty ? nil : String($0.prefix(20)) }
+            guard connection != nil || state != nil else { return nil }
+            self = .bankConnected(connection: connection, state: state)
         case "connect":
             guard let server = q["server"], !server.isEmpty,
                   let token = q["token"], !token.isEmpty else { return nil }
@@ -49,7 +58,7 @@ public enum AppLink: Sendable, Equatable {
         switch self {
         case let .signedIn(_, state, _), let .cloudflare(state, _),
              let .noCloudflare(state), let .cancelled(state): state
-        case .connect: nil
+        case .connect, .bankConnected: nil
         }
     }
 }

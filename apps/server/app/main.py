@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.88.0"
+APP_VERSION = "1.89.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -782,6 +782,11 @@ TELLER_PAGE_CSP = ("default-src 'self'; script-src 'self' https://cdn.teller.io;
                    "img-src 'self' data: https://teller.io https://*.teller.io; "
                    "style-src 'self' 'unsafe-inline'; font-src 'self' data:; "
                    "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'")
+# /app-connect-bank's own policy (#258): its one script from this server,
+# nothing inline but styles, and forms only to itself.
+APP_CONNECT_PAGE_CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                        "img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; "
+                        "object-src 'none'; form-action 'self'")
 OTHER_SITE_MESSAGE = (
     "This request came from a page on another site, so it was refused. If "
     "that's WalletWeather's own address, set APP_BASE_URL (or TRUSTED_ORIGINS) "
@@ -1847,10 +1852,11 @@ def app_token(payload: AppTokenIn, request: Request, db: Session = Depends(get_d
 
 def _safe_next(path: str | None) -> str | None:
     """Where Google sign-in may return to besides "/": only the "sign in an
-    app" page (#87), so `next` can't send anyone off the site."""
-    if path and (path == "/app-sign-in" or path.startswith("/app-sign-in?")) \
-            and "\\" not in path:
-        return path
+    app" page (#87) and the app's "connect a bank" page (#258), so `next`
+    can't send anyone off the site."""
+    for page in ("/app-sign-in", "/app-connect-bank"):
+        if path and (path == page or path.startswith(page + "?")) and "\\" not in path:
+            return path
     return None
 
 
@@ -4391,6 +4397,20 @@ def _bank_connect_lock(user_id: int) -> threading.Lock:
 class BankStartIn(BaseModel):
     provider: str = Field(pattern="^(teller|plaid)$")
     code: str | None = Field(default=None, max_length=40)
+    # Started from /app-connect-bank in the iPhone app's sign-in sheet
+    # (#258): the provider's page comes back to that page, not Settings.
+    app: bool = False
+
+
+def _own_origin(request: Request) -> str:
+    """This server's address as the browser reached it: the Origin of a
+    write from its own page (BrowserGuardMiddleware has already refused one
+    from any other site), else APP_BASE_URL."""
+    origin = (request.headers.get("origin") or "").strip().rstrip("/")
+    parts = urlsplit(origin)
+    if parts.scheme in ("http", "https") and parts.netloc and not parts.path:
+        return origin
+    return APP_BASE_URL.strip().rstrip("/")
 
 
 class BankAttemptIn(BaseModel):
@@ -4476,17 +4496,18 @@ def bank_connect_start(body: BankStartIn, request: Request,
                                  "or finish one of them.")
     attempt = BankLinkAttempt(user_id=user.id, provider=body.provider, public_id=secrets.token_urlsafe(24),
                               expires_at=now + timedelta(minutes=BANK_ATTEMPT_MINUTES))
+    back = (f"{_own_origin(request)}/app-connect-bank?attempt={attempt.public_id}" if body.app else None)
     if body.provider == "plaid":
         try:
             link = plaid.create_link(hashlib.sha256(f"walletweather-user:{user.id}".encode()).hexdigest()[:40],
-                                     get_app_title(db), BANK_START_MAX_DAYS)
+                                     get_app_title(db), BANK_START_MAX_DAYS, completion_uri=back)
         except simplefin.BankError as e:
             raise HTTPException(e.status, str(e))
         attempt.token_enc, url = encrypt_str(link["link_token"]), link["url"]
         attempt.expires_at = min(attempt.expires_at, link["expires_at"])
     else:
         attempt.nonce = secrets.token_hex(16)
-        url = "/bank/teller?attempt=" + attempt.public_id
+        url = "/bank/teller?attempt=" + attempt.public_id + ("&app=1" if body.app else "")
     db.add(attempt)
     db.commit()
     return {"attempt": attempt.public_id, "provider": body.provider, "url": url,
@@ -9176,6 +9197,16 @@ if STATIC_DIR.exists():
         return FileResponse(STATIC_DIR / "bank-teller.html",
                             headers={"Cache-Control": "no-cache",
                                      "Content-Security-Policy": TELLER_PAGE_CSP})
+
+    # "Connect a bank" from the iPhone app (#258), opened in the phone's
+    # sign-in sheet: signs in if needed, starts Teller or Plaid and, when the
+    # provider is done, sends the sheet back to the app. Scripts from this
+    # server only.
+    @app.get("/app-connect-bank")
+    def app_connect_bank_page():
+        return FileResponse(STATIC_DIR / "app-connect-bank.html",
+                            headers={"Cache-Control": "no-cache",
+                                     "Content-Security-Policy": APP_CONNECT_PAGE_CSP})
 
 
 # The manifest is built here rather than kept as a file so the installed

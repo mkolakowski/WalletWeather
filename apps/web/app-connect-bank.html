@@ -1,0 +1,126 @@
+<!doctype html>
+<!--
+  "Connect a bank" from the iPhone app (bank-providers phase 5, #258). The
+  app opens this page in the phone's system sign-in sheet, which shares
+  Safari's sign-in, as /app-connect-bank. It signs in if needed, offers
+  Teller or Plaid (whichever this server has keys for), asks the two-factor
+  code when it's on, and starts the connection with POST
+  /api/bank/connect/start {app: true}. Teller's page (/bank/teller?app=1)
+  and Plaid's Hosted Link come back here as /app-connect-bank?attempt=<id>;
+  this page then checks how it went and sends the sheet to
+    walletweather://bank-connected?connection=<id>   (or ?state=exited|
+                                                       expired|cancelled|failed|off)
+  which closes it. Nothing that reads the bank ever reaches the app. Its
+  script is app-connect-bank.js; the server gives the page a
+  Content-Security-Policy of its own (scripts from this server only).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="referrer" content="no-referrer">
+<title>Connect a bank · WalletWeather</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<style>
+  :root { --bg:#0f1419; --panel:#1a2027; --border:#2a323c; --text:#e6edf3; --muted:#8b949e;
+          --accent:#58a6ff; --bad:#f85149; --good:#3fb950; --on-accent:#0f1419; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#ffffff; --panel:#f6f8fa; --border:#d0d7de; --text:#1f2328; --muted:#656d76;
+            --accent:#0969da; --bad:#cf222e; --good:#1a7f37; --on-accent:#ffffff; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         padding:max(24px, env(safe-area-inset-top)) 16px 32px; }
+  main { max-width:440px; margin:0 auto; }
+  header { display:flex; align-items:center; gap:10px; margin-bottom:20px; }
+  header img { width:36px; height:36px; }
+  header h1 { font-size:20px; margin:0; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px; }
+  h2 { font-size:17px; margin:0 0 6px; }
+  p { margin:0 0 12px; }
+  .muted { color:var(--muted); font-size:13px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:12px 0 4px; }
+  input[type=email], input[type=password], input[type=text] {
+    width:100%; padding:11px 12px; font:inherit; color:var(--text); background:var(--bg);
+    border:1px solid var(--border); border-radius:8px; }
+  .buttons { display:flex; flex-direction:column; gap:10px; margin-top:16px; }
+  button, .button { width:100%; padding:12px; font:inherit; font-weight:600; border-radius:10px; cursor:pointer;
+                    border:1px solid var(--accent); background:var(--accent); color:var(--on-accent);
+                    text-align:center; text-decoration:none; display:block; }
+  button.ghost, .button.ghost { background:transparent; color:var(--accent); }
+  button:disabled { opacity:.6; cursor:default; }
+  .provider small { display:block; font-weight:400; font-size:13px; opacity:.85; }
+  .or { text-align:center; color:var(--muted); font-size:13px; margin:14px 0; }
+  .error { color:var(--bad); font-size:14px; margin-top:10px; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header><img src="/static/favicon.svg" alt=""><h1 id="title">Connect a bank</h1></header>
+
+  <div id="loading" class="panel"><p class="muted" id="loadingText">Loading…</p></div>
+
+  <form id="signIn" class="panel hidden" autocomplete="on">
+    <h2>Sign in to continue</h2>
+    <p class="muted">Then you'll pick how to connect your bank.</p>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username" required>
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" required>
+    <div class="buttons"><button id="signInBtn" type="submit">Sign in</button></div>
+    <div id="googleWrap" class="hidden">
+      <div class="or">or</div>
+      <a id="googleBtn" class="button ghost" href="#">Sign in with Google</a>
+    </div>
+    <div id="signInError" class="error hidden" role="alert"></div>
+    <div class="buttons"><button type="button" class="ghost" data-back="cancelled">Cancel</button></div>
+  </form>
+
+  <form id="codeStep" class="panel hidden">
+    <h2>Enter your code</h2>
+    <p class="muted">Your account has two-factor sign-in on.</p>
+    <label for="code">Code from your authenticator app</label>
+    <input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="40" required>
+    <p class="muted">No phone? Type one of your recovery codes instead.</p>
+    <div class="buttons"><button id="codeBtn" type="submit">Sign in</button></div>
+    <div id="codeError" class="error hidden" role="alert"></div>
+  </form>
+
+  <form id="choose" class="panel hidden">
+    <h2>How should your bank be reached?</h2>
+    <p>You'll sign in to your bank on the provider's page. It can read your accounts, balances and
+      transactions; it can't move money. WalletWeather keeps the key it gets, encrypted, on your server.</p>
+    <div id="startCodeWrap" class="hidden">
+      <label for="startCode">Code from your authenticator app</label>
+      <input id="startCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="40">
+      <p class="muted">Two-factor sign-in is on, so connecting a bank takes a fresh code.</p>
+    </div>
+    <div class="buttons">
+      <button id="teller" type="button" class="provider hidden" data-provider="teller">Teller
+        <small>Your bank's sign-in in Teller's window</small></button>
+      <button id="plaid" type="button" class="provider hidden" data-provider="plaid">Plaid
+        <small>Your bank's sign-in on Plaid's page</small></button>
+      <button type="button" class="ghost" data-back="cancelled">Cancel</button>
+    </div>
+    <p class="muted" style="margin-top:12px">Once it's connected, match its accounts to yours in the web app:
+      Settings → Bank sync.</p>
+    <div id="chooseError" class="error hidden" role="alert"></div>
+  </form>
+
+  <div id="stop" class="panel hidden">
+    <h2 id="stopTitle">Can't connect a bank here</h2>
+    <p id="stopText"></p>
+    <div class="buttons"><button type="button" id="stopBack">Back to the app</button></div>
+  </div>
+
+  <div id="done" class="panel hidden">
+    <h2>Back to the app…</h2>
+    <p class="muted">If nothing happens, close this sheet: the app checks again when it opens.</p>
+  </div>
+</main>
+<script src="/static/app-connect-bank.js"></script>
+</body>
+</html>

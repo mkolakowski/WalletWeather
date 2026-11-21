@@ -6,11 +6,11 @@ Tracking issue: #259
 
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
-| 1. Teller and Plaid connect and sync | Server, Web | #254 | Built for 1.86.0 (web 1.97.0, schema 32), 2026-11-20; open until the release is out and one of your banks syncs through Teller or Plaid |
-| 2. Their categories onto yours | Server, Web | #255 | Built for 1.87.0 (web 1.98.0, schema 33), 2026-11-20; 964 API tests pass, Settings → Bank sync checked headless at 1100 and 390 px; open until the release is out and your synced lines land in your categories |
-| 3. The bank's balance next to yours | Server, Web | #256 | Built for 1.88.0 (web 1.99.0, schema 34), 2026-11-21; 34 new API tests pass (SimpleFIN, Teller, Plaid), Forecast tile checked headless at 1100 and 390 px; open until the release is out and your linked accounts show both balances |
-| 4. Every connection in the iPhone app | iOS | #257 | Built for iOS 0.29.0, 2026-11-21; 184 `swift test` tests pass (each state, an older server, one connection's Sync now), Settings card checked in the simulator (demo, iPhone 18 Pro); open until the release is out and Sync now works from your phone |
-| 5. Connect a bank from the iPhone | iOS, Server | #258 | Waits (your call, 2026-11-20) |
+| 1. Teller and Plaid connect and sync | Server, Web | #254 | Built for 1.86.0 (web 1.97.0, schema 32), 2026-11-20; released in v1.88.0 (2026-11-21), your check: one of your banks syncs through Teller or Plaid |
+| 2. Their categories onto yours | Server, Web | #255 | Built for 1.87.0 (web 1.98.0, schema 33), 2026-11-20; 964 API tests pass, Settings → Bank sync checked headless at 1100 and 390 px; released in v1.88.0 (2026-11-21), your check: your synced lines land in your categories |
+| 3. The bank's balance next to yours | Server, Web | #256 | Built for 1.88.0 (web 1.99.0, schema 34), 2026-11-21; 34 new API tests pass (SimpleFIN, Teller, Plaid), Forecast tile checked headless at 1100 and 390 px; released in v1.88.0 (2026-11-21), your check: your linked accounts show both balances |
+| 4. Every connection in the iPhone app | iOS | #257 | Built for iOS 0.29.0, 2026-11-21; 184 `swift test` tests pass (each state, an older server, one connection's Sync now), Settings card checked in the simulator (demo, iPhone 18 Pro); released in v1.88.0 (2026-11-21), your check: Sync now works from your phone |
+| 5. Connect a bank from the iPhone | iOS, Server | #258 | Built for 1.89.0 (web 1.100.0, iOS 0.30.0), 2026-11-21; API tests and 188 `swift test` pass, the connect page checked headless at 390 px; open until the release is out and a bank connects from your phone |
 
 Planned 2026-11-20 after your SimpleFIN connections (SimpleFIN Bridge runs on MX) wouldn't work with your banks. Three calls were made that day ([decision](../docs/dev/decisions/bank-sync.md)): connecting happens on the provider's own page; both providers come in one phase; only connecting from the iPhone waits.
 
@@ -32,6 +32,8 @@ Sessions: may span — phase 1 needs your own Teller and Plaid accounts, and eac
 2. ~~**The same bank account through two connections**~~ (say SimpleFIN and Teller both reach one checking account). Decided 2026-11-20 ([decision](../docs/dev/decisions/bank-sync.md)): each of your accounts links to one bank account across all your connections; a second link is refused with a message naming the connection that has it, so no line comes in twice.
 3. ~~**How their categories map onto yours.**~~ Decided 2026-11-20 ([decision](../docs/dev/decisions/bank-sync.md)): a mapping table in Settings → Bank sync, one row per provider category seen so far, each with a dropdown of your categories, pre-filled where the names match; blank lands the line uncategorized. A line that pays a planned bill keeps the bill's category.
 4. ~~**Where the bank's balance shows, and what a gap means.**~~ Decided 2026-11-20 ([decision](../docs/dev/decisions/bank-sync.md)): on the Accounts screen, under each linked account's balance ("Bank: $1,234.56 as of …"), compared with your balance counting only lines up to today. A difference shows in amber with an "Adjust to bank" button that adds one correction line for the gap, which can be undone.
+
+5. ~~**How the phone connects a bank, and what it offers.**~~ Decided 2026-11-21 ([decision](../docs/dev/decisions/bank-sync.md)): the app opens a server page in the sign-in sheet, which runs Teller or Plaid under the browser's sign-in and two-factor code and hands back only a `walletweather://` address; Teller and Plaid only (SimpleFIN stays in the web app); matching stays in the web app; Plaid without `is_mobile_app`, so nothing to register.
 
 ## The plan
 

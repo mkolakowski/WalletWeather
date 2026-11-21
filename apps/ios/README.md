@@ -242,6 +242,19 @@ which leaves them as they are. In the demo the status is a sample made from
 the time now, with two connections (one through SimpleFIN, one through
 Teller), and Sync now says the demo saves nothing.
 
+**Connect a bank** (iOS 0.30.0, server 1.89.0, phase 5 of
+`Plans/bank-providers.md`, #258; decided 2026-11-21) opens the server's
+`/app-connect-bank` page in the sign-in sheet (`AppModel.connectBank`, the
+same `SignInSheet` as signing in). The page runs Teller or Plaid under the
+browser's sign-in and two-factor code, as Settings does in the web app, and
+answers `walletweather://bank-connected?connection=<id>` (or
+`?state=exited|expired|cancelled|failed|off`), which `AppLink` reads; the
+card then reads the status again and names the new connection
+(`BankConnect.outcome`). The app's token never connects a bank. The button
+shows when bank sync is on, the server is 1.89.0 or later and the token can
+write; in the demo it says the demo saves nothing. Matching the new
+connection's accounts stays in the web app.
+
 ## On this iPhone
 
 The first screen asks how to use the app (phase 4 of

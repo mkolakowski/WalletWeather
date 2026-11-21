@@ -621,6 +621,14 @@ final class AppModel {
         return true
     }
 
+    /// Connect a bank (#258): the server's `/app-connect-bank` page in the
+    /// sign-in sheet; nil when it was closed by hand.
+    func connectBank() async -> AppLink? {
+        guard let server = connection?.server,
+              let address = try? ServerAddress.parse(server.absoluteString) else { return nil }
+        return await sheet.open(BankConnect.url(server: address))
+    }
+
     /// The sheet at `/app-sign-in/cloudflare`: the person's Cloudflare
     /// sign-in, handed back by the server.
     private func signInToCloudflare(server: URL) async -> String? {

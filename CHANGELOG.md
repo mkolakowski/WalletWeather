@@ -69,7 +69,12 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.88.0** · Web version: **1.99.0** · Schema version: **34** · iOS version: **0.29.2**
+App version: **1.89.0** · Web version: **1.100.0** · Schema version: **34** · iOS version: **0.30.0**
+
+### Added
+
+- **iOS 0.30.0, connect a bank from your iPhone:** Settings → Bank sync now has a **Connect a bank** button. It opens your server's new connect page in the phone's sign-in sheet (the one the app signs in with, which shares Safari's sign-in), where you pick **Teller** or **Plaid** (whichever your server has keys for), type your two-factor code if it's on, and sign in to your bank on Teller's or Plaid's own page. When it's done the sheet closes by itself and the card says which bank was connected; match its accounts to yours in the web app, Settings → Bank sync, as before. SimpleFIN is still connected in the web app. The app never sees anything that reads your bank: connecting stays something only a signed-in browser can do, and the page hands the app only the new connection's number. Needs server 1.89.0. (#258)
+- **A connect page for the iPhone app** (`/app-connect-bank`): signs in if needed (password, Google or two-factor code), offers Teller and Plaid, and sends the sheet back to the app when the provider is done. Teller's page comes back to it when opened from the app, and a Plaid connection started there tells Plaid to return to it (Plaid's `completion_redirect_uri`, set to the address your browser used, which needs no registration with Plaid). Banks that would hand off to their own app show their web sign-in instead, so there's no Universal Link to set up. The page loads scripts from your server only. (#258)
 
 ## [1.88.0] — 2026-11-21
 

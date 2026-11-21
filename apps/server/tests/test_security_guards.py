@@ -55,6 +55,8 @@ PUBLIC = {
     ("POST", "/auth/logout"): "signing out; clears the caller's own session only",
     ("GET", "/app-sign-in/cloudflare"): "hands the app its own Cloudflare token",
     ("GET", "/app-sign-in"): "a static page; its script signs in",
+    ("GET", "/app-connect-bank"): "a static page with its own Content-Security-Policy; its script "
+                                  "signs in and connects a bank from the iPhone app (#258)",
     ("GET", "/bank/teller"): "a static page with its own Content-Security-Policy; its script "
                              "connects through Teller and posts to signed-in routes (#254)",
     ("GET", "/"): "the web app's page",

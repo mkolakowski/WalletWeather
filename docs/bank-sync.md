@@ -159,6 +159,29 @@ have from the same service (a new SimpleFIN token from the same Bridge
 account, say) takes the old one's place instead, keeping your matches. If the new tab didn't open, your browser blocked it: use the link
 that appears under the buttons.
 
+### From the iPhone app
+
+From iOS 0.30.0 with server 1.89.0, Teller and Plaid can be connected from
+the phone: Settings → Bank sync → **Connect a bank**.
+
+1. The phone's sign-in sheet opens your server's connect page. If it asks,
+   sign in as you do in the web app; it shares Safari's sign-in, so usually
+   you're signed in already.
+2. Pick **Teller** or **Plaid** (only the ones your server has keys for), and
+   type your two-factor code if it's on: connecting a bank always takes a
+   fresh one.
+3. Sign in to your bank on Teller's or Plaid's page. When it's done the sheet
+   closes by itself and the card says which bank was connected.
+4. Match its accounts to yours in the web app, Settings → Bank sync, as for a
+   connection made there.
+
+The phone never holds anything that reads your bank: the page runs in the
+sheet under your browser sign-in, as Settings does, and hands the app only
+"connected" and the connection's number. SimpleFIN is still connected in
+the web app, since it means pasting a setup token. A bank that would hand
+off to its own app (Plaid's app-to-app sign-in) shows its web sign-in in the
+sheet instead, so there's no Universal Link to set up.
+
 ### Through SimpleFIN
 
 #### Get a setup token from SimpleFIN

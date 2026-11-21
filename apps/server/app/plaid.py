@@ -96,8 +96,16 @@ def _error(status: int, code: str, kind: str) -> PlaidError:
                       "Try again in a while.")
 
 
-def create_link(user_ref: str, client_name: str, days: int) -> dict:
-    """A Hosted Link for one bank login: {"link_token", "url", "expires_at"}."""
+def create_link(user_ref: str, client_name: str, days: int, completion_uri: str | None = None) -> dict:
+    """A Hosted Link for one bank login: {"link_token", "url", "expires_at"}.
+    `completion_uri` is where Plaid sends the browser when the person is done
+    or gives up (a connection started from the iPhone app, #258): the
+    server's own /app-connect-bank page, which checks how it went. Plaid
+    needs no registration for it. `is_mobile_app` is left off on purpose
+    (decided 2026-11-21): it would need a registered Universal Link."""
+    hosted = {"url_lifetime_seconds": LINK_MINUTES * 60}
+    if completion_uri:
+        hosted["completion_redirect_uri"] = completion_uri
     data = _post("/link/token/create", {
         "client_name": (client_name or "WalletWeather")[:30],
         "language": "en",
@@ -105,7 +113,7 @@ def create_link(user_ref: str, client_name: str, days: int) -> dict:
         "user": {"client_user_id": user_ref},
         "products": ["transactions"],
         "transactions": {"days_requested": max(30, min(730, days))},
-        "hosted_link": {"url_lifetime_seconds": LINK_MINUTES * 60},
+        "hosted_link": hosted,
     })
     token, url = data.get("link_token"), data.get("hosted_link_url")
     if not isinstance(token, str) or not isinstance(url, str) or not url.startswith("https://"):

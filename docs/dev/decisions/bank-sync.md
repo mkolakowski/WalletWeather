@@ -125,3 +125,19 @@ Decisions made while planning and building [`Plans/bank-sync.md`](../../../Plans
 **Why:** a posted balance only moves when a line posts, so a sync with nothing new can't have changed it and a billed call would buy nothing, while asking whenever a new line lands keeps the balance and the lines in step (a balance read before a line lands would show a false gap). The week is a backstop for a bank that reverses or edits a line without a new one. SimpleFIN and Plaid send the balance with every sync at no extra cost, so they keep it every time, and a provider that sends none clears the old one rather than leave a balance that no longer matches the lines.
 
 **What it changes:** at most about one billed Teller call per account per day, and none on quiet days or repeated Sync now. The bank's balance on the Accounts screen carries the time it was read.
+
+## 2026-11-21: connecting a bank from the iPhone
+
+**Decided:** 2026-11-21, by Matthew, starting phase 5 of [`Plans/bank-providers.md`](../../../Plans/bank-providers.md) ([#258](https://github.com/mkolakowski/WalletWeather/issues/258)), which also lifts the 2026-11-20 call that it waits. **Status:** accepted.
+
+**The questions and what was chosen** (the first option listed is the one chosen):
+
+- **How the phone hands the result back:** the app opens a server page in the system sign-in sheet, which shares Safari's sign-in; the page asks the two-factor code, runs Teller or Plaid, and sends the sheet to a `walletweather://` address when done. Not letting the phone's API token start and finish a connection.
+- **Which providers:** Teller and Plaid, whichever the server has keys for; SimpleFIN stays in the web app (it means pasting a setup token).
+- **Where a new connection's accounts are matched:** in the web app for now; not on the page in the sheet; not a new screen in the app.
+- **Plaid in the sheet:** without `is_mobile_app`, so no Universal Link, Apple app-site file or Plaid dashboard entry; a bank that would hand off to its own app shows its web sign-in instead. Not setting up a Universal Link.
+
+**Why:** connecting stays browser-only with a fresh two-factor code, as security check #179 keeps it, so no API change is needed and the phone never holds what connects a bank. Plaid's Hosted Link can send the sheet back to any address when it finishes, without registering it, so the server's own page can check the result under the same sign-in and hand the app only "done" and the connection's number.
+
+**What it changes:** the server gains one page (`/app-connect-bank`) and Plaid is told that page's address for a connection started from the phone; the app gains a Connect a bank button in Settings → Bank sync.
+

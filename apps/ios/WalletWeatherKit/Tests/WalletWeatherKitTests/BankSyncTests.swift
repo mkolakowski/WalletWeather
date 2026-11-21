@@ -168,6 +168,54 @@ struct BankSyncTests {
         #expect(status.needsReconnect == true && status.failingOverADay == true)
     }
 
+    // MARK: Connect a bank from the app (bank-providers phase 5, #258)
+
+    @Test func theConnectPageAnswerReadsAsANewConnectionOrWhyNot() throws {
+        let done = try #require(AppLink(URL(string: "walletweather://bank-connected?connection=7")!))
+        #expect(done == .bankConnected(connection: 7, state: nil))
+        #expect(done.state == nil)
+        #expect(AppLink(URL(string: "walletweather://bank-connected?state=exited")!) == .bankConnected(connection: nil, state: "exited"))
+        // Nothing usable, or not a number: not an answer the app knows.
+        #expect(AppLink(URL(string: "walletweather://bank-connected")!) == nil)
+        #expect(AppLink(URL(string: "walletweather://bank-connected?connection=abc")!) == nil)
+        #expect(AppLink(URL(string: "walletweather://bank-connected?connection=-3")!) == nil)
+    }
+
+    @Test func theSheetOpensTheServersConnectPage() throws {
+        let address = try ServerAddress.parse("https://ww.example.com")
+        #expect(BankConnect.url(server: address).absoluteString == "https://ww.example.com/app-connect-bank")
+    }
+
+    @Test func connectIsOfferedWhenSyncIsOnTheServerHasThePageAndTheTokenCanWrite() throws {
+        let on = BankStatus(enabled: true, connected: false)
+        #expect(BankConnect.offered(on, serverVersion: "1.89.0", readOnly: false))
+        #expect(BankConnect.offered(on, serverVersion: "1.90.2", readOnly: false))
+        #expect(!BankConnect.offered(on, serverVersion: "1.88.0", readOnly: false))   // no page yet
+        #expect(!BankConnect.offered(on, serverVersion: nil, readOnly: false))
+        #expect(!BankConnect.offered(on, serverVersion: "1.89.0", readOnly: true))
+        #expect(!BankConnect.offered(BankStatus(enabled: false, connected: false), serverVersion: "1.89.0", readOnly: false))
+        // Alongside connections already there, too.
+        let status: BankStatus = try sample("bank-status-connections")
+        #expect(BankConnect.offered(status, serverVersion: "1.89.0", readOnly: false))
+    }
+
+    @Test func afterTheSheetTheCardNamesTheNewConnectionAndWhereToMatchIt() throws {
+        let status: BankStatus = try sample("bank-status-connections")
+        let done = BankConnect.outcome(.bankConnected(connection: 2, state: nil), status: status)
+        #expect(done?.text == "Connected Contoso Credit Union through Teller. Match its accounts to yours in the web app: Settings → Bank sync.")
+        #expect(done?.failed == false)
+        // A number the status doesn't list yet still says it connected.
+        #expect(BankConnect.outcome(.bankConnected(connection: 99, state: nil), status: status)?.text.hasPrefix("Connected your bank.") == true)
+        #expect(BankConnect.outcome(.bankConnected(connection: nil, state: "exited"), status: status)?.text == "Closed without connecting a bank.")
+        #expect(BankConnect.outcome(.bankConnected(connection: nil, state: "expired"), status: status)?.failed == true)
+        #expect(BankConnect.outcome(.bankConnected(connection: nil, state: "failed"), status: status)?.failed == true)
+        #expect(BankConnect.outcome(.bankConnected(connection: nil, state: "off"), status: status)?.failed == true)
+        // Cancel on the page, closing the sheet by hand, or another answer: nothing to say.
+        #expect(BankConnect.outcome(.bankConnected(connection: nil, state: "cancelled"), status: status) == nil)
+        #expect(BankConnect.outcome(nil, status: status) == nil)
+        #expect(BankConnect.outcome(.cancelled(state: "x"), status: status) == nil)
+    }
+
     // MARK: A bill's two match settings
 
     @Test func aBillCarriesItsMatchSettingsBothWays() throws {

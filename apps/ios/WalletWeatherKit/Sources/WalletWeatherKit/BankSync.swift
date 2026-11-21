@@ -232,6 +232,46 @@ public struct BankSyncSummary: Sendable, Equatable {
     }
 }
 
+/// Connecting a bank from the app (bank-providers phase 5, #258; decided
+/// 2026-11-21): the server's `/app-connect-bank` page in the sign-in sheet,
+/// which shares Safari's sign-in, runs Teller or Plaid under that sign-in and
+/// hands back only a `walletweather://bank-connected` address. Matching the
+/// new connection's accounts stays in the web app.
+public enum BankConnect {
+    /// The first server with the page.
+    public static let minimumServer = "1.89.0"
+
+    public static func url(server: ServerAddress) -> URL { server.url("/app-connect-bank") }
+
+    /// Whether Settings offers Connect a bank: bank sync on, a server with
+    /// the page, and not a read-only token (the app edits nothing then).
+    public static func offered(_ status: BankStatus, serverVersion: String?, readOnly: Bool) -> Bool {
+        guard status.enabled, !readOnly, let serverVersion else { return false }
+        return isVersion(serverVersion, atLeast: minimumServer) == true
+    }
+
+    /// What the card says after the sheet closes; nil when there's nothing
+    /// to say (closed by hand, or Cancel on the page). `status` is the one
+    /// read afterwards, for the new connection's name.
+    public static func outcome(_ link: AppLink?, status: BankStatus?) -> (text: String, failed: Bool)? {
+        guard case let .bankConnected(connection, state)? = link else { return nil }
+        if let connection {
+            let match = "Match its accounts to yours in the web app: Settings → Bank sync."
+            if let c = status?.connections?.first(where: { $0.id == connection }) {
+                return ("Connected \(c.name) through \(c.providerName). \(match)", false)
+            }
+            return ("Connected your bank. \(match)", false)
+        }
+        switch state {
+        case "exited": return ("Closed without connecting a bank.", false)
+        case "expired": return ("That took too long, so nothing was connected. Try again.", true)
+        case "off": return ("This server can't connect a bank right now: bank sync is off, or it has no Teller or Plaid keys.", true)
+        case "failed": return ("The bank didn't finish connecting. If it did, it shows here after a moment.", true)
+        default: return nil
+        }
+    }
+}
+
 /// `POST /api/bank/sync`: what Sync now brought in, and the status after.
 public struct BankSyncResult: Sendable, Codable, Equatable {
     public let added: Int

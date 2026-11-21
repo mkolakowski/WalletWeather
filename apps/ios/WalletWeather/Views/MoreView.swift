@@ -669,8 +669,9 @@ struct ReportResult: View {
 // MARK: - More's rows
 
 /// Bank sync's state and Sync now (bank-sync phase 5, #197), with each bank
-/// connection listed on its own (bank-providers phase 4, #257). Connecting a
-/// bank, the sync log and the Unmatched list are in the web app.
+/// connection listed on its own (bank-providers phase 4, #257), and Connect a
+/// bank through Teller or Plaid in the sign-in sheet (phase 5, #258).
+/// Matching accounts, the sync log and the Unmatched list are in the web app.
 private struct BankSyncCard: View {
     @Environment(AppModel.self) private var model
     private enum Load { case loading, unavailable, failed(String), shown(BankStatus) }
@@ -681,6 +682,7 @@ private struct BankSyncCard: View {
     /// What the last Sync now said, or why it didn't work.
     @State private var outcome: String?
     @State private var outcomeFailed = false
+    @State private var connecting = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -725,8 +727,40 @@ private struct BankSyncCard: View {
                 }
             }
         }
+        let version = model.isDemo ? BankConnect.minimumServer : model.serverVersion?.appVersion
+        if BankConnect.offered(status, serverVersion: version, readOnly: model.me?.isReadOnly == true) {
+            Button { Task { await connectBank() } } label: {
+                HStack(spacing: 8) {
+                    if connecting { ProgressView() } else { Image(systemName: "plus") }
+                    Text("Connect a bank").frame(maxWidth: .infinity)
+                }
+            }
+            .buttonStyle(.glass)
+            .disabled(connecting || syncing != nil)
+        }
         if let outcome {
             Text(outcome).font(.footnote).foregroundStyle(outcomeFailed ? Palette.bad : .secondary)
+        }
+    }
+
+    /// The server's connect page in the sign-in sheet (#258); what it hands
+    /// back is only whether a connection was made, and its number.
+    private func connectBank() async {
+        outcome = nil
+        if model.isDemo {
+            outcome = "The demo can't connect a bank: it saves nothing."
+            outcomeFailed = false
+            return
+        }
+        connecting = true
+        defer { connecting = false }
+        let answer = await model.connectBank()
+        await refresh()
+        var status: BankStatus?
+        if case let .shown(now) = load { status = now }
+        if let said = BankConnect.outcome(answer, status: status) {
+            outcome = said.text
+            outcomeFailed = said.failed
         }
     }
 

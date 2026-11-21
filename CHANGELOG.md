@@ -69,7 +69,26 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.85.0** · Web version: **1.96.0** · Schema version: **31** · iOS version: **0.28.0**
+App version: **1.86.0** · Web version: **1.97.0** · Schema version: **32** · iOS version: **0.28.0**
+
+### Added
+
+- **Bank sync through Teller and Plaid:** besides SimpleFIN Bridge, a bank can now be connected through [Teller](https://teller.io/) or [Plaid](https://plaid.com/), which reach banks their own way, so a bank SimpleFIN can't reach may work through one of them. Each is offered in Settings → Bank sync once the server has its keys in `.env` (Teller: `TELLER_APP_ID`, `TELLER_ENV` and its certificate in `TELLER_CERT_DIR`; Plaid: `PLAID_CLIENT_ID`, `PLAID_SECRET` and `PLAID_ENV`); the one Admin → Bank sync switch covers all three, and Admin says which are set up. You sign in to your bank on the provider's own page in a new tab, never on WalletWeather's: Plaid's Hosted Link, or WalletWeather's Teller page running Teller Connect. Settings notices when you're done; no webhook or public address is needed. Synced lines go through the same path as SimpleFIN's: posted lines only, the daily sync and Sync now, auto-tag rules, bill matching, the Unmatched list and the sync log. The setup is in the [bank sync guide](https://mkolakowski.github.io/WalletWeather/bank-sync.html). (#254)
+- **More than one bank connection:** each bank login is a connection of its own, from any mix of SimpleFIN, Teller and Plaid, listed in Settings → Bank sync with its own Sync now and Disconnect. The SimpleFIN connection you have becomes the first on the list, unchanged. Each of your accounts takes lines from one bank account across all your connections: a second match is refused, naming the connection that has it, so no line comes in twice. (#254)
+
+### Changed
+
+- **Disconnecting a Teller or Plaid bank ends it there too,** so the provider stops reading your bank; deleting your user does the same for all of yours. If the provider can't be reached at that moment, the connection is still forgotten here and the message says to remove it in the provider's dashboard. (#254)
+- **Encrypted backups carry every bank connection,** as a list. Backups made before this still restore their one connection. (#254)
+- **The iPhone app keeps working unchanged:** `GET /api/bank/status` keeps its shape, now summing up every connection, and gains a `connections` list; Sync now from the phone syncs them all. (#254)
+
+### Database
+
+- **Schema 32:** a user may have many bank connections (`bank_connections` loses its one-per-user rule and gains `provider`, `simplefin` for the ones already there, and `cursor`, where Plaid's next sync starts), and a new table `bank_link_attempts` holds a Teller or Plaid connection while it's being made, a day at most. Made by itself when the app starts. (#254)
+
+### Security
+
+- **One page loads another site's script:** `/bank/teller`, the page that runs Teller Connect, loads Teller's script from `cdn.teller.io`, as Teller requires, under a Content-Security-Policy of its own that allows only that and no inline scripts. No other page loads anything from another site; `PRIVACY.md` names the exception. Teller's certificate and key and Plaid's secret stay on the server, and an access token Teller hands the page is kept only if Teller accepts it straight away. (#254)
 
 ## [1.85.0] — 2026-11-20
 

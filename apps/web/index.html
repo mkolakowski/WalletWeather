@@ -2162,9 +2162,10 @@
       <div class="panel" id="adminBankSync">
         <h2>Bank sync</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
-          Let users bring transactions in from their bank through SimpleFIN Bridge, a service each of them
-          subscribes to. With it on, this server calls SimpleFIN for the users who connect; nothing is sent
-          for anyone else. Switching it off stops connecting and syncing; connections already made stay
+          Let users bring transactions in from their bank through SimpleFIN Bridge (a service each of them
+          subscribes to), Teller or Plaid. Teller and Plaid are offered only once their keys are in
+          <code>.env</code>. With it on, this server calls the provider for the users who connect; nothing is
+          sent for anyone else. Switching it off stops connecting and syncing; connections already made stay
           until their users disconnect.
         </p>
         <div id="adminBankSyncLinks" style="margin:0 0 12px;font-size:13px"></div>
@@ -2689,6 +2690,7 @@
       <div class="panel" data-settings-section="bank" id="bankPanel">
         <h2>Bank sync</h2>
         <div id="bankBody"><span style="color:var(--muted)">Loading…</span></div>
+        <div id="bankWait" role="status" style="margin-top:10px;font-size:13px"></div>
         <div id="bankStatus" role="status" style="margin-top:10px;font-size:13px"></div>
       </div>
 
@@ -2816,7 +2818,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.96.0";
+const WEB_VERSION = "1.97.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2826,6 +2828,7 @@ const WEB_VERSION = "1.96.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.97.0 (2026-11-20, claude+mkolakowski): (#254) Teller and Plaid next to SimpleFIN, many connections. Settings → Bank sync lists each connection from /api/bank's new `connections` (_bankConnHtml: its bank's name and provider, its accounts to match, its own Sync now → POST /api/bank/sync {connection_id} and Disconnect → POST /api/bank/disconnect {connection_id}, which shows the answer's `warning`), with one Save matches for all. "Connect a bank" (_bankConnectHtml) offers each provider /api/bank says is available: Teller and Plaid open their own page in a new tab (bankStartProvider → POST /api/bank/connect/start, the tab opened in the click so it isn't blocked) and #bankWait checks back every 4 seconds (_bankWaitFor → POST /api/bank/connect/check) until done, exited or expired; SimpleFIN keeps its setup-token form behind "Paste a SimpleFIN token". Admin → Bank sync says which providers have their keys. New page /bank/teller (bank-teller.html, bank-teller.js) runs Teller Connect.
 // 1.96.0 (2026-11-18, claude+mkolakowski): (#231) The match pop-ins show what's within the bill's own bank-match days first (the answers' new within_days; _matchSplit), with "Show N more, up to 60 days away" (_matchMoreLink, _matchShowMore) for the rest; when nothing is within, everything shows with a line saying so. The "Closest match" highlight goes to the first shown card going the line's way.
 // 1.95.0 (2026-11-17, claude+mkolakowski): (#224) Bills learn bank text. Both pop-ins show "Match lines named … from now on" (_matchRememberBox, ticked) when a bill can be taught; Pay this / This paid it send remember (_matchRemember) and the note adds "and N more lines like it matched" from the answer's also_matched (_matchSaid). The bill editor shows the taught name (r.match_text) with Forget (forgetRecMatch → DELETE /api/recurring/{id}/match-text). A taught name pays its bill at any amount within the bill's days (decided 2026-11-17).
 // 1.94.0 (2026-11-17, claude+mkolakowski): (#223) Matching from Forecast. Rows for a line on the Unmatched list (the forecast's new bank_unmatched) wear an "Unmatched" pill (_bankMatchPill). While the forecast's bank_unmatched_count is above 0 (the owner only), a row's open line offers Match… on such a row (openMatchPopin with onDone _forecastMatched, which reloads the forecast and says what was paid) or "Paid by a bank line…" on a planned one (openPaidByPopin → GET /api/accounts/{id}/bank-unmatched/near, the pop-in turned round: the planned line on top, the bank lines as cards with "This paid it"). _matchWords takes the bank and planned amounts, so both directions word it from the bank's line.
@@ -4436,7 +4439,7 @@ function openPinnedReport(id) {
 }
 
 // A small warning when bank sync has been failing for more than a day, or
-// SimpleFIN has stopped accepting the connection (#195).
+// a provider has stopped accepting a connection (#195; any of them, #254).
 async function loadDashBankWarn() {
   const el = document.getElementById('dashBankWarn');
   if (!el) return;
@@ -4447,7 +4450,12 @@ async function loadDashBankWarn() {
   if (!show) return;
   const since = st.failing_since ? new Date(st.failing_since).toLocaleDateString() : '';
   el.innerHTML = (st.needs_reconnect
-      ? 'Bank sync has stopped: SimpleFIN no longer accepts your connection. '
+      ? (() => {
+          const gone = (st.connections || []).filter(c => c.needs_reconnect);
+          const who = gone.length === 1 ? `${gone[0].provider_name} no longer reaches ${gone[0].name}`
+            : gone.length > 1 ? `${gone.length} bank connections need connecting again` : 'a bank connection needs connecting again';
+          return `Bank sync has stopped: ${escapeHtml(who)}. `;
+        })()
       : `Bank sync has been failing since ${escapeHtml(since)}. `)
     + `<a href="#settings/bank" style="color:var(--accent)" onclick="showPage('settings',{section:'bank'});return false">Open Settings → Bank sync</a>`;
 }
@@ -9364,8 +9372,14 @@ function _adminBankSyncShow(data) {
   const n = data.connected_users;
   const status = document.getElementById('adminBankSyncStatus');
   status.style.color = '';
+  const p = data.providers || {};
+  const ready = ['SimpleFIN'].concat(p.teller ? ['Teller'] : [], p.plaid ? ['Plaid'] : []);
+  const missing = [].concat(p.teller ? [] : ['Teller (TELLER_APP_ID and its certificate)'],
+                            p.plaid ? [] : ['Plaid (PLAID_CLIENT_ID and PLAID_SECRET)']);
   status.textContent = (data.enabled ? 'On. ' : 'Off. ')
-    + (n === 0 ? 'No user has a bank connected.' : n + ' user' + (n === 1 ? ' has a bank' : 's have a bank') + ' connected.');
+    + (n === 0 ? 'No user has a bank connected.' : n + ' user' + (n === 1 ? ' has a bank' : 's have a bank') + ' connected.')
+    + ' Offered: ' + ready.join(', ') + '.'
+    + (missing.length ? ' Not set up: ' + missing.join('; ') + '.' : '');
 }
 async function loadAdminBankSync() {
   const links = document.getElementById('adminBankSyncLinks');
@@ -9404,7 +9418,7 @@ const BANK_PROVIDERS = {
     setup: 'https://beta-bridge.simplefin.org/simplefin/create',
   },
 };
-const BANK_PROVIDER = 'simplefin';   // the one provider so far
+const BANK_PROVIDER = 'simplefin';   // whose pages Admin links to; Teller and Plaid have no pages to link (#254)
 const SIMPLEFIN_CREATE_URL = BANK_PROVIDERS.simplefin.setup;
 function _bankLink(href, text) {
   return `<a href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">${escapeHtml(text)}</a>`;
@@ -9462,41 +9476,74 @@ async function loadBank() {
     return;
   }
   tab.classList.toggle('hidden', !(bankState.enabled || bankState.connected));
-  if (!bankState.connected) return _renderBankConnect(body);
   let owned = [];
-  try { owned = (await api('/api/accounts?include_archived=true')).filter(a => a.level === 'owner'); } catch (_) {}
-  _renderBankConnected(body, owned);
+  if (bankState.connected) {
+    try { owned = (await api('/api/accounts?include_archived=true')).filter(a => a.level === 'owner'); } catch (_) {}
+  }
+  const conns = bankState.connections || [];
+  const anyAccounts = conns.some(c => (c.accounts || []).length);
+  body.innerHTML = (conns.length ? `
+      <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+        Match each bank account to one of your own accounts; nothing dated before its start date comes in
+        (at most ${bankState.start_max_days} days back). Only accounts you own can be matched, and each of
+        your accounts takes lines from one bank account.</p>`
+      + conns.map(c => _bankConnHtml(c, owned)).join('')
+      + (anyAccounts ? `<div style="margin-top:12px"><button class="ghost" id="bankSaveBtn" onclick="bankSaveLinks()">Save matches</button></div>` : '')
+      + '<div id="bankLog" class="hidden" style="margin-top:14px;max-width:720px"></div>'
+    : '')
+    + (bankState.enabled ? _bankConnectHtml(conns.length > 0) : '');
 }
 
-function _renderBankConnect(body) {
-  if (!bankState.enabled) { body.innerHTML = ''; return; }
-  body.innerHTML = `
-    ${_bankProviderLinks()}
+// The providers on offer, as the server says (#254): Teller and Plaid only
+// when their keys are in .env.
+function _bankOffered(key) {
+  const p = (bankState.providers || []).find(x => x.key === key);
+  return !!(p && p.available);
+}
+
+function _bankConnectHtml(more) {
+  const teller = _bankOffered('teller'), plaid = _bankOffered('plaid');
+  const choice = (key, label, text) => `<div style="display:flex;gap:12px;align-items:flex-start;margin:0 0 10px">
+      <button style="min-width:170px" onclick="bankStartProvider('${key}')">${label}</button>
+      <span style="font-size:13px;color:var(--muted)">${text}</span></div>`;
+  return `
+    <h3 class="backup-subhead" style="margin-top:${more ? 24 : 0}px">${more ? 'Connect another bank' : 'Connect a bank'}</h3>
     <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
-      Bring transactions in from your bank by themselves, through SimpleFIN Bridge, a service you subscribe to
-      yourself (about $15 a year). SimpleFIN can read your transactions and balances; it can't move money.
-      Only lines your bank has posted come in, as paid lines, and your auto-tag rules run on them.</p>
-    <ol style="margin:0 0 12px 18px;padding:0;font-size:13px;line-height:1.6">
-      <li>At <a href="${SIMPLEFIN_CREATE_URL}" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">SimpleFIN Bridge</a>,
-        link your bank and make a setup token.</li>
-      <li>Paste the token here and press Connect. A token works once.</li>
-      <li>Match each bank account to one of your accounts and pick the date to start from.</li>
-    </ol>
-    <label for="bankToken">SimpleFIN setup token</label>
-    <textarea id="bankToken" rows="3" maxlength="2000" spellcheck="false" autocomplete="off"
-              style="width:100%;max-width:560px;font-family:monospace;font-size:12px"></textarea>
-    ${_bankCodeField('bankConnectCode')}
-    <div style="margin-top:10px"><button onclick="bankConnect()">Connect</button></div>`;
+      Bring transactions in from your bank by themselves. The service you pick can read your accounts, balances and
+      transactions; it can't move money. Only lines your bank has posted come in, as paid lines, and your auto-tag
+      rules run on them. Each bank login is a connection of its own.</p>
+    ${teller ? choice('teller', 'Connect with Teller', 'You sign in to your bank on Teller Connect, on a page of its own in a new tab.') : ''}
+    ${plaid ? choice('plaid', 'Connect with Plaid', "You sign in to your bank on Plaid's own site, in a new tab.") : ''}
+    ${(teller || plaid) ? _bankCodeField('bankConnectCode') : ''}
+    <details style="margin-top:12px"${(teller || plaid) ? '' : ' open'}>
+      <summary style="cursor:pointer;font-size:13px">Paste a SimpleFIN token</summary>
+      <div style="margin-top:10px">
+      ${_bankProviderLinks('simplefin')}
+      <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+        SimpleFIN Bridge is a service you subscribe to yourself (about $15 a year).</p>
+      <ol style="margin:0 0 12px 18px;padding:0;font-size:13px;line-height:1.6">
+        <li>At <a href="${SIMPLEFIN_CREATE_URL}" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">SimpleFIN Bridge</a>,
+          link your bank and make a setup token.</li>
+        <li>Paste the token here and press Connect. A token works once.</li>
+        <li>Match each bank account to one of your accounts and pick the date to start from.</li>
+      </ol>
+      <label for="bankToken">SimpleFIN setup token</label>
+      <textarea id="bankToken" rows="3" maxlength="2000" spellcheck="false" autocomplete="off"
+                style="width:100%;max-width:560px;font-family:monospace;font-size:12px"></textarea>
+      ${_bankCodeField('bankSimplefinCode')}
+      <div style="margin-top:10px"><button onclick="bankConnect()">Connect</button></div>
+      </div>
+    </details>`;
 }
 
-function _renderBankConnected(body, owned) {
+function _bankConnHtml(c, owned) {
   const today = new Date();
   const minDay = new Date(today); minDay.setDate(minDay.getDate() - (bankState.start_max_days - 1));
   const max = _isoDate(today), min = _isoDate(minDay);
   const opts = (sel) => (sel ? [] : [`<option value="${BANK_NEW_ACCOUNT}">New account…</option>`])
     .concat([`<option value=""${sel ? '' : ' selected'}>Leave out</option>`], owned.map(a =>
     `<option value="${a.id}"${a.id === sel ? ' selected' : ''}>${escapeHtml(a.name)}${a.archived ? ' (archived)' : ''}</option>`)).join('');
-  const rows = (bankState.accounts || []).map(a => `<tr>
+  const rows = (c.accounts || []).map(a => `<tr>
       <td>${escapeHtml(a.name)}${a.org ? `<div style="font-size:11px;color:var(--muted)">${escapeHtml(a.org)}</div>` : ''}</td>
       <td><select class="bank-link-account" data-ref="${escapeAttr(a.ref)}" aria-label="Your account for ${escapeAttr(a.name)}" onchange="bankLinkChanged(this)">${opts(a.account_id)}</select>
         ${a.account_id ? '' : `<div class="bank-new-wrap hidden" data-ref="${escapeAttr(a.ref)}" style="margin-top:6px">
@@ -9509,38 +9556,39 @@ function _renderBankConnected(body, owned) {
       <td style="white-space:nowrap">${a.account_id ? `<button class="ghost" onclick="bankShowLog(${a.account_id})">Sync log</button>` : ''}
         ${a.account_id && a.unmatched_count > 0 ? `<button class="ghost" onclick="bankShowUnmatched(${a.account_id})">Unmatched (${Number(a.unmatched_count)})</button>` : ''}</td>
     </tr>`).join('');
-  const last = (bankState.last_sync_at
-    ? `Last sync ${_bankWhen(bankState.last_sync_at)}: ${escapeHtml(bankState.last_sync_status || '')}`
+  const simplefin = c.provider === 'simplefin';
+  const pname = escapeHtml(c.provider_name || 'the provider');
+  const last = (c.last_sync_at
+    ? `Last sync ${_bankWhen(c.last_sync_at)}: ${escapeHtml(c.last_sync_status || '')}`
     : 'Not synced yet.')
-    + (bankState.needs_reconnect
-      ? '<br><strong>SimpleFIN no longer accepts this connection, so daily syncing has stopped.</strong> Disconnect below, make a new setup token at ' + _bankLink(SIMPLEFIN_CREATE_URL, 'SimpleFIN Bridge') + ' and connect again.'
-      : bankState.next_sync_at
-        ? `<br>Syncs by itself about once a day; next around ${escapeHtml(_bankWhen(bankState.next_sync_at))}.`
+    + (c.needs_reconnect
+      ? (simplefin
+        ? '<br><strong>SimpleFIN no longer accepts this connection, so daily syncing has stopped.</strong> Disconnect it below, make a new setup token at ' + _bankLink(SIMPLEFIN_CREATE_URL, 'SimpleFIN Bridge') + ' and connect again.'
+        : `<br><strong>${pname} no longer reaches this bank, so daily syncing has stopped.</strong> Disconnect it below and connect the bank again.`)
+      : c.next_sync_at
+        ? `<br>Syncs by itself about once a day; next around ${escapeHtml(_bankWhen(c.next_sync_at))}.`
         : '');
-  const left = bankState.syncs_left_today;
-  body.innerHTML = `
-    ${_bankProviderLinks()}
-    <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
-      Connected through SimpleFIN Bridge on ${escapeHtml(_bankWhen(bankState.connected_at))}.
-      Match each bank account to one of your own accounts; nothing dated before its start date comes in
-      (at most ${bankState.start_max_days} days back). Only accounts you own can be matched.</p>
-    ${rows ? `<table style="width:100%;max-width:720px"><thead><tr>
-        <th>Bank account</th><th>Your account</th><th>Bring in from</th><th></th></tr></thead><tbody>${rows}</tbody></table>
-      <div style="margin-top:8px"><button class="ghost" id="bankSaveBtn" onclick="bankSaveLinks()">Save matches</button></div>
-      <div id="bankLog" class="hidden" style="margin-top:14px;max-width:720px"></div>`
-      : '<div style="color:var(--muted);font-size:13px">SimpleFIN hasn\'t listed any bank accounts yet. Press Sync now to ask again.</div>'}
-    <h3 class="backup-subhead" style="margin-top:20px">Sync</h3>
-    <div style="font-size:13px;color:${bankState.last_sync_ok === false ? 'var(--bad)' : 'var(--muted)'}">${last}</div>
+  const left = c.syncs_left_today;
+  const id = Number(c.id);
+  return `<div class="bank-conn" data-connection="${id}" style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin:0 0 14px;max-width:760px">
+    <h3 class="backup-subhead" style="margin:0 0 4px">${escapeHtml(c.name || c.provider_name)}
+      <span style="font-weight:normal;font-size:12px;color:var(--muted)">· through ${pname}</span></h3>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Connected ${escapeHtml(_bankWhen(c.connected_at))}</div>
+    ${rows ? `<table style="width:100%"><thead><tr>
+        <th>Bank account</th><th>Your account</th><th>Bring in from</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
+      : `<div style="color:var(--muted);font-size:13px">${pname} hasn't listed any bank accounts yet. Press Sync now to ask again.</div>`}
+    <div style="font-size:13px;margin-top:10px;color:${c.last_sync_ok === false ? 'var(--bad)' : 'var(--muted)'}">${last}</div>
     <div style="margin-top:8px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-      <button onclick="bankSyncNow()"${bankState.sync_wait_seconds ? ' disabled' : ''}>Sync now</button>
+      <button onclick="bankSyncNow(${id})"${c.sync_wait_seconds ? ' disabled' : ''}>Sync now</button>
       <span style="font-size:12px;color:var(--muted)">${left} sync${left === 1 ? '' : 's'} left in the next 24 hours</span>
+      <span style="flex:1"></span>
+      <button class="danger" onclick="bankDisconnect(${id})">Disconnect</button>
     </div>
-    <h3 class="backup-subhead" style="margin-top:20px">Disconnect</h3>
-    <p style="color:var(--muted);margin:0 0 8px;font-size:13px">
-      Forgets the connection here. Lines already brought in stay. To stop SimpleFIN reading your bank too,
-      disable the token in ${_bankLink(BANK_PROVIDERS.simplefin.account, 'your SimpleFIN Bridge account')}.</p>
-    ${_bankCodeField('bankDisconnectCode')}
-    <div style="margin-top:8px"><button class="danger" onclick="bankDisconnect()">Disconnect</button></div>`;
+    ${_bankCodeField('bankDisconnectCode' + id)}
+    <div style="font-size:12px;color:var(--muted);margin-top:6px">${simplefin
+      ? `Disconnecting forgets the connection here; lines already brought in stay. To stop SimpleFIN reading your bank too, disable the token in ${_bankLink(BANK_PROVIDERS.simplefin.account, 'your SimpleFIN Bridge account')}.`
+      : `Disconnecting removes it at ${pname} too; lines already brought in stay.`}</div>
+  </div>`;
 }
 
 // The sync log of one linked account (#195): its syncs, newest first; a
@@ -9938,7 +9986,7 @@ async function _bankRefreshUnmatched(accountId, said) {
 async function bankConnect() {
   const token = (document.getElementById('bankToken').value || '').trim();
   if (!token) return _bankSay('Paste the setup token from SimpleFIN Bridge first.', 'var(--bad)');
-  const codeEl = document.getElementById('bankConnectCode');
+  const codeEl = document.getElementById('bankSimplefinCode');
   _bankSay('Connecting…');
   try {
     await api('/api/bank/connect', { method: 'POST',
@@ -9946,6 +9994,61 @@ async function bankConnect() {
     _bankSay('Connected. Match your bank accounts below, then press Sync now.', 'var(--good)');
     await loadBank();
   } catch (e) { _bankSay(errText(e), 'var(--bad)'); }
+}
+
+// Teller or Plaid (#254): the provider's page opens in a new tab and this
+// one checks back until the connection is made.
+const BANK_NAMES = { simplefin: 'SimpleFIN', teller: 'Teller', plaid: 'Plaid' };
+let _bankWaitTimer = null;
+async function bankStartProvider(provider) {
+  const name = BANK_NAMES[provider] || provider;
+  // Opened now, in the click, so the browser doesn't block it; pointed at
+  // the provider once the server has the address.
+  const tab = window.open('', '_blank');
+  const codeEl = document.getElementById('bankConnectCode');
+  _bankSay(`Opening ${name}…`);
+  let r;
+  try {
+    r = await api('/api/bank/connect/start', { method: 'POST',
+      body: JSON.stringify({ provider, code: codeEl ? codeEl.value : null }) });
+  } catch (e) {
+    if (tab) tab.close();
+    return _bankSay(errText(e), 'var(--bad)');
+  }
+  if (tab) { try { tab.opener = null; } catch (_) {} tab.location.href = new URL(r.url, location.href).href; }
+  _bankSay('');
+  _bankWaitFor(r.attempt, name, r.url, !tab);
+}
+function bankStopWaiting() {
+  clearTimeout(_bankWaitTimer);
+  _bankWaitTimer = null;
+  const box = document.getElementById('bankWait');
+  if (box) box.innerHTML = '';
+}
+function _bankWaitFor(attempt, name, url, blocked) {
+  clearTimeout(_bankWaitTimer);
+  const box = document.getElementById('bankWait');
+  if (!box) return;
+  box.style.color = 'var(--muted)';
+  box.innerHTML = `${blocked ? 'Your browser kept the new tab from opening. ' : ''}Waiting for you to finish on ${escapeHtml(name)}'s page…
+    ${_bankLink(url, blocked ? `Open ${name}` : 'Open it again')} ·
+    <button class="ghost" onclick="bankStopWaiting()">Stop waiting</button>`;
+  const until = Date.now() + 31 * 60 * 1000;
+  const tick = async () => {
+    let r;
+    try {
+      r = await api('/api/bank/connect/check', { method: 'POST', body: JSON.stringify({ attempt }) });
+    } catch (e) { bankStopWaiting(); return _bankSay(errText(e), 'var(--bad)'); }
+    if (r.state === 'waiting' && Date.now() < until) { _bankWaitTimer = setTimeout(tick, 4000); return; }
+    bankStopWaiting();
+    if (r.state === 'done') {
+      await loadBank();
+      return _bankSay(`Connected through ${name}. Match its bank accounts above, then press Sync now.`, 'var(--good)');
+    }
+    if (r.state === 'exited') return _bankSay(`Closed on ${name}'s page without connecting a bank.`);
+    _bankSay(`That took too long, so it was stopped. Press Connect with ${name} to start again.`, 'var(--bad)');
+  };
+  _bankWaitTimer = setTimeout(tick, 4000);
 }
 
 async function bankSaveLinks() {
@@ -9999,28 +10102,36 @@ async function bankSaveLinks() {
   }
 }
 
-async function bankSyncNow() {
-  _bankSay('Asking SimpleFIN…');
+async function bankSyncNow(connectionId) {
+  const c = ((bankState && bankState.connections) || []).find(x => x.id === connectionId);
+  const name = c ? c.provider_name : 'the bank';
+  _bankSay(`Asking ${name}…`);
   try {
-    const r = await api('/api/bank/sync', { method: 'POST' });
+    const r = await api('/api/bank/sync', { method: 'POST', body: JSON.stringify({ connection_id: connectionId }) });
     _bankSay(`${r.added} new line${r.added === 1 ? '' : 's'} came in`
              + (r.matched ? `, ${r.matched} of them paid a bill` : '')
              + `; ${r.skipped} ${r.skipped === 1 ? 'was' : 'were'} already here.`
-             + (r.messages && r.messages.length ? ' SimpleFIN said: ' + r.messages.join('; ') : ''), 'var(--good)');
+             + (r.messages && r.messages.length ? ` ${name} said: ` + r.messages.join('; ') : ''), 'var(--good)');
     await loadBank();
     if (r.added) loadAccounts();
   } catch (e) { _bankSay(errText(e), 'var(--bad)'); await loadBank(); }
 }
 
-async function bankDisconnect() {
-  if (!(await confirmDialog('Disconnect your bank? Lines already brought in stay. You can connect again later with a new token.',
+async function bankDisconnect(connectionId) {
+  const c = ((bankState && bankState.connections) || []).find(x => x.id === connectionId);
+  const simplefin = !c || c.provider === 'simplefin';
+  const label = c ? `${c.name} (${c.provider_name})` : 'this bank';
+  if (!(await confirmDialog(`Disconnect ${label}? Lines already brought in stay.`
+                            + (simplefin ? ' You can connect again later with a new token.' : ` It's removed at ${c.provider_name} too.`),
                             { title: 'Disconnect bank', okLabel: 'Disconnect', danger: true }))) return;
-  const codeEl = document.getElementById('bankDisconnectCode');
+  const codeEl = document.getElementById('bankDisconnectCode' + connectionId);
   _bankSay('Disconnecting…');
   try {
-    await api('/api/bank/disconnect', { method: 'POST', body: JSON.stringify({ code: codeEl ? codeEl.value : null }) });
-    _bankSay('Disconnected. Remember to disable the token at SimpleFIN Bridge too.', 'var(--good)');
+    const r = await api('/api/bank/disconnect', { method: 'POST',
+      body: JSON.stringify({ connection_id: connectionId, code: codeEl ? codeEl.value : null }) });
     await loadBank();
+    if (r.warning) _bankSay(r.warning, 'var(--bad)');
+    else _bankSay(simplefin ? 'Disconnected. Remember to disable the token at SimpleFIN Bridge too.' : 'Disconnected.', 'var(--good)');
   } catch (e) { _bankSay(errText(e), 'var(--bad)'); }
 }
 

@@ -52,14 +52,20 @@ def short_name(text: str | None) -> str | None:
     return head[:NAME_MAX] if head else None
 
 
-class SimpleFINError(Exception):
-    """A reason in plain words. `status` is the HTTP status to answer with;
-    `revoked` means the connection no longer works and has to be made again."""
+class BankError(Exception):
+    """A provider's failure in plain words (SimpleFIN, Teller or Plaid,
+    bank-providers phase 1, #254). `status` is the HTTP status to answer
+    with; `revoked` means the connection no longer works and has to be made
+    again. Never carries a token or an access address."""
 
     def __init__(self, message: str, status: int = 502, revoked: bool = False):
         super().__init__(message)
         self.status = status
         self.revoked = revoked
+
+
+class SimpleFINError(BankError):
+    pass
 
 
 def allowed_hosts() -> set[str]:

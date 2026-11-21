@@ -10,15 +10,23 @@ Bring transactions into WalletWeather straight from your bank, instead of
 uploading a CSV file.
 {: .fs-6 .fw-300 }
 
-Bank sync works through [SimpleFIN Bridge](https://bridge.simplefin.org/), a
-service you subscribe to yourself (about $15 a year). SimpleFIN reads your
-bank's transactions and balances. It can't move money.
+Bank sync works through one of three services, picked per bank:
+
+- **[SimpleFIN Bridge](https://bridge.simplefin.org/)**, a service you
+  subscribe to yourself (about $15 a year). Nothing to set up on the server.
+- **[Teller](https://teller.io/)** (from 1.86.0), once the server has
+  Teller's keys. Teller's development tier is free up to 100 bank logins.
+- **[Plaid](https://plaid.com/)** (from 1.86.0), once the server has
+  Plaid's keys. Plaid's Trial plan is free for 10 bank logins.
+
+Each reads your bank's transactions and balances. None can move money. If
+your bank won't connect through one, try another: each reaches banks its own
+way. You can have as many connections as you like, from any mix of them.
 
 {: .important }
-> - **WalletWeather 1.69.0 or later**, 1.70.0 for the daily sync and the sync log, 1.73.0 for bills paid by a sync. The version is in the app's footer.
+> - **WalletWeather 1.69.0 or later**, 1.70.0 for the daily sync and the sync log, 1.73.0 for bills paid by a sync, 1.86.0 for Teller, Plaid and more than one connection. The version is in the app's footer.
 > - **An admin switches bank sync on** once for the server ([below](#for-the-person-who-runs-the-server)).
-> - **Each person connects their own bank** with their own SimpleFIN
->   subscription ([Connect your bank](#connect-your-bank)).
+> - **Each person connects their own banks** ([Connect your bank](#connect-your-bank)).
 
 <details open markdown="block">
   <summary>On this page</summary>
@@ -51,15 +59,66 @@ beta-bridge.simplefin.org
 Nothing needs to reach your server from outside. It doesn't need a public
 address.
 
+### Set up Teller (optional)
+
+1. Make a developer account at [teller.io](https://teller.io/) and an
+   application. Its **application id** (it starts `app_`) is on the
+   dashboard.
+2. Download the application's **certificate**. Teller gives a zip with
+   `certificate.pem` and `private_key.pem`. Put both in a folder next to
+   your `docker-compose.yml` called `secrets/teller` (or name another folder
+   in `TELLER_CERT_DIR`). It's mounted into the server read-only. The private
+   key is a secret: don't put it in git or share it.
+3. In `.env`:
+
+   ```
+   TELLER_APP_ID=app_...
+   TELLER_ENV=development
+   ```
+
+   `development` reaches your real banks and is free up to 100 bank logins.
+   `sandbox` uses Teller's made-up banks and needs no certificate, for a
+   try. `production` needs Teller to approve your account.
+4. The server calls `api.teller.io`. People connecting load Teller's script
+   from `cdn.teller.io` in their browser, on WalletWeather's
+   `/bank/teller` page, the only page that loads it.
+
+### Set up Plaid (optional)
+
+1. Make an account at [dashboard.plaid.com](https://dashboard.plaid.com/).
+   The free **Trial** plan allows 10 bank logins, Chase, Bank of America and
+   Wells Fargo included. Applying for full production later ends the Trial
+   plan for good.
+2. On the dashboard's **Keys** page, copy the client id and the secret for
+   the environment you'll use. In `.env`:
+
+   ```
+   PLAID_CLIENT_ID=...
+   PLAID_SECRET=...
+   PLAID_ENV=production
+   ```
+
+   `production` reaches your real banks (on the Trial plan too); `sandbox`
+   uses Plaid's made-up banks with the sandbox secret. The secret is a
+   secret: keep it out of git.
+3. The server calls `production.plaid.com` (or `sandbox.plaid.com`). People
+   connecting sign in to their bank on Plaid's own site (`secure.plaid.com`),
+   in a new tab. No webhook and no public address are needed: the server
+   checks back with Plaid.
+
+Restart after changing `.env` (`docker compose up -d`). **Admin → Bank sync**
+then lists Teller and Plaid as offered.
+
 ### Switch bank sync on
 
 Bank sync is off until an admin switches it on. Sign in as an admin (an
 address in `ADMIN_EMAILS`), open **Admin → Bank sync** and tick **Allow bank
 sync**.
 
-With it on, each user can connect their own bank. Nobody's bank is connected
-until they do it themselves. The server calls SimpleFIN only for users who
-have connected. Admin's user list shows a **bank connected** badge for each
+With it on, each user can connect their own banks, through SimpleFIN and
+through Teller or Plaid when their keys are set. Nobody's bank is connected
+until they do it themselves. The server calls a provider only for users who
+have connected through it. Admin's user list shows a **bank connected** badge for each
 of them.
 
 Switching it off again stops connecting and syncing. Connections already made
@@ -79,7 +138,28 @@ stay until their users disconnect.
 
 ## Connect your bank
 
-### Get a setup token from SimpleFIN
+Open **Settings → Bank sync**. If there's no Bank sync tab, bank sync isn't
+switched on yet: ask whoever runs the server (see [For the person who runs
+the server](#for-the-person-who-runs-the-server)). Under **Connect a bank**
+are the services your server offers. With two-factor sign-in on, type the
+code from your authenticator app first.
+
+### Through Teller or Plaid
+
+1. Press **Connect with Teller** or **Connect with Plaid**. A new tab opens:
+   Plaid's own site, or WalletWeather's Teller page with Teller Connect.
+2. Pick your bank and sign in to it there. You sign in on Teller's or Plaid's
+   pages, not WalletWeather's; WalletWeather never sees your bank password.
+3. When it says you're connected, close that tab. Settings → Bank sync
+   notices by itself within a few seconds and lists the bank's accounts.
+
+Each bank login is a connection of its own: for three banks, connect three
+times. If the new tab didn't open, your browser blocked it: use the link
+that appears under the buttons.
+
+### Through SimpleFIN
+
+#### Get a setup token from SimpleFIN
 
 1. Go to [SimpleFIN Bridge](https://bridge.simplefin.org/simplefin/create)
    and subscribe.
@@ -92,10 +172,9 @@ stay until their users disconnect.
 A setup token works **once**. If connecting fails after the token was
 accepted, or you connect again later, make a new one.
 
-### Connect it in WalletWeather
+#### Connect it in WalletWeather
 
-1. Open **Settings → Bank sync**. If there's no Bank sync tab, bank sync
-   isn't switched on yet: ask whoever runs the server (see [For the person who runs the server](#for-the-person-who-runs-the-server)).
+1. Open **Paste a SimpleFIN token** under **Connect a bank**.
 2. Paste the setup token and press **Connect**. If you have two-factor
    sign-in on, type the code from your authenticator app too.
 3. Your bank accounts are listed, as SimpleFIN names them.
@@ -110,7 +189,9 @@ For each bank account:
 - **Your account:** pick the WalletWeather account its transactions go into,
   or **Leave out**. Only accounts you own can be picked, not ones someone
   shares with you, and each of your accounts can be matched to one bank
-  account only.
+  account only, across all your connections: if SimpleFIN and Teller both
+  reach your checking account, match it on one of them. A second match is
+  refused, naming the connection that has it, so no line comes in twice.
 - **New account…** (from 1.76.0): for a bank account you haven't set up in
   WalletWeather yet. Pick it, check the name (it starts as the bank's own),
   and press **Save matches**: WalletWeather makes the account, matches it
@@ -195,13 +276,14 @@ SimpleFIN has stopped accepting the connection, until you connect again.
   shortened to the company when the bank sends a whole ACH record (from
   1.71.0), with the full text in its notes.
 - **Your auto-tag rules run** on each new line, as they do for a CSV import.
-  SimpleFIN gives no categories.
+  Teller's and Plaid's categories aren't used yet (a later version maps them
+  onto yours).
 - **Nothing comes in twice.** A line already brought in is recognised by the
   bank's own id. A paid line you added by CSV or by hand, with the same date,
   amount and description, is recognised too and isn't doubled.
 - **Late postings are caught.** Each sync looks back 14 days before the
   last one, for lines a bank posts late.
-- **At most 20 syncs in 24 hours.** SimpleFIN disables a connection that asks
+- **At most 20 syncs in 24 hours, per connection.** SimpleFIN disables a connection that asks
   much more often than about 24 times a day, so Sync now stops at 20 and
   says when it can run again. The tab shows how many are left. SimpleFIN
   itself refreshes from banks about once a day, so syncing more often rarely
@@ -209,15 +291,19 @@ SimpleFIN has stopped accepting the connection, until you connect again.
 
 ## Disconnecting
 
-**Settings → Bank sync → Disconnect** forgets the connection and your
-matches. Lines already brought in stay. With two-factor sign-in on, it asks
-for a code.
+Each connection has its own **Disconnect** button in Settings → Bank sync.
+It forgets the connection and its matches. Lines already brought in stay.
+With two-factor sign-in on, it asks for a code. A Teller or Plaid connection
+is ended at Teller or Plaid too, so it stops reading your bank; if the
+service can't be reached at that moment, the connection is forgotten here
+anyway and the message says to remove it in that service's dashboard.
 
 {: .warning }
-Disconnecting stops WalletWeather asking. To stop SimpleFIN reading your bank
-too, disable the app's access at [SimpleFIN Bridge](https://bridge.simplefin.org/).
+For SimpleFIN, disconnecting stops WalletWeather asking. To stop SimpleFIN
+reading your bank too, disable the app's access at [SimpleFIN Bridge](https://bridge.simplefin.org/).
 
-Deleting your WalletWeather user removes your connection too.
+Deleting your WalletWeather user removes your connections too, and ends them
+at Teller and Plaid.
 
 ## If something goes wrong
 
@@ -230,6 +316,12 @@ Deleting your WalletWeather user removes your connection too.
 | *Couldn't reach SimpleFIN* | SimpleFIN may be down, or the server can't reach it: see "Make sure the server can reach SimpleFIN". |
 | *SimpleFIN says your subscription needs paying* | Renew at SimpleFIN Bridge, then sync again. |
 | *SimpleFIN no longer accepts this connection* | It was disabled at SimpleFIN or ran out. Disconnect, make a new setup token and connect again. |
+| *Teller or Plaid isn't set up on this instance* | The server needs that service's keys in `.env`: see "Set up Teller" and "Set up Plaid". |
+| *Teller didn't accept this server's certificate* | Check `certificate.pem` and `private_key.pem` are in the folder `TELLER_CERT_DIR` names, and that they're the ones for `TELLER_APP_ID`. |
+| *Plaid didn't accept this server's keys* | Check `PLAID_CLIENT_ID`, and that `PLAID_SECRET` is the secret for `PLAID_ENV` (sandbox and production have different secrets). |
+| *Plaid is still gathering your bank's history* | Plaid fetches your history after you connect. Sync again in a few minutes. |
+| *Your bank wants you to sign in again* / *Plaid no longer reaches this bank* | Disconnect that bank and connect it again. |
+| *That account already takes lines from …* | That account is matched to a bank account on another connection. Leave one of them out. |
 | *Bank sync has asked SimpleFIN 20 times in the last 24 hours* | Wait for the time it gives. The daily sync counts toward the 20 too. |
 | *A sync is already running* | The daily sync was running at that moment. Try again in a minute. |
 | *Match at least one bank account to one of your accounts first* | Pick an account for at least one bank account and press Save matches. |
@@ -238,10 +330,10 @@ Deleting your WalletWeather user removes your connection too.
 
 ## What's stored and what's sent
 
-- **Stored on your server:** the access address SimpleFIN issues for your
-  connection, which includes its credentials. It's encrypted with the
-  server's `ENCRYPTION_KEY` and is never shown in the app or written to a
-  log. The server also keeps your bank accounts' names (encrypted), your
+- **Stored on your server:** for each connection, the access address
+  SimpleFIN issues (which includes its credentials) or the access token
+  Teller or Plaid issues. It's encrypted with the server's `ENCRYPTION_KEY`
+  and is never shown in the app or written to a log. The server also keeps your bank accounts' names (encrypted), your
   matches, how the last sync went, and the times of the last day's syncs.
   Each synced line carries a fingerprint of the bank's id for it, and which
   sync brought it in. The sync log (when, how many, any error) is kept as
@@ -249,10 +341,12 @@ Deleting your WalletWeather user removes your connection too.
 - **In backups:** encrypted backups (Settings → Backup, and the system
   backups) carry the connection, so a restore keeps it. The readable
   "Download my data" copy never does.
-- **Sent:** when you connect and each time you sync, the server asks SimpleFIN
-  for your bank accounts and the posted transactions since a date. Nothing
-  else about you is sent. SimpleFIN and your bank see that the connection is
-  used, and when.
+- **Sent:** when you connect and each time you sync, the server asks the
+  service for your bank accounts and the posted transactions since a date,
+  and when you disconnect it tells Teller or Plaid to end the connection.
+  Plaid gets an identifier worked out from your user number, never your name
+  or email. Nothing else about you is sent. The service and your bank see
+  that the connection is used, and when.
 
 The full details are in [`PRIVACY.md`](https://github.com/mkolakowski/WalletWeather/blob/main/PRIVACY.md)
 under "What leaves the server".

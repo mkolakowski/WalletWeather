@@ -24,7 +24,7 @@ Built with FastAPI, PostgreSQL, and a single-page vanilla JS frontend. Runs on D
 - **Two-factor sign-in** — an optional code from an authenticator app after your password, with one-time recovery codes
 - **Sharing** — invite someone to an account by email as owner, editor or reader; it appears for them once they accept, and only an owner changes who has access
 - **Admin panel** — user management, permission overrides, scheduled system backups (for users listed in `ADMIN_EMAILS`)
-- **Bank sync** — with an admin's say-so (Admin → Bank sync), each user can connect their own [SimpleFIN Bridge](https://bridge.simplefin.org/) subscription in Settings → Bank sync, match bank accounts to theirs, and bring posted transactions in, by themselves once a day or with Sync now ([setup guide](https://mkolakowski.github.io/WalletWeather/bank-sync.html))
+- **Bank sync** — with an admin's say-so (Admin → Bank sync), each user can connect their banks through their own [SimpleFIN Bridge](https://bridge.simplefin.org/) subscription, or through [Teller](https://teller.io/) or [Plaid](https://plaid.com/) once the instance has their keys, in Settings → Bank sync (as many connections as they like), match bank accounts to theirs, and bring posted transactions in, by themselves once a day or with Sync now ([setup guide](https://mkolakowski.github.io/WalletWeather/bank-sync.html))
 - **Email alerts** — with an admin's say-so (Admin → Email alerts) and a Microsoft app registered for the server (`MS_CLIENT_ID`), each user can connect their Microsoft 365 or Outlook.com mailbox in Settings → Email alerts, teach it their bank's "every transaction" alert from a sample, and press Check now to turn each alert into a paid line ([setup guide](https://mkolakowski.github.io/WalletWeather/email-alerts.html))
 - **Backup & restore** — per-account or full export/import as unencrypted JSON
 - **Encryption at rest** — account names, balances, transaction amounts, descriptions, and notes are Fernet-encrypted in PostgreSQL
@@ -73,6 +73,12 @@ All configuration is via environment variables in `.env`:
 | `REGISTRATION_CODE` | No | *(none)* | A code people must type to register with a password. Set one on any instance other people can reach |
 | `ALLOWED_EMAILS` | No | — | Comma-separated allowlist for registration |
 | `ADMIN_EMAILS` | No | — | Comma-separated admin emails (enables Admin panel) |
+| `TELLER_APP_ID` | No | — | Teller's application id, to offer bank sync through Teller (`docs/bank-sync.md`) |
+| `TELLER_ENV` | No | `development` | `sandbox`, `development` (your real banks, free up to 100 bank logins) or `production` |
+| `TELLER_CERT_DIR` | With Teller | `./secrets/teller` | Folder holding Teller's `certificate.pem` and `private_key.pem`, mounted read-only (not needed for `sandbox`) |
+| `PLAID_CLIENT_ID` | No | — | Plaid's client id, to offer bank sync through Plaid |
+| `PLAID_SECRET` | With Plaid | — | Plaid's secret for `PLAID_ENV` |
+| `PLAID_ENV` | No | `production` | `sandbox` or `production` |
 | `SIMPLEFIN_HOSTS` | No | SimpleFIN Bridge | The only hosts a pasted SimpleFIN token may point the server at, comma-separated. Leave empty for SimpleFIN Bridge |
 | `MS_CLIENT_ID` | For email alerts | — | The Application (client) ID of the Microsoft app you register for email alerts ([setup guide](https://mkolakowski.github.io/WalletWeather/email-alerts.html)). Without it nobody can connect a mailbox |
 | `MS_CLIENT_SECRET` | No | — | That app's client secret, only for the "Connect with Microsoft" button on an `https://` `APP_BASE_URL`. Signing in with a code doesn't need it |
@@ -297,7 +303,7 @@ workflow).
 - The `ENCRYPTION_KEY` is the master key — back it up securely. If lost, encrypted data is unrecoverable.
 - Backups are encrypted with a passphrase (AES-256-GCM, the key derived with scrypt): your own for the backups you download, `BACKUP_PASSPHRASE` for system backups. Nobody can recover a lost passphrase. "Download my data" (Settings → Your account) is a plain, readable copy and not a backup
 - Session cookies use the `SESSION_SECRET` for signing
-- Bank sync is off until an admin switches it on. A user's SimpleFIN access address is stored encrypted with `ENCRYPTION_KEY` and goes only into encrypted backups. A pasted token may only point at the hosts in `SIMPLEFIN_HOSTS` (SimpleFIN Bridge by default), and the server follows no redirects. SimpleFIN reads transactions and balances; it can't move money
+- Bank sync is off until an admin switches it on. A connection's SimpleFIN access address, or Teller's or Plaid's access token, is stored encrypted with `ENCRYPTION_KEY` and goes only into encrypted backups. Teller's certificate and key and Plaid's secret never leave the server, and only the Teller connect page (`/bank/teller`) loads another site's script, under its own Content-Security-Policy. A pasted token may only point at the hosts in `SIMPLEFIN_HOSTS` (SimpleFIN Bridge by default), and the server follows no redirects. SimpleFIN reads transactions and balances; it can't move money
 - Email alerts are off until an admin switches them on. A user's Microsoft sign-in is stored encrypted with `ENCRYPTION_KEY` and goes only into encrypted backups. It asks Microsoft for read-only mail access; the server talks only to login.microsoftonline.com and graph.microsoft.com, follows no redirects, never changes the mailbox, and reads alert emails as plain text (no links followed, no images fetched)
 - Admin access is controlled by the `ADMIN_EMAILS` environment variable, not by database state — an admin cannot be created from the UI
 - Registering with a password doesn't prove who owns the address. So an address in `ADMIN_EMAILS` can only be registered while the instance has no users (register yours first); after that an admin adds it under Admin → User management. On an instance other people can reach, set `REGISTRATION_CODE` or turn `ALLOW_REGISTRATION` off

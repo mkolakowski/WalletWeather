@@ -1,0 +1,63 @@
+<!doctype html>
+<!--
+  Connect a bank through Teller (bank-providers phase 1, #254). Settings →
+  Bank sync opens this page in a new tab as /bank/teller?attempt=<id>. It is
+  the only page of WalletWeather that loads a script from another site,
+  Teller Connect from cdn.teller.io (decided 2026-11-20); the server sends
+  it a Content-Security-Policy of its own that allows only that. The person
+  signs in to their bank inside Teller Connect; Teller hands this page an
+  access token for that bank login, which bank-teller.js posts to
+  /api/bank/teller/enroll and forgets. Settings sees the new connection by
+  checking back.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="referrer" content="no-referrer">
+<title>Connect a bank with Teller · WalletWeather</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<style>
+  :root { --bg:#0f1419; --panel:#1a2027; --border:#2a323c; --text:#e6edf3; --muted:#8b949e;
+          --accent:#58a6ff; --bad:#f85149; --good:#3fb950; --on-accent:#0f1419; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#ffffff; --panel:#f6f8fa; --border:#d0d7de; --text:#1f2328; --muted:#656d76;
+            --accent:#0969da; --bad:#cf222e; --good:#1a7f37; --on-accent:#ffffff; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         padding:max(24px, env(safe-area-inset-top)) 16px 32px; }
+  main { max-width:460px; margin:0 auto; }
+  header { display:flex; align-items:center; gap:10px; margin-bottom:20px; }
+  header img { width:36px; height:36px; }
+  header h1 { font-size:20px; margin:0; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px; }
+  p { margin:0 0 12px; }
+  .muted { color:var(--muted); font-size:13px; }
+  button { width:100%; padding:12px; font:inherit; font-weight:600; border-radius:10px; cursor:pointer;
+           border:1px solid var(--accent); background:var(--accent); color:var(--on-accent); }
+  button:disabled { opacity:.6; cursor:default; }
+  #say { margin-top:12px; font-size:14px; min-height:1.4em; }
+  #say.bad { color:var(--bad); }
+  #say.good { color:var(--good); }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header><img src="/static/favicon.svg" alt=""><h1>Connect a bank</h1></header>
+  <div class="panel">
+    <p>Sign in to your bank through <strong>Teller</strong>. Teller can read your accounts, balances and
+      transactions; it can't move money. WalletWeather keeps the key Teller gives it, encrypted, and
+      brings in only the lines your bank has posted.</p>
+    <p class="muted">This is the one WalletWeather page that loads Teller's own script, from cdn.teller.io.</p>
+    <button id="go" type="button" disabled>Loading…</button>
+    <div id="say" role="status"></div>
+  </div>
+</main>
+<script src="https://cdn.teller.io/connect/connect.js"></script>
+<script src="/static/bank-teller.js"></script>
+</body>
+</html>

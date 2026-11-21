@@ -20,6 +20,8 @@ NOT_OPERATOR_SETTINGS = {
     "DATABASE_URL": "compose builds it from DB_PASSWORD",
     "BACKUP_DIR": "a fixed path inside the container, on the data volume",
     "WEB_DIR": "where the image puts the web client",
+    "TELLER_CERT_FILE": "a fixed path inside the container, in the folder TELLER_CERT_DIR mounts (#254)",
+    "TELLER_KEY_FILE": "a fixed path inside the container, in the folder TELLER_CERT_DIR mounts (#254)",
 }
 _READ = re.compile(r'os\.(?:environ\.get|getenv)\(\s*"([A-Z][A-Z0-9_]+)"|os\.environ\[\s*"([A-Z][A-Z0-9_]+)"\s*\]')
 

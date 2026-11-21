@@ -195,10 +195,13 @@ def test_a_token_works_once(app_started, fake, switched_on):
     assert r.status_code == 400 and "already used" in r.json()["detail"]
 
 
-def test_connecting_twice_is_refused(connected, fake):
+def test_connecting_again_adds_a_second_connection(connected, fake):
+    # Many connections per user since #254 (it was refused before).
     c, *_ = connected
     r = c.post("/api/bank/connect", json={"token": fake.token()})
-    assert r.status_code == 409
+    assert r.status_code == 200, r.text
+    conns = r.json()["connections"]
+    assert len(conns) == 2 and {x["provider"] for x in conns} == {"simplefin"}
 
 
 @pytest.mark.parametrize("bad", [
@@ -498,11 +501,14 @@ def test_the_connection_goes_into_encrypted_backups_only(app_started, connected,
     link(c, status, acc)
     c.post("/api/bank/sync")
     plain = c.get("/api/backup/export")
-    assert "bank_connection" not in plain.json() and "s3cret" not in plain.text
+    assert "bank_connection" not in plain.json() and "bank_connections" not in plain.json()
+    assert "s3cret" not in plain.text
     sealed = c.post("/api/backup/export", json={"passphrase": "a long passphrase"}).json()
     inside = open_sealed(sealed, "a long passphrase")
-    assert inside["bank_connection"]["access_url"] == ACCESS
-    assert [l["account_name"] for l in inside["bank_connection"]["links"]] == ["Checking"]
+    # Every connection, as a list since #254.
+    [bank] = inside["bank_connections"]
+    assert bank["provider"] == "simplefin" and bank["access_url"] == ACCESS
+    assert [l["account_name"] for l in bank["links"]] == ["Checking"]
 
     # Restored into another user: the connection and its match come back, and
     # the lines keep their bank ids, so the next sync adds nothing.

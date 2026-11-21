@@ -52,6 +52,16 @@ services:
       MS_CLIENT_ID: ${MS_CLIENT_ID:-}
       MS_CLIENT_SECRET: ${MS_CLIENT_SECRET:-}
       MS_TENANT: ${MS_TENANT:-}
+      # Bank sync through Teller and Plaid (#254): offered only once its keys
+      # are set. Teller's certificate and key come from the read-only folder
+      # mounted below.
+      TELLER_APP_ID: ${TELLER_APP_ID:-}
+      TELLER_ENV: ${TELLER_ENV:-development}
+      TELLER_CERT_FILE: /run/teller/certificate.pem
+      TELLER_KEY_FILE: /run/teller/private_key.pem
+      PLAID_CLIENT_ID: ${PLAID_CLIENT_ID:-}
+      PLAID_SECRET: ${PLAID_SECRET:-}
+      PLAID_ENV: ${PLAID_ENV:-production}
     # Healthy once the API answers. The image has no curl, so Python does the
     # request; start_period covers the first boot's database setup.
     healthcheck:
@@ -64,6 +74,8 @@ services:
       - "8300:8000"
     volumes:
       - backup_data:/data/backups
+      # Teller's certificate.pem and private_key.pem (#254), read-only.
+      - ${TELLER_CERT_DIR:-./secrets/teller}:/run/teller:ro
     # The app only ever writes to the backups volume, so it gets nothing
     # else: a read-only file system, no Linux capabilities and no way to
     # gain privileges (security-fixes phase 5, #188).

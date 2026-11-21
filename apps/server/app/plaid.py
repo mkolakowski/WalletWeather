@@ -1,0 +1,234 @@
+"""Calls out to Plaid (bank-providers phase 1, #254).
+
+Connecting uses Hosted Link: the server asks Plaid for a link token with a
+`hosted_link` object, the person opens the link Plaid gives on Plaid's own
+site in a new tab, and the server asks /link/token/get for the result (no
+webhook, so no public address). The public token in that result is swapped
+once for an access token for that one bank login (an "Item"), kept
+encrypted. Lines come from /transactions/sync with a cursor kept per
+connection. API: https://plaid.com/docs/api/ (checked 2026-11-20).
+
+Plaid's amounts are positive when money leaves the account; they're turned
+round here, so money out is negative as everywhere else. Pending lines are
+left out. Errors come back as PlaidError with a plain message; the keys and
+tokens never appear in one. Bank text is data: cut to size and stored or
+shown escaped, never acted on.
+"""
+import os
+from datetime import date, datetime, timedelta
+
+import httpx
+
+from .simplefin import BankError, DESCRIPTION_MAX, NAME_MAX, _amount, _text
+
+HOSTS = {"sandbox": "https://sandbox.plaid.com", "production": "https://production.plaid.com"}
+TIMEOUT = 30.0
+SYNC_PAGE = 500
+MAX_PAGES = 40
+LINK_MINUTES = 30   # how long a Hosted Link stays usable (Plaid's own default)
+
+# Tests put an httpx.MockTransport here as the stand-in Plaid.
+_transport: httpx.BaseTransport | None = None
+
+# The connection is gone or needs the person at Plaid again.
+REVOKED = {"ITEM_LOGIN_REQUIRED", "ITEM_NOT_FOUND", "ACCESS_NOT_GRANTED", "INVALID_ACCESS_TOKEN",
+           "USER_PERMISSION_REVOKED", "NO_ACCOUNTS"}
+AT_THE_BANK = {"PASSWORD_RESET_REQUIRED", "USER_SETUP_REQUIRED", "ITEM_LOCKED"}
+
+
+class PlaidError(BankError):
+    def __init__(self, message: str, status: int = 502, revoked: bool = False, code: str = ""):
+        super().__init__(message, status, revoked)
+        self.code = code
+
+
+def environment() -> str:
+    env = os.environ.get("PLAID_ENV", "").strip().lower() or "production"
+    return env if env in HOSTS else "production"
+
+
+def _keys() -> tuple[str, str]:
+    return (os.environ.get("PLAID_CLIENT_ID", "").strip(), os.environ.get("PLAID_SECRET", "").strip())
+
+
+def available() -> bool:
+    cid, secret = _keys()
+    return bool(cid and secret)
+
+
+def _post(path: str, body: dict) -> dict:
+    cid, secret = _keys()
+    try:
+        with httpx.Client(base_url=HOSTS[environment()], timeout=TIMEOUT, follow_redirects=False,
+                          transport=_transport) as c:
+            r = c.post(path, json=body, headers={"PLAID-CLIENT-ID": cid, "PLAID-SECRET": secret})
+    except httpx.HTTPError:
+        raise PlaidError("Couldn't reach Plaid. Try again in a while.")
+    try:
+        data = r.json()
+    except ValueError:
+        data = None
+    if r.status_code == 200 and isinstance(data, dict):
+        return data
+    code = str((data or {}).get("error_code") or "") if isinstance(data, dict) else ""
+    kind = str((data or {}).get("error_type") or "") if isinstance(data, dict) else ""
+    e = _error(r.status_code, code, kind)
+    e.code = code
+    raise e
+
+
+def _error(status: int, code: str, kind: str) -> PlaidError:
+    if code in REVOKED:
+        return PlaidError("Plaid no longer reaches this bank: you may need to sign in to it again. "
+                          "Disconnect this bank, then connect it again.", status=409, revoked=True)
+    if code in AT_THE_BANK:
+        return PlaidError("Your bank wants something from you on its own website first (a new "
+                          "password, a locked login or a setup step). Sort that out there, then sync again.",
+                          status=409)
+    if kind == "RATE_LIMIT_EXCEEDED" or status == 429:
+        return PlaidError("Plaid asked this server to slow down. Try again in a few minutes.", status=429)
+    if code in ("INVALID_API_KEYS", "INVALID_SECRET", "INVALID_CLIENT_ID"):
+        return PlaidError("Plaid didn't accept this server's keys. Check PLAID_CLIENT_ID, PLAID_SECRET "
+                          "and PLAID_ENV in .env.")
+    if kind == "INSTITUTION_ERROR":
+        return PlaidError("Your bank isn't answering Plaid right now. Try again in a while.")
+    return PlaidError(f"Plaid answered with an error ({(code or 'HTTP ' + str(status))[:60]}). "
+                      "Try again in a while.")
+
+
+def create_link(user_ref: str, client_name: str, days: int) -> dict:
+    """A Hosted Link for one bank login: {"link_token", "url", "expires_at"}."""
+    data = _post("/link/token/create", {
+        "client_name": (client_name or "WalletWeather")[:30],
+        "language": "en",
+        "country_codes": ["US"],
+        "user": {"client_user_id": user_ref},
+        "products": ["transactions"],
+        "transactions": {"days_requested": max(30, min(730, days))},
+        "hosted_link": {"url_lifetime_seconds": LINK_MINUTES * 60},
+    })
+    token, url = data.get("link_token"), data.get("hosted_link_url")
+    if not isinstance(token, str) or not isinstance(url, str) or not url.startswith("https://"):
+        raise PlaidError("Plaid didn't send a link to connect with. Try again in a while.")
+    return {"link_token": token, "url": url,
+            "expires_at": datetime.utcnow() + timedelta(minutes=LINK_MINUTES)}
+
+
+def link_result(link_token: str) -> dict:
+    """How the Hosted Link went: {"state": "waiting" | "done" | "exited",
+    "public_token", "institution"}. Plaid keeps a finished session's result
+    for six hours."""
+    data = _post("/link/token/get", {"link_token": link_token})
+    sessions = data.get("link_sessions") or []
+    finished = False
+    for s in sessions if isinstance(sessions, list) else []:
+        if not isinstance(s, dict):
+            continue
+        results = s.get("results") if isinstance(s.get("results"), dict) else {}
+        for item in results.get("item_add_results") or []:
+            if isinstance(item, dict) and isinstance(item.get("public_token"), str):
+                inst = item.get("institution") if isinstance(item.get("institution"), dict) else {}
+                return {"state": "done", "public_token": item["public_token"],
+                        "institution": _text(inst.get("name"), NAME_MAX)}
+        if s.get("finished_at"):
+            finished = True
+    return {"state": "exited" if finished else "waiting", "public_token": None, "institution": ""}
+
+
+def exchange(public_token: str) -> str:
+    data = _post("/item/public_token/exchange", {"public_token": public_token})
+    token = data.get("access_token")
+    if not isinstance(token, str) or not token:
+        raise PlaidError("Plaid didn't finish connecting the bank. Try connecting again.")
+    return token
+
+
+def _account(a: dict, org: str) -> dict | None:
+    if not isinstance(a, dict) or not isinstance(a.get("account_id"), str):
+        return None
+    name = _text(a.get("name") or a.get("official_name"), NAME_MAX) or "Bank account"
+    if a.get("mask"):
+        name = f"{name} ··{_text(a.get('mask'), 4)}"
+    balances = a.get("balances") if isinstance(a.get("balances"), dict) else {}
+    balance = _amount(balances.get("current")) if balances.get("current") is not None else None
+    # A card's or loan's current balance is what's owed: it counts against you.
+    if balance is not None and a.get("type") in ("credit", "loan"):
+        balance = -balance
+    return {"id": a["account_id"][:200], "name": name, "org": org, "balance": balance}
+
+
+def fetch_accounts(access_token: str) -> tuple[list[dict], str]:
+    """The bank accounts this Item reaches, and the bank's name."""
+    data = _post("/accounts/get", {"access_token": access_token})
+    item = data.get("item") if isinstance(data.get("item"), dict) else {}
+    org = _text(item.get("institution_name"), NAME_MAX)
+    accounts = [a for a in (_account(x, org) for x in data.get("accounts") or []) if a]
+    return accounts, org
+
+
+def fetch(access_token: str, cursor: str | None, org: str = "") -> dict:
+    """New posted lines since `cursor` ("" or None for everything Plaid
+    has), in SimpleFIN's shape plus "cursor" (where the next sync starts).
+    Raises a PlaidError while Plaid is still gathering the first history."""
+    start = cursor or ""
+    for _attempt in range(3):
+        added, accounts, cur, status = [], {}, start, ""
+        try:
+            for _ in range(MAX_PAGES):
+                body = {"access_token": access_token, "count": SYNC_PAGE}
+                if cur:
+                    body["cursor"] = cur
+                data = _post("/transactions/sync", body)
+                for a in data.get("accounts") or []:
+                    acc = _account(a, org)
+                    if acc:
+                        accounts[acc["id"]] = acc
+                added.extend(t for t in data.get("added") or [] if isinstance(t, dict))
+                status = str(data.get("transactions_update_status") or "")
+                cur = data.get("next_cursor") if isinstance(data.get("next_cursor"), str) else cur
+                if not data.get("has_more"):
+                    break
+        except PlaidError as e:
+            if e.code == "TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION":
+                continue   # Plaid's rule: start the whole update again
+            raise
+        break
+    else:
+        raise PlaidError("Plaid's data kept changing while it was read. Try again in a few minutes.")
+    by_account: dict[str, list] = {}
+    for t in added:
+        if t.get("pending") is True or not isinstance(t.get("transaction_id"), str) \
+                or not isinstance(t.get("account_id"), str):
+            continue
+        amount = _amount(t.get("amount"))
+        try:
+            day = date.fromisoformat(str(t.get("date"))[:10])
+        except ValueError:
+            continue
+        if amount is None:
+            continue
+        by_account.setdefault(t["account_id"], []).append({
+            "id": t["transaction_id"][:200], "date": day, "amount": -amount,
+            "description": _text(t.get("name") or t.get("merchant_name"), DESCRIPTION_MAX)
+                           or "Bank transaction"})
+    out = []
+    for acc_id, acc in accounts.items():
+        out.append({**acc, "transactions": by_account.pop(acc_id, [])})
+    for acc_id, txns in by_account.items():   # lines for an account the page didn't list
+        out.append({"id": acc_id[:200], "name": "Bank account", "org": org, "balance": None,
+                    "transactions": txns})
+    if status == "NOT_READY" and not start and not added:
+        raise PlaidError("Plaid is still gathering your bank's history. Sync again in a few minutes.",
+                         status=409)
+    return {"accounts": out, "messages": [], "cursor": cur}
+
+
+def remove(access_token: str) -> None:
+    """Remove the Item at Plaid: it stops reading the bank (and billing). An
+    Item Plaid no longer knows counts as removed."""
+    try:
+        _post("/item/remove", {"access_token": access_token})
+    except PlaidError as e:
+        if e.revoked:
+            return
+        raise

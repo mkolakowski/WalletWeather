@@ -314,19 +314,23 @@ def export_user(db: Session, user: User, accounts: list | None = None,
         "transfers": transfers_out,
     }
     if include_bank:
-        bank = _export_bank(db, user, accounts)
-        if bank:
-            out["bank_connection"] = bank
+        banks = _export_banks(db, user, accounts)
+        if banks:
+            # Every connection (#254). A backup from before that has one,
+            # as "bank_connection", and still imports.
+            out["bank_connections"] = banks
         mail = _export_mail(db, user, accounts)
         if mail:
             out["mail_connection"] = mail
     return out
 
 
-def _export_bank(db: Session, user: User, accounts: list) -> dict | None:
-    conn = db.query(BankConnection).filter_by(user_id=user.id).first()
-    if not conn:
-        return None
+def _export_banks(db: Session, user: User, accounts: list) -> list[dict]:
+    conns = db.query(BankConnection).filter_by(user_id=user.id).order_by(BankConnection.id).all()
+    return [_export_bank(db, conn, accounts) for conn in conns]
+
+
+def _export_bank(db: Session, conn: BankConnection, accounts: list) -> dict:
     names = {a.id: a.name for a in accounts}
     links = [{"bank_account_ref": l.bank_account_ref, "account_name": names[l.account_id],
               "start_date": l.start_date.isoformat(),
@@ -337,32 +341,68 @@ def _export_bank(db: Session, user: User, accounts: list) -> dict | None:
         listing = json.loads(decrypt_str(conn.accounts_enc)) if conn.accounts_enc else []
     except Exception:
         listing = []
-    return {"access_url": decrypt_str(conn.access_url_enc), "accounts": listing, "links": links}
+    provider = conn.provider or "simplefin"
+    out = {"provider": provider, "accounts": listing, "links": links}
+    if provider == "simplefin":
+        out["access_url"] = decrypt_str(conn.access_url_enc)
+    else:
+        out["access_token"] = decrypt_str(conn.access_url_enc)
+        if conn.cursor:
+            out["cursor"] = conn.cursor
+    return out
 
 
 _HEX64 = re.compile(r"[0-9a-f]{64}")
 
 
+_TOKEN = re.compile(r"[A-Za-z0-9_\-]{8,200}")
+
+
+def _import_banks(db: Session, user: User, payload: dict, acc_by_name: dict) -> int:
+    """Restore a backup's bank connections (#254: a list; before that, one
+    as "bank_connection"). Returns how many were restored."""
+    many = payload.get("bank_connections")
+    items = many if isinstance(many, list) else [payload.get("bank_connection")]
+    return sum(int(_import_bank(db, user, d, acc_by_name)) for d in items[:20])
+
+
 def _import_bank(db: Session, user: User, data, acc_by_name: dict) -> bool:
-    """Restore a backup's bank connection for a user who has none, matching
-    its links to the accounts this import made, by name. Returns whether one
-    was restored."""
-    if not isinstance(data, dict) or not isinstance(data.get("access_url"), str):
+    """Restore one bank connection the user doesn't already have, matching
+    its links to the accounts this import made, by name; an account that
+    already takes lines from a bank keeps that. Returns whether one was
+    restored."""
+    if not isinstance(data, dict):
         return False
-    if db.query(BankConnection).filter_by(user_id=user.id).first():
+    provider = data.get("provider") or "simplefin"
+    if provider == "simplefin":
+        access = data.get("access_url")
+        if not isinstance(access, str) or not access.strip().startswith("https://"):
+            return False
+        access = access.strip()[:2000]
+    elif provider in ("teller", "plaid"):
+        access = data.get("access_token")
+        if not isinstance(access, str) or not _TOKEN.fullmatch(access.strip()):
+            return False
+        access = access.strip()
+    else:
         return False
-    access = data["access_url"].strip()[:2000]
-    if not access.startswith("https://"):
-        return False
+    for other in db.query(BankConnection).filter_by(user_id=user.id, provider=provider):
+        if decrypt_str(other.access_url_enc) == access:
+            return False
     listing = [a for a in (data.get("accounts") or []) if isinstance(a, dict)
                and isinstance(a.get("id"), str)][:100]
     listing = [{"id": a["id"][:200], "name": _text(a.get("name"), 120),
                 "org": _text(a.get("org"), 120)} for a in listing]
-    conn = BankConnection(user_id=user.id, access_url_enc=encrypt_str(access),
-                          accounts_enc=encrypt_str(json.dumps(listing)), calls_json="[]")
+    cursor = data.get("cursor") if provider == "plaid" and isinstance(data.get("cursor"), str) else None
+    conn = BankConnection(user_id=user.id, provider=provider, access_url_enc=encrypt_str(access),
+                          accounts_enc=encrypt_str(json.dumps(listing)), calls_json="[]",
+                          cursor=cursor[:5000] if cursor else None)
     db.add(conn)
     db.flush()
-    used_refs, used_accounts = set(), set()
+    used_refs = set()
+    used_accounts = {a for (a,) in db.query(BankAccountLink.account_id)
+                     .join(BankConnection, BankConnection.id == BankAccountLink.connection_id)
+                     .filter(BankConnection.user_id == user.id)}
     for l in data.get("links") or []:
         if not isinstance(l, dict):
             continue
@@ -567,8 +607,8 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
     name_filter = set(account_names) if account_names else None
 
     if mode == "replace":
-        if isinstance(payload.get("bank_connection"), dict):
-            # The backup's connection replaces theirs (#194).
+        if isinstance(payload.get("bank_connection"), dict) or payload.get("bank_connections"):
+            # The backup's connections replace theirs (#194, #254).
             for conn in db.query(BankConnection).filter_by(user_id=user.id).all():
                 db.delete(conn)
         if isinstance(payload.get("mail_connection"), dict):
@@ -736,7 +776,7 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
                     db.add(TransactionTag(transaction_id=t.id, tag_id=tag.id))
 
     counts["transfers"] = _import_transfers(db, user, payload.get("transfers"), acc_by_index, legs_by_transfer)
-    counts["bank_connection"] = int(_import_bank(db, user, payload.get("bank_connection"), acc_by_name))
+    counts["bank_connection"] = _import_banks(db, user, payload, acc_by_name)
     counts["mail_connection"] = int(_import_mail(db, user, payload.get("mail_connection"), acc_by_name))
     db.commit()
     return counts

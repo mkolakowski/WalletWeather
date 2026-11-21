@@ -45,10 +45,22 @@ to whichever app on the phone has claimed the `walletweather://` address; it
 can't tell the real app from another one, so a hostile app already on the
 phone could receive it. That token gets a request through Cloudflare, not
 into WalletWeather. Bank sync (off unless an admin switches it on) keeps
-each connected user's SimpleFIN access address encrypted with
-`ENCRYPTION_KEY`: anyone who can read both the database and that key can
-read users' bank transactions through SimpleFIN until the user disconnects
-and disables the token there. It can't move money. It's also in encrypted
+each connection's SimpleFIN access address, or Teller's or Plaid's access
+token, encrypted with `ENCRYPTION_KEY`: anyone who can read both the
+database and that key can read users' bank transactions through that
+provider until the user disconnects (and, for SimpleFIN, disables the token
+there). With Teller, they'd also need the instance's Teller certificate and
+key; with Plaid, its `PLAID_SECRET`. It can't move money. Teller's
+certificate and private key and Plaid's secret stay on the server: they're
+mounted or set in `.env` and never sent to a browser or an app. The one page
+that loads another site's script, `/bank/teller` (Teller Connect from
+`cdn.teller.io`), has a Content-Security-Policy of its own allowing only
+that, and takes no inline scripts. The access token Teller Connect hands the
+page is kept only if Teller accepts it straight away. While that page is open,
+Teller's script runs with the page's rights, the person's sign-in included,
+as any script on the app's own address would; that's why it's on one page
+that is opened only to connect a bank, and why Teller is offered only when
+the operator sets it up. It's also in encrypted
 backups, so a backup's passphrase guards it too. Email alerts (off unless an
 admin switches them on) keep each connected user's Microsoft sign-in
 encrypted the same way: it has read-only access to their whole mailbox, not

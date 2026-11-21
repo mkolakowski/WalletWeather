@@ -58,3 +58,6 @@ apps/ios/Config/AppStoreConnect.local.env
 # Swift package build output (apps/ios/WalletWeatherKit)
 .build/
 .swiftpm/
+
+# Teller's client certificate and key, mounted read-only into the server (#254).
+secrets/

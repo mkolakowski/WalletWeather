@@ -40,10 +40,12 @@ choose to use it, you sign in with Google, and Google tells the server your
 email address and name. Google's privacy policy covers its part in that.
 
 If they have switched on bank sync and you connect your bank in the web app,
-the server (not your phone) asks SimpleFIN Bridge for your bank accounts and
-posted transactions whenever it syncs. SimpleFIN and your bank see that, and
-SimpleFIN's privacy policy covers its part. The iOS app itself never talks to
-SimpleFIN.
+the server (not your phone) asks the service you connected through
+(SimpleFIN Bridge, Teller or Plaid) for your bank accounts and posted
+transactions whenever it syncs. You sign in to your bank on that service's
+own page, never on WalletWeather's. The service and your bank see that, and
+the service's privacy policy covers its part. The iOS app itself never talks
+to SimpleFIN, Teller or Plaid.
 
 If they have switched on email alerts and you connect your Microsoft mailbox
 in the web app, the server (not your phone) reads your bank's alert emails

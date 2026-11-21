@@ -8,7 +8,10 @@ policy for a hosted service, because the project doesn't host one.
 
 Nothing. WalletWeather has no analytics, no telemetry, no crash reporting and
 no "phone home". The web client loads no fonts, scripts or images from other
-sites. The people who write WalletWeather never see your instance or its
+sites, with one exception an operator chooses: the page that connects a bank
+through Teller (`/bank/teller`, only when Teller is set up and a user opens
+it to connect) loads Teller's own script from `cdn.teller.io`, as Teller
+requires. No other page loads it. The people who write WalletWeather never see your instance or its
 data.
 
 ## What an instance stores
@@ -54,19 +57,23 @@ server it runs on:
   itself or by hand, how many lines came in, were already there or couldn't
   be read, and any error), readable by the user only and kept as long as the
   audit log. Other mail is never stored.
-- **Bank sync, for a user who connects a bank:** the address SimpleFIN
-  issued for their connection, which holds its credentials (encrypted with
-  `ENCRYPTION_KEY`, never shown or logged), the names of their bank
-  accounts as SimpleFIN gives them (encrypted), which of their accounts each
-  is matched to and from what date, when the last sync ran and how it went,
-  and the times of the last day's calls to SimpleFIN (to stay within its
-  limit). Each line it brings in is stored like any other, plus a hash of
+- **Bank sync, for a user who connects a bank:** for each of their
+  connections, which provider it's through (SimpleFIN, Teller or Plaid) and
+  what that provider issued for it, which reads the bank: SimpleFIN's access
+  address or Teller's or Plaid's access token (encrypted with
+  `ENCRYPTION_KEY`, never shown or logged); the names of their bank
+  accounts and their banks as the provider gives them (encrypted), which of
+  their accounts each is matched to and from what date, when the last sync
+  ran and how it went, the times of the last day's calls to the provider
+  (to stay within SimpleFIN's limit), and for Plaid where its next sync
+  starts. While a Teller or Plaid connection is being made, a short-lived
+  record of it (for Plaid, its link token, encrypted), kept a day at most. Each line it brings in is stored like any other, plus a hash of
   the bank's own id for it and which sync brought it in. A sync log for
   each matched account (when each sync ran, by schedule or by hand, how
   many lines came in or were already there, and any error), readable by
   the account's owner only and deleted after `AUDIT_RETENTION_DAYS` like
-  the audit log. Disconnecting deletes the connection and the matches; the
-  lines stay.
+  the audit log. Disconnecting deletes the connection and the matches (and
+  ends it at Teller or Plaid); the lines stay.
 - **Logs:** the web server's access log, which records the address and path
   of each request, goes to the container's output. The app also keeps a
   sign-in log in the database: each sign-in, failed sign-in and blocked
@@ -99,15 +106,25 @@ Nothing, with three exceptions the operator chooses:
   email address, name and account identifier. Google's own privacy policy
   covers its side of that.
 - **Bank sync:** when an admin switches it on (Admin → Bank sync, off by
-  default), a user may connect their own SimpleFIN Bridge subscription. For
-  that user only, the server calls SimpleFIN (only the hosts in
-  `SIMPLEFIN_HOSTS`): once to claim the token they paste, then each time
-  they sync, asking for their bank accounts and posted transactions since a
-  date, about once a day by itself and whenever they press Sync now.
-  Nothing about them goes the other way except that request and the
-  credentials SimpleFIN issued. SimpleFIN and their bank see that the
-  connection is used, and when; SimpleFIN's own privacy policy covers its
-  side. Users who don't connect a bank cause no calls at all.
+  default), a user may connect their banks through SimpleFIN Bridge (their
+  own subscription), Teller or Plaid (Teller and Plaid only when the
+  operator has put that provider's keys in `.env`). For that user only, the
+  server calls the provider they chose: SimpleFIN (only the hosts in
+  `SIMPLEFIN_HOSTS`), Teller (`api.teller.io`, with the instance's own
+  client certificate) or Plaid (`production.plaid.com` or
+  `sandbox.plaid.com`, with the instance's keys). It calls when they
+  connect, then each time they sync, asking for their bank accounts and
+  posted transactions, about once a day by itself and whenever they press
+  Sync now, and once more when they disconnect, to end the connection at
+  Teller or Plaid. Plaid is given an identifier worked out from the user's
+  number on the instance, never their name or email.
+  Connecting happens on the provider's own page, so the user's bank sign-in
+  goes to the provider, never through the instance: Plaid's Hosted Link opens
+  on Plaid's site, and Teller Connect runs on the one page that loads
+  Teller's script. The provider and their bank see their accounts and
+  transactions and when the connection is used; the provider's own privacy
+  policy covers its side. Users who don't connect a bank cause no calls at
+  all.
 - **Email alerts:** when an admin switches them on (Admin → Email alerts,
   off by default) and has registered a Microsoft app (`MS_CLIENT_ID`), a
   user may connect their own Microsoft 365 or Outlook.com mailbox. For that

@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "31"
+SCHEMA_VERSION = "32"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,12 @@ SCHEMA_VERSION = "31"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v32 (2026-11-20, claude+mkolakowski): many bank connections, from
+#     SimpleFIN, Teller or Plaid (bank-providers phase 1, #254).
+#     bank_connections loses its one-per-user rule and gains .provider
+#     ('simplefin' for the ones already there) and .cursor (where Plaid's
+#     next /transactions/sync starts). New table bank_link_attempts (a
+#     Teller or Plaid connection started in Settings and not finished yet).
 # v31 (2026-11-17, claude+mkolakowski): bills learn bank text (match-by-hand
 #     phase 3, #224). recurring_transactions.match_text_enc, the encrypted
 #     name of the bank lines a bill was taught to take.
@@ -675,14 +681,19 @@ class RecurringSkip(Base):
 
 
 class BankConnection(Base):
-    """A user's SimpleFIN connection (#194): one per user. The access address
-    holds the credentials SimpleFIN issued, so it's encrypted with
-    ENCRYPTION_KEY and never logged or sent to the browser. `accounts_enc` is
-    the last list of bank accounts SimpleFIN gave (JSON: id, name, org)."""
+    """One of a user's bank connections (#194; many per user since #254).
+    `provider` is 'simplefin', 'teller' or 'plaid'. `access_url_enc` holds
+    what the provider issued: SimpleFIN's access address, or Teller's or
+    Plaid's access token. It reads the bank, so it's encrypted with
+    ENCRYPTION_KEY and never logged or sent to the browser. `accounts_enc`
+    is the last list of bank accounts the provider gave (JSON: id, name,
+    org); `cursor` is where Plaid's next /transactions/sync starts."""
     __tablename__ = "bank_connections"
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    provider = Column(String(10), nullable=False, default="simplefin")
     access_url_enc = Column(LargeBinary, nullable=False)
+    cursor = Column(Text, nullable=True)
     accounts_enc = Column(LargeBinary, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     last_sync_at = Column(DateTime, nullable=True)
@@ -695,6 +706,26 @@ class BankConnection(Base):
     # accepting the connection, which stops the daily sync until reconnected.
     last_ok_at = Column(DateTime, nullable=True)
     needs_reconnect = Column(Boolean, nullable=False, default=False)
+
+
+class BankLinkAttempt(Base):
+    """A Teller or Plaid connection started in Settings → Bank sync and not
+    finished yet (#254). Made after the two-factor code is checked, so the
+    connect page and the check-back need no code of their own. `token_enc`
+    is Plaid's link token (encrypted); `nonce` is the random value Teller
+    Connect is set up with. `connection_id` is set once it's finished.
+    Expired rows are cleared as new ones are made."""
+    __tablename__ = "bank_link_attempts"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    provider = Column(String(10), nullable=False)
+    public_id = Column(String(64), nullable=False, unique=True)
+    token_enc = Column(LargeBinary, nullable=True)
+    nonce = Column(String(64), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    connection_id = Column(Integer, ForeignKey("bank_connections.id", ondelete="SET NULL"), nullable=True)
+    exited = Column(Boolean, nullable=False, default=False)
 
 
 class BankAccountLink(Base):
@@ -946,6 +977,13 @@ def init_db():
     from sqlalchemy import text
     Base.metadata.create_all(engine)
     migrations = [
+        # v31 → v32: many bank connections, from SimpleFIN, Teller or Plaid
+        # (#254). bank_link_attempts comes from create_all. The unique
+        # constraint's name is PostgreSQL's default for a unique column.
+        "ALTER TABLE bank_connections DROP CONSTRAINT IF EXISTS bank_connections_user_id_key",
+        "CREATE INDEX IF NOT EXISTS ix_bank_connections_user_id ON bank_connections (user_id)",
+        "ALTER TABLE bank_connections ADD COLUMN IF NOT EXISTS provider VARCHAR(10) NOT NULL DEFAULT 'simplefin'",
+        "ALTER TABLE bank_connections ADD COLUMN IF NOT EXISTS cursor TEXT",
         # v30 → v31: bills learn bank text (#224).
         "ALTER TABLE recurring_transactions ADD COLUMN IF NOT EXISTS match_text_enc BYTEA",
         # v29 → v30: email alerts matched to bills (#209).

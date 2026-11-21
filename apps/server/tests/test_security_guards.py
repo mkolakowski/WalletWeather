@@ -55,6 +55,8 @@ PUBLIC = {
     ("POST", "/auth/logout"): "signing out; clears the caller's own session only",
     ("GET", "/app-sign-in/cloudflare"): "hands the app its own Cloudflare token",
     ("GET", "/app-sign-in"): "a static page; its script signs in",
+    ("GET", "/bank/teller"): "a static page with its own Content-Security-Policy; its script "
+                             "connects through Teller and posts to signed-in routes (#254)",
     ("GET", "/"): "the web app's page",
     ("GET", "/sw.js"): "the service worker",
     ("GET", "/manifest.webmanifest"): "the install manifest",
@@ -78,6 +80,10 @@ MUST_BE_SESSION_ONLY = {
     # GET /api/bank/status are open to tokens since phase 3 (#195).
     ("GET", "/api/bank"), ("POST", "/api/bank/connect"), ("PUT", "/api/bank/links"),
     ("POST", "/api/bank/disconnect"), ("POST", "/api/bank/accounts"),
+    # Teller and Plaid (#254): starting, checking back and handing over a
+    # bank's access token are connecting too.
+    ("POST", "/api/bank/connect/start"), ("POST", "/api/bank/connect/check"),
+    ("GET", "/api/bank/teller/setup"), ("POST", "/api/bank/teller/enroll"),
     ("PUT", "/api/admin/bank-sync"),
     # Email alerts (#206): a mailbox's sign-in can read mail, so connecting,
     # teaching and the log are browser-session only. GET /api/mail/status and

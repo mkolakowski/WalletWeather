@@ -104,3 +104,14 @@ Decisions made while planning and building [`Plans/bank-sync.md`](../../../Plans
 **Why:** a table is set once and is small to build, and pre-filling by name does most of it. The Accounts screen is seen every day, and a one-tap correction line is how a gap usually gets fixed anyway.
 
 **What it changes:** a line that pays a planned bill keeps the bill's category; the comparison counts only lines up to today, against the bank's posted balance.
+
+## 2026-11-20: one switch for all providers, one link per account
+
+**Decided:** 2026-11-20, by Matthew, settling open questions 1 and 2 of [`Plans/bank-providers.md`](../../../Plans/bank-providers.md) (#259). **Status:** accepted.
+
+**The questions and what was chosen** (the first option listed is the one chosen):
+
+- **How an admin controls the providers:** the existing Admin → Bank sync switch covers all three, and Teller or Plaid is offered only once its keys are in `.env`; not a switch per provider; not one switch with a list of allowed providers.
+- **The same bank account through two connections:** each of your accounts links to one bank account across all connections, and a second link is refused with a message naming the connection that has it; not both feeding one account with duplicates skipped; not moving the link to the new connection.
+
+**Why:** keys in `.env` already decide whether email alerts can be offered, so nothing new is needed in Admin. One link per account means no line can come in twice, and skipping by date and amount could drop a real repeat charge.

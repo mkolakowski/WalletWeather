@@ -54,6 +54,16 @@ def stored_link(acc):
         db.close()
 
 
+def set_synced_through(acc, when):
+    from app.db import BankAccountLink, SessionLocal
+    db = SessionLocal()
+    try:
+        db.query(BankAccountLink).filter_by(account_id=acc).one().synced_through = when
+        db.commit()
+    finally:
+        db.close()
+
+
 def set_stored_at(acc, when):
     from app.db import BankAccountLink, SessionLocal
     db = SessionLocal()
@@ -208,15 +218,57 @@ def test_a_week_old_teller_balance_is_asked_for_again(teller_acc, teller_fake):
     assert info(c, acc)["balance"] == 1250.00
 
 
-def test_a_teller_balance_that_fails_shows_none_and_is_asked_for_again(teller_acc, teller_fake):
+def test_a_teller_balance_that_fails_shows_none_and_is_asked_again_once_a_day(teller_acc, teller_fake):
     c, u, acc, conn = teller_acc
     teller_fake.balance_status = 500
     sync(c)
     assert info(c, acc) is None
+    # Not paid for again at every sync of the day, while it keeps failing.
+    sync(c)
+    sync(c)
+    assert balance_calls(teller_fake) == 1
+    # A day later it's tried again.
+    set_synced_through(acc, TODAY - timedelta(days=1))
     teller_fake.balance_status = 200
     sync(c)
     assert info(c, acc)["balance"] == 1200.00
     assert balance_calls(teller_fake) == 2
+
+
+def test_a_failed_teller_balance_call_keeps_the_last_good_one_when_nothing_new_came_in(teller_acc, teller_fake):
+    c, u, acc, conn = teller_acc
+    sync(c)
+    set_stored_at(acc, datetime.utcnow() - timedelta(days=8))   # due again
+    teller_fake.balance_status = 502
+    sync(c)
+    assert balance_calls(teller_fake) == 2
+    assert info(c, acc)["balance"] == 1200.00
+
+
+def test_a_failed_teller_balance_call_clears_the_old_one_when_new_lines_came_in(teller_acc, teller_fake):
+    c, u, acc, conn = teller_acc
+    sync(c)
+    teller_fake.transactions.insert(0, {"id": "txn_9", "date": day(0), "amount": "-10.00",
+                                        "status": "posted", "description": "NEW COFFEE"})
+    teller_fake.balance_status = 502
+    sync(c)
+    assert info(c, acc) is None    # the old balance doesn't include the new line
+
+
+def test_the_teller_balance_call_not_reaching_teller_doesnt_stop_the_lines(teller_acc, teller_fake):
+    c, u, acc, conn = teller_acc
+    original = teller_fake.handler
+
+    def handler(request):
+        if request.url.path.endswith("/balances"):
+            raise httpx.ConnectError("down", request=request)
+        return original(request)
+    import httpx
+    from app import teller
+    teller._transport = httpx.MockTransport(handler)
+    r = sync(c)
+    assert r["added"] == 2
+    assert info(c, acc) is None
 
 
 def test_a_teller_card_counts_against_you(teller_acc, teller_fake):
@@ -410,3 +462,34 @@ def test_disconnecting_the_bank_takes_the_balance_with_it(simplefin_acc):
     sync(c)
     assert c.post("/api/bank/disconnect", json={}).status_code == 200
     assert info(c, acc) is None
+
+
+# ---------- A planned line that isn't paid yet, and two requests at once ----------
+
+def test_planned_lines_up_to_today_that_arent_paid_are_named_beside_the_gap(simplefin_acc, fake):
+    c, u, acc = simplefin_acc
+    fake.accounts[0]["balance"] = f"{MINE:.2f}"
+    sync(c)
+    assert info(c, acc)["unpaid_planned"] is None   # no gap, nothing to explain
+    r = c.post(f"/api/accounts/{acc}/recurring", json={
+        "description": "Rent", "amount": -500, "frequency": "monthly_day",
+        "day_of_month": TODAY.day, "start_date": (TODAY - timedelta(days=60)).isoformat()})
+    assert r.status_code == 200, r.text
+    b = info(c, acc)
+    assert b["gap"] == 500.00
+    assert b["unpaid_planned"] == {"count": 1, "amount": -500.00}
+
+
+def test_two_adjustments_at_once_add_one_line(simplefin_acc):
+    import threading
+    c, u, acc = simplefin_acc
+    sync(c)
+    answers = []
+
+    def go():
+        answers.append(adjust(c, acc, -1357.50).status_code)
+    threads = [threading.Thread(target=go) for _ in range(4)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert sorted(answers) == [200, 400, 400, 400]
+    assert [t["description"] for t in lines(c, acc)].count("Adjust to bank") == 1

@@ -174,10 +174,15 @@ def _balance(c: httpx.Client, token: str, account: dict):
     """The bank's posted balance. Teller bills this call in production, so
     the sync asks only when it needs one (#215, #256; see fetch). A credit
     card's balance is what's owed, so it counts against you."""
-    r = _get(c, f"/accounts/{account['id']}/balances", token)
-    if r.status_code != 200:
+    try:
+        r = _get(c, f"/accounts/{account['id']}/balances", token)
+        if r.status_code != 200:
+            return None
+        data = _json(r)
+    except TellerError:
+        # A balance that can't be read leaves the lines already read to land
+        # (#256); the caller keeps or clears the balance it had.
         return None
-    data = _json(r)
     value = _amount(data.get("ledger")) if isinstance(data, dict) else None
     if value is not None and account.get("type") == "credit":
         value = -value

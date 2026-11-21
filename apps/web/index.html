@@ -2831,7 +2831,7 @@ const WEB_VERSION = "1.99.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
-// 1.99.0 (2026-11-21, claude+mkolakowski): (#256) The bank's balance next to yours. The forecast's new bank_balance (balance, as_of, provider, gap, can_adjust; null when the account has no bank balance) is shown by _bankBalanceHtml under "Current balance" in the Forecast summary: "Bank: $… as of …", and when the gap isn't 0 an amber "Bank differs by …" with an "Adjust to bank" button (bankAdjust → POST /api/accounts/{id}/bank-adjust with the gap shown, today= the browser's date). After it, "Adjusted by … Undo" stays in the tile (_bankAdjusted; bankAdjustUndo → DELETE /api/transactions/{id}) until the gap is back or another account opens.
+// 1.99.0 (2026-11-21, claude+mkolakowski): (#256) The bank's balance next to yours. The forecast's new bank_balance (balance, as_of, provider, gap, can_adjust; null when the account has no bank balance) is shown by _bankBalanceHtml under "Current balance" in the Forecast summary: "Bank: $… as of …", and when the gap isn't 0 an amber "Bank differs by …" with an "Adjust to bank" button (bankAdjust → POST /api/accounts/{id}/bank-adjust with the gap shown, today= the browser's date). After it, "Adjusted by … Undo" stays in the tile (_bankAdjusted; bankAdjustUndo → DELETE /api/transactions/{id}) until the gap is back or another account opens, and only while the bank's balance is the one it was made against. The bank balance's new unpaid_planned (count, amount of planned lines up to today not yet paid) is named in the tile and asked about in a confirmDialog before adjusting.
 // 1.98.0 (2026-11-20, claude+mkolakowski): (#255) Settings → Bank sync gets "Categories from your banks" (_bankCategoriesHtml, loaded with the rest in loadBank from GET /api/bank/categories): one row per category Teller or Plaid has given a line, with a dropdown of your categories (blank = Uncategorized), pre-filled by the server where the names match; "Save categories" (bankSaveCategories) sends every row to PUT /api/bank/categories. Shown only once a sync has seen a category.
 // 1.97.0 (2026-11-20, claude+mkolakowski): (#254) Teller and Plaid next to SimpleFIN, many connections. Settings → Bank sync lists each connection from /api/bank's new `connections` (_bankConnHtml: its bank's name and provider, its accounts to match, its own Sync now → POST /api/bank/sync {connection_id} and Disconnect → POST /api/bank/disconnect {connection_id}, which shows the answer's `warning`), with one Save matches for all. "Connect a bank" (_bankConnectHtml) offers each provider /api/bank says is available: Teller and Plaid open their own page in a new tab (bankStartProvider → POST /api/bank/connect/start, the tab opened in the click so it isn't blocked) and #bankWait checks back every 4 seconds (_bankWaitFor → POST /api/bank/connect/check) until done, exited or expired; SimpleFIN keeps its setup-token form behind "Paste a SimpleFIN token". Admin → Bank sync says which providers have their keys. New page /bank/teller (bank-teller.html, bank-teller.js) runs Teller Connect.
 // 1.96.0 (2026-11-18, claude+mkolakowski): (#231) The match pop-ins show what's within the bill's own bank-match days first (the answers' new within_days; _matchSplit), with "Show N more, up to 60 days away" (_matchMoreLink, _matchShowMore) for the rest; when nothing is within, everything shows with a line saying so. The "Closest match" highlight goes to the first shown card going the line's way.
@@ -8059,7 +8059,7 @@ function _updateCurrentMonthBtn() {
 // balance, when the bank had it, and how far it is from this account's
 // balance counting lines up to today. A gap is amber with "Adjust to bank",
 // which adds one correction line for it; "Undo" deletes that line again.
-let _bankAdjusted = null;   // {accountId, txnId, amount} of the last adjustment
+let _bankAdjusted = null;   // {accountId, txnId, amount, asOf, bank} of the last adjustment
 
 function _bankBalanceHtml(b) {
   if (!b) return '';
@@ -8069,10 +8069,15 @@ function _bankBalanceHtml(b) {
   let html = `<div class="bank" title="${tip}">Bank: ${fmt(b.balance)}${escapeHtml(asOf)}</div>`;
   if (Math.abs(b.gap) >= 0.005) {
     if (_bankAdjusted && _bankAdjusted.accountId === currentAccountId) _bankAdjusted = null;
+    const u = b.unpaid_planned;
     html += `<div class="bank gap">Bank differs by ${b.gap > 0 ? '+' : ''}${fmt(b.gap)}` +
+      (u ? `<br><small>Your balance counts ${u.count} planned line${u.count === 1 ? '' : 's'} (${fmt(u.amount)}) dated up to today that ${u.count === 1 ? "isn't" : "aren't"} paid yet, which may explain this.</small>` : '') +
       (b.can_adjust ? `<br><button type="button" class="ghost" onclick="bankAdjust(${Number(b.gap)})">Adjust to bank</button>` : '') +
       `</div>`;
-  } else if (_bankAdjusted && _bankAdjusted.accountId === currentAccountId) {
+  } else if (_bankAdjusted && _bankAdjusted.accountId === currentAccountId
+             && _bankAdjusted.asOf === b.as_of && _bankAdjusted.bank === b.balance) {
+    // Only while the bank's balance is the one the adjustment was made against:
+    // a later sync that closes the gap by itself leaves no Undo behind.
     html += `<div class="bank">Adjusted by ${_bankAdjusted.amount > 0 ? '+' : ''}${fmt(_bankAdjusted.amount)} ` +
       `<button type="button" class="ghost" onclick="bankAdjustUndo()">Undo</button></div>`;
   } else {
@@ -8084,10 +8089,19 @@ function _bankBalanceHtml(b) {
 async function bankAdjust(gap) {
   const accountId = currentAccountId;
   if (!accountId) return;
+  const seen = forecastData && forecastData.bank_balance;
+  // Planned lines up to today count in your balance but can't be at the bank
+  // yet: a correction made now would be wrong once they post.
+  if (seen && seen.unpaid_planned && !(await confirmDialog(
+      `${seen.unpaid_planned.count} planned line${seen.unpaid_planned.count === 1 ? '' : 's'} dated up to today ` +
+      `(${fmt(seen.unpaid_planned.amount)}) ${seen.unpaid_planned.count === 1 ? "isn't" : "aren't"} paid yet and may explain the difference. ` +
+      'Adjusting now would be wrong once the bank posts them. Adjust anyway?',
+      { title: 'Adjust to bank', okLabel: 'Adjust anyway' }))) return;
   try {
     const r = await api(`/api/accounts/${accountId}/bank-adjust?today=${_isoDate(new Date())}`,
       { method: 'POST', body: JSON.stringify({ gap }) });
-    _bankAdjusted = { accountId, txnId: r.transaction_id, amount: r.amount };
+    _bankAdjusted = { accountId, txnId: r.transaction_id, amount: r.amount,
+                      asOf: seen ? seen.as_of : null, bank: seen ? seen.balance : null };
     await loadForecast();
     notify('Added a line to match your bank\'s balance.', 'ok');
   } catch (e) {

@@ -295,6 +295,14 @@ more than you), with an **Adjust to bank** button:
   bank hasn't posted yet, a pending line you entered by hand, or the account's
   starting balance. Adjust to bank is the quick fix when you'd rather not hunt
   for it; the correction line stays visible in the table as what it is.
+- **Planned lines that aren't paid yet are named.** Your balance counts a
+  planned bill dated today or earlier at its planned amount, which the bank
+  can't have posted yet. When there are any, the tile says how many and how
+  much, and Adjust to bank asks you to confirm, since a correction made now
+  would be wrong once the bank posts them.
+- **Two taps count once:** a second Adjust to bank for the same gap is refused,
+  and **Undo** only shows while the bank balance is the one you adjusted
+  against.
 
 Where it comes from: SimpleFIN and Plaid send each account's balance with
 every sync, and a bank account with no balance shows none. A credit card's
@@ -303,7 +311,10 @@ or loan's balance counts against you, as it does in your own account.
 asks only when the balance has likely moved: at the first sync of a linked
 account, when the sync brings in a line it hasn't seen, or when the balance it
 has is a week old. Pressing Sync now twice, or a quiet day, makes no billed
-call, and the balance shown keeps the time it was read.
+call, and the balance shown keeps the time it was read. If Teller can't give
+the balance, the last good one stays unless new lines came in (it wouldn't
+include them), and it's tried again at most once a day, not at every sync.
+A balance that can't be read never stops the lines from coming in.
 
 Only you see it, as the owner of the connection: people an account is shared
 with don't see the bank's balance and can't adjust. It isn't shown while an

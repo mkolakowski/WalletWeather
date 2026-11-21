@@ -158,3 +158,16 @@ Decisions made while planning and building [`Plans/bank-sync.md`](../../../Plans
 - **What waits for after the first release:** the iPhone (phase 4) and email alerts (phase 5); phases 1 to 3 go out together.
 
 **Why:** a per-provider tick lets an admin keep a paid provider (Plaid's logins, Teller's billed calls) to a few people while still letting others use SimpleFIN, and the kill switch keeps one place to stop everything, which `PRIVACY.md`'s "nothing leaves the server unless the operator chooses" relies on. Keeping the login with its person means nobody else can use or change someone's bank credentials, while the account holding its sync means everyone who keeps the account up to date can see why a line came in and fix a match.
+
+## 2026-11-21: sync access, open questions 1 to 4
+
+**Decided:** 2026-11-21, by Matthew, settling open questions 1 to 4 of [`Plans/sync-access.md`](../../../Plans/sync-access.md) (#269), each as the plan had assumed. **Status:** accepted.
+
+**The questions and what was chosen** (the first option listed is the one chosen):
+
+- **Unticking a person for a provider they have a connection of** (phase 1): the connection is paused and kept, ticking again carries on, and their Settings says an admin has paused it; not left syncing (unticking only stopping new connections); not disconnected.
+- **What an editor is told about whose login feeds a shared account** (phase 2): "Synced from <name>'s <provider> connection · <bank account name>"; not the provider only; not just "Bank sync on".
+- **Who gets a connection when its person leaves and its linked accounts have different other owners** (phase 3): the other owner of the first-linked account gets the whole connection, the other accounts keep syncing and their owners can unlink, and the delete screens name who gets it; not chosen by the person deleting; not split into a copy per owner.
+- **A mailbox when its person leaves** (phase 5): disconnected with them, lines already in kept; not passed on like a bank connection.
+
+**Why:** pausing matches what the kill switch already does and loses nothing if the untick was a mistake. Naming the person and provider tells an editor who to ask when a sync breaks, without showing anything about the login. One whole connection avoids two copies of a bank token tripping a provider's limits, and a mailbox is someone's own email, which nobody else should keep reading.

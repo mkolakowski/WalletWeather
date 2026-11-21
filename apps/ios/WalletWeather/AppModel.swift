@@ -265,7 +265,8 @@ final class AppModel {
     /// `WW_DEBUG_KEEP` (what the phone keeps), `WW_DEBUG_LOOK` (the look),
     /// and `WW_DEBUG_CONFIRM`, `WW_DEBUG_COMPARE` and `WW_DEBUG_NEW_WINDOW`
     /// (Forecast's To confirm, Compare, and a second window on a page), and
-    /// `WW_DEBUG_DEMO=1` (open in the demo).
+    /// `WW_DEBUG_DEMO=1` (open in the demo), and `WW_DEBUG_CLOUDKIT_SCHEMA=1`
+    /// (write the CloudKit schema to Development, #270).
     /// Always nil in a
     /// Release build.
     static func debugSetting(_ name: String) -> String? {
@@ -369,6 +370,19 @@ final class AppModel {
             phase = .ready
             Task { await refreshMe() }
             return
+        }
+        // `WW_DEBUG_CLOUDKIT_SCHEMA=1` writes the household's CloudKit schema
+        // to the container's Development environment (#270), then carries on
+        // starting as usual; what happened goes to debug-cloudkit-schema.txt
+        // in Documents. Needs the device signed in to iCloud.
+        if env["WW_DEBUG_CLOUDKIT_SCHEMA"] == "1" {
+            Task.detached {
+                let said = CloudKitSchema.initialize()
+                let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                try? (said + "\n").write(to: documents.appending(path: "debug-cloudkit-schema.txt"),
+                                          atomically: true, encoding: .utf8)
+                print("WW_DEBUG_CLOUDKIT_SCHEMA: \(said)")
+            }
         }
         // `WW_DEBUG_DEMO=1` opens in the demo (#92).
         if env["WW_DEBUG_DEMO"] == "1" {

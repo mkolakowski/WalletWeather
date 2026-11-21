@@ -322,3 +322,49 @@ public enum LocalStore {
         ("Other", "#8b949e"),
     ]
 }
+
+#if DEBUG
+import CoreData
+
+/// Debug only (#270): writes the household's CloudKit schema, every `CD_`
+/// record type with every field, to the container's Development
+/// environment, with Apple's `initializeCloudKitSchema()` on a container
+/// built from the same SwiftData models (Apple's documented route; SwiftData
+/// has no call of its own). SwiftData's sync alone makes a field only the
+/// first time a record has a value for it, so a schema made by using the app
+/// misses optional fields left empty, and Production deployed from it breaks
+/// sync later. Runs on a scratch store: the household isn't touched. Needs
+/// the device signed in to iCloud. Never in a Release build.
+public enum CloudKitSchema {
+    private final class LoadResult: @unchecked Sendable { var error: Error? }
+
+    /// What happened, in a sentence, for `debug-cloudkit-schema.txt`.
+    public static func initialize() -> String {
+        guard let model = NSManagedObjectModel.makeManagedObjectModel(for: LocalModels.all) else {
+            return "Failed: couldn't make a Core Data model from the household's models."
+        }
+        let url = FileManager.default.temporaryDirectory.appending(path: "cloudkit-schema-\(UUID().uuidString).store")
+        let description = NSPersistentStoreDescription(url: url)
+        description.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: CloudBackup.containerID)
+        description.shouldAddStoreAsynchronously = false
+        let container = NSPersistentCloudKitContainer(name: "Household", managedObjectModel: model)
+        container.persistentStoreDescriptions = [description]
+        let loaded = LoadResult()
+        container.loadPersistentStores { _, error in loaded.error = error }
+        if let error = loaded.error { return "Failed to open the scratch store: \(error)" }
+        defer {
+            for store in container.persistentStoreCoordinator.persistentStores {
+                try? container.persistentStoreCoordinator.remove(store)
+            }
+            try? FileManager.default.removeItem(at: url)
+        }
+        do {
+            try container.initializeCloudKitSchema()
+        } catch {
+            return "Failed: \(error)"
+        }
+        let types = model.entities.compactMap(\.name).map { "CD_" + $0 }.sorted()
+        return "Wrote the schema to \(CloudBackup.containerID) (Development): \(types.joined(separator: ", "))"
+    }
+}
+#endif

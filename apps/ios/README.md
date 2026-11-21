@@ -280,7 +280,20 @@ device, when the store opens and when another device's changes land
 (`NSPersistentStoreRemoteChange`). With sync on, **Delete everywhere** (#249)
 empties the household through the store (`emptyHousehold`), waits for
 CloudKit's export, then deletes the files (`LocalStore.eraseEverywhere`).
-`SyncTests` checks it. Its `Connection` points at
+`SyncTests` checks it.
+
+**The CloudKit schema** (#270): TestFlight and App Store builds sync to the
+container's Production environment, whose record types (`CD_LocalAccount`
+and the other nine, one per model) must be deployed from Development in
+CloudKit Console first, and again after any model change. Debug builds write
+the whole Development schema, every field included, with
+`SIMCTL_CHILD_WW_DEBUG_CLOUDKIT_SCHEMA=1` (Apple's `initializeCloudKitSchema()`
+on a scratch store, `CloudKitSchema` in `LocalStore.swift`); the device must be
+signed in to iCloud, and the result is written to `debug-cloudkit-schema.txt`
+in the app's Documents. Using the app alone isn't enough: SwiftData's sync
+makes a field only once a record has a value for it.
+
+The household's `Connection` points at
 `https://this-iphone.walletweather.invalid`, and `APIClient` answers it on
 the phone (`LocalServer.swift`): the pages make the same requests as with a
 server and get the server's shapes back.

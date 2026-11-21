@@ -71,6 +71,12 @@ same commit (or session) that introduces it.
 
 App version: **1.89.0** · Web version: **1.100.0** · Schema version: **34** · iOS version: **0.30.0**
 
+## [1.89.0] — 2026-11-21
+
+App version: **1.89.0** · Web version: **1.100.0** · Schema version: **34** · iOS version: **0.30.0**
+
+You can now connect a bank through Teller or Plaid from the iPhone app: Settings → Bank sync → **Connect a bank** opens your server's new connect page in the phone's sign-in sheet, and the sheet closes by itself when the bank is connected. No database change and no settings to add; Teller and Plaid still need their keys in `.env`.
+
 ### Added
 
 - **iOS 0.30.0, connect a bank from your iPhone:** Settings → Bank sync now has a **Connect a bank** button. It opens your server's new connect page in the phone's sign-in sheet (the one the app signs in with, which shares Safari's sign-in), where you pick **Teller** or **Plaid** (whichever your server has keys for), type your two-factor code if it's on, and sign in to your bank on Teller's or Plaid's own page. When it's done the sheet closes by itself and the card says which bank was connected; match its accounts to yours in the web app, Settings → Bank sync, as before. SimpleFIN is still connected in the web app. The app never sees anything that reads your bank: connecting stays something only a signed-in browser can do, and the page hands the app only the new connection's number. Needs server 1.89.0. (#258)
@@ -2734,7 +2740,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.88.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.89.0...HEAD
+[1.89.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.89.0
 [1.88.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.88.0
 [1.85.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.85.0
 [1.82.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.82.0

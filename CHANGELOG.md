@@ -71,6 +71,12 @@ same commit (or session) that introduces it.
 
 App version: **1.92.0** · Web version: **1.103.0** · Schema version: **35** · iOS version: **0.30.0**
 
+## [1.92.0] — 2026-11-22
+
+App version: **1.92.0** · Web version: **1.103.0** · Schema version: **35** · iOS version: **0.30.0**
+
+Bank sync moves out of one Admin switch: an admin now ticks who may connect a bank and through which service, and a linked account's sync belongs to the account, so everyone who can edit a shared account can see its sync, match its lines and press Sync now. Deleting someone passes their bank connection to the account's other owner instead of stopping the sync. **Before you update:** everyone who already has a bank connected keeps it working, but nobody else can connect a bank until you tick them in Admin → Users. The database moves to schema 35 on the first start, by itself; there are no settings to add.
+
 ### Changed
 
 - **Breaking: deleting someone no longer takes their bank connection away from an account that stays.** When a person is deleted (by themselves or by an admin), each of their bank connections that still feeds an account with another owner passes to that owner and keeps syncing: the other owner of the account it was matched to first, the longest-standing one if there are several (skipping anyone who can't sign in, and anyone who has connected the same bank account themselves). It goes with all its matches, its sync logs stay on the accounts, the new holder is ticked for its service in Admin → Users if they weren't (so it doesn't arrive paused), and its bank categories are copied over, landing in the new holder's category of the same name. A connection that feeds no account staying with someone else is removed, as before. Settings → Delete account, and an admin's Delete in Admin → Users, now say which connections pass to whom and which are removed. Each hand-over is recorded in the audit log as `bank_connection_passed`, naming the deleted person and the new holder by number, under the admin who deleted them. (#266)
@@ -2751,7 +2757,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.89.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.92.0...HEAD
+[1.92.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.92.0
 [1.89.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.89.0
 [1.88.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.88.0
 [1.85.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.85.0

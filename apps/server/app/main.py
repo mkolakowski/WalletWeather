@@ -2576,18 +2576,31 @@ def _bank_deletion_plan(db: Session, user: User, doomed_ids: set[int]):
     `user`, given the accounts deleted with them."""
     passed, ended = [], []
     for conn in _bank_connections(db, user):
+        provider = _provider(conn)
+        ids = {a.get("id") for a in _bank_listing(conn)}
+
+        def can_hold(u: User) -> bool:
+            # Not someone who can't sync it (disabled, the demo user), nor
+            # someone with a connection from the same provider listing one of
+            # its bank accounts: that bank account would have one ref twice
+            # (see _bank_save_connection).
+            if u.disabled or is_demo_email(u.email):
+                return False
+            return not any(_provider(c) == provider and ids & {a.get("id") for a in _bank_listing(c)}
+                           for c in _bank_connections(db, u))
+
         holder = None
         for link in (db.query(BankAccountLink).filter_by(connection_id=conn.id)
                      .order_by(BankAccountLink.id)):
             if link.account_id in doomed_ids:
                 continue
-            holder = (db.query(User)
+            owners = (db.query(User)
                       .join(AccountPermission, AccountPermission.user_id == User.id)
                       .filter(AccountPermission.account_id == link.account_id,
                               AccountPermission.user_id != user.id,
                               AccountPermission.level == "owner")
-                      .order_by(AccountPermission.created_at, AccountPermission.user_id)
-                      .first())
+                      .order_by(AccountPermission.created_at, AccountPermission.user_id))
+            holder = next((u for u in owners if can_hold(u)), None)
             if holder is not None:
                 break
         if holder is None:
@@ -2604,8 +2617,7 @@ def _bank_pass_connection(db: Session, user: User, conn: BankConnection, holder:
     uncategorized, as a new row would)."""
     provider = _provider(conn)
     conn.user_id = holder.id
-    if not db.get(BankAccess, (holder.id, provider)):
-        db.add(BankAccess(user_id=holder.id, provider=provider))
+    _bank_keep_access(db, holder, provider)
     have = {k for (k,) in db.query(BankCategoryMap.key).filter_by(user_id=holder.id, provider=provider)}
     theirs = {}
     for c in db.query(Category).filter_by(owner_id=holder.id).order_by(Category.id):
@@ -2688,18 +2700,20 @@ def delete_me(payload: DeleteMeIn, request: Request,
     record_event(db, "user_deleted", request, user=user, detail="own user")
     uid = user.id
     passed = _delete_user(db, user, plan)
-    _record_bank_passed(db, request, uid, passed)
+    _record_bank_passed(db, request, None, uid, passed)
     request.session.clear()
     return {"ok": True}
 
 
-def _record_bank_passed(db: Session, request: Request, from_id: int, passed: list) -> None:
-    """One audit event per connection that passed on, under its new holder,
-    so it outlives the deleted user's blanked rows (#266)."""
+def _record_bank_passed(db: Session, request: Request, actor: User | None, from_id: int,
+                        passed: list) -> None:
+    """One audit event per connection that passed on (#266), by whoever did
+    the deleting (the admin, or no one left for a person deleting
+    themselves), naming both people by number."""
     for conn_id, provider, holder_id in passed:
-        record_event(db, "bank_connection_passed", request, user=db.get(User, holder_id),
+        record_event(db, "bank_connection_passed", request, user=actor,
                      detail=f"connection #{conn_id} ({BANK_PROVIDER_NAMES.get(provider, provider)}) "
-                            f"from deleted user #{from_id}")
+                            f"from deleted user #{from_id} to user #{holder_id}")
 
 
 def _delete_user(db: Session, user: User, plan: dict) -> list[tuple[int, str, int]]:
@@ -4474,9 +4488,7 @@ def _bank_status(db: Session, user: User) -> dict:
     if not conns:
         out["connections"] = []
         return out
-    shared = out["shared"]
-    out.update(_bank_short_status(db, user))
-    out["shared"] = shared   # with the bank account names the short one leaves out
+    out.update(_bank_short_status(db, user, shared=out["shared"]))
     short = {c["id"]: c for c in out["connections"]}
     details, every = [], []
     for conn in conns:
@@ -4504,6 +4516,8 @@ def _bank_status(db: Session, user: User) -> dict:
                 # Synced lines that paid no planned line, still to look at (#196).
                 "unmatched_count": (_unmatched_query(db, link.account_id).count()
                                     if link and LEVEL_RANK[level] >= LEVEL_RANK["edit"] else 0),
+                # Its sync log and Unmatched list open for owners and editors (#265).
+                "sync_log": bool(link) and LEVEL_RANK[level] >= LEVEL_RANK["edit"],
             })
         every += accounts
         details.append({**short[conn.id],
@@ -4615,6 +4629,14 @@ def _bank_remove_secret(provider: str, secret: str) -> None:
         pass
 
 
+def _bank_keep_access(db: Session, user: User, provider: str) -> None:
+    """Tick `user` for `provider` if they aren't: someone holding a connection
+    keeps being let use it, as the upgrade to schema 35 did (#264), so an
+    admin's own connection doesn't pause once they stop being an admin."""
+    if not db.get(BankAccess, (user.id, provider)):
+        db.add(BankAccess(user_id=user.id, provider=provider))
+
+
 def _bank_save_connection(db: Session, user: User, provider: str, secret: str,
                           accounts: list[dict], request: Request) -> BankConnection:
     """A new connection; or, when it reaches a bank account one of the
@@ -4627,6 +4649,7 @@ def _bank_save_connection(db: Session, user: User, provider: str, secret: str,
     if ids:
         same = next((c for c in _bank_connections(db, user) if _provider(c) == provider
                      and ids & {a.get("id") for a in _bank_listing(c)}), None)
+    _bank_keep_access(db, user, provider)
     if same is None:
         conn = BankConnection(user_id=user.id, provider=provider, access_url_enc=encrypt_str(secret),
                               calls_json="[]")
@@ -4830,8 +4853,8 @@ def bank_set_links(body: BankLinksIn, request: Request,
     # account's owners take it away (#266, decision 7).
     for ref, l in wanted.items():
         link = existing.get(ref)
-        if (link is not None and link.account_id != l.account_id
-                and _user_level(db, user, link.account_id) != "owner"):
+        if (link is not None and _user_level(db, user, link.account_id) != "owner"
+                and (link.account_id != l.account_id or (l.start_date or today) != link.start_date)):
             raise HTTPException(403, "That bank account feeds an account you don't own. Only that "
                                      "account's owners can stop it syncing.")
     after = {ref: link.account_id for ref, link in existing.items()}
@@ -5839,13 +5862,20 @@ def _bank_sync_account(db: Session, user: User, account_id: int, request: Reques
     if holder is None or holder.disabled:
         raise HTTPException(403, "The person whose bank connection feeds this account can't sign in "
                                  "at the moment, so it doesn't sync.")
-    result = _bank_sync(db, holder, conn, request, trigger="manual", actor=user)
-    return {**result, "status": _bank_short_status(db, user),
-            "account": next((a for a in _bank_shared(db, user, with_names=False, own=True)
-                             if a["account_id"] == acc.id), None)}
+    _bank_sync(db, holder, conn, request, trigger="manual", actor=user)
+    # What this account got, from its own sync log: the connection's totals
+    # and the provider's messages would tell of the holder's other accounts.
+    run = (db.query(BankSyncRun).filter_by(account_id=acc.id)
+           .order_by(BankSyncRun.run_at.desc(), BankSyncRun.id.desc()).first())
+    entry = _bank_shared(db, user, with_names=False, own=True, account_id=acc.id)
+    return {"added": run.added if run else 0, "matched": run.matched if run else 0,
+            "skipped": run.skipped if run else 0, "messages": [run.error] if run and run.error else [],
+            "calibrated": [], "status": _bank_short_status(db, user),
+            "account": entry[0] if entry else None}
 
 
-def _bank_shared(db: Session, user: User, with_names: bool, own: bool = False) -> list[dict]:
+def _bank_shared(db: Session, user: User, with_names: bool, own: bool = False,
+                 account_id: int | None = None) -> list[dict]:
     """The accounts this person owns or edits that take lines from someone
     else's bank connection (#265; `own` adds those from their own), for
     Settings → Bank sync and the apps: whose connection and which provider,
@@ -5860,18 +5890,21 @@ def _bank_shared(db: Session, user: User, with_names: bool, own: bool = False) -
                  AccountPermission.level.in_(["owner", "edit"])))
     if not own:
         q = q.filter(BankConnection.user_id != user.id)
+    if account_id is not None:
+        q = q.filter(Account.id == account_id)
     rows = q.order_by(Account.archived, Account.id).all()
     if not rows:
         return []
     enabled = bank_sync_enabled(db)
     now = datetime.utcnow()
-    holders: dict[int, User | None] = {}
+    holders: dict[int, tuple[User | None, set[str]]] = {}
     out = []
     for link, conn, acc in rows:
         if conn.user_id not in holders:
-            holders[conn.user_id] = db.get(User, conn.user_id)
-        holder = holders[conn.user_id]
-        paused = _bank_paused(db, conn, holder) if holder is not None else True
+            h = db.get(User, conn.user_id)
+            holders[conn.user_id] = (h, bank_access(db, h) if h is not None else set())
+        holder, access = holders[conn.user_id]
+        paused = holder is None or _provider(conn) not in access
         short = _bank_conn_short(db, conn, now, enabled, paused)
         run = (db.query(BankSyncRun).filter_by(account_id=acc.id)
                .order_by(BankSyncRun.run_at.desc(), BankSyncRun.id.desc()).first())
@@ -5893,6 +5926,8 @@ def _bank_shared(db: Session, user: User, with_names: bool, own: bool = False) -
             "last_sync_ok": (run.error is None) if run else None,
             "last_sync_status": status,
             "needs_reconnect": short["needs_reconnect"], "paused": short["paused"],
+            # Its person can't sign in, so it doesn't sync (Sync now refuses).
+            "holder_disabled": holder is None or bool(holder.disabled),
             "next_sync_at": short["next_sync_at"], "syncs_left_today": short["syncs_left_today"],
             "sync_wait_seconds": short["sync_wait_seconds"],
             "unmatched_count": _unmatched_query(db, acc.id).count(),
@@ -5999,7 +6034,7 @@ def _bank_conn_short(db: Session, conn: BankConnection, now: datetime, enabled: 
     }
 
 
-def _bank_short_status(db: Session, user: User) -> dict:
+def _bank_short_status(db: Session, user: User, shared: list[dict] | None = None) -> dict:
     """What an app needs to show the sync's state (#195): no bank account
     names. The top-level fields keep their one-connection shape (the iPhone
     app as released reads them) and sum up every connection (#254);
@@ -6008,7 +6043,8 @@ def _bank_short_status(db: Session, user: User) -> dict:
     enabled = bank_sync_enabled(db)
     # `shared`: accounts shared with this person that sync from someone
     # else's connection, with no bank account names (#265).
-    out = {"enabled": enabled, "connected": bool(conns), "shared": _bank_shared(db, user, with_names=False)}
+    out = {"enabled": enabled, "connected": bool(conns),
+           "shared": shared if shared is not None else _bank_shared(db, user, with_names=False)}
     if not conns:
         return out
     now = datetime.utcnow()
@@ -9249,7 +9285,7 @@ def admin_delete_user(uid: int, request: Request,
     target_id = target.id
     passed = _delete_user(db, target, plan)
     record_event(db, "user_deleted", request, user=user, detail=audit_target(user, target_id))
-    _record_bank_passed(db, request, target_id, passed)
+    _record_bank_passed(db, request, user, target_id, passed)
     return {"ok": True}
 
 
@@ -9489,6 +9525,7 @@ AUDIT_EVENT_TYPES = (
     "browser_remembered", "browser_forgotten", "two_factor_requirement_changed",
     "bank_connected", "bank_disconnected", "bank_account_created", "bank_sync_run", "bank_sync_failed",
     "bank_balance_adjusted", "bank_sync_setting_changed", "bank_access_changed",
+    "bank_connection_passed", "bank_link_removed",
     "mail_connected", "mail_disconnected", "mail_sender_taught", "mail_check_run",
     "mail_check_failed", "mail_alerts_setting_changed",
 )

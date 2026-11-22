@@ -10,6 +10,8 @@ such account is deleted as before. Uses the stand-in SimpleFIN from
 test_bank_sync.py (two bank accounts: Everyday Checking, Savings) and the
 stand-in Teller from test_bank_providers.py.
 """
+from datetime import timedelta
+
 import pytest
 
 from conftest import share_account
@@ -126,6 +128,20 @@ def holder_of(conn_id):
 BOTH = pytest.mark.parametrize("how", ["self", "admin"])
 
 
+def passed_events(conn):
+    """(actor's user id, detail) of each bank_connection_passed event for
+    `conn`: the admin who deleted, or None for someone deleting themselves."""
+    from app.db import AuditEvent, SessionLocal
+    db = SessionLocal()
+    try:
+        return [(e.user_id, e.detail) for e in db.query(AuditEvent)
+                .filter(AuditEvent.event == "bank_connection_passed",
+                        AuditEvent.detail.like(f"connection #{conn} %"))
+                .order_by(AuditEvent.id)]
+    finally:
+        db.close()
+
+
 # ---------- One other owner ----------
 
 @BOTH
@@ -198,10 +214,11 @@ def test_the_sync_log_stays_with_the_account(scene, admin, how):
 
 
 @BOTH
-def test_passing_on_is_recorded_under_the_new_holder(scene, admin, how):
+def test_passing_on_is_recorded_by_whoever_deleted(scene, admin, how):
     assert remove(how, scene.h, scene.hu, admin).status_code == 200
-    assert audit_details("bank_connection_passed", scene.o1u["id"]) == [
-        f"connection #{scene.conn} (SimpleFIN) from deleted user #{scene.hu['id']}"]
+    actor = admin[1]["id"] if how == "admin" else None
+    assert passed_events(scene.conn) == [(actor,
+        f"connection #{scene.conn} (SimpleFIN) from deleted user #{scene.hu['id']} to user #{scene.o1u['id']}")]
 
 
 def test_the_longest_standing_owner_gets_it(app_started, fake, switched_on, admin):
@@ -210,7 +227,8 @@ def test_the_longest_standing_owner_gets_it(app_started, fake, switched_on, admi
     # o1 accepted before o1b did.
     assert holder_of(s.conn) == s.o1u["id"]
     assert bank_of(s.o1b)["connected"] is False
-    assert audit_details("bank_connection_passed", s.o1bu["id"]) == []
+    assert passed_events(s.conn) == [(None,
+        f"connection #{s.conn} (SimpleFIN) from deleted user #{s.hu['id']} to user #{s.o1u['id']}")]
 
 
 # ---------- Two accounts on one connection, two other owners ----------
@@ -224,9 +242,8 @@ def test_the_first_linked_accounts_owner_gets_it_and_the_other_link_stays(
     assert holder_of(s.conn) == s.o1u["id"]
     assert bank_of(s.o2)["connected"] is False
     assert link_rows(s.conn) == sorted([s.acc1, s.acc2])
-    assert audit_details("bank_connection_passed", s.o1u["id"]) == [
-        f"connection #{s.conn} (SimpleFIN) from deleted user #{s.hu['id']}"]
-    assert audit_details("bank_connection_passed", s.o2u["id"]) == []
+    assert [d for _, d in passed_events(s.conn)] == [
+        f"connection #{s.conn} (SimpleFIN) from deleted user #{s.hu['id']} to user #{s.o1u['id']}"]
     # o2 owns the account whose link stays: it takes lines from o1's connection.
     shared = shared_of(s.o2, s.acc2)
     assert len(shared) == 1 and shared[0]["level"] == "owner" and shared[0]["mine"] is False
@@ -418,8 +435,7 @@ def test_a_teller_connection_passes_with_its_category_map(teller_user, app_start
     assert rows["groceries"]["category_id"] == their_groceries  # theirs kept
     assert rows["misc"]["category_id"] is None
     assert not [r for r in other.get("/api/bank/categories").json()["rows"] if r["provider"] == "plaid"]
-    assert audit_details("bank_connection_passed", ou["id"]) == [
-        f"connection #{conn} (Teller) from deleted user #{hu['id']}"]
+    assert passed_events(conn) == [(None, f"connection #{conn} (Teller) from deleted user #{hu['id']} to user #{ou['id']}")]
     # The deleted person's rows went with them.
     db = SessionLocal()
     try:
@@ -558,3 +574,197 @@ def test_a_holders_own_match_isnt_locked(crowd):
     assert mine["locked"] is False and mine["account_id"] == crowd.acc and mine["account_name"] is None
     assert entry(crowd.c, "Savings")["locked"] is False
     assert entry(crowd.c, "Savings")["account_id"] is None
+
+
+# ---------- Who may be handed it (code review) ----------
+
+def set_user(user_id, **fields):
+    from app.db import SessionLocal, User
+    db = SessionLocal()
+    try:
+        row = db.get(User, user_id)
+        for k, v in fields.items():
+            setattr(row, k, v)
+        db.commit()
+    finally:
+        db.close()
+
+
+@pytest.mark.parametrize("why", ["disabled", "demo"])
+def test_an_owner_who_cant_sync_is_skipped(app_started, fake, switched_on, admin, why):
+    s = _scene(app_started, fake, o1b=True)
+    if why == "disabled":
+        set_user(s.o1u["id"], disabled=True)
+    else:
+        set_user(s.o1u["id"], email=f"first-{s.o1u['id']}@demo.walletweather.local")
+    check = s.h.get("/api/me/deletion-check").json()
+    assert [(c["id"], c["new_holder_email"]) for c in check["bank_connections_passed"]] == [
+        (s.conn, s.o1bu["email"])]
+    assert remove("self", s.h, s.hu, admin).status_code == 200
+    assert holder_of(s.conn) == s.o1bu["id"]
+    assert bank_of(s.o1b)["connected"] is True
+
+
+def test_the_next_linked_accounts_owner_is_tried_when_none_of_the_first_can_hold_it(
+        app_started, fake, switched_on, admin):
+    s = _scene(app_started, fake, second=True, o1b=True)
+    set_user(s.o1u["id"], disabled=True)
+    set_user(s.o1bu["id"], disabled=True)
+    assert remove("self", s.h, s.hu, admin).status_code == 200
+    assert holder_of(s.conn) == s.o2u["id"]
+    # The first account's link stays, locked to its owners.
+    assert link_rows(s.conn) == sorted([s.acc1, s.acc2])
+
+
+def test_with_no_owner_who_can_hold_it_the_connection_ends(app_started, fake, switched_on, admin):
+    s = _scene(app_started, fake, second=True, o1b=True)
+    for u in (s.o1u, s.o1bu, s.o2u):
+        set_user(u["id"], disabled=True)
+    check = s.h.get("/api/me/deletion-check").json()
+    assert check["bank_connections_passed"] == []
+    assert [c["id"] for c in check["bank_connections_deleted"]] == [s.conn]
+    assert remove("self", s.h, s.hu, admin).status_code == 200
+    assert s.conn not in connection_ids()
+    assert passed_events(s.conn) == []
+
+
+def test_an_owner_with_a_connection_to_the_same_bank_account_is_skipped(
+        app_started, fake, switched_on, admin):
+    s = _scene(app_started, fake, o1b=True, o1_ticked=True)
+    # o1 has already connected the same SimpleFIN bank accounts (same provider ids).
+    r = s.o1.post("/api/bank/connect", json={"token": fake.token()})
+    assert r.status_code == 200, r.text
+    own = r.json()["connections"][0]["id"]
+    assert own != s.conn
+    check = s.h.get("/api/me/deletion-check").json()
+    assert [(c["id"], c["new_holder_email"]) for c in check["bank_connections_passed"]] == [
+        (s.conn, s.o1bu["email"])]
+    assert remove("self", s.h, s.hu, admin).status_code == 200
+    assert holder_of(s.conn) == s.o1bu["id"]
+    assert holder_of(own) == s.o1u["id"]
+    drop_connection(own)
+
+
+def test_when_every_owner_has_the_same_bank_connected_it_ends(app_started, fake, switched_on, admin):
+    s = _scene(app_started, fake, o1_ticked=True)
+    r = s.o1.post("/api/bank/connect", json={"token": fake.token()})
+    assert r.status_code == 200, r.text
+    own = r.json()["connections"][0]["id"]
+    check = s.h.get("/api/me/deletion-check").json()
+    assert check["bank_connections_passed"] == []
+    assert [c["id"] for c in check["bank_connections_deleted"]] == [s.conn]
+    assert remove("self", s.h, s.hu, admin).status_code == 200
+    assert s.conn not in connection_ids()
+    drop_connection(own)
+
+
+# ---------- A locked match can't be moved, even by start date ----------
+
+def test_the_holder_cant_change_a_locked_links_start_date(app_started, fake, switched_on, admin):
+    s = _scene(app_started, fake, second=True, o1_on_acc2="read")
+    assert remove("self", s.h, s.hu, admin).status_code == 200
+    ref = ref_of(bank_of(s.o1), "Savings")
+    before = entry(s.o1, "Savings")["start_date"]
+    other_day = (TODAY - timedelta(days=3)).isoformat()
+    assert other_day != before
+    for body in ({"ref": ref, "account_id": s.acc2, "start_date": other_day},
+                 {"ref": ref, "account_id": s.acc2}):        # defaults to today
+        r = s.o1.put("/api/bank/links", json={"links": [body]})
+        assert r.status_code in (403, 404), (body, r.status_code, r.text)
+        assert entry(s.o1, "Savings")["start_date"] == before
+        assert entry(s.o1, "Savings")["account_id"] == s.acc2
+
+
+# ---------- Sync now by account when the connection feeds two ----------
+
+def test_an_editors_sync_answers_for_their_account_only(app_started, fake, switched_on):
+    s = _scene(app_started, fake, second=True)
+    editor, _ = register(app_started)
+    share_account(s.h, s.acc1, "edit", invitee_client=editor)
+    fake.accounts[0]["transactions"].append(
+        {"id": "T-9", "posted": epoch(TODAY), "amount": "-3.00", "description": "BUS FARE"})
+    fake.accounts[1]["transactions"] += [
+        {"id": "S-1", "posted": epoch(TODAY), "amount": "-1.00", "description": "SAVINGS FEE"},
+        {"id": "S-2", "posted": epoch(TODAY), "amount": "-2.00", "description": "SAVINGS FEE TWO"}]
+    r = editor.post("/api/bank/sync", json={"account_id": s.acc1})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    # The connection added 3 lines in all; the editor's account got 1.
+    assert (body["added"], body["matched"], body["skipped"]) == (1, 0, 2)
+    assert body["messages"] == [] and body["calibrated"] == []
+    assert body["account"]["account_id"] == s.acc1 and body["account"]["level"] == "edit"
+    assert "Second" not in str(body["account"]) and "Savings" not in str(body["account"])
+    assert {d["description"] for d in lines(s.h, s.acc2)} >= {"SAVINGS FEE", "SAVINGS FEE TWO"}
+    latest = s.h.get(f"/api/accounts/{s.acc1}/bank-syncs").json()[0]
+    assert (latest["added"], latest["matched"], latest["skipped"]) == (1, 0, 2)
+
+
+# ---------- Connecting ticks the person ----------
+
+def test_an_admins_connection_isnt_paused_once_they_stop_being_an_admin(
+        app_started, fake, switched_on, admin):
+    from app import main
+    from app.db import BankAccess, SessionLocal
+    c, u = admin
+    r = c.post("/api/bank/connect", json={"token": fake.token()})
+    assert r.status_code == 200, r.text
+    conn = r.json()["connections"][0]["id"]
+    db = SessionLocal()
+    try:
+        assert db.get(BankAccess, (u["id"], "simplefin")) is not None
+    finally:
+        db.close()
+    main.ADMIN_EMAILS.discard(u["email"])
+    status = bank_of(c)
+    assert "simplefin" in status["providers_allowed"]
+    assert status["connections"][0]["paused"] is False
+    # Not refused as paused (400: nothing is matched to sync yet).
+    assert c.post("/api/bank/sync").status_code == 400
+    drop_connection(conn)
+
+
+# ---------- What a locked row and a shared entry say ----------
+
+@pytest.mark.parametrize("level,sync_log", [("read", False), ("edit", True)])
+def test_a_locked_rows_sync_log_follows_the_holders_level(app_started, fake, switched_on, admin,
+                                                         level, sync_log):
+    s = _scene(app_started, fake, second=True, o1_on_acc2=level)
+    assert remove("self", s.h, s.hu, admin).status_code == 200
+    saved = entry(s.o1, "Savings")
+    assert saved["locked"] is True and saved["account_id"] == s.acc2
+    assert saved["sync_log"] is sync_log
+    assert entry(s.o1, "Everyday Checking")["sync_log"] is True
+
+
+def test_a_locked_row_with_no_access_has_no_sync_log(app_started, fake, switched_on, admin):
+    s = _scene(app_started, fake, second=True)
+    assert remove("self", s.h, s.hu, admin).status_code == 200
+    saved = entry(s.o1, "Savings")
+    assert saved["locked"] is True and saved["account_id"] is None and saved["sync_log"] is False
+
+
+def test_the_shared_entry_says_when_the_holder_is_disabled(crowd, admin):
+    a, _ = admin
+    [e] = shared_of(crowd.editor, crowd.acc)
+    assert e["holder_disabled"] is False
+    assert a.patch(f"/api/admin/users/{crowd.u['id']}", json={"disabled": True}).status_code == 200
+    try:
+        [e] = shared_of(crowd.editor, crowd.acc)
+        assert e["holder_disabled"] is True
+        r = crowd.editor.post("/api/bank/sync", json={"account_id": crowd.acc})
+        assert r.status_code == 403, r.text
+        assert "can't sign in" in r.json()["detail"]
+    finally:
+        assert a.patch(f"/api/admin/users/{crowd.u['id']}", json={"disabled": False}).status_code == 200
+    [e] = shared_of(crowd.editor, crowd.acc)
+    assert e["holder_disabled"] is False
+
+
+# ---------- The audit viewer lists the new events ----------
+
+def test_the_audit_viewer_offers_the_new_event_types(admin):
+    a, _ = admin
+    r = a.get("/api/admin/audit")
+    assert r.status_code == 200, r.text
+    types = r.json()["event_types"]
+    assert "bank_connection_passed" in types and "bank_link_removed" in types

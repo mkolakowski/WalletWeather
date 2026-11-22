@@ -9617,7 +9617,9 @@ function _bankSharedCardHtml(a) {
   const last = (a.last_sync_at
     ? `Last sync ${_bankWhen(a.last_sync_at)}: ${escapeHtml(a.last_sync_status || '')}`
     : 'Not synced yet.')
-    + (a.needs_reconnect
+    + (a.holder_disabled
+      ? `<br><strong>${who} can't sign in at the moment, so this account doesn't sync.</strong> An admin can turn their sign-in back on, or an owner can match it to their own bank.`
+      : a.needs_reconnect
       ? `<br><strong>${pname} no longer reaches this bank, so daily syncing has stopped.</strong> ${who} needs to connect it again.`
       : a.paused
         ? `<br><strong>An admin has paused ${who}'s ${pname} connection.</strong> This account syncs again once an admin lets ${who} use ${pname}.`
@@ -9630,7 +9632,7 @@ function _bankSharedCardHtml(a) {
     <div style="font-size:12px;color:var(--muted)">${from}</div>
     <div style="font-size:13px;margin-top:10px;color:${a.last_sync_ok === false ? 'var(--bad)' : 'var(--muted)'}">${last}</div>
     <div style="margin-top:8px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-      <button onclick="bankSyncShared(${id})"${a.sync_wait_seconds || a.paused ? ' disabled' : ''}>Sync now</button>
+      <button onclick="bankSyncShared(${id})"${a.sync_wait_seconds || a.paused || a.needs_reconnect || a.holder_disabled ? ' disabled' : ''}>Sync now</button>
       <span style="font-size:12px;color:var(--muted)">${left} sync${left === 1 ? '' : 's'} left in the next 24 hours</span>
       <button class="ghost" onclick="bankShowLog(${id})">Sync log</button>
       ${a.unmatched_count > 0 ? `<button class="ghost" onclick="bankShowUnmatched(${id})">Unmatched (${Number(a.unmatched_count)})</button>` : ''}
@@ -9764,8 +9766,8 @@ function _bankConnHtml(c, owned) {
       <td>${escapeHtml(a.name)}${a.org ? `<div style="font-size:11px;color:var(--muted)">${escapeHtml(a.org)}</div>` : ''}</td>
       <td colspan="2" style="font-size:13px">${a.account_name ? escapeHtml(a.account_name) : 'An account you can\'t see'}
         <div style="font-size:11px;color:var(--muted)">Not yours: only its owners can stop it syncing.</div></td>
-      <td style="white-space:nowrap">${a.account_id ? `<button class="ghost" onclick="bankShowLog(${a.account_id})">Sync log</button>` : ''}
-        ${a.account_id && a.unmatched_count > 0 ? `<button class="ghost" onclick="bankShowUnmatched(${a.account_id})">Unmatched (${Number(a.unmatched_count)})</button>` : ''}</td>
+      <td style="white-space:nowrap">${a.account_id && a.sync_log ? `<button class="ghost" onclick="bankShowLog(${a.account_id})">Sync log</button>` : ''}
+        ${a.account_id && a.sync_log && a.unmatched_count > 0 ? `<button class="ghost" onclick="bankShowUnmatched(${a.account_id})">Unmatched (${Number(a.unmatched_count)})</button>` : ''}</td>
     </tr>` : `<tr>
       <td>${escapeHtml(a.name)}${a.org ? `<div style="font-size:11px;color:var(--muted)">${escapeHtml(a.org)}</div>` : ''}</td>
       <td><select class="bank-link-account" data-ref="${escapeAttr(a.ref)}" aria-label="Your account for ${escapeAttr(a.name)}" onchange="bankLinkChanged(this)">${opts(a.account_id)}</select>

@@ -439,7 +439,7 @@ def test_the_holders_daily_limit_applies_to_the_editors_sync(crowd, fake):
 SHARED_KEYS = {"account_id", "account_name", "archived", "level", "holder_name", "mine", "provider",
                "provider_name", "synced_through", "last_sync_at", "last_sync_ok", "last_sync_status",
                "needs_reconnect", "paused", "next_sync_at", "syncs_left_today", "sync_wait_seconds",
-               "unmatched_count"}
+               "unmatched_count", "holder_disabled"}
 
 
 def test_the_editors_bank_state_lists_the_shared_account(crowd):

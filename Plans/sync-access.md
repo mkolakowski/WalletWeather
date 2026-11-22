@@ -6,11 +6,11 @@ Tracking issue: #269
 
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
-| 1. Who may connect, per person and provider | Server, Web | #264 | Built in 1.90.0 (web 1.101.0, schema 35), 2026-11-21; waits for phases 2 and 3 and their release |
-| 2. The account holds its sync | Server, Web | #265 | Built in 1.91.0 (web 1.102.0, schema 35), 2026-11-21; waits for phase 3 and the release |
-| 3. The connection passes on | Server, Web | #266 | Built in 1.92.0 (web 1.103.0, schema 35), 2026-11-22; waits for the release of phases 1 to 3 |
-| 4. The same on the iPhone | iOS | #267 | Not started; waits for the release of phases 1 to 3 |
-| 5. Email alerts on the same model | Server, Web, iOS | #268 | Not started; waits for the release of phases 1 to 3 |
+| 1. Who may connect, per person and provider | Server, Web | #264 | Released in 1.92.0, 2026-11-22 |
+| 2. The account holds its sync | Server, Web | #265 | Released in 1.92.0, 2026-11-22 |
+| 3. The connection passes on | Server, Web | #266 | Released in 1.92.0, 2026-11-22 |
+| 4. The same on the iPhone | iOS | #267 | Not started; ready (server 1.92.0 is out) |
+| 5. Email alerts on the same model | Server, Web, iOS | #268 | Not started; ready (server 1.92.0 is out) |
 
 Phase 1 built 2026-11-21 in 1.90.0 (web 1.101.0, schema 35), not released. The ticks are set with `PUT /api/admin/users/{id}/bank-access` (a browser session, like the Bank sync switch) rather than the `PATCH` the plan first named, so an admin API token can't widen who reaches a bank. API tests in `apps/server/tests/test_bank_access.py` (14: each connect route ticked, unticked and as an admin, a tick taken away mid-connection, the switch, the admin route and its audit event, pausing and carrying on, one provider paused beside another, and the once-only upgrade); the bank tests' `register` now ticks its users. Admin → Users and Settings → Bank sync (paused card, only ticked providers offered, hidden tab) checked in headless Chromium against a stubbed API.
 

@@ -156,8 +156,15 @@ struct DemoTests {
         let rows = status.connectionRows(when: { _ in "earlier" })
         #expect(rows.map(\.provider) == ["SimpleFIN", "Teller"])
         #expect(rows.allSatisfy { $0.summary.tone == .ok && $0.summary.canSync })
+        // One account shared by someone else's connection, ticked for Teller (#267).
+        #expect(status.mayConnectInApp)
+        let shared = try #require(status.shared?.first)
+        #expect(shared.accountName == "Credit Card" && shared.from == "Synced from Sam's Plaid connection")
+        let sharedSummary = shared.summary(when: { _ in "earlier" })
+        #expect(sharedSummary.tone == .ok && sharedSummary.canSync)
         await #expect(throws: APIError.demoReadOnly) { _ = try await client.syncBankNow() }
         await #expect(throws: APIError.demoReadOnly) { _ = try await client.syncBankNow(connection: 2) }
+        await #expect(throws: APIError.demoReadOnly) { _ = try await client.syncBankNow(account: 3) }
     }
 
     @Test func nothingIsKept() async throws {

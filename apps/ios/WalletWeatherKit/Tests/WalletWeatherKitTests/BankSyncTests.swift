@@ -199,6 +199,81 @@ struct BankSyncTests {
         #expect(BankConnect.offered(status, serverVersion: "1.89.0", readOnly: false))
     }
 
+    // MARK: Who may connect, and shared accounts (sync-access phase 4, #267)
+
+    @Test func connectIsOfferedOnlyToSomeoneTickedForTellerOrPlaid() throws {
+        func offered(_ allowed: [String]?) -> Bool {
+            BankConnect.offered(BankStatus(enabled: true, connected: false, providersAllowed: allowed),
+                                serverVersion: "1.92.1", readOnly: false)
+        }
+        #expect(offered(["teller"]) && offered(["plaid"]) && offered(["simplefin", "teller", "plaid"]))
+        #expect(!offered([]))                // not ticked for anything
+        #expect(!offered(["simplefin"]))     // SimpleFIN is connected in the web app
+        // A server before 1.92.1 doesn't say, so it's offered as it was.
+        #expect(offered(nil))
+        let status: BankStatus = try sample("bank-status-connected")
+        #expect(status.providersAllowed == nil && status.mayConnect && status.mayConnectInApp)
+    }
+
+    @Test func anUntickedPersonIsToldAnAdminChoosesNotToConnectInTheWebApp() throws {
+        let status: BankStatus = try sample("bank-status-shared")
+        #expect(status.providersAllowed == [] && !status.mayConnect && !status.mayConnectInApp)
+        let summary = status.summary(now: now, when: when)
+        #expect(summary.headline == "No bank connected")
+        #expect(summary.detail?.contains("Admin → Users") == true)
+        // Ticked for one but nothing connected yet: the web app is where it's done.
+        let ticked = BankStatus(enabled: true, connected: false, providersAllowed: ["simplefin"])
+        #expect(ticked.summary(now: now, when: when).detail == "Connecting a bank is done in the web app: Settings → Bank sync.")
+    }
+
+    @Test func aSharedAccountReadsAsTheServerWritesItAndSaysWhoseConnection() throws {
+        let status: BankStatus = try sample("bank-status-shared")
+        let account = try #require(status.shared?.first)
+        #expect(account.id == 7 && account.accountName == "Joint checking" && account.level == "edit")
+        #expect(account.from == "Synced from Sam's SimpleFIN connection")
+        let summary = account.summary(now: now, when: when)
+        #expect(summary.tone == .ok && summary.canSync && summary.waitText == nil)
+        #expect(summary.headline == "Synced T\(Int(BankStatus.date(account.lastSyncAt)!.timeIntervalSince1970))")
+        #expect(summary.detail == "2 new lines, 1 matched a bill, 3 already here")
+        #expect(summary.next?.hasPrefix("Syncs by itself again about T") == true)
+        #expect(account.unmatchedCount == 2)
+        // An older server has no `shared`, which is none.
+        let older: BankStatus = try sample("bank-status-connected")
+        #expect(older.shared == nil)
+    }
+
+    @Test func aSharedAccountTurnsSyncNowOffWhilePausedOrNeedingReconnectOrItsPersonCantSignIn() {
+        func account(paused: Bool = false, reconnect: Bool = false, disabled: Bool = false, wait: Int = 0) -> SharedBankAccount {
+            SharedBankAccount(accountId: 3, accountName: "Savings", holderName: "Sam", provider: "teller", providerName: "Teller",
+                              lastSyncAt: "2026-11-17T10:00:00Z", lastSyncOk: true, lastSyncStatus: "0 new lines, 4 already here",
+                              needsReconnect: reconnect, paused: paused, holderDisabled: disabled, syncWaitSeconds: wait)
+        }
+        let paused = account(paused: true).summary(now: now, when: when)
+        #expect(paused.tone == .warning && !paused.canSync && paused.headline == "Paused by an admin")
+        #expect(paused.detail == "An admin has paused Sam's Teller connection. This account syncs again once an admin lets Sam use Teller.")
+        let reconnect = account(reconnect: true).summary(now: now, when: when)
+        #expect(reconnect.tone == .warning && !reconnect.canSync && reconnect.detail?.hasSuffix("Sam needs to connect it again.") == true)
+        let disabled = account(disabled: true).summary(now: now, when: when)
+        #expect(disabled.tone == .warning && !disabled.canSync && disabled.headline == "Sam can't sign in")
+        let waiting = account(wait: 5400).summary(now: now, when: when)
+        #expect(!waiting.canSync && waiting.waitText?.hasSuffix("It can run again in 90 minutes.") == true)
+        #expect(waiting.tone == .ok)   // its last sync was fine; only the limit holds it
+        // Bank sync switched off for the whole server beats everything.
+        let off = account().summary(enabled: false, now: now, when: when)
+        #expect(off.headline == "Bank sync is switched off" && !off.canSync)
+    }
+
+    @Test func aSharedAccountsFailedOrMissingSyncSaysSo() {
+        let failed = SharedBankAccount(accountId: 3, accountName: "Savings", holderName: "Sam", providerName: "Teller",
+                                       lastSyncAt: "2026-11-17T10:00:00Z", lastSyncOk: false, lastSyncStatus: "Teller didn't answer.")
+        let summary = failed.summary(now: now, when: when)
+        #expect(summary.tone == .warning && summary.headline == "Last sync failed" && summary.canSync)
+        #expect(summary.detail?.hasSuffix(": Teller didn't answer.") == true)
+        let never = SharedBankAccount(accountId: 3, accountName: "Savings")
+        #expect(never.summary(now: now, when: when).headline == "Not synced yet")
+        #expect(never.from == "Synced from someone's bank connection")
+    }
+
     @Test func afterTheSheetTheCardNamesTheNewConnectionAndWhereToMatchIt() throws {
         let status: BankStatus = try sample("bank-status-connections")
         let done = BankConnect.outcome(.bankConnected(connection: 2, state: nil), status: status)
@@ -308,6 +383,35 @@ extension StubServerSuites {
             #expect(request.httpMethod == "POST" && request.url?.path == "/api/bank/sync")
             let body = try #require(StubServer.lastBody)
             #expect(try JSONSerialization.jsonObject(with: body) as? [String: Int] == ["connection_id": 2])
+        }
+
+        @Test func syncNowForASharedAccountAsksForThatAccountAndDecodesItsState() async throws {
+            let body = #"""
+            {"added": 2, "matched": 1, "skipped": 3, "messages": [], "calibrated": [],
+             "status": {"enabled": true, "connected": false, "providers_allowed": [], "shared": []},
+             "account": {"account_id": 7, "account_name": "Joint checking", "archived": false, "level": "edit",
+                         "holder_name": "Sam", "mine": false, "provider": "simplefin", "provider_name": "SimpleFIN",
+                         "last_sync_at": "2026-11-21T15:04:05Z", "last_sync_ok": true,
+                         "last_sync_status": "2 new lines, 1 matched a bill, 3 already here",
+                         "needs_reconnect": false, "paused": false, "holder_disabled": false,
+                         "syncs_left_today": 18, "sync_wait_seconds": 0, "unmatched_count": 0}}
+            """#
+            StubServer.answer(200, Data(body.utf8))
+            let result = try await Self.client().syncBankNow(account: 7)
+            #expect(result.account?.accountId == 7 && result.account?.syncsLeftToday == 18)
+            #expect(result.account?.lastSyncStatus == "2 new lines, 1 matched a bill, 3 already here")
+            let request = try #require(StubServer.lastRequest)
+            #expect(request.httpMethod == "POST" && request.url?.path == "/api/bank/sync")
+            let sent = try #require(StubServer.lastBody)
+            #expect(try JSONSerialization.jsonObject(with: sent) as? [String: Int] == ["account_id": 7])
+        }
+
+        @Test func aPausedHoldersRefusalComesThroughInTheServersWords() async {
+            let said = "An admin has paused Sam's SimpleFIN connection, so this account can't sync until they're allowed again."
+            StubServer.answer(403, Data(#"{"detail":"\#(said)"}"#.utf8))
+            await #expect(throws: APIError.server(status: 403, detail: said)) {
+                _ = try await Self.client().syncBankNow(account: 7)
+            }
         }
 
         @Test func aConnectionOverItsLimitIsRefusedInTheServersWords() async {

@@ -187,7 +187,9 @@ def test_the_status_warns_after_a_day_of_failing(linked, fake):
 
 def test_not_connected_status(app_started, switched_on):
     c, _ = register(app_started)
-    assert c.get("/api/bank/status").json() == {"enabled": True, "connected": False, "shared": []}
+    # `providers_allowed`: ticked for all three, but only SimpleFIN has keys here (#267).
+    assert c.get("/api/bank/status").json() == {"enabled": True, "connected": False,
+                                                "providers_allowed": ["simplefin"], "shared": []}
 
 
 # ---------- Tokens ----------

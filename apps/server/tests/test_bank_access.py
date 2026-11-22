@@ -216,6 +216,29 @@ def test_unticking_one_provider_leaves_the_others_syncing(app_started, connected
     assert c.post("/api/bank/sync", json={}).status_code == 200
 
 
+# ---------- The short status tells an app who is ticked (#267) ----------
+
+def test_the_short_status_lists_the_providers_a_person_may_connect_through(
+        app_started, admin, fake, teller_fake, switched_on):
+    c, u = register(app_started, bank=False)
+    s = c.get("/api/bank/status").json()
+    assert s["providers_allowed"] == [] and s["connected"] is False
+    allow_bank(u["id"], ["teller"])
+    assert c.get("/api/bank/status").json()["providers_allowed"] == ["teller"]
+    # The same as the session-only state's list, with and without a connection.
+    assert c.get("/api/bank").json()["providers_allowed"] == ["teller"]
+    connect_teller(c)
+    s = c.get("/api/bank/status").json()
+    assert s["connected"] is True and s["providers_allowed"] == ["teller"]
+    a, _ = admin
+    assert a.get("/api/bank/status").json()["providers_allowed"] == ["simplefin", "teller"]
+
+
+def test_the_short_status_lists_nothing_while_the_provider_has_no_keys(app_started, switched_on):
+    c, _ = register(app_started)   # ticked for all three; no Teller or Plaid keys here
+    assert c.get("/api/bank/status").json()["providers_allowed"] == ["simplefin"]
+
+
 # ---------- The upgrade ----------
 
 def test_the_upgrade_ticks_whoever_has_a_connection_once(app_started, connected, admin):

@@ -6,7 +6,11 @@ import Foundation
 // server just doesn't show the row's details. From server 1.86.0 the status
 // also lists every connection (SimpleFIN, Teller or Plaid, bank-providers
 // phase 4, #257), each with its own state and Sync now; before that the
-// top-level fields are the one connection's.
+// top-level fields are the one connection's. From server 1.92.1 the status
+// also says which services the person may connect a bank through
+// (`providers_allowed`), and from 1.92.0 it lists the accounts shared with
+// them that sync from someone else's connection (`shared`; sync-access
+// phase 4, #267), each with its own Sync now.
 
 /// `GET /api/bank/status`: the sync's state, readable with any API token.
 /// A person with no bank connected gets only `enabled` and `connected`.
@@ -28,6 +32,13 @@ public struct BankStatus: Sendable, Codable, Equatable {
     /// Each bank connection with its own state (server 1.86.0 or later);
     /// nil from an older server, whose top-level fields are its one.
     public let connections: [BankConnection]?
+    /// Accounts the person owns or edits that sync from someone else's
+    /// connection (server 1.92.0 or later); nil from an older server.
+    public let shared: [SharedBankAccount]?
+    /// The services an admin lets this person connect a bank through
+    /// (`simplefin`, `teller`, `plaid`; server 1.92.1 or later); nil from an
+    /// older server, which has no way to say.
+    public let providersAllowed: [String]?
 
     /// The most syncs the server allows in 24 hours (the web app says the same).
     public static let syncsPerDay = 20
@@ -37,7 +48,8 @@ public struct BankStatus: Sendable, Codable, Equatable {
     public init(enabled: Bool, connected: Bool, linkedAccountIds: [Int]? = nil, lastSyncAt: String? = nil,
                 lastSyncOk: Bool? = nil, lastSyncStatus: String? = nil, needsReconnect: Bool? = nil,
                 failingOverADay: Bool? = nil, nextSyncAt: String? = nil, syncsLeftToday: Int? = nil,
-                syncWaitSeconds: Int? = nil, connections: [BankConnection]? = nil) {
+                syncWaitSeconds: Int? = nil, connections: [BankConnection]? = nil,
+                shared: [SharedBankAccount]? = nil, providersAllowed: [String]? = nil) {
         self.enabled = enabled
         self.connected = connected
         self.linkedAccountIds = linkedAccountIds
@@ -50,6 +62,21 @@ public struct BankStatus: Sendable, Codable, Equatable {
         self.syncsLeftToday = syncsLeftToday
         self.syncWaitSeconds = syncWaitSeconds
         self.connections = connections
+        self.shared = shared
+        self.providersAllowed = providersAllowed
+    }
+
+    /// Whether the person may connect a bank at all: false only when the
+    /// server says they're ticked for no service. An older server that
+    /// doesn't say gets today's behaviour (the card offers it).
+    public var mayConnect: Bool { providersAllowed?.isEmpty != true }
+
+    /// Whether the app's own Connect a bank applies: it runs Teller and
+    /// Plaid (SimpleFIN is connected in the web app), so someone ticked for
+    /// only SimpleFIN doesn't see it.
+    public var mayConnectInApp: Bool {
+        guard let providersAllowed else { return true }
+        return providersAllowed.contains { $0 == "teller" || $0 == "plaid" }
     }
 
     /// A time as the server writes it, with or without fractions of a second.
@@ -78,7 +105,8 @@ public struct BankStatus: Sendable, Codable, Equatable {
             provider: "SimpleFIN", enabled: enabled, connected: connected,
             matched: linkedAccountIds?.isEmpty == false, needsReconnect: needsReconnect == true,
             lastSyncAt: lastSyncAt, lastSyncOk: lastSyncOk, lastSyncStatus: lastSyncStatus,
-            nextSyncAt: nextSyncAt, syncWaitSeconds: syncWaitSeconds, now: now, when: when)
+            nextSyncAt: nextSyncAt, syncWaitSeconds: syncWaitSeconds, mayConnect: mayConnect,
+            now: now, when: when)
     }
 
     /// One row for each connection, in the server's order; empty when a
@@ -141,6 +169,112 @@ public struct BankConnection: Sendable, Codable, Equatable, Identifiable {
     }
 }
 
+/// An account the person owns or edits that takes its lines from someone
+/// else's bank connection, in `GET /api/bank/status`'s `shared` (server 1.92.0
+/// or later; sync-access phase 2, #265). The server gives the account's own
+/// last sync, never the holder's other accounts, and no bank account name.
+public struct SharedBankAccount: Sendable, Codable, Equatable, Identifiable {
+    public var id: Int { accountId }
+    public let accountId: Int
+    public let accountName: String
+    public let archived: Bool?
+    /// `owner` or `edit`.
+    public let level: String?
+    /// Whose connection it is: their name, or their email.
+    public let holderName: String?
+    public let provider: String?
+    public let providerName: String?
+    public let lastSyncAt: String?
+    public let lastSyncOk: Bool?
+    public let lastSyncStatus: String?
+    public let needsReconnect: Bool?
+    /// An admin has unticked the holder for this provider.
+    public let paused: Bool?
+    /// The holder can't sign in, so the account doesn't sync.
+    public let holderDisabled: Bool?
+    public let nextSyncAt: String?
+    public let syncsLeftToday: Int?
+    public let syncWaitSeconds: Int?
+    /// Lines waiting to be matched, which is done in the web app.
+    public let unmatchedCount: Int?
+
+    public init(accountId: Int, accountName: String, archived: Bool? = false, level: String? = "edit",
+                holderName: String? = nil, provider: String? = nil, providerName: String? = nil,
+                lastSyncAt: String? = nil, lastSyncOk: Bool? = nil, lastSyncStatus: String? = nil,
+                needsReconnect: Bool? = false, paused: Bool? = false, holderDisabled: Bool? = false,
+                nextSyncAt: String? = nil, syncsLeftToday: Int? = nil, syncWaitSeconds: Int? = 0,
+                unmatchedCount: Int? = 0) {
+        self.accountId = accountId
+        self.accountName = accountName
+        self.archived = archived
+        self.level = level
+        self.holderName = holderName
+        self.provider = provider
+        self.providerName = providerName
+        self.lastSyncAt = lastSyncAt
+        self.lastSyncOk = lastSyncOk
+        self.lastSyncStatus = lastSyncStatus
+        self.needsReconnect = needsReconnect
+        self.paused = paused
+        self.holderDisabled = holderDisabled
+        self.nextSyncAt = nextSyncAt
+        self.syncsLeftToday = syncsLeftToday
+        self.syncWaitSeconds = syncWaitSeconds
+        self.unmatchedCount = unmatchedCount
+    }
+
+    private var who: String { holderName ?? "someone" }
+    private var service: String { providerName ?? "bank" }
+
+    /// "Synced from Sam's SimpleFIN connection", as the web app says it.
+    public var from: String { "Synced from \(who)'s \(service) connection" }
+
+    /// This account's state in plain words. `enabled` is whether an admin
+    /// has bank sync switched on for the server.
+    public func summary(enabled: Bool = true, now: Date = .now, when: (Date) -> String) -> BankSyncSummary {
+        if !enabled {
+            return BankSyncSummary(
+                tone: .neutral, headline: "Bank sync is switched off",
+                detail: "An admin switched it off on this server, so nothing syncs until it's switched on again.")
+        }
+        if holderDisabled == true {
+            return BankSyncSummary(
+                tone: .warning, headline: "\(who) can't sign in",
+                detail: "\(who) can't sign in at the moment, so this account doesn't sync. An admin can turn their sign-in back on, or an owner can match it to their own bank in the web app.")
+        }
+        if needsReconnect == true {
+            return BankSyncSummary(
+                tone: .warning, headline: "Needs connecting again",
+                detail: "\(service) no longer reaches this bank, so daily syncing has stopped. \(who) needs to connect it again.")
+        }
+        if paused == true {
+            return BankSyncSummary(
+                tone: .warning, headline: "Paused by an admin",
+                detail: "An admin has paused \(who)'s \(service) connection. This account syncs again once an admin lets \(who) use \(service).")
+        }
+        var wait: String?
+        if let seconds = syncWaitSeconds, seconds > 0 {
+            let minutes = (seconds + 59) / 60
+            wait = "\(who)'s \(service) connection has asked \(service) \(BankStatus.syncsPerDay) times in the last 24 hours, the most it allows. It can run again in \(minutes) minute\(minutes == 1 ? "" : "s")."
+        }
+        var next: String?
+        if let due = BankStatus.date(nextSyncAt) {
+            next = due > now ? "Syncs by itself again about \(when(due))." : "The next sync by itself is due now."
+        }
+        guard let last = BankStatus.date(lastSyncAt) else {
+            return BankSyncSummary(tone: .neutral, headline: "Not synced yet", next: next,
+                                   canSync: wait == nil, waitText: wait)
+        }
+        if lastSyncOk == false {
+            return BankSyncSummary(tone: .warning, headline: "Last sync failed",
+                                   detail: "\(when(last)): \(lastSyncStatus ?? "\(service) didn't answer.")",
+                                   next: next, canSync: wait == nil, waitText: wait)
+        }
+        return BankSyncSummary(tone: .ok, headline: "Synced \(when(last))", detail: lastSyncStatus,
+                               next: next, canSync: wait == nil, waitText: wait)
+    }
+}
+
 /// A connection as the Settings card lists it.
 public struct BankConnectionRow: Sendable, Equatable, Identifiable {
     public let id: Int
@@ -180,7 +314,8 @@ public struct BankSyncSummary: Sendable, Equatable {
     /// list connections, for the one the top-level fields describe).
     static func make(provider: String, enabled: Bool, connected: Bool, matched: Bool, needsReconnect: Bool,
                      lastSyncAt: String?, lastSyncOk: Bool?, lastSyncStatus: String?, nextSyncAt: String?,
-                     syncWaitSeconds: Int?, now: Date, when: (Date) -> String) -> BankSyncSummary {
+                     syncWaitSeconds: Int?, mayConnect: Bool = true, now: Date,
+                     when: (Date) -> String) -> BankSyncSummary {
         guard connected else {
             if !enabled {
                 return BankSyncSummary(
@@ -189,7 +324,9 @@ public struct BankSyncSummary: Sendable, Equatable {
             }
             return BankSyncSummary(
                 tone: .neutral, headline: "No bank connected",
-                detail: "Connecting a bank is done in the web app: Settings → Bank sync.")
+                detail: mayConnect
+                    ? "Connecting a bank is done in the web app: Settings → Bank sync."
+                    : "An admin chooses who may connect a bank, in the web app's Admin → Users. Accounts shared with you that sync from someone else's bank show below.")
         }
         if !enabled {
             return BankSyncSummary(
@@ -244,9 +381,12 @@ public enum BankConnect {
     public static func url(server: ServerAddress) -> URL { server.url("/app-connect-bank") }
 
     /// Whether Settings offers Connect a bank: bank sync on, a server with
-    /// the page, and not a read-only token (the app edits nothing then).
+    /// the page, not a read-only token (the app edits nothing then), and an
+    /// admin has ticked the person for Teller or Plaid (server 1.92.1 or
+    /// later says; an older server's status doesn't, so it's offered as
+    /// before and the server's own refusal speaks if they aren't ticked).
     public static func offered(_ status: BankStatus, serverVersion: String?, readOnly: Bool) -> Bool {
-        guard status.enabled, !readOnly, let serverVersion else { return false }
+        guard status.enabled, !readOnly, status.mayConnectInApp, let serverVersion else { return false }
         return isVersion(serverVersion, atLeast: minimumServer) == true
     }
 
@@ -279,6 +419,9 @@ public struct BankSyncResult: Sendable, Codable, Equatable {
     public let skipped: Int
     public let messages: [String]
     public let status: BankStatus
+    /// Sync now for one account (`account_id`): that account's own state
+    /// afterwards; nil otherwise.
+    public let account: SharedBankAccount?
 }
 
 extension APIClient {
@@ -303,5 +446,13 @@ extension APIClient {
     /// each row of the list does; the day's limit is that connection's own.
     public func syncBankNow(connection: Int) async throws(APIError) -> BankSyncResult {
         try await send("POST", "/api/bank/sync", body: ["connection_id": connection])
+    }
+
+    /// Sync now for a shared account (server 1.92.0 or later): syncs the
+    /// connection that feeds it, whoever's it is. The server answers 403
+    /// naming the holder when an admin has paused it or they can't sign in,
+    /// and 429 over the day's limit.
+    public func syncBankNow(account: Int) async throws(APIError) -> BankSyncResult {
+        try await send("POST", "/api/bank/sync", body: ["account_id": account])
     }
 }

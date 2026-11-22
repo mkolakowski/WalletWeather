@@ -670,8 +670,10 @@ struct ReportResult: View {
 
 /// Bank sync's state and Sync now (bank-sync phase 5, #197), with each bank
 /// connection listed on its own (bank-providers phase 4, #257), and Connect a
-/// bank through Teller or Plaid in the sign-in sheet (phase 5, #258).
-/// Matching accounts, the sync log and the Unmatched list are in the web app.
+/// bank through Teller or Plaid in the sign-in sheet (phase 5, #258), shown
+/// only to someone ticked for one of them, and the accounts shared with the
+/// person that sync from someone else's connection, each with its own Sync
+/// now (sync-access phase 4, #267). Matching accounts, the sync log and the Unmatched list are in the web app.
 private struct BankSyncCard: View {
     @Environment(AppModel.self) private var model
     private enum Load { case loading, unavailable, failed(String), shown(BankStatus) }
@@ -707,12 +709,16 @@ private struct BankSyncCard: View {
     @ViewBuilder
     private func shown(_ status: BankStatus) -> some View {
         let rows = status.connectionRows(when: { KeptBar.when($0) })
+        let shared = status.shared ?? []
         if rows.isEmpty {
             // Nothing connected, switched off, or a server from before the
-            // list (1.70.0 to 1.85.0): one row for the whole.
-            let summary = status.summary(when: { KeptBar.when($0) })
-            summaryView(summary)
-            syncButton(summary, connection: nil)
+            // list (1.70.0 to 1.85.0): one row for the whole. Someone who
+            // only has shared accounts to sync skips "No bank connected".
+            if status.connected || !status.enabled || shared.isEmpty {
+                let summary = status.summary(when: { KeptBar.when($0) })
+                summaryView(summary)
+                syncButton(summary, connection: nil)
+            }
         } else {
             ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
                 if index > 0 { Divider() }
@@ -725,6 +731,16 @@ private struct BankSyncCard: View {
                     summaryView(row.summary)
                     syncButton(row.summary, connection: row.id)
                 }
+            }
+        }
+        if !shared.isEmpty {
+            if status.connected || !rows.isEmpty { Divider() }
+            Text("Shared accounts that sync").font(.subheadline.weight(.semibold))
+            Text("These accounts take lines from someone else's bank connection. You can sync them; only that person can reconnect or disconnect it.")
+                .font(.footnote).foregroundStyle(.secondary)
+            ForEach(shared) { account in
+                Divider()
+                sharedRow(account, enabled: status.enabled)
             }
         }
         let version = model.isDemo ? BankConnect.minimumServer : model.serverVersion?.appVersion
@@ -740,6 +756,36 @@ private struct BankSyncCard: View {
         }
         if let outcome {
             Text(outcome).font(.footnote).foregroundStyle(outcomeFailed ? Palette.bad : .secondary)
+        }
+    }
+
+    /// One shared account: where its lines come from, how its last sync went,
+    /// and Sync now (off while paused, needing a reconnect, its person can't
+    /// sign in, or over the day's limit).
+    private func sharedRow(_ account: SharedBankAccount, enabled: Bool) -> some View {
+        let summary = account.summary(enabled: enabled, when: { KeptBar.when($0) })
+        return VStack(alignment: .leading, spacing: 6) {
+            Text(account.archived == true ? "\(account.accountName) (archived)" : account.accountName)
+                .font(.subheadline.weight(.semibold))
+            Text(account.from).font(.caption).foregroundStyle(.secondary)
+            summaryView(summary)
+            if let count = account.unmatchedCount, count > 0 {
+                Text("\(count) line\(count == 1 ? " waits" : "s wait") to be matched, in the web app: Settings → Bank sync.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            if model.me?.isReadOnly != true, summary.canSync || summary.waitText != nil {
+                Button { Task { await syncShared(account.accountId) } } label: {
+                    HStack(spacing: 8) {
+                        if syncing == -account.accountId { ProgressView() }
+                        Text("Sync now").frame(maxWidth: .infinity)
+                    }
+                }
+                .buttonStyle(.glass)
+                .disabled(syncing != nil || !summary.canSync)
+                if let wait = summary.waitText {
+                    Text(wait).font(.footnote).foregroundStyle(Palette.warn)
+                }
+            }
         }
     }
 
@@ -812,6 +858,26 @@ private struct BankSyncCard: View {
             }
         } catch {
             load = .failed(AppModel.describe(error))
+        }
+    }
+
+    /// Sync now for a shared account; its spinner is keyed by the negative
+    /// of its number, so it never clashes with a connection's.
+    private func syncShared(_ accountId: Int) async {
+        guard let client = model.client else { return }
+        syncing = -accountId
+        outcome = nil
+        defer { syncing = nil }
+        do {
+            let result = try await client.syncBankNow(account: accountId)
+            load = .shown(result.status)
+            outcome = "Synced: \(result.account?.lastSyncStatus ?? "done")."
+            outcomeFailed = false
+        } catch {
+            // The server names the person when it's paused or can't sign in.
+            if case let .server(_, detail) = error { outcome = detail } else { outcome = AppModel.describe(error) }
+            outcomeFailed = true
+            await refresh()
         }
     }
 

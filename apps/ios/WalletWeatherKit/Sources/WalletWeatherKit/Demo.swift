@@ -229,7 +229,8 @@ public enum Demo {
 
     /// A sample bank sync status: two banks connected (one through SimpleFIN,
     /// one through Teller) and matched, last synced a few hours ago, with the
-    /// next sync due tomorrow (#197, #257).
+    /// next sync due tomorrow (#197, #257), ticked for both, plus one account
+    /// shared with the demo that syncs from someone else's connection (#267).
     static func bankStatus(now: Date = .now) -> Data {
         func connection(_ id: Int, _ provider: String, _ providerName: String, _ name: String, account: Int,
                         hoursAgo: Double, status: String, left: Int) -> [String: Any] {
@@ -244,8 +245,18 @@ public enum Demo {
                 "syncs_left_today": left, "sync_wait_seconds": 0,
             ]
         }
+        let shared: [String: Any] = [
+            "account_id": 3, "account_name": "Credit Card", "archived": false, "level": "edit",
+            "holder_name": "Sam", "mine": false, "provider": "plaid", "provider_name": "Plaid",
+            "synced_through": NSNull(),
+            "last_sync_at": BankStatus.text(now.addingTimeInterval(-4 * 3600)), "last_sync_ok": true,
+            "last_sync_status": "1 new line, 8 already here", "needs_reconnect": false, "paused": false,
+            "holder_disabled": false, "next_sync_at": BankStatus.text(now.addingTimeInterval(20 * 3600)),
+            "syncs_left_today": 18, "sync_wait_seconds": 0, "unmatched_count": 2,
+        ]
         return json([
             "enabled": true, "connected": true, "linked_account_ids": [1, 2],
+            "providers_allowed": ["simplefin", "teller"], "shared": [shared],
             "last_sync_at": BankStatus.text(now.addingTimeInterval(-3 * 3600)), "last_sync_ok": true,
             "last_sync_status": "Northwind Bank: 2 new lines, 1 matched a bill, 14 already here; Contoso Credit Union: 0 new lines, 6 already here",
             "last_ok_at": BankStatus.text(now.addingTimeInterval(-3 * 3600)), "needs_reconnect": false,

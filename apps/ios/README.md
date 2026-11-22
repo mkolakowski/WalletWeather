@@ -255,6 +255,22 @@ shows when bank sync is on, the server is 1.89.0 or later and the token can
 write; in the demo it says the demo saves nothing. Matching the new
 connection's accounts stays in the web app.
 
+**Shared accounts and who may connect** (iOS 0.31.0, server 1.92.0 for
+`shared` and 1.92.1 for `providers_allowed`, phase 4 of
+`Plans/sync-access.md`, #267): the card also lists the accounts the person
+owns or edits that sync from someone else's connection
+(`BankStatus.shared`, `SharedBankAccount`), each saying "Synced from <name>'s
+<provider> connection", how its own last sync went, a paused, needs-reconnect
+or can't-sign-in note naming that person, how many lines wait to be matched
+(in the web app), and a **Sync now** of its own (`POST /api/bank/sync` with
+`account_id`, `APIClient.syncBankNow(account:)`) that is off while the account
+is paused, needs a reconnect, its person can't sign in or the day's limit is
+reached. Someone with only shared accounts skips "No bank connected". **Connect
+a bank** shows only when `providers_allowed` has Teller or Plaid (a server
+before 1.92.1 doesn't say, so it's offered as before), and an unticked person's
+"No bank connected" says an admin chooses who may. The demo has one shared
+account, a Credit Card synced from Sam's Plaid connection.
+
 ## On this iPhone
 
 The first screen asks how to use the app (phase 4 of

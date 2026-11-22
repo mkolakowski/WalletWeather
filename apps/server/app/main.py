@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.92.0"
+APP_VERSION = "1.92.1"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -6043,12 +6043,16 @@ def _bank_short_status(db: Session, user: User, shared: list[dict] | None = None
     enabled = bank_sync_enabled(db)
     # `shared`: accounts shared with this person that sync from someone
     # else's connection, with no bank account names (#265).
+    access = bank_access(db, user)
     out = {"enabled": enabled, "connected": bool(conns),
+           # The providers this person may connect through (an admin's tick,
+           # and the instance has its keys), so an app knows whether to offer
+           # Connect a bank (sync-access phase 4, #267).
+           "providers_allowed": [k for k, v in bank_providers().items() if v and k in access],
            "shared": shared if shared is not None else _bank_shared(db, user, with_names=False)}
     if not conns:
         return out
     now = datetime.utcnow()
-    access = bank_access(db, user)
     each = [_bank_conn_short(db, c, now, enabled, _provider(c) not in access) for c in conns]
     linked = ([c for c in each if c["linked_account_ids"] and not c["paused"]]
               or [c for c in each if c["linked_account_ids"]] or each)

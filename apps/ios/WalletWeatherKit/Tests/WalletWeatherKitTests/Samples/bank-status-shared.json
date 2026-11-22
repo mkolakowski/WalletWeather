@@ -1,0 +1,28 @@
+{
+  "enabled": true,
+  "connected": false,
+  "providers_allowed": [],
+  "shared": [
+    {
+      "account_id": 7,
+      "account_name": "Joint checking",
+      "archived": false,
+      "level": "edit",
+      "holder_name": "Sam",
+      "mine": false,
+      "provider": "simplefin",
+      "provider_name": "SimpleFIN",
+      "synced_through": "2026-11-21",
+      "last_sync_at": "2026-11-21T15:04:05.123456Z",
+      "last_sync_ok": true,
+      "last_sync_status": "2 new lines, 1 matched a bill, 3 already here",
+      "needs_reconnect": false,
+      "paused": false,
+      "holder_disabled": false,
+      "next_sync_at": "2026-11-22T14:34:05.123456Z",
+      "syncs_left_today": 19,
+      "sync_wait_seconds": 0,
+      "unmatched_count": 2
+    }
+  ]
+}

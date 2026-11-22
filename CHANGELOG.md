@@ -69,7 +69,12 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.92.0** · Web version: **1.103.0** · Schema version: **35** · iOS version: **0.30.0**
+App version: **1.92.1** · Web version: **1.103.0** · Schema version: **35** · iOS version: **0.31.0**
+
+### Added
+
+- **iOS 0.31.0, shared accounts that sync, in Settings:** the **Bank sync** card now lists the accounts you own or edit that take their lines from someone else's bank connection, each saying "Synced from Sam's SimpleFIN connection", how that account's own last sync went and when it syncs next, how many lines wait to be matched (in the web app), and a **Sync now** of its own. Sync now is off while an admin has paused that person's connection, while they need to connect it again, while they can't sign in, and over the day's limit, and each says why. If you only have shared accounts and no bank of your own, the card skips "No bank connected". **Connect a bank** now shows only when an admin has ticked you for Teller or Plaid; if you're ticked for none, the card says an admin chooses who may connect a bank, in Admin → Users. Try the demo shows a sample shared account (a Credit Card synced from Sam's Plaid connection). Needs server 1.92.0 for shared accounts and 1.92.1 to hide Connect a bank from someone who isn't ticked; an older server shows the card as before, with Connect a bank offered. (#267)
+- **`GET /api/bank/status` now says which services you may connect a bank through.** It carries `providers_allowed` (`simplefin`, `teller`, `plaid`: the ones an admin has ticked for you in Admin → Users and your server has keys for; every one for an admin), the same list the signed-in browser's `/api/bank` already had, so an API token can tell the iPhone app whether to offer **Connect a bank**. (#267)
 
 ## [1.92.0] — 2026-11-22
 

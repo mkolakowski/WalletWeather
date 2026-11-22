@@ -71,6 +71,8 @@ def test_deletion_check_for_a_user_with_an_unshared_account(client, registered):
         "accounts_deleted": [{"id": account_id, "name": "Checking"}],
         "accounts_kept": [],
         "blocking_accounts": [],
+        "bank_connections_passed": [],
+        "bank_connections_deleted": [],
         "has_password": True,
         "is_demo": False,
     }

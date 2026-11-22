@@ -2821,7 +2821,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.102.0";
+const WEB_VERSION = "1.103.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2831,6 +2831,7 @@ const WEB_VERSION = "1.102.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.103.0 (2026-11-21, claude+mkolakowski): (#266) A bank connection passes on. Settings → Delete account and Admin → Users' delete (adminDeleteUser now reads GET /api/admin/users/{id}/deletion-check first) list the bank connections that pass to another owner ("→ email") and those that are removed, from the deletion check's new bank_connections_passed / bank_connections_deleted. Settings → Bank sync shows a match to an account you don't own (/api/bank's new `locked`) as text, not a dropdown, so Save matches leaves it alone; an owner's shared card gets Stop syncing (bankStopSyncing → DELETE /api/accounts/{id}/bank-link).
 // 1.102.0 (2026-11-21, claude+mkolakowski): (#265) The account holds its sync. Settings → Bank sync also shows for someone with owner or edit on an account that syncs from another person's connection (/api/bank's new `shared`): "Shared accounts that sync" (_bankSharedHtml), a card per account with "Synced from <name>'s <provider> connection · <bank account>", its last sync from its own sync log, a paused or needs-reconnecting note naming that person, and Sync now (bankSyncShared → POST /api/bank/sync {account_id}), Sync log and Unmatched (N). The Forecast's Unmatched pill, Match… and bank balance with Adjust to bank now reach editors because the server sends them.
 // 1.101.0 (2026-11-21, claude+mkolakowski): (#264) Who may connect a bank. Admin → Users gets a "Bank sync" column: a tick per provider the instance offers (plus any already ticked), "Always" for an admin; a change sends the row's whole list to PUT /api/admin/users/{id}/bank-access (adminSetBankAccess). Settings → Bank sync shows only when bank sync is on and /api/bank's new providers_allowed isn't empty (or there's a connection to remove), offers only those providers (_bankOffered reads `allowed`), and a connection with `paused` says an admin has paused it, with Sync now off. app-connect-bank.js offers only allowed providers.
 // 1.100.0 (2026-11-21, claude+mkolakowski): (#258) Connecting a bank from the iPhone app: new pages outside the SPA, app-connect-bank.html/.js (/app-connect-bank: signs in, offers Teller and Plaid from /api/bank, asks the two-factor code, POST /api/bank/connect/start {app: true}; back from the provider as ?attempt=, checks /api/bank/connect/check and sends the sheet to walletweather://bank-connected?connection=N or ?state=...). bank-teller.js with ?app=1 sends the sheet back to the app after enrolling and offers Back to the app. index.html itself is unchanged.
@@ -6127,6 +6128,16 @@ async function loadDeleteAccount() {
   if (c.accounts_kept.length) {
     html += '<p style="margin:0;font-size:13px">These accounts have another owner and will stay with them:</p>' +
       list(c.accounts_kept.map(a => '<strong>' + escapeHtml(a.name) + '</strong> → ' + escapeHtml(a.new_owner_email)));
+  }
+  // Bank connections that feed an account staying with another owner pass
+  // to them (#266); the rest are removed.
+  if ((c.bank_connections_passed || []).length) {
+    html += '<p style="margin:0;font-size:13px">These bank connections feed accounts that stay, so they pass to that account\'s other owner and keep syncing:</p>' +
+      list(c.bank_connections_passed.map(b => '<strong>' + escapeHtml(b.name) + '</strong> (' + escapeHtml(b.provider_name) + ') → ' + escapeHtml(b.new_holder_email)));
+  }
+  if ((c.bank_connections_deleted || []).length) {
+    html += '<p style="margin:0;font-size:13px">These bank connections will be removed:</p>' +
+      list(c.bank_connections_deleted.map(b => '<strong>' + escapeHtml(b.name) + '</strong> (' + escapeHtml(b.provider_name) + ')'));
   }
   html += '<p style="margin:0 0 12px;font-size:13px">Want a copy first? ' +
     '<a href="#" style="color:var(--accent)" onclick="document.getElementById(\'exportAccountList\').scrollIntoView({behavior:\'smooth\',block:\'center\'});return false">Download a backup</a> above.</p>';
@@ -9623,8 +9634,24 @@ function _bankSharedCardHtml(a) {
       <span style="font-size:12px;color:var(--muted)">${left} sync${left === 1 ? '' : 's'} left in the next 24 hours</span>
       <button class="ghost" onclick="bankShowLog(${id})">Sync log</button>
       ${a.unmatched_count > 0 ? `<button class="ghost" onclick="bankShowUnmatched(${id})">Unmatched (${Number(a.unmatched_count)})</button>` : ''}
+      ${a.level === 'owner' ? `<span style="flex:1"></span><button class="danger" onclick="bankStopSyncing(${id})">Stop syncing</button>` : ''}
     </div>
   </div>`;
+}
+
+// An owner takes away a shared account's match to someone's bank (#266).
+async function bankStopSyncing(accountId) {
+  const a = ((bankState && bankState.shared) || []).find(x => x.account_id === accountId);
+  const name = a ? a.account_name : 'this account';
+  const who = a ? a.holder_name : 'its person';
+  if (!(await confirmDialog(`Stop syncing ${name}? It stops taking lines from ${who}'s bank connection; lines already in stay, and the connection stays ${who}'s. They can match it again later.`,
+                            { title: 'Stop syncing', okLabel: 'Stop syncing', danger: true }))) return;
+  _bankSay('Stopping…');
+  try {
+    await api(`/api/accounts/${accountId}/bank-link`, { method: 'DELETE' });
+    await loadBank();
+    _bankSay(`${name} no longer syncs.`, 'var(--good)');
+  } catch (e) { _bankSay(errText(e), 'var(--bad)'); }
 }
 
 async function bankSyncShared(accountId) {
@@ -9733,7 +9760,13 @@ function _bankConnHtml(c, owned) {
   const opts = (sel) => (sel ? [] : [`<option value="${BANK_NEW_ACCOUNT}">New account…</option>`])
     .concat([`<option value=""${sel ? '' : ' selected'}>Leave out</option>`], owned.map(a =>
     `<option value="${a.id}"${a.id === sel ? ' selected' : ''}>${escapeHtml(a.name)}${a.archived ? ' (archived)' : ''}</option>`)).join('');
-  const rows = (c.accounts || []).map(a => `<tr>
+  const rows = (c.accounts || []).map(a => a.locked ? `<tr>
+      <td>${escapeHtml(a.name)}${a.org ? `<div style="font-size:11px;color:var(--muted)">${escapeHtml(a.org)}</div>` : ''}</td>
+      <td colspan="2" style="font-size:13px">${a.account_name ? escapeHtml(a.account_name) : 'An account you can\'t see'}
+        <div style="font-size:11px;color:var(--muted)">Not yours: only its owners can stop it syncing.</div></td>
+      <td style="white-space:nowrap">${a.account_id ? `<button class="ghost" onclick="bankShowLog(${a.account_id})">Sync log</button>` : ''}
+        ${a.account_id && a.unmatched_count > 0 ? `<button class="ghost" onclick="bankShowUnmatched(${a.account_id})">Unmatched (${Number(a.unmatched_count)})</button>` : ''}</td>
+    </tr>` : `<tr>
       <td>${escapeHtml(a.name)}${a.org ? `<div style="font-size:11px;color:var(--muted)">${escapeHtml(a.org)}</div>` : ''}</td>
       <td><select class="bank-link-account" data-ref="${escapeAttr(a.ref)}" aria-label="Your account for ${escapeAttr(a.name)}" onchange="bankLinkChanged(this)">${opts(a.account_id)}</select>
         ${a.account_id ? '' : `<div class="bank-new-wrap hidden" data-ref="${escapeAttr(a.ref)}" style="margin-top:6px">
@@ -11151,7 +11184,17 @@ async function adminResetPassword(uid) {
 }
 
 async function adminDeleteUser(uid, email) {
-  if (!(await confirmDialog(`Permanently delete user "${email}" and everything only they own (accounts, transactions, categories)? Accounts that have another owner are kept. This cannot be undone.`, { title: 'Delete user', okLabel: 'Delete', danger: true }))) return;
+  // Who their bank connections go to (#266), when the server can say.
+  let passing = '';
+  try {
+    const c = await api('/api/admin/users/' + uid + '/deletion-check');
+    const passed = c.bank_connections_passed || [], gone = c.bank_connections_deleted || [];
+    if (passed.length) passing += ' Their bank connections that feed an account with another owner pass to that owner and keep syncing: ' +
+      passed.map(b => `${b.name} (${b.provider_name}) → ${b.new_holder_email}`).join('; ') + '.';
+    if (gone.length) passing += ' Their other bank connections are removed: ' +
+      gone.map(b => `${b.name} (${b.provider_name})`).join('; ') + '.';
+  } catch (_) {}
+  if (!(await confirmDialog(`Permanently delete user "${email}" and everything only they own (accounts, transactions, categories)? Accounts that have another owner are kept.${passing} This cannot be undone.`, { title: 'Delete user', okLabel: 'Delete', danger: true }))) return;
   let res;
   try {
     res = await fetch('/api/admin/users/' + uid, {method: 'DELETE'});

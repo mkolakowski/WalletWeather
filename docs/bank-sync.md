@@ -270,6 +270,23 @@ pauses that person's connection, the card says so and Sync now waits until
 it's back. People the account is shared with read-only see the lines that
 come in and nothing about the sync.
 
+If you're an owner of such an account, its card also has **Stop syncing**:
+the account stops taking lines from that connection (lines already in stay,
+and the connection stays the other person's). Either of you can match it
+again later.
+
+### When the person who connected leaves
+
+From 1.92.0, deleting someone (they delete themselves, or an admin does) no
+longer stops the accounts their bank connection feeds. Each connection that
+still feeds an account staying with another owner passes to that owner: the
+other owner of the account it was matched to first. It keeps syncing, with
+its matches and sync logs, and the new holder is let use its service in
+Admin → Users if they weren't already. Matches to accounts the new holder
+doesn't own stay too; Bank sync shows them as text they can't change, and
+those accounts' owners can use **Stop syncing**. The delete screens say which
+connections pass to whom before anything is deleted.
+
 ### Bills paid by a sync
 
 From 1.73.0, a synced line that looks like one of your planned bills or

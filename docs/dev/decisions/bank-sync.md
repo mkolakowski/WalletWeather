@@ -171,3 +171,15 @@ Decisions made while planning and building [`Plans/bank-sync.md`](../../../Plans
 - **A mailbox when its person leaves** (phase 5): disconnected with them, lines already in kept; not passed on like a bank connection.
 
 **Why:** pausing matches what the kill switch already does and loses nothing if the untick was a mistake. Naming the person and provider tells an editor who to ask when a sync breaks, without showing anything about the login. One whole connection avoids two copies of a bank token tripping a provider's limits, and a mailbox is someone's own email, which nobody else should keep reading.
+
+## 2026-11-21: a passed-on connection ticks its new holder
+
+**Decided:** 2026-11-21 (about 11:20 PM ET), by Matthew, while building phase 3 of [`Plans/sync-access.md`](../../../Plans/sync-access.md) (#266). **Status:** accepted.
+
+**The question:** since phase 1, a connection whose person isn't ticked for its provider is paused. When a deleted person's connection passes to another owner, should that owner be ticked for its provider?
+
+**Chosen:** yes. Passing ticks the new holder for that provider when they aren't already, so the sync carries on, as the upgrade to phase 1 did for everyone who had a connection. An admin can untick them in Admin → Users, which pauses it. Not chosen: passing it paused until an admin ticks the new holder; ticking only when an admin does the deleting.
+
+**Why:** the point of passing a connection on is that the shared account keeps syncing; arriving paused would undo that for most instances, where the deleting person (or the admin) rarely thinks to tick someone afterwards.
+
+**Along with it:** a passed connection keeps its links to accounts the new holder doesn't own (question 1). Settings shows those as text rather than a dropdown, the server refuses to change them for anyone but the account's owners, and an owner's shared-account card has **Stop syncing** (`DELETE /api/accounts/{id}/bank-link`), so "their owners can unlink" has a way to happen. The sync logs a deleted person's connections made on accounts that stay are kept, under the account's owner.

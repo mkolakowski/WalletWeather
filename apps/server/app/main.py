@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.91.0"
+APP_VERSION = "1.92.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -2558,7 +2558,66 @@ def _deletion_plan(db: Session, user: User) -> dict:
             blocking.append((acc, others))
         else:
             deleted.append(acc)
-    return {"deleted": deleted, "kept": kept, "blocking": blocking}
+    passed, ended = _bank_deletion_plan(db, user, {a.id for a in deleted})
+    return {"deleted": deleted, "kept": kept, "blocking": blocking,
+            "bank_passed": passed, "bank_ended": ended}
+
+
+# A bank connection passes on (sync-access phase 3, #266). Decided
+# 2026-11-21 (question 1): when its person is deleted, a connection that
+# still feeds an account with another owner goes to the other owner of the
+# account it was linked to first (the longest-standing owner if several),
+# with its links, the sync log and the category map; links to accounts the
+# new holder doesn't own stay. With no such account it's deleted, as before.
+# Decided 2026-11-21 (#266): the new holder is ticked for its provider, so
+# the sync carries on rather than arriving paused.
+def _bank_deletion_plan(db: Session, user: User, doomed_ids: set[int]):
+    """([(connection, new holder)], [connection that ends]) for deleting
+    `user`, given the accounts deleted with them."""
+    passed, ended = [], []
+    for conn in _bank_connections(db, user):
+        holder = None
+        for link in (db.query(BankAccountLink).filter_by(connection_id=conn.id)
+                     .order_by(BankAccountLink.id)):
+            if link.account_id in doomed_ids:
+                continue
+            holder = (db.query(User)
+                      .join(AccountPermission, AccountPermission.user_id == User.id)
+                      .filter(AccountPermission.account_id == link.account_id,
+                              AccountPermission.user_id != user.id,
+                              AccountPermission.level == "owner")
+                      .order_by(AccountPermission.created_at, AccountPermission.user_id)
+                      .first())
+            if holder is not None:
+                break
+        if holder is None:
+            ended.append(conn)
+        else:
+            passed.append((conn, holder))
+    return passed, ended
+
+
+def _bank_pass_connection(db: Session, user: User, conn: BankConnection, holder: User) -> None:
+    """Hand `user`'s connection to `holder`: the connection with its links,
+    a tick for its provider, and the category map rows they don't have yet,
+    each landing in the holder's category of the same name (else
+    uncategorized, as a new row would)."""
+    provider = _provider(conn)
+    conn.user_id = holder.id
+    if not db.get(BankAccess, (holder.id, provider)):
+        db.add(BankAccess(user_id=holder.id, provider=provider))
+    have = {k for (k,) in db.query(BankCategoryMap.key).filter_by(user_id=holder.id, provider=provider)}
+    theirs = {}
+    for c in db.query(Category).filter_by(owner_id=holder.id).order_by(Category.id):
+        theirs.setdefault((c.name or "").strip().lower(), c.id)
+    for m in db.query(BankCategoryMap).filter_by(user_id=user.id, provider=provider).order_by(BankCategoryMap.id):
+        if m.key in have:
+            continue
+        cat = db.get(Category, m.category_id) if m.category_id else None
+        db.add(BankCategoryMap(user_id=holder.id, provider=provider, key=m.key,
+                               category_id=theirs.get((cat.name or "").strip().lower()) if cat else None))
+        have.add(m.key)
+    db.flush()
 
 
 def _deletion_plan_json(plan: dict) -> dict:
@@ -2572,6 +2631,14 @@ def _deletion_plan_json(plan: dict) -> dict:
              "shared_with": [{"email": u.email, "level": p.level} for (p, u) in others]}
             for (a, others) in plan["blocking"]
         ],
+        # Bank connections that pass to another owner, and those that end (#266).
+        "bank_connections_passed": [
+            {"id": c.id, "name": _bank_name(c), "provider_name": BANK_PROVIDER_NAMES[_provider(c)],
+             "new_holder_email": u.email}
+            for (c, u) in plan.get("bank_passed", [])],
+        "bank_connections_deleted": [
+            {"id": c.id, "name": _bank_name(c), "provider_name": BANK_PROVIDER_NAMES[_provider(c)]}
+            for c in plan.get("bank_ended", [])],
     }
 
 
@@ -2619,16 +2686,29 @@ def delete_me(payload: DeleteMeIn, request: Request,
     # the rest of theirs (#139): what's left says a user deleted themselves,
     # when, and from where.
     record_event(db, "user_deleted", request, user=user, detail="own user")
-    _delete_user(db, user, plan)
+    uid = user.id
+    passed = _delete_user(db, user, plan)
+    _record_bank_passed(db, request, uid, passed)
     request.session.clear()
     return {"ok": True}
 
 
-def _delete_user(db: Session, user: User, plan: dict) -> None:
+def _record_bank_passed(db: Session, request: Request, from_id: int, passed: list) -> None:
+    """One audit event per connection that passed on, under its new holder,
+    so it outlives the deleted user's blanked rows (#266)."""
+    for conn_id, provider, holder_id in passed:
+        record_event(db, "bank_connection_passed", request, user=db.get(User, holder_id),
+                     detail=f"connection #{conn_id} ({BANK_PROVIDER_NAMES.get(provider, provider)}) "
+                            f"from deleted user #{from_id}")
+
+
+def _delete_user(db: Session, user: User, plan: dict) -> list[tuple[int, str, int]]:
     """Delete `user` following a `_deletion_plan` with nothing blocking.
 
     Shared by self-deletion and the Admin panel, so both keep an account
-    that has another owner.
+    that has another owner, and pass on a bank connection that feeds one
+    (#266). Returns (connection id, provider, new holder id) for each
+    connection passed on.
     """
     # Accounts that stay: move the row to their other owner, so deleting this
     # user doesn't take the account with it.
@@ -2654,6 +2734,22 @@ def _delete_user(db: Session, user: User, plan: dict) -> None:
     for acc in plan["deleted"]:
         db.delete(acc)
     db.flush()
+    # Bank connections that feed an account staying with another owner pass
+    # to that owner (#266) before the rest go with the user.
+    passed = []
+    for conn, holder in plan.get("bank_passed", []):
+        _bank_pass_connection(db, user, conn, holder)
+        passed.append((conn.id, _provider(conn), holder.id))
+    # An account's sync log belongs to the account (#265): the syncs this
+    # user's connections ran on accounts that stay are kept, under the
+    # account's owner, instead of going with the user.
+    for (account_id,) in (db.query(BankSyncRun.account_id).filter(BankSyncRun.user_id == user.id)
+                          .distinct().all()):
+        acc = db.get(Account, account_id)
+        if acc is not None and acc.owner_id != user.id:
+            (db.query(BankSyncRun).filter_by(user_id=user.id, account_id=account_id)
+             .update({BankSyncRun.user_id: acc.owner_id}, synchronize_session=False))
+    db.flush()
     # The sign-in log keeps what happened but not who (decided 2026-11-15,
     # #139): blank the email on rows that are theirs by id or by address,
     # failed attempts on their email included. user_id goes to NULL by the
@@ -2662,9 +2758,10 @@ def _delete_user(db: Session, user: User, plan: dict) -> None:
      .filter((AuditEvent.user_id == user.id) | (AuditEvent.email == user.email.lower()))
      .update({AuditEvent.email: None}, synchronize_session=False))
     db.expire(user)
-    _bank_remove_all_at_providers(db, user)
+    _bank_remove_all_at_providers(db, user)   # only those that didn't pass on
     db.delete(user)
     db.commit()
+    return passed
 
 
 ALLOWED_THEMES = {
@@ -4389,14 +4486,24 @@ def _bank_status(db: Session, user: User) -> dict:
         for a in _bank_listing(conn):
             ref = bank_account_ref(a["id"], provider)
             link = links.get(ref)
+            # A match to an account this person doesn't own (a connection
+            # passed on to them, #266, or an owner since made an editor):
+            # `locked`, only that account's owners change it; its id and
+            # name only to someone who can see the account.
+            level = _user_level(db, user, link.account_id) if link else "owner"
+            visible = LEVEL_RANK[level] >= LEVEL_RANK["read"]
             accounts.append({
                 "ref": ref, "name": a.get("name") or "", "org": a.get("org") or "",
                 "connection_id": conn.id,
-                "account_id": link.account_id if link else None,
+                "locked": level != "owner",
+                "account_name": (db.get(Account, link.account_id).name
+                                 if link and level != "owner" and visible else None),
+                "account_id": link.account_id if link and visible else None,
                 "start_date": link.start_date.isoformat() if link else None,
                 "synced_through": link.synced_through.isoformat() if link and link.synced_through else None,
                 # Synced lines that paid no planned line, still to look at (#196).
-                "unmatched_count": _unmatched_query(db, link.account_id).count() if link else 0,
+                "unmatched_count": (_unmatched_query(db, link.account_id).count()
+                                    if link and LEVEL_RANK[level] >= LEVEL_RANK["edit"] else 0),
             })
         every += accounts
         details.append({**short[conn.id],
@@ -4719,6 +4826,14 @@ def bank_set_links(body: BankLinksIn, request: Request,
     conn_ids = {c.id for c, _ in known.values()}
     existing = {l.bank_account_ref: l for l in db.query(BankAccountLink)
                 .filter(BankAccountLink.connection_id.in_(conn_ids))}
+    # A match to an account the caller doesn't own stays as it is: only that
+    # account's owners take it away (#266, decision 7).
+    for ref, l in wanted.items():
+        link = existing.get(ref)
+        if (link is not None and link.account_id != l.account_id
+                and _user_level(db, user, link.account_id) != "owner"):
+            raise HTTPException(403, "That bank account feeds an account you don't own. Only that "
+                                     "account's owners can stop it syncing.")
     after = {ref: link.account_id for ref, link in existing.items()}
     for ref, l in wanted.items():
         if l.account_id is None:
@@ -4778,6 +4893,24 @@ def _bank_one_link_each(db: Session, after: dict[str, int], wanted: dict, known:
                                                     BankAccountLink.connection_id.notin_(conn_ids)).first():
         raise HTTPException(400, "That account already takes lines from another owner's bank "
                                  "connection. Each account can be matched to one bank account only.")
+
+
+@app.delete("/api/accounts/{account_id}/bank-link")
+def bank_unlink_account(account_id: int, request: Request,
+                        user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Stop syncing: an owner of the account takes away its match to a bank
+    account, whoever's connection it's on (#266; decision 7). Lines already
+    in stay; the connection stays its person's."""
+    acc = _account_with_perm(db, user, account_id, "owner")
+    hit = _account_bank_link(db, acc.id)
+    if hit is None:
+        raise HTTPException(404, "This account doesn't take lines from a bank.")
+    link, conn = hit
+    db.delete(link)
+    db.commit()
+    record_event(db, "bank_link_removed", request, user=user,
+                 detail=f"account #{acc.id}, connection #{conn.id}")
+    return {"ok": True}
 
 
 class BankNewAccountIn(BaseModel):
@@ -9083,6 +9216,16 @@ def admin_set_bank_access(uid: int, payload: BankAccessIn, request: Request,
     return {"id": target.id, "bank_access": [p for p in BANK_PROVIDER_NAMES if p in want]}
 
 
+@app.get("/api/admin/users/{uid}/deletion-check")
+def admin_deletion_check(uid: int, user: User = Depends(current_admin), db: Session = Depends(get_db)):
+    """What deleting this user would do, without doing it: the accounts
+    that go or stay and the bank connections that pass on (#266)."""
+    target = db.get(User, uid)
+    if not target:
+        raise HTTPException(404, "User not found")
+    return _deletion_plan_json(_deletion_plan(db, target))
+
+
 @app.delete("/api/admin/users/{uid}")
 def admin_delete_user(uid: int, request: Request,
                       user: User = Depends(current_admin), db: Session = Depends(get_db)):
@@ -9104,8 +9247,9 @@ def admin_delete_user(uid: int, request: Request,
             **_deletion_plan_json(plan),
         })
     target_id = target.id
-    _delete_user(db, target, plan)
+    passed = _delete_user(db, target, plan)
     record_event(db, "user_deleted", request, user=user, detail=audit_target(user, target_id))
+    _record_bank_passed(db, request, target_id, passed)
     return {"ok": True}
 
 

@@ -245,9 +245,30 @@ want one sooner.
 Each matched bank account has a **Sync log** button: every sync of that
 account, newest first, whether it ran by itself (Daily) or by **Sync now**,
 how many lines came in, how many were already there, and any error. **Show
-lines** lists the lines a sync brought in. Only you, the account's owner, see
-it; people you share the account with don't. Entries are kept as long as the
-server keeps its audit log (180 days unless its admin changed it).
+lines** lists the lines a sync brought in. The account's owners and the
+people it's shared with to edit see it (from 1.91.0; before, only the person
+who connected the bank did); people it's shared with read-only don't. Entries
+are kept as long as the server keeps its audit log (180 days unless its admin
+changed it).
+
+### Accounts shared with you
+
+From 1.91.0 an account's sync belongs to the account, not only to the person
+whose bank login feeds it. If someone shares an account with you to edit (or
+as an owner) and it takes lines from their bank connection, your Settings →
+**Bank sync** tab lists it under **Shared accounts that sync**: "Synced from
+Sam's Teller connection · Total Checking", how its last sync went, and when
+it syncs by itself next. You can press **Sync now** for it, read its **Sync
+log**, and work through its **Unmatched** list, and its Forecast tab shows the
+bank's balance with **Adjust to bank**, as it does for the person who
+connected it. You never see their bank login or their other accounts on it.
+
+Some things stay with the person who connected the bank: reconnecting or
+disconnecting it, and where its bank's categories land. Only an account's
+owners can match it to a bank account or take the match away. If an admin
+pauses that person's connection, the card says so and Sync now waits until
+it's back. People the account is shared with read-only see the lines that
+come in and nothing about the sync.
 
 ### Bills paid by a sync
 
@@ -339,8 +360,9 @@ the balance, the last good one stays unless new lines came in (it wouldn't
 include them), and it's tried again at most once a day, not at every sync.
 A balance that can't be read never stops the lines from coming in.
 
-Only you see it, as the owner of the connection: people an account is shared
-with don't see the bank's balance and can't adjust. It isn't shown while an
+The account's owners and the people it's shared with to edit see it and can
+adjust (from 1.91.0; before, only the person who connected the bank could);
+people it's shared with read-only don't see the bank's balance. It isn't shown while an
 admin has bank sync switched off, and it goes when you disconnect or move the
 match to another bank account. It isn't in backups; the next sync brings it
 again.

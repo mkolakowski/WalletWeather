@@ -302,9 +302,12 @@ def test_another_users_lines_cannot_be_matched(app_started, taught, ms):
     assert c2.post(f"/api/accounts/{acc2}/bank-unmatched/{line['id']}/match",
                    json={"transaction_id": 1}).status_code == 404
     assert c2.post(f"/api/transactions/{line['id']}/bank-unmatch").status_code == 404
-    # The account's shared viewers can't read the list either.
-    share_account(c, acc, "edit", c2)
+    # The account's read-only people can't read the list either; an editor can (#265).
+    share_account(c, acc, "read", c2)
     assert c2.get(f"/api/accounts/{acc}/bank-unmatched").status_code == 404
+    c3, _ = register(app_started)
+    share_account(c, acc, "edit", c3)
+    assert c3.get(f"/api/accounts/{acc}/bank-unmatched").status_code == 200
 
 
 # ---------- The log and the response ----------

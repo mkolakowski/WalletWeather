@@ -7,12 +7,14 @@ Tracking issue: #269
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
 | 1. Who may connect, per person and provider | Server, Web | #264 | Built in 1.90.0 (web 1.101.0, schema 35), 2026-11-21; waits for phases 2 and 3 and their release |
-| 2. The account holds its sync | Server, Web | #265 | Not started |
+| 2. The account holds its sync | Server, Web | #265 | Built in 1.91.0 (web 1.102.0, schema 35), 2026-11-21; waits for phase 3 and the release |
 | 3. The connection passes on | Server, Web | #266 | Not started |
 | 4. The same on the iPhone | iOS | #267 | Not started; waits for the release of phases 1 to 3 |
 | 5. Email alerts on the same model | Server, Web, iOS | #268 | Not started; waits for the release of phases 1 to 3 |
 
 Phase 1 built 2026-11-21 in 1.90.0 (web 1.101.0, schema 35), not released. The ticks are set with `PUT /api/admin/users/{id}/bank-access` (a browser session, like the Bank sync switch) rather than the `PATCH` the plan first named, so an admin API token can't widen who reaches a bank. API tests in `apps/server/tests/test_bank_access.py` (14: each connect route ticked, unticked and as an admin, a tick taken away mid-connection, the switch, the admin route and its audit event, pausing and carrying on, one provider paused beside another, and the once-only upgrade); the bank tests' `register` now ticks its users. Admin → Users and Settings → Bank sync (paused card, only ticked providers offered, hidden tab) checked in headless Chromium against a stubbed API.
+
+Phase 2 built 2026-11-21 in 1.91.0 (web 1.102.0, no schema change), not released. Owners and editors reach an account's sync log (read by account), Unmatched list, bank balance and Adjust to bank, and `POST /api/bank/sync` takes `account_id` (runs as the connection's person, so their pause, limit and lock apply; the audit event is recorded under whoever pressed it). `/api/bank` and `/api/bank/status` carry `shared` (the bank account's name only in `/api/bank`); the account's last sync there comes from its own sync log, never the connection's summary, so nothing about the person's other accounts shows. Email-alert lines on the Unmatched list reach editors too, since the list is the account's. API tests in `apps/server/tests/test_bank_shared_sync.py` (45: owner, editor, read-only and stranger on every route, Sync now by account including paused, disabled and over-limit holders, the audit event, `shared` in both statuses); six older tests that pinned owner-only updated to the new rule. Settings → Bank sync as an editor checked in headless Chromium against a stubbed API (cards, paused note, Sync now by account, sync log, Unmatched).
 
 Planned 2026-11-21 (about 2:40 AM ET), from your question in the whats-next round: "is there a way to move the syncing out of the admin, by the admin allowing users to setup syncs as permissions and the sync living with the acct vs the user". Phases 1 to 3 go out together in one release; phases 4 and 5 each ship afterwards.
 

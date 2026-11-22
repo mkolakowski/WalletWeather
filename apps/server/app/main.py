@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.90.0"
+APP_VERSION = "1.91.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -3945,10 +3945,11 @@ def forecast(account_id: int, days: int = 90,
     # Today-dated cleared balance, independent of the requested window, so
     # the UI can show "where the account is right now" next to the forecast.
     data["current_balance"] = round(_current_balance(db, acc, today), 2)
-    # How many lines wait on the Unmatched list, for the owner only (only
-    # the owner can match them, #223); 0 for the people it's shared with.
+    # How many lines wait on the Unmatched list, for the owners and editors
+    # who can match them (#223, #265); 0 for read-only people.
     data["bank_unmatched_count"] = (_unmatched_query(db, acc.id).count()
-                                    if _user_level(db, user, acc.id) == "owner" else 0)
+                                    if LEVEL_RANK[_user_level(db, user, acc.id)] >= LEVEL_RANK["edit"]
+                                    else 0)
     data["bank_balance"] = _bank_balance_info(db, user, acc, Decimal(str(data["current_balance"])), today)
     return data
 
@@ -3969,24 +3970,36 @@ def _bank_adjust_lock(account_id: int) -> threading.Lock:
         return _bank_adjust_locks.setdefault(account_id, threading.Lock())
 
 
-def _bank_link_of(db: Session, user: User, account_id: int):
-    """(link, connection) when this account takes lines from one of the
-    user's own bank connections, else None. Someone an account is shared
-    with has no bank connection on it, so sees no bank balance."""
+def _account_bank_link(db: Session, account_id: int):
+    """(link, connection) when this account takes lines from a bank, whose
+    ever connection it is, else None. An account takes lines from one bank
+    account only (#254), so there is at most one; the account's sync belongs
+    to the account (sync-access phase 2, #265)."""
     return (db.query(BankAccountLink, BankConnection)
             .join(BankConnection, BankConnection.id == BankAccountLink.connection_id)
-            .filter(BankAccountLink.account_id == account_id, BankConnection.user_id == user.id)
-            .first())
+            .filter(BankAccountLink.account_id == account_id)
+            .order_by(BankAccountLink.id).first())
+
+
+def _bank_holder_name(holder: User | None) -> str:
+    """How the person whose connection feeds an account is named to the
+    others on it: their name, else their email (#265, question 3)."""
+    if holder is None:
+        return "someone"
+    return (holder.name or "").strip() or holder.email
 
 
 def _bank_balance_info(db: Session, user: User, acc: Account, mine: Decimal,
                        today: date | None = None) -> dict | None:
     """What the Accounts screen shows under a linked account's balance: the
     bank's balance, when the bank had it, which provider, and the gap (the
-    bank's minus yours, in cents, 0 when they agree). None when the account
-    isn't linked to one of the user's connections, the provider gave no
+    bank's minus yours, in cents, 0 when they agree). For the account's
+    owners and editors, whoever's connection feeds it (#265); None for
+    read-only people, when the account isn't linked, the provider gave no
     balance or bank sync is switched off."""
-    hit = _bank_link_of(db, user, acc.id)
+    if LEVEL_RANK[_user_level(db, user, acc.id)] < LEVEL_RANK["edit"]:
+        return None
+    hit = _account_bank_link(db, acc.id)
     if hit is None or not bank_sync_enabled(db):
         return None
     today = today or date.today()
@@ -3997,7 +4010,7 @@ def _bank_balance_info(db: Session, user: User, acc: Account, mine: Decimal,
     gap = (bank - mine).quantize(Decimal("0.01"))
     return {"balance": float(bank), "as_of": link.bank_balance_at.isoformat() + "Z",
             "provider": BANK_PROVIDER_NAMES[_provider(conn)], "gap": float(gap),
-            "can_adjust": LEVEL_RANK[_user_level(db, user, acc.id)] >= LEVEL_RANK["edit"],
+            "can_adjust": True,   # only owners and editors get this far (#265)
             "unpaid_planned": _unpaid_planned(db, acc, today) if gap else None}
 
 
@@ -4030,9 +4043,8 @@ def bank_adjust(account_id: int, body: BankAdjustIn, request: Request, today: da
     back."""
     acc = _account_with_perm(db, user, account_id, "edit")
     _bank_allowed(db, user)
-    hit = _bank_link_of(db, user, acc.id)
-    if hit is None:
-        raise HTTPException(400, "This account isn't matched to one of your bank accounts.")
+    if _account_bank_link(db, acc.id) is None:
+        raise HTTPException(400, "This account isn't matched to a bank account.")
     today = _viewer_today(today)
     # One adjustment per account at a time: a second request (a double tap, a
     # second tab) waits, then finds the gap closed and is refused.
@@ -4242,8 +4254,14 @@ def _bank_paused(db: Session, conn: BankConnection, user: User | None = None) ->
     return user is None or _provider(conn) not in bank_access(db, user)
 
 
-def _bank_paused_message(conn: BankConnection) -> str:
-    return (f"An admin has paused your {BANK_PROVIDER_NAMES[_provider(conn)]} connection. "
+def _bank_paused_message(conn: BankConnection, holder: str | None = None) -> str:
+    """Why a paused connection doesn't sync: to its person, or (`holder`
+    given, #265) to someone whose shared account it feeds."""
+    pname = BANK_PROVIDER_NAMES[_provider(conn)]
+    if holder is not None:
+        return (f"An admin has paused {holder}'s {pname} connection, so this account doesn't sync "
+                f"for now. It carries on once an admin lets {holder} use {pname} again.")
+    return (f"An admin has paused your {pname} connection. "
             "It's kept, and carries on once an admin lets you use it again in Admin → Users.")
 
 
@@ -4352,11 +4370,16 @@ def _bank_status(db: Session, user: User) -> dict:
            # this person connect through it (#264).
            "providers": [{"key": k, "name": BANK_PROVIDER_NAMES[k], "available": v, "allowed": k in access}
                          for k, v in offered.items()],
-           "providers_allowed": [k for k, v in offered.items() if v and k in access]}
+           "providers_allowed": [k for k, v in offered.items() if v and k in access],
+           # Accounts shared with this person that sync from someone else's
+           # connection (#265).
+           "shared": _bank_shared(db, user, with_names=True)}
     if not conns:
         out["connections"] = []
         return out
+    shared = out["shared"]
     out.update(_bank_short_status(db, user))
+    out["shared"] = shared   # with the bank account names the short one leaves out
     short = {c["id"]: c for c in out["connections"]}
     details, every = [], []
     for conn in conns:
@@ -4831,20 +4854,30 @@ def _bank_lock(user_id: int) -> threading.Lock:
 
 
 def _bank_sync(db: Session, user: User, conn: BankConnection, request: Request | None,
-               trigger: str = "manual", calibrate: set[int] | None = None) -> dict:
+               trigger: str = "manual", calibrate: set[int] | None = None,
+               actor: User | None = None) -> dict:
+    """Sync one connection as its person (`user`: their categories, tag
+    rules and lock). `actor` is someone else who pressed Sync now for an
+    account the connection feeds (#265); the audit log records them."""
     if _bank_paused(db, conn, user):
-        raise HTTPException(403, _bank_paused_message(conn))
+        raise HTTPException(403, _bank_paused_message(
+            conn, _bank_holder_name(user) if actor is not None and actor.id != user.id else None))
     lock = _bank_lock(user.id)
     if not lock.acquire(blocking=False):
         raise HTTPException(409, "A sync is already running. Try again in a minute.")
     try:
-        return _bank_sync_locked(db, user, conn, request, trigger, calibrate or set())
+        return _bank_sync_locked(db, user, conn, request, trigger, calibrate or set(), actor)
     finally:
         lock.release()
 
 
 def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Request | None,
-                      trigger: str, calibrate: set[int] = frozenset()) -> dict:
+                      trigger: str, calibrate: set[int] = frozenset(), actor: User | None = None) -> dict:
+    # Pressed by someone the account is shared with (#265): the event is
+    # theirs, and names whose connection it was.
+    who, whose = user, ""
+    if actor is not None and actor.id != user.id:
+        who, whose = actor, f", connection #{conn.id} of user #{user.id}"
     links = db.query(BankAccountLink).filter_by(connection_id=conn.id).all()
     if not links:
         raise HTTPException(400, "Match at least one bank account to one of your accounts first.")
@@ -4889,8 +4922,8 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
             db.add(BankSyncRun(user_id=user.id, account_id=l.account_id, run_at=now,
                                trigger=trigger, error=str(e)[:300]))
         db.commit()
-        record_event(db, "bank_sync_failed", request, user=user,
-                     detail=("revoked" if e.revoked else f"HTTP {e.status}") + f", {trigger}")
+        record_event(db, "bank_sync_failed", request, user=who,
+                     detail=("revoked" if e.revoked else f"HTTP {e.status}") + f", {trigger}{whose}")
         raise HTTPException(e.status, str(e))
     if data["accounts"]:
         _set_bank_listing(conn, data["accounts"])
@@ -4980,8 +5013,8 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
     if provider == "plaid":
         conn.cursor = data.get("cursor") or conn.cursor
     db.commit()
-    record_event(db, "bank_sync_run", request, user=user,
-                 detail=f"{added} added, {matched} matched, {skipped} skipped, {trigger}")
+    record_event(db, "bank_sync_run", request, user=who,
+                 detail=f"{added} added, {matched} matched, {skipped} skipped, {trigger}{whose}")
     return {"added": added, "matched": matched, "skipped": skipped, "messages": data["messages"],
             "calibrated": sorted(calibrated)}
 
@@ -5572,7 +5605,13 @@ def bank_unmatch(txn_id: int, user: User = Depends(current_user), db: Session = 
         t.bank_text = None
         t.bank_sync_run_id = t.mail_run_id = None
     db.flush()
-    own = _bank_own_line(db, user, acc.id, day, amount, raw, ref, run_id, left=True, source=src)
+    # A bank line gets the tag rules it came in with: those of the person
+    # whose connection feeds the account, whoever un-matches it (#265).
+    rules_of = user
+    hit = _account_bank_link(db, acc.id) if src == "bank" else None
+    if hit is not None:
+        rules_of = db.get(User, hit[1].user_id) or user
+    own = _bank_own_line(db, rules_of, acc.id, day, amount, raw, ref, run_id, left=True, source=src)
     db.commit()
     return {"ok": True, "transaction_id": own.id}
 
@@ -5599,6 +5638,9 @@ def shorten_synced_names(db: Session) -> int:
 
 class BankSyncIn(BaseModel):
     connection_id: int | None = None
+    # One account the caller owns or edits: syncs the connection that feeds
+    # it, whoever's it is (#265).
+    account_id: int | None = None
 
 
 @app.post("/api/bank/sync")
@@ -5610,6 +5652,10 @@ def bank_sync_now(request: Request, body: BankSyncIn | None = None, user: User =
     several connections, one that fails doesn't stop the others: its
     reason joins `messages`, and only when every one fails is it an error."""
     _bank_allowed(db, user)
+    if body is not None and body.account_id is not None:
+        if body.connection_id is not None:
+            raise HTTPException(400, "Give connection_id or account_id, not both.")
+        return _bank_sync_account(db, user, body.account_id, request)
     connection_id = body.connection_id if body else None
     if connection_id is not None:
         targets = [_bank_connection_of(db, user, connection_id)]
@@ -5645,6 +5691,85 @@ def bank_sync_now(request: Request, body: BankSyncIn | None = None, user: User =
     if len(errors) == len(targets):
         raise errors[0]
     return {**total, "status": _bank_short_status(db, user)}
+
+
+def _bank_sync_account(db: Session, user: User, account_id: int, request: Request) -> dict:
+    """Sync now for one account (sync-access phase 2, #265): any owner or
+    editor of it may, whoever's connection feeds it. The sync runs as the
+    connection's person, so their pause, limit and lock apply."""
+    acc = _account_with_perm(db, user, account_id, "edit")
+    hit = _account_bank_link(db, acc.id)
+    if hit is None:
+        raise HTTPException(400, "This account doesn't take lines from a bank.")
+    conn = hit[1]
+    holder = db.get(User, conn.user_id)
+    if holder is None or holder.disabled:
+        raise HTTPException(403, "The person whose bank connection feeds this account can't sign in "
+                                 "at the moment, so it doesn't sync.")
+    result = _bank_sync(db, holder, conn, request, trigger="manual", actor=user)
+    return {**result, "status": _bank_short_status(db, user),
+            "account": next((a for a in _bank_shared(db, user, with_names=False, own=True)
+                             if a["account_id"] == acc.id), None)}
+
+
+def _bank_shared(db: Session, user: User, with_names: bool, own: bool = False) -> list[dict]:
+    """The accounts this person owns or edits that take lines from someone
+    else's bank connection (#265; `own` adds those from their own), for
+    Settings → Bank sync and the apps: whose connection and which provider,
+    and the account's own last sync from its sync log, never the other
+    accounts on that connection. `with_names` adds the bank account's name
+    (/api/bank only, like the connections' own; question 3)."""
+    q = (db.query(BankAccountLink, BankConnection, Account)
+         .join(BankConnection, BankConnection.id == BankAccountLink.connection_id)
+         .join(Account, Account.id == BankAccountLink.account_id)
+         .join(AccountPermission, AccountPermission.account_id == Account.id)
+         .filter(AccountPermission.user_id == user.id,
+                 AccountPermission.level.in_(["owner", "edit"])))
+    if not own:
+        q = q.filter(BankConnection.user_id != user.id)
+    rows = q.order_by(Account.archived, Account.id).all()
+    if not rows:
+        return []
+    enabled = bank_sync_enabled(db)
+    now = datetime.utcnow()
+    holders: dict[int, User | None] = {}
+    out = []
+    for link, conn, acc in rows:
+        if conn.user_id not in holders:
+            holders[conn.user_id] = db.get(User, conn.user_id)
+        holder = holders[conn.user_id]
+        paused = _bank_paused(db, conn, holder) if holder is not None else True
+        short = _bank_conn_short(db, conn, now, enabled, paused)
+        run = (db.query(BankSyncRun).filter_by(account_id=acc.id)
+               .order_by(BankSyncRun.run_at.desc(), BankSyncRun.id.desc()).first())
+        if run is None:
+            status = None
+        elif run.error:
+            status = run.error
+        else:
+            status = (f"{run.added} new line{'' if run.added == 1 else 's'}, "
+                      + (f"{run.matched} matched a bill, " if run.matched else "")
+                      + f"{run.skipped} already here")
+        entry = {
+            "account_id": acc.id, "account_name": acc.name, "archived": bool(acc.archived),
+            "level": _user_level(db, user, acc.id),
+            "holder_name": _bank_holder_name(holder), "mine": conn.user_id == user.id,
+            "provider": short["provider"], "provider_name": short["provider_name"],
+            "synced_through": link.synced_through.isoformat() if link.synced_through else None,
+            "last_sync_at": _iso_z(run.run_at) if run else None,
+            "last_sync_ok": (run.error is None) if run else None,
+            "last_sync_status": status,
+            "needs_reconnect": short["needs_reconnect"], "paused": short["paused"],
+            "next_sync_at": short["next_sync_at"], "syncs_left_today": short["syncs_left_today"],
+            "sync_wait_seconds": short["sync_wait_seconds"],
+            "unmatched_count": _unmatched_query(db, acc.id).count(),
+        }
+        if with_names:
+            bank_acc = next((a for a in _bank_listing(conn)
+                             if bank_account_ref(a["id"], _provider(conn)) == link.bank_account_ref), None)
+            entry["bank_account_name"] = (bank_acc or {}).get("name") or ""
+        out.append(entry)
+    return out
 
 
 # ---------- The daily sync (#195) ----------
@@ -5748,7 +5873,9 @@ def _bank_short_status(db: Session, user: User) -> dict:
     `connections` has each one."""
     conns = _bank_connections(db, user)
     enabled = bank_sync_enabled(db)
-    out = {"enabled": enabled, "connected": bool(conns)}
+    # `shared`: accounts shared with this person that sync from someone
+    # else's connection, with no bank account names (#265).
+    out = {"enabled": enabled, "connected": bool(conns), "shared": _bank_shared(db, user, with_names=False)}
     if not conns:
         return out
     now = datetime.utcnow()
@@ -5793,16 +5920,17 @@ def bank_short_status(user: User = Depends(current_user), db: Session = Depends(
 
 # ---------- The sync log (#195) ----------
 def _sync_log_account(db: Session, user: User, account_id: int) -> Account:
-    # The owner only, not the people the account is shared with; 404 like
-    # every account check.
-    return _account_with_perm(db, user, account_id, "owner")
+    # The account's sync belongs to the account (sync-access phase 2, #265):
+    # its owners and editors see its sync log and Unmatched list, read-only
+    # people don't; 404 like every account check.
+    return _account_with_perm(db, user, account_id, "edit")
 
 
 @app.get("/api/accounts/{account_id}/bank-syncs")
 def bank_sync_log(account_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
     """This account's syncs, newest first (the last 200)."""
     acc = _sync_log_account(db, user, account_id)
-    runs = (db.query(BankSyncRun).filter_by(account_id=acc.id, user_id=user.id)
+    runs = (db.query(BankSyncRun).filter_by(account_id=acc.id)
             .order_by(BankSyncRun.run_at.desc(), BankSyncRun.id.desc()).limit(200).all())
     return [{"id": r.id, "run_at": r.run_at.isoformat() + "Z", "trigger": r.trigger,
              "added": r.added, "matched": r.matched, "skipped": r.skipped, "error": r.error}
@@ -5815,7 +5943,7 @@ def bank_sync_log_lines(account_id: int, run_id: int, user: User = Depends(curre
     """The lines one sync brought in that are still there."""
     acc = _sync_log_account(db, user, account_id)
     run = db.get(BankSyncRun, run_id)
-    if run is None or run.account_id != acc.id or run.user_id != user.id:
+    if run is None or run.account_id != acc.id:
         raise HTTPException(404, "Sync not found")
     rows = (db.query(Transaction).filter_by(account_id=acc.id, bank_sync_run_id=run.id)
             .order_by(Transaction.actual_date, Transaction.id).all())

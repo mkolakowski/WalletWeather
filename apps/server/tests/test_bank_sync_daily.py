@@ -187,7 +187,7 @@ def test_the_status_warns_after_a_day_of_failing(linked, fake):
 
 def test_not_connected_status(app_started, switched_on):
     c, _ = register(app_started)
-    assert c.get("/api/bank/status").json() == {"enabled": True, "connected": False}
+    assert c.get("/api/bank/status").json() == {"enabled": True, "connected": False, "shared": []}
 
 
 # ---------- Tokens ----------
@@ -229,15 +229,16 @@ def test_the_sync_log_and_its_lines(linked, fake):
     assert newest["added"] == 0 and "subscription" in newest["error"]
 
 
-def test_people_the_account_is_shared_with_cant_read_the_log(app_started, linked):
+def test_read_only_people_cant_read_the_log_but_editors_can(app_started, linked):
+    # Editors read the log since #265 (the account holds its sync).
     c, u, acc = linked
     c.post("/api/bank/sync")
     run_id = c.get(f"/api/accounts/{acc}/bank-syncs").json()[0]["id"]
-    for level in ("read", "edit"):
+    for level, code in (("read", 404), ("edit", 200)):
         other, _ = register(app_started)
         share_account(c, acc, level, invitee_client=other)
-        assert other.get(f"/api/accounts/{acc}/bank-syncs").status_code == 404, level
-        assert other.get(f"/api/accounts/{acc}/bank-syncs/{run_id}").status_code == 404, level
+        assert other.get(f"/api/accounts/{acc}/bank-syncs").status_code == code, level
+        assert other.get(f"/api/accounts/{acc}/bank-syncs/{run_id}").status_code == code, level
 
 
 def test_a_sync_from_another_account_isnt_found(linked):

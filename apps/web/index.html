@@ -2821,7 +2821,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.101.0";
+const WEB_VERSION = "1.102.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2831,6 +2831,7 @@ const WEB_VERSION = "1.101.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.102.0 (2026-11-21, claude+mkolakowski): (#265) The account holds its sync. Settings → Bank sync also shows for someone with owner or edit on an account that syncs from another person's connection (/api/bank's new `shared`): "Shared accounts that sync" (_bankSharedHtml), a card per account with "Synced from <name>'s <provider> connection · <bank account>", its last sync from its own sync log, a paused or needs-reconnecting note naming that person, and Sync now (bankSyncShared → POST /api/bank/sync {account_id}), Sync log and Unmatched (N). The Forecast's Unmatched pill, Match… and bank balance with Adjust to bank now reach editors because the server sends them.
 // 1.101.0 (2026-11-21, claude+mkolakowski): (#264) Who may connect a bank. Admin → Users gets a "Bank sync" column: a tick per provider the instance offers (plus any already ticked), "Always" for an admin; a change sends the row's whole list to PUT /api/admin/users/{id}/bank-access (adminSetBankAccess). Settings → Bank sync shows only when bank sync is on and /api/bank's new providers_allowed isn't empty (or there's a connection to remove), offers only those providers (_bankOffered reads `allowed`), and a connection with `paused` says an admin has paused it, with Sync now off. app-connect-bank.js offers only allowed providers.
 // 1.100.0 (2026-11-21, claude+mkolakowski): (#258) Connecting a bank from the iPhone app: new pages outside the SPA, app-connect-bank.html/.js (/app-connect-bank: signs in, offers Teller and Plaid from /api/bank, asks the two-factor code, POST /api/bank/connect/start {app: true}; back from the provider as ?attempt=, checks /api/bank/connect/check and sends the sheet to walletweather://bank-connected?connection=N or ?state=...). bank-teller.js with ?app=1 sends the sheet back to the app after enrolling and offers Back to the app. index.html itself is unchanged.
 // 1.99.0 (2026-11-21, claude+mkolakowski): (#256) The bank's balance next to yours. The forecast's new bank_balance (balance, as_of, provider, gap, can_adjust; null when the account has no bank balance) is shown by _bankBalanceHtml under "Current balance" in the Forecast summary: "Bank: $… as of …", and when the gap isn't 0 an amber "Bank differs by …" with an "Adjust to bank" button (bankAdjust → POST /api/accounts/{id}/bank-adjust with the gap shown, today= the browser's date). After it, "Adjusted by … Undo" stays in the tile (_bankAdjusted; bankAdjustUndo → DELETE /api/transactions/{id}) until the gap is back or another account opens, and only while the bank's balance is the one it was made against. The bank balance's new unpaid_planned (count, amount of planned lines up to today not yet paid) is named in the tile and asked about in a confirmDialog before adjusting.
@@ -9555,7 +9556,10 @@ async function loadBank() {
   // Shown while an admin lets this person connect through something (#264),
   // or while they still have a connection to see or remove.
   const mayConnect = bankState.enabled && (bankState.providers_allowed || []).length > 0;
-  tab.classList.toggle('hidden', !(mayConnect || bankState.connected));
+  // Or while an account they own or edit syncs from someone else's
+  // connection (#265).
+  const shared = bankState.enabled ? (bankState.shared || []) : [];
+  tab.classList.toggle('hidden', !(mayConnect || bankState.connected || shared.length));
   let owned = [];
   if (bankState.connected) {
     try { owned = (await api('/api/accounts?include_archived=true')).filter(a => a.level === 'owner'); } catch (_) {}
@@ -9573,11 +9577,69 @@ async function loadBank() {
         your accounts takes lines from one bank account.</p>`
       + conns.map(c => _bankConnHtml(c, owned)).join('')
       + (anyAccounts ? `<div style="margin-top:12px"><button class="ghost" id="bankSaveBtn" onclick="bankSaveLinks()">Save matches</button></div>` : '')
-      + '<div id="bankLog" class="hidden" style="margin-top:14px;max-width:720px"></div>'
-      + _bankCategoriesHtml()
     : '')
+    + (shared.length ? _bankSharedHtml(shared, conns.length > 0) : '')
+    + (conns.length || shared.length ? '<div id="bankLog" class="hidden" style="margin-top:14px;max-width:720px"></div>' : '')
+    + (conns.length ? _bankCategoriesHtml() : '')
     + (mayConnect ? _bankConnectHtml(conns.length > 0)
-      : bankState.enabled ? `<p style="color:var(--muted);font-size:13px;margin-top:16px">An admin hasn't let you connect another bank. They can in Admin → Users.</p>` : '');
+      : bankState.enabled ? `<p style="color:var(--muted);font-size:13px;margin-top:16px">An admin hasn't let you connect ${conns.length ? 'another bank' : 'a bank of your own'}. They can in Admin → Users.</p>` : '');
+}
+
+// Accounts someone shares with you that sync from their bank connection
+// (#265): you see the account's own sync, run Sync now, and look at its log
+// and Unmatched list; the connection itself stays theirs.
+function _bankSharedHtml(shared, after) {
+  return `
+    <h3 class="backup-subhead" style="margin-top:${after ? 24 : 0}px">Shared accounts that sync</h3>
+    <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+      These accounts are shared with you and take lines from someone else's bank connection. You can sync them and
+      match their lines; only the person whose connection it is can reconnect or disconnect it, and only an owner
+      can change which bank account an account takes lines from.</p>`
+    + shared.map(_bankSharedCardHtml).join('');
+}
+
+function _bankSharedCardHtml(a) {
+  const id = Number(a.account_id);
+  const who = escapeHtml(a.holder_name || 'someone');
+  const pname = escapeHtml(a.provider_name || 'bank');
+  const from = `Synced from ${who}'s ${pname} connection` + (a.bank_account_name ? ` · ${escapeHtml(a.bank_account_name)}` : '');
+  const last = (a.last_sync_at
+    ? `Last sync ${_bankWhen(a.last_sync_at)}: ${escapeHtml(a.last_sync_status || '')}`
+    : 'Not synced yet.')
+    + (a.needs_reconnect
+      ? `<br><strong>${pname} no longer reaches this bank, so daily syncing has stopped.</strong> ${who} needs to connect it again.`
+      : a.paused
+        ? `<br><strong>An admin has paused ${who}'s ${pname} connection.</strong> This account syncs again once an admin lets ${who} use ${pname}.`
+      : a.next_sync_at
+        ? `<br>Syncs by itself about once a day; next around ${escapeHtml(_bankWhen(a.next_sync_at))}.`
+        : '');
+  const left = a.syncs_left_today;
+  return `<div class="bank-shared" data-account="${id}" style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin:0 0 14px;max-width:760px">
+    <h3 class="backup-subhead" style="margin:0 0 4px">${escapeHtml(a.account_name)}${a.archived ? ' <span style="font-weight:normal;font-size:12px;color:var(--muted)">(archived)</span>' : ''}</h3>
+    <div style="font-size:12px;color:var(--muted)">${from}</div>
+    <div style="font-size:13px;margin-top:10px;color:${a.last_sync_ok === false ? 'var(--bad)' : 'var(--muted)'}">${last}</div>
+    <div style="margin-top:8px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <button onclick="bankSyncShared(${id})"${a.sync_wait_seconds || a.paused ? ' disabled' : ''}>Sync now</button>
+      <span style="font-size:12px;color:var(--muted)">${left} sync${left === 1 ? '' : 's'} left in the next 24 hours</span>
+      <button class="ghost" onclick="bankShowLog(${id})">Sync log</button>
+      ${a.unmatched_count > 0 ? `<button class="ghost" onclick="bankShowUnmatched(${id})">Unmatched (${Number(a.unmatched_count)})</button>` : ''}
+    </div>
+  </div>`;
+}
+
+async function bankSyncShared(accountId) {
+  const a = ((bankState && bankState.shared) || []).find(x => x.account_id === accountId);
+  const name = a ? a.provider_name : 'the bank';
+  _bankSay(`Asking ${name}…`);
+  try {
+    const r = await api('/api/bank/sync', { method: 'POST', body: JSON.stringify({ account_id: accountId }) });
+    _bankSay(`${r.added} new line${r.added === 1 ? '' : 's'} came in`
+             + (r.matched ? `, ${r.matched} of them paid a bill` : '')
+             + `; ${r.skipped} ${r.skipped === 1 ? 'was' : 'were'} already here.`
+             + (r.messages && r.messages.length ? ` ${name} said: ` + r.messages.join('; ') : ''), 'var(--good)');
+    await loadBank();
+    if (r.added) loadAccounts();
+  } catch (e) { _bankSay(errText(e), 'var(--bad)'); await loadBank(); }
 }
 
 // Teller's and Plaid's own categories onto yours (#255). Rows are made by the
@@ -9722,7 +9784,8 @@ function _bankConnHtml(c, owned) {
 }
 
 // The sync log of one linked account (#195): its syncs, newest first; a
-// sync opens to the lines it brought in. Only the account's owner sees it.
+// sync opens to the lines it brought in. The account's owners and editors
+// see it (#265).
 async function bankShowLog(accountId) {
   const box = document.getElementById('bankLog');
   if (!box) return;
@@ -10106,7 +10169,7 @@ async function _bankRefreshUnmatched(accountId, said) {
   document.querySelectorAll('#bankBody button[onclick^="bankShowUnmatched("]').forEach(b => {
     const m = /bankShowUnmatched\((\d+)\)/.exec(b.getAttribute('onclick') || '');
     if (!m) return;
-    const acct = (bankState.accounts || []).find(a => a.account_id === Number(m[1]));
+    const acct = (bankState.accounts || []).concat(bankState.shared || []).find(a => a.account_id === Number(m[1]));
     if (acct && acct.unmatched_count > 0) b.textContent = `Unmatched (${acct.unmatched_count})`;
     else b.remove();
   });

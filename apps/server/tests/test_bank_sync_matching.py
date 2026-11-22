@@ -295,8 +295,8 @@ def test_another_users_lines_cannot_be_matched(app_started, connected, fake):
     sync(c)
     line = unmatched(c, acc)["lines"][0]
     other, ou = register(app_started)
-    # Not even with the account shared for editing: matching is the owner's.
-    share_account(c, acc, "edit", other)
+    # Not even with the account shared read-only; an editor may (#265).
+    share_account(c, acc, "read", other)
     assert other.get(f"/api/accounts/{acc}/bank-unmatched").status_code == 404
     assert other.get(f"/api/accounts/{acc}/bank-unmatched/{line['id']}/candidates").status_code == 404
     assert other.post(f"/api/accounts/{acc}/bank-unmatched/{line['id']}/match",

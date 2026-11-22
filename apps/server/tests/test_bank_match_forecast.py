@@ -46,15 +46,17 @@ def test_the_forecast_marks_unmatched_lines(connected, fake):
     assert next(r for r in data["rows"] if r["description"] == "PAYROLL ACME")["bank_unmatched"] is False
 
 
-def test_people_it_is_shared_with_see_no_count(app_started, connected, fake):
+def test_editors_see_the_count_and_read_only_people_dont(app_started, connected, fake):
     c, u, acc, status = connected
     link(c, status, acc)
     sync(c)
     other, ou = register(app_started)
     share_account(c, acc, "edit", other)
-    data = forecast(other, acc)
-    assert data["bank_unmatched_count"] == 0
-    assert near(other, acc, transaction_id=1).status_code == 404
+    assert forecast(other, acc)["bank_unmatched_count"] == 2     # an editor works the list (#265)
+    viewer, _ = register(app_started)
+    share_account(c, acc, "read", viewer)
+    assert forecast(viewer, acc)["bank_unmatched_count"] == 0
+    assert near(viewer, acc, transaction_id=1).status_code == 404
 
 
 def test_lines_near_a_bill_date(connected, fake):

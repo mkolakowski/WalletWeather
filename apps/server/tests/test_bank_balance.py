@@ -431,19 +431,22 @@ def test_adjust_records_an_audit_event(simplefin_acc):
 
 # ---------- Who sees it ----------
 
-def test_someone_an_account_is_shared_with_sees_no_bank_balance_and_cant_adjust(simplefin_acc, app_started):
+def test_an_editor_sees_the_bank_balance_and_adjusts_but_read_only_doesnt(simplefin_acc, app_started):
+    # Since #265 the account holds its sync: editors see the bank's balance
+    # and adjust to it; read-only people still don't.
     c, u, acc = simplefin_acc
     sync(c)
     editor, _ = register(app_started)
     share_account(c, acc, "edit", invitee_client=editor)
-    assert info(editor, acc) is None
-    assert adjust(editor, acc, -1357.50).status_code == 400
+    assert info(editor, acc) == info(c, acc)
     viewer, _ = register(app_started)
     share_account(c, acc, "read", invitee_client=viewer)
     assert info(viewer, acc) is None
     assert adjust(viewer, acc, -1357.50).status_code in (403, 404)
     assert [t["description"] for t in lines(c, acc)].count("Adjust to bank") == 0
     assert info(c, acc)["gap"] == -1357.50     # the owner still sees it
+    assert adjust(editor, acc, -1357.50).status_code == 200
+    assert info(c, acc)["gap"] == 0
 
 
 def test_with_bank_sync_switched_off_nothing_shows_and_adjust_is_refused(simplefin_acc):

@@ -6,10 +6,12 @@ Tracking issue: #303
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. The list underneath | #299 | Planned 2026-11-23; not started |
+| 1. The list underneath | #299 | Built in iOS 0.35.0, 2026-11-23; waits for a check on Matthew's phone and a release |
 | 2. Connections in Settings | #300 | Planned 2026-11-23; not started |
 | 3. This iPhone, the demo, and the lock | #301 | Planned 2026-11-23; not started |
 | 4. Quick switch, and what runs behind | #302 | Planned 2026-11-23; not started |
+
+Phase 1 built 2026-11-23 in iOS 0.35.0 (0f062b5; no server change), by an orchestrated run (an Opus worker wrote it; this thread checked it): `ConnectionStore` in the Kit keeps one Keychain item per connection (`connection.<id>`, the same service and protection as the single item had) and the id of the one in front in the app's settings (`connections.active`). The single sign-in is carried over once: written as the first connection with its keep choice and saved web theme, read back, its kept numbers moved into `Kept/<id>/`, and only then removed with `keep.choice`; if the copy can't be written the old item stays in use and the next start tries again. Each page's account is remembered per connection in each window (`<key>.byConnection` beside the three scene-storage keys). Until phase 2, a new sign-in still replaces the one before. Verified: `swift test`, 230 passed (16 new in `ConnectionStoreTests`: the carry-over with and without Cloudflare, the household on this iPhone, nothing saved, a failed write, add, remove and switch, kept numbers per connection, the Keychain attributes); on the Duo simulator the new build launched over an install that held the household on this iPhone and opened it as before, twice, and the demo still opened. Not checked: a server sign-in with kept numbers carrying over, which needs Matthew's phone.
 
 Planned 2026-11-23 from a design review of iOS 0.34.0, asked for as "can you perform a design review of the ios app, looking for ux inconsistancies and suggest more features for the duo. please also take a look at overhauling settings and I would also like a plan for the ability to connect to multiple servers as well as running local and even accessing the demo (from the settings)". The review ran the app in the demo on the Duo simulator in every pose and at a large text size, made 27 findings (R1 to R27) and twelve ideas (F1 to F12), and drew today beside the proposal for each ([the review page](https://claude.ai/artifact/YanSV7o5FqX9WC6SdzZkyj), private to Matthew). The choices made in four rounds of questions are on the [decision page](../docs/dev/decisions/ios-review.md).
 

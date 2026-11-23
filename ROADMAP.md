@@ -327,6 +327,13 @@ Dashboard, Forecast, Bills & income and Calendar. Their logic moves into
 the shared core first. Waits for item 31 (decided 2026-11-18).
 **Effort: medium.**
 
+### 34. A modern look for the web app
+The web client redrawn without moving anything people rely on: fewer nested
+boxes, real page titles, readable colours in every theme, Settings and Admin
+laid out as sections, and a top bar with an account menu. From a design
+review of web 1.107.0 (2026-11-23); planned in `Plans/web-refresh.md`.
+**Effort: medium.**
+
 ---
 
 ## What's already in good shape (don't re-prioritize these)

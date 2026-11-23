@@ -334,6 +334,42 @@ laid out as sections, and a top bar with an account menu. From a design
 review of web 1.107.0 (2026-11-23); planned in `Plans/web-refresh.md`.
 **Effort: medium.**~~
 
+### 35. Settings reshaped on the iPhone
+The iPhone app's Settings as a short list of sections, each with its own
+page; a sidebar and a page when the Duo is open, like the Duo's own
+Settings; Appearance as a page of previews; a Dates & display page that
+follows the web app's date format; and themes people make themselves, kept
+in iCloud. From a design review of iOS 0.34.0 (2026-11-23); planned in
+`Plans/ios-settings.md` (#298). **Effort: medium.**
+
+### 36. Several connections on the iPhone
+Any number of servers, the household on this iPhone and the demo, kept side
+by side and switched from Settings or the Dashboard's title without signing
+out. With the lock on, the app opens in the demo until Face ID is given.
+Takes up "more than one server at a time", which item 26's plan left out.
+From the same review; planned in `Plans/connections.md` (#303).
+**Effort: medium.**
+
+### 37. More for the Duo's big screen
+One fold layout for every page (flat as today, stacked at the hinge when
+half open, animated between), tapping through from the Dashboard and the
+Calendar, matching bank lines in two panes, keyboard shortcuts and
+long-press menus, and drag and drop. From the same review; planned in
+`Plans/duo-more.md` (#309). **Effort: medium.**
+
+### 38. One way to label, report and size on the iPhone
+Sentence-case labels, plain list rows, one way to report a problem, and
+sizes that follow the phone's text size (at the largest sizes the open
+layouts break today). From the same review; planned in
+`Plans/ios-labels.md` (#312). **Effort: small.**
+
+### 39. Widgets, reminders and Shortcuts on the iPhone
+Home Screen and Lock Screen widgets (#318), reminders worked out on the
+phone (#319), and Shortcuts, Siri and Spotlight (#320). Each puts numbers
+outside the app, so each starts with a privacy question: what shows while
+the phone is locked. Item 6 is the server's side of reminders. From the
+same review. **Effort: medium each.**
+
 ---
 
 ## What's already in good shape (don't re-prioritize these)

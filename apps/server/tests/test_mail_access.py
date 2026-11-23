@@ -83,11 +83,25 @@ class Crowd:
         return [("read-only", self.viewer), ("stranger", self.stranger)]
 
 
+def not_due_for_an_hour(user_id):
+    """Keep the app's own scheduler (it checks due mailboxes every minute,
+    in tests too) off this mailbox, so a test's Check now isn't refused as
+    "checked a moment ago" when the scheduler got there first."""
+    from app.db import MailConnection, SessionLocal
+    db = SessionLocal()
+    db.query(MailConnection).filter_by(user_id=user_id).update(
+        {MailConnection.check_minutes: 60,
+         MailConnection.last_check_at: datetime.utcnow() - timedelta(minutes=5)})
+    db.commit()
+    db.close()
+
+
 @pytest.fixture
 def crowd(app_started, taught, ms):
     c, u, acc = taught
     name_the_holder(u["id"])
     only_these_users_due(u["id"])
+    not_due_for_an_hour(u["id"])
     acc2 = make_account(c, "Card 9876")
     sender = c.get("/api/mail").json()["senders"][0]
     r = c.put(f"/api/mail/senders/{sender['id']}", json={"cards": {"9876": acc2}})
@@ -335,7 +349,9 @@ def test_an_editor_sees_the_account_the_mailbox_feeds(crowd):
         assert e["level"] == "edit" and e["mine"] is False
         assert e["holder_name"] == HOLDER_NAME
         assert e["provider"] == "microsoft" and e["provider_name"] == "Microsoft 365"
-        assert e["last_check_at"] is None and e["last_check_ok"] is None
+        # The crowd's mailbox was "checked" 5 minutes ago (not_due_for_an_hour),
+        # with no result recorded.
+        assert e["last_check_at"].endswith("Z") and e["last_check_ok"] is None
         assert e["needs_reconnect"] is False and e["paused"] is False
         assert e["holder_disabled"] is False and e["next_check_at"] is not None
         assert e["unmatched_count"] == 0

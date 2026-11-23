@@ -9,7 +9,7 @@ Tracking issue: #269
 | 1. Who may connect, per person and provider | Server, Web | #264 | Released in 1.92.0, 2026-11-22 |
 | 2. The account holds its sync | Server, Web | #265 | Released in 1.92.0, 2026-11-22 |
 | 3. The connection passes on | Server, Web | #266 | Released in 1.92.0, 2026-11-22 |
-| 4. The same on the iPhone | iOS, Server | #267 | Built 2026-11-22 in iOS 0.31.0 and server 1.92.1, not released; waiting on your check over TestFlight |
+| 4. The same on the iPhone | iOS, Server | #267 | Built 2026-11-22 in iOS 0.31.0 and server 1.92.1; server released in v1.97.0 (2026-11-23); on TestFlight in build 400 (iOS 0.33.0); waiting on your check |
 | 5. Email alerts on the same model | Server, Web | #268 | Built 2026-11-22 in 1.93.0 (web 1.104.0, schema 36), released in v1.97.0 (2026-11-23); your check: tick and untick someone in Admin → Users, and an editor of a shared account presses Check now |
 
 Phase 1 built 2026-11-21 in 1.90.0 (web 1.101.0, schema 35), not released. The ticks are set with `PUT /api/admin/users/{id}/bank-access` (a browser session, like the Bank sync switch) rather than the `PATCH` the plan first named, so an admin API token can't widen who reaches a bank. API tests in `apps/server/tests/test_bank_access.py` (14: each connect route ticked, unticked and as an admin, a tick taken away mid-connection, the switch, the admin route and its audit event, pausing and carrying on, one provider paused beside another, and the once-only upgrade); the bank tests' `register` now ticks its users. Admin → Users and Settings → Bank sync (paused card, only ticked providers offered, hidden tab) checked in headless Chromium against a stubbed API.

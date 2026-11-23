@@ -11,7 +11,7 @@ Tracking issue: #93
 | 3. Bills & income and Calendar | #89 | Released in 1.53.0 (2026-11-15; iOS 0.3.0); closed 2026-11-16, phone check still in the list on #93 |
 | 4. The Duo's big screen | #90 | All four parts released in 1.54.2 (2026-11-15; iOS 0.7.0) and all four kept (your choice, 2026-11-15); closed 2026-11-16, phone check still in the list on #93 |
 | 5. The other pages and app settings | #91 | Released in 1.54.0 (2026-11-15; iOS 0.4.0); closed 2026-11-16, phone check still in the list on #93 |
-| 6. TestFlight and the App Store | #92 | In progress: Try the demo, the privacy manifest and the privacy policy check built in iOS 0.16.0 (2026-11-16, not released); the icon was already in 0.8.0. The store text, screenshots and the TestFlight upload wait on legal-risk phase 5 (#49) |
+| 6. TestFlight and the App Store | #92 | In progress: Try the demo, the privacy manifest and the privacy policy check built in iOS 0.16.0; the icon in 0.8.0. On TestFlight for internal testers through `apps/ios/Scripts/testflight.sh` (build 400, iOS 0.33.0, 2026-11-23). The store text and screenshots, and testers outside your team, wait on legal-risk phase 5 (#49) |
 | 7. More ways to sign in | #100 | Released in 1.55.0 (2026-11-15; web 1.73.0, iOS 0.9.0); closed, phone check still in the list on #93 |
 | 8. Kept on the phone | #101 | Released in 1.54.1 (2026-11-15; iOS 0.5.0); one fix in iOS 0.6.0; closed 2026-11-16, phone check still in the list on #93 |
 | 9. The web app's themes | #102 | Released in 1.54.2 (2026-11-15; iOS 0.6.0); checked in the simulator in all eight themes; closed 2026-11-16, phone check still in the list on #93 |

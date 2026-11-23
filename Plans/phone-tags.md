@@ -6,9 +6,9 @@ Tracking issue: #247
 
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
-| 1. Tags in the household | iOS | #250 | Built in iOS 0.26.0, 2026-11-20; waits for a release |
-| 2. Tag screens | iOS | #251 | Built in iOS 0.27.0, 2026-11-20; waits for a release and your try |
-| 3. Auto-tag rules on the phone | iOS | #252 | Built in iOS 0.28.0, 2026-11-20; waits for a release and your try |
+| 1. Tags in the household | iOS | #250 | Built in iOS 0.26.0, 2026-11-20; shipped alongside v1.85.0 (iOS 0.28.0), closed 2026-11-21 at your say; on TestFlight in build 400 (iOS 0.33.0) |
+| 2. Tag screens | iOS | #251 | Built in iOS 0.27.0, 2026-11-20; shipped alongside v1.85.0 (iOS 0.28.0), closed 2026-11-21 at your say; your try left on TestFlight build 400 |
+| 3. Auto-tag rules on the phone | iOS | #252 | Built in iOS 0.28.0, 2026-11-20; shipped alongside v1.85.0, closed 2026-11-21 at your say; your try left on TestFlight build 400 |
 
 Phase 3 built 2026-11-20 in iOS 0.28.0, not released. `LocalServer` answers `/api/tag-rules` (list newest first, make, change, delete, and `/backfill`) with the server's checks, and applies the active rules as the server's `_apply_tag_rules` does (description contains the pattern without case, the category gate, a tag already there skipped) when a line is added, changed or imported. Settings → Tags lists the rules below the tags, with a rule editor and **Apply to existing lines**, with or without a server. Verified: `LocalTagTests` (rules on add, change, import and replay; switched-off and category-gated rules; the server's checks), the package's tests, and the page on the simulator.
 

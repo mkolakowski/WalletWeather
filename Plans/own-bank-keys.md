@@ -6,9 +6,9 @@ Tracking issue: #279
 
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
-| 1. Your own keys, server and web | Server, Web | #276 | Built, not released (server 1.95.0, web 1.106.0, schema 38) |
-| 2. Admin sees who has their own keys | Server, Web | #277 | Built, not released (server 1.96.0, web 1.107.0) |
-| 3. Your own keys from the iPhone | iOS, Server, Web | #278 | Built, not released (server 1.97.0, web 1.108.0, iOS 0.33.0) |
+| 1. Your own keys, server and web | Server, Web | #276 | Released in v1.97.0, 2026-11-23 (built in server 1.95.0, web 1.106.0, schema 38) |
+| 2. Admin sees who has their own keys | Server, Web | #277 | Released in v1.97.0, 2026-11-23 (built in server 1.96.0, web 1.107.0) |
+| 3. Your own keys from the iPhone | iOS, Server, Web | #278 | Released in v1.97.0, 2026-11-23 (built in server 1.97.0, web 1.108.0, iOS 0.33.0) |
 
 Planned 2026-11-23 from the question "what would be needed to move the place to store variables for bank sync inside the database, changing the admin to turn on and allow the connections then the users themselves add the connection information to their account". Seven calls were made while planning ([decision](../docs/dev/decisions/bank-sync.md#2026-11-23-each-persons-own-teller-and-plaid-keys)).
 

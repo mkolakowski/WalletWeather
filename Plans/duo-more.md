@@ -6,11 +6,13 @@ Tracking issue: #309
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. One fold layout | #304 | Planned 2026-11-23; not started |
+| 1. One fold layout | #304 | Built in iOS 0.43.0, 2026-11-23; waits for a try on Matthew's Duo and a release |
 | 2. Tap through | #305 | Planned 2026-11-23; not started |
 | 3. Match bank lines in the app | #306 | Planned 2026-11-23; not started |
 | 4. Keyboard and pointer | #307 | Planned 2026-11-23; not started |
 | 5. Drag and drop | #308 | Planned 2026-11-23; not started |
+
+Phase 1 built 2026-11-23 in iOS 0.43.0 (0d908a1; no server change), by an orchestrated run (an Opus worker wrote it; this thread measured the fold first, checked the result and reworded three hints): `FoldLayout` (and `FoldReader`, which Compare uses) places a page's two panes from the fold's band through `FoldPanes.layout` in the Kit: no band, today's two halves; a band running top to bottom, the panes either side of it; a band running across, stacked, with the Dashboard's charts on top and every other page's left pane on top. A band that would leave a pane under 120 points is ignored (a page inside another's pane). The move between arrangements is a `.smooth` animation, or a short fade with Reduce Motion. Net worth, Budgets, Reports and Search take the small title when open; pull to refresh works from either pane and on Reports and Search; the Dashboard's Refresh button is gone; `ForecastView.tabletopFold` is gone. Verified: `swift test`, 268 passed (5 new in `FoldArithmeticTests`, with the measured numbers); Duo simulator pictures flat on its side and upright (Forecast and Bills & income identical to before, pixel for pixel; the Dashboard differing only by its Refresh button), half open like a book and half open like a laptop, on the picture page linked from #304. Not checked: the animation itself and scrolling the lower pane clear of the tab bar, which need a hand on a Duo.
 
 Planned 2026-11-23 from a design review of iOS 0.34.0, asked for as "can you perform a design review of the ios app, looking for ux inconsistancies and suggest more features for the duo. please also take a look at overhauling settings and I would also like a plan for the ability to connect to multiple servers as well as running local and even accessing the demo (from the settings)". The review ran the app in the demo on the Duo simulator in every pose and at a large text size, made 27 findings (R1 to R27) and twelve ideas (F1 to F12), and drew today beside the proposal for each ([the review page](https://claude.ai/artifact/YanSV7o5FqX9WC6SdzZkyj), private to Matthew). The choices made in four rounds of questions are on the [decision page](../docs/dev/decisions/ios-review.md).
 

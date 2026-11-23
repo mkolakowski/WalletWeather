@@ -8,7 +8,7 @@ Tracking issue: #279
 | --- | --- | --- | --- |
 | 1. Your own keys, server and web | Server, Web | #276 | Built, not released (server 1.95.0, web 1.106.0, schema 38) |
 | 2. Admin sees who has their own keys | Server, Web | #277 | Planned |
-| 3. Your own keys from the iPhone | iOS, Server | #278 | Planned; waits on open question 1 |
+| 3. Your own keys from the iPhone | iOS, Server | #278 | Planned; open question 1 decided |
 
 Planned 2026-11-23 from the question "what would be needed to move the place to store variables for bank sync inside the database, changing the admin to turn on and allow the connections then the users themselves add the connection information to their account". Seven calls were made while planning ([decision](../docs/dev/decisions/bank-sync.md#2026-11-23-each-persons-own-teller-and-plaid-keys)).
 
@@ -26,8 +26,8 @@ Sessions: may span — each phase is its own release, and phase 3 waits on open 
 
 ## Open questions
 
-1. **How the iPhone enters keys** (blocks phase 3). Either a server page opened in the app's sign-in sheet, as Connect a bank does (#258), so keys only ever go in from a signed-in browser with a fresh two-factor code; or a native form in the app's Settings that sends them with the app's API token. The first keeps today's rule that only a browser can do what reads a bank; the second feels more like the rest of the app.
-2. **Keep refusing a key change while connections use them?** (phase 1). Decided 2026-11-23: removing your keys, or replacing them with a different application or client id, is refused while connections use them. The same day it was also decided that each connection keeps its own copy of the keys it was made with, so a change would no longer break those connections. Phase 1 is built with the refusal, as decided; this asks whether it's still wanted.
+1. ~~**How the iPhone enters keys** (blocks phase 3).~~ **Decided 2026-11-23: a server page opened in the app's sign-in sheet**, as Connect a bank does (#258). Was: either a server page opened in the app's sign-in sheet, as Connect a bank does (#258), so keys only ever go in from a signed-in browser with a fresh two-factor code; or a native form in the app's Settings that sends them with the app's API token. The first keeps today's rule that only a browser can do what reads a bank; the second feels more like the rest of the app.
+2. ~~**Keep refusing a key change while connections use them?** (phase 1).~~ Decided 2026-11-23: removing your keys, or replacing them with a different application or client id, is refused while connections use them. The same day it was also decided that each connection keeps its own copy of the keys it was made with, so a change would no longer break those connections. Phase 1 is built with the refusal, as decided; this asks whether it's still wanted. **Decided 2026-11-23: keep the refusal.**
 
 ## The plan
 

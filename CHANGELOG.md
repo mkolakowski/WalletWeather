@@ -71,6 +71,12 @@ same commit (or session) that introduces it.
 
 App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.34.0**
 
+## [1.98.0] — 2026-11-23
+
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.34.0**
+
+The web app has a calmer, more modern look from top to bottom: softer surfaces, real page titles, one set of controls, a single summary strip and row-line tables on Forecast and Bills & income, plainer Dashboard cards, one joined Calendar grid, a centred sign-in, Settings and Admin laid out as sections, and a top bar that stays in view with an account menu. Every theme is easier to read, and the iPhone app's copies of the themes take the same colours. Two new choices in Settings → Appearance: **Date format** (Nov 12 or 2026-11-12) and **Row height** (Roomy or Compact). **Before you update:** Log out has moved into the round account button at the right of the top bar on a wide window (a phone keeps it in More), and dates now read like Nov 12 until you choose Full dates. The database moves to schema 39 on the first start, by itself.
+
 ### Added
 
 - **Settings → Appearance has a Date format choice and a Row height choice,** each saved to your account so they follow you across browsers. Date format is Short (Nov 12) or Full (2026-11-12); Row height is Roomy or Compact. `GET /api/me` returns `date_format` (`short` or `iso`) and `row_height` (`roomy` or `compact`), both null until you choose, and `PATCH /api/me/preferences` takes either and refuses any other value.
@@ -2849,7 +2855,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.97.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.98.0...HEAD
+[1.98.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.0
 [1.97.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.97.0
 [1.92.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.92.0
 [1.89.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.89.0

@@ -1040,6 +1040,9 @@
                 flex-wrap:wrap; gap:10px; }
   .cal-nav { display:flex; align-items:center; gap:8px; }
   .cal-nav .cal-title { font-weight:600; min-width:160px; text-align:center; }
+  .cal-nav .cal-month { min-width:180px; }
+  .cal-nav button { white-space:nowrap; }
+  .cal-short { display:none; }
   .cal-summary { color:var(--muted); font-size:13px; }
   .cal-filters { display:grid;
                  grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));
@@ -1081,6 +1084,23 @@
                      align-items:center; margin-bottom:8px; }
   .cal-src-hint { color:var(--muted); font-size:11px; margin-left:4px;
                   font-style:italic; }
+  /* Calendar on a phone (#291): the toolbar wraps instead of running off the screen, and each day
+     cell stacks its date over a short amount (-$1.7k) with the events as small colour bars; the
+     day's full list is one tap away in the panel below the grid. */
+  @media (max-width: 768px) {
+    .cal-nav { flex-wrap:wrap; justify-content:center; width:100%; }
+    .cal-nav .cal-month { order:-1; flex:1 0 100%; min-width:0; }
+    .cal-full { display:none; }
+    .cal-short { display:inline; }
+    .cal-cell { min-height:84px; padding:5px 3px; }
+    .cal-cell-head { flex-direction:column; align-items:flex-start; gap:1px; margin-bottom:3px; }
+    .cal-cell-head .cal-net, .cal-balance { font-size:10px; letter-spacing:-.2px; white-space:nowrap; }
+    .cal-balance { text-align:left; }
+    .cal-cell.today .daynum { margin:0; }
+    .cal-event { height:5px; padding:0; margin-top:3px; font-size:0; border-radius:3px; background:currentColor !important; opacity:.55; }
+    .cal-event.pending { opacity:.3; }
+    .cal-more { font-size:10px; }
+  }
 
   /* ---------- Transfer page balance hints ---------- */
   /* Small balance readout shown under each account selector on the
@@ -1764,7 +1784,7 @@
         <div class="cal-header">
           <div class="cal-nav">
             <button class="ghost" onclick="changeCalendarMonth(-1)" title="Previous month">« Prev</button>
-            <h2 id="calMonthLabel" style="margin:0;min-width:180px;text-align:center"></h2>
+            <h2 id="calMonthLabel" class="cal-month" style="margin:0;text-align:center"></h2>
             <button class="ghost" onclick="changeCalendarMonth(1)" title="Next month">Next »</button>
             <button class="ghost" onclick="goToCalendarToday()" title="Jump to current month">Today</button>
             <button class="ghost" id="calFutureToggle" onclick="toggleCalendarFutureView()"
@@ -3080,6 +3100,13 @@
 let me=null, accounts=[], currentAccountId=null, categories=[], tags=[], recView='active', editingRecId=null;
 
 const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
+// Short money for tight places ($1.7k, -$22.4k), used by the Calendar's day cells on a phone (#291).
+const fmtShort = v => {
+  const a = Math.abs(v), s = v < 0 ? '-$' : '$';
+  if (a >= 1e6) return s + (a / 1e6).toFixed(1) + 'M';
+  if (a >= 1000) return s + (a / 1000).toFixed(1) + 'k';
+  return s + a.toFixed(0);
+};
 
 // ============================================================================
 // WEB VERSION (frontend SPA version)
@@ -3098,7 +3125,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.115.0";
+const WEB_VERSION = "1.115.1";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -3108,6 +3135,7 @@ const WEB_VERSION = "1.115.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.115.1 (2026-11-23, claude+mkolakowski): (#291) Calendar on a phone (max-width 768px): .cal-nav wraps (the month title takes its own row, order:-1; its min-width moved from inline style to .cal-month), so the page no longer scrolls sideways; each day cell stacks the date over a short amount (fmtShort, $1.7k: .cal-full / .cal-short spans, the latter shown on a phone) with the events as small colour bars, so no amount is cut mid-figure; the day panel below the grid still lists everything.
 // 1.115.0 (2026-11-23, claude+mkolakowski): (#288) web-refresh phase 8, top bar and account menu (from 769px; the phone bar is unchanged): the header is sticky (z-index 500; --bar-h follows its height, set by _fitGlobalSearch, and offsets the Settings/Admin section list and html scroll-padding-top; the blur is on header::before because a backdrop-filter on the header would become the containing block of the compact search's fixed box), the app's mark (<symbol id="wwMark">) sits beside the name ([data-app-title] moved to a span inside h1 so the title code no longer wipes the mark), page buttons are border-less with a tinted active pill, and #userEmail plus Log out fold into a round initials button (#userMenuBtn, aria-haspopup/expanded) opening #userPop: the email (#userEmail, now a div), Your account (#userMenuAccount, showPage('settings',{section:'your-account'})) and Log out (#userMenuLogout, logout()). Opens on click or Enter/Space and focuses the first item; ArrowUp/Down/Home/End move; Escape closes and returns focus to the button; a click outside, choosing an item, or Tabbing out closes it. _userInitials/renderUserButton/toggleUserMenu; renderUserButton runs at start-up where userEmail was set.
 // 1.114.0 (2026-11-23, claude+mkolakowski): (#287) web-refresh phase 7, Dashboard, Calendar, sign-in and phone: Dashboard cards (auto-fit minmax(320px,1fr) grid so three fill a row, plain label and figure pairs for high and low at 20px, hairlines (--hair) instead of dashed dividers, .dash-card-charts, a 56px sparkline, a 112px donut whose total font follows its length, a legend that shows all rows); Calendar as one hairline-joined grid with a filled today, border-less category-tinted events and bold amounts; sign-in centred with the app's mark (hidden SVG sprite <symbol id="wwMark">, used as <svg class="ww-mark"><use href="#wwMark"/></svg>, reused by phase 8) above the name; phone: Forecast's current balance spans the strip, the bottom bar marks the active page with colour and a short bar; Net worth's Per account heading matches the others.
 // 1.113.0 (2026-11-23, claude+mkolakowski): (#286) web-refresh phase 6, Date format and Row height settings (Settings → Appearance, saved as me.date_format 'short'|'iso' and me.row_height 'roomy'|'compact' through PATCH /api/me/preferences; unset = short and roomy). fmtDate(iso|Date) and fmtDateTime(timestamp) are the one place a date becomes screen text ("Nov 12", "Nov 12, 2025" outside the current year, or 2026-11-12): Forecast, Bills & income, Dashboard cards, sparkline, ranges, Net worth chart ends, calendar day title, search, transfers, import preview, Unmatched and the bank and mail logs, Admin's Joined column, Settings dates; _gsDay now calls it. Date inputs, CSV exports and API values are untouched; timestamps that show a time (bank and mail 'when', audit, last used) keep their own format. Row height is :root[data-rows] with --row-h (36px, 34px compact) for the Forecast and Bills rows and --ctl-h (38px, 34px compact) for .fc-controls buttons and selects, set by applyRowHeight() at start-up and on change.
@@ -12692,12 +12720,12 @@ function renderCalendar() {
       ? `<div class="cal-more">+${moreCount} more</div>`
       : '';
     const netHtml = cellEvents.length
-      ? `<div class="cal-net ${net>=0?'pos':'neg'}">${fmt(net)}</div>`
+      ? `<div class="cal-net ${net>=0?'pos':'neg'}"><span class="cal-full">${fmt(net)}</span><span class="cal-short">${fmtShort(net)}</span></div>`
       : '';
     // Only meaningful with a single account selected (calFilterAccount) —
     // "All accounts" has no one balance to show, so dailyBalances is null.
     const balHtml = (calendarState.dailyBalances && calendarState.dailyBalances[iso] != null)
-      ? `<div class="cal-balance">${fmt(calendarState.dailyBalances[iso])}</div>`
+      ? `<div class="cal-balance"><span class="cal-full">${fmt(calendarState.dailyBalances[iso])}</span><span class="cal-short">${fmtShort(calendarState.dailyBalances[iso])}</span></div>`
       : '';
 
     const isPast = calendarState.futureOnly && iso < todayISO;

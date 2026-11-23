@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.0** · Schema version: **39** · iOS version: **0.34.0**
+App version: **1.98.0** · Web version: **1.115.1** · Schema version: **39** · iOS version: **0.34.0**
 
 ### Added
 
@@ -109,6 +109,7 @@ App version: **1.98.0** · Web version: **1.115.0** · Schema version: **39** ·
 
 ### Fixed
 
+- **The Calendar fits a phone.** Its Prev, month, Next, Today and Future view buttons wrap onto lines instead of running off the right edge (so the page no longer scrolls sideways), and each day shows its date over a short amount such as -$1.7k, with its events as small colour bars, instead of cutting an amount off mid-figure. Tap a day to see its events listed in full below the grid.
 - The Net worth chart shows its amounts in full, in short form inside the chart (such as $22.4k), instead of cut off at the left edge ("9.67" for $22,449.67).
 - When the Forecast table turns into cards in a narrower window, each figure carries one label ("Forecast date") instead of two run together ("Forecast dateStart date").
 - The Reports bar chart uses the full width of its panel instead of a narrow strip on the left.

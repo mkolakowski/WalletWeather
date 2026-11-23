@@ -71,6 +71,12 @@ same commit (or session) that introduces it.
 
 App version: **1.97.0** · Web version: **1.108.0** · Schema version: **38** · iOS version: **0.33.0**
 
+## [1.97.0] — 2026-11-23
+
+App version: **1.97.0** · Web version: **1.108.0** · Schema version: **38** · iOS version: **0.33.0**
+
+Teller and Plaid now use each person's own keys, added in Settings → Bank sync or from the iPhone app; the keys in `.env` are copied once to the people already using them, so every connection keeps syncing. An account can take lines from bank alert emails and bank sync at once, joining an alert's line to the bank's instead of doubling it, and an admin now ticks who may connect a mailbox, as for bank sync. On an iPhone without a server, SimpleFIN bank sync now works on the phone itself. **Before you update:** leave the `TELLER_` and `PLAID_` lines in `.env` until this version has started once. The database moves to schema 38 on the first start, by itself. Also pull the newer PostgreSQL image on your server (see Security).
+
 ### Added
 
 - **Add, replace or remove your own Teller and Plaid keys from the iPhone app.** More → Bank sync now lists Teller and Plaid with whether you've saved your own keys (and their environment), and **Add your bank keys** (or **Your bank keys**) opens your server's new page, `/app-bank-keys`, in the app's sign-in sheet. There you sign in if needed and add, replace or remove keys just as in the web app's Settings → Bank sync, with a fresh two-factor code each time; Teller's certificate is picked from Files (the `teller.zip` Teller downloads, or the two files inside it). The keys go in only through that signed-in page, never with the app's token, and the app never holds them: it learns only which services have keys. Someone ticked for Teller or Plaid without keys yet is told to add theirs rather than that an admin decides. `GET /api/bank/status` gains `providers_ticked` and `own_keys` (the environment only, never the id or the secret). Needs server 1.97.0.
@@ -100,6 +106,10 @@ App version: **1.97.0** · Web version: **1.108.0** · Schema version: **38** ·
 
 - Schema 38: a new table holds each person's own Teller and Plaid keys (the secret part encrypted), and each bank connection gains an encrypted copy of the keys it was made with. Added by itself on the first start, along with the one-time copy of `.env`'s keys described above. (#276)
 - Schema 37: each account gains its two join settings (7 days and 30% to start), each line from an email alert keeps the alert's own amount and date (encrypted), a joined line keeps what the bank's line was (encrypted) so it can be un-joined, and each sync in the log counts the lines it joined. Added by itself on the first start. (#210)
+
+### Security
+
+- **Update the database image: PostgreSQL 16.16 fixes 52 security problems.** PostgreSQL released 16.16 on November 12, 2026; the worst (CVE-2026-6460) let a signed-in database user run code on the database server. WalletWeather's database is reachable only by the app, on Compose's internal network, so the risk is low, but a WalletWeather release doesn't update the database image: on your server, run `docker compose pull db && docker compose up -d db` (your data stays in its volume). The app's own image, rebuilt for this release, picks up Python 3.12's latest security fixes by itself. A scan of every Python package the server installs found no known advisories. (#280)
 
 ## [1.92.0] — 2026-11-22
 
@@ -2787,7 +2797,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.92.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.97.0...HEAD
+[1.97.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.97.0
 [1.92.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.92.0
 [1.89.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.89.0
 [1.88.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.88.0

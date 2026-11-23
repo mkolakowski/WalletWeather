@@ -37,8 +37,10 @@ PAGE = 250          # transactions asked for per page
 MAX_PAGES = 20      # 5,000 lines per account per sync at most
 
 # Where the certificate and key are written while a client is made: the
-# container's file system is read-only apart from a tmpfs here.
-TMP_ROOT = "/tmp"
+# container's file system is read-only apart from a tmpfs here. Bandit B108
+# judged 2026-11-23 (#280): each use is a fresh random 0700 folder, files
+# opened O_EXCL at 0600 and removed once read (cert_files below).
+TMP_ROOT = "/tmp"  # nosec B108
 
 # Tests put an httpx.MockTransport here as the stand-in Teller.
 _transport: httpx.BaseTransport | None = None

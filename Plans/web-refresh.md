@@ -7,13 +7,15 @@ Tracking issue: #289
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
 | 1. Surfaces, titles and controls | Web | #281 | Not started |
-| 2. Four bugs the review found | Web | #282 | Not started |
+| 2. Four bugs the review found | Web | #282 | Built in web 1.108.1, 2026-11-23; waits for your look and the release after phase 8 |
 | 3. Readable themes, web and iPhone | Web, iOS | #283 | Not started |
 | 4. Settings, Admin and Reports | Web | #284 | Not started |
 | 5. Forecast and Bills tables | Web | #285 | Not started |
 | 6. Date format and row height settings | Server, Web | #286 | Not started |
 | 7. Dashboard, Calendar, sign-in, phone | Web | #287 | Not started |
 | 8. Top bar and account menu | Web | #288 | Not started |
+
+Phase 2 built 2026-11-23 in web 1.108.1 (no server change), done first because it needs nothing from phase 1: `_twLabel` drops the hidden swap-in headings; the Net worth chart draws at its host's width with short axis labels inside the plot; the Reports bar chart fills its panel; the Reports filters show in full (all three, not only Categories, since they share the 120px cap). Verified: before (5e0a6ad) and after pictures from the demo stack at 1440, 1180 and 390px in Dark and Light, on a page linked from #282; full API run, 1245 passed.
 
 Planned 2026-11-23 from the request "I would like to update some of the web applications design to be more modern, can you perform a review and create me an artifact with images showing before and afters for suggested changes". The review of web 1.107.0 made fifteen suggestions (01 to 15), showed a bolder sidebar direction (B) and found five bugs; its before and after pictures are on [the review page](https://claude.ai/artifact/SjuH49ZXMrDCG4xPE6ytaf) (private to Matthew). Scope, checks and eight design calls were decided the same day ([decision page](../docs/dev/decisions/web-refresh.md)).
 

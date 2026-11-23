@@ -200,31 +200,36 @@ struct TagsPage: View {
                 ProblemView(error: error) { Task { await load() } }
             case let .loaded(list):
                 List {
-                    if list.isEmpty {
-                        Text("No tags yet. Tags mark lines and bills across categories, such as a trip or a project.")
-                            .foregroundStyle(.secondary)
-                    }
-                    ForEach(list) { tag in
-                        Button { if canEdit { editing = tag } } label: {
-                            HStack {
-                                Circle().fill(tagColor(tag)).frame(width: 12, height: 12)
-                                Text(tag.name).foregroundStyle(Color.primary)
-                                Spacer()
-                            }
-                            .contentShape(Rectangle())
+                    Group {
+                        if list.isEmpty {
+                            Text("No tags yet. Tags mark lines and bills across categories, such as a trip or a project.")
+                                .foregroundStyle(.secondary)
                         }
-                        .buttonStyle(.plain)
-                        .swipeActions {
-                            if canEdit {
-                                Button("Delete", role: .destructive) { deleting = tag }
+                        ForEach(list) { tag in
+                            Button { if canEdit { editing = tag } } label: {
+                                HStack {
+                                    Circle().fill(tagColor(tag)).frame(width: 12, height: 12)
+                                    Text(tag.name).foregroundStyle(Color.primary)
+                                    Spacer()
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .swipeActions {
+                                if canEdit {
+                                    Button("Delete", role: .destructive) { deleting = tag }
+                                }
                             }
                         }
+                        if let problem { Text(problem).foregroundStyle(Palette.bad) }
+                        rulesSection(list)
                     }
-                    if let problem { Text(problem).foregroundStyle(Palette.bad) }
-                    rulesSection(list)
+                    .listRowBackground(Palette.row)
                 }
+                .scrollContentBackground(.hidden)
             }
         }
+        .background(PageBackground().ignoresSafeArea())
         .navigationTitle("Tags")
         .toolbar {
             if canEdit {

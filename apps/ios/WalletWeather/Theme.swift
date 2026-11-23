@@ -269,12 +269,12 @@ extension View {
     func card() -> some View { modifier(Card()) }
 }
 
-/// A small grey heading over a number.
+/// A small grey label over a number, in sentence case like the labels beside it.
 struct Caption: View {
     let text: String
     init(_ text: String) { self.text = text }
 
     var body: some View {
-        Text(text).font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
+        Text(text).font(.caption).foregroundStyle(.secondary)
     }
 }

@@ -16,6 +16,7 @@ struct SearchView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.openPlace) private var openPlace
     @SceneStorage("search.text") private var text = ""
+    @FocusState private var fieldFocused: Bool
 
     @State private var found: Loadable<SearchResults>?
     @State private var accounts: [Account] = []
@@ -49,18 +50,28 @@ struct SearchView: View {
             Group {
                 if regular {
                     HStack(spacing: 0) {
-                        results.frame(maxWidth: .infinity)
+                        // The system puts `.searchable`'s field at the window's top
+                        // right, over the half the results are not in, and none of
+                        // its placements sits over one half: so on the open Duo the
+                        // page draws its own field over the results.
+                        VStack(spacing: 0) {
+                            searchField
+                            results
+                        }
+                        .frame(maxWidth: .infinity)
                         detail.frame(maxWidth: .infinity)
                     }
+                    // Ready to type on an empty page; with a search already there, the
+                    // keyboard stays down so it doesn't cover the results.
+                    .onAppear { fieldFocused = text.trimmingCharacters(in: .whitespaces).isEmpty }
                 } else {
-                    results
+                    results.searchable(text: $text, prompt: "Transactions, bills, accounts…")
                 }
             }
             .background(PageBackground().ignoresSafeArea())
             .navigationTitle("Search")
             .navigationDestination(for: Shown.self) { page($0, embedded: false) }
         }
-        .searchable(text: $text, prompt: "Transactions, bills, accounts…")
         .lineEditorSheet($openLine, categories: categories) { await search() }
         .billEditorSheet($openBill, categories: categories) { await search() }
         .sheet(item: $skipping) { SkipDateSheet(item: $0) { await search() }.presentationDetents([.medium, .large]) }
@@ -76,6 +87,32 @@ struct SearchView: View {
             await search()
             debugOpen()
         }
+    }
+
+    // MARK: - The search field on the open Duo
+
+    /// The field over the results (the left half): a rounded field with a
+    /// magnifying glass and a clear button, on the same `text` as the
+    /// closed iPhone's system field.
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
+            TextField("Transactions, bills, accounts…", text: $text)
+                .focused($fieldFocused)
+                .submitLabel(.search)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            if !text.isEmpty {
+                Button { text = "" } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.horizontal, 12).padding(.vertical, 9)
+        .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 4)
     }
 
     // MARK: - The right half on the open Duo

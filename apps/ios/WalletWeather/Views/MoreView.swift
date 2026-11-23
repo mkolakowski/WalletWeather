@@ -284,33 +284,48 @@ struct ReportsView: View {
         .task(id: model.generation) { await load() }
     }
 
+    /// Plain rows like Bills & income and Search: the page's text colour, a
+    /// chevron at the right, and on the open Duo the open report tinted.
     private func reportList(_ list: [SavedReport]) -> some View {
         List(list) { report in
-            if sizeClass == .regular {
-                Button { chosen = report } label: { row(report) }
-                    .listRowBackground(chosen?.id == report.id ? Palette.accent.opacity(0.15) : Color.clear)
-            } else {
-                NavigationLink {
-                    ScrollView { ReportResult(report: report).padding(.horizontal, 16) }
-                        .background(PageBackground().ignoresSafeArea())
-                        .navigationTitle(report.name)
-                        .navigationBarTitleDisplayMode(.inline)
-                } label: { row(report) }
-                    .listRowBackground(Color.clear)
+            Group {
+                if sizeClass == .regular {
+                    Button { chosen = report } label: { row(report, selected: chosen?.id == report.id, chevron: true) }
+                        .buttonStyle(.plain)
+                } else {
+                    NavigationLink {
+                        ScrollView { ReportResult(report: report).padding(.horizontal, 16) }
+                            .background(PageBackground().ignoresSafeArea())
+                            .navigationTitle(report.name)
+                            .navigationBarTitleDisplayMode(.inline)
+                    } label: { row(report, selected: false, chevron: false) }
+                }
             }
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
         }
+        .listStyle(.plain)
         .scrollContentBackground(.hidden)
     }
 
-    private func row(_ report: SavedReport) -> some View {
-        HStack {
-            Text(report.name)
-            Spacer()
+    /// The system draws the chevron of a pushed link itself; the open Duo's
+    /// rows are buttons, so they draw their own.
+    private func row(_ report: SavedReport, selected: Bool, chevron: Bool) -> some View {
+        HStack(spacing: 10) {
+            Text(report.name).font(.body.weight(.medium)).lineLimit(2)
+            Spacer(minLength: 8)
             if report.pinned {
                 Image(systemName: "pin.fill").font(.caption).foregroundStyle(.secondary)
                     .accessibilityLabel("Pinned to the Dashboard")
             }
+            if chevron {
+                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
         }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 6)
+        .background(selected ? Palette.accent.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
     }
 

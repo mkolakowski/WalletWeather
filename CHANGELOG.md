@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.41.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.42.0**
 
 ### Added
 
@@ -80,6 +80,9 @@ App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** ·
 
 ### Changed
 
+- **iPhone: labels read in sentence case.** The small grey labels over figures ("Balance today", "Rest of this month", "Forecast end") are no longer in capitals, so every label in a card is written one way, as in the web app since 1.98.0 (iOS 0.42.0).
+- **iPhone: Reports' rows look like the other lists.** With the Duo open, a saved report's name is plain text with a chevron and a highlight on the open one, where it used to be tinted like a link. The Tags page takes the app's own background and row colours in every look.
+- **iPhone: with the Duo open, the Search field sits over its results,** at the top of the left half, instead of over the half where a tapped result opens.
 - **Breaking: iPhone: pages follow the account you pick.** Choosing an account on Forecast, Bills & income or Calendar now moves the other two to it, in that window. Choosing All accounts on Bills & income or Calendar moves the other of those two; Forecast, which has no All accounts, stays where it is. To keep each page on its own account as before, turn off **Pages follow the same account** in Settings → Dates & display, a new page under This iPhone (iOS 0.41.0).
 - **Breaking: iPhone: Settings is a short list of sections, each opening its own page.** At the top a card says where you are (your server and who's signed in, On this iPhone, or the demo) and opens that connection's page: Keep on this iPhone, Cloudflare, Open the web app and Sign out for a server; Back to the first screen and Delete everything for the household on this iPhone; Leave the demo in the demo. Under it: the pages that aren't in the tab bar, as tiles; **Your household** (Tags, Bank sync with its state on the row, Import a CSV, and on this iPhone Add an account, iCloud & backup and Move to a server); **This iPhone** (Appearance, Tab bar, Privacy & lock); **About** (Important notice, Help & Getting started, the versions). Every setting that was there is still there, and nothing you chose is reset. Each explanation now sits under the setting it explains, on that setting's page (iOS 0.36.0).
 - **iPhone: the app says "this iPhone" everywhere,** where some screens said "this phone". The look "Match the phone" is now "Match this iPhone"; what you chose is unchanged.

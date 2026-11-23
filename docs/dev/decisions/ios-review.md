@@ -47,3 +47,23 @@ Decisions for `Plans/ios-settings.md` (#298), `Plans/connections.md` (#303), `Pl
 **Left as an assumption:** R2 moves the gap between the two panes 42 points, onto the fold, when the Duo lies flat. It rests on the hinge being the screen's centre line. Matthew was told R2 still stood after the note on R5 and filed the plan as drawn; `Plans/duo-more.md` lists it as an open question that phase 1 checks first.
 
 **What it changes:** the four plans and issues #293 to #329; roadmap items 35 to 39.
+
+## 2026-11-23: where the fold is, and what R2 becomes
+
+**Settled:** 2026-11-23, by the check `Plans/duo-more.md` asked for before phase 1 (#304), not by a new choice. **Status:** accepted; Matthew can overturn it.
+
+**The question:** R2 proposed moving the gap between the two panes 42 points, onto the screen's centre line, when the Duo lies flat. It assumed the fold needs keeping clear there. The plan said to check first, and to drop R2 if the Duo already keeps content clear of a flat fold by itself.
+
+**What the simulator reports** (`reservedRegions(kind: .division)`, logged from Forecast in each pose):
+
+- Flat, on its side or upright: no region at all. iOS asks for nothing to be kept clear, and the Duo's own Settings runs its page across the fold.
+- Half open like a book: a band 40 points wide, x 455.5 to 495.5 of the screen's 951, so centred on the centre line.
+- Half open like a laptop: the same band across, y 455.5 to 495.5.
+
+**What follows:**
+
+- **Flat, the two panes stay exactly where they are.** This also matches Matthew's note on R5, "keep existing when not folded".
+- **R2 applies half open like a book,** where today the right-hand pane starts at 461.5 points and so sits on the band. There the panes go either side of it.
+- R5's stacked layout covers half open like a laptop, as decided.
+
+Still to confirm on a real Duo: that it reports the same as the simulator.

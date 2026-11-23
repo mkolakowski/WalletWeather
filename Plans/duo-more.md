@@ -28,7 +28,7 @@ Sessions: may span — five phases, each tried on Matthew's Duo before the next,
 
 ## Open questions
 
-1. **Where is the fold when the Duo lies flat?** Blocks phase 1. The review measured the gap between the two panes 42 points left of the screen's centre line (a card ends at 1218 px, the next starts at 1384 px, the centre is 1426 px), and took the hinge to be that line, which is where iOS reports it half open. Phase 1 starts by checking this on the simulator and on Matthew's Duo. Working assumption: the gap moves onto the fold and nothing else about the flat layout changes. If the Duo already keeps content clear of a flat fold by itself, R2 is dropped.
+None. A question that comes up while building goes here, with the phase it blocks.
 
 ## The plan
 
@@ -40,6 +40,7 @@ Sessions: may span — five phases, each tried on Matthew's Duo before the next,
 - **The first screen and sign-in stay as they are** when open (R3).
 - **Settings is a sidebar, not two halves** (R1): `Plans/ios-settings.md`.
 - **An account opens in Forecast everywhere** it's shown (R7).
+- **Flat, the two panes stay exactly where they are; R2's move applies half open only.** Checked on the simulator on 2026-11-23, as this plan's open question asked: lying flat (on its side or upright) the Duo reports no fold region at all, so iOS asks for nothing to be kept clear; half open it reports a 40-point band centred on the screen's centre line (`reservedRegions(kind: .division)`: x 455.5 to 495.5 of 951 like a book, y 455.5 to 495.5 of 951 like a laptop). Today, half open like a book, the right-hand pane starts at 461.5 and so sits on that band.
 
 **Out of scope:**
 
@@ -67,8 +68,7 @@ From the review: R2, R4, R5, R6. R3 is kept as it is.
 
 **What changes:**
 
-- **First, the open question:** where the fold is when the Duo lies flat, checked on the simulator and on Matthew's Duo.
-- **A shared container** every two-pane page uses: one column when narrow; two panes with the gap on the fold when flat (R2); stacked at the hinge when half open, clear of the tab bar (R5).
+- **A shared container** every two-pane page uses: one column when narrow; flat, today's two panes, untouched; half open like a book, the two panes either side of the fold's band (R2); half open like a laptop, stacked above and below it (R5).
 - **The change is animated:** as the Duo folds, the cards move from the flat layout to the stacked one. With Reduce Motion on, the two cross-fade.
 - **What goes where, half open:** Dashboard, the chosen account's chart above and the accounts below; Forecast, the chart and lines above and the editor or summary below (as today); Bills & income, the list above and the editor or totals below; Calendar, the month above and the day below; Net worth, the total and chart above and the accounts below.
 - **One title size when open** (R4): Net worth, Budgets, Reports and Search take the small title too.
@@ -78,8 +78,8 @@ From the review: R2, R4, R5, R6. R3 is kept as it is.
 
 **Done when:**
 
-- A Kit test for the fold's arithmetic: from the window's width, the tab bar's side and the fold's region to each pane's frame.
-- Measured on a picture of the flat Duo, the middle of the gap is within a point of the fold.
+- A Kit test for the fold's arithmetic: from the page's size and the fold's band (none, upright or across) to each pane's frame.
+- Half open like a book, no card or text sits on the fold's band; flat, the pictures match today's.
 - Pictures of Dashboard, Forecast, Bills & income, Calendar and Net worth in every pose, and frames of the fold animation, are linked from the issue.
 - Half open, nothing sits on the hinge or under the tab bar.
 

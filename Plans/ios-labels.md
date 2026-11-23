@@ -6,8 +6,10 @@ Tracking issue: #312
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Labels and rows | #310 | Planned 2026-11-23; not started |
+| 1. Labels and rows | #310 | Built in iOS 0.42.0, 2026-11-23; waits for Matthew's look and a release |
 | 2. Large text and problems | #311 | Planned 2026-11-23; not started |
+
+Phase 1 built 2026-11-23 in iOS 0.42.0 (no server change), by an orchestrated run (a Sonnet worker wrote it; this thread checked it): `Caption` lost its capitals (its 24 call sites were already written in sentence case); Reports' rows are plain with a chevron and a highlight for the open one; the Tags page takes `PageBackground` and `Palette.row`; on a regular width Search draws its own field at the top of the left pane (the system's placements all sit in the full-width bar), focused on appear only when the search is empty, and keeps `.searchable` for a compact width. Verified: `swift test`, 263 passed; Duo simulator pictures of the Dashboard, Forecast, Tags, Reports closed and open, and Search closed and open in the default look and Sepia, on the picture page linked from #310.
 
 Planned 2026-11-23 from a design review of iOS 0.34.0, asked for as "can you perform a design review of the ios app, looking for ux inconsistancies and suggest more features for the duo. please also take a look at overhauling settings and I would also like a plan for the ability to connect to multiple servers as well as running local and even accessing the demo (from the settings)". The review ran the app in the demo on the Duo simulator in every pose and at a large text size, made 27 findings (R1 to R27) and twelve ideas (F1 to F12), and drew today beside the proposal for each ([the review page](https://claude.ai/artifact/YanSV7o5FqX9WC6SdzZkyj), private to Matthew). The choices made in four rounds of questions are on the [decision page](../docs/dev/decisions/ios-review.md).
 

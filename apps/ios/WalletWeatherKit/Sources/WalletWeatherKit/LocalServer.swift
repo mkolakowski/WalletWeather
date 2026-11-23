@@ -220,6 +220,15 @@ public final class LocalServer: @unchecked Sendable {
             return try deleteTransfer(id, context)
         case ("GET", "search", 1):
             return try search(query: query, today: today, context)
+        // Bank sync on the phone (#239): the Unmatched list, as the server's.
+        case ("GET", "accounts", 3) where rest[2] == "bank-unmatched":
+            return try bankUnmatched(account: id, context)
+        case ("GET", "accounts", 5) where rest[2] == "bank-unmatched" && rest[4] == "candidates":
+            return try bankCandidates(account: id, line: Int(rest[3]), context)
+        case ("POST", "accounts", 5) where rest[2] == "bank-unmatched" && rest[4] == "match":
+            return try bankMatchByHand(account: id, line: Int(rest[3]), body, context)
+        case ("POST", "accounts", 5) where rest[2] == "bank-unmatched" && rest[4] == "leave":
+            return try bankLeave(account: id, line: Int(rest[3]), context)
         default:
             throw Problem.notFound(Self.needsServer)
         }
@@ -259,11 +268,11 @@ public final class LocalServer: @unchecked Sendable {
         }
     }
 
-    private func accounts(_ context: ModelContext) throws -> [LocalAccount] {
+    func accounts(_ context: ModelContext) throws -> [LocalAccount] {
         try ordered(LocalAccount.self, context, added: \.added, id: \.id).filter { !$0.archived }
     }
 
-    private func account(_ id: Int?, _ context: ModelContext) throws -> LocalAccount {
+    func account(_ id: Int?, _ context: ModelContext) throws -> LocalAccount {
         guard let id, let found = try accounts(context).first(where: { $0.id == id }) else {
             throw Problem.notFound("Account not found")
         }
@@ -286,7 +295,7 @@ public final class LocalServer: @unchecked Sendable {
         Dictionary(try context.fetch(FetchDescriptor<LocalCategory>()).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
     }
 
-    private func recurringRow(_ r: LocalRecurring, _ categories: [Int: LocalCategory], forList: Bool = false,
+    func recurringRow(_ r: LocalRecurring, _ categories: [Int: LocalCategory], forList: Bool = false,
                               skipCounts: [Int: Int] = [:], tags: TagIndex = TagIndex()) -> [String: Any] {
         var row: [String: Any] = [
             "id": r.id, "frequency": r.frequency, "day_of_month": r.dayOfMonth as Any? ?? NSNull(),
@@ -314,8 +323,8 @@ public final class LocalServer: @unchecked Sendable {
             "notes": t.notes as Any? ?? NSNull(), "amount": t.amount,
             "forecast_amount": t.forecastAmount as Any? ?? NSNull(),
             "forecast_date": t.forecastDate as Any? ?? NSNull(), "actual_date": t.actualDate as Any? ?? NSNull(),
-            "is_actual": t.isActual, "bank_match": NSNull(), "has_bank_ref": false, "has_mail_ref": false,
-            "bank_left": false, "tags": tags.line(t.id),
+            "is_actual": t.isActual, "bank_match": t.bankMatch as Any? ?? NSNull(), "has_bank_ref": t.bankRef != nil,
+            "has_mail_ref": false, "bank_left": t.bankLeft, "tags": tags.line(t.id),
         ]
     }
 
@@ -340,7 +349,7 @@ public final class LocalServer: @unchecked Sendable {
         }
     }
 
-    private func run(_ name: String, _ input: [String: Any]) throws -> Any {
+    func run(_ name: String, _ input: [String: Any]) throws -> Any {
         do {
             return try Core.shared.run(name, input)
         } catch {
@@ -376,7 +385,7 @@ public final class LocalServer: @unchecked Sendable {
         input["end"] = end.description
         guard var answer = try run("forecast", input) as? [String: Any] else { throw Problem(status: 500, detail: "No forecast") }
         answer["current_balance"] = current
-        answer["bank_unmatched_count"] = 0
+        answer["bank_unmatched_count"] = try unmatchedCount(account: account.id, context)
         return answer
     }
 
@@ -505,7 +514,7 @@ public final class LocalServer: @unchecked Sendable {
         return parsed.description
     }
 
-    private func int(_ body: [String: Any], _ key: String) -> Int? {
+    func int(_ body: [String: Any], _ key: String) -> Int? {
         (body[key] as? NSNumber)?.intValue
     }
 
@@ -558,7 +567,7 @@ public final class LocalServer: @unchecked Sendable {
         if let planned = try money(body, "forecast_amount", required: false) { line.forecastAmount = planned }
     }
 
-    private func line(_ id: Int?, _ context: ModelContext) throws -> LocalTransaction {
+    func line(_ id: Int?, _ context: ModelContext) throws -> LocalTransaction {
         guard let id, let found = try context.fetch(FetchDescriptor<LocalTransaction>(predicate: #Predicate { $0.id == id })).first else {
             throw Problem.notFound()
         }

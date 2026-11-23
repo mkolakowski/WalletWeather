@@ -11,6 +11,7 @@
 		0E50FD7DF2A071A170661300 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 319D4205BFCC35DC6757600B /* DashboardView.swift */; };
 		12B45AEEC84F77C8BF0B4F8F /* BackupViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99597682BE06C6A4C37D1188 /* BackupViews.swift */; };
 		1B91942AA2AD6B61B89A0CA2 /* SignInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B7EE513A73A7A19A6F7A07 /* SignInSheet.swift */; };
+		2A3F787DFA9A3BC6817806A5 /* PhoneBankViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 501BC9A34865BA8B81980E67 /* PhoneBankViews.swift */; };
 		2B6E20C2C6B57F2469053035 /* StandaloneViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57CA23B0750CAA45E8AC60BD /* StandaloneViews.swift */; };
 		2BCD253633EC7F7F0D70AF73 /* ConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3E9C40EFE3CCE23D41AA8C7 /* ConnectView.swift */; };
 		342087AFBFCCAD445AFB2659 /* CloudBackupModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFD2173D8B902D535067E208 /* CloudBackupModel.swift */; };
@@ -22,6 +23,7 @@
 		55BE2153B1D9850CFDFD5234 /* TagViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E9ED45DC22B1C2B1AFC65C /* TagViews.swift */; };
 		5674B2C7B6BE02CCE7EB0BA9 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = D477F5ED78FD4EA9DBFD3630 /* Keychain.swift */; };
 		69134DA34F6EE1EFE219CBE5 /* ChartViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFB26B2201D3541193633A07 /* ChartViews.swift */; };
+		769AEB2CED36BFC4608187F6 /* DebugBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5BA074FBBDD01FF1B577DD8 /* DebugBridge.swift */; };
 		7F55D88A9F9D45F195025027 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13149321E10C325276768DD5 /* Theme.swift */; };
 		80669495013A8E87A3743E59 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDE64033EF7589F61FD10A90 /* SearchView.swift */; };
 		8DC91904DD11611BE2773B20 /* GettingStartedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75BD1096AF0D745FED33F38E /* GettingStartedViews.swift */; };
@@ -53,6 +55,7 @@
 		3FF8DF9E3C8A01A950E0D995 /* NoticeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoticeView.swift; sourceTree = "<group>"; };
 		4EF6456B5FCCB4251D23495E /* LoadState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadState.swift; sourceTree = "<group>"; };
 		4F10AF2509F0101D7139AD73 /* MoveMoneySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveMoneySheet.swift; sourceTree = "<group>"; };
+		501BC9A34865BA8B81980E67 /* PhoneBankViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneBankViews.swift; sourceTree = "<group>"; };
 		56BAA46087C2B76E94F0EE25 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		57CA23B0750CAA45E8AC60BD /* StandaloneViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandaloneViews.swift; sourceTree = "<group>"; };
 		75BD1096AF0D745FED33F38E /* GettingStartedViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GettingStartedViews.swift; sourceTree = "<group>"; };
@@ -69,6 +72,7 @@
 		A98C31592C4A8C02D24C2584 /* QRScanSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScanSheet.swift; sourceTree = "<group>"; };
 		AAC7A791EEE3C72BA42ED155 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		ABF20F601A1EB2143ABA37C6 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		B5BA074FBBDD01FF1B577DD8 /* DebugBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugBridge.swift; sourceTree = "<group>"; };
 		BDE64033EF7589F61FD10A90 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		C580FBC80891DCC74238FFCA /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
 		D3382C27760DB4FDDB484054 /* CSVImportViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVImportViews.swift; sourceTree = "<group>"; };
@@ -126,6 +130,7 @@
 				4F10AF2509F0101D7139AD73 /* MoveMoneySheet.swift */,
 				FA6E160E5ACC028F9FCFF027 /* MoveViews.swift */,
 				3FF8DF9E3C8A01A950E0D995 /* NoticeView.swift */,
+				501BC9A34865BA8B81980E67 /* PhoneBankViews.swift */,
 				A98C31592C4A8C02D24C2584 /* QRScanSheet.swift */,
 				ABF20F601A1EB2143ABA37C6 /* RootView.swift */,
 				BDE64033EF7589F61FD10A90 /* SearchView.swift */,
@@ -143,6 +148,7 @@
 				AAC7A791EEE3C72BA42ED155 /* AppSettings.swift */,
 				56BAA46087C2B76E94F0EE25 /* Assets.xcassets */,
 				DFD2173D8B902D535067E208 /* CloudBackupModel.swift */,
+				B5BA074FBBDD01FF1B577DD8 /* DebugBridge.swift */,
 				D477F5ED78FD4EA9DBFD3630 /* Keychain.swift */,
 				760DE072423DD9D965E38BEE /* PrivacyInfo.xcprivacy */,
 				A5B7EE513A73A7A19A6F7A07 /* SignInSheet.swift */,
@@ -259,6 +265,7 @@
 				342087AFBFCCAD445AFB2659 /* CloudBackupModel.swift in Sources */,
 				2BCD253633EC7F7F0D70AF73 /* ConnectView.swift in Sources */,
 				0E50FD7DF2A071A170661300 /* DashboardView.swift in Sources */,
+				769AEB2CED36BFC4608187F6 /* DebugBridge.swift in Sources */,
 				BB489358CA96FB9596EE2902 /* ForecastView.swift in Sources */,
 				8DC91904DD11611BE2773B20 /* GettingStartedViews.swift in Sources */,
 				5674B2C7B6BE02CCE7EB0BA9 /* Keychain.swift in Sources */,
@@ -268,6 +275,7 @@
 				4E47E421774FF04019F80AA1 /* MoveMoneySheet.swift in Sources */,
 				E4B39C05F91B13F80EE5068D /* MoveViews.swift in Sources */,
 				B789C70FB22BF28F157FB1A7 /* NoticeView.swift in Sources */,
+				2A3F787DFA9A3BC6817806A5 /* PhoneBankViews.swift in Sources */,
 				D15E3123C4A13434AC0DE0F8 /* QRScanSheet.swift in Sources */,
 				B29B4373B3A526BF9E85393F /* RootView.swift in Sources */,
 				80669495013A8E87A3743E59 /* SearchView.swift in Sources */,
@@ -339,7 +347,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.31.0;
+				MARKETING_VERSION = 0.32.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -407,7 +415,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.31.0;
+				MARKETING_VERSION = 0.32.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

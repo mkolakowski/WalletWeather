@@ -9,9 +9,11 @@ import SwiftData
 ///
 /// Accounts, categories, bills and income with their skipped dates and
 /// bank-match settings, lines, transfers, and since phone-tags phase 1
-/// (#250) tags and tag rules move both ways. A server's bank and email-alert
-/// links and its bank connection aren't kept on the phone (it has none of
-/// them yet), so they're left behind on the way in.
+/// (#250) tags and tag rules move both ways, and since phase 8 (#239) each
+/// line's bank ref and match. A server's email-alert links and its bank
+/// connection aren't kept on the phone, so they're left behind on the way
+/// in; the phone's own SimpleFIN connection stays in its Keychain, never in
+/// a backup.
 extension LocalServer {
     public static let backupVersion = 5
 
@@ -70,8 +72,8 @@ extension LocalServer {
                         "actual_date": null(t.actualDate), "forecast_amount": null(t.forecastAmount),
                         "is_actual": t.isActual, "recurring_description": null(t.recurringID.flatMap { recByID[$0]?.name }),
                         "category_name": null(t.categoryID.flatMap { categoryName[$0] }), "notes": null(t.notes),
-                        "tags": (lineTags[t.id] ?? []).sorted(), "bank_ref": NSNull(), "mail_ref": NSNull(), "bank_match": NSNull(),
-                        "bank_text": NSNull(), "bank_left": false,
+                        "tags": (lineTags[t.id] ?? []).sorted(), "bank_ref": null(t.bankRef), "mail_ref": NSNull(),
+                        "bank_match": null(t.bankMatch), "bank_text": null(t.bankText), "bank_left": t.bankLeft,
                     ]
                     if let tid = t.transferID, let index = transferIndex[tid] { line["transfer"] = index }
                     return line
@@ -241,6 +243,16 @@ extension LocalServer {
                 line.notes = Self.text(t["notes"], 256).nilIfEmpty
                 if let planned = t["forecast_amount"], !(planned is NSNull) { line.forecastAmount = try Self.amount(planned) }
                 if let name = t["recurring_description"] as? String, !name.isEmpty { line.recurringID = recByName[name]?.id }
+                // Bank sync's ref and match (#239), as backup.py reads them: a
+                // line a server brought in isn't brought in again by the phone.
+                if let ref = t["bank_ref"] as? String, ref.count == 64, ref.allSatisfy({ $0.isHexDigit && !$0.isUppercase }) {
+                    line.bankRef = ref
+                    if let how = t["bank_match"] as? String, how == "auto" || how == "hand" {
+                        line.bankMatch = how
+                        line.bankText = Self.text(t["bank_text"], 500).nilIfEmpty
+                    }
+                    line.bankLeft = t["bank_left"] as? Bool == true
+                }
                 line.added = next()
                 context.insert(line)
                 link(t["tags"], line: line.id)

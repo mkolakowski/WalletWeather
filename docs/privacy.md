@@ -5,7 +5,7 @@ nav_order: 4
 
 # WalletWeather privacy policy
 
-Last updated: November 18, 2026
+Last updated: November 22, 2026
 
 This policy covers the WalletWeather apps for iOS and Android and the
 WalletWeather web app. WalletWeather is self-hosted: the apps connect to a
@@ -30,7 +30,10 @@ can tell it apart in the web app's settings.
 
 **On this iPhone** in the iOS app uses no server: your accounts, bills and
 transactions are kept on the iPhone (see below) and the app sends them
-nowhere.
+nowhere. If you connect SimpleFIN Bridge in its Settings → Bank sync, the
+iPhone itself asks SimpleFIN for your bank accounts and posted transactions
+(see bank sync below); nothing of yours is sent to SimpleFIN beyond the
+request.
 
 **Try the demo** in the iOS app shows sample numbers built into the app. It
 connects to nothing and saves nothing you change.
@@ -44,8 +47,19 @@ the server (not your phone) asks the service you connected through
 (SimpleFIN Bridge, Teller or Plaid) for your bank accounts and posted
 transactions whenever it syncs. You sign in to your bank on that service's
 own page, never on WalletWeather's. The service and your bank see that, and
-the service's privacy policy covers its part. The iOS app itself never talks
-to SimpleFIN, Teller or Plaid.
+the service's privacy policy covers its part. Signed in to a server, the iOS
+app itself never talks to SimpleFIN, Teller or Plaid.
+
+If you use the iOS app **On this iPhone** and connect SimpleFIN Bridge in its
+Settings → Bank sync, the iPhone does what a server would: it swaps the setup
+token you paste for a connection, and asks SimpleFIN for your bank accounts
+and posted transactions when it syncs (at most once a day by itself, when you
+open the app or in the background, and when you press Sync now). The
+connection's secret address is kept in the iPhone's Keychain only, on that
+device: never in iCloud, a backup or an exported file. The transactions land
+with your other numbers on the iPhone, kept as described below. Disconnect
+in the same place forgets the connection; disable the token at SimpleFIN
+Bridge to stop it there too. Teller and Plaid can't be used without a server.
 
 If they have switched on email alerts and you connect your Microsoft mailbox
 in the web app, the server (not your phone) reads your bank's alert emails

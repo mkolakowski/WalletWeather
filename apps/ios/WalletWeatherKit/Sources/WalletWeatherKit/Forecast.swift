@@ -89,6 +89,9 @@ public struct ForecastLine: Sendable, Codable, Equatable, Identifiable {
     public let transferId: Int?
     /// Its tags (#251); nil from an answer without them.
     public var tags: [TagInfo]?
+    /// A bank line that paid no planned line yet: on the Unmatched list
+    /// (#239); nil from an answer without it.
+    public var bankUnmatched: Bool?
 
     /// Steady across reloads: the transaction, or the repeating item and
     /// its date. Marking a projected line paid saves it as a transaction,

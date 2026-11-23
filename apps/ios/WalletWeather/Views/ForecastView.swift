@@ -524,6 +524,7 @@ struct LineCard: View {
                         .padding(.horizontal, 6).padding(.vertical, 2)
                         .background(.quaternary, in: Capsule())
                 }
+                if line.bankUnmatched == true { UnmatchedPill() }
             }
             TagChips(tags: line.tags ?? [])
             HStack(spacing: 14) {
@@ -621,6 +622,7 @@ struct LineTableRow: View {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     PaidMark(line: line, today: .today()).font(.caption)
                     Text(line.description).lineLimit(2)
+                    if line.bankUnmatched == true { UnmatchedPill() }
                 }
                 HStack(spacing: 4) {
                     Text(line.category ?? " ").font(.caption2).foregroundStyle(.secondary).lineLimit(1)

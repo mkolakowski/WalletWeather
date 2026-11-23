@@ -20,7 +20,7 @@ settings:
     SWIFT_APPROACHABLE_CONCURRENCY: YES
     # The iOS app's version (CHANGELOG.md tracks it beside the app, web and
     # schema versions). Keep AppInfo.version in WalletWeatherKit equal to it.
-    MARKETING_VERSION: "0.31.0"
+    MARKETING_VERSION: "0.32.0"
     CURRENT_PROJECT_VERSION: "1"
     IPHONEOS_DEPLOYMENT_TARGET: "26.0"
     # iPhone only for now (decided 2026-11-14): no iPad, no Mac.
@@ -76,7 +76,9 @@ targets:
         NSFaceIDUsageDescription: "WalletWeather uses Face ID to unlock the app when you turn its lock on."
         # Scanning the web app's QR code to sign in (#100), only when chosen.
         # Sync with iCloud in the background (#238): CloudKit's silent pushes.
-        UIBackgroundModes: [remote-notification]
+        # Bank sync on a phone without a server (#239): background app refresh.
+        UIBackgroundModes: [remote-notification, fetch]
+        BGTaskSchedulerPermittedIdentifiers: [net.iptater.walletweather.banksync]
         # The backups folder shows in the Files app under iCloud Drive (#237).
         NSUbiquitousContainers:
           iCloud.net.iptater.walletweather:

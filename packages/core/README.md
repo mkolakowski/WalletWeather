@@ -25,7 +25,11 @@ line pays, taught names and each bill's days and percent included),
 candidates and choices), `bankNear` (the Unmatched lines that could pay a
 planned line) and `bankCatchUp` (the lines a newly taught name pays; the
 server keeps these amounts as exact decimals, so they go in as decimal
-strings). The server doesn't run the matching from the core yet (#239).
+strings). Since core 0.5.1 a line's source counts a line joined to its
+bank row (#210) as the bank's, and bankMatch takes an optional `name` (an
+email alert's merchant). The server's bank sync, email alerts and Unmatched
+routes run the matching from the core since 1.94.1, and so does the iPhone
+app without a server (#239).
 Each function's input is described above
 it in the source.
 

@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.94.0"
+APP_VERSION = "1.94.1"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,15 @@ APP_VERSION = "1.94.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.94.1 (2026-11-22, claude+mkolakowski): bank matching runs on the shared
+#     core (Plans/standalone.md phase 8, #239; core 0.5.1): bank sync's and
+#     email alerts' bill matching (_BillMatcher, the core's bankMatch), the
+#     Unmatched list, its candidates and choices, near and the catch-up after
+#     a taught name (bankUnmatched, bankCandidates, bankNear, bankCatchUp),
+#     given _match_rows (amounts as decimal strings). Same answers and shapes;
+#     _bills_to_match, _match_key and _bill_for_bank_line stay as the answer
+#     key's Python reference. The core's line source now calls a joined line
+#     (#210) the bank's, as the server does.
 # 1.94.0 (2026-11-22, claude+mkolakowski): email alerts joined to bank sync
 #     rows (bank-alert-emails phase 5, #210; schema 37). An account may take
 #     both: a bank row that is an alert line's posted version (same way, 0 to
@@ -5182,7 +5191,7 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
             run.error = f"{pname} didn't list this bank account this time."
             continue
         refs = refs_of(acc.id)
-        bills = _bills_to_match(db, acc.id)
+        bills = _BillMatcher(db, acc.id)
         # Email alerts' lines this account's new rows may be the posted
         # version of (#210).
         alert_lines = _alert_lines_to_join(db, acc.id)
@@ -5238,12 +5247,11 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
                     continue
             # A planned bill or income line close in date and amount is
             # paid by this line instead of a second line landing (#196).
-            hit = _bill_for_bank_line(bills, tx["date"], tx["amount"], short or raw)
+            hit = bills.bill_for(tx["date"], tx["amount"], raw)
             if hit:
                 rec, occ = hit
                 _pay_bill_from_bank(db, rec, occ, tx["date"], tx["amount"], ref, raw, "auto", run.id,
                                     bank_category=pcat)
-                bills["covered"].add((rec.id, occ))
                 run.matched += 1
                 continue
             _bank_own_line(db, user, acc.id, tx["date"], tx["amount"], raw, ref, run.id,
@@ -5504,6 +5512,103 @@ def _bill_for_bank_line(bills: dict, day: date, amount: Decimal, name: str | Non
     return found[0][1], found[0][2]
 
 
+# ---------- Bank matching on the shared core (Plans/standalone.md phase 8, #239) ----------
+# Bank sync, email alerts and the Unmatched list's routes match through the
+# core (bankMatch, bankUnmatched, bankCandidates, bankNear, bankCatchUp), as
+# the iPhone app does on a phone without a server. _bills_to_match,
+# _match_key and _bill_for_bank_line above stay as the Python the answer key
+# is written from (tests/answer_key.py), so a change on either side shows.
+
+# The core's refusals, and the status the server answers each with.
+_CORE_MATCH_STATUS = {
+    "That line isn't on the Unmatched list.": 404,
+    "Planned line not found": 404,
+    "Bill not found": 404,
+    "That line is already paid, or is a transfer: pick a planned line.": 409,
+    "That date is already paid or was deleted: pick a planned line.": 409,
+    "That bill has no date on that day.": 400,
+    "Give transaction_id, or recurring_id and forecast_date.": 400,
+}
+
+
+def _match_rows(db: Session, account_id: int, include: tuple = ()) -> tuple[dict, dict]:
+    """The core's input for the matching functions: every bill on the account
+    (active or not) with its match settings, their deleted dates and the
+    lines matching can look at, amounts as decimal strings (the server keeps
+    them as exact Decimals). Also the bills by id.
+
+    Matching only reads the bill and date of a paid line that isn't synced,
+    so those lines go in without their text and amount (they aren't
+    decrypted); paid lines with no bill and nothing synced don't go in at
+    all. `include` names lines to send whole whatever they are (a planned
+    line asked about by id)."""
+    recs = (db.query(RecurringTransaction).filter(RecurringTransaction.account_id == account_id)
+            .order_by(RecurringTransaction.id).all())
+    skips = [{"recurring_id": rid, "date": d.isoformat()} for rid, d in (
+        db.query(RecurringSkip.recurring_id, RecurringSkip.skip_date)
+        .filter(RecurringSkip.recurring_id.in_([r.id for r in recs] or [0]))
+        .order_by(RecurringSkip.recurring_id, RecurringSkip.skip_date))]
+    wanted = [Transaction.recurring_id.isnot(None), Transaction.is_actual.is_(False),
+              Transaction.bank_ref.isnot(None), Transaction.mail_ref.isnot(None)]
+    if include:
+        wanted.append(Transaction.id.in_(list(include)))
+    txns = (db.query(Transaction).filter(Transaction.account_id == account_id, or_(*wanted))
+            .order_by(Transaction.id).all())
+    iso = lambda d: d.isoformat() if d else None  # noqa: E731
+    rows = []
+    for t in txns:
+        whole = not t.is_actual or t.bank_ref or t.mail_ref or t.id in include
+        rows.append({"id": t.id, "recurring_id": t.recurring_id, "transfer_id": t.transfer_id,
+                     "description": t.description if whole else "", "notes": t.notes if whole else None,
+                     "amount": str(t.amount) if whole else "0",
+                     "forecast_date": iso(t.forecast_date), "actual_date": iso(t.actual_date),
+                     "is_actual": bool(t.is_actual), "bank_match": t.bank_match,
+                     "has_bank_ref": bool(t.bank_ref), "has_mail_ref": bool(t.mail_ref),
+                     "bank_left": bool(t.bank_left)})
+    return ({"recurring": [{"id": r.id, "frequency": r.frequency, "day_of_month": r.day_of_month,
+                            "anchor_date": iso(r.anchor_date), "end_date": iso(r.end_date),
+                            "active": bool(r.active), "description": r.description, "amount": str(r.amount),
+                            "match_days": r.match_days, "match_percent": r.match_percent,
+                            "match_text": r.match_text} for r in recs],
+             "skips": skips, "transactions": rows},
+            {r.id: r for r in recs})
+
+
+def _core_match(name: str, given: dict):
+    """One of the core's matching functions; a refusal answers as the
+    server's own check did."""
+    try:
+        return jscore.run(name, given)
+    except jscore.CoreError as e:
+        msg = str(e).split("\n", 1)[0].strip()   # quickjs adds the stack below
+        raise HTTPException(_CORE_MATCH_STATUS.get(msg, 400), msg) from e
+
+
+class _BillMatcher:
+    """Which bill each new bank or alert line pays (the core's bankMatch), one
+    line at a time as they land; a date one line pays isn't open to the next."""
+
+    def __init__(self, db: Session, account_id: int):
+        self.rows, self.recs = _match_rows(db, account_id)
+
+    def bill_for(self, day: date, amount: Decimal, text: str, name: str | None = None):
+        """(bill, date) the line pays, or None. `text` is the bank's own,
+        matched by its short name when it has one; `name` (an email alert's
+        merchant) is matched as it is."""
+        line = {"date": day.isoformat(), "amount": str(amount), "text": text}
+        if name is not None:
+            line["name"] = name
+        hit = jscore.run("bankMatch", {**self.rows, "lines": [line]})[0]
+        if hit is None:
+            return None
+        self.rows["transactions"].append({
+            "id": None, "recurring_id": hit["recurring_id"], "transfer_id": None, "description": "",
+            "notes": None, "amount": str(amount), "forecast_date": hit["forecast_date"],
+            "actual_date": day.isoformat(), "is_actual": True, "bank_match": "auto",
+            "has_bank_ref": False, "has_mail_ref": False, "bank_left": False})
+        return self.recs[hit["recurring_id"]], date.fromisoformat(hit["forecast_date"])
+
+
 def _source_cols(source: str, ref: str, run_id: int | None) -> dict:
     """The columns that say where a line came from: a bank sync line
     (bank_ref, bank_sync_run_id) or an email alert's (mail_ref, mail_run_id,
@@ -5612,13 +5717,8 @@ def bank_unmatched(account_id: int, user: User = Depends(current_user), db: Sess
     """Synced lines and email alerts' lines that matched no planned line,
     newest first (the owner)."""
     acc = _sync_log_account(db, user, account_id)
-    rows = (_unmatched_query(db, acc.id)
-            .order_by(Transaction.actual_date.desc(), Transaction.id.desc()).all())
-    return {"count": len(rows),
-            "lines": [{"id": t.id, "date": (t.actual_date or t.forecast_date).isoformat(),
-                       "description": t.description, "amount": float(t.amount), "notes": t.notes,
-                       "source": _line_source(t)}
-                      for t in rows]}
+    rows, _bills = _match_rows(db, acc.id)
+    return _core_match("bankUnmatched", {"transactions": rows["transactions"]})
 
 
 @app.get("/api/accounts/{account_id}/bank-unmatched/joins")
@@ -5641,70 +5741,12 @@ def bank_unmatched_joins(account_id: int, user: User = Depends(current_user), db
 def bank_unmatched_candidates(account_id: int, txn_id: int, user: User = Depends(current_user),
                               db: Session = Depends(get_db)):
     """The account's planned lines that aren't paid yet, nearest in date
-    first, whatever a bill's match settings say."""
+    first, whatever a bill's match settings say, and the match pop-in's
+    choices (#222): the core's bankCandidates."""
     acc = _sync_log_account(db, user, account_id)
     line = _unmatched_line(db, acc, txn_id)
-    day = line.actual_date or line.forecast_date
-    lo, hi = day - timedelta(days=MATCH_BY_HAND_DAYS), day + timedelta(days=MATCH_BY_HAND_DAYS)
-    out = []
-    for t in (db.query(Transaction)
-              .filter(Transaction.account_id == acc.id, Transaction.is_actual.is_(False),
-                      Transaction.transfer_id.is_(None), Transaction.forecast_date >= lo,
-                      Transaction.forecast_date <= hi)):
-        out.append({"transaction_id": t.id, "recurring_id": t.recurring_id,
-                    "forecast_date": t.forecast_date.isoformat(), "description": t.description,
-                    "amount": float(t.amount), "days_apart": abs((t.forecast_date - day).days)})
-    bills = _bills_to_match(db, acc.id)
-    for rec in bills["recs"]:
-        for occ, amount, desc in _occurrences(rec, lo, hi):
-            if (rec.id, occ) in bills["covered"] or (rec.id, occ) in bills["skipped"]:
-                continue
-            out.append({"transaction_id": None, "recurring_id": rec.id,
-                        "forecast_date": occ.isoformat(), "description": desc,
-                        "amount": float(amount), "days_apart": abs((occ - day).days)})
-    out.sort(key=lambda c: (c["days_apart"], c["forecast_date"], c["description"].lower()))
-    bank_text = _bank_text_of(line)
-    return {"line": {"id": line.id, "date": day.isoformat(), "description": line.description,
-                     "amount": float(line.amount), "source": _line_source(line),
-                     "bank_text": bank_text if bank_text != line.description else None,
-                     "learn_name": _line_name(line)},
-            "candidates": out[:50],
-            "choices": _match_choices(out, line.amount, day,
-                                      {r.id: r.match_days for r in bills["recs"]})[:50]}
-
-
-DEFAULT_MATCH_DAYS = 5   # a planned line that isn't a bill's: the bills' default reach (#231)
-
-
-def _match_choices(cands: list[dict], amount: Decimal, day: date,
-                   reach: dict[int, int] | None = None) -> list[dict]:
-    """The candidates as the match pop-in shows them (#222): one entry per
-    bill, at its nearest open date, with all its open dates in `dates`; a
-    planned line that isn't a bill's is an entry of its own. Each date says
-    how the bank's line differs from it: `amount_diff` (bank minus planned)
-    and `days_after` (the bank's date minus the planned date, so negative is
-    early), and `within_days` whether it's inside the bill's bank-match days
-    (#231; 5 for a planned line that isn't a bill's). Entries going the bank
-    line's way come first, then the nearest."""
-    reach = reach or {}
-    groups: dict = {}
-    for c in cands:
-        planned = Decimal(str(c["amount"]))
-        opt = {k: c[k] for k in ("transaction_id", "recurring_id", "forecast_date", "amount",
-                                 "description", "days_apart")}
-        opt["days_after"] = (day - date.fromisoformat(c["forecast_date"])).days
-        opt["amount_diff"] = float(amount - planned)
-        opt["same_direction"] = (planned < 0) == (amount < 0) and planned != 0
-        opt["within_days"] = c["days_apart"] <= reach.get(c["recurring_id"], DEFAULT_MATCH_DAYS)
-        key = ("r", c["recurring_id"]) if c["recurring_id"] is not None else ("t", c["transaction_id"])
-        groups.setdefault(key, []).append(opt)
-    choices = []
-    for opts in groups.values():
-        best = min(opts, key=lambda o: (o["days_apart"], o["forecast_date"]))
-        choices.append({**best, "dates": sorted(opts, key=lambda o: o["forecast_date"])})
-    choices.sort(key=lambda o: (not o["same_direction"], o["days_apart"], abs(o["amount_diff"]),
-                                o["description"].lower()))
-    return choices
+    rows, _bills = _match_rows(db, acc.id)
+    return _core_match("bankCandidates", {**rows, "transaction_id": line.id})
 
 
 @app.get("/api/accounts/{account_id}/bank-unmatched/near")
@@ -5717,56 +5759,10 @@ def bank_unmatched_near(account_id: int, transaction_id: int | None = None,
     then the nearest. Each says how it compares, as the candidates' choices
     do (amount_diff and days_after are the bank's line minus the planned)."""
     acc = _sync_log_account(db, user, account_id)
-    planned = _planned_target(db, acc, transaction_id, recurring_id, forecast_date)
-    day, want = date.fromisoformat(planned["forecast_date"]), Decimal(str(planned["amount"]))
-    rec = db.get(RecurringTransaction, planned["recurring_id"]) if planned["recurring_id"] else None
-    days = rec.match_days if rec else DEFAULT_MATCH_DAYS
-    lo, hi = day - timedelta(days=MATCH_BY_HAND_DAYS), day + timedelta(days=MATCH_BY_HAND_DAYS)
-    out = []
-    for t in _unmatched_query(db, acc.id):
-        when = t.actual_date or t.forecast_date
-        if when is None or not lo <= when <= hi:
-            continue
-        text = _bank_text_of(t)
-        out.append({"id": t.id, "date": when.isoformat(), "description": t.description,
-                    "amount": float(t.amount), "source": _line_source(t),
-                    "bank_text": text if text != t.description else None,
-                    "learn_name": _line_name(t),
-                    "days_apart": abs((when - day).days), "days_after": (when - day).days,
-                    "amount_diff": float(t.amount - want),
-                    "same_direction": (t.amount < 0) == (want < 0) and want != 0,
-                    "within_days": abs((when - day).days) <= days})
-    out.sort(key=lambda x: (not x["same_direction"], x["days_apart"], abs(x["amount_diff"]), x["id"]))
-    return {"planned": planned, "match_days": days, "lines": out[:50]}
-
-
-def _planned_target(db: Session, acc: Account, transaction_id: int | None,
-                    recurring_id: int | None, forecast_date: date | None) -> dict:
-    """A planned line that a bank line could pay, or the error saying why
-    not: the same checks as matching by hand."""
-    if transaction_id is not None:
-        t = db.get(Transaction, transaction_id)
-        if t is None or t.account_id != acc.id:
-            raise HTTPException(404, "Planned line not found")
-        if t.is_actual or t.transfer_id is not None or t.forecast_date is None:
-            raise HTTPException(409, "That line is already paid, or is a transfer: pick a planned line.")
-        return {"transaction_id": t.id, "recurring_id": t.recurring_id,
-                "forecast_date": t.forecast_date.isoformat(), "description": t.description,
-                "amount": float(t.amount)}
-    if recurring_id is not None and forecast_date is not None:
-        rec = db.get(RecurringTransaction, recurring_id)
-        if rec is None or rec.account_id != acc.id:
-            raise HTTPException(404, "Bill not found")
-        occ = next(((d, a, s) for d, a, s in _occurrences(rec, forecast_date, forecast_date)
-                    if d == forecast_date), None)
-        if occ is None:
-            raise HTTPException(400, "That bill has no date on that day.")
-        bills = _bills_to_match(db, acc.id)
-        if (rec.id, forecast_date) in bills["covered"] or (rec.id, forecast_date) in bills["skipped"]:
-            raise HTTPException(409, "That date is already paid or was deleted: pick a planned line.")
-        return {"transaction_id": None, "recurring_id": rec.id, "forecast_date": forecast_date.isoformat(),
-                "description": occ[2], "amount": float(occ[1])}
-    raise HTTPException(400, "Give transaction_id, or recurring_id and forecast_date.")
+    rows, _bills = _match_rows(db, acc.id, include=(transaction_id,) if transaction_id is not None else ())
+    return _core_match("bankNear", {**rows, "planned": {
+        "transaction_id": transaction_id, "recurring_id": recurring_id,
+        "forecast_date": forecast_date.isoformat() if forecast_date else None}})
 
 
 class BankMatchIn(BaseModel):
@@ -5836,25 +5832,17 @@ def _catch_up_taught(db: Session, acc: Account, rec: RecurringTransaction) -> in
     """After a bill is taught a name (#224): lines already on the Unmatched
     list with that name pay its open dates, oldest first, each within the
     bill's days (at any amount going its way). How many did."""
-    key = _match_key(rec.match_text)
-    bills = _bills_to_match(db, acc.id)
-    only = {"recs": [rec], "covered": bills["covered"], "skipped": bills["skipped"], "taught": {rec.id: key}}
+    db.flush()
+    rows, _bills = _match_rows(db, acc.id)
     n = 0
-    for t in (_unmatched_query(db, acc.id)
-              .order_by(Transaction.actual_date, Transaction.id).all()):
-        name = _line_name(t)
-        if _match_key(name) != key:
-            continue
+    for hit in jscore.run("bankCatchUp", {**rows, "recurring_id": rec.id}):
+        t = db.get(Transaction, hit["transaction_id"])
+        occ = date.fromisoformat(hit["forecast_date"])
         day = t.actual_date or t.forecast_date
-        hit = _bill_for_bank_line(only, day, t.amount, name)
-        if not hit:
-            continue
-        occ = hit[1]
         src = _line_source(t)
         paid = _pay_bill_from_bank(db, rec, occ, day, t.amount, t.mail_ref or t.bank_ref, _bank_text_of(t),
                                    "auto", t.mail_run_id if src == "alert" else t.bank_sync_run_id, src)
         _carry_sources(t, paid)
-        only["covered"].add((rec.id, occ))
         db.delete(t)
         db.flush()
         n += 1
@@ -7406,12 +7394,11 @@ def _mail_land(db: Session, user: User, conn: MailConnection, sender: MailSender
     cache = bills_cache if bills_cache is not None else {}
     bills = cache.get(acc.id)
     if bills is None:
-        bills = cache[acc.id] = _bills_to_match(db, acc.id)
-    hit = None if tie else _bill_for_bank_line(bills, when, amount, merchant)
+        bills = cache[acc.id] = _BillMatcher(db, acc.id)
+    hit = None if tie else bills.bill_for(when, amount, merchant, name=merchant)
     if hit:
         rec, occ = hit
         t = _pay_bill_from_bank(db, rec, occ, when, amount, ref, merchant, "auto", run_id, "alert")
-        bills["covered"].add((rec.id, occ))
     else:
         t = Transaction(account_id=acc.id, actual_date=when, forecast_date=when, is_actual=True,
                         mail_ref=ref, mail_run_id=run_id)

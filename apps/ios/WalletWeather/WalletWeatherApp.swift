@@ -34,6 +34,8 @@ struct WalletWeatherApp: App {
                 .onOpenURL { model.open($0) }
                 .task { model.start() }
         }
+        // Bank sync on this iPhone (#239), when iOS gives it background time.
+        .backgroundTask(.appRefresh(PhoneBank.taskID)) { await model.backgroundBankSync() }
     }
 }
 
@@ -80,6 +82,8 @@ struct AppRoot: View {
             settings.scenePhaseChanged(to: phase)
             // The iCloud Drive backup runs when the app opens or leaves (#237).
             if model.isLocal, model.phase == .ready, phase != .inactive { Task { await model.backup.runIfDue() } }
+            // Bank sync when the app opens, at most once every 23½ hours (#239).
+            if phase == .active { Task { await model.syncBankIfDue() } }
         }
         .sheet(isPresented: $model.offeringBackup) { BackupOfferSheet() }
         .sheet(item: Binding(get: { model.phase == .ready ? model.debugCSV : nil }, set: { model.debugCSV = $0 })) {

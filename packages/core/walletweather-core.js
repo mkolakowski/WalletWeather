@@ -1497,8 +1497,10 @@
     return t.description;
   }
 
+  // _line_source: "alert" for a line an email alert brought in, else "bank"
+  // (a line joined to its bank row, #210, is the bank's).
   function lineSource(t) {
-    return t.has_mail_ref ? "alert" : "bank";
+    return t.has_mail_ref && !t.has_bank_ref ? "alert" : "bank";
   }
 
   function lineDay(t) {
@@ -1573,14 +1575,16 @@
 
   // Bank sync's matching (_bank_sync_locked): the new bank lines in the
   // order they arrive, each paying a bill's date or not. Input: the
-  // account's rows (above) and lines: [{date, amount, text}], text the
-  // bank's own. A line is matched by its short name when it has one. Each
+  // account's rows (above) and lines: [{date, amount, text, name}], text the
+  // bank's own. A line is matched by its name when given (an email alert's
+  // merchant), else by its text's short name when it has one. Each
   // answer is {recurring_id, forecast_date} or null (it lands as its own
   // line); a date one line pays isn't open to the next.
   function bankMatch(input) {
     const bills = billsToMatch(input);
     return (input.lines || []).map((line) => {
-      const hit = billForBankLine(bills, line.date, dec(line.amount), shortName(line.text) || line.text);
+      const name = line.name != null ? line.name : (shortName(line.text) || line.text);
+      const hit = billForBankLine(bills, line.date, dec(line.amount), name);
       if (!hit) return null;
       bills.covered.add(hit.rec.id + "|" + hit.day);
       return { recurring_id: hit.rec.id, forecast_date: hit.day };
@@ -1815,7 +1819,7 @@
   }
 
   root.WalletWeatherCore = {
-    version: "0.5.0",
+    version: "0.5.1",
     run: run,
     forecast: forecast,
     actualBalanceAsOf: actualBalanceAsOf,

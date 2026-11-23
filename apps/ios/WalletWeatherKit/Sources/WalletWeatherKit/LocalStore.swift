@@ -118,6 +118,18 @@ enum LocalModels {
     var actualDate: String?
     var isActual: Bool = false
     var added: Date = Date.now
+    /// Bank sync on the phone (Plans/standalone.md, phase 8, #239): the
+    /// bank line it came from, as the server writes it (a SHA-256 of the
+    /// SimpleFIN account and line ids), so the same line never lands twice,
+    /// on this phone or on another one syncing through iCloud.
+    var bankRef: String?
+    /// "auto" (bank sync paid this bill by itself) or "hand" (matched by
+    /// hand from the Unmatched list); nil otherwise.
+    var bankMatch: String?
+    /// Left as its own line: off the Unmatched list.
+    var bankLeft: Bool = false
+    /// The bank's own text for a line that paid a bill.
+    var bankText: String?
 
     init(accountID: Int) {
         id = LocalModels.newID()

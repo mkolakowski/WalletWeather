@@ -24,6 +24,7 @@ struct SettingsView: View {
     var body: some View {
         @Bindable var settings = settings
         NavigationStack {
+            ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     let pages = TabPage.notIn(TabPage.shown(settings.tabs, onSide: barOnSide))
@@ -58,9 +59,10 @@ struct SettingsView: View {
                     .buttonStyle(.plain)
                     .card()
 
-                    SectionTitle("Bank sync")
+                    SectionTitle("Bank sync").id("bankSync")
                     if model.isLocal {
-                        NeedsServerCard(what: "Bank sync", symbol: "building.columns")
+                        // SimpleFIN on this iPhone (#239).
+                        PhoneBankCard()
                     } else {
                         BankSyncCard()
                     }
@@ -128,6 +130,11 @@ struct SettingsView: View {
                     }
                 }
                 .padding(.horizontal, 16).padding(.bottom, 24)
+            }
+            .onAppear {
+                // `WW_DEBUG_BANK` (debug builds): the Bank sync card in view, for screenshots (#239).
+                if AppModel.debugSetting("WW_DEBUG_BANK") != nil { proxy.scrollTo("bankSync", anchor: .top) }
+            }
             }
             .background(PageBackground().ignoresSafeArea())
             .navigationTitle("Settings")

@@ -1,3 +1,4 @@
+import BackgroundTasks
 import CoreData
 import Observation
 import SwiftUI
@@ -39,6 +40,9 @@ final class AppModel {
     private(set) var generation = 0
     /// The iCloud Drive backup of the household on this iPhone (#237).
     let backup = CloudBackupModel()
+    /// Bank sync on this iPhone, without a server (#239): SimpleFIN, its
+    /// access address in the Keychain only.
+    let phoneBank = AppModel.makePhoneBank()
     /// A CSV to import, from `WW_DEBUG_CSV` (debug builds only).
     var debugCSV: CSVFile?
     /// The first account was just added and the backup isn't decided yet:
@@ -144,7 +148,53 @@ final class AppModel {
         backup.refresh()
         Task { await refreshMe() }
         Task { await backup.runIfDue() }
+        Task { await syncBankIfDue() }
         watchOtherDevices()
+    }
+
+    // MARK: Bank sync on this iPhone (#239)
+
+    private static func makePhoneBank() -> PhoneBank {
+        #if DEBUG
+        // `WW_DEBUG_BANK=1`: a stand-in SimpleFIN and nothing in the
+        // Keychain, for screenshots (DebugBridge).
+        if debugSetting("WW_DEBUG_BANK") != nil {
+            let defaults = UserDefaults(suiteName: "ww-debug-bank")!
+            defaults.removePersistentDomain(forName: "ww-debug-bank")
+            return PhoneBank(secrets: MemoryBankSecret(), defaults: defaults, session: DebugBridge.session())
+        }
+        #endif
+        return PhoneBank(secrets: KeychainBankSecret())
+    }
+
+    /// Syncs the bank when one is due (23½ hours since the last), as the
+    /// app opens; the pages load again when lines came in. Then asks iOS for
+    /// background time when the next one is due.
+    func syncBankIfDue() async {
+        guard isLocal, phase == .ready else { return }
+        if let result = await phoneBank.syncIfDue(), result.added + result.matched > 0 { generation += 1 }
+        scheduleBankRefresh()
+    }
+
+    /// iOS's background time (BGAppRefreshTask): the same sync, when the
+    /// household on this iPhone is in use and can be read (not while a
+    /// locked phone keeps it closed).
+    func backgroundBankSync() async {
+        guard LocalStore.exists, phoneBank.connected, connection == nil || isLocal,
+              UIApplication.shared.isProtectedDataAvailable else { return }
+        if let result = await phoneBank.syncIfDue(), result.added + result.matched > 0, isLocal { generation += 1 }
+        scheduleBankRefresh()
+    }
+
+    /// Asks iOS to wake the app when the next sync is due. iOS decides when.
+    func scheduleBankRefresh() {
+        guard let next = phoneBank.nextSyncAt() else {
+            BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: PhoneBank.taskID)
+            return
+        }
+        let request = BGAppRefreshTaskRequest(identifier: PhoneBank.taskID)
+        request.earliestBeginDate = max(next, .now.addingTimeInterval(15 * 60))
+        try? BGTaskScheduler.shared.submit(request)
     }
 
     private var otherDevices: Task<Void, Never>?
@@ -210,6 +260,7 @@ final class AppModel {
         } catch {
             result = nil
         }
+        if result != nil { phoneBank.disconnect() }
         leaveLocal()
         switch result {
         case true?: connectNotice = "Deleted everywhere: in your iCloud, on your other devices and on this iPhone. Your backups are still in iCloud Drive."
@@ -223,6 +274,7 @@ final class AppModel {
         guard isLocal else { return }
         leaveLocal()
         LocalStore.erase()
+        phoneBank.disconnect()
     }
 
     /// Opens the demo: no server, nothing saved in the Keychain and nothing
@@ -344,6 +396,21 @@ final class AppModel {
     }
     #endif
 
+    #if DEBUG
+    /// `WW_DEBUG_BANK=connected` or `unmatched` (with `WW_DEBUG_LOCAL`):
+    /// connects the stand-in SimpleFIN, matches its checking account to the
+    /// first account from 30 days back, and syncs; `unmatched` also opens
+    /// the Unmatched list (PhoneBankCard). `WW_DEBUG_BANK=1` only swaps in
+    /// the stand-in, for the card before connecting.
+    private func debugBank() async {
+        guard let mode = Self.debugSetting("WW_DEBUG_BANK"), mode != "1" else { return }
+        try? await phoneBank.connect(token: DebugBridge.token)
+        guard let first = try? await APIClient(connection: LocalServer.connection).accounts().first else { return }
+        phoneBank.link("debug-checking", to: first.id, start: LocalDay.today().adding(days: -30))
+        _ = try? await phoneBank.sync()
+    }
+    #endif
+
     /// The name this phone's token is given when signing in through the
     /// sheet, shown in the web app's Settings → API tokens (#155). iOS only
     /// tells apps "iPhone" for the name the person gave the phone, so it
@@ -416,6 +483,7 @@ final class AppModel {
             } else {
                 Task {
                     await Self.debugHousehold(sample: local == "sample")
+                    await debugBank()
                     useOnThisPhone()
                 }
             }

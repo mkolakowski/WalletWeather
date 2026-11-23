@@ -12,7 +12,7 @@ struct CoreTests {
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
 
-    static let households = ["basics", "edges", "two-accounts", "imports"]
+    static let households = ["basics", "edges", "two-accounts", "imports", "matching"]
 
     /// Runs every case of one answer-key file and lists what differs.
     static let checker = #"""
@@ -76,7 +76,8 @@ struct CoreTests {
             for c in object["cases"] as? [[String: Any]] ?? [] { functions.insert(c["function"] as? String ?? "") }
         }
         #expect(functions == ["forecast", "actualBalanceAsOf", "upcomingDates", "calendar", "dashboard", "dashboardCharts",
-                             "recurringList", "searchTransactions", "search", "csvPreview", "csvCommit"])
+                             "recurringList", "searchTransactions", "search", "csvPreview", "csvCommit",
+                             "bankMatch", "bankUnmatched", "bankCandidates", "bankNear", "bankCatchUp"])
     }
 
     @Test func plainValuesGoInAndComeOut() throws {

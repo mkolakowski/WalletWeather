@@ -255,6 +255,40 @@ shows when bank sync is on, the server is 1.89.0 or later and the token can
 write; in the demo it says the demo saves nothing. Matching the new
 connection's accounts stays in the web app.
 
+**On an iPhone without a server** (iOS 0.32.0, phase 8 of
+`Plans/standalone.md`, #239; design calls settled 2026-11-22) the card is
+`PhoneBankCard` (`PhoneBankViews.swift`) instead, and SimpleFIN runs on the
+phone (`PhoneBank.swift` in `WalletWeatherKit`), never Teller or Plaid, whose
+keys must stay on a server. **Connect SimpleFIN** takes the pasted setup
+token and claims it as `simplefin.py` does (https on SimpleFIN's own hosts
+only, no redirects); the access address goes in the Keychain only
+(`KeychainBankSecret`: this device only, never iCloud Keychain, readable
+after the first unlock for background time), never in the household's
+store, its backups or iCloud sync. What the phone knows about the
+connection (the bank accounts, which phone account each fills and from
+when, the calls of the last 24 hours, the last sync) is this phone's, in
+its settings. Each bank account has a picker (Leave out, or one of the
+phone's accounts) and a "Bring in from" date (up to 90 days back, today to
+start), as in the web app. A sync by itself comes at most every 23½ hours
+(the server's `BANK_SYNC_EVERY`, counted from the last sync of any kind,
+failed or not), when the app becomes active or in a background app refresh
+(`BGAppRefreshTask` `net.iptater.walletweather.banksync`, only while the
+household can be read); **Sync now** is under the server's 20-calls-a-day
+limit with its wait message. Lines land in the household as the server's
+`_bank_sync_locked` lands them (`LocalBank.swift`): skipped by their bank
+ref (the server's SHA-256, so the same line never lands twice here, on
+another device or after a move to a server), a line typed by hand or from a
+CSV with the same date, amount and name claimed, a bill paid through the
+core's `bankMatch`, the rest as their own lines with the short name.
+**Unmatched (N)** opens `UnmatchedListView`, answered by `LocalServer` in the
+server's shapes (`/api/accounts/{id}/bank-unmatched`, `.../candidates`,
+`.../match`, `.../leave`) through the core, with **Match…** (cards like the
+web app's pop-in, Pay this, and "Match lines named … from now on") and
+**Leave**. Forecast rows on the list wear the Unmatched pill. Debug builds:
+`WW_DEBUG_BANK=1` swaps in a stand-in SimpleFIN (`DebugBridge`), and
+`connected` or `unmatched` (with `WW_DEBUG_LOCAL=sample`) connects, matches
+and syncs it, `unmatched` opening the list.
+
 **Shared accounts and who may connect** (iOS 0.31.0, server 1.92.0 for
 `shared` and 1.92.1 for `providers_allowed`, phase 4 of
 `Plans/sync-access.md`, #267): the card also lists the accounts the person
@@ -322,9 +356,10 @@ server and get the server's shapes back.
   and Move money, with the server's checks. A new household starts with the
   server's default categories. Rows get random ids below 2^52, not counts,
   so two devices can't pick the same one once phase 7 syncs them.
-- **Needs a server** (open question 2): Net worth, Budgets, Reports and bank
-  sync stay where they are, greyed and marked, and open a note on what a
-  server adds; their requests answer 404. A transfer can be deleted (both
+- **Needs a server** (open question 2): Net worth, Budgets and Reports
+  stay where they are, greyed and marked, and open a note on what a
+  server adds; their requests answer 404. Bank sync works on the phone since
+  iOS 0.32.0 (below). A transfer can be deleted (both
   its lines) but not changed, skipped dates are brought back from a bill's
   editor (#246), and tags are kept (on lines, bills and in rules, moved and
   synced; `LocalTags.swift`, #250) and since phone-tags phase 2 (#251)

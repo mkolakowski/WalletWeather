@@ -63,8 +63,10 @@ struct SettingsView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    // Above the connection card in the demo (#301).
-                    if model.isDemo { DemoChip { open(.page(.connections)) } }
+                    // Above the connection card, with more than one connection or in the demo (#301, #302).
+                    if model.connectionChip(locked: settings.lockedInDemo) != nil {
+                        ConnectionChip { open(.page(.connections)) }
+                    }
                     ForEach(layout.groups) { group in
                         if let title = group.section.title { SectionTitle(title) }
                         switch group.section {
@@ -140,8 +142,8 @@ struct SettingsView: View {
                     Text("Settings").font(.headline)
                         .frame(height: 44).padding(.horizontal, 16).padding(.top, 12)  // level with the pane's title
                         .accessibilityAddTraits(.isHeader)
-                    if model.isDemo {
-                        DemoChip { open(.page(.connections)) }.padding(.horizontal, 12).padding(.bottom, 6)
+                    if model.connectionChip(locked: settings.lockedInDemo) != nil {
+                        ConnectionChip { open(.page(.connections)) }.padding(.horizontal, 12).padding(.bottom, 6)
                     }
                     SettingsSidebar(layout: layout, chosen: chosen, accounts: accountCount, versions: versions,
                                     value: { value(of: $0) }, open: { open($0) }, act: { act($0) })

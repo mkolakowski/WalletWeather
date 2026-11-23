@@ -147,9 +147,9 @@ struct DashboardView: View {
 
     @ViewBuilder
     private func accountsColumn(_ dashboard: Dashboard) -> some View {
-        // Under the title: the demo says it's the demo, and is the way out (#301).
-        if model.isDemo {
-            DemoChip(debugSheet: true)
+        // Under the title: the connection in front, and the way to switch (#301, #302).
+        if model.connectionChip(locked: settings.lockedInDemo) != nil {
+            ConnectionChip(debugSheet: true)
         }
         if settings.showsStartCard && !model.isDemo {
             GettingStartedCard { startTask = $0 }

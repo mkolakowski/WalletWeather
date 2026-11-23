@@ -31,10 +31,20 @@ public struct SavedConnection: Codable, Equatable, Identifiable, Sendable {
     /// a new sign-in of the same one. Nil until known, and in items saved
     /// before it was kept.
     public var account: String?
+    /// The server answered that this connection's sign-in has ended (token
+    /// expired or revoked), so it needs Sign in again (phase 4, #302).
+    /// Recorded when a request gets that answer and cleared by the next
+    /// successful sign-in (`ConnectionStore.renew`). Optional so items
+    /// saved before it was kept still decode; nil and false both mean the
+    /// sign-in is as far as anyone knows fine.
+    public var signInEnded: Bool?
+
+    /// A server whose sign-in has ended.
+    public var needsSignIn: Bool { kind == .server && signInEnded == true }
 
     public init(id: UUID = UUID(), connection: Connection, name: String? = nil, added: Date = .now,
                 lastUsed: Date? = nil, keep: KeepChoice = .nothing, webTheme: String? = nil,
-                account: String? = nil) {
+                account: String? = nil, signInEnded: Bool? = nil) {
         self.id = id
         kind = connection.isLocal ? .thisPhone : .server
         self.name = name ?? Self.defaultName(for: connection)
@@ -44,6 +54,7 @@ public struct SavedConnection: Codable, Equatable, Identifiable, Sendable {
         self.keep = keep
         self.webTheme = webTheme
         self.account = account
+        self.signInEnded = signInEnded
     }
 
     /// The name a connection starts with: the server's host, or "On this
@@ -331,6 +342,20 @@ public final class ConnectionStore: @unchecked Sendable {
         if saved.account == nil, account != nil { kept(for: id).deleteAll() }
         saved.connection = connection
         if let account { saved.account = account }
+        saved.signInEnded = nil   // a successful sign-in clears the mark (#302)
+        return write(saved) ? saved : nil
+    }
+
+    /// Notes that a server's sign-in has ended (its token expired or was
+    /// revoked), for the mark on Connections and the chip (#302). `token` is
+    /// the token the request that was answered used: a late answer to an
+    /// old token doesn't mark a sign-in renewed since. Returns the connection
+    /// as saved, or nil when it isn't a saved server or the token has moved on.
+    @discardableResult
+    public func markSignInEnded(_ id: UUID, token: String?) -> SavedConnection? {
+        guard var saved = load(id), saved.kind == .server, saved.connection.token == token else { return nil }
+        if saved.signInEnded == true { return saved }
+        saved.signInEnded = true
         return write(saved) ? saved : nil
     }
 

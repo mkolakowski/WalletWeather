@@ -5,7 +5,7 @@ public enum AppInfo {
     /// The iOS app's own version (CHANGELOG.md tracks it beside the app,
     /// web and schema versions). Keep it equal to MARKETING_VERSION in the
     /// Xcode project.
-    public static let version = "0.49.0"
+    public static let version = "0.50.0"
     /// The first server version with what the app's pages need: the
     /// phone's date on Net worth, Budgets and Reports (#91), on top of each
     /// bill's next dates (#89) and the Forecast's (#88).
@@ -57,6 +57,9 @@ public final class APIClient: Sendable {
     private let session: URLSession
     private let keeper: KeptResponses?
     private let observer: KeptObserver?
+    /// Told when a request is answered "your sign-in has ended" (token
+    /// expired or revoked), for the mark on the connection (#302).
+    private let signInEnded: SignInEndedObserver?
     /// How long a request may take before the server counts as slow.
     public static let timeout: TimeInterval = 20
 
@@ -64,7 +67,8 @@ public final class APIClient: Sendable {
     /// the app, and the household on this phone (`LocalServer`) from its
     /// store; neither keeps anything, whatever `session` and `keeper` say.
     public init(connection: Connection, session: URLSession? = nil,
-                keeper: KeptResponses? = nil, observer: KeptObserver? = nil) {
+                keeper: KeptResponses? = nil, observer: KeptObserver? = nil,
+                signInEnded: SignInEndedObserver? = nil) {
         self.connection = connection
         if connection.isDemo {
             self.session = Demo.makeSession()
@@ -75,6 +79,7 @@ public final class APIClient: Sendable {
         }
         self.keeper = connection.isDemo || connection.isLocal ? nil : keeper
         self.observer = observer
+        self.signInEnded = signInEnded
     }
 
     /// No cookies and no URL cache: what the phone keeps is only what
@@ -328,7 +333,13 @@ public final class APIClient: Sendable {
             throw problem
         }
         guard let http = response as? HTTPURLResponse else { throw .unexpectedResponse(path) }
-        let value = try Self.decode(T.self, data: data, response: http, path: path)
+        let value: T
+        do {
+            value = try Self.decode(T.self, data: data, response: http, path: path)
+        } catch {
+            if error.needsSignIn, connection.token != nil { await signInEnded?() }
+            throw error
+        }
         if let key {
             keeper?.save(data, for: key)
             await observer?(nil)

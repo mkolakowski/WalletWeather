@@ -125,3 +125,7 @@ public struct KeptResponses: Sendable {
 /// How the API client tells a page where its numbers came from: a date when
 /// it answered from the phone's kept copy, nil when the server answered.
 public typealias KeptObserver = @MainActor @Sendable (Date?) -> Void
+
+/// Told when a request is answered with a token that expired or was revoked
+/// (`APIClient`, #302).
+public typealias SignInEndedObserver = @MainActor @Sendable () -> Void

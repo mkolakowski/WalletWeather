@@ -141,7 +141,8 @@ final class AppModel {
 
     /// Debug only: `WW_DEBUG_CONNECTIONS=sample` keeps the connections in
     /// memory (never the Keychain) and in a throwaway settings suite and
-    /// folder, with two sample servers, "Home" and "Mum & Dad", and the
+    /// folder, with two sample servers, "Home" and "Mum & Dad" (whose
+    /// sign-in has ended, so it carries the mark), and the
     /// household on this iPhone when there is one, for pictures of
     /// Settings → Connections. Nothing contacts the sample servers unless
     /// one is switched to.
@@ -159,6 +160,8 @@ final class AppModel {
         let parents = store.add(Connection(server: URL(string: "https://ww.parents.example")!, token: "ww_sample_parents"),
                                 name: "Mum & Dad", account: "you@example.com")
         let phone = LocalStore.exists ? store.add(LocalServer.connection) : nil
+        // "Mum & Dad" has had its sign-in end, for pictures of the mark (#302).
+        if let parents { store.markSignInEnded(parents.id, token: "ww_sample_parents") }
         // Used most recently last: the household on this iPhone, else Home.
         for saved in [parents, home, phone].compactMap({ $0 }) { store.activate(saved.id) }
         return store
@@ -264,7 +267,24 @@ final class AppModel {
     func client(_ tracker: KeptTracker?) -> APIClient? {
         guard let connection else { return nil }
         let observer: KeptObserver? = tracker.map { tracker in { @MainActor (date: Date?) in tracker.record(date) } }
-        return APIClient(connection: connection, keeper: keep == .lastKnown ? kept : nil, observer: observer)
+        // A sign-in that ended is marked on the connection that made the
+        // request, even if another is in front by the time it's answered (#302).
+        var ended: SignInEndedObserver?
+        if let saved, saved.kind == .server {
+            let id = saved.id, token = saved.connection.token
+            ended = { [weak self] in self?.markSignInEnded(id, token: token) }
+        }
+        return APIClient(connection: connection, keeper: keep == .lastKnown ? kept : nil, observer: observer,
+                         signInEnded: ended)
+    }
+
+    /// A request answered that a server's sign-in has ended: the connection
+    /// is marked, in the chip's menu and Connections, until a sign-in
+    /// renews it (#302). Changes nothing on the pages: no reload.
+    func markSignInEnded(_ id: UUID, token: String?) {
+        guard let marked = store.markSignInEnded(id, token: token) else { return }
+        if saved?.id == id { saved = marked }
+        reloadConnections()
     }
 
     /// "Try the demo" (#92): the app on its built-in sample numbers.
@@ -275,10 +295,6 @@ final class AppModel {
     /// What was in front before the demo: what leaving it goes back to, and
     /// what a lock that sent the app to the demo remembers.
     private(set) var beforeDemo: LockGate.Front?
-    /// The household on this iPhone is what's behind the demo: its iCloud
-    /// Drive backup and bank sync keep running while the demo is in front.
-    var householdBehindDemo: Bool { isDemo && householdWasInFront }
-    private var householdWasInFront = false
     /// Asks Face ID first while the app is locked in the demo; true when a
     /// real connection may open (`AppSettings.mayOpenYourNumbers`). Set by
     /// the app before it starts.
@@ -290,6 +306,20 @@ final class AppModel {
         guard connection != nil else { return .nothing }
         if let saved { return .saved(saved.id) }
         return isLocal ? .household : .unsaved
+    }
+
+    /// What the connection chip says, or nil when it doesn't show: under
+    /// the Dashboard's title and at the top of Settings (#302).
+    func connectionChip(locked: Bool) -> ConnectionChipState? {
+        ConnectionChipState.make(saved: connections, front: lockFront, householdExists: hasHousehold,
+                                 visibility: ConnectionsVisibility(locked: locked))
+    }
+
+    /// The household's iCloud Drive backup and bank sync may run now,
+    /// whatever is in front: a server, the demo or nothing (#302).
+    var householdMayRun: Bool {
+        HouseholdRuns.mayRun(householdExists: LocalStore.exists,
+                             protectedDataAvailable: UIApplication.shared.isProtectedDataAvailable, front: lockFront)
     }
 
     /// Whether a household is on this iPhone already, saved or not:
@@ -459,8 +489,9 @@ final class AppModel {
     /// app opens; the pages load again when lines came in. Then asks iOS for
     /// background time when the next one is due.
     func syncBankIfDue() async {
-        // Behind a locked demo too (#301): it shows nothing.
-        guard isLocal || householdBehindDemo, phase == .ready else { return }
+        // Behind a server or the demo too (#301, #302): what it lands never
+        // reloads the pages unless the household is what's in front.
+        guard householdMayRun, phase == .ready else { return }
         if let result = await phoneBank.syncIfDue(), result.added + result.matched > 0, isLocal { generation += 1 }
         scheduleBankRefresh()
     }
@@ -469,8 +500,7 @@ final class AppModel {
     /// household on this iPhone is in use and can be read (not while a
     /// locked phone keeps it closed).
     func backgroundBankSync() async {
-        guard LocalStore.exists, phoneBank.connected, connection == nil || isLocal || householdBehindDemo,
-              UIApplication.shared.isProtectedDataAvailable else { return }
+        guard phoneBank.connected, householdMayRun else { return }
         if let result = await phoneBank.syncIfDue(), result.added + result.matched > 0, isLocal { generation += 1 }
         scheduleBankRefresh()
     }
@@ -572,7 +602,6 @@ final class AppModel {
     func tryDemo() {
         if !isDemo {
             beforeDemo = lockFront
-            householdWasInFront = isLocal
         }
         connectError = nil
         connectNotice = nil
@@ -849,11 +878,7 @@ final class AppModel {
         if decision.show == .demo {
             tryDemo()
             beforeDemo = decision.remember
-            householdWasInFront = front.isLocal
-            if front.isLocal {
-                Task { await backup.runIfDue() }
-                Task { await syncBankIfDue() }
-            }
+            runHouseholdIfDue()
             return
         }
         if front.isLocal {
@@ -864,6 +889,16 @@ final class AppModel {
         connection = front
         phase = .ready
         Task { await refreshMe() }
+        // The household keeps working behind a server (#302).
+        runHouseholdIfDue()
+    }
+
+    /// The household's backup and bank sync, when due, with something else
+    /// in front: nothing on screen changes (#302).
+    private func runHouseholdIfDue() {
+        guard householdMayRun else { return }
+        Task { await backup.runIfDue() }
+        Task { await syncBankIfDue() }
     }
 
     /// What the lock sees in front at the start, before it's opened.

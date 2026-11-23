@@ -183,8 +183,17 @@ public struct ConnectionRow: Equatable, Identifiable, Sendable {
     public let ticked: Bool
     /// The ⓘ opening its own page.
     public let opensPage: Bool
+    /// Its sign-in has ended (#302): a small warning symbol, and "Sign in
+    /// again" as the detail. Shown locked in the demo too: it says nothing
+    /// of the numbers.
+    public let warning: Bool
 
     public var id: Target { target }
+
+    /// The small warning symbol beside a connection whose sign-in ended, in
+    /// Connections, the chip's menu and the chip.
+    public static let warningSymbol = "exclamationmark.triangle.fill"
+    public static let signInAgainDetail = "Sign in again"
 
     public static let demoName = "Demo"
     public static let demoDetail = "Sample numbers · nothing is saved"
@@ -204,18 +213,21 @@ public struct ConnectionRow: Equatable, Identifiable, Sendable {
                 SettingsLayout.connectionDetail(connection)
             }
             return ConnectionRow(target: .saved(connection.id), name: visibility.name(of: connection, among: saved),
-                                 detail: detail, symbol: connection.kind == .server ? "server.rack" : "iphone",
-                                 ticked: inFront, opensPage: visibility.opensConnectionPages)
+                                 detail: connection.needsSignIn ? signInAgainDetail : detail,
+                                 symbol: connection.kind == .server ? "server.rack" : "iphone",
+                                 ticked: inFront, opensPage: visibility.opensConnectionPages,
+                                 warning: connection.needsSignIn)
         }
         if !saved.contains(where: { $0.kind == .thisPhone }) {
             let open = householdExists || front == .household
             rows.append(ConnectionRow(target: .thisIPhone,
                                       name: open ? "On this iPhone" : "Use on this iPhone",
                                       detail: open ? "Your household, with no server" : "A household kept on this iPhone, with no server",
-                                      symbol: "iphone", ticked: front == .household, opensPage: false))
+                                      symbol: "iphone", ticked: front == .household, opensPage: false,
+                                      warning: false))
         }
         rows.append(ConnectionRow(target: .demo, name: demoName, detail: demoDetail, symbol: "sparkles",
-                                  ticked: front == .demo, opensPage: false))
+                                  ticked: front == .demo, opensPage: false, warning: false))
         return rows
     }
 

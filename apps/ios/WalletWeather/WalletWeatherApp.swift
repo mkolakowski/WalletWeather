@@ -108,8 +108,8 @@ struct AppRoot: View {
             // never show apart): the cover can go.
             if phase == .active { settings.checkingLock = false }
             // The iCloud Drive backup runs when the app opens or leaves (#237),
-            // also while the demo is in front of the household (#301).
-            if model.isLocal || model.householdBehindDemo, model.phase == .ready, phase != .inactive {
+            // also while a server or the demo is in front of the household (#301, #302).
+            if model.householdMayRun, model.phase == .ready, phase != .inactive {
                 Task { await model.backup.runIfDue() }
             }
             // Bank sync when the app opens, at most once every 23½ hours (#239).

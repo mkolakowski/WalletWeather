@@ -12,7 +12,6 @@
 		12B45AEEC84F77C8BF0B4F8F /* BackupViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99597682BE06C6A4C37D1188 /* BackupViews.swift */; };
 		1B91942AA2AD6B61B89A0CA2 /* SignInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B7EE513A73A7A19A6F7A07 /* SignInSheet.swift */; };
 		1FCF02B71067FD3EBB3F9DE1 /* ProblemBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D8B8F746C4489B2D9FC26F6 /* ProblemBanner.swift */; };
-		2204C96BFCF57FE7B31B8250 /* DemoChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 077E8C34B468D56E5001D796 /* DemoChip.swift */; };
 		2A3F787DFA9A3BC6817806A5 /* PhoneBankViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 501BC9A34865BA8B81980E67 /* PhoneBankViews.swift */; };
 		2B6E20C2C6B57F2469053035 /* StandaloneViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57CA23B0750CAA45E8AC60BD /* StandaloneViews.swift */; };
 		2BCD253633EC7F7F0D70AF73 /* ConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3E9C40EFE3CCE23D41AA8C7 /* ConnectView.swift */; };
@@ -20,6 +19,7 @@
 		342087AFBFCCAD445AFB2659 /* CloudBackupModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFD2173D8B902D535067E208 /* CloudBackupModel.swift */; };
 		34B3D211AEFC9C768C051569 /* WalletWeatherApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC920553659CFFE6259EBA9C /* WalletWeatherApp.swift */; };
 		3517A60C2350816D3F25BC07 /* BigScreenViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 948E8EEE1A65AFD31A880000 /* BigScreenViews.swift */; };
+		3890DA3AB0F11364FACBAA42 /* ConnectionChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60D4A1DCD8715B9A0F59BB88 /* ConnectionChip.swift */; };
 		3D7A5B5BE64924E4AE8BF00A /* LoadState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EF6456B5FCCB4251D23495E /* LoadState.swift */; };
 		462B717DCD44956EEC548ECB /* MoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8612988B4A68458DECAB4745 /* MoreView.swift */; };
 		4E47E421774FF04019F80AA1 /* MoveMoneySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F10AF2509F0101D7139AD73 /* MoveMoneySheet.swift */; };
@@ -57,7 +57,6 @@
 
 /* Begin PBXFileReference section */
 		067F8A5A4984B672631E4818 /* ForecastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastView.swift; sourceTree = "<group>"; };
-		077E8C34B468D56E5001D796 /* DemoChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoChip.swift; sourceTree = "<group>"; };
 		11F9C229869953F8F6C9FAB0 /* AppearanceViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceViews.swift; sourceTree = "<group>"; };
 		13149321E10C325276768DD5 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		145D05F53CFC95EA650B720C /* TabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBar.swift; sourceTree = "<group>"; };
@@ -76,6 +75,7 @@
 		56BAA46087C2B76E94F0EE25 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		57CA23B0750CAA45E8AC60BD /* StandaloneViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandaloneViews.swift; sourceTree = "<group>"; };
 		5B996A28417EBEFEBDF64CE1 /* UndoBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UndoBar.swift; sourceTree = "<group>"; };
+		60D4A1DCD8715B9A0F59BB88 /* ConnectionChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionChip.swift; sourceTree = "<group>"; };
 		75BD1096AF0D745FED33F38E /* GettingStartedViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GettingStartedViews.swift; sourceTree = "<group>"; };
 		760DE072423DD9D965E38BEE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		795D7F25402606692C251B7E /* ScopedToConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScopedToConnection.swift; sourceTree = "<group>"; };
@@ -145,10 +145,10 @@
 				8D0553102CA76CF6F2551892 /* BillsView.swift */,
 				C580FBC80891DCC74238FFCA /* CalendarView.swift */,
 				DFB26B2201D3541193633A07 /* ChartViews.swift */,
+				60D4A1DCD8715B9A0F59BB88 /* ConnectionChip.swift */,
 				A3E9C40EFE3CCE23D41AA8C7 /* ConnectView.swift */,
 				D3382C27760DB4FDDB484054 /* CSVImportViews.swift */,
 				319D4205BFCC35DC6757600B /* DashboardView.swift */,
-				077E8C34B468D56E5001D796 /* DemoChip.swift */,
 				7E7678658EAB739DFC9B70A4 /* FoldLayout.swift */,
 				067F8A5A4984B672631E4818 /* ForecastView.swift */,
 				75BD1096AF0D745FED33F38E /* GettingStartedViews.swift */,
@@ -302,9 +302,9 @@
 				69134DA34F6EE1EFE219CBE5 /* ChartViews.swift in Sources */,
 				342087AFBFCCAD445AFB2659 /* CloudBackupModel.swift in Sources */,
 				2BCD253633EC7F7F0D70AF73 /* ConnectView.swift in Sources */,
+				3890DA3AB0F11364FACBAA42 /* ConnectionChip.swift in Sources */,
 				0E50FD7DF2A071A170661300 /* DashboardView.swift in Sources */,
 				769AEB2CED36BFC4608187F6 /* DebugBridge.swift in Sources */,
-				2204C96BFCF57FE7B31B8250 /* DemoChip.swift in Sources */,
 				AD7809EEDA5F3AC5990C3828 /* FoldLayout.swift in Sources */,
 				BB489358CA96FB9596EE2902 /* ForecastView.swift in Sources */,
 				8DC91904DD11611BE2773B20 /* GettingStartedViews.swift in Sources */,
@@ -395,7 +395,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.49.0;
+				MARKETING_VERSION = 0.50.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -463,7 +463,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.49.0;
+				MARKETING_VERSION = 0.50.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

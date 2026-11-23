@@ -69,10 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.49.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.50.0**
 
 ### Added
 
+- **iPhone: switch connection from the Dashboard.** With more than one connection, a chip under the Dashboard's title (and at the top of Settings) names the one in front and opens the list to switch, with Manage connections… at the end. A connection whose sign-in has ended is marked ⚠ Sign in again in the list and on the chip. With a single connection there is no chip. The household on this iPhone now keeps its iCloud Drive backup and bank sync going whichever connection is in front (iOS 0.50.0).
 - **iPhone: with the lock on, WalletWeather opens in the demo.** When the app starts, or comes back after a minute away, it shows the demo's sample numbers instead of a lock screen, so someone handed the phone sees a working app and none of yours. Opening any of your own connections asks for Face ID, Touch ID or your passcode first. While it's like that, Settings → Connections shows only the names you gave your connections, with no addresses or email, and their pages stay shut. Turn it off with **When locked, show the demo** in Settings → Privacy & lock to get the lock screen back (iOS 0.49.0).
 - **iPhone: the demo and the household on this iPhone are in Connections,** beside your servers. Tap Demo to look around, and any other row to come back. A **Demo · sample numbers** chip under the Dashboard's title and at the top of Settings replaces the bar that ran across every page, and opens the list.
 - **iPhone: tap an account or a Calendar line to open it.** An account opens in Forecast from the Dashboard's cards, Net worth's rows and the Calendar's balances. A line on the Calendar opens in the line editor, swipes to Paid, Edit or Delete, and offers Undo, as on Forecast. With the Duo open, tapping an account on the Dashboard shows it on the right: what's coming, how many lines wait to confirm, its charts and a way into Forecast; tap it again for every account's charts (iOS 0.47.0).

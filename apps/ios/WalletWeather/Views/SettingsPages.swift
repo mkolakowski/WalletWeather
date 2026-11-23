@@ -263,10 +263,17 @@ private struct ConnectionListRow: View {
                 .frame(width: tile, height: tile)
                 .background(Palette.accent.opacity(0.14), in: .circle)
             VStack(alignment: .leading, spacing: 2) {
-                Text(row.name).lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(row.name).lineLimit(1)
+                    // The sign-in ended: "Sign in again" is the detail below (#302).
+                    if row.warning {
+                        Image(systemName: ConnectionRow.warningSymbol).font(.footnote).foregroundStyle(Palette.warn)
+                            .accessibilityHidden(true)
+                    }
+                }
                 if let detail = row.detail {
                     Text(detail)
-                        .font(.footnote).foregroundStyle(.secondary).lineLimit(2)
+                        .font(.footnote).foregroundStyle(row.warning ? Palette.warn : .secondary).lineLimit(2)
                         .multilineTextAlignment(.leading)
                 }
             }

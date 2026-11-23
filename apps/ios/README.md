@@ -147,7 +147,10 @@ Dad" (ww.parents.example), plus the household on this iPhone when the
 simulator has one, which is then in front; with none, the app opens in the
 demo, so nothing is contacted. They're kept in memory and a throwaway
 settings suite only, never in the Keychain, and are gone at the next launch.
-Switching to a sample server tries to reach it, and fails.
+Switching to a sample server tries to reach it, and fails. "Mum & Dad" has
+had its sign-in end (#302), so the warning symbol and "Sign in again" show on
+its row in Connections and in the chip's menu, and on the chip itself while
+it's in front; the chip shows whenever there are two or more connections.
 `SIMCTL_CHILD_WW_DEBUG_LOCKED_DEMO=1` starts as if the lock had just sent the
 app to the demo (#301), whether or not the lock is on: whatever is saved (or
 the sample connections, with `WW_DEBUG_CONNECTIONS=sample`) stays behind the

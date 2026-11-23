@@ -21,6 +21,16 @@ struct DashboardView: View {
     @State private var charts: Loadable<DashboardCharts> = .loading
     @State private var pinned: [PinnedReport] = []
     @State private var kept = KeptTracker()
+    // For the + menu (#314): the accounts and categories a new transaction needs.
+    @State private var accounts: [Account] = []
+    @State private var categories: [TransactionCategory] = []
+    @State private var adding = false
+    @State private var newDraft = NewTransactionDraft(today: .today())
+    @State private var moving = false
+    @State private var moveDraft = MoveMoneyDraft(today: .today())
+    @State private var importingCSV = false
+
+    private var editableAccounts: [Account] { accounts.filter(model.canEdit) }
 
     struct PinnedReport: Identifiable {
         let report: SavedReport
@@ -56,8 +66,30 @@ struct DashboardView: View {
                     Button("Refresh", systemImage: "arrow.clockwise") { Task { await load() } }
                 }
             }
+            .toolbar {
+                if !editableAccounts.isEmpty {
+                    AddMenu(addTitle: "Add transaction", canMove: editableAccounts.count > 1, onAdd: {
+                        newDraft = NewTransactionDraft(today: .today())
+                        adding = true
+                    }, onMove: {
+                        moveDraft = MoveMoneyDraft(today: .today())
+                        moving = true
+                    }, onImport: { importingCSV = true })
+                }
+            }
         }
         .task(id: model.generation) { await load() }
+        .task(id: model.generation) { await loadChoices() }
+        .sheet(isPresented: $adding) {
+            if let target = editableAccounts.first {
+                AddTransactionSheet(account: target, accountChoices: editableAccounts,
+                                    categories: categories, draft: $newDraft) { await load() }
+            }
+        }
+        .sheet(isPresented: $moving) {
+            MoveMoneySheet(accounts: editableAccounts, draft: $moveDraft) { await load() }
+        }
+        .csvImporter(isPresented: $importingCSV, account: nil) { await load() }
         .task(id: window) { await loadCharts() }
         .sheet(item: $startTask) { StartTaskSheet(task: $0) }
         .sheet(isPresented: $addingAccount) { NewAccountSheet { model.accountAdded() } }
@@ -167,6 +199,13 @@ struct DashboardView: View {
         }
         await loadCharts()
         await loadPinned()
+    }
+
+    /// The accounts and categories the + menu works from.
+    private func loadChoices() async {
+        guard let client = model.client(kept) else { return }
+        accounts = (try? await client.accounts()) ?? []
+        categories = (try? await client.categories()) ?? []
     }
 
     private func loadCharts() async {

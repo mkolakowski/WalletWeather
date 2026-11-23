@@ -13,8 +13,8 @@ from fastapi.testclient import TestClient
 
 from test_bank_providers import (connect_teller, no_provider_keys, plaid_fake, start,  # noqa: F401
                                  teller_fake)
-from test_bank_sync import (allow_bank, connected, fake, link, make_account, register,  # noqa: F401
-                            set_switch, switched_on)
+from test_bank_sync import (allow_bank, connected, connection_row, fake, link, make_account,  # noqa: F401
+                            register, set_switch, switched_on)
 
 
 @pytest.fixture
@@ -185,9 +185,12 @@ def test_unticking_pauses_a_connection_and_ticking_again_carries_on(app_started,
     assert r.status_code == 403 and "paused" in r.json()["detail"]
     r = c.post("/api/bank/sync", json={"connection_id": conn["id"]})
     assert r.status_code == 403
-    before = len(fake.requests)
+    # The daily sync leaves it alone. (It may sync connections earlier tests
+    # left behind through the same stand-in, so count this one's syncs, not
+    # the stand-in's requests: #272.)
+    before = connection_row(u["id"]).last_sync_at
     run_due()
-    assert len(fake.requests) == before   # the daily sync left it alone
+    assert connection_row(u["id"]).last_sync_at == before
     # Kept, not deleted: disconnecting still works while paused, but first tick again.
     set_access(a, u["id"], ["simplefin"])
     s = c.get("/api/bank").json()

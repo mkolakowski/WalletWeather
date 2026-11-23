@@ -22,6 +22,13 @@ from test_bank_sync_matching import GROCERY_DAY, bill, forecast_rows, sync, unma
 HOLDER_NAME = "Holly Holder"
 FAR_DAY = GROCERY_DAY - timedelta(days=20)
 MINE = 2557.50     # 100 + 2,500.00 - 42.50, once synced
+# The Groceries bill falls on FAR_DAY, 22 days ago. "Current balance" counts a
+# planned line dated this month up to today at its planned amount (the
+# Forecast table's rule), so from the 23rd of a month on, when FAR_DAY is in
+# this month, it counts the unpaid -60.00 and the gap is 60.00 smaller; when
+# FAR_DAY is in last month, this month's date for the bill is still ahead (#272).
+UNPAID = -60.00 if (FAR_DAY.year, FAR_DAY.month) == (TODAY.year, TODAY.month) else 0.0
+GAP = round(1200.00 - (MINE + UNPAID), 2)     # -1357.50, or -1297.50 from the 23rd
 
 
 class Crowd:
@@ -275,10 +282,10 @@ def test_the_forecasts_bank_balance_by_level(crowd):
         b = forecast(c, crowd.acc)["bank_balance"]
         assert b is not None, who
         assert b["balance"] == 1200.00 and b["provider"] == "SimpleFIN", who
-        assert b["gap"] == round(1200.00 - MINE, 2) == -1357.50, who
+        assert b["gap"] == GAP, who
         assert b["can_adjust"] is True, who
         assert b["as_of"].endswith("Z"), who
-        assert "unpaid_planned" in b, who
+        assert b["unpaid_planned"] == ({"count": 1, "amount": -60.00} if UNPAID else None), who
         shown[who] = b
     assert shown["owner"] == shown["editor"]
     assert forecast(crowd.viewer, crowd.acc)["bank_balance"] is None
@@ -287,20 +294,20 @@ def test_the_forecasts_bank_balance_by_level(crowd):
 # ---------- Adjusting to the bank's balance ----------
 
 def test_an_editor_adjusts_to_the_banks_balance(crowd):
-    r = crowd.editor.post(f"/api/accounts/{crowd.acc}/bank-adjust", json={"gap": -1357.50})
+    r = crowd.editor.post(f"/api/accounts/{crowd.acc}/bank-adjust", json={"gap": GAP})
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["ok"] is True and body["amount"] == -1357.50
+    assert body["ok"] is True and body["amount"] == GAP
     assert body["current_balance"] == 1200.00 and "transaction_id" in body
     assert "Adjust to bank" in [t["description"] for t in lines(crowd.c, crowd.acc)]
     assert forecast(crowd.c, crowd.acc)["bank_balance"]["gap"] == 0
     # The gap is closed now.
     assert crowd.editor.post(f"/api/accounts/{crowd.acc}/bank-adjust",
-                             json={"gap": -1357.50}).status_code == 400
+                             json={"gap": GAP}).status_code == 400
 
 
 def test_the_owner_adjusts_too(crowd):
-    r = crowd.c.post(f"/api/accounts/{crowd.acc}/bank-adjust", json={"gap": -1357.50})
+    r = crowd.c.post(f"/api/accounts/{crowd.acc}/bank-adjust", json={"gap": GAP})
     assert r.status_code == 200, r.text
     assert r.json()["current_balance"] == 1200.00
 
@@ -308,7 +315,7 @@ def test_the_owner_adjusts_too(crowd):
 def test_read_only_and_strangers_cant_adjust(crowd):
     for who, c in crowd.no_access():
         assert c.post(f"/api/accounts/{crowd.acc}/bank-adjust",
-                      json={"gap": -1357.50}).status_code == 404, who
+                      json={"gap": GAP}).status_code == 404, who
     assert "Adjust to bank" not in [t["description"] for t in lines(crowd.c, crowd.acc)]
 
 

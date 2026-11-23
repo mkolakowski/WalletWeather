@@ -15,7 +15,7 @@
   /* web-refresh phase 1 (#281): calmer Dark and Light surfaces, softer borders, dark text on
      Dark's accent (filled buttons 2.5:1 → about 7.6:1). The shape tokens below (hairline,
      shadow, radii) are shared by every theme; --hair follows each theme's own border. */
-  :root { --bg:#0b0f15; --panel:#141a23; --border:#242d3a; --text:#e9edf4; --muted:#8d98a9;
+  .theme-mini[data-t="dark"], :root { --bg:#0b0f15; --panel:#141a23; --border:#242d3a; --text:#e9edf4; --muted:#8d98a9;
           --accent:#5aa9ff; --good:#3ecf8e; --bad:#ff6b6b; --warn:#e3b341;
           --bg-deep:#0f141c; --chip-bg:#1c2430; --good-bg:#10291f; --field-bg:#0f141c;
           --bad-bg:rgba(255,107,107,0.1); --on-accent:#06121f; color-scheme:dark;
@@ -23,51 +23,55 @@
           --r-card:14px; --r-ctl:9px;
           --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 10px 28px -18px rgba(0,0,0,.8);
           --seg-shadow:0 1px 2px rgba(0,0,0,.4); }
-  :root[data-theme="light"] {
+  .theme-mini[data-t="light"], :root[data-theme="light"] {
           --bg:#f2f4f7; --panel:#ffffff; --border:#e1e5eb; --text:#141a22; --muted:#5c6777;
           --accent:#1b66d6; --good:#0f7a55; --bad:#cf2f3c; --warn:#946200;
           --bg-deep:#eef1f5; --chip-bg:#edf0f4; --good-bg:#e2f5ea; --field-bg:#ffffff;
           --bad-bg:rgba(207,47,60,0.08); --on-accent:#ffffff; color-scheme:light;
           --shadow:0 1px 2px rgba(16,24,40,.05), 0 10px 26px -18px rgba(16,24,40,.25);
           --seg-shadow:0 1px 2px rgba(16,24,40,.14); }
-  :root[data-theme="dracula"] {
-          --bg:#282a36; --panel:#343746; --border:#44475a; --text:#f8f8f2; --muted:#6272a4;
-          --accent:#bd93f9; --good:#50fa7b; --bad:#ff5555; --warn:#f1fa8c;
+  .theme-mini[data-t="dracula"], :root[data-theme="dracula"] {
+          --bg:#282a36; --panel:#343746; --border:#44475a; --text:#f8f8f2; --muted:#96a0c2;
+          --accent:#bd93f9; --good:#50fa7b; --bad:#ff7676; --warn:#f1fa8c;
           --bg-deep:#21222c; --chip-bg:#44475a; --good-bg:#1e3b2a; --field-bg:#21222c;
           --bad-bg:rgba(255,85,85,0.12); --on-accent:#282a36; color-scheme:dark; }
-  :root[data-theme="solarized"] {
-          --bg:#fdf6e3; --panel:#eee8d5; --border:#cbc4a8; --text:#073642; --muted:#657b83;
-          --accent:#268bd2; --good:#859900; --bad:#dc322f; --warn:#b58900;
-          --bg-deep:#f5ead0; --chip-bg:#eee8d5; --good-bg:#e4eecb; --field-bg:#fdf6e3;
-          --bad-bg:rgba(220,50,47,0.08); --on-accent:#fdf6e3; color-scheme:light; }
-  :root[data-theme="nord"] {
-          --bg:#2e3440; --panel:#3b4252; --border:#434c5e; --text:#eceff4; --muted:#81a1c1;
-          --accent:#88c0d0; --good:#a3be8c; --bad:#bf616a; --warn:#ebcb8b;
+  .theme-mini[data-t="solarized"], :root[data-theme="solarized"] {
+          --bg:#fdf6e3; --panel:#eee8d5; --border:#cbc4a8; --text:#073642; --muted:#586b72;
+          --accent:#1e6da5; --good:#5f6e00; --bad:#ca2522; --warn:#826200;
+          --bg-deep:#f5ead0; --chip-bg:#e3dbbf; --good-bg:#e4eecb; --field-bg:#fdf6e3;
+          --bad-bg:rgba(220,50,47,0.08); --on-accent:#fdf6e3; color-scheme:light;
+          --shadow:0 1px 2px rgba(16,24,40,.05), 0 10px 26px -18px rgba(16,24,40,.25);
+          --seg-shadow:0 1px 2px rgba(16,24,40,.14); }
+  .theme-mini[data-t="nord"], :root[data-theme="nord"] {
+          --bg:#2e3440; --panel:#3b4252; --border:#434c5e; --text:#eceff4; --muted:#97b2cc;
+          --accent:#88c0d0; --good:#a3be8c; --bad:#d89fa4; --warn:#ebcb8b;
           --bg-deep:#292e39; --chip-bg:#434c5e; --good-bg:#2e3d2e; --field-bg:#292e39;
           --bad-bg:rgba(191,97,106,0.12); --on-accent:#2e3440; color-scheme:dark; }
-  :root[data-theme="synthwave"] {
+  .theme-mini[data-t="synthwave"], :root[data-theme="synthwave"] {
           --bg:#2b213a; --panel:#3a2c4a; --border:#55456b; --text:#f9f2e7; --muted:#b8aebc;
-          --accent:#ff6ac1; --good:#00f5d4; --bad:#ff3864; --warn:#fede1b;
-          --bg-deep:#1e1530; --chip-bg:#3a2c4a; --good-bg:#0f4a45; --field-bg:#1e1530;
+          --accent:#ff6ac1; --good:#00f5d4; --bad:#ff6386; --warn:#fede1b;
+          --bg-deep:#1e1530; --chip-bg:#4b3a60; --good-bg:#0f4a45; --field-bg:#1e1530;
           --bad-bg:rgba(255,56,100,0.14); --on-accent:#1e1530; color-scheme:dark; }
-  :root[data-theme="forest"] {
+  .theme-mini[data-t="forest"], :root[data-theme="forest"] {
           --bg:#1a2421; --panel:#243330; --border:#3a5048; --text:#e4ebe3; --muted:#8fa598;
-          --accent:#5eb583; --good:#9bd680; --bad:#e57373; --warn:#f0c674;
+          --accent:#5eb583; --good:#9bd680; --bad:#e67777; --warn:#f0c674;
           --bg-deep:#151e1b; --chip-bg:#2d413c; --good-bg:#1e3a28; --field-bg:#151e1b;
           --bad-bg:rgba(229,115,115,0.12); --on-accent:#1a2421; color-scheme:dark; }
-  :root[data-theme="mint"] {
-          --bg:#f3faf5; --panel:#e1f2e5; --border:#b8d9bf; --text:#15372a; --muted:#557d67;
-          --accent:#2d9065; --good:#1e7a4c; --bad:#c23030; --warn:#b88312;
+  .theme-mini[data-t="mint"], :root[data-theme="mint"] {
+          --bg:#f3faf5; --panel:#e1f2e5; --border:#b8d9bf; --text:#15372a; --muted:#4f745f;
+          --accent:#267955; --good:#1e7a4c; --bad:#c23030; --warn:#8c640e;
           --bg-deep:#e7f4ea; --chip-bg:#d3e9d8; --good-bg:#cde8d2; --field-bg:#ffffff;
-          --bad-bg:rgba(194,48,48,0.08); --on-accent:#ffffff; color-scheme:light; }
-  :root[data-theme="monokai"] {
-          --bg:#272822; --panel:#34352f; --border:#49483e; --text:#f8f8f2; --muted:#75715e;
-          --accent:#fd971f; --good:#a6e22e; --bad:#f92672; --warn:#e6db74;
+          --bad-bg:rgba(194,48,48,0.08); --on-accent:#ffffff; color-scheme:light;
+          --shadow:0 1px 2px rgba(16,24,40,.05), 0 10px 26px -18px rgba(16,24,40,.25);
+          --seg-shadow:0 1px 2px rgba(16,24,40,.14); }
+  .theme-mini[data-t="monokai"], :root[data-theme="monokai"] {
+          --bg:#272822; --panel:#34352f; --border:#49483e; --text:#f8f8f2; --muted:#a29e8b;
+          --accent:#fd971f; --good:#a6e22e; --bad:#fb6b9f; --warn:#e6db74;
           --bg-deep:#1e1f1a; --chip-bg:#49483e; --good-bg:#2e3d24; --field-bg:#1e1f1a;
           --bad-bg:rgba(249,38,114,0.12); --on-accent:#272822; color-scheme:dark; }
-  :root[data-theme="sunset"] {
-          --bg:#2a1e1a; --panel:#3a2a25; --border:#5a3e35; --text:#fce8d8; --muted:#a68876;
-          --accent:#ff7f3f; --good:#80c26e; --bad:#ef4f56; --warn:#ffb84a;
+  .theme-mini[data-t="sunset"], :root[data-theme="sunset"] {
+          --bg:#2a1e1a; --panel:#3a2a25; --border:#5a3e35; --text:#fce8d8; --muted:#ab8f7e;
+          --accent:#ff7f3f; --good:#80c26e; --bad:#f1696f; --warn:#ffb84a;
           --bg-deep:#1f1613; --chip-bg:#4a342d; --good-bg:#2c3d25; --field-bg:#1f1613;
           --bad-bg:rgba(239,79,86,0.12); --on-accent:#1f1613; color-scheme:dark; }
   * { box-sizing:border-box; }
@@ -1140,10 +1144,23 @@
   .theme-card:hover { border-color:var(--accent); }
   .theme-card.selected { border-color:var(--accent); }
   .theme-card input { position:absolute; opacity:0; pointer-events:none; }
-  .theme-card .preview { display:flex; height:40px; border-radius:4px;
-                         overflow:hidden; margin-bottom:8px;
-                         border:1px solid var(--border); }
-  .theme-card .preview .sw { flex:1; }
+  /* Each card previews its theme as a tiny screen in its own colours (#283): the theme blocks
+     at the top also apply to .theme-mini[data-t]. System shows half Dark, half Light. */
+  .theme-card .preview { position:relative; margin-bottom:8px; border-radius:8px; overflow:hidden; }
+  .theme-mini { --hair:color-mix(in srgb, var(--border) 62%, transparent);
+                background:var(--bg); color:var(--text); border:1px solid var(--border);
+                border-radius:8px; padding:7px; font-size:10px; line-height:1.25; }
+  .theme-mini .tm-card { background:var(--panel); border:1px solid var(--hair); border-radius:6px;
+                         padding:5px 7px; box-shadow:var(--shadow); display:grid; gap:2px; }
+  .theme-mini .tm-l { color:var(--muted); font-size:9px; }
+  .theme-mini .tm-v { font-size:13px; font-weight:650; font-variant-numeric:tabular-nums; }
+  .theme-mini .tm-row { display:flex; justify-content:space-between; gap:4px; align-items:center;
+                        font-size:9px; font-variant-numeric:tabular-nums; font-weight:600; }
+  .theme-mini .tm-row > span { white-space:nowrap; }
+  .theme-mini .tm-pos { color:var(--good); } .theme-mini .tm-neg { color:var(--bad); }
+  .theme-mini .tm-btn { background:var(--accent); color:var(--on-accent); border-radius:5px;
+                        padding:1px 6px; font-weight:600; font-size:9px; }
+  .theme-card .preview .theme-mini + .theme-mini { position:absolute; inset:0; clip-path:inset(0 0 0 50%); }
   .theme-card .name { font-size:13px; font-weight:500; color:var(--text); }
   .theme-card .hint { font-size:11px; color:var(--muted); margin-top:2px; }
   .theme-card.selected::after { content:"✓"; position:absolute; top:6px; right:8px;
@@ -2864,7 +2881,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.109.0";
+const WEB_VERSION = "1.110.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2874,6 +2891,7 @@ const WEB_VERSION = "1.109.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.110.0 (2026-11-23, claude+mkolakowski): (#283) web-refresh phase 3, readable themes: the 21 text colours under 4.5:1 in eight named themes move to theme-contrast.py's values, changed inside each theme's own block (WebThemeTests reads them there); Solarized and Synthwave get a --chip-bg that differs from the panel; Solarized and Mint take Light's soft --shadow/--seg-shadow (the dark themes inherit Dark's); each theme block also applies to .theme-mini[data-t=…], so the theme picker draws a tiny screen per card (balance, a green and a red amount, a button) in that theme's colours, System as half Dark, half Light (clip-path); Light gets the caption "Clean white".
 // 1.109.0 (2026-11-23, claude+mkolakowski): (#281) web-refresh phase 1, surfaces, titles and controls: new Dark and Light tokens (calmer surfaces, softer borders, Light a tinted page with white cards, --on-accent #06121f in Dark) plus shape tokens every theme shares (--hair, --r-card 14px, --r-ctl 9px, --shadow, --seg-shadow); panels and .stat get the card radius and shadow; .panel h2 in sentence case at 17px; Dashboard and Net worth lose their outer panel and get 26px page titles; labels (.stat .l/.io-l, label, dash-card month and fields, chart titles, theme groups, backup subheads, Per account) in sentence case; button.ghost a soft fill, .danger tinted, selects drawn without system chrome, .icon-btn and Settings tabs filled; the account bar and the Month/30/90 windows one neutral segmented control; body a flex column so the footer sits at the bottom of short pages.
 // 1.108.1 (2026-11-23, claude+mkolakowski): (#282) web-refresh phase 2, four bugs: _twLabel drops the hidden .th-alt/.th-size headings, so wrapped Forecast cards read "Forecast date" not "Forecast dateStart date"; renderNetworthChart draws at the host's width (no preserveAspectRatio="none") with its three axis labels inside the plot in short form ($22.4k); .pie-host > .bar-chart fills the panel (was 180px in the pie's flex row); .report-checklist loses its 120px max-height, so Reports' filters show in full.
 // 1.108.0 (2026-11-23, claude+mkolakowski): (#278) Your own Teller and Plaid keys from the iPhone app: new pages outside the SPA, app-bank-keys.html/.js (/app-bank-keys, opened in the app's sign-in sheet: signs in, shows a card for Teller and one for Plaid with the id, environment and when checked, add / Replace / Remove through PUT /api/bank/keys/teller|plaid and POST /api/bank/keys/remove with a fresh two-factor code, Teller's zip or the two files from Files or pasted text; "Back to the app" sends walletweather://bank-keys?state=changed|closed, or off when it can't be used). index.html itself is unchanged.
@@ -3576,8 +3594,8 @@ const WEB_VERSION = "1.109.0";
 //   hint     - optional subtitle shown under the name
 //   variant  - 'dark' | 'light' | 'auto' — controls which group the card
 //              is rendered in ('auto' is rendered with the dark group)
-//   swatches - [bg, panel, accent] preview colors, hardcoded so each card
-//              shows its own colors even while another theme is active
+//   swatches - [bg, panel, accent], kept for reference; since #283 each card
+//              draws a tiny screen from the theme's own CSS block instead
 const THEMES = [
   // System / adaptive — rendered in the dark group at the top.
   { key: 'system',    name: 'System',    hint: 'Match OS',         variant: 'auto',  swatches: ['#0f1419', '#ffffff', '#888888'] },
@@ -3590,7 +3608,7 @@ const THEMES = [
   { key: 'monokai',   name: 'Monokai',   hint: 'Classic orange',   variant: 'dark',  swatches: ['#272822', '#34352f', '#fd971f'] },
   { key: 'sunset',    name: 'Sunset',    hint: 'Warm amber',       variant: 'dark',  swatches: ['#2a1e1a', '#3a2a25', '#ff7f3f'] },
   // Light themes
-  { key: 'light',     name: 'Light',     hint: '',                 variant: 'light', swatches: ['#ffffff', '#f6f8fa', '#0969da'] },
+  { key: 'light',     name: 'Light',     hint: 'Clean white',               variant: 'light', swatches: ['#ffffff', '#f6f8fa', '#0969da'] },
   { key: 'solarized', name: 'Solarized', hint: 'Warm cream',       variant: 'light', swatches: ['#fdf6e3', '#eee8d5', '#268bd2'] },
   { key: 'mint',      name: 'Mint',      hint: 'Fresh green',      variant: 'light', swatches: ['#f3faf5', '#e1f2e5', '#2d9065'] },
 ];
@@ -3619,11 +3637,15 @@ function applyTheme(choice) {
 function renderThemePicker() {
   const root = document.getElementById('themePicker');
   if (root.dataset.rendered === '1') return;
+  const miniFor = k => `<div class="theme-mini" data-t="${k}"><div class="tm-card">
+      <span class="tm-l">Balance</span><span class="tm-v">$4,794</span>
+      <span class="tm-row"><span class="tm-pos">+$2,800</span><span class="tm-neg">−$1,650</span><span class="tm-btn">Add</span></span>
+    </div></div>`;
   const cardFor = t => `
     <label class="theme-card" data-theme-key="${t.key}">
       <input type="radio" name="themeChoice" value="${t.key}">
       <div class="preview" aria-hidden="true">
-        ${t.swatches.map(c => `<div class="sw" style="background:${c}"></div>`).join('')}
+        ${(t.key === 'system' ? ['dark', 'light'] : [t.key]).map(miniFor).join('')}
       </div>
       <div class="name">${t.name}</div>
       ${t.hint ? `<div class="hint">${t.hint}</div>` : ''}

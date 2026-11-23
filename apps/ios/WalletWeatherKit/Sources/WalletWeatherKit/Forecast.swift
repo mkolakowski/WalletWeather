@@ -65,6 +65,21 @@ public struct ForecastMonth: Sendable, Codable, Equatable {
     public let rows: [ForecastLine]
 }
 
+extension ForecastMonth {
+    /// A line as it is in this month, found again after a reload (#315): by
+    /// its transaction when it had one, else, for a projected date of a
+    /// repeating bill or paycheck that was saved as a new transaction since,
+    /// by the bill and the planned date. Nil when it isn't here any more
+    /// (deleted, moved to another month or date, or another account).
+    public func reloaded(_ line: ForecastLine) -> ForecastLine? {
+        if let transactionId = line.transactionId {
+            return rows.first { $0.transactionId == transactionId }
+        }
+        guard let recurringId = line.recurringId, let planned = line.plannedDate else { return nil }
+        return rows.first { $0.recurringId == recurringId && $0.plannedDate == planned && $0.transferId == nil }
+    }
+}
+
 /// One line of the forecast: a transaction, or a repeating bill or paycheck
 /// projected onto a date with nothing saved for it yet.
 public struct ForecastLine: Sendable, Codable, Equatable, Identifiable {

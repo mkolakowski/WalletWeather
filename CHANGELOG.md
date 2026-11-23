@@ -69,10 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.39.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.40.0**
 
 ### Added
 
+- **iPhone: Undo after marking a line paid, and haptics.** After a swipe to Paid or a tap on Paid in To confirm, a bar at the bottom of Forecast says "Rent marked paid" with **Undo** for five seconds (fifteen with VoiceOver). Undo puts the line back to not paid at its planned amount and date, as switching Paid off in the editor does. The phone gives a short tap when a line is marked paid and when a save goes through; its own System Haptics setting turns that off (iOS 0.40.0).
 - **iPhone: change a line's name, date and planned amount.** For a line you added yourself, the editor's Name, Planned for and Planned amount are now fields, so a mistyped one-off no longer has to be deleted and added again. A line that comes from a repeating bill, and a transfer, show them as text as before: a bill's date changes in its bill. While a line isn't paid, its actual amount and date follow the plan you set (iOS 0.39.0).
 - **iPhone: a + menu on the Dashboard.** Add a transaction (it asks which account), move money or import a CSV from the first page, without going to Forecast first. It shows when you may change at least one account (iOS 0.38.0).
 - **iPhone: tap the month's name to jump.** On Forecast, Calendar and Compare the month between the arrows is now a button: This month, the months either side, and the six months ahead of today and behind it. The arrows work as before (iOS 0.37.0).

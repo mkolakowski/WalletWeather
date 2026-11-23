@@ -32,6 +32,10 @@ struct ForecastView: View {
     @State private var pendingDelete: ForecastLine?
     @State private var problem: String?
     @State private var comparing = false
+    /// The Undo bar after a line is marked paid from the list (#315), and
+    /// the count that gives the success haptic.
+    @State private var undoOffer: UndoOffer?
+    @State private var paidCount = 0
 
     private var shownMonth: YearMonth { YearMonth(monthText) ?? YearMonth(.today()) }
     private var account: Account? {
@@ -45,6 +49,7 @@ struct ForecastView: View {
         PageStack {
             content
                 .keptBar(kept)
+                .sensoryFeedback(.success, trigger: paidCount)
                 .background(PageBackground().ignoresSafeArea())
                 .navigationTitle("Forecast")
                 // Two scroll panes side by side leave a large title nothing to collapse against, so cards
@@ -84,6 +89,12 @@ struct ForecastView: View {
             Text(problem ?? "")
         }
         .scopedToConnection($accountId, memo: $accountMemo)
+        // The bar belongs to the account and month it was shown on, and goes
+        // when the editor opens or the connection changes.
+        .onChange(of: accountId) { undoOffer = nil }
+        .onChange(of: monthText) { undoOffer = nil }
+        .onChange(of: model.generation) { undoOffer = nil }
+        .onChange(of: open != nil) { _, isOpen in if isOpen { undoOffer = nil } }
         .task(id: model.generation) { await loadAll() }
         .task(id: "\(accountId)/\(monthText)") { await loadMonth() }
         // An account chosen in Search (#112): this month of it.
@@ -152,6 +163,8 @@ struct ForecastView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .refreshable { await loadMonth() }
+        // On the list's own half when the Duo is open, so the bar never crosses the fold.
+        .undoBar($undoOffer)
     }
 
     /// The open Duo: chart and table on the left, the editor or the
@@ -226,6 +239,8 @@ struct ForecastView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .refreshable { await loadMonth() }
+        // On the list's own half when the Duo is open, so the bar never crosses the fold.
+        .undoBar($undoOffer)
     }
 
     @ViewBuilder
@@ -289,6 +304,7 @@ struct ForecastView: View {
             ?? .paidAsPlanned(line, today: .today())
         if await change(line, { try await $0.save(line, draft: draft, account: account.id) }) {
             settings.start.done.insert(.markPaid)  // Getting started (#177)
+            offerUndo(line, account: account.id)
         }
     }
 
@@ -344,8 +360,37 @@ struct ForecastView: View {
         Task {
             if await change(line, { try await $0.save(line, draft: .paidAsPlanned(line, today: .today()), account: account.id) }) {
                 settings.start.done.insert(.markPaid)  // Getting started (#177)
+                offerUndo(line, account: account.id)
             }
         }
+    }
+
+    /// The success haptic and the Undo bar for a line just marked paid; a
+    /// later one replaces the bar.
+    private func offerUndo(_ line: ForecastLine, account: Int) {
+        paidCount += 1
+        undoOffer = UndoOffer(message: "\(line.description) marked paid") { await undoPaid(line, account: account) }
+    }
+
+    /// Takes "paid" back the way the editor's Paid switch does: finds the
+    /// line again in the reloaded month (a projected date is a transaction
+    /// now) and saves it not paid, which keeps it at its planned amount with
+    /// its notes and category. A failure shows the "Couldn't save" alert.
+    private func undoPaid(_ line: ForecastLine, account: Int) async -> Bool {
+        guard let client = model.client else { return false }
+        guard let paid = month.value?.reloaded(line) else {
+            problem = "\(line.description) isn't in this month any more, so it can't be undone here."
+            return false
+        }
+        var done = false
+        do {
+            try await client.save(paid, draft: .unpaid(paid, today: .today()), account: account)
+            done = true
+        } catch {
+            problem = AppModel.describe(error)
+        }
+        await loadMonth()
+        return done
     }
 
     /// A change made from the list (a swipe, a delete). If that line is
@@ -389,6 +434,10 @@ struct ForecastView: View {
         if AppModel.debugSetting("WW_DEBUG_COMPARE") != nil { comparing = true }
         if let name = AppModel.debugSetting("WW_DEBUG_OPEN_LINE"),
            let line = month.value?.rows.first(where: { $0.description == name }) { openLine(line) }
+        // Debug only: `WW_DEBUG_UNDO=<line name>` shows the Undo bar for that line, saving nothing (#315).
+        if let name = AppModel.debugSetting("WW_DEBUG_UNDO"), month.value?.rows.contains(where: { $0.description == name }) == true {
+            undoOffer = UndoOffer(message: "\(name) marked paid", undo: { false }, stays: true)
+        }
     }
 
     private func loadMonth() async {

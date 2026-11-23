@@ -69,6 +69,8 @@ struct LineEditor: View {
     @State private var saving = false
     @State private var problem: String?
     @State private var confirmDelete = false
+    /// Counts saves that went through, for the success haptic (#315).
+    @State private var savedCount = 0
 
     private var line: ForecastLine { open.line }
 
@@ -105,7 +107,7 @@ struct LineEditor: View {
     }
 
     private func save() {
-        Task { await run { try await $0.save(line, draft: open.draft, account: open.account.id) } }
+        Task { await run(buzz: true) { try await $0.save(line, draft: open.draft, account: open.account.id) } }
     }
 
     private var form: some View {
@@ -129,6 +131,7 @@ struct LineEditor: View {
             // sheet (a zero here ran the rows into the screen's edge, #161).
             .contentMargins(.leading, embedded ? 12 : nil, for: .scrollContent)
             .disabled(saving)
+            .sensoryFeedback(.success, trigger: savedCount)
             .alert("Couldn't save", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
                 Button("OK", role: .cancel) {}
             } message: {
@@ -339,7 +342,7 @@ struct LineEditor: View {
                 set: { open.draft[keyPath: key] = LocalDay.today(now: $0) })
     }
 
-    private func run(_ action: (APIClient) async throws -> Void) async {
+    private func run(buzz: Bool = false, _ action: (APIClient) async throws -> Void) async {
         guard let client = model.client else { return }
         saving = true
         defer { saving = false }
@@ -349,6 +352,7 @@ struct LineEditor: View {
             problem = AppModel.describe(error)
             return
         }
+        if buzz { savedCount += 1 }
         await onSaved()
         onClose()
     }
@@ -369,6 +373,7 @@ struct AddTransactionSheet: View {
 
     @State private var saving = false
     @State private var problem: String?
+    @State private var addedCount = 0
     @State private var chosenAccount: Int?
     @FocusState private var amountFocused: Bool
 
@@ -440,6 +445,7 @@ struct AddTransactionSheet: View {
                 Text(problem ?? "")
             }
             .onAppear { amountFocused = draft.amountText.isEmpty }
+            .sensoryFeedback(.success, trigger: addedCount)
         }
     }
 
@@ -453,6 +459,7 @@ struct AddTransactionSheet: View {
             problem = AppModel.describe(error)
             return
         }
+        addedCount += 1
         draft = NewTransactionDraft(today: .today())
         await onSaved()
         dismiss()

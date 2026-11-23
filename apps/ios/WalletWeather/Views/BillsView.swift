@@ -583,6 +583,7 @@ struct BillEditor: View {
     @State private var saving = false
     @State private var problem: String?
     @State private var confirmRestore = false
+    @State private var savedCount = 0
 
     private var isNew: Bool { open.item == nil }
     private var title: String { isNew ? "New bill or income" : open.item?.description ?? "" }
@@ -638,6 +639,7 @@ struct BillEditor: View {
         .background { if !embedded { PageBackground().ignoresSafeArea() } }
         .contentMargins(.leading, embedded ? 12 : 0, for: .scrollContent)
         .disabled(saving)
+        .sensoryFeedback(.success, trigger: savedCount)
         .alert("Couldn't save", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
             Button("OK", role: .cancel) {}
         } message: { Text(problem ?? "") }
@@ -801,6 +803,7 @@ struct BillEditor: View {
             problem = AppModel.describe(error)
             return
         }
+        savedCount += 1
         await onSaved()
         onClose()
     }

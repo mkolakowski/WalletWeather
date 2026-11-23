@@ -171,6 +171,47 @@ struct LocalTests {
         #expect(try await client.searchTransactions("beard").total == 1)
     }
 
+    /// Undo after marking a line paid from the list (#315): the same calls
+    /// the Forecast makes (save paid as planned, reload, find the line
+    /// again, save it unpaid), for a projected date of a bill and for a
+    /// saved one-off.
+    @Test func undoingPaidPutsTheLineBackAtItsPlannedAmountAndDate() async throws {
+        let checking = try await account("Checking", 1000)
+        try await bill("Rent", "800", day: 1, account: checking)
+        let ahead = LocalDay(year: 2026, month: 3, day: 20)
+        var plan = NewTransactionDraft(today: ahead)
+        plan.name = "Haircut"
+        plan.amountText = "40"
+        plan.notes = "tip"
+        plan.paid = false
+        try await client.add(plan, account: checking)
+        let month = YearMonth(day)
+        let start = try await client.forecast(account: checking, month: month, today: day)
+
+        for name in ["Rent", "Haircut"] {
+            let before = try #require(start.rows.first { $0.description == name })
+            #expect(!before.isPaid)
+            try await client.save(before, draft: .paidAsPlanned(before, today: day), account: checking)
+            let paidMonth = try await client.forecast(account: checking, month: month, today: day)
+            let paid = try #require(paidMonth.reloaded(before))
+            #expect(paid.isPaid && paid.transactionId != nil, "\(name) is paid and saved")
+
+            // Undo.
+            try await client.save(paid, draft: .unpaid(paid, today: day), account: checking)
+            let after = try await client.forecast(account: checking, month: month, today: day)
+            let undone = try #require(after.reloaded(before), "\(name) is still there")
+            #expect(!undone.isPaid, "\(name) is not paid")
+            #expect(undone.plannedDate == before.plannedDate)
+            #expect(undone.plannedAmount == before.plannedAmount)
+            #expect(undone.actualAmount == before.plannedAmount, "an unpaid line counts at its planned amount")
+            #expect(after.rows.filter { $0.description == name }.count == 1, "never a second copy")
+        }
+        let end = try await client.forecast(account: checking, month: month, today: day)
+        let haircut = try #require(end.rows.first { $0.description == "Haircut" })
+        #expect(haircut.notes == "tip" && haircut.isOneOff, "its notes stay")
+        #expect(end.forecastEndingBalance == start.forecastEndingBalance)
+    }
+
     /// Deleting a transfer and bringing back skipped dates (#246): the
     /// server's `DELETE /api/transfers/{id}` and `DELETE /api/recurring/{id}/skips`.
     @Test func aTransferCanBeDeletedAndSkippedDatesBroughtBack() async throws {

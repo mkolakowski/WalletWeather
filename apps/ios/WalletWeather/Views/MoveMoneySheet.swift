@@ -40,6 +40,7 @@ struct MoveMoneySheet: View {
 
     @State private var saving = false
     @State private var problem: String?
+    @State private var movedCount = 0
 
     var body: some View {
         NavigationStack {
@@ -97,6 +98,7 @@ struct MoveMoneySheet: View {
             } message: {
                 Text(problem ?? "")
             }
+            .sensoryFeedback(.success, trigger: movedCount)
         }
     }
 
@@ -110,6 +112,7 @@ struct MoveMoneySheet: View {
             problem = AppModel.describe(error)
             return
         }
+        movedCount += 1
         await onMoved()
         dismiss()
     }

@@ -119,6 +119,8 @@ line (or that bill, on Bills & income) in the editor,
 (#294): `connection`, `bank`, `appearance`, `privacy`, `backup`, `move`,
 `help` or `keep` (Keep on this iPhone, under the connection's page);
 `WW_DEBUG_TAGS=1` opens Tags and `WW_DEBUG_BANK` Bank sync.
+`SIMCTL_CHILD_WW_DEBUG_UNDO=Rent` shows the Forecast's Undo bar for that line
+once the page has loaded (#315); it saves nothing and stays until dismissed.
 On this Mac the simulators are shared with other projects' sessions, so run
 simulator commands through mkplus's `Scripts/with-simulator.sh`.
 
@@ -213,7 +215,14 @@ the app sends the line's name, dates, amounts, category and notes each time
 and leaves its tags alone), a saved line is deleted with `DELETE`, and a
 projected date is skipped with `POST /api/recurring/{id}/skip`. Undoing
 "paid" keeps the line as a transaction at its planned amount, so its notes
-and category stay. Transfers are read-only in the app for now; new ones are made with Move
+and category stay. Marking a line paid from the Forecast's list (a swipe, or
+To confirm) shows an Undo bar along the bottom for about five seconds (fifteen
+with VoiceOver on): Undo finds the line again after the reload (a projected
+date is a transaction by then) and saves it with Paid off, the same
+`PATCH` the editor's switch sends (#315). A success haptic goes with marking a
+line paid and with a save that goes through in the line editor, the bill
+editor, Add transaction and Move money; the phone's System Haptics setting
+turns them off. Transfers are read-only in the app for now; new ones are made with Move
 money (`POST /api/transfers`). Bills are changed the same way as lines: a
 `PATCH /api/recurring/{id}` sends the whole item again, and ending one sets
 its end date.

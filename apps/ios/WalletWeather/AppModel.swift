@@ -77,6 +77,21 @@ final class AppModel {
     /// The connection in front, when it's saved (not the demo, and not a
     /// Debug launch's server).
     private(set) var saved: SavedConnection?
+    /// Every saved connection, oldest first, for Settings → Connections
+    /// (phase 2, #300): read again from the store after each change.
+    private(set) var connections: [SavedConnection] = []
+    /// What Connections says after signing out of one, when the server
+    /// couldn't be reached to end its token.
+    var connectionsNotice: String?
+    /// Counts sign-ins that went through, so the Add a server sheet closes
+    /// on one (and the sign-in screen clears its password).
+    private(set) var signIns = 0
+    /// Add a server sheets open in any window: the "Connect to …?" question
+    /// for a link is asked in the sheet then, not over it.
+    var signInSheets = 0
+    /// Why a link from the web app couldn't be used, when it was opened
+    /// with the app already in use (no sign-in screen to say it on).
+    var linkProblem: String?
     /// The single sign-in kept before couldn't be carried over to the store
     /// (its copy didn't write or read back): it's still the one in front,
     /// in its old item, and the next start tries again.
@@ -116,7 +131,35 @@ final class AppModel {
     #endif
 
     init(defaults: UserDefaults = .standard, store: ConnectionStore? = nil) {
-        self.store = store ?? ConnectionStore(secrets: KeychainConnectionSecrets(), defaults: defaults)
+        self.store = store ?? Self.debugConnections() ?? ConnectionStore(secrets: KeychainConnectionSecrets(), defaults: defaults)
+    }
+
+    /// Debug only: `WW_DEBUG_CONNECTIONS=sample` keeps the connections in
+    /// memory (never the Keychain) and in a throwaway settings suite and
+    /// folder, with two sample servers, "Home" and "Mum & Dad", and the
+    /// household on this iPhone when there is one, for pictures of
+    /// Settings → Connections. Nothing contacts the sample servers unless
+    /// one is switched to.
+    private static func debugConnections() -> ConnectionStore? {
+        #if DEBUG
+        guard debugSetting("WW_DEBUG_CONNECTIONS") == "sample" else { return nil }
+        let suite = "ww-debug-connections"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let root = FileManager.default.temporaryDirectory.appending(path: "ww-debug-connections", directoryHint: .isDirectory)
+        try? FileManager.default.removeItem(at: root)
+        let store = ConnectionStore(secrets: MemoryConnectionSecrets(), defaults: defaults, keptRoot: root)
+        let home = store.add(Connection(server: URL(string: "https://home.example.com")!, token: "ww_sample_home"),
+                             name: "Home", account: "you@example.com")
+        let parents = store.add(Connection(server: URL(string: "https://ww.parents.example")!, token: "ww_sample_parents"),
+                                name: "Mum & Dad", account: "you@example.com")
+        let phone = LocalStore.exists ? store.add(LocalServer.connection) : nil
+        // Used most recently last: the household on this iPhone, else Home.
+        for saved in [parents, home, phone].compactMap({ $0 }) { store.activate(saved.id) }
+        return store
+        #else
+        return nil
+        #endif
     }
 
     /// Choosing Nothing deletes what's kept straight away.
@@ -126,6 +169,7 @@ final class AppModel {
         if var saved, saved.keep != choice {
             saved.keep = choice
             if store.update(saved) { self.saved = saved }
+            reloadConnections()
         } else if legacy {
             store.legacyKeep = choice
         }
@@ -146,6 +190,12 @@ final class AppModel {
         keep = front?.keep ?? .nothing
         applyDebugKeep()
         if keep == .nothing { deleteKept() }
+        reloadConnections()
+    }
+
+    /// Reads the saved connections again, for Connections.
+    func reloadConnections() {
+        connections = store.all()
     }
 
     /// Debug only: `WW_DEBUG_KEEP=lastKnown|nothing` sets the choice of the
@@ -159,22 +209,44 @@ final class AppModel {
         }
     }
 
-    /// Saves a new connection and puts it in front. Until the connections
-    /// can be seen and switched between (phase 2), the phone keeps one at a
-    /// time, as before: the others are removed once the new one is saved.
-    /// If the Keychain won't take it, it's still in front for this launch.
-    private func saveAndBringForward(_ connection: Connection) {
-        guard let added = store.add(connection).flatMap({ store.activate($0.id) }) else {
+    /// Saves a sign-in and puts it in front (phase 2, #300): the same server
+    /// and person renews the connection already saved (its name, keep
+    /// choice and kept numbers stay); anything else is added beside the
+    /// others, which stay signed in. Returns whether it renewed one. If the
+    /// Keychain won't take it, it's still in front for this launch.
+    @discardableResult
+    private func saveAndBringForward(_ connection: Connection, account: String?) -> Bool {
+        guard let result = store.save(signIn: connection, account: account),
+              let front = store.activate(result.saved.id) else {
             // A single sign-in still in its old item stays the one in use.
             let stillLegacy = legacy && store.legacy == connection
             bringForward(nil)
             legacy = stillLegacy
             if stillLegacy { keep = store.legacyKeep }
+            return false
+        }
+        // A single sign-in that couldn't be carried over is replaced by a new
+        // sign-in to its own server; another server's leaves it, to be
+        // carried over at the next start.
+        if legacy, let old = store.legacy, SavedConnection.sameServer(old.server, connection.server) {
+            store.removeLegacy()
+        }
+        bringForward(front)
+        return result.renewed
+    }
+
+    /// The household on this iPhone in front: the one saved, or saved now.
+    /// The servers saved beside it stay.
+    private func bringHouseholdForward() {
+        if let household = store.all().first(where: { $0.kind == .thisPhone }), let front = store.activate(household.id) {
+            bringForward(front)
             return
         }
-        for other in store.all() where other.id != added.id { store.remove(other.id) }
-        if legacy { store.removeLegacy() }
-        bringForward(added)
+        guard let front = store.add(LocalServer.connection).flatMap({ store.activate($0.id) }) else {
+            bringForward(nil)
+            return
+        }
+        bringForward(front)
     }
 
     /// The pages' client for edits and anything not kept. With Last-known
@@ -211,7 +283,7 @@ final class AppModel {
             return
         }
         if saved?.kind != .thisPhone {
-            saveAndBringForward(LocalServer.connection)
+            bringHouseholdForward()
         }
         connection = LocalServer.connection
         me = nil
@@ -223,6 +295,86 @@ final class AppModel {
         Task { await backup.runIfDue() }
         Task { await syncBankIfDue() }
         watchOtherDevices()
+    }
+
+    // MARK: - Switching (phase 2, #300)
+
+    /// Puts another saved connection in front, signing out of nothing: its
+    /// keep choice and saved web theme come with it, and every page loads
+    /// again. A connection whose token has ended still switches; its pages
+    /// then say Sign in again. The household on this iPhone opens as On
+    /// this iPhone does.
+    func switchTo(_ id: UUID) {
+        connectError = nil
+        connectNotice = nil
+        connectionsNotice = nil
+        guard let target = store.load(id) else {
+            reloadConnections()
+            return
+        }
+        if target.kind == .thisPhone {
+            useOnThisPhone()
+            return
+        }
+        guard let front = store.activate(id) else { return }
+        askKeep = false
+        bringForward(front)
+        connection = front.connection
+        me = nil
+        serverVersion = nil
+        generation += 1
+        phase = .ready
+        Task { await refreshMe() }
+    }
+
+    /// Renames a saved connection; an empty name goes back to its host (or
+    /// On this iPhone).
+    func rename(_ id: UUID, to name: String) {
+        guard var target = store.load(id) else { return }
+        let typed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let new = typed.isEmpty ? SavedConnection.defaultName(for: target.connection) : typed
+        guard new != target.name else { return }
+        target.name = new
+        guard store.update(target) else { return }
+        if saved?.id == id { saved = target }
+        reloadConnections()
+    }
+
+    /// Sign out of one connection (phase 2, #300): its token is ended on its
+    /// server when it can be reached (as Sign out always did), then only it,
+    /// its kept numbers and its keep choice are removed. If it was in front,
+    /// the one used most recently comes in front; with none left, back to
+    /// the sign-in screen as before.
+    func signOut(of id: UUID) async {
+        guard let target = store.load(id), target.kind == .server else { return }
+        connectionsNotice = nil
+        var notice: String?
+        if target.connection.token != nil {
+            busy = true
+            do {
+                // Its own client, from its saved sign-in: it may not be in front.
+                try await APIClient(connection: target.connection).endToken()
+            } catch .tokenExpired, .tokenRevoked {
+                // Already ended.
+            } catch {
+                notice = "Signed out of \(target.name) on this iPhone. Its server couldn't be reached, so this iPhone's token is still listed in that web app's Settings → API tokens until you revoke it there."
+            }
+            busy = false
+        }
+        guard saved?.id == id else {
+            store.remove(id)
+            reloadConnections()
+            connectionsNotice = notice
+            return
+        }
+        store.remove(id)
+        if let next = store.mostRecentlyUsed {
+            switchTo(next.id)
+            connectionsNotice = notice
+        } else {
+            signOut()
+            connectNotice = notice
+        }
     }
 
     // MARK: Bank sync on this iPhone (#239)
@@ -392,7 +544,8 @@ final class AppModel {
     /// and `WW_DEBUG_CONFIRM`, `WW_DEBUG_COMPARE` and `WW_DEBUG_NEW_WINDOW`
     /// (Forecast's To confirm, Compare, and a second window on a page), and
     /// `WW_DEBUG_DEMO=1` (open in the demo), and `WW_DEBUG_CLOUDKIT_SCHEMA=1`
-    /// (write the CloudKit schema to Development, #270).
+    /// (write the CloudKit schema to Development, #270), and
+    /// `WW_DEBUG_CONNECTIONS=sample` (sample connections in memory, #300).
     /// Always nil in a
     /// Release build.
     static func debugSetting(_ name: String) -> String? {
@@ -577,6 +730,16 @@ final class AppModel {
             return
         }
         #endif
+        #if DEBUG
+        // `WW_DEBUG_CONNECTIONS=sample` with no household on this iPhone:
+        // the demo, so no sample server is contacted.
+        if env["WW_DEBUG_CONNECTIONS"] == "sample", store.active?.kind != .thisPhone {
+            reloadConnections()
+            tryDemo()
+            return
+        }
+        #endif
+        reloadConnections()
         let front: Connection
         if case let .leftInPlace(old) = carried {
             saved = nil
@@ -609,9 +772,16 @@ final class AppModel {
         if let found = try? await client.me() {
             me = found
             // Match the web app's theme, kept with this connection.
-            if var saved, saved.connection == connection, saved.webTheme != found.themePreference {
+            // And who's signed in, which tells a new sign-in of the same
+            // person from another's (#300).
+            if var saved, saved.connection == connection,
+               saved.webTheme != found.themePreference || saved.account != found.email {
                 saved.webTheme = found.themePreference
-                if store.update(saved) { self.saved = saved }
+                saved.account = found.email
+                if store.update(saved) {
+                    self.saved = saved
+                    reloadConnections()
+                }
             }
             if found.noticeRequired { phase = .notice }
         }
@@ -740,23 +910,42 @@ final class AppModel {
         await connect(Connection(server: address.url, token: token, cloudflare: serviceToken))
     }
 
-    /// The "Open in WalletWeather" button, once confirmed.
+    /// The "Open in WalletWeather" button or a scanned QR code, once
+    /// confirmed: adds the server, or renews the one already saved for the
+    /// same person, and puts it in front. The others stay signed in (#300).
     func connect(link: PendingLink) async {
         pendingLink = nil
+        linkProblem = nil
         typedAddress = link.address.url.absoluteString
-        if phase != .connect {
-            // The old server's token is ended first, as Sign out does.
-            await signOutEndingToken()
-            typedAddress = link.address.url.absoluteString
-        }
         connectNotice = nil
-        await connect(Connection(server: link.address.url, token: link.token))
+        connectError = nil
+        // A Cloudflare sign-in already saved for that server is tried first.
+        let cloudflare = store.all().first {
+            $0.kind == .server && SavedConnection.sameServer($0.connection.server, link.address.url)
+        }?.connection.cloudflare
+        let before = signIns
+        await connect(Connection(server: link.address.url, token: link.token, cloudflare: cloudflare))
+        if signIns == before, phase != .connect, signInSheets == 0, let error = connectError {
+            linkProblem = error
+            connectError = nil
+        }
+    }
+
+    /// What the "Connect to …?" question says about a link.
+    func linkMessage(_ link: PendingLink) -> String {
+        let sameServer = connections.contains {
+            $0.kind == .server && SavedConnection.sameServer($0.connection.server, link.address.url)
+        }
+        if sameServer { return "Signs in to \(link.host) again with this token." }
+        if connection == nil && connections.isEmpty { return "Sign in with the token from the web app's Settings." }
+        return "Adds \(link.host) to your connections and switches to it. Your other sign-ins stay."
     }
 
     private func connect(_ candidate: Connection) async {
         busy = true
         defer { busy = false }
         var candidate = candidate
+        let who: Me
         do {
             do {
                 try await APIClient(connection: candidate).checkServer()
@@ -765,22 +954,32 @@ final class AppModel {
                 candidate.cloudflare = .session(token: cf)
                 try await APIClient(connection: candidate).checkServer()
             }
-            _ = try await APIClient(connection: candidate).me()
+            who = try await APIClient(connection: candidate).me()
         } catch {
             connectError = Self.describe(error)
             return
         }
-        await finishSignIn(candidate)
+        await finishSignIn(candidate, who: who)
     }
 
-    private func finishSignIn(_ signedIn: Connection) async {
-        // A new sign-in starts with nothing kept, and asks what to keep.
-        saveAndBringForward(signedIn)
-        askKeep = true
+    /// A sign-in that went through: saved beside the others (or renewing
+    /// the same person's on the same server), and put in front.
+    private func finishSignIn(_ signedIn: Connection, who: Me? = nil) async {
+        connectError = nil
+        connectionsNotice = nil
+        // Who signed in tells a new sign-in of the same person from another's.
+        var who = who
+        if who == nil { who = try? await APIClient(connection: signedIn).me() }
+        let renewed = saveAndBringForward(signedIn, account: who?.email)
+        // A new connection starts with nothing kept, and asks what to keep; a
+        // renewed one keeps its choice.
+        askKeep = !renewed
         connection = signedIn
         me = nil
+        serverVersion = nil
         generation += 1
         phase = .ready
+        signIns += 1
         await refreshMe()
     }
 

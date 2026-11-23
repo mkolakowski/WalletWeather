@@ -69,10 +69,12 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.45.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.46.0**
 
 ### Added
 
+- **iPhone: several servers at once.** Settings → the card at the top now opens **Connections**: every server you're signed in to and the household on this iPhone, with a tick on the one in front. Tap another to switch to it; nothing is signed out and nothing kept is deleted. **Add a server** signs in to another one (or to the same one as someone else) with any of the usual ways. Each connection has its own page, where you can rename it and **Sign out** of that one only; signing out of the one in front brings the one you used last forward (iOS 0.46.0).
+- **Breaking: iPhone: a link or QR code from the web app adds a server** instead of replacing the one you're signed in to. Signing in again to a server and person already in the list renews that sign-in.
 - **iPhone: a Date format choice.** Settings → Dates & display → Date format: **Follow the web app** (with a server on 1.98.0 or later, dates are written the way you chose in the web app's Settings → Appearance), **Nov 12**, or **2026-11-12**. On this iPhone alone the choice is Nov 12 or 2026-11-12. `GET /api/me`'s `date_format` is read for this. Date pickers, and long forms with a weekday such as "Wed, Nov 18", don't change (iOS 0.45.0).
 - **iPhone: Undo after marking a line paid, and haptics.** After a swipe to Paid or a tap on Paid in To confirm, a bar at the bottom of Forecast says "Rent marked paid" with **Undo** for five seconds (fifteen with VoiceOver). Undo puts the line back to not paid at its planned amount and date, as switching Paid off in the editor does. The phone gives a short tap when a line is marked paid and when a save goes through; its own System Haptics setting turns that off (iOS 0.40.0).
 - **iPhone: change a line's name, date and planned amount.** For a line you added yourself, the editor's Name, Planned for and Planned amount are now fields, so a mistyped one-off no longer has to be deleted and added again. A line that comes from a repeating bill, and a transfer, show them as text as before: a bill's date changes in its bill. While a line isn't paid, its actual amount and date follow the plan you set (iOS 0.39.0).

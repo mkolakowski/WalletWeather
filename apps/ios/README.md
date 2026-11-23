@@ -116,8 +116,9 @@ line (or that bill, on Bills & income) in the editor,
 `SIMCTL_CHILD_WW_DEBUG_ACCOUNT=Checking` picks an account and
 `SIMCTL_CHILD_WW_DEBUG_DAY=2026-11-11` a day.
 `SIMCTL_CHILD_WW_DEBUG_SETTINGS=<page>` opens Settings on one of its pages
-(#294): `connection`, `bank`, `appearance`, `privacy`, `display` (Dates &
-display), `backup`, `move`,
+(#294): `connections` (the list the card at the top opens, #300),
+`connection` (the page of the connection in front), `bank`, `appearance`,
+`privacy`, `display` (Dates & display), `backup`, `move`,
 `help` or `keep` (Keep on this iPhone, under the connection's page);
 `WW_DEBUG_TAGS=1` opens Tags and `WW_DEBUG_BANK` Bank sync. On a regular
 width (the open Duo, #295) Settings is a sidebar with the chosen page beside
@@ -128,6 +129,13 @@ it, and these choose that page there; the open page is kept per window
 saved in the web app; `WW_DEBUG_LOOK=<look>` picks the look the same way.
 `SIMCTL_CHILD_WW_DEBUG_UNDO=Rent` shows the Forecast's Undo bar for that line
 once the page has loaded (#315); it saves nothing and stays until dismissed.
+`SIMCTL_CHILD_WW_DEBUG_CONNECTIONS=sample` fills Settings → Connections for
+pictures (#300): two sample servers, "Home" (home.example.com) and "Mum &
+Dad" (ww.parents.example), plus the household on this iPhone when the
+simulator has one, which is then in front; with none, the app opens in the
+demo, so nothing is contacted. They're kept in memory and a throwaway
+settings suite only, never in the Keychain, and are gone at the next launch.
+Switching to a sample server tries to reach it, and fails.
 On this Mac the simulators are shared with other projects' sessions, so run
 simulator commands through mkplus's `Scripts/with-simulator.sh`.
 
@@ -179,6 +187,27 @@ The other ways in, under **Other ways to sign in** (#100):
 - **Pasting a token.**
 
 A link, scanned or opened, always asks "Connect to …?" before it's used.
+It adds its server beside the ones already signed in to and switches to it,
+or, for a server already in the list, signs in to it again with the new
+token (#300).
+
+**Several servers at once** (#300). Settings → the card at the top opens
+**Connections**: every saved connection (each server signed in to, and the
+household on this iPhone), with a tick on the one in front. Tapping another
+switches to it without signing out of anything: its keep choice, its kept
+numbers and its web theme come with it, and every page loads again.
+**Add a server** opens this same sign-in screen, with all its ways, as a
+sheet. Signing in to a server and person already in the list renews that
+connection's token instead of adding a second; another person on the same
+server is a connection of its own. Which person a connection is comes from
+`/api/me` (its email, kept with the connection); a sign-in whose person
+can't be told is added rather than replacing someone else's
+(`SavedConnection.signInTarget`). A connection whose token has ended still
+switches, and its pages offer **Sign in again**, which opens the sign-in
+sheet for that server only. Each connection has its own page (the ⓘ
+button on its row): its name, which you can change, its address and who's signed
+in, Cloudflare, Open the web app, and **Sign out of** it; Keep on this
+iPhone shows there for the one in front.
 
 Debug builds take launch settings for checking the Connect screen in the
 simulator: `WW_DEBUG_ADDRESS` (opens on Connect with that address),
@@ -198,7 +227,9 @@ theme), each in its own Keychain item (`ConnectionStore`, account
 `connection.<id>`), on this device only (never in iCloud, never moved by a
 backup), readable only while the phone is unlocked. The preferences
 (`UserDefaults`) hold only which one is in front (`connections.active`).
-Signing out of a server deletes its item. The app's own settings (the look,
+Several sign-ins are kept at once, one item each, and signing out of one
+deletes only its item, its keep choice and its kept numbers; the others stay
+signed in. The app's own settings (the look,
 whether the lock is on and whether it was offered, the tab bar and Getting
 started) are in its preferences, and stay after signing out. Balances and
 transactions are kept only when the person chooses Last-known numbers
@@ -207,10 +238,13 @@ transactions are kept only when the person chooses Last-known numbers
 The single sign-in kept before #299 (account `connection`) is carried over
 once, and removed only after its copy reads back.
 
-Signing out ends the token on the server first (`DELETE /api/tokens/current`:
-a token may revoke itself, and nothing else). If the server can't be reached,
-the app still signs out and says the token stays listed in Settings → API
-tokens until it's revoked there.
+Signing out of a server (its page, from Connections) ends that server's
+token first (`DELETE /api/tokens/current`, sent with that connection's own
+sign-in, so it works for one that isn't in front: a token may revoke itself,
+and nothing else). If the server can't be reached, the app still signs out
+and says the token stays listed in Settings → API tokens until it's revoked
+there. If it was in front, the one used most recently comes in front; with
+none left, the app goes back to the sign-in screen.
 
 ## Changing a line
 

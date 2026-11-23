@@ -15,15 +15,17 @@ struct SettingsLayoutTests {
             [.connection], [.morePages], [.tags, .bankSync, .importCSV],
             [.appearance, .tabBar, .privacyLock, .datesDisplay], [.notice, .help, .versions],
         ])
-        #expect(layout.rows(on: .connection) == [.address, .signedInAs, .cloudflare, .keep, .openWebApp, .signOut])
+        #expect(layout.rows(on: .connections) == [.savedConnection, .addServer])
+        #expect(layout.rows(on: .connection) == [.connectionName, .address, .signedInAs, .cloudflare, .keep, .openWebApp, .signOut])
         #expect(layout.rows(on: .keep) == [.keepNothing, .keepLastKnown])
         #expect(layout.rows(on: .privacy) == [.lock, .appSwitcher])
         #expect(layout.rows(on: .display) == [.dateFormat, .followAccount])
         #expect(layout.rows(on: .help) == [.showGettingStarted, .privacyPolicy])
-        #expect(Set(layout.reachablePages) == [.connection, .keep, .tags, .bank, .appearance, .tabBar, .privacy, .display, .notice, .help])
+        #expect(Set(layout.reachablePages) == [.connections, .connection, .keep, .tags, .bank, .appearance, .tabBar, .privacy, .display, .notice, .help])
         #expect(Set(layout.reachableRows) == [
             .connection, .morePages, .tags, .bankSync, .importCSV, .appearance, .tabBar, .privacyLock, .datesDisplay,
-            .notice, .help, .versions, .address, .signedInAs, .cloudflare, .keep, .openWebApp, .signOut,
+            .notice, .help, .versions, .savedConnection, .addServer,
+            .connectionName, .address, .signedInAs, .cloudflare, .keep, .openWebApp, .signOut,
             .keepNothing, .keepLastKnown, .bankCard, .looks, .lock, .appSwitcher, .dateFormat, .followAccount, .showGettingStarted, .privacyPolicy,
         ])
     }
@@ -40,10 +42,11 @@ struct SettingsLayoutTests {
         #expect(layout.rows(on: .move) == [.exportForServer, .importServerBackup])
         #expect(layout.rows(on: .display) == [.dateFormat, .followAccount])
         #expect(layout.rows(on: .help) == [.showGettingStarted, .privacyPolicy, .setupGuide])
-        #expect(Set(layout.reachablePages) == [.connection, .tags, .bank, .backup, .move, .appearance, .tabBar, .privacy, .display, .notice, .help])
+        #expect(layout.rows(on: .connections) == [.savedConnection, .addServer])
+        #expect(Set(layout.reachablePages) == [.connections, .connection, .tags, .bank, .backup, .move, .appearance, .tabBar, .privacy, .display, .notice, .help])
         #expect(Set(layout.reachableRows) == [
             .connection, .morePages, .tags, .bankSync, .iCloudBackup, .moveToServer, .addAccount, .importCSV,
-            .appearance, .tabBar, .privacyLock, .datesDisplay, .notice, .help, .versions,
+            .appearance, .tabBar, .privacyLock, .datesDisplay, .notice, .help, .versions, .savedConnection, .addServer,
             .aboutThisIPhone, .backToFirstScreen, .deleteEverything, .bankCard, .looks, .lock, .appSwitcher, .dateFormat, .followAccount,
             .syncWithICloud, .backupToICloudDrive, .backupPassphrase, .exportForServer, .importServerBackup,
             .showGettingStarted, .privacyPolicy, .setupGuide,
@@ -57,11 +60,14 @@ struct SettingsLayoutTests {
             [.appearance, .tabBar, .privacyLock, .datesDisplay], [.notice, .help, .versions],
         ])
         #expect(layout.rows(on: .connection) == [.aboutDemo, .leaveDemo])
+        // The demo isn't in the list until phase 3: its card and Leave stay
+        // at the top of Connections, over the saved ones and Add a server.
+        #expect(layout.rows(on: .connections) == [.aboutDemo, .leaveDemo, .savedConnection, .addServer])
         #expect(layout.rows(on: .display) == [.dateFormat, .followAccount])
-        #expect(Set(layout.reachablePages) == [.connection, .tags, .bank, .appearance, .tabBar, .privacy, .display, .notice, .help])
+        #expect(Set(layout.reachablePages) == [.connections, .connection, .tags, .bank, .appearance, .tabBar, .privacy, .display, .notice, .help])
         #expect(Set(layout.reachableRows) == [
             .connection, .morePages, .tags, .bankSync, .importCSV, .appearance, .tabBar, .privacyLock, .datesDisplay,
-            .notice, .help, .versions, .aboutDemo, .leaveDemo, .bankCard, .looks, .lock, .appSwitcher, .dateFormat, .followAccount,
+            .notice, .help, .versions, .aboutDemo, .leaveDemo, .savedConnection, .addServer, .bankCard, .looks, .lock, .appSwitcher, .dateFormat, .followAccount,
             .showGettingStarted, .privacyPolicy,
         ])
     }
@@ -106,9 +112,11 @@ struct SettingsLayoutTests {
     @Test func debugPathsOpenEachPage() {
         #expect(SettingsPage.debugPath("bank") == [.bank])
         #expect(SettingsPage.debugPath("keep") == [.connection, .keep])
+        #expect(SettingsPage.debugPath("connections") == [.connections])
+        #expect(SettingsPage.debugPath("connection") == [.connection])
         #expect(SettingsPage.debugPath("weather") == [])
         #expect(SettingsPage.debugPath(nil) == [])
-        for name in ["connection", "bank", "appearance", "privacy", "display", "backup", "move", "help", "keep"] {
+        for name in ["connections", "connection", "bank", "appearance", "privacy", "display", "backup", "move", "help", "keep"] {
             #expect(!SettingsPage.debugPath(name).isEmpty, "\(name)")
         }
     }
@@ -170,18 +178,21 @@ struct SettingsLayoutTests {
     @Test func theConnectionsPageIsChosenWhenNoneIs() {
         for household in SettingsHousehold.allCases {
             let layout = SettingsLayout(household: household, morePages: more)
-            #expect(layout.defaultEntry == .page(.connection))
-            #expect(layout.chosen("") == .page(.connection))
-            #expect(layout.chosen("nonsense") == .page(.connection))
+            #expect(layout.defaultEntry == .page(.connections))
+            #expect(layout.chosen("") == .page(.connections))
+            #expect(layout.chosen("nonsense") == .page(.connections))
             #expect(layout.chosen("appearance") == .page(.appearance))
             #expect(layout.chosen("app.calendar") == .app(.calendar))
-            // Keep on this iPhone is under the connection's page.
-            #expect(layout.chosen("keep") == .page(.connection))
+            // A connection's page, and Keep on this iPhone under it, are
+            // under Connections; a window that kept "connection" before
+            // #300 finds Connections.
+            #expect(layout.chosen("keep") == .page(.connections))
+            #expect(layout.chosen("connection") == .page(.connections))
         }
         // A page this household doesn't have, or an app page now in the tab bar.
-        #expect(SettingsLayout(household: .server, morePages: more).chosen("backup") == .page(.connection))
+        #expect(SettingsLayout(household: .server, morePages: more).chosen("backup") == .page(.connections))
         #expect(SettingsLayout(household: .thisIPhone, morePages: more).chosen("backup") == .page(.backup))
-        #expect(SettingsLayout(household: .server, morePages: []).chosen("app.calendar") == .page(.connection))
+        #expect(SettingsLayout(household: .server, morePages: []).chosen("app.calendar") == .page(.connections))
         #expect(SettingsLayout(household: .server, morePages: []).entry("") == nil)
     }
 
@@ -189,7 +200,7 @@ struct SettingsLayoutTests {
         let layout = SettingsLayout(household: .thisIPhone, canWrite: true, morePages: more)
         #expect(layout.sidebar.map(\.section) == layout.groups.map(\.section))
         #expect(layout.sidebar.map(\.items) == [
-            [.open(.page(.connection))],
+            [.open(.page(.connections))],
             more.map { .open(.app($0)) },
             [.open(.page(.tags)), .open(.page(.bank)), .open(.page(.backup)), .open(.page(.move)), .act(.addAccount), .act(.importCSV)],
             [.open(.page(.appearance)), .open(.page(.tabBar)), .open(.page(.privacy)), .open(.page(.display))],
@@ -208,5 +219,51 @@ struct SettingsLayoutTests {
                 #expect(SettingsEntry(rawValue: entry.rawValue) == entry)
             }
         }
+    }
+
+    // MARK: - Connections (connections phase 2, #300)
+
+    /// The card opens Connections, whose saved connections each open their
+    /// own page; a server's page has its name, and Keep on this iPhone only
+    /// when it's in front.
+    @Test func theCardOpensConnectionsAndEachConnectionItsPage() {
+        #expect(SettingsRow.connection.opens == .connections)
+        #expect(SettingsRow.savedConnection.opens == .connection)
+        #expect(SettingsRow.addServer.kind == .action)
+        #expect(SettingsRow.connectionName.kind == .field)
+        #expect(SettingsLayout.rows(forConnection: .server, inFront: true, hasCloudflare: true)
+                == [.connectionName, .address, .signedInAs, .cloudflare, .keep, .openWebApp, .signOut])
+        #expect(SettingsLayout.rows(forConnection: .server, inFront: false, hasCloudflare: true)
+                == [.connectionName, .address, .signedInAs, .cloudflare, .openWebApp, .signOut])
+        #expect(SettingsLayout.rows(forConnection: .server, inFront: false)
+                == [.connectionName, .address, .signedInAs, .openWebApp, .signOut])
+        #expect(SettingsLayout.rows(forConnection: .thisPhone, inFront: true) == [.aboutThisIPhone, .backToFirstScreen, .deleteEverything])
+        #expect(SettingsLayout.rows(forConnection: .thisPhone, inFront: false) == [.aboutThisIPhone])
+        // The page for the one in front is the connection's page as it was.
+        let server = SettingsLayout(household: .server, hasCloudflare: true)
+        #expect(server.rows(on: .connection) == SettingsLayout.rows(forConnection: .server, inFront: true, hasCloudflare: true))
+        for household in SettingsHousehold.allCases {
+            let layout = SettingsLayout(household: household)
+            #expect(layout.rows(on: .connections).suffix(2) == [.savedConnection, .addServer])
+            #expect(layout.reachablePages.first == .connections)
+            #expect(layout.symbol(of: .connections) == "arrow.left.arrow.right.circle")
+        }
+        // Red comes last on a connection's page, in front or not.
+        for front in [true, false] {
+            let rows = SettingsLayout.rows(forConnection: .server, inFront: front)
+            #expect(rows.last == .signOut)
+        }
+    }
+
+    @Test func aConnectionsLineSaysWhereAndWho() {
+        let home = SavedConnection(connection: Connection(server: URL(string: "https://home.example.com")!, token: "t"),
+                                   name: "Home", account: "me@example.com")
+        #expect(SettingsLayout.connectionDetail(home) == "home.example.com · me@example.com")
+        #expect(SettingsLayout.connectionDetail(home, email: "now@example.com") == "home.example.com · now@example.com")
+        var unknown = home
+        unknown.account = nil
+        #expect(SettingsLayout.connectionDetail(unknown) == "home.example.com")
+        let phone = SavedConnection(connection: LocalServer.connection)
+        #expect(SettingsLayout.connectionDetail(phone) == "Your household, with no server")
     }
 }

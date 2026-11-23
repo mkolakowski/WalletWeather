@@ -27,7 +27,7 @@ struct SettingsView: View {
     /// `WW_DEBUG_TAGS=1` Tags and `WW_DEBUG_BANK` Bank sync, for screenshots.
     @State private var path = NavigationPath(SettingsView.debugPath())
     /// What's pushed inside the open Duo's pane, past the chosen page.
-    @State private var panePath = NavigationPath(SettingsView.debugPath().dropFirst())
+    @State private var panePath = NavigationPath(SettingsView.debugPanePath())
     @State private var started = false
     @State private var addingAccount = false
     @State private var importingCSV = false
@@ -65,7 +65,7 @@ struct SettingsView: View {
                         if let title = group.section.title { SectionTitle(title) }
                         switch group.section {
                         case .connection:
-                            ConnectionCard(layout: layout, accounts: accountCount) { open(.page(.connection)) }
+                            ConnectionCard(layout: layout, accounts: accountCount) { open(.page(.connections)) }
                         case .morePages:
                             PageTiles(pages: layout.morePages) { open(.app($0)) }
                         default:
@@ -85,6 +85,7 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .toolbar { NewWindowItem(place: .more) }
             .navigationDestination(for: SettingsPage.self) { SettingsPageView(page: $0) }
+            .navigationDestination(for: ConnectionRoute.self) { ConnectionPage(id: $0.id) }
             .navigationDestination(for: TabPage.self) { $0.view(embedded: true) }
         }
     }
@@ -151,6 +152,7 @@ struct SettingsView: View {
                         .id(chosen)
                         .toolbar { NewWindowItem(place: .more, wideWindow: true) }
                         .navigationDestination(for: SettingsPage.self) { SettingsPageView(page: $0) }
+                        .navigationDestination(for: ConnectionRoute.self) { ConnectionPage(id: $0.id) }
                         .navigationDestination(for: TabPage.self) { $0.view(embedded: true) }
                 }
                 // One column in the pane: it's too narrow for a page's two
@@ -266,6 +268,14 @@ struct SettingsView: View {
             : LocalDay.display(of: date)
     }
 
+    /// What the open Duo's pane pushes past its page for `WW_DEBUG_SETTINGS`:
+    /// a connection's page (and Keep under it) sits under Connections, the
+    /// pane's page, so all of it; otherwise what's past the first.
+    private static func debugPanePath() -> [SettingsPage] {
+        let path = debugPath()
+        return path.first == .connection ? path : Array(path.dropFirst())
+    }
+
     private static func debugPath() -> [SettingsPage] {
         let named = SettingsPage.debugPath(AppModel.debugSetting("WW_DEBUG_SETTINGS"))
         if !named.isEmpty { return named }
@@ -305,7 +315,7 @@ private struct RowLabel: View {
 }
 
 /// The top of Settings: which household this is, a line of detail and its
-/// state, opening the connection's page. In the open Duo's sidebar it's
+/// state, opening Connections (#300). In the open Duo's sidebar it's
 /// compact (a line of detail, no state) and marked when chosen.
 private struct ConnectionCard: View {
     @Environment(AppModel.self) private var model
@@ -385,7 +395,7 @@ private struct SettingsSidebar: View {
                 ForEach(layout.sidebar) { group in
                     if group.section == .connection {
                         ConnectionCard(layout: layout, accounts: accounts, compact: true,
-                                       chosen: chosen == .page(.connection)) { open(.page(.connection)) }
+                                       chosen: chosen == .page(.connections)) { open(.page(.connections)) }
                             .padding(.bottom, 6)
                     } else {
                         if let title = group.section.title {

@@ -42,7 +42,9 @@ struct WalletWeatherApp: App {
                 // The theme kept with the connection now in front (#299), until
                 // its server answers.
                 .onChange(of: model.saved?.id) { _, _ in
-                    if let theme = model.saved?.webTheme { settings.serverTheme = theme }
+                    // Switching to a server with none saved yet clears the
+                    // last one's (#300).
+                    if let saved = model.saved, saved.kind == .server { settings.serverTheme = saved.webTheme }
                 }
                 .onOpenURL { model.open($0) }
                 .task { model.start() }
@@ -107,6 +109,12 @@ struct AppRoot: View {
         // for someone already signed in).
         .task(id: model.me?.id) {
             guard model.phase == .ready, model.me != nil, !model.isDemo else { return }
+            // An Add a server sheet that just closed has to be gone first,
+            // or the question can't show.
+            if model.askKeep {
+                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled, model.phase == .ready else { return }
+            }
             if model.askKeep {
                 askingKeep = true
             } else if settings.shouldOfferLock {
@@ -126,15 +134,14 @@ struct AppRoot: View {
             Text("It asks when you open the app, and when you come back after a minute away. You can change this in Settings.")
         }
         .animation(.default, value: model.phase)
-        .alert(model.pendingLink.map { "Connect to \($0.host)?" } ?? "",
-               isPresented: Binding(get: { model.pendingLink != nil }, set: { if !$0 { model.pendingLink = nil } }),
-               presenting: model.pendingLink) { link in
-            Button("Connect") { Task { await model.connect(link: link) } }
-            Button("Cancel", role: .cancel) { model.pendingLink = nil }
-        } message: { _ in
-            Text(model.connection == nil
-                 ? "Sign in with the token from the web app's Settings."
-                 : "Sign in with the token from the web app's Settings. This replaces the server you're signed in to.")
+        // A link adds its server, or signs in to it again, beside the others
+        // (#300); while an Add a server sheet is open, it asks instead.
+        .modifier(ConnectLinkQuestion(active: model.signInSheets == 0))
+        .alert("Couldn't connect", isPresented: Binding(get: { model.linkProblem != nil },
+                                                        set: { if !$0 { model.linkProblem = nil } })) {
+            Button("OK", role: .cancel) { model.linkProblem = nil }
+        } message: {
+            Text(model.linkProblem ?? "")
         }
     }
 }

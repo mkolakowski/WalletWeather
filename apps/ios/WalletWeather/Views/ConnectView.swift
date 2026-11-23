@@ -6,7 +6,12 @@ import WalletWeatherKit
 /// "Other ways": email and password, scanning the web app's QR code, its
 /// "Open in WalletWeather" button and pasting a token (#100); under
 /// "Advanced", a Cloudflare service token.
+///
+/// The same screen is Settings → Connections → Add a server, and Sign in
+/// again, as a sheet (`AddServerSheet`, #300): `inSheet` leaves out the way
+/// back to the first screen.
 struct ConnectView: View {
+    var inSheet = false
     @Environment(AppModel.self) private var model
     @State private var pastedToken = ""
     @State private var email = ""
@@ -191,6 +196,9 @@ struct ConnectView: View {
         .sheet(isPresented: $showScanner) {
             QRScanSheet { url in model.open(url) }
         }
+        // In a sheet the "Connect to …?" question is asked here: the app's
+        // own can't show over it.
+        .modifier(ConnectLinkQuestion(active: inSheet))
         // Another account: the code field goes until the server asks again.
         .onChange(of: email) {
             model.needsTwoFactorCode = false
@@ -216,26 +224,32 @@ struct ConnectView: View {
         }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Button {
-                model.connectError = nil
-                model.choseServer = false
-            } label: {
-                Label("Other ways to use WalletWeather", systemImage: "chevron.left")
-                    .font(.subheadline)
+    @ViewBuilder private var header: some View {
+        if inSheet {
+            Text("Sign in to a WalletWeather server. The ones you're signed in to stay, and you can switch between them in Settings.")
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        } else {
+            VStack(alignment: .leading, spacing: 6) {
+                Button {
+                    model.connectError = nil
+                    model.choseServer = false
+                } label: {
+                    Label("Other ways to use WalletWeather", systemImage: "chevron.left")
+                        .font(.subheadline)
+                }
+                .buttonStyle(.borderless)
+                .disabled(model.busy)
+                .padding(.bottom, 6)
+                Image(systemName: "cloud.sun.fill")
+                    .font(.system(size: 40))
+                    .symbolRenderingMode(.multicolor)
+                    .accessibilityHidden(true)
+                Text("WalletWeather").font(.largeTitle.bold())
+                Text("Sign in to your own WalletWeather server.").foregroundStyle(.secondary)
             }
-            .buttonStyle(.borderless)
-            .disabled(model.busy)
-            .padding(.bottom, 6)
-            Image(systemName: "cloud.sun.fill")
-                .font(.system(size: 40))
-                .symbolRenderingMode(.multicolor)
-                .accessibilityHidden(true)
-            Text("WalletWeather").font(.largeTitle.bold())
-            Text("Sign in to your own WalletWeather server.").foregroundStyle(.secondary)
+            .padding(.top, 12)
         }
-        .padding(.top, 12)
     }
 
     @ViewBuilder private func problem(for way: Way) -> some View {
@@ -249,10 +263,11 @@ struct ConnectView: View {
 
     private func signInWithPassword() {
         lastWay = .password
+        let before = model.signIns
         Task {
             await model.signIn(email: email, password: password,
                                code: model.needsTwoFactorCode ? code : nil, serviceToken: serviceToken)
-            if model.phase != .connect {
+            if model.signIns != before {
                 password = ""
                 code = ""
             } else if model.needsTwoFactorCode {
@@ -265,5 +280,64 @@ struct ConnectView: View {
         lastWay = .sheet
         addressFocused = false
         Task { await model.signIn(serviceToken: serviceToken) }
+    }
+}
+
+/// Settings → Connections → Add a server, and a page's Sign in again (#300):
+/// the sign-in screen with all its ways, as a sheet with Cancel. It closes
+/// once a sign-in goes through, with that connection in front. `server`
+/// fills the address (Sign in again).
+struct AddServerSheet: View {
+    var server: URL?
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ConnectView(inSheet: true)
+                .navigationTitle(server == nil ? "Add a server" : "Sign in again")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        // Not while a sign-in is on its way: it would put a
+                        // connection in front after the sheet had gone.
+                        Button("Cancel") { dismiss() }.disabled(model.busy)
+                    }
+                }
+        }
+        .interactiveDismissDisabled(model.busy)
+        .onAppear {
+            model.signInSheets += 1
+            model.connectError = nil
+            model.connectNotice = nil
+            model.needsTwoFactorCode = false
+            model.typedAddress = server?.absoluteString ?? ""
+        }
+        .onDisappear {
+            model.signInSheets = max(model.signInSheets - 1, 0)
+            model.connectError = nil
+            model.needsTwoFactorCode = false
+        }
+        .onChange(of: model.signIns) { dismiss() }
+    }
+}
+
+/// The "Connect to …?" question for a link from the web app's Settings
+/// (its Open in WalletWeather button or QR code): asked by the app, or by
+/// an Add a server sheet while one is open.
+struct ConnectLinkQuestion: ViewModifier {
+    let active: Bool
+    @Environment(AppModel.self) private var model
+
+    func body(content: Content) -> some View {
+        content.alert(model.pendingLink.map { "Connect to \($0.host)?" } ?? "",
+                      isPresented: Binding(get: { active && model.pendingLink != nil },
+                                           set: { if !$0 { model.pendingLink = nil } }),
+                      presenting: model.pendingLink) { link in
+            Button("Connect") { Task { await model.connect(link: link) } }
+            Button("Cancel", role: .cancel) { model.pendingLink = nil }
+        } message: { link in
+            Text(model.linkMessage(link))
+        }
     }
 }

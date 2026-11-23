@@ -19,6 +19,9 @@ struct ProblemView: View {
     @Environment(AppModel.self) private var model
     let error: APIError
     let retry: () -> Void
+    /// Sign in again: the sign-in screen as a sheet, for this server only;
+    /// the other connections stay as they are (#300).
+    @State private var signingIn = false
 
     var body: some View {
         ContentUnavailableView {
@@ -33,13 +36,14 @@ struct ProblemView: View {
                 }
                 .buttonStyle(.glassProminent)
             case .tokenExpired, .tokenRevoked:
-                Button("Sign in again") { model.signOut(keepAddress: true) }
+                Button("Sign in again") { signingIn = true }
                     .buttonStyle(.glassProminent)
             default:
                 Button("Try again", action: retry)
                     .buttonStyle(.glassProminent)
             }
         }
+        .sheet(isPresented: $signingIn) { AddServerSheet(server: model.connection?.server) }
     }
 
     private var symbol: String {

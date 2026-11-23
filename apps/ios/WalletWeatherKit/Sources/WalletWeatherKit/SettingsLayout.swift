@@ -34,12 +34,16 @@ public enum SettingsSection: String, CaseIterable, Identifiable, Sendable {
 /// A page a row opens. The raw values are what `WW_DEBUG_SETTINGS` takes
 /// (Debug builds).
 public enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable {
-    case connection, bank, appearance, privacy, display, backup, move, help, keep, tags, tabBar, notice
+    /// `connections` is the list the connection card opens (connections
+    /// phase 2, #300); `connection` is one connection's own page, the one
+    /// in front's when nothing says which.
+    case connections, connection, bank, appearance, privacy, display, backup, move, help, keep, tags, tabBar, notice
 
     public var id: String { rawValue }
 
     public var title: String {
         switch self {
+        case .connections: "Connections"
         case .connection: "Connection"
         case .bank: "Bank sync"
         case .appearance: "Appearance"
@@ -56,7 +60,8 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable
     }
 
     /// The pages to push for `WW_DEBUG_SETTINGS=<page>`: Keep on this
-    /// iPhone sits under the connection's page.
+    /// iPhone sits under the connection's page. `connection` opens the one
+    /// in front's page, `connections` the list.
     public static func debugPath(_ name: String?) -> [SettingsPage] {
         guard let page = name.flatMap(SettingsPage.init(rawValue:)) else { return [] }
         return page == .keep ? [.connection, .keep] : [page]
@@ -67,9 +72,10 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable
 public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
     /// How a row looks and what tapping it does (finding R20): a chevron
     /// opens a page; blue does something now (with ↗ when it leaves the
-    /// app); a switch is a switch; red comes last in its card.
+    /// app); a switch is a switch; a field is typed in; red comes last in
+    /// its card.
     public enum Kind: Sendable, Equatable {
-        case page, action, link, toggle, choice, destructive, info
+        case page, action, link, toggle, choice, field, destructive, info
     }
 
     // The root list.
@@ -77,8 +83,11 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
     case tags, bankSync, iCloudBackup, moveToServer, addAccount, importCSV
     case appearance, tabBar, privacyLock, datesDisplay
     case notice, help, versions
+    // Connections (#300): one row per saved connection, opening its page,
+    // then Add a server.
+    case savedConnection, addServer
     // The connection's page: a server, this iPhone, the demo.
-    case address, signedInAs, cloudflare, keep, openWebApp, signOut
+    case connectionName, address, signedInAs, cloudflare, keep, openWebApp, signOut
     case aboutThisIPhone, backToFirstScreen, deleteEverything
     case aboutDemo, leaveDemo
     // Keep on this iPhone.
@@ -117,6 +126,9 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
         case .notice: "Important notice"
         case .help: "Help & Getting started"
         case .versions: "Versions"
+        case .savedConnection: "A saved connection"
+        case .addServer: "Add a server"
+        case .connectionName: "Name"
         case .address: "Address"
         case .signedInAs: "Signed in as"
         case .cloudflare: "Cloudflare"
@@ -150,9 +162,9 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
     public var kind: Kind {
         switch self {
         case .connection, .morePages, .tags, .bankSync, .iCloudBackup, .moveToServer,
-             .appearance, .tabBar, .privacyLock, .datesDisplay, .notice, .help, .keep:
+             .appearance, .tabBar, .privacyLock, .datesDisplay, .notice, .help, .keep, .savedConnection:
             .page
-        case .addAccount, .importCSV, .backToFirstScreen, .leaveDemo, .showGettingStarted,
+        case .addServer, .addAccount, .importCSV, .backToFirstScreen, .leaveDemo, .showGettingStarted,
              .backupPassphrase, .exportForServer, .importServerBackup:
             .action
         case .openWebApp, .privacyPolicy, .setupGuide:
@@ -161,6 +173,8 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
             .toggle
         case .keepNothing, .keepLastKnown, .looks, .dateFormat:
             .choice
+        case .connectionName:
+            .field
         case .signOut, .deleteEverything:
             .destructive
         case .versions, .address, .signedInAs, .cloudflare, .aboutThisIPhone, .aboutDemo,
@@ -173,7 +187,8 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
     /// themselves (`TabPage`), so that row has none.
     public var opens: SettingsPage? {
         switch self {
-        case .connection: .connection
+        case .connection: .connections
+        case .savedConnection: .connection
         case .tags: .tags
         case .bankSync: .bank
         case .iCloudBackup: .backup
@@ -196,6 +211,7 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
         case .bankSync: "building.columns"
         case .iCloudBackup: "icloud"
         case .moveToServer: "arrow.left.arrow.right.square"
+        case .addServer: "plus.circle"
         case .addAccount: "plus.circle"
         case .importCSV: "doc.text"
         case .appearance: "paintpalette"
@@ -317,14 +333,15 @@ public struct SettingsLayout: Equatable, Sendable {
     /// are pages of their own, with none listed here.
     public func rows(on page: SettingsPage) -> [SettingsRow] {
         switch page {
+        case .connections:
+            // The demo isn't in the list until phase 3: its card stays at
+            // the top, with Leave the demo.
+            return (household == .demo ? [.aboutDemo, .leaveDemo] : []) + [.savedConnection, .addServer]
         case .connection:
             switch household {
-            case .server:
-                return [.address, .signedInAs] + (hasCloudflare ? [.cloudflare] : []) + [.keep, .openWebApp, .signOut]
-            case .thisIPhone:
-                return [.aboutThisIPhone, .backToFirstScreen, .deleteEverything]
-            case .demo:
-                return [.aboutDemo, .leaveDemo]
+            case .server: return Self.rows(forConnection: .server, inFront: true, hasCloudflare: hasCloudflare)
+            case .thisIPhone: return Self.rows(forConnection: .thisPhone, inFront: true)
+            case .demo: return [.aboutDemo, .leaveDemo]
             }
         case .keep: return household == .server ? [.keepNothing, .keepLastKnown] : []
         case .bank: return [.bankCard]
@@ -335,6 +352,22 @@ public struct SettingsLayout: Equatable, Sendable {
         case .move: return household == .thisIPhone ? [.exportForServer, .importServerBackup] : []
         case .help: return [.showGettingStarted, .privacyPolicy] + (household == .thisIPhone ? [.setupGuide] : [])
         case .tags, .tabBar, .notice: return []
+        }
+    }
+
+    /// A saved connection's own page, opened from Connections (#300). Its
+    /// name and the server's details show for every server; Keep on this
+    /// iPhone only for the one in front, whose loading it changes. The
+    /// household on this iPhone, when it isn't in front, only says what it
+    /// is: Back to the first screen and Delete everything act on it in front.
+    public static func rows(forConnection kind: SavedConnection.Kind, inFront: Bool,
+                            hasCloudflare: Bool = false) -> [SettingsRow] {
+        switch kind {
+        case .server:
+            return [.connectionName, .address, .signedInAs] + (hasCloudflare ? [.cloudflare] : [])
+                + (inFront ? [.keep] : []) + [.openWebApp, .signOut]
+        case .thisPhone:
+            return inFront ? [.aboutThisIPhone, .backToFirstScreen, .deleteEverything] : [.aboutThisIPhone]
         }
     }
 
@@ -364,15 +397,16 @@ public struct SettingsLayout: Equatable, Sendable {
         sidebar.flatMap(\.items).compactMap(\.entry)
     }
 
-    /// What the pane shows when nothing is chosen yet: the first page, the
-    /// connection's.
-    public var defaultEntry: SettingsEntry { sidebarEntries.first ?? .page(.connection) }
+    /// What the pane shows when nothing is chosen yet: the first page,
+    /// Connections.
+    public var defaultEntry: SettingsEntry { sidebarEntries.first ?? .page(.connections) }
 
     /// The entry a stored value names, when this household's sidebar has it.
-    /// A page under another (Keep on this iPhone) names the one it's under.
+    /// A page under another (a connection's page, and Keep on this iPhone
+    /// under it) names the one it's under, Connections.
     public func entry(_ stored: String) -> SettingsEntry? {
         guard var entry = SettingsEntry(rawValue: stored) else { return nil }
-        if entry == .page(.keep) { entry = .page(.connection) }
+        if entry == .page(.keep) || entry == .page(.connection) { entry = .page(.connections) }
         return sidebarEntries.contains(entry) ? entry : nil
     }
 
@@ -382,6 +416,7 @@ public struct SettingsLayout: Equatable, Sendable {
     /// A page's symbol, on its sidebar row and in its header card.
     public func symbol(of page: SettingsPage) -> String {
         switch page {
+        case .connections: "arrow.left.arrow.right.circle"
         case .connection:
             switch household {
             case .server: "server.rack"
@@ -406,6 +441,7 @@ public struct SettingsLayout: Equatable, Sendable {
     /// Duo shows above it.
     public func summary(of page: SettingsPage) -> String {
         switch page {
+        case .connections: "The servers you're signed in to, and the one in front. Tap one to switch to it."
         case .connection:
             switch household {
             case .server: "Your server's address, who's signed in, and signing out."
@@ -476,6 +512,15 @@ public struct SettingsLayout: Equatable, Sendable {
     public static func serverDetail(host: String, email: String?) -> String {
         guard let email else { return host }
         return "\(host) · \(email)"
+    }
+
+    /// A row's line under its name on Connections (#300): the host and who's
+    /// signed in when known; a few words for the household on this iPhone.
+    public static func connectionDetail(_ saved: SavedConnection, email: String? = nil) -> String {
+        switch saved.kind {
+        case .server: serverDetail(host: saved.connection.host, email: email ?? saved.account)
+        case .thisPhone: "Your household, with no server"
+        }
     }
 }
 

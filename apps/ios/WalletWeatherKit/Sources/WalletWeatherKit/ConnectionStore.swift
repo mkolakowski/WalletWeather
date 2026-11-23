@@ -26,17 +26,76 @@ public struct SavedConnection: Codable, Equatable, Identifiable, Sendable {
     public var keep: KeepChoice
     /// The theme saved in this server's web app, for Match the web app.
     public var webTheme: String?
+    /// Who's signed in (their email), from `/api/me` while it's in front
+    /// (phase 2, #300): what tells a second person on the same server from
+    /// a new sign-in of the same one. Nil until known, and in items saved
+    /// before it was kept.
+    public var account: String?
 
     public init(id: UUID = UUID(), connection: Connection, name: String? = nil, added: Date = .now,
-                lastUsed: Date? = nil, keep: KeepChoice = .nothing, webTheme: String? = nil) {
+                lastUsed: Date? = nil, keep: KeepChoice = .nothing, webTheme: String? = nil,
+                account: String? = nil) {
         self.id = id
         kind = connection.isLocal ? .thisPhone : .server
-        self.name = name ?? (connection.isLocal ? "On this iPhone" : connection.host)
+        self.name = name ?? Self.defaultName(for: connection)
         self.added = added
         self.lastUsed = lastUsed ?? added
         self.connection = connection
         self.keep = keep
         self.webTheme = webTheme
+        self.account = account
+    }
+
+    /// The name a connection starts with: the server's host, or "On this
+    /// iPhone". A name cleared by hand goes back to it.
+    public static func defaultName(for connection: Connection) -> String {
+        connection.isLocal ? "On this iPhone" : connection.host
+    }
+}
+
+// MARK: - A sign-in: a new connection, or one already saved
+
+/// What a sign-in does to the saved connections (phase 2, #300).
+public enum SignInTarget: Equatable, Sendable {
+    /// The same server and person: this connection's sign-in is replaced.
+    case renew(UUID)
+    /// A server not saved yet, or another person on one that is.
+    case add
+}
+
+extension SavedConnection {
+    /// Whether two addresses are the same server: the scheme, host (in any
+    /// case), port and path, a trailing slash aside.
+    public static func sameServer(_ a: URL, _ b: URL) -> Bool {
+        func parts(_ url: URL) -> [String] {
+            var path = url.path(percentEncoded: false)
+            while path.hasSuffix("/") { path.removeLast() }
+            let scheme = (url.scheme ?? "").lowercased()
+            let port = url.port ?? (scheme == "http" ? 80 : 443)
+            return [scheme, (url.host() ?? "").lowercased(), String(port), path]
+        }
+        return parts(a) == parts(b)
+    }
+
+    /// Which saved connection a sign-in to `server` as `account` (the
+    /// signed-in person's email, when `/api/me` said) belongs to:
+    ///
+    /// - the one on that server signed in as the same person: renewed;
+    /// - with the person known, one on that server whose person isn't
+    ///   known yet (saved before it was kept): taken to be the same person
+    ///   and renewed;
+    /// - another person on that server, or a server not saved: added;
+    /// - with the person not known, a new connection is added rather than
+    ///   another's sign-in replaced, since it may be someone else's.
+    public static func signInTarget(server: URL, account: String?, among saved: [SavedConnection]) -> SignInTarget {
+        let onServer = saved.filter { $0.kind == .server && sameServer($0.connection.server, server) }
+            .sorted { $0.lastUsed > $1.lastUsed }
+        guard let account = account?.trimmingCharacters(in: .whitespaces).lowercased(), !account.isEmpty else {
+            return .add
+        }
+        if let same = onServer.first(where: { $0.account?.lowercased() == account }) { return .renew(same.id) }
+        if let unknown = onServer.first(where: { $0.account == nil }) { return .renew(unknown.id) }
+        return .add
     }
 }
 
@@ -232,7 +291,13 @@ public final class ConnectionStore: @unchecked Sendable {
     /// keeps its items), the one used last.
     public var active: SavedConnection? {
         if let id = activeID, let found = load(id) { return found }
-        return all().max { $0.lastUsed < $1.lastUsed }
+        return mostRecentlyUsed
+    }
+
+    /// The connection used last: the one that comes in front when the one
+    /// in front is signed out of.
+    public var mostRecentlyUsed: SavedConnection? {
+        all().max { ($0.lastUsed, $0.added) < ($1.lastUsed, $1.added) }
     }
 
     /// The last-known numbers of a connection, in its own folder.
@@ -246,11 +311,39 @@ public final class ConnectionStore: @unchecked Sendable {
     /// Keychain refuses it.
     @discardableResult
     public func add(_ connection: Connection, name: String? = nil, keep: KeepChoice = .nothing,
-                    webTheme: String? = nil) -> SavedConnection? {
+                    webTheme: String? = nil, account: String? = nil) -> SavedConnection? {
         guard !connection.isDemo else { return nil }
         let date = now()
-        let saved = SavedConnection(connection: connection, name: name, added: date, keep: keep, webTheme: webTheme)
+        let saved = SavedConnection(connection: connection, name: name, added: date, keep: keep,
+                                    webTheme: webTheme, account: account)
         return write(saved) ? saved : nil
+    }
+
+    /// A new sign-in to a connection already saved (the same server and
+    /// person): its token and Cloudflare sign-in are replaced; its name,
+    /// keep choice, kept numbers and web theme stay. One whose person wasn't
+    /// known until now starts with no kept numbers.
+    @discardableResult
+    public func renew(_ id: UUID, with connection: Connection, account: String? = nil) -> SavedConnection? {
+        guard !connection.isDemo, var saved = load(id) else { return nil }
+        // A connection saved before its person was known may have been
+        // someone else's: its kept numbers aren't shown to this sign-in.
+        if saved.account == nil, account != nil { kept(for: id).deleteAll() }
+        saved.connection = connection
+        if let account { saved.account = account }
+        return write(saved) ? saved : nil
+    }
+
+    /// Renews the saved connection a sign-in belongs to, or adds it
+    /// (`SavedConnection.signInTarget`). Nil when the Keychain refuses it.
+    @discardableResult
+    public func save(signIn connection: Connection, account: String?) -> (saved: SavedConnection, renewed: Bool)? {
+        switch SavedConnection.signInTarget(server: connection.server, account: account, among: all()) {
+        case let .renew(id):
+            return renew(id, with: connection, account: account).map { ($0, true) }
+        case .add:
+            return add(connection, account: account).map { ($0, false) }
+        }
     }
 
     /// Saves a change to a connection already saved.

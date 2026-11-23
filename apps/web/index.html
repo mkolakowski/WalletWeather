@@ -389,14 +389,17 @@
   th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); }
   th { color:var(--muted); font-weight:500; font-size:11px; text-transform:uppercase; }
   tr.forecast { color:var(--muted); }
-  #forecastTable th, #forecastTable td { border-right:1px solid var(--border); padding:4px 6px; }
+  /* Read view has row lines only (#285); Spreadsheet mode keeps its full grid. */
+  :is(#forecastTable, #recurringTable, table.fc-like) :is(th, td) { border-bottom:1px solid var(--hair); }
+  :is(#forecastTable, #recurringTable, table.fc-like) th { border-bottom-color:var(--border); font-weight:600; }
+  #forecastTable th, #forecastTable td { padding:4px 6px; }
+  #forecastTable.sheet-mode th, #forecastTable.sheet-mode td { border-right:1px solid var(--border); }
   #forecastTable td button { padding:3px 8px; }
   #forecastTable th:last-child, #forecastTable td:last-child { border-right:none; }
   /* The Unmatched panel's tables (#220) wear Forecast's grid: the same cell
      dividers, padding and button size, amounts coloured as Forecast colours
      them, and a notes column that truncates. */
-  table.fc-like th, table.fc-like td { border-right:1px solid var(--border); padding:4px 6px; }
-  table.fc-like th:last-child, table.fc-like td:last-child { border-right:none; }
+  table.fc-like th, table.fc-like td { padding:4px 6px; }
   table.fc-like td button { padding:3px 8px; }
   table.fc-like:not(.tw-wrapped) th.fit, table.fc-like:not(.tw-wrapped) td.fit { width:1%; white-space:nowrap; }
   table.fc-like:not(.tw-wrapped) td.notes-col { max-width:0; width:30%; }
@@ -410,15 +413,12 @@
   #forecastTable thead th:nth-child(8), #forecastTable thead th:nth-child(9) { width:1%; white-space:nowrap; }
   #forecastTable tr:not(.fc-editing) > :nth-child(2),
   #forecastTable tr:not(.fc-editing) > :nth-child(5),
-  #forecastTable tr:not(.fc-editing) > :nth-child(8) { border-right:none; padding-right:2px; }
+  #forecastTable tr:not(.fc-editing) > :nth-child(8) { border-right:none; padding-right:5px; }
   #forecastTable tr:not(.fc-editing) > :nth-child(3),
   #forecastTable tr:not(.fc-editing) > :nth-child(6),
-  #forecastTable tr:not(.fc-editing) > :nth-child(9) { padding-left:2px; }
-  /* Read view only (not spreadsheet mode): a "/" after the first cell of each
-     pair. The actions column (the ✎ that opens a line) shows on accounts you
+  #forecastTable tr:not(.fc-editing) > :nth-child(9) { padding-left:5px; }
+  /* The actions column (the pencil that opens a line) shows on accounts you
      can edit (.can-edit) and while a line is open (.has-editing). */
-  #forecastTable:not(.sheet-mode) tr:not(.fc-editing):not(.row-editing):not(.le-inline) > td:is(:nth-child(2), :nth-child(5), :nth-child(8))::after {
-    content:"/"; color:var(--muted); margin-left:6px; }
   #forecastTable:not(.sheet-mode):not(.has-editing):not(.can-edit) thead th:last-child,
   #forecastTable:not(.sheet-mode):not(.has-editing):not(.can-edit) tbody tr:not(.today-marker) > td:last-child { display:none; }
   #forecastTable:not(.sheet-mode):not(.has-editing):not(.can-edit) tr:not(.today-marker):not(.fc-editing) > :nth-child(11) { border-right:none; }
@@ -430,10 +430,10 @@
   /* …and the line editor's ✕ (cancel) a clearly visible neutral one. */
   #forecastTable button.close-btn { border:1px solid var(--muted); }
   /* Spreadsheet button gets a clearly visible outline (accent fill when on). */
-  #forecastSpreadsheetBtn:not(.active), #recSpreadsheetBtn:not(.active) { border:1px solid var(--muted); }
   /* Bills & income's table looks like Forecast's (#81): column lines and
      compact cells. */
-  #recurringTable th, #recurringTable td { border-right:1px solid var(--border); padding:4px 5px; }
+  #recurringTable th, #recurringTable td { padding:4px 5px; }
+  #recurringTable.sheet-mode th, #recurringTable.sheet-mode td { border-right:1px solid var(--border); }
   #recurringTable th:last-child, #recurringTable td:last-child { border-right:none; }
   /* An open row's Notes field takes no width of its own (it fills what's left
      beside the buttons), so opening a row never moves a column (#128). */
@@ -460,8 +460,6 @@
   #recurringTable .rec-tags { display:flex; gap:4px; overflow:hidden; white-space:nowrap; }
   #recurringTable thead th:nth-child(12) { border-right:none; }
   /* The balance pair is plain text (no input boxes), so keep a little air. */
-  #forecastTable tr:not(.fc-editing) > :nth-child(8) { padding-right:6px; }
-  #forecastTable tr:not(.fc-editing) > :nth-child(9) { padding-left:6px; }
   tr.actual { color:var(--text); }
   /* "You are here" bar the forecast table inserts between rows at today's date. */
   #forecastTable tr.today-marker td { padding:0; border-right:none; border-bottom:none; background:var(--bg-deep); }
@@ -474,10 +472,11 @@
   .today-bar .today-pct { color:var(--muted); font-weight:500; }
   .pos { color:var(--good); }
   .neg { color:var(--bad); }
-  .pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px;
+  /* One pill style on Forecast and Bills & income: filled, no outline (#285). */
+  .pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:500;
           background:var(--chip-bg); color:var(--muted); }
   .pill.actual { background:var(--good-bg); color:var(--good); }
-  .pill.unmatched { background:transparent; color:var(--warn); box-shadow:inset 0 0 0 1px var(--warn); }
+  .pill.unmatched { background:color-mix(in srgb, var(--warn) 16%, transparent); color:var(--warn); }
   .rec-match { display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; font-size:11px; color:var(--muted); }
   .rec-match label { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; }
   tr.le-inline .rec-match input { width:56px; min-width:0; }
@@ -515,7 +514,15 @@
      lighter cell shade in the forecast table, as a quiet week separator.
      An overlay of the text color reads "lighter" on dark themes and as a
      faint tint on light ones. */
-  #forecastTable tr.week-even td { background:color-mix(in srgb, var(--text) 5%, transparent); }
+  #forecastTable tr.week-even td { background:color-mix(in srgb, var(--text) 2.5%, transparent); }
+  :is(#forecastTable, #recurringTable, #txnSearchTable) tbody tr:not(.today-marker):not(.le-inline):hover > td {
+    background:color-mix(in srgb, var(--accent) 7%, transparent); }
+  /* The pencil that opens a row: an icon with no box until the row is hovered or the button focused (#285). */
+  :is(#forecastTable, #recurringTable, #txnSearchTable, table.fc-like) td button.row-edit {
+    background:transparent; border-color:transparent; color:var(--muted); padding:5px 7px; line-height:0; }
+  :is(#forecastTable, #recurringTable, #txnSearchTable, table.fc-like) td button.row-edit svg { width:14px; height:14px; display:block; }
+  tr:hover > td button.row-edit, button.row-edit:hover, button.row-edit:focus-visible { color:var(--text); background:var(--chip-bg); }
+  .panel:has(#forecastTable), .panel:has(#recurringTable) { padding:18px 16px; }
   /* Forecast controls row: View/Month/Year on the left (label beside each
      dropdown), Spreadsheet mode centred in the space between the groups,
      pagination pinned right. */
@@ -538,20 +545,38 @@
   .ctl label { margin:0; }
   .ctl.hidden { display:none; }
   .month-nav { padding:6px 10px; font-size:13px; }
+  /* Prev, Next, the dropdowns and the action buttons share one height (#285). */
+  @media (min-width:769px) {
+    .fc-controls :is(button, select) { height:34px; padding-top:0; padding-bottom:0; box-sizing:border-box; font-size:13px; }
+  }
   .account-tab .tab-bal { margin-left:8px; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
   .today-bar .today-bal { color:var(--text); text-transform:none; letter-spacing:0; }
+  /* The tiles join into one strip with hairlines between them (#285). The outer
+     edge of the last column and row is clipped by overflow:hidden. */
   .summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-             gap:12px; margin-bottom:16px; }
-  .stat { background:var(--panel); border:1px solid var(--border); border-radius:var(--r-card); padding:14px;
-          box-shadow:var(--shadow); }
-  .stat .v { font-size:22px; font-weight:600; margin-top:4px; }
+             gap:0; background:var(--panel); border:1px solid var(--border); border-radius:var(--r-card);
+             overflow:hidden; box-shadow:var(--shadow); margin-bottom:18px; }
+  .stat { background:transparent; border:none; border-radius:0; padding:16px 18px;
+          box-shadow:1px 0 0 var(--hair), 0 1px 0 var(--hair); }
+  .stat .v { font-size:22px; font-weight:650; letter-spacing:-.015em; margin-top:4px; }
   .stat .l { font-size:12.5px; font-weight:500; color:var(--muted); }
   .stat .d { font-size:12px; color:var(--muted); margin-top:2px; font-variant-numeric:tabular-nums; }
   /* Current balance card: accent outline + soft glow so it stands out. */
   .stat .bank { font-size:12px; margin-top:8px; padding-top:6px; border-top:1px dashed var(--border); color:var(--muted); font-variant-numeric:tabular-nums; }
   .stat .bank.gap { color:var(--warn); }
   .stat .bank button { margin-top:4px; padding:2px 10px; font-size:12px; }
-  .stat.current { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 0 14px color-mix(in srgb, var(--accent) 35%, transparent); }
+  .stat.current { background:color-mix(in srgb, var(--accent) 8%, transparent); }
+  .stat.current .l { color:var(--accent); }
+  /* Forecast: the current balance leads, the other eight sit by column. The markup order is
+     opening, forecast out/in, actual out/in, highest, then difference, forecast end, actual end, lowest,
+     so it reads the same with or without the current balance (All accounts has none). */
+  @media (min-width:1000px) {
+    #summary:not(.has-current) { grid-template-columns:repeat(4, 1fr); }
+    #summary.has-current { grid-template-columns:1.25fr repeat(4, 1fr); }
+    #summary .stat.current { grid-column:1; grid-row:1 / span 2; display:flex; flex-direction:column; justify-content:center; padding:22px 24px; }
+    #summary .stat.current .v { font-size:38px; letter-spacing:-.03em; line-height:1.1; margin-top:6px; }
+    #summary .stat.current .d { font-size:13px; margin-top:6px; }
+  }
   .stat .io { display:flex; justify-content:space-between; align-items:baseline; gap:8px;
               font-size:16px; font-weight:600; margin-top:3px; font-variant-numeric:tabular-nums; }
   .stat .io-l { font-size:12.5px; font-weight:500; color:var(--muted); }
@@ -774,8 +799,10 @@
     .row > div > button { width:100%; }
 
     /* Summary stats: 2 columns on mobile */
-    .summary { grid-template-columns: repeat(2, 1fr); gap:8px; }
-    .stat { padding:10px; }
+    .summary { grid-template-columns: repeat(2, 1fr); }
+    .stat { padding:10px 12px; }
+    #summary .stat.current { grid-column:1 / -1; }
+    .summary:not(#summary) > .stat:last-child:nth-child(odd) { grid-column:1 / -1; }
     .stat .v { font-size:18px; }
 
     /* Tables: tighter padding, smaller font, horizontal scroll */
@@ -829,8 +856,7 @@
     .fc-actions #acctMenuBtn { flex:0 0 auto; padding:8px 12px; }
     .acct-menu { right:0; }
 
-    #summary { gap:6px; }
-    #summary .stat { padding:8px 10px; }
+    #summary .stat { padding:8px 12px; }
     #summary .stat .v { font-size:16px; margin-top:2px; }
     #summary .stat .io { font-size:14px; margin-top:1px; }
 
@@ -938,8 +964,8 @@
   .diff-pos { color:var(--good); }
   .diff-neg { color:var(--bad); }
   .diff-zero { color:var(--muted); }
-  .cat-pill { display:inline-block; padding:1px 8px; border-radius:10px;
-              font-size:11px; background:var(--chip-bg); color:var(--muted); }
+  .cat-pill { display:inline-block; padding:2px 9px; border-radius:999px;
+              font-size:11px; font-weight:500; background:var(--chip-bg); color:var(--muted); }
   /* Tags: lighter-weight labels than categories, so they share the pill
      shape but use a transparent border instead of a solid background.
      Authoritative color comes from inline style (when the tag has one);
@@ -948,6 +974,7 @@
               font-size:11px; background:var(--chip-bg); color:var(--muted);
               border:1px solid var(--border); line-height:1.5; white-space:nowrap; }
   .row-tag-chips { margin-top:3px; display:flex; flex-wrap:wrap; gap:3px; }
+  :is(#forecastTable, #recurringTable, table.fc-like) .tag-pill:not(.tag-picker) { border:none; border-radius:999px; padding:2px 9px; font-weight:500; }
   .tag-pill.tag-picker { user-select:none; }
   .tag-pill.tag-picker.on { font-weight:600; }
 
@@ -2960,7 +2987,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.111.0";
+const WEB_VERSION = "1.112.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2970,6 +2997,7 @@ const WEB_VERSION = "1.111.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.112.0 (2026-11-23, claude+mkolakowski): (#285) web-refresh phase 5, Forecast and Bills tables: .summary is one strip (hairlines, clipped outer edge) and #summary lists its nine figures in column order in the markup (opening, forecast out/in, actual out/in, highest / difference, forecast end, actual end, lowest) with #summary.has-current set by renderForecast, so All accounts (no current balance) takes four columns; read view has row lines only (border-right only under .sheet-mode, which #recurringTable now gets from toggleRecSpreadsheetMode), a row hover, no "/" between pairs (5px air instead), the pencil is PENCIL_ICON in button.row-edit (Forecast, Bills, Transactions search), .pill/.cat-pill/.tag-pill in the tables filled and round with no outline (subsCategoryCell loses its border; .pill.unmatched tinted), .fc-controls buttons and selects 34px high from 769px, the Spreadsheet button loses its outline. Forecast's table minimum width +10px (1241 to 1251px window), Bills' -14px (1290 to 1276px).
 // 1.111.0 (2026-11-23, claude+mkolakowski): (#284) web-refresh phase 4, Settings, Admin and Reports: on windows ≥1000px Settings and Admin list their sections down the left (sticky, a "Settings"/"Admin" title from ::before) beside an 840px (Admin 1060px) column; Admin gets tabs and six sections (data-admin-section: general, security, bank, users, backups, audit) switched by showAdminSection, with #admin/<section> addresses, arrow keys and the last one remembered; Admin's on/off settings are switches; the user row says Disable/Enable, Reset password and Delete; row actions are quiet, Delete in red (Settings → Accounts' Delete is now ghost danger); Delete my account is outlined in red; fields fill their .row; Reports: totals 3×2 forecast over actual, filters top-aligned, checklists as pills (ticked ones tinted), flat saved/template lists; the report editor's actions wrap (.report-editor-actions), which ends the phone page's sideways scroll.
 // 1.110.0 (2026-11-23, claude+mkolakowski): (#283) web-refresh phase 3, readable themes: the 21 text colours under 4.5:1 in eight named themes move to theme-contrast.py's values, changed inside each theme's own block (WebThemeTests reads them there); Solarized and Synthwave get a --chip-bg that differs from the panel; Solarized and Mint take Light's soft --shadow/--seg-shadow (the dark themes inherit Dark's); each theme block also applies to .theme-mini[data-t=…], so the theme picker draws a tiny screen per card (balance, a green and a red amount, a button) in that theme's colours, System as half Dark, half Light (clip-path); Light gets the caption "Clean white".
 // 1.109.0 (2026-11-23, claude+mkolakowski): (#281) web-refresh phase 1, surfaces, titles and controls: new Dark and Light tokens (calmer surfaces, softer borders, Light a tinted page with white cards, --on-accent #06121f in Dark) plus shape tokens every theme shares (--hair, --r-card 14px, --r-ctl 9px, --shadow, --seg-shadow); panels and .stat get the card radius and shadow; .panel h2 in sentence case at 17px; Dashboard and Net worth lose their outer panel and get 26px page titles; labels (.stat .l/.io-l, label, dash-card month and fields, chart titles, theme groups, backup subheads, Per account) in sentence case; button.ghost a soft fill, .danger tinted, selects drawn without system chrome, .icon-btn and Settings tabs filled; the account bar and the Month/30/90 windows one neutral segmented control; body a flex column so the footer sits at the bottom of short pages.
@@ -4303,6 +4331,8 @@ async function openGlobalSearchResult(kind, r) {
 // alone.
 const _twObserved = new WeakSet();
 const _twWidths = new WeakMap();
+// The pencil on a row's edit button (#285): drawn, not a text glyph, so it takes the text colour at any size.
+const PENCIL_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 2.4l2.6 2.6M2.4 13.6l.7-3.2L11 2.4l2.6 2.6-7.9 7.9z"/></svg>';
 function _twLabel(table) {
   const heads = table.tHead ? [...table.tHead.rows[0].cells] : [];
   if (!heads.length) return;
@@ -7304,7 +7334,7 @@ function _recReadCells(r, ro) {
   const tagCell = (r.tags && r.tags.length) ? `<div class="rec-tags">${renderTagChips(r.tags)}</div>` : muted;
   const editBit = ro
     ? '<span class="ro-badge" title="You can view this account but not change it">read only</span>'
-    : `<button class="ghost" onclick="startEditRecurring(${r.id})" title="Edit or delete this item" aria-label="Edit ${escapeAttr(r.description)}">✎</button>`;
+    : `<button class="ghost row-edit" onclick="startEditRecurring(${r.id})" title="Edit or delete this item" aria-label="Edit ${escapeAttr(r.description)}">${PENCIL_ICON}</button>`;
   return `<td class="rec-desc">${escapeHtml(r.description)}</td>
     <td>${r.anchor_date || muted}</td>
     <td>${r.end_date || muted}</td>
@@ -7832,6 +7862,7 @@ let _recSheetRefreshTimer = null;
 function toggleRecSpreadsheetMode() {
   recSheetMode = !recSheetMode;
   editingRecId = null;
+  document.getElementById('recurringTable').classList.toggle('sheet-mode', recSheetMode);
   document.getElementById('recSpreadsheetBtn').classList.toggle('active', recSheetMode);
   document.getElementById('recSpreadsheetHint').classList.toggle('hidden', !recSheetMode);
   renderRecurring();
@@ -8457,14 +8488,15 @@ function renderForecast() {
       <div class="io"><span class="io-l">Income</span><span class="pos">${fmt(inc)}</span></div>
       <div class="d" title="Income minus expenses">net ${net > 0 ? '+' : ''}${fmt(net)}</div></div>`;
   };
+  sum.classList.toggle('has-current', !!curBal);
   sum.innerHTML = `${curBal}
     <div class="stat"><div class="l">Opening balance</div><div class="v">${fmt(data.opening_balance)}</div></div>
     ${inOutCard('Forecast out / in', fOut, fIn)}
-    <div class="stat"><div class="l">Forecast end</div><div class="v">${fmt(data.forecast_ending_balance)}</div></div>
     ${inOutCard('Actual out / in', aOut, aIn)}
-    <div class="stat"><div class="l">Actual end</div><div class="v">${fmt(data.actual_ending_balance)}</div></div>
-    <div class="stat"><div class="l">Δ Actual − Forecast</div><div class="v ${deltaCls}">${deltaSign}${fmt(deltaEnd)}</div></div>
     <div class="stat"><div class="l">Highest point</div><div class="v">${fmt(maxBal)}</div><div class="d">${hiDateLabel}</div></div>
+    <div class="stat"><div class="l">Δ Actual − Forecast</div><div class="v ${deltaCls}">${deltaSign}${fmt(deltaEnd)}</div></div>
+    <div class="stat"><div class="l">Forecast end</div><div class="v">${fmt(data.forecast_ending_balance)}</div></div>
+    <div class="stat"><div class="l">Actual end</div><div class="v">${fmt(data.actual_ending_balance)}</div></div>
     <div class="stat"><div class="l">Lowest point</div><div class="v ${minBal<0?'neg':''}">${fmt(minBal)}</div><div class="d">${loDateLabel}</div></div>`;
 
   // Update sort indicators on column headers and the phone sort buttons
@@ -8595,16 +8627,16 @@ function renderForecast() {
     // ✎ opens the line for editing (as double-click does); Delete is inside
     // the open line (#52). Read-only accounts get an empty cell, hidden by CSS.
     const actionsCell = ro ? '<td></td>'
-      : `<td><button class="ghost" title="Edit or delete this line" aria-label="Edit ${escapeAttr(r.description)}"
-           onclick="startEditForecastRow('${escapeAttr(rowKey)}')">✎</button></td>`;
+      : `<td><button class="ghost row-edit" title="Edit or delete this line" aria-label="Edit ${escapeAttr(r.description)}"
+           onclick="startEditForecastRow('${escapeAttr(rowKey)}')">${PENCIL_ICON}</button></td>`;
     // Editable accounts: Notes and the ✎ share one cell across the Notes and
     // actions columns, so a long note can run into the space left of the ✎
     // (no column line between them). Read-only accounts keep two cells; the
     // empty actions one is hidden by CSS.
     const notesAndEditCell = `<td colspan="2" class="notes-col notes-edit${r.notes ? '' : ' muted'}"><div class="notes-wrap">
         <span class="notes-text"${r.notes ? ` title="${escapeAttr(r.notes)}"` : ''}>${r.notes ? escapeHtml(r.notes) : '—'}</span>
-        <button class="ghost" title="Edit or delete this line" aria-label="Edit ${escapeAttr(r.description)}"
-           onclick="startEditForecastRow('${escapeAttr(rowKey)}')">✎</button></div></td>`;
+        <button class="ghost row-edit" title="Edit or delete this line" aria-label="Edit ${escapeAttr(r.description)}"
+           onclick="startEditForecastRow('${escapeAttr(rowKey)}')">${PENCIL_ICON}</button></div></td>`;
 
     // Tag chips render inline below the description so adding them didn't
     // require a whole new column (the table is already wide).
@@ -12142,7 +12174,7 @@ function subsCategoryCell(item) {
   if (!item.category_name) return '<span style="color:var(--muted)">—</span>';
   const color = item.category_color || 'var(--muted)';
   const safe = (item.category_name + '').replace(/</g, '&lt;');
-  return `<span class="pill" style="background:${color}22;border:1px solid ${color};color:${color}">${safe}</span>`;
+  return `<span class="pill" style="background:${color}22;color:${color}">${safe}</span>`;
 }
 // ---------- Calendar ----------
 // The Calendar page renders a month grid of every event the user can see
@@ -12679,7 +12711,7 @@ async function runTxnSearch() {
     // together), not inline here.
     const editBtn = r.transfer_id != null
       ? '<span style="color:var(--muted);font-size:11px">via Transfer</span>'
-      : `<button class="ghost" title="Edit" onclick="startEditTxnRow(${r.id})">✎</button>`;
+      : `<button class="ghost row-edit" title="Edit" aria-label="Edit" onclick="startEditTxnRow(${r.id})">${PENCIL_ICON}</button>`;
     return `<tr data-txn-id="${r.id}">
       <td><input type="checkbox" class="txn-row-cb" ${cbChecked} ${cbDisabled}
                  onclick="onTxnRowCheck(${r.id}, this.checked)"></td>

@@ -69,10 +69,15 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.97.0** · Web version: **1.111.0** · Schema version: **38** · iOS version: **0.34.0**
+App version: **1.97.0** · Web version: **1.112.0** · Schema version: **38** · iOS version: **0.34.0**
 
 ### Changed
 
+- On Forecast, Bills & income, Net worth and Reports the summary tiles join into one strip. On Forecast the current balance leads in large type and the other figures sit under each other by column: opening balance over the difference, forecast out and in over forecast end, actual out and in over actual end, highest over lowest point. The order is the same in All accounts, which has no current balance.
+- The Forecast, Bills & income and Unmatched tables show lines between rows only, with the row under the pointer highlighted. The slash between a forecast figure and its actual one is gone. Spreadsheet mode keeps its full grid.
+- The pencil that opens a row is a drawn icon with no box until you point at the row. Category and tag pills in these tables are one filled style with no outline, and Unmatched is a tinted pill.
+- Forecast's toolbar buttons and dropdowns are one height, and Spreadsheet mode is a soft button like the others (filled when on).
+- Bills & income now fits a 1280px window as a table instead of turning into cards (it needs about 1276px; Forecast needs about 1251px, 10px more than before).
 - **Breaking:** Admin is split into six sections, switched like Settings' tabs: General, Sign-in security, Bank and email, Users, Backups and Audit log. Each has its own address (such as `#admin/users`), so a bookmark to a part of Admin keeps working.
 - On a wide window, Settings and Admin list their sections down the left and keep them in view while you scroll, with the settings in a narrower, easier-to-read column. Phones keep the tabs along the top.
 - Admin's on and off settings (two-factor, bank sync, email alerts) are switches, and the buttons on each user say Disable, Reset password and Delete in words.

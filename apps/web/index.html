@@ -571,7 +571,7 @@
                              color:var(--text); text-transform:none; letter-spacing:0; }
   .account-checklist label:hover { border-color:var(--accent); }
   /* Report filters (#55): checkboxes instead of Cmd/Ctrl-click list boxes. */
-  .report-checklist { max-height:120px; overflow-y:auto; align-content:flex-start; }
+  .report-checklist { align-content:flex-start; }
   .report-checklist .empty { color:var(--muted); font-size:12px; }
   .account-checklist input[type="checkbox"] { width:auto; margin:0; }
   /* max-width:0 lets the Notes column keep its header's width (240px on
@@ -590,6 +590,7 @@
                    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
   .pie-host { display:flex; gap:20px; align-items:center; flex-wrap:wrap; }
   .pie-host svg { flex-shrink:0; }
+  .pie-host > .bar-chart { flex:1 1 100%; min-width:0; }
   .pie-legend { flex:1; min-width:140px; font-size:12px; }
   .pie-legend .legend-row { display:flex; align-items:center; gap:8px;
                             padding:3px 0; }
@@ -2823,7 +2824,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.108.0";
+const WEB_VERSION = "1.108.1";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2833,6 +2834,7 @@ const WEB_VERSION = "1.108.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.108.1 (2026-11-23, claude+mkolakowski): (#282) web-refresh phase 2, four bugs: _twLabel drops the hidden .th-alt/.th-size headings, so wrapped Forecast cards read "Forecast date" not "Forecast dateStart date"; renderNetworthChart draws at the host's width (no preserveAspectRatio="none") with its three axis labels inside the plot in short form ($22.4k); .pie-host > .bar-chart fills the panel (was 180px in the pie's flex row); .report-checklist loses its 120px max-height, so Reports' filters show in full.
 // 1.108.0 (2026-11-23, claude+mkolakowski): (#278) Your own Teller and Plaid keys from the iPhone app: new pages outside the SPA, app-bank-keys.html/.js (/app-bank-keys, opened in the app's sign-in sheet: signs in, shows a card for Teller and one for Plaid with the id, environment and when checked, add / Replace / Remove through PUT /api/bank/keys/teller|plaid and POST /api/bank/keys/remove with a fresh two-factor code, Teller's zip or the two files from Files or pasted text; "Back to the app" sends walletweather://bank-keys?state=changed|closed, or off when it can't be used). index.html itself is unchanged.
 // 1.107.0 (2026-11-23, claude+mkolakowski): (#277) Admin → Users shows who has their own Teller and Plaid keys. In the Bank sync column (_adminBankAccessHtml) each of Teller and Plaid gets a small note after its tick from the users list's new `bank_keys`: "own keys, <environment>" when they've saved keys, "ticked, no keys yet" when ticked without any. An admin (always allowed) shows only the "own keys" note. Set or not only: the server never sends an id or a secret.
 // 1.106.0 (2026-11-23, claude+mkolakowski): (#276) Your own Teller and Plaid keys. Settings → Bank sync gets "Your Teller and Plaid keys" (_bankKeysHtml): a card per provider you're ticked for or have keys for. Without keys, a form: Teller's application id, environment (development by default), Teller's zip with the two files or pasted text as fallbacks; Plaid's client id, secret and environment (production by default); "Check and save" sends PUT /api/bank/keys/teller or /plaid (bankKeysSave) with the two-factor code. Saved, the card shows the id, environment and when checked from /api/bank's new `keys` (never the secret), which connections use them, Replace and Remove (bankKeysRemove → POST /api/bank/keys/remove). The tab also shows while you're ticked for Teller or Plaid without keys. Admin → Bank sync says .env's Teller and Plaid lines aren't read any more, and to how many people they were copied. app-connect-bank.js tells a ticked person without keys to add theirs in Settings.
@@ -4160,7 +4162,8 @@ function _twLabel(table) {
   const names = [];
   heads.forEach(th => {
     const clone = th.cloneNode(true);
-    clone.querySelectorAll('.le-spacer, input, button').forEach(n => n.remove());
+    // .th-alt / .th-size are the add row's swap-in headings (hidden): keep only the visible name
+    clone.querySelectorAll('.le-spacer, input, button, .th-alt, .th-size').forEach(n => n.remove());
     const name = clone.textContent.replace(/\s+/g, ' ').trim();
     for (let k = 0; k < (th.colSpan || 1); k++) names.push(name);
   });
@@ -12348,7 +12351,9 @@ function renderNetworthChart(points) {
   if (!points || !points.length) {
     return `<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No data in this window.</div>`;
   }
-  const W = 1000, H = 240, P = 28;
+  // Drawn at the host's real width (not stretched), so labels stay at their true size.
+  const host = document.getElementById('networthChart');
+  const W = Math.max(300, Math.round((host && host.clientWidth ? host.clientWidth - 26 : 1000))), H = 240, P = 28;
   const xs = (i) => P + (W - 2*P) * (i / Math.max(1, points.length - 1));
   const vals = points.map(p => p.balance);
   const min = Math.min(...vals, 0);
@@ -12357,13 +12362,19 @@ function renderNetworthChart(points) {
   const ys = (v) => H - P - (v - min) / span * (H - 2*P);
   const linePath = points.map((p, i) => `${i===0?'M':'L'}${xs(i).toFixed(1)},${ys(p.balance).toFixed(1)}`).join(' ');
   const areaPath = `${linePath} L${xs(points.length-1).toFixed(1)},${ys(min).toFixed(1)} L${xs(0).toFixed(1)},${ys(min).toFixed(1)} Z`;
-  // Y-axis labels (3 ticks)
+  // Y-axis labels (3 ticks), inside the plot above their lines, in short form ($22.4k)
+  const short = v => {
+    const a = Math.abs(v), s = v < 0 ? '-$' : '$';
+    if (a >= 1e6) return s + (a / 1e6).toFixed(1) + 'M';
+    if (a >= 1000) return s + (a / 1000).toFixed(1) + 'k';
+    return s + a.toFixed(0);
+  };
   const ticks = [min, (min+max)/2, max].map(v => {
     const y = ys(v);
     return `<line x1="${P}" x2="${W-P}" y1="${y}" y2="${y}" stroke="var(--border)" stroke-dasharray="2,4" />
-            <text x="${P-4}" y="${y+3}" text-anchor="end" font-size="10" fill="var(--muted)">${fmt(v)}</text>`;
+            <text x="${P+4}" y="${y-4}" text-anchor="start" font-size="11" fill="var(--muted)">${short(v)}</text>`;
   }).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+  return `<svg viewBox="0 0 ${W} ${H}" aria-label="Net worth over the window">
     ${ticks}
     <path d="${areaPath}" fill="var(--accent)" opacity="0.15" />
     <path d="${linePath}" fill="none" stroke="var(--accent)" stroke-width="2" />

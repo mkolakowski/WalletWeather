@@ -69,7 +69,14 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.97.0** · Web version: **1.108.0** · Schema version: **38** · iOS version: **0.33.0**
+App version: **1.97.0** · Web version: **1.108.1** · Schema version: **38** · iOS version: **0.33.0**
+
+### Fixed
+
+- The Net worth chart shows its amounts in full, in short form inside the chart (such as $22.4k), instead of cut off at the left edge ("9.67" for $22,449.67).
+- When the Forecast table turns into cards in a narrower window, each figure carries one label ("Forecast date") instead of two run together ("Forecast dateStart date").
+- The Reports bar chart uses the full width of its panel instead of a narrow strip on the left.
+- The Reports filters (accounts, categories and tags) show every choice instead of cutting the list off after three rows.
 
 ## [1.97.0] — 2026-11-23
 

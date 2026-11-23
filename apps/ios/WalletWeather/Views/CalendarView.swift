@@ -6,7 +6,9 @@ import WalletWeatherKit
 /// (decided 2026-11-15). Closed: a compact month with dots, and the tapped
 /// day's lines under it. Open: the month on the left with amounts written
 /// in each day, and on the right the tapped day's lines, or today's lines
-/// and balances until a day is tapped.
+/// and balances until a day is tapped. A line opens in the line editor (the
+/// right half when open, a sheet when closed) and swipes to Paid, Edit and
+/// Delete as in Forecast; an account's balance opens it in Forecast (#305).
 struct CalendarView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -27,6 +29,13 @@ struct CalendarView: View {
     @State private var newDraft = NewTransactionDraft(today: .today())
     @State private var moving = false
     @State private var moveDraft = MoveMoneyDraft(today: .today())
+    /// A line open in the editor (#305), the Undo bar after one is marked
+    /// paid from the list, and what a failed change says.
+    @State private var openLine: OpenLine?
+    @State private var undoOffer: UndoOffer?
+    @State private var paidCount = 0
+    @State private var pendingDelete: CalendarEvent?
+    @State private var problem: String?
 
     private var shownMonth: YearMonth { YearMonth(monthText) ?? YearMonth(.today()) }
     private var account: Account? { accounts.first { $0.id == accountId } }
@@ -46,7 +55,9 @@ struct CalendarView: View {
     var body: some View {
         PageStack {
             content
+                .opensForecast()
                 .keptBar(kept)
+                .sensoryFeedback(.success, trigger: paidCount)
                 .background(PageBackground().ignoresSafeArea())
                 .navigationTitle("Calendar")
                 // Two scroll panes side by side leave a large title nothing to collapse against, so cards
@@ -74,6 +85,27 @@ struct CalendarView: View {
         .sheet(isPresented: $moving) {
             MoveMoneySheet(accounts: editableAccounts, draft: $moveDraft) { await load() }
         }
+        .lineEditorSheet($openLine, categories: categories) { await load() }
+        .confirmationDialog(pendingDelete.map(deleteTitle) ?? "", isPresented: Binding(
+            get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
+                            titleVisibility: .visible, presenting: pendingDelete) { event in
+            Button(event.recurringId != nil && event.transactionId == nil ? "Delete this date" : "Delete", role: .destructive) {
+                delete(event)
+            }
+        } message: { event in
+            Text(event.recurringId != nil && event.transactionId == nil
+                 ? "The repeating bill or paycheck keeps its other dates." : "This can't be undone.")
+        }
+        .alert("Couldn't save", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(problem ?? "")
+        }
+        // The editor and the bar belong to the account and month they were shown on.
+        .onChange(of: accountId) { undoOffer = nil; openLine = nil }
+        .onChange(of: monthText) { undoOffer = nil; openLine = nil }
+        .onChange(of: model.generation) { undoOffer = nil; openLine = nil }
+        .onChange(of: openLine != nil) { _, isOpen in if isOpen { undoOffer = nil } }
         .scopedToConnection($accountId, memo: $accountMemo)
         .task(id: model.generation) { await loadAll() }
         .task(id: "\(accountId)/\(monthText)") { await load() }
@@ -102,32 +134,50 @@ struct CalendarView: View {
                         .padding(.leading, edges.leading).padding(.trailing, edges.trailing).padding(.bottom, 24)
                     }
                 } trailing: { edges in
-                    ScrollView {
-                        Group {
-                            if let day = selected {
-                                DayLines(day: day, data: data, showAccount: account == nil, onClose: { dayText = "" })
-                            } else {
-                                TodayView(data: data, month: shownMonth, accounts: account.map { [$0] } ?? accounts,
-                                          showAccount: account == nil)
-                            }
-                        }
-                        .padding(.leading, edges.leading).padding(.trailing, edges.trailing).padding(.bottom, 24)
-                    }
+                    sidePane(data, edges: edges)
                 }
                 .refreshable { await load() }
             } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
+                List {
+                    Section {
                         header
                         MonthGrid(month: shownMonth, data: data, selected: selected, wide: false, onTap: select)
                             .card()
-                        let day = selected ?? (shownMonth.contains(.today()) ? .today() : shownMonth.start)
-                        DayLines(day: day, data: data, showAccount: account == nil, onClose: nil)
                     }
-                    .padding(.horizontal, 16).padding(.bottom, 24)
+                    .calendarRows(EdgeInsets(top: 7, leading: 16, bottom: 7, trailing: 16))
+                    let day = selected ?? (shownMonth.contains(.today()) ? .today() : shownMonth.start)
+                    DayLines(day: day, data: data, showAccount: account == nil, onClose: nil,
+                             insets: EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16), actions: actions)
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
                 .refreshable { await load() }
+                .undoBar($undoOffer)
             }
+        }
+    }
+
+    /// The right half of the open Duo: the line in its editor, or the tapped
+    /// day's lines, or today's, with the Undo bar on the lines' own half.
+    @ViewBuilder
+    private func sidePane(_ data: CalendarMonth, edges: FoldPanes.Edges) -> some View {
+        if let binding = Binding($openLine) {
+            LineEditor(open: binding, categories: categories, embedded: true, onClose: { openLine = nil }) { await load() }
+                .id(binding.wrappedValue.id)
+        } else {
+            let insets = EdgeInsets(top: 5, leading: edges.leading, bottom: 5, trailing: edges.trailing)
+            List {
+                if let day = selected {
+                    DayLines(day: day, data: data, showAccount: account == nil, onClose: { dayText = "" },
+                             insets: insets, actions: actions)
+                } else {
+                    TodayView(data: data, month: shownMonth, accounts: account.map { [$0] } ?? accounts,
+                              showAccount: account == nil, insets: insets, actions: actions)
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .undoBar($undoOffer)
         }
     }
 
@@ -166,17 +216,107 @@ struct CalendarView: View {
     }
 
     private func select(_ day: LocalDay) {
+        openLine = nil
         dayText = selected == day && sizeClass == .regular ? "" : day.description
     }
 
     private func move(_ by: Int) {
+        openLine = nil
         dayText = ""
         monthText = (by < 0 ? shownMonth.previous : shownMonth.next).description
     }
 
     private func jump(to month: YearMonth) {
+        openLine = nil
         dayText = ""
         monthText = month == YearMonth(.today()) ? "" : month.description
+    }
+
+    // MARK: - Lines (#305)
+
+    /// What a line in the lists can do: open in the editor, and Forecast's swipes.
+    private var actions: CalendarLineActions {
+        CalendarLineActions(
+            canEdit: { event in accounts.first { $0.id == event.accountId }.map(model.canEdit) ?? false },
+            open: { event in Task { await open(event) } },
+            paid: markPaid,
+            delete: { pendingDelete = $0 })
+    }
+
+    /// The line in the editor: the Calendar's line is found again in its
+    /// account's Forecast (`APIClient.forecastLine`), which holds what the
+    /// editor works from. Transfers and accounts that can't be edited open
+    /// read-only, as in Forecast.
+    private func open(_ event: CalendarEvent) async {
+        guard let client = model.client, let account = accounts.first(where: { $0.id == event.accountId }) else { return }
+        do {
+            guard let line = try await client.forecastLine(for: event) else {
+                problem = "\(event.description) isn't in the forecast any more. Pull down to refresh the Calendar."
+                return
+            }
+            openLine = OpenLine(line, account: account, editable: model.canEdit(account))
+        } catch {
+            problem = AppModel.describe(error)
+        }
+    }
+
+    private func markPaid(_ event: CalendarEvent) {
+        Task {
+            guard let client = model.client else { return }
+            do {
+                guard let line = try await client.forecastLine(for: event) else {
+                    problem = "\(event.description) isn't in the forecast any more. Pull down to refresh the Calendar."
+                    return
+                }
+                try await client.save(line, draft: .paidAsPlanned(line, today: .today()), account: event.accountId)
+                settings.start.done.insert(.markPaid)  // Getting started (#177)
+                paidCount += 1
+                undoOffer = UndoOffer(message: "\(line.description) marked paid") {
+                    await undoPaid(line, account: event.accountId)
+                }
+            } catch {
+                problem = AppModel.describe(error)
+            }
+            await load()
+        }
+    }
+
+    /// Takes "paid" back as Forecast's Undo does: finds the line again in its
+    /// reloaded month (a projected date is a transaction now) and saves it
+    /// not paid.
+    private func undoPaid(_ line: ForecastLine, account: Int) async -> Bool {
+        guard let client = model.client else { return false }
+        var done = false
+        do {
+            let reloaded = try await client.forecast(account: account, month: YearMonth(line.plannedDate ?? .today()))
+            if let paid = reloaded.reloaded(line) {
+                try await client.save(paid, draft: .unpaid(paid, today: .today()), account: account)
+                done = true
+            } else {
+                problem = "\(line.description) isn't in the forecast any more, so it can't be undone here."
+            }
+        } catch {
+            problem = AppModel.describe(error)
+        }
+        await load()
+        return done
+    }
+
+    private func delete(_ event: CalendarEvent) {
+        Task {
+            guard let client = model.client else { return }
+            do {
+                if let line = try await client.forecastLine(for: event) { try await client.delete(line) }
+            } catch {
+                problem = AppModel.describe(error)
+            }
+            await load()
+        }
+    }
+
+    private func deleteTitle(_ event: CalendarEvent) -> String {
+        event.transactionId == nil && event.recurringId != nil
+            ? "Delete \(event.description) on \(event.date.short)?" : "Delete \(event.description)?"
     }
 
     // MARK: - Loading
@@ -197,6 +337,11 @@ struct CalendarView: View {
         if let day = AppModel.debugSetting("WW_DEBUG_DAY") { dayText = day }
         categories = (try? await client.categories()) ?? []
         await load()
+        // Debug only: `WW_DEBUG_OPEN_LINE=<name>` also opens that line of the day (#305).
+        if let name = AppModel.debugSetting("WW_DEBUG_OPEN_LINE"), let data = month.value,
+           let event = data.events.first(where: { $0.description == name && (selected == nil || $0.date == selected) }) {
+            await open(event)
+        }
     }
 
     private func load() async {
@@ -331,41 +476,67 @@ struct DayCell: View {
 
 // MARK: - A day's lines
 
-/// The lines of one day, with its closing balance when one account is shown.
+/// What a line in the Calendar's lists does (#305): the person can change it,
+/// opens in the editor, and Forecast's swipes (`LineSwipes`).
+struct CalendarLineActions {
+    let canEdit: (CalendarEvent) -> Bool
+    let open: (CalendarEvent) -> Void
+    let paid: (CalendarEvent) -> Void
+    let delete: (CalendarEvent) -> Void
+}
+
+extension View {
+    /// A row of a Calendar list that is a card of its own: no list chrome.
+    func calendarRows(_ insets: EdgeInsets) -> some View {
+        listRowBackground(Color.clear).listRowSeparator(.hidden).listRowInsets(insets)
+    }
+}
+
+/// The lines of one day, with its closing balance when one account is shown:
+/// rows of a list, each a card that opens in the editor and swipes.
 struct DayLines: View {
     let day: LocalDay
     let data: CalendarMonth
     let showAccount: Bool
     let onClose: (() -> Void)?
+    let insets: EdgeInsets
+    let actions: CalendarLineActions
 
     var body: some View {
         let lines = data.events(on: day)
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(day == .today() ? "Today" : day.date.formatted(.dateTime.weekday(.wide).month(.wide).day()))
-                    .font(.headline)
-                Spacer()
-                if let onClose {
-                    Button("Close", systemImage: "xmark", action: onClose).labelStyle(.iconOnly).buttonStyle(.glass)
-                }
-            }
-            if let balance = data.balance(on: day) {
-                HStack {
-                    Caption("Closing balance")
+        Section {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(day == .today() ? "Today" : day.date.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                        .font(.headline)
                     Spacer()
-                    Text(balance.formatted).font(.callout.weight(.semibold).monospacedDigit())
-                        .foregroundStyle(Palette.amount(balance.isNegative))
+                    if let onClose {
+                        Button("Close", systemImage: "xmark", action: onClose).labelStyle(.iconOnly).buttonStyle(.glass)
+                    }
+                }
+                if let balance = data.balance(on: day) {
+                    HStack {
+                        Caption("Closing balance")
+                        Spacer()
+                        Text(balance.formatted).font(.callout.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(Palette.amount(balance.isNegative))
+                    }
+                }
+                if lines.isEmpty {
+                    Text("Nothing on this day.").font(.callout).foregroundStyle(.secondary)
                 }
             }
-            if lines.isEmpty {
-                Text("Nothing on this day.").font(.callout).foregroundStyle(.secondary)
-            }
+            .card()
+            .calendarRows(insets)
             ForEach(lines) { line in
-                Divider()
-                CalendarLineRow(line: line, showAccount: showAccount)
+                Button { actions.open(line) } label: { CalendarLineRow(line: line, showAccount: showAccount).card() }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens the line")
+                    .modifier(LineSwipes(event: line, editable: actions.canEdit(line), onPaid: actions.paid,
+                                         onEdit: actions.open, onDelete: actions.delete))
+                    .calendarRows(insets)
             }
         }
-        .card()
     }
 }
 
@@ -392,41 +563,55 @@ struct CalendarLineRow: View {
                 Text(amount.formatted).monospacedDigit()
                     .foregroundStyle(line.isTransfer ? .secondary : (amount.isNegative ? Palette.bad : Palette.good))
             }
+            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
         }
         .font(.subheadline)
+        .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
 }
 
-/// The right half of the open Duo before a day is tapped: today's lines,
-/// and each account's balance today.
+/// The right half of the open Duo before a day is tapped: each account's
+/// balance today (each opens in Forecast), and today's lines.
 struct TodayView: View {
     let data: CalendarMonth
     let month: YearMonth
     let accounts: [Account]
     let showAccount: Bool
+    let insets: EdgeInsets
+    let actions: CalendarLineActions
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        Section {
             VStack(alignment: .leading, spacing: 8) {
                 Caption("Balances today")
                 ForEach(accounts) { account in
-                    HStack {
-                        Text(account.name)
-                        Spacer()
-                        Text(account.currentBalance.formatted).monospacedDigit()
-                            .foregroundStyle(Palette.amount(account.currentBalance.isNegative))
+                    OpenInForecastButton(account: account.id) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(account.name)
+                                ForecastHint()
+                            }
+                            Spacer()
+                            Text(account.currentBalance.formatted).monospacedDigit()
+                                .foregroundStyle(Palette.amount(account.currentBalance.isNegative))
+                        }
+                        .font(.callout)
+                        .contentShape(Rectangle())
                     }
-                    .font(.callout)
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens in Forecast")
                 }
             }
             .card()
-            if month.contains(.today()) {
-                DayLines(day: .today(), data: data, showAccount: showAccount, onClose: nil)
-            } else {
-                Text("Today isn't in \(month.label).").font(.callout).foregroundStyle(.secondary)
-            }
-            Text("Tap a day to see its lines.").font(.footnote).foregroundStyle(.secondary)
+            .calendarRows(insets)
         }
+        if month.contains(.today()) {
+            DayLines(day: .today(), data: data, showAccount: showAccount, onClose: nil, insets: insets, actions: actions)
+        } else {
+            Text("Today isn't in \(month.label).").font(.callout).foregroundStyle(.secondary).calendarRows(insets)
+        }
+        Text("Tap a day to see its lines.").font(.footnote).foregroundStyle(.secondary).calendarRows(insets)
     }
 }

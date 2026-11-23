@@ -1,7 +1,7 @@
 import SwiftUI
 
 // An Undo for a few seconds after something is done from a list (#315): the
-// Forecast's Paid; the Calendar will use it later.
+// Forecast's Paid, and the Calendar's (#305).
 
 /// What the bar offers: what was done, and the way to take it back.
 struct UndoOffer: Identifiable {

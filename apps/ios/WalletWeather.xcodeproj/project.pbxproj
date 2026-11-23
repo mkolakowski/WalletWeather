@@ -49,6 +49,7 @@
 		EC7FFE9E0118DB3EF0409912 /* MonthMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9819ED5346F2EC2B60C37AA5 /* MonthMenu.swift */; };
 		FB73D58433046DB107B7663B /* AccountFollower.swift in Sources */ = {isa = PBXBuildFile; fileRef = 853A48B5A75D9C9B343FE58A /* AccountFollower.swift */; };
 		FC679BF76B513DDEC977EA25 /* AppearanceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F9C229869953F8F6C9FAB0 /* AppearanceViews.swift */; };
+		FE6DB983F28367B5822AB69E /* OpenInForecast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 477E3FB4D8EDDD73201F110E /* OpenInForecast.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -63,6 +64,7 @@
 		354C1F47B2C105A157D90B7C /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		38A0E0386259C1431BB7F2D1 /* WalletWeather.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = WalletWeather.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3FF8DF9E3C8A01A950E0D995 /* NoticeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoticeView.swift; sourceTree = "<group>"; };
+		477E3FB4D8EDDD73201F110E /* OpenInForecast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenInForecast.swift; sourceTree = "<group>"; };
 		4EF6456B5FCCB4251D23495E /* LoadState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadState.swift; sourceTree = "<group>"; };
 		4F10AF2509F0101D7139AD73 /* MoveMoneySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveMoneySheet.swift; sourceTree = "<group>"; };
 		501BC9A34865BA8B81980E67 /* PhoneBankViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneBankViews.swift; sourceTree = "<group>"; };
@@ -150,6 +152,7 @@
 				4F10AF2509F0101D7139AD73 /* MoveMoneySheet.swift */,
 				FA6E160E5ACC028F9FCFF027 /* MoveViews.swift */,
 				3FF8DF9E3C8A01A950E0D995 /* NoticeView.swift */,
+				477E3FB4D8EDDD73201F110E /* OpenInForecast.swift */,
 				501BC9A34865BA8B81980E67 /* PhoneBankViews.swift */,
 				A98C31592C4A8C02D24C2584 /* QRScanSheet.swift */,
 				ABF20F601A1EB2143ABA37C6 /* RootView.swift */,
@@ -303,6 +306,7 @@
 				4E47E421774FF04019F80AA1 /* MoveMoneySheet.swift in Sources */,
 				E4B39C05F91B13F80EE5068D /* MoveViews.swift in Sources */,
 				B789C70FB22BF28F157FB1A7 /* NoticeView.swift in Sources */,
+				FE6DB983F28367B5822AB69E /* OpenInForecast.swift in Sources */,
 				2A3F787DFA9A3BC6817806A5 /* PhoneBankViews.swift in Sources */,
 				D15E3123C4A13434AC0DE0F8 /* QRScanSheet.swift in Sources */,
 				B29B4373B3A526BF9E85393F /* RootView.swift in Sources */,
@@ -379,7 +383,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.46.0;
+				MARKETING_VERSION = 0.47.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -447,7 +451,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.46.0;
+				MARKETING_VERSION = 0.47.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

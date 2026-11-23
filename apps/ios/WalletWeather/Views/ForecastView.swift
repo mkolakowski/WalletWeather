@@ -104,7 +104,8 @@ struct ForecastView: View {
             accountId = request
             follower.picked(request, on: .forecast, following: settings.pagesFollowAccount)
             monthText = ""
-            confirming = false
+            confirming = model.forecastToConfirm
+            model.forecastToConfirm = false
             model.forecastRequest = nil
         }
     }
@@ -441,25 +442,45 @@ struct ForecastView: View {
 /// line offers Edit, not Undo paid; undoing is the editor's Paid switch);
 /// swipe left to delete. Only on lines this person may change.
 struct LineSwipes: ViewModifier {
-    let line: ForecastLine
-    let editable: Bool
-    let onPaid: (ForecastLine) -> Void
-    let onEdit: (ForecastLine) -> Void
-    let onDelete: (ForecastLine) -> Void
+    /// This person may change the line: an account they can edit, and not a transfer.
+    let canChange: Bool
+    let isPaid: Bool
+    let onPaid: () -> Void
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+
+    init(line: ForecastLine, editable: Bool, onPaid: @escaping (ForecastLine) -> Void,
+         onEdit: @escaping (ForecastLine) -> Void, onDelete: @escaping (ForecastLine) -> Void) {
+        canChange = editable && line.canEdit(onEditableAccount: true)
+        isPaid = line.isPaid
+        self.onPaid = { onPaid(line) }
+        self.onEdit = { onEdit(line) }
+        self.onDelete = { onDelete(line) }
+    }
+
+    /// A line on the Calendar (#305): the same swipes, on the same lines.
+    init(event: CalendarEvent, editable: Bool, onPaid: @escaping (CalendarEvent) -> Void,
+         onEdit: @escaping (CalendarEvent) -> Void, onDelete: @escaping (CalendarEvent) -> Void) {
+        canChange = editable && !event.isTransfer
+        isPaid = event.isPaid
+        self.onPaid = { onPaid(event) }
+        self.onEdit = { onEdit(event) }
+        self.onDelete = { onDelete(event) }
+    }
 
     func body(content: Content) -> some View {
-        if editable && line.canEdit(onEditableAccount: true) {
+        if canChange {
             content
                 .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                    if !line.isPaid {
-                        Button("Paid", systemImage: "checkmark.circle") { onPaid(line) }
+                    if !isPaid {
+                        Button("Paid", systemImage: "checkmark.circle", action: onPaid)
                             .tint(Palette.good)
                     }
-                    Button("Edit", systemImage: "pencil") { onEdit(line) }
+                    Button("Edit", systemImage: "pencil", action: onEdit)
                         .tint(Palette.accent)
                 }
                 .swipeActions(edge: .trailing) {
-                    Button("Delete", systemImage: "trash", role: .destructive) { onDelete(line) }
+                    Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
                 }
         } else {
             content

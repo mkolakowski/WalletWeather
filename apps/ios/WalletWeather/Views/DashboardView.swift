@@ -6,12 +6,19 @@ import WalletWeatherKit
 /// 90 days switch, and pinned reports.
 /// One column on any iPhone and on the Duo closed; on the open Duo the
 /// accounts take the left half and the charts the right, through
-/// `FoldLayout`, with nothing to read or tap on the fold.
+/// `FoldLayout`, with nothing to read or tap on the fold. An account opens in
+/// Forecast when tapped, closed; open, a tap chooses it and the right half
+/// shows that account alone: its charts, what's coming up, what to confirm
+/// (#305).
 struct DashboardView: View {
     @Environment(AppModel.self) private var model
     @Environment(AppSettings.self) private var settings
     @Environment(\.horizontalSizeClass) private var sizeClass
     @SceneStorage("dashboard.window") private var window: ChartWindow = .month
+    /// The account chosen on the open Duo (#305); 0 for none. Kept with the
+    /// connection it was chosen on, like the other pages' accounts.
+    @SceneStorage("dashboard.account") private var chosenId = 0
+    @SceneStorage("dashboard.account.byConnection") private var accountMemo = ""
     @State private var startTask: StartTask?
     @State private var addingAccount = false
     @State private var importingBackup = false
@@ -21,6 +28,8 @@ struct DashboardView: View {
     @State private var charts: Loadable<DashboardCharts> = .loading
     @State private var pinned: [PinnedReport] = []
     @State private var kept = KeptTracker()
+    /// Counts loads, so the chosen account's "Coming up" reads again with them.
+    @State private var loadCount = 0
     // For the + menu (#314): the accounts and categories a new transaction needs.
     @State private var accounts: [Account] = []
     @State private var categories: [TransactionCategory] = []
@@ -54,6 +63,7 @@ struct DashboardView: View {
                     }
                 }
             }
+            .opensForecast()
             .keptBar(kept)
             .background(PageBackground().ignoresSafeArea())
             .navigationTitle("Dashboard")
@@ -73,8 +83,14 @@ struct DashboardView: View {
                 }
             }
         }
-        .task(id: model.generation) { await load() }
+        .task(id: model.generation) {
+            await load()
+            // Debug only: `WW_DEBUG_DASH_ACCOUNT=<account name>` chooses that account (#305).
+            if let name = AppModel.debugSetting("WW_DEBUG_DASH_ACCOUNT"),
+               let card = summary.value?.cards.first(where: { $0.name == name }) { chosenId = card.id }
+        }
         .task(id: model.generation) { await loadChoices() }
+        .scopedToConnection($chosenId, memo: $accountMemo)
         .sheet(isPresented: $adding) {
             if let target = editableAccounts.first {
                 AddTransactionSheet(account: target, accountChoices: editableAccounts,
@@ -103,7 +119,7 @@ struct DashboardView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
                 accountsColumn(dashboard)
-                chartsColumn
+                chartsColumn(chosen: nil)
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 24)
@@ -122,7 +138,7 @@ struct DashboardView: View {
             }
         } trailing: { edges in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 14) { chartsColumn }
+                LazyVStack(alignment: .leading, spacing: 14) { chartsColumn(chosen: chosen(in: dashboard)) }
                     .padding(.leading, edges.leading).padding(.trailing, edges.trailing).padding(.bottom, 24)
             }
         }
@@ -151,12 +167,54 @@ struct DashboardView: View {
                                    description: Text("Add an account in the web app's Settings, and it shows here."))
         } else {
             RestOfMonthCard(dashboard: dashboard)
-            ForEach(dashboard.cards) { AccountCard(card: $0) }
+            ForEach(dashboard.cards) { card in
+                if sizeClass == .regular {
+                    // The open Duo: a tap chooses the account for the right half, and again clears it.
+                    let isChosen = card.id == chosenId
+                    Button { chosenId = isChosen ? 0 : card.id } label: {
+                        AccountCard(card: card, tap: .choose, chosen: isChosen)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint(isChosen ? "Clears the choice" : "Shows its charts and what's coming up")
+                    .accessibilityAddTraits(isChosen ? .isSelected : [])
+                } else {
+                    OpenInForecastButton(account: card.id) { AccountCard(card: card, tap: .forecast, chosen: false) }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Opens in Forecast")
+                }
+            }
+        }
+    }
+
+    /// The chosen account's card, while the page has two panes and it's still there.
+    private func chosen(in dashboard: Dashboard) -> Dashboard.Card? {
+        guard sizeClass == .regular, chosenId != 0 else { return nil }
+        return dashboard.cards.first { $0.id == chosenId }
+    }
+
+    /// The right half with an account chosen: its charts, what's coming up and
+    /// to confirm, and the way into Forecast.
+    @ViewBuilder
+    private func chosenColumn(_ card: Dashboard.Card) -> some View {
+        // What's coming and the way into Forecast first: the charts card is
+        // taller than the pane, so under it they were out of sight.
+        ChosenAccountPane(card: card, editable: accounts.first { $0.id == card.id }.map(model.canEdit) ?? false,
+                          reload: loadCount)
+            .id(card.id)
+        switch charts {
+        case .loading:
+            ProgressView().frame(maxWidth: .infinity).padding()
+        case let .failed(error):
+            ProblemView(error: error) { Task { await loadCharts() } }
+        case let .loaded(data):
+            if let account = data.accounts.first(where: { $0.accountId == card.id }) {
+                AccountChartsCard(account: account)
+            }
         }
     }
 
     @ViewBuilder
-    private var chartsColumn: some View {
+    private func chartsColumn(chosen: Dashboard.Card?) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Picker("Charts cover", selection: $window) {
                 ForEach(ChartWindow.allCases) { Text($0.title).tag($0) }
@@ -168,18 +226,22 @@ struct DashboardView: View {
             }
         }
         .padding(.top, 6)
-        switch charts {
-        case .loading:
-            ProgressView().frame(maxWidth: .infinity).padding()
-        case let .failed(error):
-            ProblemView(error: error) { Task { await loadCharts() } }
-        case let .loaded(data):
-            if data.accounts.isEmpty {
-                Text("No chart data for this window.").foregroundStyle(.secondary)
+        if let chosen {
+            chosenColumn(chosen)
+        } else {
+            switch charts {
+            case .loading:
+                ProgressView().frame(maxWidth: .infinity).padding()
+            case let .failed(error):
+                ProblemView(error: error) { Task { await loadCharts() } }
+            case let .loaded(data):
+                if data.accounts.isEmpty {
+                    Text("No chart data for this window.").foregroundStyle(.secondary)
+                }
+                ForEach(data.accounts) { AccountChartsCard(account: $0) }
             }
-            ForEach(data.accounts) { AccountChartsCard(account: $0) }
+            ForEach(pinned) { PinnedReportCard(report: $0.report, run: $0.run) }
         }
-        ForEach(pinned) { PinnedReportCard(report: $0.report, run: $0.run) }
     }
 
     // MARK: - Loading
@@ -193,6 +255,7 @@ struct DashboardView: View {
             kept.clear()
             return
         }
+        loadCount += 1
         await loadCharts()
         await loadPinned()
     }
@@ -269,13 +332,26 @@ struct RestOfMonthCard: View {
 /// month's low and high with their dates.
 struct AccountCard: View {
     let card: Dashboard.Card
+    /// What a tap does (#305): nothing, open Forecast, or choose the account
+    /// for the right half of the open Duo.
+    var tap: Tap = .none
+    /// Chosen for the right half: an accent outline and a tick.
+    var chosen = false
+
+    enum Tap { case none, forecast, choose }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 Text(card.name).font(.headline)
+                if chosen {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Palette.accent).accessibilityLabel("Chosen")
+                }
                 Spacer()
-                Text(card.monthLabel).font(.caption).foregroundStyle(.secondary)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(card.monthLabel).font(.caption).foregroundStyle(.secondary)
+                    if tap == .forecast { ForecastHint() }
+                }
             }
             VStack(alignment: .leading, spacing: 2) {
                 Caption("Balance today")
@@ -297,6 +373,12 @@ struct AccountCard: View {
             }
         }
         .card()
+        .overlay {
+            if chosen {
+                RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Palette.accent, lineWidth: 2.5)
+            }
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .accessibilityElement(children: .combine)
     }
 
@@ -310,5 +392,104 @@ struct AccountCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - The chosen account (#305)
+
+/// The right half of the open Duo with an account chosen, above its charts:
+/// the next five lines still to be paid, the lines to confirm, and the way
+/// into Forecast.
+struct ChosenAccountPane: View {
+    @Environment(AppModel.self) private var model
+    let card: Dashboard.Card
+    let editable: Bool
+    /// Changes when the page loads again.
+    let reload: Int
+
+    @State private var coming: Loadable<Coming> = .loading
+
+    struct Coming {
+        let lines: [ForecastLine]
+        let toConfirm: Int
+    }
+
+    private static let count = 5
+
+    var body: some View {
+        Group {
+            switch coming {
+            case .loading:
+                ProgressView().frame(maxWidth: .infinity).padding()
+            case let .failed(error):
+                ProblemView(error: error) { Task { await load() } }
+            case let .loaded(data):
+                comingUp(data.lines)
+                if editable, data.toConfirm > 0 { confirmButton(data.toConfirm) }
+            }
+            OpenInForecastButton(account: card.id) {
+                Label("Open in Forecast", systemImage: "chart.line.uptrend.xyaxis").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.glassProminent)
+            .tint(Palette.accent)
+            .accessibilityHint("Opens in Forecast")
+        }
+        .task(id: "\(model.generation)/\(card.id)/\(reload)") { await load() }
+    }
+
+    private func comingUp(_ lines: [ForecastLine]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Caption("Coming up")
+            if lines.isEmpty {
+                Text("Nothing left to pay this month or next.").font(.callout).foregroundStyle(.secondary)
+            }
+            ForEach(Array(lines.enumerated()), id: \.element.id) { index, line in
+                if index > 0 { Divider() }
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(line.description).lineLimit(2)
+                        Text([line.plannedDate?.short, line.category].compactMap { $0 }.joined(separator: " · "))
+                            .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    Text(line.amount.formatted).monospacedDigit()
+                        .foregroundStyle(line.isTransfer ? .secondary : (line.amount.isNegative ? Palette.bad : Palette.good))
+                }
+                .font(.subheadline)
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .card()
+    }
+
+    private func confirmButton(_ count: Int) -> some View {
+        OpenInForecastButton(account: card.id, toConfirm: true) {
+            HStack {
+                Label("\(count) to confirm", systemImage: "checkmark.circle")
+                Spacer()
+                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.glass)
+        .accessibilityHint("Opens To confirm in Forecast")
+    }
+
+    /// This month's forecast, and next month's when fewer than five lines are left.
+    private func load() async {
+        guard let client = model.client else { return }
+        let today = LocalDay.today()
+        let month = YearMonth(today)
+        do {
+            let here = try await client.forecast(account: card.id, month: month, today: today)
+            var next: ForecastMonth?
+            if here.comingUp(today: today, limit: Self.count).count < Self.count {
+                next = try await client.forecast(account: card.id, month: month.next, today: today)
+            }
+            coming = .loaded(Coming(lines: here.comingUp(today: today, following: next, limit: Self.count),
+                                    toConfirm: here.toConfirm(today: today).count))
+        } catch {
+            coming = .failed(error)
+        }
     }
 }

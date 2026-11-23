@@ -67,6 +67,8 @@ final class AppModel {
     /// An account Search asked Forecast to show (#112); Forecast takes it
     /// and clears it.
     var forecastRequest: Int?
+    /// With `forecastRequest`: open it on the To confirm list (#305).
+    var forecastToConfirm = false
 
     private let sheet = SignInSheet()
 

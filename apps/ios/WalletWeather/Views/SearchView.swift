@@ -32,13 +32,11 @@ struct SearchView: View {
     enum Shown: Hashable {
         case report(SavedReport)
         case transactions(TransactionFilter, title: String)
-        case forecast
 
         var title: String {
             switch self {
             case let .report(report): report.name
             case let .transactions(_, title): title
-            case .forecast: "Forecast"
             }
         }
     }
@@ -76,6 +74,7 @@ struct SearchView: View {
             .navigationTitle("Search")
             .navigationBarTitleDisplayMode(regular ? .inline : .automatic)
             .navigationDestination(for: Shown.self) { page($0, embedded: false) }
+            .opensForecast()
         }
         .lineEditorSheet($openLine, categories: categories) { await search() }
         .billEditorSheet($openBill, categories: categories) { await search() }
@@ -168,8 +167,6 @@ struct SearchView: View {
             }
         case let .transactions(filter, title):
             FilteredTransactions(filter: filter, title: title, embedded: embedded, accounts: accounts, categories: categories)
-        case .forecast:
-            TabPage.forecast.view(embedded: true)
         }
     }
 
@@ -218,7 +215,7 @@ struct SearchView: View {
                     }
                 }
                 group("Accounts", data.accounts) { account in
-                    Button { open(account) } label: {
+                    OpenInForecastButton(account: account.id) {
                         SearchRow(title: account.name, detail: account.level == "read" ? "Shared with you, read-only" : nil,
                                   trailing: account.currentBalance.formatted,
                                   trailingColor: account.currentBalance.isNegative ? Palette.bad : nil, selected: false)
@@ -296,20 +293,9 @@ struct SearchView: View {
         openBill = OpenBill(item: item, editable: item.canEdit)
     }
 
-    /// An account opens in Forecast: its tab when it's in the bar, or pushed
-    /// here when it isn't.
-    private func open(_ account: Account) {
-        model.forecastRequest = account.id
-        if settings.tabs.contains(.forecast) {
-            openPlace(.forecast)
-        } else {
-            show(.forecast)
-        }
-    }
-
     private func show(_ page: Shown) {
         clear()
-        if regular && page != .forecast { shown = page } else { path.append(page) }
+        if regular { shown = page } else { path.append(page) }
     }
 
     // MARK: - Loading
@@ -347,7 +333,9 @@ struct SearchView: View {
         case "category":
             if let c = data.categories.results.first { show(.transactions(.category(c.id), title: c.name)) }
         case "report": if let r = data.reports.results.first { show(.report(r)) }
-        case "account": if let a = data.accounts.results.first { open(a) }
+        case "account":
+            // The row's own route (`OpenInForecastButton`), without its tap: the Forecast tab.
+            if let a = data.accounts.results.first { model.forecastRequest = a.id; openPlace(.forecast) }
         default: break
         }
     }

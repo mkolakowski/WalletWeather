@@ -35,6 +35,7 @@ struct NetWorthView: View {
                 }
             }
         }
+        .opensForecast()
         .refreshable { await load() }
         .keptBar(kept)
         .background(PageBackground().ignoresSafeArea())
@@ -80,15 +81,24 @@ struct NetWorthView: View {
         VStack(alignment: .leading, spacing: 10) {
             Caption("Each account")
             ForEach(data.accounts) { account in
-                HStack(alignment: .firstTextBaseline) {
-                    Text(account.accountName)
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(account.actualEnd.formatted).monospacedDigit()
-                            .foregroundStyle(Palette.amount(account.actualEnd.isNegative))
-                        Text("from \(account.openingBalance.formatted)").font(.caption).foregroundStyle(.secondary)
+                // Each account opens in Forecast (#305).
+                OpenInForecastButton(account: account.accountId) {
+                    HStack(alignment: .firstTextBaseline) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(account.accountName)
+                            ForecastHint()
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(account.actualEnd.formatted).monospacedDigit()
+                                .foregroundStyle(Palette.amount(account.actualEnd.isNegative))
+                            Text("from \(account.openingBalance.formatted)").font(.caption).foregroundStyle(.secondary)
+                        }
                     }
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens in Forecast")
                 if account.id != data.accounts.last?.id { Divider() }
             }
             Text(data.window == .month ? "At month end, with the month's bills and paychecks as planned." : "At the end of the window.")

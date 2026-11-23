@@ -114,7 +114,11 @@ line (or that bill, on Bills & income) in the editor,
 `SIMCTL_CHILD_WW_DEBUG_SEARCH_OPEN=transaction`, `bill`, `category`,
 `report` or `account` opening its first result of that kind), and on the Calendar
 `SIMCTL_CHILD_WW_DEBUG_ACCOUNT=Checking` picks an account and
-`SIMCTL_CHILD_WW_DEBUG_DAY=2026-11-11` a day.
+`SIMCTL_CHILD_WW_DEBUG_DAY=2026-11-11` a day. With
+`SIMCTL_CHILD_WW_DEBUG_PLACE=calendar` and that day, `WW_DEBUG_OPEN_LINE=Rent`
+also opens that line of the day in the line editor (#305), and
+`SIMCTL_CHILD_WW_DEBUG_DASH_ACCOUNT=Checking` chooses that account on the
+Dashboard's right half, on the open Duo.
 `SIMCTL_CHILD_WW_DEBUG_SETTINGS=<page>` opens Settings on one of its pages
 (#294): `connections` (the list the card at the top opens, #300),
 `connection` (the page of the connection in front), `bank`, `appearance`,

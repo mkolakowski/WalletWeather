@@ -211,7 +211,8 @@ def test_the_status_shape(ready, ms):
     st = c.get("/api/mail/status").json()
     assert set(st) == {"enabled", "connected", "check_minutes", "last_check_at", "last_check_ok",
                        "last_check_status", "last_ok_at", "needs_reconnect", "failing_since",
-                       "failing_over_a_day", "next_check_at", "unread_count"}
+                       "failing_over_a_day", "next_check_at", "unread_count", "paused",
+                       "providers_allowed", "shared"}
     assert st["connected"] is True and st["last_check_at"] is None and st["next_check_at"].endswith("Z")
     assert st["failing_over_a_day"] is False and st["unread_count"] == 0
     # Nothing in it names the folder, a sender or the sign-in.
@@ -230,11 +231,14 @@ def test_the_status_shape(ready, ms):
 BANK_ADDRESS = "alerts@bank.example"
 
 
-def test_not_connected_status(app_started, switched_on):
+def test_not_connected_status(app_started, switched_on, ms):
     c, u = register(app_started)
-    assert c.get("/api/mail/status").json() == {"enabled": True, "connected": False}
+    # Ticked for Microsoft 365 (#268), with nothing shared yet.
+    assert c.get("/api/mail/status").json() == {"enabled": True, "connected": False,
+                                                "providers_allowed": ["microsoft"], "shared": []}
     set_switch(False)
-    assert c.get("/api/mail/status").json() == {"enabled": False, "connected": False}
+    assert c.get("/api/mail/status").json() == {"enabled": False, "connected": False,
+                                                "providers_allowed": ["microsoft"], "shared": []}
 
 
 def test_the_status_warns_after_a_day_of_failing_and_counts_unread(ready, ms):

@@ -184,11 +184,30 @@ def switched_on():
     set_switch(False)
 
 
-def register(app):
+def allow_mail(user_id: int, providers=("microsoft",)):
+    """Tick a person for these providers, as an admin does in Admin → Users
+    (#268); none unticks them all."""
+    from app.db import MailAccess, SessionLocal
+    db = SessionLocal()
+    try:
+        db.query(MailAccess).filter_by(user_id=user_id).delete()
+        for p in providers:
+            db.add(MailAccess(user_id=user_id, provider=p))
+        db.commit()
+    finally:
+        db.close()
+
+
+def register(app, mail=True):
+    """A new signed-in user; ticked for Microsoft 365 unless mail=False, so
+    the mail tests reach what they test (who may connect is
+    test_mail_access.py's)."""
     c = TestClient(app)
     email = unique_email()
     r = c.post("/api/auth/register", json={"email": email, "password": PASSWORD})
     assert r.status_code == 200, r.text
+    if mail:
+        allow_mail(r.json()["id"])
     return c, {"email": email, "id": r.json()["id"], "password": PASSWORD}
 
 

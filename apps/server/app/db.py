@@ -20,7 +20,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "35"
+SCHEMA_VERSION = "36"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +31,11 @@ SCHEMA_VERSION = "35"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v36 (2026-11-22, claude+mkolakowski): who may connect a mailbox, per
+#     person and provider (sync-access phase 5, #268). New table mail_access
+#     (one row per person and mail provider an admin has ticked). On the
+#     first start at v36 everyone with a mailbox is ticked for its provider,
+#     once (admin_settings 'mail_access_seeded' marks it done).
 # v35 (2026-11-21, claude+mkolakowski): who may connect a bank, per person
 #     and provider (sync-access phase 1, #264). New table bank_access (one
 #     row per person and provider an admin has ticked). On the first start
@@ -737,6 +742,17 @@ class BankAccess(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
+class MailAccess(Base):
+    """A mail provider an admin lets one person connect a mailbox through
+    for email alerts (sync-access phase 5, #268): no row, no connecting, and
+    their mailbox of that provider pauses. Admins may always connect.
+    `provider` is 'microsoft' (Gmail and IMAP join it later)."""
+    __tablename__ = "mail_access"
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    provider = Column(String(10), primary_key=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class BankLinkAttempt(Base):
     """A Teller or Plaid connection started in Settings → Bank sync and not
     finished yet (#254). Made after the two-factor code is checked, so the
@@ -1165,6 +1181,16 @@ def init_db():
                 ON CONFLICT (user_id, provider) DO NOTHING
             """))
             conn.execute(text("INSERT INTO admin_settings (key, value) VALUES ('bank_access_seeded', 'true') "
+                              "ON CONFLICT (key) DO NOTHING"))
+        # v35 → v36: who may connect a mailbox (#268), the same way: once,
+        # everyone with a mailbox is ticked for its provider.
+        if conn.execute(text("SELECT 1 FROM admin_settings WHERE key = 'mail_access_seeded'")).first() is None:
+            conn.execute(text("""
+                INSERT INTO mail_access (user_id, provider, created_at)
+                SELECT DISTINCT user_id, provider, NOW() FROM mail_connections
+                ON CONFLICT (user_id, provider) DO NOTHING
+            """))
+            conn.execute(text("INSERT INTO admin_settings (key, value) VALUES ('mail_access_seeded', 'true') "
                               "ON CONFLICT (key) DO NOTHING"))
         # Backfill: every existing account must grant edit to its owner.
         # This is safe to run repeatedly because of ON CONFLICT DO NOTHING.

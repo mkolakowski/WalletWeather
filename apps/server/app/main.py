@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.92.1"
+APP_VERSION = "1.93.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,15 @@ APP_VERSION = "1.92.1"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.93.0 (2026-11-22, claude+mkolakowski): email alerts on the same model
+#     as bank sync (sync-access phase 5, #268; schema 36). An admin ticks
+#     who may connect a mailbox (PUT /api/admin/users/{id}/mail-access,
+#     session only, audit mail_access_changed; /api/admin/users gains
+#     mail_access); connecting refuses an unticked provider (admins always
+#     allowed); unticking pauses the mailbox (`paused`, no check by itself,
+#     403 on Check now). /api/mail and /api/mail/status gain
+#     providers_allowed and `shared` (accounts the caller owns or edits that
+#     someone else's mailbox feeds); POST /api/mail/check takes account_id.
 # 1.90.0 (2026-11-21, claude+mkolakowski): who may connect a bank, per
 #     person and provider (sync-access phase 1, #264; schema 35). An admin
 #     ticks providers per person (PUT /api/admin/users/{id}/bank-access,
@@ -612,7 +621,7 @@ from .db import (
     AccountPermission, AccountInvitation, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
     Tag, TransactionTag, RecurringTag, TagRule, SavedReport, RecurringSkip,
     ApiToken, AuditEvent, AppSignInCode, RecoveryCode, RememberedBrowser, SessionLocal,
-    BankConnection, BankAccess, BankAccountLink, BankLinkAttempt, BankCategoryMap, BankSyncRun, MailConnection, MailSender, MailAlertKind,
+    BankConnection, BankAccess, BankAccountLink, BankLinkAttempt, BankCategoryMap, BankSyncRun, MailAccess, MailConnection, MailSender, MailAlertKind,
     MailUnread, MailCheckRun, encrypt_str, decrypt_str, SCHEMA_VERSION,
 )
 from . import twofactor
@@ -6218,6 +6227,53 @@ def mail_alerts_enabled(db: Session) -> bool:
     return bool(row and row.value == "true")
 
 
+# Who may connect a mailbox through which provider (sync-access phase 5,
+# #268), as bank sync does it (#264): an admin ticks each person in Admin →
+# Users; admins may always connect; the Admin → Email alerts switch stays as
+# an off-for-everyone kill switch. Unticking pauses the person's mailbox
+# (kept, never checked, Check now refused) until they're ticked again. A
+# mailbox doesn't pass on when its person is deleted (question 4).
+MAIL_PROVIDER_NAMES = {"microsoft": "Microsoft 365"}
+
+
+def mail_access(db: Session, user: User) -> set[str]:
+    """The mail providers this person may connect through: every one for an
+    admin, otherwise those an admin has ticked."""
+    if is_admin(user):
+        return set(MAIL_PROVIDER_NAMES)
+    return {p for (p,) in db.query(MailAccess.provider).filter_by(user_id=user.id)}
+
+
+def _mail_providers_allowed(db: Session, user: User) -> list[str]:
+    """What this person may connect, so a page or app knows whether to offer
+    Connect: an admin's tick, and the server has that provider set up."""
+    access = mail_access(db, user)
+    offered = {"microsoft": mailbox.available()}
+    return [p for p in MAIL_PROVIDER_NAMES if p in access and offered.get(p)]
+
+
+def _mail_paused(db: Session, conn: MailConnection, user: User | None = None) -> bool:
+    """Whether an admin has paused this mailbox by unticking its person for
+    its provider."""
+    user = user or db.get(User, conn.user_id)
+    return user is None or (conn.provider or "microsoft") not in mail_access(db, user)
+
+
+def _mail_paused_message(conn: MailConnection, holder: str | None = None) -> str:
+    pname = MAIL_PROVIDER_NAMES.get(conn.provider or "microsoft", "mail")
+    if holder is not None:
+        return (f"An admin has paused {holder}'s {pname} mailbox, so its alerts aren't read for now. "
+                f"They carry on once an admin lets {holder} use {pname} again.")
+    return (f"An admin has paused your {pname} mailbox. It's kept, and carries on once an admin "
+            "lets you use it again in Admin → Users.")
+
+
+def _mail_may_connect(db: Session, user: User, provider: str = "microsoft") -> None:
+    if provider not in mail_access(db, user):
+        raise HTTPException(403, f"You can't connect a mailbox through {MAIL_PROVIDER_NAMES[provider]} "
+                                 "yet. An admin can let you in Admin → Users.")
+
+
 def _mail_allowed(db: Session, user: User) -> None:
     if not mail_alerts_enabled(db):
         raise HTTPException(403, "Email alerts are switched off on this instance. An admin can "
@@ -6293,7 +6349,9 @@ def _mail_status(db: Session, user: User, request: Request | None = None) -> dic
     iso = lambda d: d.isoformat() + "Z" if d else None
     out = {"enabled": mail_alerts_enabled(db), "available": mailbox.available(),
            "web_available": mailbox.web_available(_mail_redirect_uri()),
-           "connected": conn is not None, "start_max_days": MAIL_START_MAX_DAYS}
+           "connected": conn is not None, "start_max_days": MAIL_START_MAX_DAYS,
+           "providers_allowed": _mail_providers_allowed(db, user),
+           "shared": _mail_shared(db, user)}
     if request is not None and "mail_oauth_result" in request.session:
         out["connect_error"] = request.session.pop("mail_oauth_result")
     with _mail_pending_guard:
@@ -6323,6 +6381,60 @@ def _mail_status(db: Session, user: User, request: Request | None = None) -> dic
     return out
 
 
+def _mail_fed_accounts(db: Session, conn: MailConnection) -> set[int]:
+    """The accounts a mailbox's alerts land in: each taught sender's account
+    and the accounts its cards are matched to."""
+    ids: set[int] = set()
+    for s in db.query(MailSender).filter_by(connection_id=conn.id):
+        if s.account_id:
+            ids.add(s.account_id)
+        ids.update(_mail_cards(s).values())
+    return ids
+
+
+def _mail_shared(db: Session, user: User, account_id: int | None = None, own: bool = False) -> list[dict]:
+    """The accounts this person owns or edits that someone else's mailbox
+    feeds (sync-access phase 5, #268; `own` adds their own mailbox's), with
+    that mailbox's state: whose it is and how its last check went, never its
+    senders, folder or what it brought into the holder's other accounts."""
+    q = (db.query(AccountPermission.account_id)
+         .filter(AccountPermission.user_id == user.id, AccountPermission.level.in_(["owner", "edit"])))
+    if account_id is not None:
+        q = q.filter(AccountPermission.account_id == account_id)
+    mine = {a for (a,) in q}
+    if not mine:
+        return []
+    conns = db.query(MailConnection).order_by(MailConnection.id)
+    if not own:
+        conns = conns.filter(MailConnection.user_id != user.id)
+    enabled = mail_alerts_enabled(db)
+    now = datetime.utcnow()
+    out = []
+    for conn in conns.all():
+        fed = _mail_fed_accounts(db, conn) & mine
+        if not fed:
+            continue
+        holder = db.get(User, conn.user_id)
+        paused = _mail_paused(db, conn, holder)
+        nxt = _mail_next_check(db, conn, now) if enabled else None
+        for acc in db.query(Account).filter(Account.id.in_(fed)).order_by(Account.archived, Account.id):
+            out.append({
+                "account_id": acc.id, "account_name": acc.name, "archived": bool(acc.archived),
+                "level": _user_level(db, user, acc.id),
+                "holder_name": _bank_holder_name(holder), "mine": conn.user_id == user.id,
+                "provider": conn.provider or "microsoft",
+                "provider_name": MAIL_PROVIDER_NAMES.get(conn.provider or "microsoft", "mail"),
+                "last_check_at": _iso_z(conn.last_check_at), "last_check_ok": conn.last_check_ok,
+                "needs_reconnect": bool(conn.needs_reconnect), "paused": paused,
+                # Its person can't sign in, so it isn't read (Check now refuses).
+                "holder_disabled": holder is None or bool(holder.disabled),
+                "next_check_at": _iso_z(nxt),
+                "unmatched_count": _unmatched_query(db, acc.id).count(),
+            })
+    out.sort(key=lambda e: (e["archived"], e["account_id"]))
+    return out
+
+
 def _mail_unmatched_counts(db: Session, user: User) -> list[dict]:
     """The user's accounts with alert lines that paid no bill and are still
     to look at (#209): [{account_id, count}]."""
@@ -6341,6 +6453,8 @@ def _mail_next_check(db: Session, conn: MailConnection, now: datetime) -> dateti
     (no folder, nothing taught, a sign-in to make again, or alerts off)."""
     if conn.needs_reconnect or not conn.folder_id or not mail_alerts_enabled(db):
         return None
+    if _mail_paused(db, conn):
+        return None
     if not db.query(MailSender.id).filter_by(connection_id=conn.id).first():
         return None
     gap = timedelta(minutes=conn.check_minutes or MAIL_INTERVALS[0])
@@ -6351,7 +6465,11 @@ def _mail_short_status(db: Session, user: User) -> dict:
     """What an app needs to show the mailbox's state (#207): no folder or
     sender names, nothing about the sign-in."""
     conn = _mail_connection(db, user)
-    out = {"enabled": mail_alerts_enabled(db), "connected": conn is not None}
+    out = {"enabled": mail_alerts_enabled(db), "connected": conn is not None,
+           # What this person may connect (an admin's tick, #268), and the
+           # accounts they own or edit that someone else's mailbox feeds.
+           "providers_allowed": _mail_providers_allowed(db, user),
+           "shared": _mail_shared(db, user)}
     if not conn:
         return out
     now = datetime.utcnow()
@@ -6364,6 +6482,7 @@ def _mail_short_status(db: Session, user: User) -> dict:
         "last_check_at": iso(conn.last_check_at), "last_check_ok": conn.last_check_ok,
         "last_check_status": conn.last_check_status, "last_ok_at": iso(conn.last_ok_at),
         "needs_reconnect": bool(conn.needs_reconnect),
+        "paused": _mail_paused(db, conn, user),
         "failing_since": iso(failing_since),
         "failing_over_a_day": bool(failing_since and now - failing_since > MAIL_FAILING_WARN_AFTER),
         "next_check_at": iso(_mail_next_check(db, conn, now)),
@@ -6445,6 +6564,7 @@ class MailCodeIn(BaseModel):
 
 def _mail_connect_checks(db: Session, request: Request, user: User, code: str | None) -> None:
     _mail_allowed(db, user)
+    _mail_may_connect(db, user)
     if not mailbox.available():
         raise HTTPException(400, "This server has no Microsoft app set up yet: MS_CLIENT_ID is "
                                  "empty in its .env. See the email alerts setup guide.")
@@ -6476,6 +6596,7 @@ def mail_device_poll(request: Request, user: User = Depends(current_session_user
     """Whether the sign-in with a code has finished. {"status": "pending"}
     until it has; then the mailbox's status."""
     _mail_allowed(db, user)
+    _mail_may_connect(db, user)
     with _mail_pending_guard:
         p = _mail_pending.get(user.id)
         if not p or p["expires"] <= time.time():
@@ -6541,6 +6662,7 @@ def mail_web_callback(request: Request, code: str | None = None, state: str | No
         return back("The sign-in was cancelled or declined at Microsoft.")
     try:
         _mail_allowed(db, user)
+        _mail_may_connect(db, user)
     except HTTPException as e:
         return back(e.detail)
     if _mail_connection(db, user):
@@ -7015,6 +7137,9 @@ def _mail_check_locked(db: Session, user: User, conn: MailConnection, request: R
 
 class MailCheckIn(BaseModel):
     utc_offset_minutes: int | None = Field(default=None, ge=-840, le=840)
+    # One account the caller owns or edits: checks the mailbox that feeds
+    # it, whoever's it is (sync-access phase 5, #268).
+    account_id: int | None = None
 
 
 @app.post("/api/mail/check")
@@ -7022,12 +7147,50 @@ def mail_check_now(request: Request, body: MailCheckIn | None = None,
                    user: User = Depends(current_user), db: Session = Depends(get_db)):
     """Read new alerts from the folder and land them as paid lines. A token
     with write access may (#207, for the iOS app); a read-only one may not."""
+    if body is not None and body.account_id is not None:
+        return _mail_check_account(db, user, body.account_id, request)
     conn = _mail_needed(db, user)
+    if _mail_paused(db, conn, user):
+        raise HTTPException(403, _mail_paused_message(conn))
     if body and body.utc_offset_minutes is not None:
         conn.utc_offset_minutes = body.utc_offset_minutes
         db.commit()
     result = _mail_check(db, user, conn, request, trigger="manual")
     return {**result, "status": _mail_status(db, user)}
+
+
+def _mail_check_account(db: Session, user: User, account_id: int, request: Request) -> dict:
+    """Check now for one account (sync-access phase 5, #268): any owner or
+    editor of it may, whoever's mailbox feeds it. The check runs as the
+    mailbox's person, so their pause, lock and the gap between checks apply.
+    The answer counts only what landed in this account."""
+    acc = _account_with_perm(db, user, account_id, "edit")
+    if not mail_alerts_enabled(db):
+        raise HTTPException(403, "Email alerts are switched off on this instance. An admin can "
+                                 "switch them on in Admin.")
+    conn = next((c for c in db.query(MailConnection).order_by(MailConnection.id)
+                 if acc.id in _mail_fed_accounts(db, c)), None)
+    if conn is None:
+        raise HTTPException(400, "No mailbox's alerts land in this account.")
+    holder = db.get(User, conn.user_id)
+    if holder is None or holder.disabled or is_demo_email(holder.email):
+        raise HTTPException(403, "The person whose mailbox feeds this account can't sign in at the "
+                                 "moment, so its alerts aren't read.")
+    if _mail_paused(db, conn, holder):
+        raise HTTPException(403, _mail_paused_message(
+            conn, None if holder.id == user.id else _bank_holder_name(holder)))
+    _mail_check(db, holder, conn, request, trigger="manual")
+    run = (db.query(MailCheckRun).filter_by(connection_id=conn.id, run_at=conn.last_check_at).first()
+           if conn.last_check_at else None)
+    added = matched = 0
+    if run is not None:
+        lines = db.query(Transaction).filter(Transaction.mail_run_id == run.id,
+                                             Transaction.account_id == acc.id)
+        added = lines.count()
+        matched = lines.filter(Transaction.bank_match.isnot(None)).count()
+    entry = _mail_shared(db, user, account_id=acc.id, own=True)
+    return {"added": added, "matched": matched, "status": _mail_short_status(db, user),
+            "account": entry[0] if entry else None}
 
 
 # ---------- Checking by itself (#207) ----------
@@ -7051,7 +7214,7 @@ def run_due_mail_checks(db: Session, now: datetime | None = None) -> dict:
     for conn in db.query(MailConnection).order_by(MailConnection.id).all():
         user = db.get(User, conn.user_id)
         if user is None or user.disabled or is_demo_email(user.email) or not mail_check_due(db, conn, now):
-            continue
+            continue   # mail_check_due is False for a paused mailbox (#268)
         try:
             _mail_check(db, user, conn, None, trigger="schedule")
             out["checked"] += 1
@@ -9133,6 +9296,9 @@ def admin_list_users(user: User = Depends(current_admin), db: Session = Depends(
     for uid, provider in db.query(BankAccess.user_id, BankAccess.provider).order_by(BankAccess.provider):
         ticked.setdefault(uid, []).append(provider)
     mailed = {uid for (uid,) in db.query(MailConnection.user_id)}
+    mail_ticked: dict[int, list[str]] = {}
+    for uid, provider in db.query(MailAccess.user_id, MailAccess.provider).order_by(MailAccess.provider):
+        mail_ticked.setdefault(uid, []).append(provider)
     out = []
     for u in users:
         acct_count = db.query(AccountPermission).filter_by(user_id=u.id).filter(
@@ -9158,6 +9324,9 @@ def admin_list_users(user: User = Depends(current_admin), db: Session = Depends(
             # admin may always connect, whatever is ticked.
             "bank_access": ticked.get(u.id, []),
             "mail_connected": u.id in mailed,
+            # The mail providers an admin lets them connect a mailbox
+            # through (#268); an admin may always connect.
+            "mail_access": mail_ticked.get(u.id, []),
         })
     return out
 
@@ -9254,6 +9423,39 @@ def admin_set_bank_access(uid: int, payload: BankAccessIn, request: Request,
         record_event(db, "bank_access_changed", request, user=user,
                      detail=f"{audit_target(user, target.id)}: {', '.join(names) or 'none'}")
     return {"id": target.id, "bank_access": [p for p in BANK_PROVIDER_NAMES if p in want]}
+
+
+class MailAccessIn(BaseModel):
+    providers: list[str] = Field(max_length=3)
+
+
+@app.put("/api/admin/users/{uid}/mail-access")
+def admin_set_mail_access(uid: int, payload: MailAccessIn, request: Request,
+                          user: User = Depends(current_session_admin), db: Session = Depends(get_db)):
+    """Which providers a person may connect a mailbox through for email
+    alerts (sync-access phase 5, #268): the whole list each time. Unticking
+    one pauses their mailbox of it; ticking it again carries on. A browser
+    session only, like the Email alerts switch."""
+    target = db.get(User, uid)
+    if not target:
+        raise HTTPException(404, "User not found")
+    want = set(payload.providers)
+    unknown = want - set(MAIL_PROVIDER_NAMES)
+    if unknown:
+        raise HTTPException(400, "Unknown provider: " + ", ".join(sorted(unknown)))
+    if want and is_demo_email(target.email):
+        raise HTTPException(400, "The demo user can't connect a mailbox.")
+    have = {r.provider: r for r in db.query(MailAccess).filter_by(user_id=target.id)}
+    for p in want - set(have):
+        db.add(MailAccess(user_id=target.id, provider=p))
+    for p in set(have) - want:
+        db.delete(have[p])
+    db.commit()
+    if want != set(have):
+        names = [MAIL_PROVIDER_NAMES[p] for p in MAIL_PROVIDER_NAMES if p in want]
+        record_event(db, "mail_access_changed", request, user=user,
+                     detail=f"{audit_target(user, target.id)}: {', '.join(names) or 'none'}")
+    return {"id": target.id, "mail_access": [p for p in MAIL_PROVIDER_NAMES if p in want]}
 
 
 @app.get("/api/admin/users/{uid}/deletion-check")
@@ -9528,7 +9730,7 @@ AUDIT_EVENT_TYPES = (
     "recovery_code_used", "recovery_codes_remade",
     "browser_remembered", "browser_forgotten", "two_factor_requirement_changed",
     "bank_connected", "bank_disconnected", "bank_account_created", "bank_sync_run", "bank_sync_failed",
-    "bank_balance_adjusted", "bank_sync_setting_changed", "bank_access_changed",
+    "bank_balance_adjusted", "bank_sync_setting_changed", "bank_access_changed", "mail_access_changed",
     "bank_connection_passed", "bank_link_removed",
     "mail_connected", "mail_disconnected", "mail_sender_taught", "mail_check_run",
     "mail_check_failed", "mail_alerts_setting_changed",

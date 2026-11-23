@@ -2821,7 +2821,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.103.0";
+const WEB_VERSION = "1.104.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2831,6 +2831,7 @@ const WEB_VERSION = "1.103.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.104.0 (2026-11-22, claude+mkolakowski): (#268) Email alerts on the same model as bank sync. Admin → Users gets an "Email alerts" column: a Microsoft 365 tick per person ("Always" for an admin); a change sends the row's list to PUT /api/admin/users/{id}/mail-access (adminSetMailAccess). Settings → Email alerts shows when alerts are on and /api/mail's new providers_allowed isn't empty, or there's a mailbox, or an account you own or edit takes alerts from someone else's mailbox (/api/mail's new `shared`): "Shared accounts with email alerts" (_mailSharedHtml), a card per account with whose mailbox feeds it, its last check, a paused / needs-reconnecting / can't-sign-in note naming that person, Check now (mailCheckShared → POST /api/mail/check {account_id}) and Unmatched (N). A mailbox an admin has paused (`paused`) says so, with Check now off.
 // 1.103.0 (2026-11-21, claude+mkolakowski): (#266) A bank connection passes on. Settings → Delete account and Admin → Users' delete (adminDeleteUser now reads GET /api/admin/users/{id}/deletion-check first) list the bank connections that pass to another owner ("→ email") and those that are removed, from the deletion check's new bank_connections_passed / bank_connections_deleted. Settings → Bank sync shows a match to an account you don't own (/api/bank's new `locked`) as text, not a dropdown, so Save matches leaves it alone; an owner's shared card gets Stop syncing (bankStopSyncing → DELETE /api/accounts/{id}/bank-link).
 // 1.102.0 (2026-11-21, claude+mkolakowski): (#265) The account holds its sync. Settings → Bank sync also shows for someone with owner or edit on an account that syncs from another person's connection (/api/bank's new `shared`): "Shared accounts that sync" (_bankSharedHtml), a card per account with "Synced from <name>'s <provider> connection · <bank account>", its last sync from its own sync log, a paused or needs-reconnecting note naming that person, and Sync now (bankSyncShared → POST /api/bank/sync {account_id}), Sync log and Unmatched (N). The Forecast's Unmatched pill, Match… and bank balance with Adjust to bank now reach editors because the server sends them.
 // 1.101.0 (2026-11-21, claude+mkolakowski): (#264) Who may connect a bank. Admin → Users gets a "Bank sync" column: a tick per provider the instance offers (plus any already ticked), "Always" for an admin; a change sends the row's whole list to PUT /api/admin/users/{id}/bank-access (adminSetBankAccess). Settings → Bank sync shows only when bank sync is on and /api/bank's new providers_allowed isn't empty (or there's a connection to remove), offers only those providers (_bankOffered reads `allowed`), and a connection with `paused` says an admin has paused it, with Sync now off. app-connect-bank.js offers only allowed providers.
@@ -10405,12 +10406,19 @@ async function loadMail() {
   _mailStopPoll();
   try { mailState = await api('/api/mail'); }
   catch (e) { tab.classList.add('hidden'); return; }
-  tab.classList.toggle('hidden', !(mailState.enabled || mailState.connected));
+  // Who may connect is an admin's tick (#268); someone not ticked still
+  // sees the shared accounts another person's mailbox feeds.
+  const mayConnect = mailState.enabled && (mailState.providers_allowed || []).length > 0;
+  const shared = mailState.enabled ? (mailState.shared || []) : [];
+  tab.classList.toggle('hidden', !(mayConnect || mailState.connected || shared.length));
   mailTeach = null;
   if (!mailState.connected) {
     if (!mailState.enabled) { body.innerHTML = ''; return; }
+    if (!mayConnect) { body.innerHTML = _mailSharedHtml(shared, false); return; }
     if (mailState.pending) return _mailShowPending(mailState.pending);
-    return _renderMailConnect(body);
+    _renderMailConnect(body);
+    if (shared.length) body.insertAdjacentHTML('beforeend', _mailSharedHtml(shared, true));
+    return;
   }
   try { mailOwned = (await api('/api/accounts?include_archived=true')).filter(a => a.level === 'owner'); } catch (_) { mailOwned = []; }
   let folders = [], unread = [], checks = [];
@@ -10418,6 +10426,59 @@ async function loadMail() {
   if (mailState.unread_count) { try { unread = await api('/api/mail/unread'); } catch (_) {} }
   try { checks = await api('/api/mail/checks'); } catch (_) {}
   _renderMailConnected(body, folders, unread, checks);
+  if (shared.length) body.insertAdjacentHTML('beforeend', _mailSharedHtml(shared, true));
+}
+
+// Accounts you own or edit that take lines from someone else's mailbox
+// (sync-access phase 5, #268): you see its last check, run Check now and
+// look at the account's Unmatched list; the mailbox itself stays theirs.
+function _mailSharedHtml(shared, after) {
+  if (!shared.length) return '';
+  return `
+    <h3 class="backup-subhead" style="margin-top:${after ? 24 : 0}px">Shared accounts with email alerts</h3>
+    <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+      These accounts are shared with you and take lines from someone else's bank alert emails. You can check for new
+      alerts and match their lines; only the person whose mailbox it is can teach banks, reconnect or disconnect it.</p>`
+    + shared.map(_mailSharedCardHtml).join('')
+    + '<div id="mailSharedLog" class="hidden" style="margin-top:8px;max-width:720px"></div>';
+}
+
+function _mailSharedCardHtml(a) {
+  const id = Number(a.account_id);
+  const who = escapeHtml(a.holder_name || 'someone');
+  const pname = escapeHtml(a.provider_name || 'mail');
+  const last = (a.last_check_at
+    ? `Last check ${escapeHtml(_bankWhen(a.last_check_at))}${a.last_check_ok === false ? ': it failed.' : '.'}`
+    : 'Not checked yet.')
+    + (a.holder_disabled
+      ? `<br><strong>${who} can't sign in at the moment, so these alerts aren't read.</strong> An admin can turn their sign-in back on.`
+      : a.needs_reconnect
+      ? `<br><strong>${pname} no longer accepts ${who}'s sign-in, so checking has stopped.</strong> ${who} needs to connect it again.`
+      : a.paused
+      ? `<br><strong>An admin has paused ${who}'s ${pname} mailbox.</strong> Its alerts are read again once an admin lets ${who} use ${pname}.`
+      : a.next_check_at
+      ? `<br>Checked by itself; the next check is due about ${escapeHtml(_bankWhen(a.next_check_at))}.`
+      : '');
+  return `<div class="mail-shared" data-account="${id}" style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin:0 0 14px;max-width:760px">
+    <h3 class="backup-subhead" style="margin:0 0 4px">${escapeHtml(a.account_name)}${a.archived ? ' <span style="font-weight:normal;font-size:12px;color:var(--muted)">(archived)</span>' : ''}</h3>
+    <div style="font-size:12px;color:var(--muted)">Alerts from ${who}'s ${pname} mailbox</div>
+    <div style="font-size:13px;margin-top:10px;color:${a.last_check_ok === false ? 'var(--bad)' : 'var(--muted)'}">${last}</div>
+    <div style="margin-top:8px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <button onclick="mailCheckShared(${id})"${a.paused || a.needs_reconnect || a.holder_disabled ? ' disabled' : ''}>Check now</button>
+      ${a.unmatched_count > 0 ? `<button class="ghost" data-mail-unmatched="${id}" onclick="bankShowUnmatched(${id}, 'mailSharedLog')">Unmatched (${Number(a.unmatched_count)})</button>` : ''}
+    </div>
+  </div>`;
+}
+
+async function mailCheckShared(accountId) {
+  const a = ((mailState && mailState.shared) || []).find(x => x.account_id === accountId);
+  _mailSay(`Checking ${a ? a.holder_name + "'s" : 'the'} mailbox…`);
+  try {
+    const r = await api('/api/mail/check', { method: 'POST', body: JSON.stringify({ account_id: accountId }) });
+    notify(`${r.added} new line${r.added === 1 ? '' : 's'} in ${a ? a.account_name : 'this account'}${r.matched ? ` (${r.matched} matched a bill)` : ''}.`);
+    await loadMail();
+    if (r.added) loadAccounts();
+  } catch (e) { _mailSay(errText(e), 'var(--bad)'); }
 }
 
 function _renderMailConnect(body) {
@@ -10558,6 +10619,7 @@ function _renderMailConnected(body, folders, unread, checks) {
   const lastLine = m.last_check_at
     ? `Last check ${escapeHtml(_bankWhen(m.last_check_at))}: ${escapeHtml(m.last_check_status || '')}` : 'Not checked yet.';
   const nextLine = m.needs_reconnect ? 'Checking by itself has stopped until you connect again.'
+    : m.paused ? 'An admin has paused your mailbox: it\'s kept, and checking carries on once an admin lets you use it again in Admin → Users.'
     : m.next_check_at ? `Checked by itself every ${m.check_minutes} minutes; the next check is due about ${escapeHtml(_bankWhen(m.next_check_at))}.`
     : !m.folder ? 'It starts checking by itself once you choose a folder and teach a bank\'s alert.'
     : !(m.senders || []).length ? 'It starts checking by itself once you teach a bank\'s alert.'
@@ -10573,7 +10635,7 @@ function _renderMailConnected(body, folders, unread, checks) {
         ${r.added ? `<button class="ghost" style="padding:2px 8px" onclick="mailShowRun(${r.id})">Show lines</button>` : ''}</div>
       <div id="mailRun${r.id}"></div>
     </div>`).join('');
-  const canCheck = !!m.folder && (m.senders || []).length > 0 && !m.needs_reconnect;
+  const canCheck = !!m.folder && (m.senders || []).length > 0 && !m.needs_reconnect && !m.paused;
   const unreadRows = unread.map(u => `
     <div style="border-top:1px solid var(--border,#8884);padding:8px 0;font-size:13px;max-width:720px">
       <div style="color:var(--muted);font-size:12px">${escapeHtml(_bankWhen(u.received_at))} · ${escapeHtml(u.sender || '')}</div>
@@ -11002,11 +11064,40 @@ async function adminSetBankAccess(uid, box) {
   } finally { boxes.forEach(b => b.disabled = false); }
 }
 
+// Admin → Users, "Email alerts" column (#268): who may connect a mailbox.
+// Microsoft 365 is offered once the server has MS_CLIENT_ID (as
+// /api/admin/mail-alerts says); one already ticked stays shown.
+const MAIL_PROVIDER_NAMES = { microsoft: 'Microsoft 365' };
+let adminMailOffered = ['microsoft'];
+function _adminMailAccessHtml(u) {
+  if (u.is_admin) return '<span style="color:var(--muted);font-size:12px" title="Admins may always connect a mailbox">Always</span>';
+  const ticked = u.mail_access || [];
+  const keys = Object.keys(MAIL_PROVIDER_NAMES).filter(k => adminMailOffered.includes(k) || ticked.includes(k));
+  if (!keys.length) return '<span style="color:var(--muted);font-size:12px">—</span>';
+  return keys.map(k => `<label style="display:inline-flex;gap:4px;align-items:center;margin-right:8px;font-size:12px;white-space:nowrap">
+      <input type="checkbox" class="admin-mail-access" data-user="${Number(u.id)}" value="${k}"${ticked.includes(k) ? ' checked' : ''}
+             onchange="adminSetMailAccess(${Number(u.id)}, this)">${MAIL_PROVIDER_NAMES[k]}</label>`).join('');
+}
+async function adminSetMailAccess(uid, box) {
+  const boxes = [...document.querySelectorAll(`.admin-mail-access[data-user="${uid}"]`)];
+  boxes.forEach(b => b.disabled = true);
+  try {
+    await api(`/api/admin/users/${uid}/mail-access`, { method: 'PUT',
+      body: JSON.stringify({ providers: boxes.filter(b => b.checked).map(b => b.value) }) });
+    notify(box.checked ? `${MAIL_PROVIDER_NAMES[box.value]} mailbox allowed.` : `${MAIL_PROVIDER_NAMES[box.value]} mailbox no longer allowed; a mailbox already connected is paused.`);
+  } catch (e) {
+    box.checked = !box.checked;
+    notifyError('Could not change email alerts access', e);
+  } finally { boxes.forEach(b => b.disabled = false); }
+}
+
 async function loadAdminUsers() {
   const wrap = document.getElementById('adminUsersList');
   try {
-    const [users, bankCfg] = await Promise.all([api('/api/admin/users'), api('/api/admin/bank-sync').catch(() => null)]);
+    const [users, bankCfg, mailCfg] = await Promise.all([api('/api/admin/users'), api('/api/admin/bank-sync').catch(() => null),
+                                                         api('/api/admin/mail-alerts').catch(() => null)]);
     if (bankCfg && bankCfg.providers) adminBankOffered = Object.keys(bankCfg.providers).filter(k => bankCfg.providers[k]);
+    if (mailCfg) adminMailOffered = mailCfg.microsoft_configured ? ['microsoft'] : [];
     if (!users.length) {
       wrap.innerHTML = '<div style="color:var(--muted)">No users.</div>';
       return;
@@ -11028,6 +11119,7 @@ async function loadAdminUsers() {
         <td class="num">${u.owned_count} owned, ${u.account_count} total</td>
         <td style="color:var(--muted);font-size:12px">${u.created_at ? u.created_at.slice(0,10) : '—'}</td>
         <td>${_adminBankAccessHtml(u)}</td>
+        <td>${_adminMailAccessHtml(u)}</td>
         <td style="white-space:nowrap">
           <button class="ghost" onclick="adminToggleDisable(${u.id}, ${!u.disabled})" title="${u.disabled ? 'Enable' : 'Disable'}">
             ${u.disabled ? '✓ Enable' : '⊘ Disable'}
@@ -11039,7 +11131,7 @@ async function loadAdminUsers() {
       </tr>`;
     }).join('');
     wrap.innerHTML = `<table><thead><tr>
-      <th>Email</th><th>Name</th><th>Auth</th><th>Accounts</th><th>Created</th><th title="Which providers each person may connect a bank through">Bank sync</th><th></th>
+      <th>Email</th><th>Name</th><th>Auth</th><th>Accounts</th><th>Created</th><th title="Which providers each person may connect a bank through">Bank sync</th><th title="Which mailboxes each person may connect for email alerts">Email alerts</th><th></th>
     </tr></thead><tbody>${rows}</tbody></table>`;
   } catch (e) {
     wrap.innerHTML = `<div style="color:var(--bad)">Error: ${escapeHtml(errText(e))}</div>`;

@@ -6,10 +6,12 @@ Tracking issue: #298
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Sections and pages | #294 | Planned 2026-11-23; not started |
+| 1. Sections and pages | #294 | Built in iOS 0.36.0, 2026-11-23; waits for Matthew's look and a release |
 | 2. A sidebar when the Duo is open | #295 | Planned 2026-11-23; not started |
 | 3. Appearance previews, Dates & display | #296 | Planned 2026-11-23; not started |
 | 4. Custom themes | #297 | Planned 2026-11-23; not started |
+
+Phase 1 built 2026-11-23 in iOS 0.36.0 (4ce0304; no server change), by an orchestrated run (an Opus worker wrote it; this thread checked it and made the page tiles compact): `SettingsView.swift` holds the root list (the connection card, More pages as tiles, Your household, This iPhone, About) and `SettingsPages.swift` each page (the connection's, Bank sync, Appearance, Privacy & lock, iCloud & backup, Move to a server, Help & Getting started, Keep on this iPhone); `SettingsLayout` in the Kit lists the sections, rows and pages for a server, this iPhone and the demo, and the views read it. Three things differ from before and are in the changelog: the look "Match the phone" is named "Match this iPhone" (its stored value unchanged); Important notice is a pushed page, not a sheet; the backup passphrase row sits on iCloud & backup only. In the demo, the connection's page offers Leave the demo in place of the server rows that made no sense there. New Debug launch setting `WW_DEBUG_SETTINGS=<page>`. Verified: `swift test`, 238 passed (8 new in `SettingsLayoutTests`, which fail if a row is dropped); Duo simulator pictures of the root list in the demo and on the household on this iPhone, of every page, in Sepia and Dark, on the picture page linked from #294. Not checked on a real server sign-in (the simulator has none): the connection's page for a server.
 
 Planned 2026-11-23 from a design review of iOS 0.34.0, asked for as "can you perform a design review of the ios app, looking for ux inconsistancies and suggest more features for the duo. please also take a look at overhauling settings and I would also like a plan for the ability to connect to multiple servers as well as running local and even accessing the demo (from the settings)". The review ran the app in the demo on the Duo simulator in every pose and at a large text size, made 27 findings (R1 to R27) and twelve ideas (F1 to F12), and drew today beside the proposal for each ([the review page](https://claude.ai/artifact/YanSV7o5FqX9WC6SdzZkyj), private to Matthew). The choices made in four rounds of questions are on the [decision page](../docs/dev/decisions/ios-review.md).
 

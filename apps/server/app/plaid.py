@@ -10,11 +10,13 @@ connection. API: https://plaid.com/docs/api/ (checked 2026-11-20).
 
 Plaid's amounts are positive when money leaves the account; they're turned
 round here, so money out is negative as everywhere else. Pending lines are
-left out. Errors come back as PlaidError with a plain message; the keys and
-tokens never appear in one. Bank text is data: cut to size and stored or
+left out. Since own-bank-keys phase 1 (#276) the client id, secret and
+environment are each person's own (`Keys`, from the database: a
+connection's copy, or its person's), never `.env`. Errors come back as
+PlaidError with a plain message; the keys and tokens never appear in one. Bank text is data: cut to size and stored or
 shown escaped, never acted on.
 """
-import os
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
 import httpx
@@ -33,6 +35,7 @@ _transport: httpx.BaseTransport | None = None
 # The connection is gone or needs the person at Plaid again.
 REVOKED = {"ITEM_LOGIN_REQUIRED", "ITEM_NOT_FOUND", "ACCESS_NOT_GRANTED", "INVALID_ACCESS_TOKEN",
            "USER_PERMISSION_REVOKED", "NO_ACCOUNTS"}
+BAD_KEYS = {"INVALID_API_KEYS", "INVALID_SECRET", "INVALID_CLIENT_ID", "UNAUTHORIZED_ENVIRONMENT"}
 AT_THE_BANK = {"PASSWORD_RESET_REQUIRED", "USER_SETUP_REQUIRED", "ITEM_LOCKED"}
 
 
@@ -42,26 +45,35 @@ class PlaidError(BankError):
         self.code = code
 
 
-def environment() -> str:
-    env = os.environ.get("PLAID_ENV", "").strip().lower() or "production"
+@dataclass(frozen=True)
+class Keys:
+    """One set of Plaid keys: the client id, the secret, the environment."""
+    client_id: str
+    secret: str
+    environment: str = "production"
+
+    def __repr__(self) -> str:   # never the secret in a log line
+        return f"plaid.Keys(client_id={self.client_id!r}, environment={self.environment!r})"
+
+
+def environment_of(value) -> str:
+    env = str(value or "").strip().lower() or "production"
     return env if env in HOSTS else "production"
 
 
-def _keys() -> tuple[str, str]:
-    return (os.environ.get("PLAID_CLIENT_ID", "").strip(), os.environ.get("PLAID_SECRET", "").strip())
+def available(keys: Keys | None) -> bool:
+    return bool(keys and keys.client_id and keys.secret)
 
 
-def available() -> bool:
-    cid, secret = _keys()
-    return bool(cid and secret)
-
-
-def _post(path: str, body: dict) -> dict:
-    cid, secret = _keys()
+def _post(keys: Keys | None, path: str, body: dict) -> dict:
+    if not available(keys):
+        raise PlaidError("There are no Plaid keys for this connection. Add your Plaid keys in "
+                         "Settings → Bank sync.", status=409)
     try:
-        with httpx.Client(base_url=HOSTS[environment()], timeout=TIMEOUT, follow_redirects=False,
-                          transport=_transport) as c:
-            r = c.post(path, json=body, headers={"PLAID-CLIENT-ID": cid, "PLAID-SECRET": secret})
+        with httpx.Client(base_url=HOSTS[environment_of(keys.environment)], timeout=TIMEOUT,
+                          follow_redirects=False, transport=_transport) as c:
+            r = c.post(path, json=body, headers={"PLAID-CLIENT-ID": keys.client_id,
+                                                 "PLAID-SECRET": keys.secret})
     except httpx.HTTPError:
         raise PlaidError("Couldn't reach Plaid. Try again in a while.")
     try:
@@ -77,6 +89,22 @@ def _post(path: str, body: dict) -> dict:
     raise e
 
 
+def check(keys: Keys) -> None:
+    """Whether Plaid accepts these keys, before they're saved: one call to
+    /institutions/get, which needs only the client id and secret. Raises
+    PlaidError saying what's wrong."""
+    if not keys.client_id or not keys.secret:
+        raise PlaidError("Enter your Plaid client id and secret.", status=400)
+    try:
+        _post(keys, "/institutions/get", {"count": 1, "offset": 0, "country_codes": ["US"]})
+    except PlaidError as e:
+        if e.code in BAD_KEYS:
+            raise PlaidError(f"Plaid didn't accept this client id and secret for {keys.environment}. "
+                             "Check them on Plaid's dashboard (Developers → Keys).", status=400,
+                             code=e.code)
+        raise
+
+
 def _error(status: int, code: str, kind: str) -> PlaidError:
     if code in REVOKED:
         return PlaidError("Plaid no longer reaches this bank: you may need to sign in to it again. "
@@ -87,16 +115,16 @@ def _error(status: int, code: str, kind: str) -> PlaidError:
                           status=409)
     if kind == "RATE_LIMIT_EXCEEDED" or status == 429:
         return PlaidError("Plaid asked this server to slow down. Try again in a few minutes.", status=429)
-    if code in ("INVALID_API_KEYS", "INVALID_SECRET", "INVALID_CLIENT_ID"):
-        return PlaidError("Plaid didn't accept this server's keys. Check PLAID_CLIENT_ID, PLAID_SECRET "
-                          "and PLAID_ENV in .env.")
+    if code in BAD_KEYS:
+        return PlaidError("Plaid didn't accept the keys this connection was made with. Check your "
+                          "Plaid keys in Settings → Bank sync.")
     if kind == "INSTITUTION_ERROR":
         return PlaidError("Your bank isn't answering Plaid right now. Try again in a while.")
     return PlaidError(f"Plaid answered with an error ({(code or 'HTTP ' + str(status))[:60]}). "
                       "Try again in a while.")
 
 
-def create_link(user_ref: str, client_name: str, days: int, completion_uri: str | None = None) -> dict:
+def create_link(keys: Keys, user_ref: str, client_name: str, days: int, completion_uri: str | None = None) -> dict:
     """A Hosted Link for one bank login: {"link_token", "url", "expires_at"}.
     `completion_uri` is where Plaid sends the browser when the person is done
     or gives up (a connection started from the iPhone app, #258): the
@@ -106,7 +134,7 @@ def create_link(user_ref: str, client_name: str, days: int, completion_uri: str 
     hosted = {"url_lifetime_seconds": LINK_MINUTES * 60}
     if completion_uri:
         hosted["completion_redirect_uri"] = completion_uri
-    data = _post("/link/token/create", {
+    data = _post(keys, "/link/token/create", {
         "client_name": (client_name or "WalletWeather")[:30],
         "language": "en",
         "country_codes": ["US"],
@@ -122,11 +150,11 @@ def create_link(user_ref: str, client_name: str, days: int, completion_uri: str 
             "expires_at": datetime.utcnow() + timedelta(minutes=LINK_MINUTES)}
 
 
-def link_result(link_token: str) -> dict:
+def link_result(keys: Keys, link_token: str) -> dict:
     """How the Hosted Link went: {"state": "waiting" | "done" | "exited",
     "public_token", "institution"}. Plaid keeps a finished session's result
     for six hours."""
-    data = _post("/link/token/get", {"link_token": link_token})
+    data = _post(keys, "/link/token/get", {"link_token": link_token})
     sessions = data.get("link_sessions") or []
     finished = False
     for s in sessions if isinstance(sessions, list) else []:
@@ -143,8 +171,8 @@ def link_result(link_token: str) -> dict:
     return {"state": "exited" if finished else "waiting", "public_token": None, "institution": ""}
 
 
-def exchange(public_token: str) -> str:
-    data = _post("/item/public_token/exchange", {"public_token": public_token})
+def exchange(keys: Keys, public_token: str) -> str:
+    data = _post(keys, "/item/public_token/exchange", {"public_token": public_token})
     token = data.get("access_token")
     if not isinstance(token, str) or not token:
         raise PlaidError("Plaid didn't finish connecting the bank. Try connecting again.")
@@ -165,16 +193,16 @@ def _account(a: dict, org: str) -> dict | None:
     return {"id": a["account_id"][:200], "name": name, "org": org, "balance": balance}
 
 
-def fetch_accounts(access_token: str) -> tuple[list[dict], str]:
+def fetch_accounts(keys: Keys, access_token: str) -> tuple[list[dict], str]:
     """The bank accounts this Item reaches, and the bank's name."""
-    data = _post("/accounts/get", {"access_token": access_token})
+    data = _post(keys, "/accounts/get", {"access_token": access_token})
     item = data.get("item") if isinstance(data.get("item"), dict) else {}
     org = _text(item.get("institution_name"), NAME_MAX)
     accounts = [a for a in (_account(x, org) for x in data.get("accounts") or []) if a]
     return accounts, org
 
 
-def fetch(access_token: str, cursor: str | None, org: str = "") -> dict:
+def fetch(keys: Keys, access_token: str, cursor: str | None, org: str = "") -> dict:
     """New posted lines since `cursor` ("" or None for everything Plaid
     has), in SimpleFIN's shape plus "cursor" (where the next sync starts).
     Raises a PlaidError while Plaid is still gathering the first history."""
@@ -186,7 +214,7 @@ def fetch(access_token: str, cursor: str | None, org: str = "") -> dict:
                 body = {"access_token": access_token, "count": SYNC_PAGE}
                 if cur:
                     body["cursor"] = cur
-                data = _post("/transactions/sync", body)
+                data = _post(keys, "/transactions/sync", body)
                 for a in data.get("accounts") or []:
                     acc = _account(a, org)
                     if acc:
@@ -233,11 +261,11 @@ def fetch(access_token: str, cursor: str | None, org: str = "") -> dict:
     return {"accounts": out, "messages": [], "cursor": cur}
 
 
-def remove(access_token: str) -> None:
+def remove(keys: Keys, access_token: str) -> None:
     """Remove the Item at Plaid: it stops reading the bank (and billing). An
     Item Plaid no longer knows counts as removed."""
     try:
-        _post("/item/remove", {"access_token": access_token})
+        _post(keys, "/item/remove", {"access_token": access_token})
     except PlaidError as e:
         if e.revoked:
             return

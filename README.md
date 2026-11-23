@@ -73,12 +73,7 @@ All configuration is via environment variables in `.env`:
 | `REGISTRATION_CODE` | No | *(none)* | A code people must type to register with a password. Set one on any instance other people can reach |
 | `ALLOWED_EMAILS` | No | — | Comma-separated allowlist for registration |
 | `ADMIN_EMAILS` | No | — | Comma-separated admin emails (enables Admin panel) |
-| `TELLER_APP_ID` | No | — | Teller's application id, to offer bank sync through Teller (`docs/bank-sync.md`) |
-| `TELLER_ENV` | No | `development` | `sandbox`, `development` (your real banks, free up to 100 bank logins) or `production` |
-| `TELLER_CERT_DIR` | With Teller | `./secrets/teller` | Folder holding Teller's `certificate.pem` and `private_key.pem`, mounted read-only (not needed for `sandbox`) |
-| `PLAID_CLIENT_ID` | No | — | Plaid's client id, to offer bank sync through Plaid |
-| `PLAID_SECRET` | With Plaid | — | Plaid's secret for `PLAID_ENV` |
-| `PLAID_ENV` | No | `production` | `sandbox` or `production` |
+| `TELLER_APP_ID`, `TELLER_ENV`, `TELLER_CERT_DIR`, `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV` | No | — | Read once, on the upgrade to 1.95.0, to copy the server's Teller and Plaid keys to the people already using them; not read after that. Each person now adds their own keys in Settings → Bank sync (`docs/bank-sync.md`) |
 | `SIMPLEFIN_HOSTS` | No | SimpleFIN Bridge | The only hosts a pasted SimpleFIN token may point the server at, comma-separated. Leave empty for SimpleFIN Bridge |
 | `MS_CLIENT_ID` | For email alerts | — | The Application (client) ID of the Microsoft app you register for email alerts ([setup guide](https://mkolakowski.github.io/WalletWeather/email-alerts.html)). Without it nobody can connect a mailbox |
 | `MS_CLIENT_SECRET` | No | — | That app's client secret, only for the "Connect with Microsoft" button on an `https://` `APP_BASE_URL`. Signing in with a code doesn't need it |

@@ -2167,8 +2167,9 @@
         <h2>Bank sync</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           Let users bring transactions in from their bank through SimpleFIN Bridge (a service each of them
-          subscribes to), Teller or Plaid. Teller and Plaid are offered only once their keys are in
-          <code>.env</code>. With it on, this server calls the provider for the users who connect; nothing is
+          subscribes to), Teller or Plaid. For Teller and Plaid each person adds keys from a developer account
+          of their own in Settings → Bank sync; the server's <code>.env</code> isn't read for them. Tick who may
+          use each in Admin → Users. With it on, this server calls the provider for the users who connect; nothing is
           sent for anyone else. Switching it off stops connecting and syncing; connections already made stay
           until their users disconnect.
         </p>
@@ -2822,7 +2823,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.105.0";
+const WEB_VERSION = "1.106.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2832,6 +2833,7 @@ const WEB_VERSION = "1.105.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.106.0 (2026-11-23, claude+mkolakowski): (#276) Your own Teller and Plaid keys. Settings → Bank sync gets "Your Teller and Plaid keys" (_bankKeysHtml): a card per provider you're ticked for or have keys for. Without keys, a form: Teller's application id, environment (development by default), Teller's zip with the two files or pasted text as fallbacks; Plaid's client id, secret and environment (production by default); "Check and save" sends PUT /api/bank/keys/teller or /plaid (bankKeysSave) with the two-factor code. Saved, the card shows the id, environment and when checked from /api/bank's new `keys` (never the secret), which connections use them, Replace and Remove (bankKeysRemove → POST /api/bank/keys/remove). The tab also shows while you're ticked for Teller or Plaid without keys. Admin → Bank sync says .env's Teller and Plaid lines aren't read any more, and to how many people they were copied. app-connect-bank.js tells a ticked person without keys to add theirs in Settings.
 // 1.105.0 (2026-11-22, claude+mkolakowski): (#210) Email alerts joined to bank sync rows. A Forecast line that is an email alert joined to its bank row (the forecast row's new alert_joined_posted) wears the Bank sync mark as a bank line does (the server sends match_source 'bank'); its open line says "From an email alert, posted by the bank on <date>" (_alertJoinedNote) and offers Un-join (_forecastUnjoinBtn → unjoinAlertLine → POST /api/transactions/{id}/alert-unjoin). The Unmatched list (bankShowUnmatched) offers Join… on an alert line or a bank row when GET .../bank-unmatched/joins says the account has bank sync (it also lists the joined and never-posted lines) (openJoinPopin → GET .../bank-unmatched/{id}/join-candidates, the match pop-in's cards with "Join these" → POST .../join), and a "Never posted" tag with its hint, Delete (bankDeleteNeverPosted → DELETE /api/transactions/{id}) and Keep (leave) on an alert line no bank row met in 10 days. Settings → Accounts gets one sentence row under an account you own with both email alerts and bank sync (/api/accounts' new alerts_and_bank): "Join an alert to the bank's line within [7] days, up to [30]% higher (tips)" with Save (saveAlertJoin → PATCH /api/accounts/{id} {alert_join_days, alert_join_percent}). The email alert account pickers no longer grey out accounts with bank sync, and the sync log has a Joined column.
 // 1.104.0 (2026-11-22, claude+mkolakowski): (#268) Email alerts on the same model as bank sync. Admin → Users gets an "Email alerts" column: a Microsoft 365 tick per person ("Always" for an admin); a change sends the row's list to PUT /api/admin/users/{id}/mail-access (adminSetMailAccess). Settings → Email alerts shows when alerts are on and /api/mail's new providers_allowed isn't empty, or there's a mailbox, or an account you own or edit takes alerts from someone else's mailbox (/api/mail's new `shared`): "Shared accounts with email alerts" (_mailSharedHtml), a card per account with whose mailbox feeds it, its last check, a paused / needs-reconnecting / can't-sign-in note naming that person, Check now (mailCheckShared → POST /api/mail/check {account_id}) and Unmatched (N). A mailbox an admin has paused (`paused`) says so, with Check now off.
 // 1.103.0 (2026-11-21, claude+mkolakowski): (#266) A bank connection passes on. Settings → Delete account and Admin → Users' delete (adminDeleteUser now reads GET /api/admin/users/{id}/deletion-check first) list the bank connections that pass to another owner ("→ email") and those that are removed, from the deletion check's new bank_connections_passed / bank_connections_deleted. Settings → Bank sync shows a match to an account you don't own (/api/bank's new `locked`) as text, not a dropdown, so Save matches leaves it alone; an owner's shared card gets Stop syncing (bankStopSyncing → DELETE /api/accounts/{id}/bank-link).
@@ -9522,14 +9524,15 @@ function _adminBankSyncShow(data) {
   const n = data.connected_users;
   const status = document.getElementById('adminBankSyncStatus');
   status.style.color = '';
-  const p = data.providers || {};
-  const ready = ['SimpleFIN'].concat(p.teller ? ['Teller'] : [], p.plaid ? ['Plaid'] : []);
-  const missing = [].concat(p.teller ? [] : ['Teller (TELLER_APP_ID and its certificate)'],
-                            p.plaid ? [] : ['Plaid (PLAID_CLIENT_ID and PLAID_SECRET)']);
+  // Since #276 each person brings their own Teller and Plaid keys: .env's
+  // were copied once, on the upgrade, to the people using them.
+  const copied = data.env_keys_copied || {};
+  const copiedText = ['teller', 'plaid'].filter(k => copied[k] && copied[k].people > 0).map(k =>
+    `${k === 'teller' ? 'Teller' : 'Plaid'}'s keys from .env were copied to ${copied[k].people} ${copied[k].people === 1 ? 'person' : 'people'} on ${new Date(copied[k].at).toLocaleDateString()}.`);
   status.textContent = (data.enabled ? 'On. ' : 'Off. ')
     + (n === 0 ? 'No user has a bank connected.' : n + ' user' + (n === 1 ? ' has a bank' : 's have a bank') + ' connected.')
-    + ' Offered: ' + ready.join(', ') + '.'
-    + (missing.length ? ' Not set up: ' + missing.join('; ') + '.' : '');
+    + ' The TELLER_ and PLAID_ lines in .env are no longer read: each person adds their own keys in Settings → Bank sync.'
+    + (copiedText.length ? ' ' + copiedText.join(' ') : '');
 }
 async function loadAdminBankSync() {
   const links = document.getElementById('adminBankSyncLinks');
@@ -9629,10 +9632,13 @@ async function loadBank() {
   // Shown while an admin lets this person connect through something (#264),
   // or while they still have a connection to see or remove.
   const mayConnect = bankState.enabled && (bankState.providers_allowed || []).length > 0;
+  // Or while they're ticked for Teller or Plaid (to add their keys), or have
+  // keys saved (to remove them) (#276).
+  const keysHtml = _bankKeysHtml();
   // Or while an account they own or edit syncs from someone else's
   // connection (#265).
   const shared = bankState.enabled ? (bankState.shared || []) : [];
-  tab.classList.toggle('hidden', !(mayConnect || bankState.connected || shared.length));
+  tab.classList.toggle('hidden', !(mayConnect || bankState.connected || shared.length || keysHtml));
   let owned = [];
   if (bankState.connected) {
     try { owned = (await api('/api/accounts?include_archived=true')).filter(a => a.level === 'owner'); } catch (_) {}
@@ -9654,7 +9660,9 @@ async function loadBank() {
     + (shared.length ? _bankSharedHtml(shared, conns.length > 0) : '')
     + (conns.length || shared.length ? '<div id="bankLog" class="hidden" style="margin-top:14px;max-width:720px"></div>' : '')
     + (conns.length ? _bankCategoriesHtml() : '')
-    + (mayConnect ? _bankConnectHtml(conns.length > 0)
+    + keysHtml
+    + (mayConnect ? _bankConnectHtml(conns.length > 0 || !!keysHtml)
+      : keysHtml ? ''
       : bankState.enabled ? `<p style="color:var(--muted);font-size:13px;margin-top:16px">An admin hasn't let you connect ${conns.length ? 'another bank' : 'a bank of your own'}. They can in Admin → Users.</p>` : '');
 }
 
@@ -9777,10 +9785,184 @@ async function bankSaveCategories() {
 }
 
 // The providers on offer, as the server says (#254): Teller and Plaid only
-// when their keys are in .env.
+// once you've saved your own keys for them (#276).
 function _bankOffered(key) {
   const p = (bankState.providers || []).find(x => x.key === key);
   return !!(p && p.available && p.allowed !== false);   // `allowed`: an admin lets you (#264)
+}
+
+// Your own Teller and Plaid keys (#276). Decided 2026-11-23: each person
+// brings keys from a developer account of their own; saving checks them with
+// the service first; once saved a card shows the id, the environment and when
+// they were checked, never the secret, with Replace and Remove. Teller's zip
+// is the default, with the two files or their pasted text as fallbacks.
+const BANK_KEY_ENVS = {
+  teller: [['sandbox', 'Sandbox'], ['development', 'Development'], ['production', 'Production']],
+  plaid: [['sandbox', 'Sandbox'], ['production', 'Production']],
+};
+const bankKeysReplacing = {};   // provider → true while its Replace form is open
+
+function _bankTicked(key) {
+  const p = (bankState.providers || []).find(x => x.key === key);
+  return !!(p && p.allowed);
+}
+
+function _bankKeysHtml() {
+  const keys = bankState.keys || {};
+  const show = ['teller', 'plaid'].filter(k => keys[k] || (bankState.enabled && _bankTicked(k)));
+  if (!show.length) return '';
+  return `
+    <h3 class="backup-subhead" style="margin-top:24px">Your Teller and Plaid keys</h3>
+    <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+      Teller and Plaid each need keys from a developer account of your own, so your bank logins count against
+      your own account there. They're checked with the service before they're saved, kept encrypted on this
+      server, and the secret part is never shown again.</p>`
+    + show.map(_bankKeysCardHtml).join('');
+}
+
+function _bankKeysCardHtml(p) {
+  const k = (bankState.keys || {})[p];
+  const name = p === 'teller' ? 'Teller' : 'Plaid';
+  const idLabel = p === 'teller' ? 'Application id' : 'Client id';
+  const mayEdit = bankState.enabled && _bankTicked(p);
+  const env = k ? ((BANK_KEY_ENVS[p].find(e => e[0] === k.environment) || [k.environment, k.environment])[1]) : '';
+  const saved = k ? `
+      <div style="font-size:13px">${idLabel} <code>${escapeHtml(k.id)}</code> · ${escapeHtml(env)}
+        · ${k.checked_at ? 'checked ' + escapeHtml(_bankWhen(k.checked_at)) : 'not checked yet'}</div>
+      ${(k.in_use || []).length ? `<div style="font-size:12px;color:var(--muted);margin-top:4px">Used by ${(k.in_use || []).map(escapeHtml).join(', ')}.
+        Replacing them with a different ${idLabel.toLowerCase()}, or removing them, waits until ${k.in_use.length === 1 ? 'it is' : 'they are'} disconnected.</div>` : ''}
+      <div style="margin-top:8px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        ${mayEdit ? `<button class="ghost" onclick="bankKeysReplace('${p}', ${bankKeysReplacing[p] ? 'false' : 'true'})">${bankKeysReplacing[p] ? 'Cancel' : 'Replace'}</button>` : ''}
+        <span style="flex:1"></span>
+        ${bankKeysReplacing[p] ? '' : `<button class="danger" onclick="bankKeysRemove('${p}')">Remove</button>`}
+      </div>
+      ${bankKeysReplacing[p] ? '' : _bankCodeField('bankKeysRemoveCode_' + p)}` : `
+      <div style="font-size:13px;color:var(--muted)">Add your ${name} keys to connect a bank through ${name}.</div>`;
+  const form = mayEdit && (!k || bankKeysReplacing[p]) ? (p === 'teller' ? _bankTellerForm() : _bankPlaidForm()) : '';
+  return `<div class="bank-keys" data-provider="${p}" style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin:0 0 14px;max-width:760px">
+    <h3 class="backup-subhead" style="margin:0 0 6px">Your ${name} keys</h3>
+    ${saved}
+    ${form}
+    <div id="bankKeysStatus_${p}" role="status" style="margin-top:8px;font-size:13px"></div>
+  </div>`;
+}
+
+function _bankEnvSelect(p, id, dflt) {
+  return `<select id="${id}">${BANK_KEY_ENVS[p].map(([v, label]) =>
+    `<option value="${v}"${v === dflt ? ' selected' : ''}>${label}</option>`).join('')}</select>`;
+}
+
+function _bankTellerForm() {
+  return `<div class="bank-keys-form" style="margin-top:10px;max-width:560px">
+      <ol style="margin:0 0 10px 18px;padding:0;font-size:13px;line-height:1.6;color:var(--muted)">
+        <li>In Teller's dashboard, copy your application id.</li>
+        <li>Under Certificates, make a certificate: Teller downloads it as <code>teller.zip</code>.</li>
+        <li>Pick that zip here, choose the environment, and press Check and save. The sandbox needs no certificate.</li>
+      </ol>
+      <label for="bankTellerApp">Application id</label>
+      <input id="bankTellerApp" maxlength="200" autocomplete="off" spellcheck="false" placeholder="app_…">
+      <label for="bankTellerEnv" style="margin-top:8px">Environment</label>
+      ${_bankEnvSelect('teller', 'bankTellerEnv', 'development')}
+      <label for="bankTellerZip" style="margin-top:8px">Teller's zip (teller.zip)</label>
+      <input id="bankTellerZip" type="file" accept=".zip,application/zip">
+      <details style="margin-top:8px">
+        <summary style="cursor:pointer;font-size:13px">Or pick the two files</summary>
+        <label for="bankTellerCertFile" style="margin-top:8px">certificate.pem</label>
+        <input id="bankTellerCertFile" type="file" accept=".pem">
+        <label for="bankTellerKeyFile" style="margin-top:8px">private_key.pem</label>
+        <input id="bankTellerKeyFile" type="file" accept=".pem">
+      </details>
+      <details style="margin-top:8px">
+        <summary style="cursor:pointer;font-size:13px">Or paste their text</summary>
+        <label for="bankTellerCertText" style="margin-top:8px">Certificate</label>
+        <textarea id="bankTellerCertText" rows="4" spellcheck="false" autocomplete="off" maxlength="20000"
+                  style="width:100%;font-family:monospace;font-size:12px" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
+        <label for="bankTellerKeyText" style="margin-top:8px">Private key</label>
+        <textarea id="bankTellerKeyText" rows="4" spellcheck="false" autocomplete="off" maxlength="20000"
+                  style="width:100%;font-family:monospace;font-size:12px" placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
+      </details>
+      ${_bankCodeField('bankKeysCode_teller')}
+      <div style="margin-top:10px"><button onclick="bankKeysSave('teller')">Check and save</button></div>
+    </div>`;
+}
+
+function _bankPlaidForm() {
+  return `<div class="bank-keys-form" style="margin-top:10px;max-width:560px">
+      <ol style="margin:0 0 10px 18px;padding:0;font-size:13px;line-height:1.6;color:var(--muted)">
+        <li>In Plaid's dashboard, open Developers → Keys.</li>
+        <li>Copy your client id and the secret for the environment you'll use, and press Check and save.</li>
+      </ol>
+      <label for="bankPlaidClient">Client id</label>
+      <input id="bankPlaidClient" maxlength="200" autocomplete="off" spellcheck="false">
+      <label for="bankPlaidSecret" style="margin-top:8px">Secret</label>
+      <input id="bankPlaidSecret" type="password" maxlength="200" autocomplete="off" spellcheck="false">
+      <label for="bankPlaidEnv" style="margin-top:8px">Environment</label>
+      ${_bankEnvSelect('plaid', 'bankPlaidEnv', 'production')}
+      ${_bankCodeField('bankKeysCode_plaid')}
+      <div style="margin-top:10px"><button onclick="bankKeysSave('plaid')">Check and save</button></div>
+    </div>`;
+}
+
+function _bankKeysSay(p, msg, color) {
+  const el = document.getElementById('bankKeysStatus_' + p);
+  if (!el) return;
+  el.textContent = msg || '';
+  el.style.color = color || 'var(--muted)';
+}
+
+function bankKeysReplace(p, open) {
+  bankKeysReplacing[p] = open;
+  loadBank();
+}
+
+async function _fileBase64(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+async function bankKeysSave(p) {
+  const val = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  const codeEl = document.getElementById('bankKeysCode_' + p);
+  let body;
+  if (p === 'teller') {
+    body = { application_id: val('bankTellerApp'), environment: val('bankTellerEnv') };
+    const zip = document.getElementById('bankTellerZip').files[0];
+    const certFile = document.getElementById('bankTellerCertFile').files[0];
+    const keyFile = document.getElementById('bankTellerKeyFile').files[0];
+    if (!body.application_id) { _bankKeysSay(p, 'Enter your Teller application id.', 'var(--bad)'); return; }
+    if (zip) body.zip_base64 = await _fileBase64(zip);
+    else if (certFile && keyFile) { body.certificate = await certFile.text(); body.private_key = await keyFile.text(); }
+    else if (certFile || keyFile) { _bankKeysSay(p, 'Pick both certificate.pem and private_key.pem.', 'var(--bad)'); return; }
+    else { body.certificate = val('bankTellerCertText'); body.private_key = val('bankTellerKeyText'); }
+  } else {
+    body = { client_id: val('bankPlaidClient'), secret: val('bankPlaidSecret'), environment: val('bankPlaidEnv') };
+    if (!body.client_id || !body.secret) { _bankKeysSay(p, 'Enter your Plaid client id and secret.', 'var(--bad)'); return; }
+  }
+  body.code = codeEl ? codeEl.value : null;
+  _bankKeysSay(p, 'Checking with ' + (p === 'teller' ? 'Teller' : 'Plaid') + '…');
+  try {
+    await api('/api/bank/keys/' + p, { method: 'PUT', body: JSON.stringify(body) });
+    bankKeysReplacing[p] = false;
+    await loadBank();
+    _bankKeysSay(p, 'Saved. ' + (p === 'teller' ? 'Teller' : 'Plaid') + ' accepted these keys.', 'var(--good)');
+  } catch (e) { _bankKeysSay(p, errText(e), 'var(--bad)'); }
+}
+
+async function bankKeysRemove(p) {
+  const name = p === 'teller' ? 'Teller' : 'Plaid';
+  if (!(await confirmDialog(`Remove your ${name} keys? You can add them again later.`,
+                            { title: `Remove ${name} keys`, okLabel: 'Remove', danger: true }))) return;
+  const codeEl = document.getElementById('bankKeysRemoveCode_' + p);
+  _bankKeysSay(p, 'Removing…');
+  try {
+    await api('/api/bank/keys/remove', { method: 'POST',
+      body: JSON.stringify({ provider: p, code: codeEl ? codeEl.value : null }) });
+    bankKeysReplacing[p] = false;
+    await loadBank();
+    _bankSay(`Your ${name} keys are removed.`, 'var(--good)');
+  } catch (e) { _bankKeysSay(p, errText(e), 'var(--bad)'); }
 }
 
 function _bankConnectHtml(more) {
@@ -11202,8 +11384,9 @@ async function resetAppTitle() {
 }
 
 // Admin → Users, "Bank sync" column (#264): which providers each person may
-// connect through. Offered: the providers with their keys in .env, as
-// /api/admin/bank-sync says; one already ticked stays shown.
+// connect through. Offered: every provider /api/admin/bank-sync lists (each
+// person brings their own Teller and Plaid keys, #276); one already ticked
+// stays shown.
 const BANK_PROVIDER_NAMES = { simplefin: 'SimpleFIN', teller: 'Teller', plaid: 'Plaid' };
 let adminBankOffered = ['simplefin'];
 function _adminBankAccessHtml(u) {

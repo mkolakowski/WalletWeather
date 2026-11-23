@@ -49,10 +49,17 @@ each connection's SimpleFIN access address, or Teller's or Plaid's access
 token, encrypted with `ENCRYPTION_KEY`: anyone who can read both the
 database and that key can read users' bank transactions through that
 provider until the user disconnects (and, for SimpleFIN, disables the token
-there). With Teller, they'd also need the instance's Teller certificate and
-key; with Plaid, its `PLAID_SECRET`. It can't move money. Teller's
-certificate and private key and Plaid's secret stay on the server: they're
-mounted or set in `.env` and never sent to a browser or an app. The one page
+there). From 1.95.0 each person's own Teller certificate and key and Plaid
+secret are in the same database, encrypted with the same key (each
+connection keeps a copy of the ones it was made with), so the database and
+`ENCRYPTION_KEY` together are enough. It can't move money. Those keys go in
+from a signed-in browser with a fresh two-factor code, are checked with the
+provider before they're saved, and are never sent back to a browser or an
+app, written to a log or put in a plain export; only sealed backups carry
+them. Teller's certificate and key reach the TLS library through files only
+the app's user can read, in a fresh folder under `/tmp` (the container's one
+writable place), removed as soon as the connection is set up. `.env` isn't
+read for them after the one-time copy on the upgrade to 1.95.0. The one page
 that loads another site's script, `/bank/teller` (Teller Connect from
 `cdn.teller.io`), has a Content-Security-Policy of its own allowing only
 that, and takes no inline scripts. The access token Teller Connect hands the

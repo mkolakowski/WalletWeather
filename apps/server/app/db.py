@@ -21,7 +21,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "37"
+SCHEMA_VERSION = "38"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -32,6 +32,16 @@ SCHEMA_VERSION = "37"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v38 (2026-11-23, claude+mkolakowski): each person's own Teller and Plaid
+#     keys (own-bank-keys phase 1, #276). New table bank_keys (one row per
+#     person and provider: environment, the application or client id, and
+#     the secret part encrypted: Plaid's secret, or Teller's certificate and
+#     private key; when saved and last checked). bank_connections.keys_enc:
+#     an encrypted copy of the keys each connection was made with. On the
+#     first start at v38 the Teller and Plaid keys in .env are copied, once
+#     per provider, to everyone with a connection of it and into each such
+#     connection (admin_settings 'bank_keys_copied_teller' and
+#     'bank_keys_copied_plaid' mark it done); .env isn't read for them after.
 # v37 (2026-11-22, claude+mkolakowski): email alerts joined to bank sync
 #     rows (bank-alert-emails phase 5, #210). accounts.alert_join_days and
 #     .alert_join_percent (how many days after an alert its bank row may come
@@ -778,6 +788,27 @@ class BankConnection(Base):
     # accepting the connection, which stops the daily sync until reconnected.
     last_ok_at = Column(DateTime, nullable=True)
     needs_reconnect = Column(Boolean, nullable=False, default=False)
+    # Teller and Plaid (own-bank-keys phase 1, #276): an encrypted copy of
+    # the keys this connection was made with (JSON, see bank_keys.py), so it
+    # keeps syncing whatever its person does with their own keys, and for
+    # whoever it's passed on to (#266). None for SimpleFIN.
+    keys_enc = Column(LargeBinary, nullable=True)
+
+
+class BankKeys(Base):
+    """One person's own keys for Teller or Plaid (own-bank-keys phase 1,
+    #276). `key_id` is Teller's application id or Plaid's client id;
+    `secret_enc` is the secret part, encrypted JSON (Plaid's secret, or
+    Teller's certificate and private key in PEM), never logged or sent to a
+    browser. `checked_at` is when the provider last accepted them."""
+    __tablename__ = "bank_keys"
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    provider = Column(String(10), primary_key=True)
+    environment = Column(String(20), nullable=False)
+    key_id = Column(String(200), nullable=False)
+    secret_enc = Column(LargeBinary, nullable=True)
+    saved_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    checked_at = Column(DateTime, nullable=True)
 
 
 class BankAccess(Base):
@@ -1104,6 +1135,10 @@ def init_db():
     from sqlalchemy import text
     Base.metadata.create_all(engine)
     migrations = [
+        # v37 → v38: each person's own Teller and Plaid keys (#276). bank_keys
+        # comes from create_all; the copy of .env's keys runs at startup
+        # (bank_keys.copy_env_keys), since it reads files and encrypts.
+        "ALTER TABLE bank_connections ADD COLUMN IF NOT EXISTS keys_enc BYTEA",
         # v36 → v37: email alerts joined to bank sync rows (#210).
         "ALTER TABLE accounts ADD COLUMN IF NOT EXISTS alert_join_days INTEGER NOT NULL DEFAULT 7",
         "ALTER TABLE accounts ADD COLUMN IF NOT EXISTS alert_join_percent INTEGER NOT NULL DEFAULT 30",

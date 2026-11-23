@@ -129,3 +129,19 @@ def share_account(owner_client, account_id, level, invitee_client=None, email=No
     r = invitee_client.post(f"/api/invitations/{r.json()['id']}/accept")
     assert r.status_code == 200, r.text
     return invitee_client
+
+
+@pytest.fixture(autouse=True)
+def no_real_bank_providers(monkeypatch):
+    """No test reaches the real Teller or Plaid (#276). Connections and keys
+    from earlier tests stay in the shared database, so a daily sync run by a
+    later test without a stand-in would otherwise go out to the network
+    (where DNS can hang past httpx's timeout). Fixtures that bring a stand-in
+    replace this transport for their test."""
+    import httpx
+    from app import plaid, teller
+
+    def refuse(request):
+        raise httpx.ConnectError("no network in tests", request=request)
+    monkeypatch.setattr(teller, "_transport", httpx.MockTransport(refuse))
+    monkeypatch.setattr(plaid, "_transport", httpx.MockTransport(refuse))

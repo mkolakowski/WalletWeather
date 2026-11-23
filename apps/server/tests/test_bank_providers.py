@@ -69,6 +69,8 @@ class FakeTeller:
             return httpx.Response(404, json={"error": {
                 "code": "enrollment.disconnected.user_action.mfa_required",
                 "message": "The user must sign in to their bank again."}})
+        if "authorization" not in request.headers:   # checking keys: a known certificate, no token
+            return httpx.Response(401, json={"error": {"code": "missing_credentials", "message": "no"}})
         user = base64.b64decode(request.headers["authorization"].split()[1]).decode().split(":")[0]
         if user != self.token:
             return httpx.Response(401, json={"error": {"code": "unauthorized", "message": "no"}})
@@ -106,6 +108,8 @@ class FakePlaid:
         self.bodies: list[tuple[str, dict]] = []
         self.sessions: list[dict] = []   # what /link/token/get answers with
         self.error: dict | None = None   # a 400 body to answer every call with
+        self.accepted_keys = {("plaid_client", "plaid_secret")}   # (client id, secret) Plaid knows
+        self.keys_seen: list[tuple[str, str]] = []
         self.access = PLAID_ACCESS
         self.accounts = [{"account_id": "pa_1", "name": "Plaid Checking", "mask": "0000",
                           "type": "depository", "balances": {"current": 900.0}}]
@@ -137,10 +141,13 @@ class FakePlaid:
         self.requests.append(request)
         path, body = request.url.path, json.loads(request.content or b"{}")
         self.bodies.append((path, body))
-        assert request.headers["plaid-client-id"] == "plaid_client"
-        assert request.headers["plaid-secret"] == "plaid_secret"
+        self.keys_seen.append((request.headers["plaid-client-id"], request.headers["plaid-secret"]))
+        if (request.headers["plaid-client-id"], request.headers["plaid-secret"]) not in self.accepted_keys:
+            return httpx.Response(400, json={"error_type": "INVALID_INPUT", "error_code": "INVALID_API_KEYS"})
         if self.error:
             return httpx.Response(400, json=self.error)
+        if path == "/institutions/get":
+            return httpx.Response(200, json={"institutions": [], "total": 1})
         if path == "/link/token/create":
             return httpx.Response(200, json={"link_token": "link-sandbox-1",
                                              "hosted_link_url": "https://secure.plaid.com/hl/abc"})
@@ -182,24 +189,33 @@ def no_provider_keys(monkeypatch):
         monkeypatch.delenv(name, raising=False)
 
 
+TELLER_KEYS_SANDBOX = dict(app_id="app_test", environment="sandbox")
+PLAID_KEYS_SANDBOX = dict(client_id="plaid_client", secret="plaid_secret", environment="sandbox")
+
+
 @pytest.fixture
 def teller_fake(monkeypatch):
+    """The stand-in Teller, and its keys as every user's own (#276)."""
     from app import teller
+    from test_bank_sync import AUTO_KEYS, give_keys
     f = FakeTeller()
-    monkeypatch.setenv("TELLER_APP_ID", "app_test")
-    monkeypatch.setenv("TELLER_ENV", "sandbox")
+    keys = teller.Keys(**TELLER_KEYS_SANDBOX)
     monkeypatch.setattr(teller, "_transport", httpx.MockTransport(f.handler))
+    give_keys(keys)
+    monkeypatch.setitem(AUTO_KEYS, "teller", keys)
     return f
 
 
 @pytest.fixture
 def plaid_fake(monkeypatch):
+    """The stand-in Plaid, and its keys as every user's own (#276)."""
     from app import plaid
+    from test_bank_sync import AUTO_KEYS, give_keys
     f = FakePlaid()
-    monkeypatch.setenv("PLAID_CLIENT_ID", "plaid_client")
-    monkeypatch.setenv("PLAID_SECRET", "plaid_secret")
-    monkeypatch.setenv("PLAID_ENV", "sandbox")
+    keys = plaid.Keys(**PLAID_KEYS_SANDBOX)
     monkeypatch.setattr(plaid, "_transport", httpx.MockTransport(f.handler))
+    give_keys(keys)
+    monkeypatch.setitem(AUTO_KEYS, "plaid", keys)
     return f
 
 
@@ -309,36 +325,45 @@ def mixed_user(app_started, teller_fake, simplefin_fake, switched_on):
     return c, u, {"sf": sf, "tl": tl, "sf_acc": sf_acc, "tl_acc": tl_acc}
 
 
-# ---------- What an instance offers ----------
+# ---------- What's offered ----------
 
-def test_admin_shows_which_providers_the_instance_offers(admin, monkeypatch):
+def test_admin_may_tick_every_provider_and_env_isnt_read(admin, monkeypatch):
+    """Since #276 people bring their own keys, so every provider can be
+    ticked, whatever .env holds."""
     ac, _ = admin
-    assert ac.get("/api/admin/bank-sync").json()["providers"] == {
-        "simplefin": True, "teller": False, "plaid": False}
-    monkeypatch.setenv("TELLER_APP_ID", "app_test")
-    monkeypatch.setenv("TELLER_ENV", "sandbox")
-    monkeypatch.setenv("PLAID_CLIENT_ID", "plaid_client")
-    monkeypatch.setenv("PLAID_SECRET", "plaid_secret")
-    assert ac.get("/api/admin/bank-sync").json()["providers"] == {
-        "simplefin": True, "teller": True, "plaid": True}
+    monkeypatch.setenv("TELLER_APP_ID", "app_from_env")
+    monkeypatch.setenv("PLAID_CLIENT_ID", "plaid_from_env")
+    monkeypatch.setenv("PLAID_SECRET", "secret_from_env")
+    got = ac.get("/api/admin/bank-sync").json()
+    assert got["providers"] == {"simplefin": True, "teller": True, "plaid": True}
+    assert got["keys_from_env"] is False and set(got["env_keys_copied"]) == {"teller", "plaid"}
 
 
-def test_bank_status_lists_each_provider_as_available_or_not(app_started, switched_on, monkeypatch):
-    c, _ = register(app_started)
+def test_bank_status_lists_each_provider_as_available_with_your_own_keys(app_started, switched_on,
+                                                                         monkeypatch):
+    from app import plaid
+    from test_bank_sync import give_keys
+    c, u = register(app_started)
+    monkeypatch.setenv("PLAID_CLIENT_ID", "plaid_from_env")   # not read (#276)
+    monkeypatch.setenv("PLAID_SECRET", "secret_from_env")
     got = {p["key"]: p["available"] for p in c.get("/api/bank").json()["providers"]}
     assert got == {"simplefin": True, "teller": False, "plaid": False}
-    monkeypatch.setenv("PLAID_CLIENT_ID", "plaid_client")
-    monkeypatch.setenv("PLAID_SECRET", "plaid_secret")
+    assert c.get("/api/bank/status").json()["providers_allowed"] == ["simplefin"]
+    give_keys(plaid.Keys(**PLAID_KEYS_SANDBOX), u["id"])
     got = {p["key"]: p["available"] for p in c.get("/api/bank").json()["providers"]}
     assert got == {"simplefin": True, "teller": False, "plaid": True}
+    assert c.get("/api/bank/status").json()["providers_allowed"] == ["simplefin", "plaid"]
+    # Someone else's keys are theirs alone.
+    c2, _ = register(app_started)
+    assert c2.get("/api/bank/status").json()["providers_allowed"] == ["simplefin"]
 
 
 # ---------- Connecting Teller ----------
 
-def test_teller_cannot_be_started_when_not_configured(app_started, switched_on):
+def test_teller_cannot_be_started_without_your_own_keys(app_started, switched_on):
     c, _ = register(app_started)
     r = start(c, "teller")
-    assert r.status_code == 400 and "isn't set up" in r.json()["detail"]
+    assert r.status_code == 400 and "Add your own Teller keys" in r.json()["detail"]
 
 
 def test_starting_teller_gives_its_page_with_the_attempt(app_started, teller_fake, switched_on):
@@ -868,17 +893,14 @@ def test_closed_attempts_dont_count_toward_the_limit(app_started, plaid_fake, sw
         assert r.json()["state"] == "exited"
 
 
-def test_an_unreadable_teller_certificate_is_a_plain_error(monkeypatch, tmp_path):
+def test_an_unreadable_teller_certificate_is_a_plain_error(monkeypatch):
     from app import simplefin, teller
-    bad = tmp_path / "certificate.pem"
-    bad.write_text("not a certificate")
-    monkeypatch.setenv("TELLER_APP_ID", "app_test")
-    monkeypatch.setenv("TELLER_ENV", "development")
-    monkeypatch.setenv("TELLER_CERT_FILE", str(bad))
-    monkeypatch.setenv("TELLER_KEY_FILE", str(bad))
+    keys = teller.Keys(app_id="app_test", environment="development",
+                       certificate="not a certificate", private_key="not a key")
     monkeypatch.setattr(teller, "_transport", None)
-    with pytest.raises(simplefin.BankError, match="certificate"):
-        teller.remove("token_whatever")
+    with pytest.raises(simplefin.BankError, match="certificate") as e:
+        teller.remove(keys, "token_whatever")
+    assert "not a certificate" not in str(e.value)
 
 
 def test_a_replace_restore_ends_connections_the_backup_doesnt_hold(app_started, plaid_fake,

@@ -14,10 +14,12 @@ Bank sync works through one of three services, picked per bank:
 
 - **[SimpleFIN Bridge](https://bridge.simplefin.org/)**, a service you
   subscribe to yourself (about $15 a year). Nothing to set up on the server.
-- **[Teller](https://teller.io/)** (from 1.86.0), once the server has
-  Teller's keys. Teller's development tier is free up to 100 bank logins.
-- **[Plaid](https://plaid.com/)** (from 1.86.0), once the server has
-  Plaid's keys. Plaid's Trial plan is free for 10 bank logins.
+- **[Teller](https://teller.io/)** (from 1.86.0), with keys from a Teller
+  developer account of your own (from 1.95.0). Teller's development tier is
+  free up to 100 bank logins.
+- **[Plaid](https://plaid.com/)** (from 1.86.0), with keys from a Plaid
+  account of your own (from 1.95.0). Plaid's Trial plan is free for 10 bank
+  logins.
 
 Each reads your bank's transactions and balances. None can move money. If
 your bank won't connect through one, try another: each reaches banks its own
@@ -59,55 +61,27 @@ beta-bridge.simplefin.org
 Nothing needs to reach your server from outside. It doesn't need a public
 address.
 
-### Set up Teller (optional)
+### Teller and Plaid keys
 
-1. Make a developer account at [teller.io](https://teller.io/) and an
-   application. Its **application id** (it starts `app_`) is on the
-   dashboard.
-2. Download the application's **certificate**. Teller gives a zip with
-   `certificate.pem` and `private_key.pem`. Put both in a folder next to
-   your `docker-compose.yml` called `secrets/teller` (or name another folder
-   in `TELLER_CERT_DIR`). It's mounted into the server read-only. The private
-   key is a secret: don't put it in git or share it.
-3. In `.env`:
+From 1.95.0 each person adds their own Teller and Plaid keys in **Settings →
+Bank sync** ([below](#add-your-own-teller-or-plaid-keys)); the server's `.env`
+isn't read for them. There's nothing to set up for Teller or Plaid on the
+server beyond ticking who may use them in **Admin → Users**.
 
-   ```
-   TELLER_APP_ID=app_...
-   TELLER_ENV=development
-   ```
+**Upgrading from an earlier version with keys in `.env`:** on the first start
+of 1.95.0, the `TELLER_APP_ID`, `TELLER_ENV` and `PLAID_...` lines and
+Teller's certificate in `TELLER_CERT_DIR` are copied, once, to everyone who
+has a Teller or Plaid connection, as their own keys, and into each of those
+connections, so they keep syncing. Keep those lines until you've started
+1.95.0 once; **Admin → Bank sync** then says how many people they were copied
+to, and you can remove them. If connections exist but the keys couldn't be
+read on that start, the copy is tried again at the next one.
 
-   `development` reaches your real banks and is free up to 100 bank logins.
-   `sandbox` uses Teller's made-up banks and needs no certificate, for a
-   try. `production` needs Teller to approve your account.
-4. The server calls `api.teller.io`. People connecting load Teller's script
-   from `cdn.teller.io` in their browser, on WalletWeather's
-   `/bank/teller` page, the only page that loads it.
-
-### Set up Plaid (optional)
-
-1. Make an account at [dashboard.plaid.com](https://dashboard.plaid.com/).
-   The free **Trial** plan allows 10 bank logins, Chase, Bank of America and
-   Wells Fargo included. Applying for full production later ends the Trial
-   plan for good.
-2. On the dashboard's **Keys** page, copy the client id and the secret for
-   the environment you'll use. In `.env`:
-
-   ```
-   PLAID_CLIENT_ID=...
-   PLAID_SECRET=...
-   PLAID_ENV=production
-   ```
-
-   `production` reaches your real banks (on the Trial plan too); `sandbox`
-   uses Plaid's made-up banks with the sandbox secret. The secret is a
-   secret: keep it out of git.
-3. The server calls `production.plaid.com` (or `sandbox.plaid.com`). People
-   connecting sign in to their bank on Plaid's own site (`secure.plaid.com`),
-   in a new tab. No webhook and no public address are needed: the server
-   checks back with Plaid.
-
-Restart after changing `.env` (`docker compose up -d`). **Admin → Bank sync**
-then lists Teller and Plaid as offered.
+The server calls `api.teller.io`, and `production.plaid.com` or
+`sandbox.plaid.com`. People connecting through Teller load Teller's script
+from `cdn.teller.io` on WalletWeather's `/bank/teller` page, the only page
+that loads it; through Plaid they sign in on Plaid's own site
+(`secure.plaid.com`). No webhook and no public address are needed.
 
 ### Switch bank sync on
 
@@ -115,8 +89,9 @@ Bank sync is off until an admin switches it on. Sign in as an admin (an
 address in `ADMIN_EMAILS`), open **Admin → Bank sync** and tick **Allow bank
 sync**.
 
-With it on, each user can connect their own banks, through SimpleFIN and
-through Teller or Plaid when their keys are set. Nobody's bank is connected
+With it on, each user can connect their own banks, through SimpleFIN, and
+through Teller or Plaid once you've ticked them for it in Admin → Users and
+they've added their own keys. Nobody's bank is connected
 until they do it themselves. The server calls a provider only for users who
 have connected through it. Admin's user list shows a **bank connected** badge for each
 of them.
@@ -144,6 +119,50 @@ the server](#for-the-person-who-runs-the-server)). Under **Connect a bank**
 are the services your server offers. With two-factor sign-in on, type the
 code from your authenticator app first.
 
+### Add your own Teller or Plaid keys
+
+Teller and Plaid each need keys from a developer account of your own (from
+1.95.0), so your bank logins count against your own account there. If an
+admin has ticked you for Teller or Plaid, Settings → Bank sync has a card for
+each under **Your Teller and Plaid keys**. Saving checks the keys with the
+service first and says what's wrong if they don't work. Once saved, the card
+shows the id, the environment and when they were checked, never the secret.
+
+**Teller:**
+
+1. Make a developer account at [teller.io](https://teller.io/) and an
+   application. Copy its **application id** (it starts `app_`).
+2. Under **Certificates**, make a certificate. Teller downloads it as
+   `teller.zip`, holding `certificate.pem` and `private_key.pem`. The private
+   key is a secret: don't share it.
+3. On the **Your Teller keys** card, enter the application id, pick the
+   environment and pick `teller.zip`, then press **Check and save**. If
+   picking the zip doesn't work, **Or pick the two files** and **Or paste
+   their text** take the two files instead. `development` reaches your real
+   banks and is free up to 100 bank logins; `sandbox` uses Teller's made-up
+   banks and needs no certificate; `production` needs Teller to approve your
+   account.
+
+**Plaid:**
+
+1. Make an account at [dashboard.plaid.com](https://dashboard.plaid.com/).
+   The free **Trial** plan allows 10 bank logins, Chase, Bank of America and
+   Wells Fargo included. Applying for full production later ends the Trial
+   plan for good.
+2. Under **Developers → Keys**, copy the client id and the secret for the
+   environment you'll use.
+3. On the **Your Plaid keys** card, enter them, pick the environment and
+   press **Check and save**. `production` reaches your real banks (on the
+   Trial plan too); `sandbox` uses Plaid's made-up banks with the sandbox
+   secret.
+
+**Replace and Remove:** a renewed Teller certificate or a new Plaid secret for
+the same id can replace the old one any time, and your connections carry on
+with it. A different application or client id, or removing your keys, waits
+until the connections using them are disconnected: the card names them. Each
+connection keeps its own encrypted copy of the keys it was made with, so it
+keeps syncing for whoever it passes to if you delete your account.
+
 ### Through Teller or Plaid
 
 1. Press **Connect with Teller** or **Connect with Plaid**. A new tab opens:
@@ -167,7 +186,8 @@ the phone: Settings → Bank sync → **Connect a bank**.
 1. The phone's sign-in sheet opens your server's connect page. If it asks,
    sign in as you do in the web app; it shares Safari's sign-in, so usually
    you're signed in already.
-2. Pick **Teller** or **Plaid** (only the ones your server has keys for), and
+2. Pick **Teller** or **Plaid** (only the ones you're ticked for and have
+   added your keys for, in the web app's Settings → Bank sync), and
    type your two-factor code if it's on: connecting a bank always takes a
    fresh one.
 3. Sign in to your bank on Teller's or Plaid's page. When it's done the sheet
@@ -458,9 +478,10 @@ at Teller and Plaid.
 | *Couldn't reach SimpleFIN* | SimpleFIN may be down, or the server can't reach it: see "Make sure the server can reach SimpleFIN". |
 | *SimpleFIN says your subscription needs paying* | Renew at SimpleFIN Bridge, then sync again. |
 | *SimpleFIN no longer accepts this connection* | It was disabled at SimpleFIN or ran out. Disconnect, make a new setup token and connect again. |
-| *Teller or Plaid isn't set up on this instance* | The server needs that service's keys in `.env`: see "Set up Teller" and "Set up Plaid". |
-| *Teller didn't accept this server's certificate* | Check `certificate.pem` and `private_key.pem` are in the folder `TELLER_CERT_DIR` names, and that they're the ones for `TELLER_APP_ID`. |
-| *Plaid didn't accept this server's keys* | Check `PLAID_CLIENT_ID`, and that `PLAID_SECRET` is the secret for `PLAID_ENV` (sandbox and production have different secrets). |
+| *Add your own Teller keys first* (or Plaid) | Add them on the card in Settings → Bank sync: see [Add your own Teller or Plaid keys](#add-your-own-teller-or-plaid-keys). |
+| *Teller didn't accept this certificate* / *don't read as a matching pair* | Use `certificate.pem` and `private_key.pem` from the same `teller.zip`, made for this application and environment. |
+| *Plaid didn't accept this client id and secret* | Check the client id, and that the secret is the one for the environment you picked (sandbox and production have different secrets). |
+| *Your Teller keys are in use by …* | A different application or client id, or removing your keys, waits until those connections are disconnected. |
 | *Plaid is still gathering your bank's history* | Plaid fetches your history after you connect. Sync again in a few minutes. |
 | *Your bank wants you to sign in again* / *Plaid no longer reaches this bank* | Disconnect that bank and connect it again, then match its accounts again. |
 | *That account already takes lines from …* | That account is matched to a bank account on another connection. Leave one of them out. |
@@ -474,8 +495,13 @@ at Teller and Plaid.
 
 - **Stored on your server:** for each connection, the access address
   SimpleFIN issues (which includes its credentials) or the access token
-  Teller or Plaid issues. It's encrypted with the server's `ENCRYPTION_KEY`
-  and is never shown in the app or written to a log. The server also keeps your bank accounts' names (encrypted), your
+  Teller or Plaid issues, and (Teller and Plaid) a copy of the keys it was
+  made with. Your own Teller and Plaid keys are kept too: the id and the
+  environment as they are, the secret part (Plaid's secret, Teller's
+  certificate and private key) encrypted. All of it is encrypted with the
+  server's `ENCRYPTION_KEY` and is never shown in the app or written to a
+  log; Teller's certificate is written to a file only the app can read for
+  the moment a connection to Teller is opened, then removed. The server also keeps your bank accounts' names (encrypted), your
   matches, how the last sync went, and the times of the last day's syncs.
   Each synced line carries a fingerprint of the bank's id for it, and which
   sync brought it in; for Teller and Plaid, also their own category for it, as
@@ -485,9 +511,10 @@ at Teller and Plaid.
   amount). The sync log (when, how many, any error) is kept as
   long as the audit log.
 - **In backups:** encrypted backups (Settings → Backup, and the system
-  backups) carry the connection, so a restore keeps it, but not the bank's
-  balance, which the next sync brings again. The readable
-  "Download my data" copy never carries the connection.
+  backups) carry the connection and your own Teller and Plaid keys, so a
+  restore keeps them, but not the bank's balance, which the next sync brings
+  again. The readable "Download my data" copy never carries the connection
+  or the keys.
 - **Sent:** when you connect and each time you sync, the server asks the
   service for your bank accounts and the posted transactions since a date,
   and when you disconnect it tells Teller or Plaid to end the connection.

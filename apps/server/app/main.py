@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.94.1"
+APP_VERSION = "1.95.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,26 @@ APP_VERSION = "1.94.1"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.95.0 (2026-11-23, claude+mkolakowski): each person's own Teller and
+#     Plaid keys (own-bank-keys phase 1, #276; schema 38). teller.py and
+#     plaid.py take keys (teller.Keys, plaid.Keys) instead of reading
+#     os.environ; bank_keys.py stores them (bank_keys, secret part encrypted)
+#     and each connection's copy (bank_connections.keys_enc). Syncs, balances
+#     and disconnecting use the connection's copy; starting, finishing and
+#     Teller's setup use the person's own. Teller's certificate reaches httpx
+#     through app-only files under /tmp, removed once the client is made.
+#     New PUT /api/bank/keys/teller {application_id, environment,
+#     zip_base64 | certificate + private_key, code}, PUT /api/bank/keys/plaid
+#     {client_id, secret, environment, code} (checked with the provider
+#     first) and POST /api/bank/keys/remove {provider, code}: browser session
+#     only, audit bank_keys_saved / bank_keys_removed; removing or a
+#     different id refused (409) while connections use them. GET /api/bank
+#     gains `keys` (id, environment, saved_at, checked_at, in_use; never the
+#     secret); providers[].available and providers_allowed follow the
+#     person's keys. GET /api/admin/bank-sync: providers all true, gains
+#     keys_from_env (false) and env_keys_copied. On startup .env's keys are
+#     copied once (bank_keys.copy_env_keys). Sealed backups carry bank_keys
+#     and each connection's keys.
 # 1.94.1 (2026-11-22, claude+mkolakowski): bank matching runs on the shared
 #     core (Plans/standalone.md phase 8, #239; core 0.5.1): bank sync's and
 #     email alerts' bill matching (_BillMatcher, the core's bankMatch), the
@@ -645,11 +665,12 @@ from .db import (
     AccountPermission, AccountInvitation, BackupSchedule, AdminSetting, Transfer, CategoryBudget,
     Tag, TransactionTag, RecurringTag, TagRule, SavedReport, RecurringSkip,
     ApiToken, AuditEvent, AppSignInCode, RecoveryCode, RememberedBrowser, SessionLocal,
-    BankConnection, BankAccess, BankAccountLink, BankLinkAttempt, BankCategoryMap, BankSyncRun, MailAccess, MailConnection, MailSender, MailAlertKind,
+    BankConnection, BankAccess, BankKeys, BankAccountLink, BankLinkAttempt, BankCategoryMap, BankSyncRun, MailAccess, MailConnection, MailSender, MailAlertKind,
     MailUnread, MailCheckRun, encrypt_str, decrypt_str, SCHEMA_VERSION,
 )
 from . import twofactor
 from . import simplefin, teller, plaid
+from . import bank_keys
 from . import mailbox, alerts
 from . import jscore
 from .forecast import (build_forecast, actual_balance_as_of, upcoming_dates, _occurrences, account_rows,
@@ -920,6 +941,9 @@ def _startup():
             seed_default_categories(db, user)
         # Lines synced before names were shortened (#213).
         shorten_synced_names(db)
+        # Schema 38 (#276): Teller's and Plaid's keys in .env, copied once to
+        # the people and connections using them.
+        bank_keys.copy_env_keys(db)
         # Demo-mode reconciliation. This must run after init_db so the
         # admin_settings table exists.
         if DEMO_MODE:
@@ -2785,6 +2809,12 @@ def _delete_user(db: Session, user: User, plan: dict) -> list[tuple[int, str, in
     # to that owner (#266) before the rest go with the user.
     passed = []
     for conn, holder in plan.get("bank_passed", []):
+        # It keeps syncing with the keys it was made with (#276), never the
+        # new holder's own: one from before copies gets its copy now.
+        if _provider(conn) in bank_keys.PROVIDERS and not conn.keys_enc:
+            keys = bank_keys.own_keys(db, user.id, _provider(conn))
+            if keys is not None:
+                conn.keys_enc = bank_keys.encrypt_copy(keys)
         _bank_pass_connection(db, user, conn, holder)
         passed.append((conn.id, _provider(conn), holder.id))
     # An account's sync log belongs to the account (#265): the syncs this
@@ -4420,9 +4450,10 @@ def _bank_allowed(db: Session, user: User) -> None:
 
 # Teller and Plaid next to SimpleFIN (bank-providers phase 1, #254): a user
 # may have many connections, each from one provider. Decided 2026-11-20: the
-# one Admin switch covers all three, Teller or Plaid offered only once its
-# keys are in .env; each of a user's accounts takes lines from one bank
-# account across all their connections.
+# one Admin switch covers all three; each of a user's accounts takes lines
+# from one bank account across all their connections. Decided 2026-11-23
+# (own-bank-keys phase 1, #276): Teller or Plaid is offered to a person once
+# they've saved their own keys for it (bank_keys.py), not from .env.
 BANK_PROVIDER_NAMES = {"simplefin": "SimpleFIN", "teller": "Teller", "plaid": "Plaid"}
 BANK_ATTEMPT_MINUTES = 30
 BANK_OPEN_ATTEMPTS = 10
@@ -4431,10 +4462,12 @@ BANK_OPEN_ATTEMPTS = 10
 BANK_FINISH_GRACE = timedelta(hours=6)
 
 
-def bank_providers() -> dict[str, bool]:
-    """Which providers this instance can offer: SimpleFIN needs nothing,
-    Teller and Plaid their keys in .env."""
-    return {"simplefin": True, "teller": teller.available(), "plaid": plaid.available()}
+def bank_providers(db: Session, user: User) -> dict[str, bool]:
+    """Which providers this person has what they need for: SimpleFIN needs
+    nothing, Teller and Plaid the person's own keys (#276)."""
+    return {"simplefin": True,
+            "teller": teller.available(bank_keys.own_keys(db, user.id, "teller")),
+            "plaid": plaid.available(bank_keys.own_keys(db, user.id, "plaid"))}
 
 
 # Who may connect through which provider (sync-access phase 1, #264).
@@ -4565,18 +4598,21 @@ def _bank_status(db: Session, user: User) -> dict:
     with its bank accounts. The top-level `accounts`, `connected_at` and
     sync fields cover all connections, as they did with one."""
     conns = _bank_connections(db, user)
-    offered = bank_providers()
+    offered = bank_providers(db, user)
     access = bank_access(db, user)
     out = {"enabled": bank_sync_enabled(db), "connected": bool(conns),
            "start_max_days": BANK_START_MAX_DAYS,
-           # `available`: the instance can offer it; `allowed`: an admin lets
-           # this person connect through it (#264).
+           # `available`: this person has what it needs (their own keys for
+           # Teller and Plaid, #276); `allowed`: an admin lets them connect
+           # through it (#264).
            "providers": [{"key": k, "name": BANK_PROVIDER_NAMES[k], "available": v, "allowed": k in access}
                          for k, v in offered.items()],
            "providers_allowed": [k for k, v in offered.items() if v and k in access],
            # Accounts shared with this person that sync from someone else's
            # connection (#265).
-           "shared": _bank_shared(db, user, with_names=True)}
+           "shared": _bank_shared(db, user, with_names=True),
+           # Their own Teller and Plaid keys, never the secret part (#276).
+           "keys": _bank_keys_status(db, user)}
     if not conns:
         out["connections"] = []
         return out
@@ -4709,16 +4745,26 @@ def _bank_attempt(db: Session, user: User, public_id: str, provider: str | None 
     return a
 
 
-def _bank_remove_secret(provider: str, secret: str) -> None:
+def _bank_remove_secret(provider: str, keys, secret: str) -> None:
     """End a Teller enrollment or Plaid Item this server won't keep, so it
-    doesn't go on reading the bank. Best effort."""
+    doesn't go on reading the bank, with the keys it was made with. Best
+    effort."""
     try:
         if provider == "teller":
-            teller.remove(secret)
+            teller.remove(keys, secret)
         elif provider == "plaid":
-            plaid.remove(secret)
+            plaid.remove(keys, secret)
     except simplefin.BankError:
         pass
+
+
+def _bank_own_keys(db: Session, user: User, provider: str):
+    """The keys a new connection is made with: the person's own (#276)."""
+    keys = bank_keys.own_keys(db, user.id, provider)
+    if not (teller.available(keys) if provider == "teller" else plaid.available(keys)):
+        raise HTTPException(400, f"Add your own {BANK_PROVIDER_NAMES[provider]} keys first, in "
+                                 "Settings → Bank sync.")
+    return keys
 
 
 def _bank_keep_access(db: Session, user: User, provider: str) -> None:
@@ -4730,12 +4776,14 @@ def _bank_keep_access(db: Session, user: User, provider: str) -> None:
 
 
 def _bank_save_connection(db: Session, user: User, provider: str, secret: str,
-                          accounts: list[dict], request: Request) -> BankConnection:
+                          accounts: list[dict], request: Request, keys=None) -> BankConnection:
     """A new connection; or, when it reaches a bank account one of the
     user's connections from the same provider already lists, that
     connection with the new key, its matches kept: the same bank connected
     again. Two connections listing one bank account would give it one ref
-    twice. The replaced Teller or Plaid key is ended at the provider."""
+    twice. The replaced Teller or Plaid key is ended at the provider.
+    `keys` (Teller and Plaid) are the keys the token was made with: the
+    connection keeps a copy (#276)."""
     ids = {a["id"] for a in accounts}
     same = None
     if ids:
@@ -4744,7 +4792,7 @@ def _bank_save_connection(db: Session, user: User, provider: str, secret: str,
     _bank_keep_access(db, user, provider)
     if same is None:
         conn = BankConnection(user_id=user.id, provider=provider, access_url_enc=encrypt_str(secret),
-                              calls_json="[]")
+                              calls_json="[]", keys_enc=bank_keys.encrypt_copy(keys) if keys else None)
         _set_bank_listing(conn, accounts)
         db.add(conn)
         db.flush()
@@ -4753,8 +4801,10 @@ def _bank_save_connection(db: Session, user: User, provider: str, secret: str,
         return conn
     old = decrypt_str(same.access_url_enc)
     if old != secret:
-        _bank_remove_secret(provider, old)
+        _bank_remove_secret(provider, bank_keys.connection_keys(db, same), old)
     same.access_url_enc = encrypt_str(secret)
+    if keys:
+        same.keys_enc = bank_keys.encrypt_copy(keys)
     _set_bank_listing(same, accounts)
     same.needs_reconnect, same.cursor = False, None
     db.flush()
@@ -4769,10 +4819,8 @@ def bank_connect_start(body: BankStartIn, request: Request,
     """Start connecting a bank through Teller or Plaid: returns the address
     to open in a new tab and the attempt to check back on."""
     _bank_allowed(db, user)
-    if not bank_providers()[body.provider]:
-        raise HTTPException(400, f"{BANK_PROVIDER_NAMES[body.provider]} isn't set up on this instance. "
-                                 "An admin adds its keys to .env.")
     _bank_may_connect(db, user, body.provider)
+    keys = _bank_own_keys(db, user, body.provider)
     _confirm_code_for(db, request, user, body.code, "bank connection")
     now = datetime.utcnow()
     db.query(BankLinkAttempt).filter(BankLinkAttempt.expires_at < now - BANK_FINISH_GRACE - timedelta(days=1)) \
@@ -4789,7 +4837,7 @@ def bank_connect_start(body: BankStartIn, request: Request,
     back = (f"{_own_origin(request)}/app-connect-bank?attempt={attempt.public_id}" if body.app else None)
     if body.provider == "plaid":
         try:
-            link = plaid.create_link(hashlib.sha256(f"walletweather-user:{user.id}".encode()).hexdigest()[:40],
+            link = plaid.create_link(keys, hashlib.sha256(f"walletweather-user:{user.id}".encode()).hexdigest()[:40],
                                      get_app_title(db), BANK_START_MAX_DAYS, completion_uri=back)
         except simplefin.BankError as e:
             raise HTTPException(e.status, str(e))
@@ -4829,21 +4877,23 @@ def bank_connect_check(body: BankAttemptIn, request: Request,
 
 
 def _bank_finish_plaid(db: Session, user: User, a: BankLinkAttempt, request: Request) -> None:
+    # Finished with the keys it was started with: the person's own (#276).
+    keys = _bank_own_keys(db, user, "plaid")
     try:
-        result = plaid.link_result(decrypt_str(a.token_enc))
+        result = plaid.link_result(keys, decrypt_str(a.token_enc))
         if result["state"] == "exited":
             a.exited = True
         elif result["state"] == "done":
-            access = plaid.exchange(result["public_token"])
+            access = plaid.exchange(keys, result["public_token"])
             # The token works from here, so it's kept even if listing fails:
             # the first Sync now lists the accounts again.
             try:
-                accounts, org = plaid.fetch_accounts(access)
+                accounts, org = plaid.fetch_accounts(keys, access)
             except simplefin.BankError:
                 accounts, org = [], result["institution"]
             for acc in accounts:
                 acc["org"] = acc["org"] or org or result["institution"]
-            conn = _bank_save_connection(db, user, "plaid", access, accounts, request)
+            conn = _bank_save_connection(db, user, "plaid", access, accounts, request, keys=keys)
             a.connection_id, a.token_enc = conn.id, None
     except simplefin.BankError as e:
         db.rollback()
@@ -4863,7 +4913,8 @@ def bank_teller_setup(attempt: str, user: User = Depends(current_session_user),
     if a.expires_at <= datetime.utcnow():
         raise HTTPException(410, "This connection was started too long ago. Start again in "
                                  "Settings → Bank sync.")
-    return {"application_id": teller.app_id(), "environment": teller.environment(), "nonce": a.nonce}
+    keys = _bank_own_keys(db, user, "teller")
+    return {"application_id": keys.app_id, "environment": keys.environment, "nonce": a.nonce}
 
 
 @app.post("/api/bank/teller/enroll")
@@ -4874,6 +4925,7 @@ def bank_teller_enroll(body: TellerEnrollIn, request: Request,
     if Teller accepts it."""
     _bank_allowed(db, user)
     _bank_may_connect(db, user, "teller")
+    keys = _bank_own_keys(db, user, "teller")
     with _bank_connect_lock(user.id):
         a = _bank_attempt(db, user, body.attempt, "teller")
         # A token this server won't keep is ended at Teller, so no enrollment
@@ -4881,24 +4933,166 @@ def bank_teller_enroll(body: TellerEnrollIn, request: Request,
         if a.connection_id is not None:
             done = db.get(BankConnection, a.connection_id)
             if done is None or decrypt_str(done.access_url_enc) != body.access_token:
-                _bank_remove_secret("teller", body.access_token)
+                _bank_remove_secret("teller", keys, body.access_token)
             raise HTTPException(409, "This bank is connected already. Close this tab.")
         if a.expires_at + BANK_FINISH_GRACE <= datetime.utcnow():
-            _bank_remove_secret("teller", body.access_token)
+            _bank_remove_secret("teller", keys, body.access_token)
             raise HTTPException(410, "This connection was started too long ago. Start again in "
                                      "Settings → Bank sync.")
         try:
-            accounts = teller.fetch_accounts(body.access_token)
+            accounts = teller.fetch_accounts(keys, body.access_token)
         except simplefin.BankError as e:
             if not e.revoked:
-                _bank_remove_secret("teller", body.access_token)
+                _bank_remove_secret("teller", keys, body.access_token)
             raise HTTPException(400 if e.revoked else e.status,
                                 str(e) + ("" if e.revoked else " Nothing was kept: connect again."))
         conn = _bank_save_connection(db, user, "teller", body.access_token,
-                                     [{k: x[k] for k in ("id", "name", "org")} for x in accounts], request)
+                                     [{k: x[k] for k in ("id", "name", "org")} for x in accounts], request,
+                                     keys=keys)
         a.connection_id = conn.id
         db.commit()
     return {"connection_id": conn.id, "name": _bank_name(conn), "accounts": len(accounts)}
+
+
+# ---------- Each person's own Teller and Plaid keys (own-bank-keys phase 1, #276) ----------
+# Decided 2026-11-23 (docs/dev/decisions/bank-sync.md): each person saves
+# their own keys in Settings → Bank sync; they're checked with the provider
+# before they're saved; the secret part (Plaid's secret, Teller's certificate
+# and private key) is never sent back. Removing them, or replacing them with
+# a different application or client id, is refused while connections use
+# them; the same id (a renewed certificate, a rotated secret) is allowed and
+# carries over to those connections. Like connecting: a signed-in browser
+# and, with two-factor on, a fresh code.
+
+class TellerKeysIn(BaseModel):
+    application_id: str = Field(min_length=1, max_length=200, pattern=r"^[A-Za-z0-9_\-]+$")
+    environment: Literal["sandbox", "development", "production"] = "development"
+    # Teller's zip (base64), or the two files' text.
+    zip_base64: str | None = Field(default=None, max_length=140_000)
+    certificate: str | None = Field(default=None, max_length=bank_keys.PEM_MAX)
+    private_key: str | None = Field(default=None, max_length=bank_keys.PEM_MAX)
+    code: str | None = Field(default=None, max_length=40)
+
+
+class PlaidKeysIn(BaseModel):
+    client_id: str = Field(min_length=1, max_length=200, pattern=r"^[A-Za-z0-9_\-]+$")
+    secret: str = Field(min_length=1, max_length=200, pattern=r"^[A-Za-z0-9_\-]+$")
+    environment: Literal["sandbox", "production"] = "production"
+    code: str | None = Field(default=None, max_length=40)
+
+
+class BankKeysRemoveIn(BaseModel):
+    provider: Literal["teller", "plaid"]
+    code: str | None = Field(default=None, max_length=40)
+
+
+def _bank_keys_users(db: Session, user: User, provider: str, keys) -> list[BankConnection]:
+    """This person's connections of `provider` that use `keys`."""
+    return [c for c in _bank_connections(db, user)
+            if _provider(c) == provider and bank_keys.uses(db, c, keys)]
+
+
+def _bank_keys_in_use(db: Session, user: User, provider: str, keys, doing: str) -> None:
+    conns = _bank_keys_users(db, user, provider, keys)
+    if conns:
+        names = ", ".join(_bank_name(c) for c in conns)
+        raise HTTPException(409, f"Your {BANK_PROVIDER_NAMES[provider]} keys are in use by {names}. "
+                                 f"Disconnect {'it' if len(conns) == 1 else 'them'} first, then {doing}.")
+
+
+def _bank_keys_status(db: Session, user: User) -> dict:
+    """What Settings shows of each provider's keys: the id, the
+    environment, when saved and checked, and which connections use them.
+    Never the secret part."""
+    out = {}
+    for provider in bank_keys.PROVIDERS:
+        row = bank_keys.own_row(db, user.id, provider)
+        keys = bank_keys.row_keys(row)
+        if row is None or keys is None:
+            out[provider] = None
+            continue
+        out[provider] = {"id": row.key_id, "environment": row.environment,
+                         "saved_at": _iso_z(row.saved_at), "checked_at": _iso_z(row.checked_at),
+                         "in_use": [_bank_name(c) for c in _bank_keys_users(db, user, provider, keys)]}
+    return out
+
+
+def _bank_save_keys(db: Session, user: User, keys, request: Request) -> dict:
+    provider = "teller" if isinstance(keys, teller.Keys) else "plaid"
+    old = bank_keys.own_keys(db, user.id, provider)
+    if old is not None and bank_keys.key_id(old) != bank_keys.key_id(keys):
+        _bank_keys_in_use(db, user, provider, old, "replace the keys")
+    try:
+        (teller if provider == "teller" else plaid).check(keys)
+    except simplefin.BankError as e:
+        raise HTTPException(e.status, str(e))
+    carried = _bank_keys_users(db, user, provider, old) if old is not None else []
+    bank_keys.save(db, user.id, keys, checked=True)
+    # The same id, renewed: the connections that used the old ones carry on
+    # with the new ones.
+    for conn in carried:
+        conn.keys_enc = bank_keys.encrypt_copy(keys)
+    db.commit()
+    record_event(db, "bank_keys_saved", request, user=user,
+                 detail=f"{BANK_PROVIDER_NAMES[provider]}, {keys.environment}")
+    return {"keys": _bank_keys_status(db, user), "status": _bank_status(db, user)}
+
+
+@app.put("/api/bank/keys/teller")
+def bank_save_teller_keys(body: TellerKeysIn, request: Request,
+                          user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Save (or replace) your own Teller keys: the application id, the
+    environment, and the certificate and private key (Teller's zip, or the
+    two files' text). Checked with Teller first."""
+    _bank_allowed(db, user)
+    _bank_may_connect(db, user, "teller")
+    _confirm_code_for(db, request, user, body.code, "bank keys")
+    try:
+        raw = base64.b64decode(body.zip_base64, validate=True) if body.zip_base64 else None
+    except ValueError:
+        raise HTTPException(400, "That file couldn't be read. Pick the teller.zip Teller downloaded.")
+    try:
+        cert, key = bank_keys.teller_pems(raw, body.certificate, body.private_key)
+    except bank_keys.KeysInputError as e:
+        raise HTTPException(400, str(e))
+    if body.environment != "sandbox" and not (cert and key):
+        raise HTTPException(400, "Teller's development and production need your certificate and "
+                                 "private key: pick Teller's zip, or the two files inside it.")
+    keys = teller.Keys(app_id=body.application_id.strip(), environment=body.environment,
+                       certificate=cert, private_key=key)
+    return _bank_save_keys(db, user, keys, request)
+
+
+@app.put("/api/bank/keys/plaid")
+def bank_save_plaid_keys(body: PlaidKeysIn, request: Request,
+                         user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Save (or replace) your own Plaid keys: the client id, the secret and
+    the environment. Checked with Plaid first."""
+    _bank_allowed(db, user)
+    _bank_may_connect(db, user, "plaid")
+    _confirm_code_for(db, request, user, body.code, "bank keys")
+    keys = plaid.Keys(client_id=body.client_id.strip(), secret=body.secret.strip(),
+                      environment=body.environment)
+    return _bank_save_keys(db, user, keys, request)
+
+
+@app.post("/api/bank/keys/remove")
+def bank_remove_keys(body: BankKeysRemoveIn, request: Request,
+                     user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Remove your own keys for one provider. Refused while connections
+    use them. Allowed with bank sync switched off, as disconnecting is."""
+    row = bank_keys.own_row(db, user.id, body.provider)
+    if row is None:
+        raise HTTPException(404, f"You have no {BANK_PROVIDER_NAMES[body.provider]} keys saved.")
+    _confirm_code_for(db, request, user, body.code, "bank keys")
+    keys = bank_keys.row_keys(row)
+    _bank_keys_in_use(db, user, body.provider, keys, "remove the keys")
+    environment = row.environment
+    db.delete(row)
+    db.commit()
+    record_event(db, "bank_keys_removed", request, user=user,
+                 detail=f"{BANK_PROVIDER_NAMES[body.provider]}, {environment}")
+    return {"keys": _bank_keys_status(db, user), "status": _bank_status(db, user)}
 
 
 class BankLinkIn(BaseModel):
@@ -5324,7 +5518,8 @@ def _bank_fetch(db: Session, conn: BankConnection, links: list, link_start, star
         # has a new start date reads everything again; lines already here
         # are recognised by their bank_ref.
         full = not conn.cursor or any(l.synced_through is None for l in links)
-        return plaid.fetch(secret, None if full else conn.cursor, org=_bank_name(conn))
+        return plaid.fetch(bank_keys.connection_keys(db, conn), secret, None if full else conn.cursor,
+                           org=_bank_name(conn))
     ids = {bank_account_ref(a["id"], "teller"): a["id"] for a in _bank_listing(conn)}
     starts = {ids[l.bank_account_ref]: link_start(l) for l in links if l.bank_account_ref in ids}
     made = {ids[l.bank_account_ref] for l in links
@@ -5350,7 +5545,8 @@ def _bank_fetch(db: Session, conn: BankConnection, links: list, link_start, star
         refs = refs_of(link.account_id)
         return any(bank_txn_ref(account_id, t["id"], "teller") not in refs for t in txns)
 
-    return teller.fetch(secret, starts, balances_for=made | due, balance_if=lines_are_new)
+    return teller.fetch(bank_keys.connection_keys(db, conn), secret, starts, balances_for=made | due,
+                        balance_if=lines_are_new)
 
 
 # ---------- Providers' categories onto the user's (#255) ----------
@@ -6479,9 +6675,9 @@ def _bank_short_status(db: Session, user: User, shared: list[dict] | None = None
     access = bank_access(db, user)
     out = {"enabled": enabled, "connected": bool(conns),
            # The providers this person may connect through (an admin's tick,
-           # and the instance has its keys), so an app knows whether to offer
+           # and their own keys, #276), so an app knows whether to offer
            # Connect a bank (sync-access phase 4, #267).
-           "providers_allowed": [k for k, v in bank_providers().items() if v and k in access],
+           "providers_allowed": [k for k, v in bank_providers(db, user).items() if v and k in access],
            "shared": shared if shared is not None else _bank_shared(db, user, with_names=False)}
     if not conns:
         return out
@@ -6570,16 +6766,17 @@ class BankDisconnectIn(BaseModel):
     connection_id: int | None = None
 
 
-def _bank_remove_at_provider(conn: BankConnection) -> str | None:
+def _bank_remove_at_provider(db: Session, conn: BankConnection) -> str | None:
     """End a Teller enrollment or a Plaid Item at the provider (#254), so it
-    stops reading the bank. SimpleFIN has no way to: its token is disabled
-    at SimpleFIN Bridge. Returns why it couldn't, or None."""
+    stops reading the bank, with the connection's own copy of its keys
+    (#276). SimpleFIN has no way to: its token is disabled at SimpleFIN
+    Bridge. Returns why it couldn't, or None."""
     provider = _provider(conn)
     try:
         if provider == "teller":
-            teller.remove(decrypt_str(conn.access_url_enc))
+            teller.remove(bank_keys.connection_keys(db, conn), decrypt_str(conn.access_url_enc))
         elif provider == "plaid":
-            plaid.remove(decrypt_str(conn.access_url_enc))
+            plaid.remove(bank_keys.connection_keys(db, conn), decrypt_str(conn.access_url_enc))
     except simplefin.BankError as e:
         return str(e)
     return None
@@ -6596,7 +6793,7 @@ def bank_disconnect(body: BankDisconnectIn, request: Request,
     conn = _bank_connection_of(db, user, body.connection_id)
     _confirm_code_for(db, request, user, body.code, "bank disconnection")
     provider = _provider(conn)
-    warning = _bank_remove_at_provider(conn)
+    warning = _bank_remove_at_provider(db, conn)
     db.delete(conn)
     db.commit()
     record_event(db, "bank_disconnected", request, user=user,
@@ -6612,7 +6809,7 @@ def _bank_remove_all_at_providers(db: Session, user: User) -> None:
     """When a user is deleted, their Teller and Plaid connections end at the
     provider too (#254); the rows go with the user."""
     for conn in _bank_connections(db, user):
-        _bank_remove_at_provider(conn)
+        _bank_remove_at_provider(db, conn)
 
 
 # ---------- Email alerts (bank-alert-emails phase 1, #206) ----------
@@ -9660,10 +9857,16 @@ class BankSyncSettingIn(BaseModel):
 @app.get("/api/admin/bank-sync")
 def admin_get_bank_sync(user: User = Depends(current_admin), db: Session = Depends(get_db)):
     """Whether users may connect a bank (#194), how many have, and which
-    providers this instance can offer (Teller and Plaid need keys, #254)."""
+    providers an admin may tick people for. Since #276 each person brings
+    their own Teller and Plaid keys, so all three can be offered;
+    `keys_from_env` is false (.env isn't read for them) and `env_keys_copied`
+    says, per provider, when .env's keys were copied once to the people
+    using them and to how many (null: not yet)."""
     return {"enabled": bank_sync_enabled(db),
             "connected_users": db.query(BankConnection.user_id).distinct().count(),
-            "providers": bank_providers()}
+            "providers": {k: True for k in BANK_PROVIDER_NAMES},
+            "keys_from_env": False,
+            "env_keys_copied": bank_keys.env_copied(db)}
 
 
 @app.put("/api/admin/bank-sync")
@@ -10165,7 +10368,7 @@ AUDIT_EVENT_TYPES = (
     "browser_remembered", "browser_forgotten", "two_factor_requirement_changed",
     "bank_connected", "bank_disconnected", "bank_account_created", "bank_sync_run", "bank_sync_failed",
     "bank_balance_adjusted", "bank_sync_setting_changed", "bank_access_changed", "mail_access_changed",
-    "bank_connection_passed", "bank_link_removed",
+    "bank_connection_passed", "bank_link_removed", "bank_keys_saved", "bank_keys_removed",
     "mail_connected", "mail_disconnected", "mail_sender_taught", "mail_check_run",
     "mail_check_failed", "mail_alerts_setting_changed",
 )

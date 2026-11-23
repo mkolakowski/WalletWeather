@@ -86,6 +86,10 @@ MUST_BE_SESSION_ONLY = {
     # bank's access token are connecting too.
     ("POST", "/api/bank/connect/start"), ("POST", "/api/bank/connect/check"),
     ("GET", "/api/bank/teller/setup"), ("POST", "/api/bank/teller/enroll"),
+    # Each person's own Teller and Plaid keys (#276): they reach a bank, so
+    # saving and removing them is browser-only, as connecting is.
+    ("PUT", "/api/bank/keys/teller"), ("PUT", "/api/bank/keys/plaid"),
+    ("POST", "/api/bank/keys/remove"),
     ("PUT", "/api/admin/bank-sync"),
     # Who may connect a bank through which provider (#264): like the switch.
     ("PUT", "/api/admin/users/{uid}/bank-access"),

@@ -24,6 +24,7 @@ from .db import (
     TransactionTag, Transfer, Category, AccountPermission, Tag, TagRule, BankConnection, BankAccountLink,
     MailConnection, MailSender, MailAlertKind, encrypt_str, decrypt_str,
 )
+from . import bank_keys, plaid, simplefin, teller
 
 # 4 (#117): tags, tag rules, and each recurring item's and transaction's tag
 # names. 5 (#236): transfers, so moving between a server and the iPhone (or a
@@ -192,7 +193,9 @@ def export_user(db: Session, user: User, accounts: list | None = None,
     categories. If `accounts` is None, exports all accounts owned by `user`
     (legacy behavior, kept for compatibility). `include_bank` adds the user's
     bank connection: only for a backup that is then sealed, never for
-    "Download my data" (decided 2026-11-16, #193, #194)."""
+    "Download my data" (decided 2026-11-16, #193, #194). Since #276 that
+    includes the user's own Teller and Plaid keys and each connection's copy
+    of the keys it was made with (decided 2026-11-23)."""
     categories_out = [
         {"name": c.name, "color": c.color}
         for c in db.query(Category).filter_by(owner_id=user.id).all()
@@ -332,10 +335,59 @@ def export_user(db: Session, user: User, accounts: list | None = None,
             # Every connection (#254). A backup from before that has one,
             # as "bank_connection", and still imports.
             out["bank_connections"] = banks
+        keys = _export_bank_keys(db, user)
+        if keys:
+            out["bank_keys"] = keys
         mail = _export_mail(db, user, accounts)
         if mail:
             out["mail_connection"] = mail
     return out
+
+
+def _keys_out(keys) -> dict:
+    """Keys as a sealed backup holds them (#276)."""
+    return json.loads(bank_keys._to_json(keys))
+
+
+def _keys_in(provider: str, data):
+    """Keys from a sealed backup, or None when they don't read as keys."""
+    if not isinstance(data, dict) or data.get("provider") != provider:
+        return None
+    kid = data.get("id")
+    if not isinstance(kid, str) or not _KEY_ID.fullmatch(kid):
+        return None
+    for part in ("certificate", "private_key", "secret"):
+        if data.get(part) is not None and (not isinstance(data[part], str)
+                                           or len(data[part]) > bank_keys.PEM_MAX):
+            return None
+    keys = bank_keys._build(provider, kid, data.get("environment"), data)
+    return keys if keys is not None and (teller.available(keys) if provider == "teller"
+                                         else plaid.available(keys)) else None
+
+
+def _export_bank_keys(db: Session, user: User) -> list[dict]:
+    out = []
+    for provider in bank_keys.PROVIDERS:
+        keys = bank_keys.own_keys(db, user.id, provider)
+        if keys is not None:
+            out.append(_keys_out(keys))
+    return out
+
+
+def _import_bank_keys(db: Session, user: User, payload: dict, mode: str) -> int:
+    """A sealed backup's own keys (#276): kept as the user's own where they
+    have none, or (a replace) in place of theirs. An older backup has none."""
+    items = payload.get("bank_keys")
+    n = 0
+    for d in items[:2] if isinstance(items, list) else []:
+        provider = d.get("provider") if isinstance(d, dict) else None
+        keys = _keys_in(provider, d) if provider in bank_keys.PROVIDERS else None
+        if keys is None:
+            continue
+        if mode == "replace" or bank_keys.own_row(db, user.id, provider) is None:
+            bank_keys.save(db, user.id, keys, checked=False)
+            n += 1
+    return n
 
 
 def _export_banks(db: Session, user: User, accounts: list) -> list[dict]:
@@ -362,6 +414,10 @@ def _export_bank(db: Session, conn: BankConnection, accounts: list) -> dict:
         out["access_token"] = decrypt_str(conn.access_url_enc)
         if conn.cursor:
             out["cursor"] = conn.cursor
+        # The keys it was made with (#276), so a restored one syncs as before.
+        keys = bank_keys.connection_keys(db, conn)
+        if keys is not None:
+            out["keys"] = _keys_out(keys)
     return out
 
 
@@ -374,15 +430,15 @@ def _backup_bank_secrets(payload: dict) -> set[str]:
     return {d.get("access_token") for d in items if isinstance(d, dict) and d.get("access_token")}
 
 
-def _end_at_provider(provider: str, secret: str) -> None:
-    from . import plaid, simplefin, teller
+def _end_at_provider(provider: str, keys, secret: str) -> None:
     try:
-        (teller if provider == "teller" else plaid).remove(secret)
+        (teller if provider == "teller" else plaid).remove(keys, secret)
     except simplefin.BankError:
         pass
 
 
 _TOKEN = re.compile(r"[A-Za-z0-9_\-]{8,200}")
+_KEY_ID = re.compile(r"[A-Za-z0-9_\-]{1,200}")
 
 
 def _import_banks(db: Session, user: User, payload: dict, acc_by_name: dict) -> int:
@@ -421,9 +477,11 @@ def _import_bank(db: Session, user: User, data, acc_by_name: dict) -> bool:
     listing = [{"id": a["id"][:200], "name": _text(a.get("name"), 120),
                 "org": _text(a.get("org"), 120)} for a in listing]
     cursor = data.get("cursor") if provider == "plaid" and isinstance(data.get("cursor"), str) else None
+    keys = _keys_in(provider, data.get("keys")) if provider != "simplefin" else None
     conn = BankConnection(user_id=user.id, provider=provider, access_url_enc=encrypt_str(access),
                           accounts_enc=encrypt_str(json.dumps(listing)), calls_json="[]",
-                          cursor=cursor[:5000] if cursor else None)
+                          cursor=cursor[:5000] if cursor else None,
+                          keys_enc=bank_keys.encrypt_copy(keys) if keys else None)
     db.add(conn)
     db.flush()
     used_refs = set()
@@ -659,7 +717,7 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
             for conn in db.query(BankConnection).filter_by(user_id=user.id).all():
                 secret = decrypt_str(conn.access_url_enc)
                 if conn.provider in ("teller", "plaid") and secret not in kept:
-                    _end_at_provider(conn.provider, secret)
+                    _end_at_provider(conn.provider, bank_keys.connection_keys(db, conn), secret)
                 db.delete(conn)
         if isinstance(payload.get("mail_connection"), dict):
             # And its mailbox theirs (#206).
@@ -831,6 +889,7 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
                     db.add(TransactionTag(transaction_id=t.id, tag_id=tag.id))
 
     counts["transfers"] = _import_transfers(db, user, payload.get("transfers"), acc_by_index, legs_by_transfer)
+    counts["bank_keys"] = _import_bank_keys(db, user, payload, mode)
     counts["bank_connection"] = _import_banks(db, user, payload, acc_by_name)
     counts["mail_connection"] = int(_import_mail(db, user, payload.get("mail_connection"), acc_by_name))
     db.commit()

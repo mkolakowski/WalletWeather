@@ -52,9 +52,10 @@ services:
       MS_CLIENT_ID: ${MS_CLIENT_ID:-}
       MS_CLIENT_SECRET: ${MS_CLIENT_SECRET:-}
       MS_TENANT: ${MS_TENANT:-}
-      # Bank sync through Teller and Plaid (#254): offered only once its keys
-      # are set. Teller's certificate and key come from the read-only folder
-      # mounted below.
+      # Teller and Plaid (#254): read once, on the upgrade to 1.95.0, to copy
+      # them to the people already using them; not read after that (#276):
+      # each person adds their own keys in Settings → Bank sync. Teller's
+      # certificate and key come from the read-only folder mounted below.
       TELLER_APP_ID: ${TELLER_APP_ID:-}
       TELLER_ENV: ${TELLER_ENV:-development}
       TELLER_CERT_FILE: /run/teller/certificate.pem
@@ -74,7 +75,8 @@ services:
       - "8300:8000"
     volumes:
       - backup_data:/data/backups
-      # Teller's certificate.pem and private_key.pem (#254), read-only.
+      # Teller's certificate.pem and private_key.pem (#254), read-only; read
+      # once on the upgrade to 1.95.0 (#276).
       - ${TELLER_CERT_DIR:-./secrets/teller}:/run/teller:ro
     # The app only ever writes to the backups volume, so it gets nothing
     # else: a read-only file system, no Linux capabilities and no way to

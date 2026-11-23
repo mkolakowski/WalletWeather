@@ -47,7 +47,10 @@ the server (not your phone) asks the service you connected through
 (SimpleFIN Bridge, Teller or Plaid) for your bank accounts and posted
 transactions whenever it syncs. You sign in to your bank on that service's
 own page, never on WalletWeather's. The service and your bank see that, and
-the service's privacy policy covers its part. Signed in to a server, the iOS
+the service's privacy policy covers its part. For Teller or Plaid you add keys
+from a developer account of your own in the web app's Settings → Bank sync;
+the server keeps them encrypted, never shows the secret part again, and
+checks them with the service when you save them. Signed in to a server, the iOS
 app itself never talks to SimpleFIN, Teller or Plaid.
 
 If you use the iOS app **On this iPhone** and connect SimpleFIN Bridge in its

@@ -80,17 +80,18 @@
       stop('Bank sync is off', 'An admin switches it on in the web app\'s Admin page. Then you can connect your bank here.', 'off');
       return;
     }
-    const ready = (bank.providers || []).filter(p => p.available && (p.key === 'teller' || p.key === 'plaid'));
-    // Only the providers an admin lets this person use (#264).
-    const offered = ready.filter(p => p.allowed !== false);
-    if (ready.length && !offered.length) {
+    // Only the providers an admin lets this person use (#264), and only once
+    // they've saved their own keys for it (#276).
+    const ticked = (bank.providers || []).filter(p => (p.key === 'teller' || p.key === 'plaid') && p.allowed !== false);
+    const offered = ticked.filter(p => p.available);
+    if (!ticked.length) {
       stop("You can't connect a bank yet",
            'An admin lets you connect through Teller or Plaid in the web app: Admin → Users.', 'off');
       return;
     }
     if (!offered.length) {
-      stop('No provider to connect with',
-           "This server has no Teller or Plaid keys set up. An admin adds them to its .env; SimpleFIN is connected in the web app: Settings → Bank sync.", 'off');
+      stop('Add your keys first',
+           'Teller and Plaid each need keys from a developer account of your own. Add them in the web app: Settings → Bank sync. SimpleFIN is connected there too.', 'off');
       return;
     }
     offered.forEach(p => $(p.key).classList.remove('hidden'));

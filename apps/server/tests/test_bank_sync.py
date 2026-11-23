@@ -130,16 +130,45 @@ def allow_bank(user_id: int, providers=("simplefin", "teller", "plaid")):
         db.close()
 
 
+# Teller's and Plaid's keys every new user gets while a stand-in provider is
+# in place (#276: each person's own keys). test_bank_providers' teller_fake
+# and plaid_fake fixtures fill this in and empty it again.
+AUTO_KEYS: dict = {}
+
+
+def give_keys(keys, user_id: int | None = None):
+    """Save `keys` as a person's own, as Settings → Bank sync does, without
+    the check. With no user_id, every user who has none for that provider
+    gets them (people a test made before its stand-in was in place)."""
+    from app import bank_keys
+    from app.db import BankKeys, SessionLocal, User
+    provider = "teller" if hasattr(keys, "app_id") else "plaid"
+    db = SessionLocal()
+    try:
+        if user_id is not None:
+            ids = [user_id]
+        else:
+            have = {u for (u,) in db.query(BankKeys.user_id).filter_by(provider=provider)}
+            ids = [u for (u,) in db.query(User.id) if u not in have]
+        for uid in ids:
+            bank_keys.save(db, uid, keys, checked=True)
+        db.commit()
+    finally:
+        db.close()
+
+
 def register(app, bank=True):
     """A new signed-in user; ticked for every bank provider unless bank=False,
     so the bank tests reach what they test (who may connect is
-    test_bank_access.py's)."""
+    test_bank_access.py's), with the stand-in providers' keys as their own."""
     c = TestClient(app)
     email = unique_email()
     r = c.post("/api/auth/register", json={"email": email, "password": PASSWORD})
     assert r.status_code == 200, r.text
     if bank:
         allow_bank(r.json()["id"])
+    for keys in AUTO_KEYS.values():
+        give_keys(keys, r.json()["id"])
     return c, {"email": email, "id": r.json()["id"], "password": PASSWORD}
 
 

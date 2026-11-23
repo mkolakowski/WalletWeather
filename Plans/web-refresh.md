@@ -6,14 +6,18 @@ Tracking issue: #289
 
 | Phase | Apps | Issue | State |
 | --- | --- | --- | --- |
-| 1. Surfaces, titles and controls | Web | #281 | Not started |
+| 1. Surfaces, titles and controls | Web | #281 | Built in web 1.109.0, 2026-11-23; waits for your look and the release after phase 8 |
 | 2. Four bugs the review found | Web | #282 | Built in web 1.108.1, 2026-11-23; waits for your look and the release after phase 8 |
-| 3. Readable themes, web and iPhone | Web, iOS | #283 | Not started |
+| 3. Readable themes, web and iPhone | Web, iOS | #283 | Built in web 1.110.0 and iOS 0.34.0, 2026-11-23; waits for your look and the release after phase 8 |
 | 4. Settings, Admin and Reports | Web | #284 | Not started |
 | 5. Forecast and Bills tables | Web | #285 | Not started |
 | 6. Date format and row height settings | Server, Web | #286 | Not started |
 | 7. Dashboard, Calendar, sign-in, phone | Web | #287 | Not started |
 | 8. Top bar and account menu | Web | #288 | Not started |
+
+Phase 3 built 2026-11-23 in web 1.110.0 and iOS 0.34.0 (no server change): the 21 failing colours changed in place in each theme block; Solarized and Synthwave chips; Solarized and Mint take Light's shadow; the theme blocks also style `.theme-mini[data-t]`, which the picker's tiny screens use (System split with `clip-path`); Light's caption is "Clean white". Verified: `theme-contrast.py` reports none under 4.5:1; Forecast in all ten themes and Settings → Appearance before (52f74b1) and after, on a page linked from #283; `swift test` 210 passed; the demo on Forecast in Solarized and Synthwave in the iPhone Duo simulator through `with-simulator.sh`; full API run, 1245 passed.
+
+Phase 1 built 2026-11-23 in web 1.109.0 (no server change), after phase 2: trial.css sections 1, 2, 4 and 5 written into the shipped rules (tokens, page frame, titles and labels, controls) rather than layered as overrides. Also in sentence case: Net worth's "Per account" heading. Verified: all eight pages before (7a05ace) and after at 1440 and 390px in Dark and Light, on a page linked from #281; Forecast and Dashboard in all ten themes with nothing overlapping or clipped; full API run, 1245 passed.
 
 Phase 2 built 2026-11-23 in web 1.108.1 (no server change), done first because it needs nothing from phase 1: `_twLabel` drops the hidden swap-in headings; the Net worth chart draws at its host's width with short axis labels inside the plot; the Reports bar chart fills its panel; the Reports filters show in full (all three, not only Categories, since they share the 120px cap). Verified: before (5e0a6ad) and after pictures from the demo stack at 1440, 1180 and 390px in Dark and Light, on a page linked from #282; full API run, 1245 passed.
 

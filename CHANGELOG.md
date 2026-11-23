@@ -69,7 +69,14 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.97.0** · Web version: **1.108.1** · Schema version: **38** · iOS version: **0.33.0**
+App version: **1.97.0** · Web version: **1.109.0** · Schema version: **38** · iOS version: **0.33.0**
+
+### Changed
+
+- A calmer, more modern look for the Dark and Light themes: softer surfaces and borders, rounder cards with a light shadow, and, in Light, white cards on a tinted page. Filled buttons in Dark are now much easier to read.
+- Dashboard and Net worth open with a proper page title, and their cards sit straight on the page instead of inside another box. Section headings and labels read in normal sentence case rather than capitals; table headers keep their capitals.
+- Controls look the same everywhere: the account switcher and the Month / 30 days / 90 days choice are one segmented control, secondary buttons have a soft fill, dropdowns match the other fields, and buttons that delete something are tinted red rather than solid red.
+- The footer stays at the bottom of the window on short pages.
 
 ### Fixed
 

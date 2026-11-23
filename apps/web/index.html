@@ -12,15 +12,24 @@
 <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
 <meta name="theme-color" content="#0f1419">
 <style>
-  :root { --bg:#0f1419; --panel:#1a2027; --border:#2a323c; --text:#e6edf3; --muted:#8b949e;
-          --accent:#58a6ff; --good:#3fb950; --bad:#f85149; --warn:#d29922;
-          --bg-deep:#0d1117; --chip-bg:#21262d; --good-bg:#0d2818; --field-bg:#161b22;
-          --bad-bg:rgba(248,81,73,0.1); --on-accent:#fff; color-scheme:dark; }
+  /* web-refresh phase 1 (#281): calmer Dark and Light surfaces, softer borders, dark text on
+     Dark's accent (filled buttons 2.5:1 → about 7.6:1). The shape tokens below (hairline,
+     shadow, radii) are shared by every theme; --hair follows each theme's own border. */
+  :root { --bg:#0b0f15; --panel:#141a23; --border:#242d3a; --text:#e9edf4; --muted:#8d98a9;
+          --accent:#5aa9ff; --good:#3ecf8e; --bad:#ff6b6b; --warn:#e3b341;
+          --bg-deep:#0f141c; --chip-bg:#1c2430; --good-bg:#10291f; --field-bg:#0f141c;
+          --bad-bg:rgba(255,107,107,0.1); --on-accent:#06121f; color-scheme:dark;
+          --hair:color-mix(in srgb, var(--border) 62%, transparent);
+          --r-card:14px; --r-ctl:9px;
+          --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 10px 28px -18px rgba(0,0,0,.8);
+          --seg-shadow:0 1px 2px rgba(0,0,0,.4); }
   :root[data-theme="light"] {
-          --bg:#ffffff; --panel:#f6f8fa; --border:#d0d7de; --text:#1f2328; --muted:#656d76;
-          --accent:#0969da; --good:#1a7f37; --bad:#cf222e; --warn:#9a6700;
-          --bg-deep:#eaeef2; --chip-bg:#eaeef2; --good-bg:#dafbe1; --field-bg:#ffffff;
-          --bad-bg:rgba(207,34,46,0.08); --on-accent:#ffffff; color-scheme:light; }
+          --bg:#f2f4f7; --panel:#ffffff; --border:#e1e5eb; --text:#141a22; --muted:#5c6777;
+          --accent:#1b66d6; --good:#0f7a55; --bad:#cf2f3c; --warn:#946200;
+          --bg-deep:#eef1f5; --chip-bg:#edf0f4; --good-bg:#e2f5ea; --field-bg:#ffffff;
+          --bad-bg:rgba(207,47,60,0.08); --on-accent:#ffffff; color-scheme:light;
+          --shadow:0 1px 2px rgba(16,24,40,.05), 0 10px 26px -18px rgba(16,24,40,.25);
+          --seg-shadow:0 1px 2px rgba(16,24,40,.14); }
   :root[data-theme="dracula"] {
           --bg:#282a36; --panel:#343746; --border:#44475a; --text:#f8f8f2; --muted:#6272a4;
           --accent:#bd93f9; --good:#50fa7b; --bad:#ff5555; --warn:#f1fa8c;
@@ -63,7 +72,10 @@
           --bad-bg:rgba(239,79,86,0.12); --on-accent:#1f1613; color-scheme:dark; }
   * { box-sizing:border-box; }
   body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-         background:var(--bg); color:var(--text); }
+         background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased;
+         /* The footer sits at the bottom of short pages (#281). */
+         min-height:100vh; display:flex; flex-direction:column; }
+  body > #app { flex:1 0 auto; }
   header { padding:12px 20px; border-bottom:1px solid var(--border); display:flex;
            align-items:center; justify-content:space-between; background:var(--panel); }
   h1 { font-size:18px; margin:0; font-weight:600; }
@@ -72,16 +84,30 @@
   main { padding:20px 40px; max-width:none; margin:0 auto; }
   /* Forecast page: nearly edge-to-edge, with a ~finger-width (40px) gutter. */
   main.wide { max-width:none; padding-left:40px; padding-right:40px; }
-  .panel { background:var(--panel); border:1px solid var(--border); border-radius:8px;
-           padding:16px; margin-bottom:16px; }
-  .panel h2 { margin:0 0 12px; font-size:15px; font-weight:600; color:var(--muted);
-              text-transform:uppercase; letter-spacing:.05em; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:var(--r-card);
+           padding:20px; margin-bottom:16px; box-shadow:var(--shadow); }
+  .panel h2 { margin:0 0 12px; font-size:17px; font-weight:650; color:var(--text);
+              letter-spacing:-.01em; }
+  /* Dashboard and Net worth: cards sit on the page, under a real page title (#281). */
+  #pageDashboard > .panel, #pageNetworth > .panel { background:transparent; border:none; padding:0;
+                                                    box-shadow:none; }
+  #pageDashboard > .panel > .page-title-row h2, #pageNetworth > .panel > h2 {
+           font-size:26px; font-weight:680; letter-spacing:-.025em; line-height:1.2; }
+  #pageDashboard > .panel > .page-title-row { margin-bottom:14px; }
+  #pageNetworth > .panel > h2 { margin-bottom:14px; }
   button { background:var(--accent); color:var(--on-accent); border:0; padding:8px 14px;
-           border-radius:6px; cursor:pointer; font-size:13px; font-weight:500; }
+           border-radius:var(--r-ctl); cursor:pointer; font-size:13px; font-weight:550;
+           transition:background-color .12s, border-color .12s, color .12s; }
   button:hover { filter:brightness(1.1); }
-  button.ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
+  /* Secondary buttons: a soft fill instead of an outline (#281). */
+  button.ghost { background:var(--chip-bg); border:1px solid transparent; color:var(--text); }
+  button.ghost:hover { filter:none; border-color:var(--border); }
   button.ghost.active { background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
-  button.danger { background:var(--bad); }
+  /* Destructive buttons are tinted, not filled red (#281). */
+  button.danger, button.ghost.danger { background:var(--bad-bg); color:var(--bad);
+           border:1px solid color-mix(in srgb, var(--bad) 35%, transparent); }
+  button.danger:hover, button.ghost.danger:hover { filter:none;
+           background:color-mix(in srgb, var(--bad) 18%, transparent); }
   /* Line editor (#66): a line opened for editing on Forecast, Transactions or
      Bills & income becomes a labelled form spanning the table. Pinned to the
      visible width so every field stays on screen when the table scrolls
@@ -346,9 +372,13 @@
     .match-card { flex-direction:column; align-items:stretch; }
     .match-card > button { width:100%; }
   }
-  input, select { background:var(--bg-deep); border:1px solid var(--border); color:var(--text);
-                  padding:7px 10px; border-radius:6px; font:inherit; }
-  label { display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+  input, select { background:var(--field-bg); border:1px solid var(--border); color:var(--text);
+                  padding:7px 10px; border-radius:var(--r-ctl); font:inherit; }
+  /* Dropdowns match the fields: no system chrome, one quiet chevron (#281). */
+  select:not([multiple]):not([size]) { -webkit-appearance:none; appearance:none; padding-right:30px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%238d98a9' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 10px center; }
+  label { display:block; font-size:12.5px; color:var(--muted); margin-bottom:4px; }
   .row { display:flex; gap:10px; flex-wrap:wrap; align-items:end; }
   .row > div { flex:1; min-width:140px; }
   table { width:100%; border-collapse:collapse; font-size:13px; }
@@ -469,10 +499,14 @@
   .divider { display:flex; align-items:center; gap:10px; margin:18px 0;
              color:var(--muted); font-size:12px; }
   .divider::before, .divider::after { content:""; flex:1; height:1px; background:var(--border); }
-  .accounts-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
-  .account-tab { padding:8px 14px; border-radius:6px; background:var(--panel);
-                 border:1px solid var(--border); cursor:pointer; }
-  .account-tab.active { border-color:var(--accent); color:var(--accent); }
+  /* The account switcher is one neutral segmented control (#281). */
+  .accounts-bar { display:flex; width:fit-content; max-width:100%; gap:2px; padding:4px;
+                  background:var(--chip-bg); border-radius:13px; flex-wrap:nowrap; overflow-x:auto;
+                  margin-bottom:18px; }
+  .account-tab { padding:7px 14px; border-radius:10px; background:transparent; border:none;
+                 color:var(--muted); font-weight:550; white-space:nowrap; flex:0 0 auto; cursor:pointer; }
+  .account-tab:hover { color:var(--text); }
+  .account-tab.active { background:var(--panel); color:var(--text); box-shadow:var(--seg-shadow); }
   /* Even weeks of the month (2nd, 4th, 6th Sun–Sat week) get a slightly
      lighter cell shade in the forecast table, as a quiet week separator.
      An overlay of the text color reads "lighter" on dark themes and as a
@@ -500,14 +534,15 @@
   .ctl label { margin:0; }
   .ctl.hidden { display:none; }
   .month-nav { padding:6px 10px; font-size:13px; }
-  .account-tab .tab-bal { margin-left:8px; font-size:12px; color:var(--muted); }
+  .account-tab .tab-bal { margin-left:8px; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
   .today-bar .today-bal { color:var(--text); text-transform:none; letter-spacing:0; }
   .summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
              gap:12px; margin-bottom:16px; }
-  .stat { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:14px; }
+  .stat { background:var(--panel); border:1px solid var(--border); border-radius:var(--r-card); padding:14px;
+          box-shadow:var(--shadow); }
   .stat .v { font-size:22px; font-weight:600; margin-top:4px; }
-  .stat .l { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
-  .stat .d { font-size:11px; color:var(--muted); margin-top:2px; font-variant-numeric:tabular-nums; }
+  .stat .l { font-size:12.5px; font-weight:500; color:var(--muted); }
+  .stat .d { font-size:12px; color:var(--muted); margin-top:2px; font-variant-numeric:tabular-nums; }
   /* Current balance card: accent outline + soft glow so it stands out. */
   .stat .bank { font-size:12px; margin-top:8px; padding-top:6px; border-top:1px dashed var(--border); color:var(--muted); font-variant-numeric:tabular-nums; }
   .stat .bank.gap { color:var(--warn); }
@@ -515,7 +550,7 @@
   .stat.current { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 0 14px color-mix(in srgb, var(--accent) 35%, transparent); }
   .stat .io { display:flex; justify-content:space-between; align-items:baseline; gap:8px;
               font-size:16px; font-weight:600; margin-top:3px; font-variant-numeric:tabular-nums; }
-  .stat .io-l { font-size:11px; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  .stat .io-l { font-size:12.5px; font-weight:500; color:var(--muted); }
   .stat .v.pos { color:var(--good); }
   .stat .v.neg { color:var(--bad); }
   .recurring-fields { transition:opacity 0.15s; }
@@ -677,10 +712,10 @@
   /* A panel outside the chosen Settings tab. Separate from .hidden, which
      some panels use for their own reasons (Permissions with no accounts). */
   #pageSettings .section-off { display:none !important; }
-  .settings-tabs button { background:transparent; color:var(--muted); border:1px solid var(--border);
+  .settings-tabs button { background:var(--chip-bg); color:var(--muted); border:1px solid transparent;
                           border-radius:999px; padding:6px 14px; font-size:13px; white-space:nowrap; }
   .settings-tabs button:hover { color:var(--text); }
-  .settings-tabs button.active { background:var(--chip-bg); color:var(--accent); border-color:var(--accent); }
+  .settings-tabs button.active { background:color-mix(in srgb, var(--accent) 15%, transparent); color:var(--accent); border-color:transparent; }
 
   /* ---------- Mobile (≤768px) ---------- */
   @media (max-width: 768px) {
@@ -783,7 +818,7 @@
      is hidden, so a row of sort buttons (#forecastSortBar) stands in for it.
      Must stay in sync with _isPhoneLayout(). */
   @media (max-width: 768px) {
-    .accounts-bar { flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px; }
+    .accounts-bar { flex-wrap:nowrap; overflow-x:auto; }
     .account-tab { flex:0 0 auto; white-space:nowrap; }
     .fc-actions { border-right:none; padding-right:0; padding-bottom:10px; border-bottom:1px solid var(--border); }
     .fc-actions button { flex:1 1 auto; padding:8px 6px; font-size:12px; }
@@ -975,9 +1010,9 @@
   /* ---------- Global footer ---------- */
   /* Always-visible footer with app/web/schema versions + GitHub link.
      Lives outside #login and #app so it renders on every screen. */
-  .app-footer { border-top:1px solid var(--border); background:var(--bg-deep);
+  .app-footer { border-top:1px solid var(--hair); background:transparent;
                 color:var(--muted); font-size:12px;
-                padding:10px 18px; margin-top:24px;
+                padding:14px 40px; margin-top:auto;
                 display:flex; justify-content:space-between;
                 align-items:center; flex-wrap:wrap; gap:8px; }
   .app-footer a { color:var(--accent); text-decoration:none; }
@@ -994,9 +1029,9 @@
   .page-title-row { display:flex; align-items:center; gap:10px;
                     flex-wrap:wrap; margin:0 0 10px; }
   .icon-btn { display:inline-flex; align-items:center; gap:5px;
-              background:transparent; color:var(--muted);
-              border:1px solid var(--border); border-radius:6px;
-              padding:4px 10px; font-size:12px; cursor:pointer;
+              background:var(--chip-bg); color:var(--muted);
+              border:1px solid transparent; border-radius:var(--r-ctl);
+              padding:6px 10px; font-size:12px; cursor:pointer;
               line-height:1; }
   .icon-btn:hover { color:var(--text); border-color:var(--accent); }
   .icon-btn svg { display:block; }
@@ -1013,15 +1048,15 @@
   .dash-window-bar { display:flex; align-items:center; gap:10px; margin:0 0 14px;
                      flex-wrap:wrap; }
   .dash-window-bar .label { color:var(--muted); font-size:13px; }
-  .dash-window-bar .seg { display:inline-flex; border:1px solid var(--border);
-                          border-radius:6px; overflow:hidden; }
-  .dash-window-bar .seg button { background:transparent; border:none;
-                                  color:var(--text); padding:6px 12px;
+  /* Month / 30 days / 90 days: the same neutral segmented control as the account switcher (#281). */
+  .dash-window-bar .seg { display:inline-flex; gap:2px; padding:3px; background:var(--chip-bg);
+                          border-radius:11px; }
+  .dash-window-bar .seg button { background:transparent; border:none; border-radius:8px;
+                                  color:var(--muted); padding:5px 13px;
                                   font-size:13px; cursor:pointer; }
-  .dash-window-bar .seg button:not(:last-child) {
-                          border-right:1px solid var(--border); }
-  .dash-window-bar .seg button.active { background:var(--accent);
-                                         color:var(--on-accent); }
+  .dash-window-bar .seg button:hover { color:var(--text); filter:none; }
+  .dash-window-bar .seg button.active { background:var(--panel); color:var(--text);
+                                         box-shadow:var(--seg-shadow); }
   .dash-window-bar .range { color:var(--muted); font-size:12px; margin-left:auto; }
 
   /* One "chart block" = the triple of donut + totals + sparkline for one
@@ -1153,6 +1188,11 @@
                    font-size:13px; }
   .transfer-item .arrow { color:var(--muted); }
   .transfer-item .amt { font-variant-numeric:tabular-nums; font-weight:600; }
+  /* Labels read in sentence case (#281); capitals stay for table headers and the
+     Forecast / Actual eyebrows (.dash-card .section-label). */
+  .dash-card .month, .dash-card .field .l, .chart-title, .chart-totals .row-t .k,
+  .theme-group-label, .backup-subhead { text-transform:none; letter-spacing:0; font-size:12.5px; }
+  .dash-card .field .l { font-size:12px; }
 </style>
 <script>
   // Pre-paint: default theme is "system" (follow OS). Once the user signs in,
@@ -2824,7 +2864,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.108.1";
+const WEB_VERSION = "1.109.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2834,6 +2874,7 @@ const WEB_VERSION = "1.108.1";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.109.0 (2026-11-23, claude+mkolakowski): (#281) web-refresh phase 1, surfaces, titles and controls: new Dark and Light tokens (calmer surfaces, softer borders, Light a tinted page with white cards, --on-accent #06121f in Dark) plus shape tokens every theme shares (--hair, --r-card 14px, --r-ctl 9px, --shadow, --seg-shadow); panels and .stat get the card radius and shadow; .panel h2 in sentence case at 17px; Dashboard and Net worth lose their outer panel and get 26px page titles; labels (.stat .l/.io-l, label, dash-card month and fields, chart titles, theme groups, backup subheads, Per account) in sentence case; button.ghost a soft fill, .danger tinted, selects drawn without system chrome, .icon-btn and Settings tabs filled; the account bar and the Month/30/90 windows one neutral segmented control; body a flex column so the footer sits at the bottom of short pages.
 // 1.108.1 (2026-11-23, claude+mkolakowski): (#282) web-refresh phase 2, four bugs: _twLabel drops the hidden .th-alt/.th-size headings, so wrapped Forecast cards read "Forecast date" not "Forecast dateStart date"; renderNetworthChart draws at the host's width (no preserveAspectRatio="none") with its three axis labels inside the plot in short form ($22.4k); .pie-host > .bar-chart fills the panel (was 180px in the pie's flex row); .report-checklist loses its 120px max-height, so Reports' filters show in full.
 // 1.108.0 (2026-11-23, claude+mkolakowski): (#278) Your own Teller and Plaid keys from the iPhone app: new pages outside the SPA, app-bank-keys.html/.js (/app-bank-keys, opened in the app's sign-in sheet: signs in, shows a card for Teller and one for Plaid with the id, environment and when checked, add / Replace / Remove through PUT /api/bank/keys/teller|plaid and POST /api/bank/keys/remove with a fresh two-factor code, Teller's zip or the two files from Files or pasted text; "Back to the app" sends walletweather://bank-keys?state=changed|closed, or off when it can't be used). index.html itself is unchanged.
 // 1.107.0 (2026-11-23, claude+mkolakowski): (#277) Admin → Users shows who has their own Teller and Plaid keys. In the Bank sync column (_adminBankAccessHtml) each of Teller and Plaid gets a small note after its tick from the users list's new `bank_keys`: "own keys, <environment>" when they've saved keys, "ticked, no keys yet" when ticked without any. An admin (always allowed) shows only the "own keys" note. Set or not only: the server never sends an id or a secret.
@@ -11923,7 +11964,7 @@ async function loadNetworth() {
     </tr>`;
   }).join('');
   accs.innerHTML = `
-    <h3 style="margin:0 0 8px;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Per account</h3>
+    <h3 style="margin:0 0 8px;font-size:17px;font-weight:650;letter-spacing:-.01em">Per account</h3>
     <div style="overflow-x:auto"><table>
       <thead><tr>
         <th>Account</th>

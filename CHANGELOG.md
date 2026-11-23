@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.114.0** · Schema version: **39** · iOS version: **0.34.0**
+App version: **1.98.0** · Web version: **1.115.0** · Schema version: **39** · iOS version: **0.34.0**
 
 ### Added
 
@@ -77,6 +77,8 @@ App version: **1.98.0** · Web version: **1.114.0** · Schema version: **39** ·
 
 ### Changed
 
+- **Breaking: Log out has moved into an account menu.** On a wide window the email address and the Log out button are one round button showing your initials at the right of the top bar. Click it (or press Enter or Space) to see your email address, a link to Settings → Your account and Log out; Escape, a click elsewhere or choosing an item closes it, and the arrow keys move between items. On a phone nothing moves: the More sheet still has your email address and Log out.
+- **The top bar is lighter and stays in view as you scroll.** The app's mark sits beside its name, the page you're on is a tinted pill with no outline, and the search box shows in full from a 1280px window up instead of only a magnifier (below that it is still the magnifier, and the bar stays on one line).
 - **Dashboard cards are plainer and fill the row.** Three cards sit across a wide window instead of leaving an empty column. Each card's highest and lowest forecast balances are a label over a 20px figure with no boxes around them, the dashed dividers are single thin lines, the balance trend line is taller, the donut's total fits inside its ring and its legend shows every category instead of cutting off. Where the charts go (above, below or inside the cards) still works as you set it in Settings.
 - **Calendar is one grid.** The days join into a single grid with thin lines between them, today is a filled date on a light wash, and each event keeps its category colour without an outline, with its amount in bold.
 - **Sign-in sits in the middle of the window,** with the app's mark above its name and taller fields and button. The notice, two-factor and offline screens share the centred layout.

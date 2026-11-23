@@ -609,7 +609,7 @@ def test_other_sites_get_no_cors_permission(app_started):
 
 # ---------- What's stored ----------
 
-def test_money_and_words_are_encrypted_in_the_database(owner):
+def test_money_and_words_are_encrypted_in_the_database(real_bcrypt_cost, owner):
     """Names, descriptions, notes and amounts are stored encrypted; passwords
     and tokens as hashes only."""
     from app.db import SessionLocal
@@ -827,7 +827,7 @@ def test_secrets_come_from_the_secrets_module():
     assert 'same_site="lax"' in main_src or 'same_site="strict"' in main_src
 
 
-def test_passwords_are_hashed_with_bcrypt_at_cost_12_or_more():
+def test_passwords_are_hashed_with_bcrypt_at_cost_12_or_more(real_bcrypt_cost):
     import bcrypt
     from app.main import hash_password, verify_password
     hashed = hash_password("a password")

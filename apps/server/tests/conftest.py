@@ -58,6 +58,29 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.main import app  # noqa: E402
 
+import bcrypt  # noqa: E402
+
+# Passwords are hashed at bcrypt's lowest cost in tests (#273): the app's
+# cost 12 is about a quarter of a second per hash, and nearly every test
+# registers and signs people in, so it was half of the whole run. The app's
+# own hash_password keeps asking for 12; a stored hash carries its cost, so
+# checking one is unchanged. `real_bcrypt_cost` puts the real cost back for
+# a test that checks it.
+_real_gensalt = bcrypt.gensalt
+TEST_BCRYPT_ROUNDS = 4
+
+
+def _test_gensalt(rounds: int = 12, prefix: bytes = b"2b") -> bytes:
+    return _real_gensalt(TEST_BCRYPT_ROUNDS, prefix)
+
+
+bcrypt.gensalt = _test_gensalt
+
+
+@pytest.fixture
+def real_bcrypt_cost(monkeypatch):
+    monkeypatch.setattr(bcrypt, "gensalt", _real_gensalt)
+
 
 @pytest.fixture(scope="session")
 def app_started():

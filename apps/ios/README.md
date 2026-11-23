@@ -119,7 +119,10 @@ line (or that bill, on Bills & income) in the editor,
 (#294): `connection`, `bank`, `appearance`, `privacy`, `display` (Dates &
 display), `backup`, `move`,
 `help` or `keep` (Keep on this iPhone, under the connection's page);
-`WW_DEBUG_TAGS=1` opens Tags and `WW_DEBUG_BANK` Bank sync.
+`WW_DEBUG_TAGS=1` opens Tags and `WW_DEBUG_BANK` Bank sync. On a regular
+width (the open Duo, #295) Settings is a sidebar with the chosen page beside
+it, and these choose that page there; the open page is kept per window
+(`settings.page`), so closing or opening the Duo keeps it.
 `SIMCTL_CHILD_WW_DEBUG_UNDO=Rent` shows the Forecast's Undo bar for that line
 once the page has loaded (#315); it saves nothing and stays until dismissed.
 On this Mac the simulators are shared with other projects' sessions, so run

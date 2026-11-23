@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.43.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.44.0**
 
 ### Added
 
@@ -80,6 +80,7 @@ App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** ·
 
 ### Changed
 
+- **iPhone Duo: Settings is a sidebar and a page when open,** like the Duo's own Settings. The list (where you are, the other pages, your household, this iPhone, About) stands down the left with each row's value under its name, and the row you choose opens beside it under a card with its name and a line about it. Calendar, Net worth, Budgets and Reports open there too when they aren't in the tab bar. Closing the Duo on a page shows that page; opening it again shows the sidebar with the same page chosen. Closed, Settings is the list it was (iOS 0.44.0).
 - **iPhone Duo: every page folds the same way.** Half open like a laptop, each two-pane page now stacks at the hinge, as only Forecast did: the Dashboard's charts stand up and its accounts lie flat; Bills & income's list above its editor or totals; the Calendar's month above the day; Net worth's total and chart above its accounts; Budgets, Reports and Search likewise. Half open like a book, the two panes sit either side of the fold instead of the right-hand one sitting on it. The panes move from one arrangement to the other as the Duo folds, or fade if Reduce Motion is on. Lying flat, every page is exactly as it was (iOS 0.43.0).
 - **iPhone Duo: pull down in either half to refresh,** on every page, and on Reports and Search, which couldn't be refreshed before. **Breaking:** the Dashboard's Refresh button is gone; pull down instead.
 - **iPhone Duo: one title size when open.** Net worth, Budgets, Reports and Search take the small title, as the other pages do.

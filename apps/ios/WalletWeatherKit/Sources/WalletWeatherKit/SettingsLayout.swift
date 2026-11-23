@@ -4,7 +4,9 @@ import Foundation
 // root list (the connection card, More pages, Your household, This iPhone,
 // About) whose rows open their own pages. The views draw what this model
 // lists, and `SettingsLayoutTests` lists the rows each household shows, so a
-// row that goes missing fails a test.
+// row that goes missing fails a test. On a regular width (the open Duo,
+// phase 2, #295) the same rows make a sidebar (`sidebar`) and the chosen
+// page stands beside it under a header card (`symbol(of:)`, `summary(of:)`).
 
 /// Which household Settings is for: a server, the one kept on this iPhone,
 /// or the demo.
@@ -213,6 +215,63 @@ public struct SettingsGroup: Identifiable, Equatable, Sendable {
     public var id: SettingsSection { section }
 }
 
+/// What the open Duo's Settings pane shows (phase 2, #295): a Settings page,
+/// or one of More pages' app pages. Its raw value is what the window keeps
+/// (`settings.page`): the page's own for a Settings page, `app.` and the
+/// page's for an app page.
+public enum SettingsEntry: Hashable, Identifiable, Sendable {
+    case page(SettingsPage)
+    case app(TabPage)
+
+    public var id: String { rawValue }
+
+    public var rawValue: String {
+        switch self {
+        case let .page(page): page.rawValue
+        case let .app(page): "app.\(page.rawValue)"
+        }
+    }
+
+    public init?(rawValue: String) {
+        if rawValue.hasPrefix("app.") {
+            guard let page = TabPage(rawValue: String(rawValue.dropFirst(4))) else { return nil }
+            self = .app(page)
+        } else {
+            guard let page = SettingsPage(rawValue: rawValue) else { return nil }
+            self = .page(page)
+        }
+    }
+}
+
+/// One row of the sidebar: it opens something in the pane, runs an action
+/// (Import a CSV, Add an account), or only says something (the versions).
+public enum SettingsSidebarItem: Hashable, Identifiable, Sendable {
+    case open(SettingsEntry)
+    case act(SettingsRow)
+    case info(SettingsRow)
+
+    public var id: String {
+        switch self {
+        case let .open(entry): "open.\(entry.rawValue)"
+        case let .act(row): "act.\(row.rawValue)"
+        case let .info(row): "info.\(row.rawValue)"
+        }
+    }
+
+    /// What the row opens in the pane, if anything.
+    public var entry: SettingsEntry? {
+        if case let .open(entry) = self { return entry }
+        return nil
+    }
+}
+
+/// One section of the sidebar, in the root list's order.
+public struct SettingsSidebarGroup: Identifiable, Equatable, Sendable {
+    public let section: SettingsSection
+    public let items: [SettingsSidebarItem]
+    public var id: SettingsSection { section }
+}
+
 /// What Settings shows for one household: the root list's cards and each
 /// page's rows. Nothing here is stored; the views build it each time.
 public struct SettingsLayout: Equatable, Sendable {
@@ -275,6 +334,94 @@ public struct SettingsLayout: Equatable, Sendable {
         case .move: return household == .thisIPhone ? [.exportForServer, .importServerBackup] : []
         case .help: return [.showGettingStarted, .privacyPolicy] + (household == .thisIPhone ? [.setupGuide] : [])
         case .tags, .tabBar, .notice: return []
+        }
+    }
+
+    // MARK: - The sidebar (phase 2, #295)
+
+    /// The root list as a sidebar, for a regular width (the open Duo): each
+    /// card's rows in the same order, More pages' tiles as rows of their
+    /// own, a page's row choosing what the pane beside it shows, an action
+    /// running as it does on the list.
+    public var sidebar: [SettingsSidebarGroup] {
+        groups.map { group in
+            let items: [SettingsSidebarItem] = group.section == .morePages
+                ? morePages.map { .open(.app($0)) }
+                : group.rows.map { row in
+                    switch row.kind {
+                    case .page: row.opens.map { .open(.page($0)) } ?? .info(row)
+                    case .action: .act(row)
+                    default: .info(row)
+                    }
+                }
+            return SettingsSidebarGroup(section: group.section, items: items)
+        }
+    }
+
+    /// Everything the sidebar can choose, top to bottom.
+    public var sidebarEntries: [SettingsEntry] {
+        sidebar.flatMap(\.items).compactMap(\.entry)
+    }
+
+    /// What the pane shows when nothing is chosen yet: the first page, the
+    /// connection's.
+    public var defaultEntry: SettingsEntry { sidebarEntries.first ?? .page(.connection) }
+
+    /// The entry a stored value names, when this household's sidebar has it.
+    /// A page under another (Keep on this iPhone) names the one it's under.
+    public func entry(_ stored: String) -> SettingsEntry? {
+        guard var entry = SettingsEntry(rawValue: stored) else { return nil }
+        if entry == .page(.keep) { entry = .page(.connection) }
+        return sidebarEntries.contains(entry) ? entry : nil
+    }
+
+    /// The entry the pane shows: the stored one, or the first.
+    public func chosen(_ stored: String) -> SettingsEntry { entry(stored) ?? defaultEntry }
+
+    /// A page's symbol, on its sidebar row and in its header card.
+    public func symbol(of page: SettingsPage) -> String {
+        switch page {
+        case .connection:
+            switch household {
+            case .server: "server.rack"
+            case .thisIPhone: "iphone"
+            case .demo: "sparkles"
+            }
+        case .keep: "tray.and.arrow.down"
+        case .bank: "building.columns"
+        case .appearance: "paintpalette"
+        case .privacy: "lock"
+        case .display: "calendar"
+        case .backup: "icloud"
+        case .move: "arrow.left.arrow.right.square"
+        case .help: "questionmark.circle"
+        case .tags: "tag"
+        case .tabBar: "dock.rectangle"
+        case .notice: "doc.plaintext"
+        }
+    }
+
+    /// One line about a page, under its name in the header card the open
+    /// Duo shows above it.
+    public func summary(of page: SettingsPage) -> String {
+        switch page {
+        case .connection:
+            switch household {
+            case .server: "Your server's address, who's signed in, and signing out."
+            case .thisIPhone: "Your household, kept on this iPhone with no server to run."
+            case .demo: "Sample numbers to try the app with. Nothing you change is saved."
+            }
+        case .keep: "What this iPhone keeps from your server for when it can't be reached."
+        case .bank: "Your bank's lines coming in on their own, and how the last sync went."
+        case .appearance: "The app's colours, light or dark, or a theme from the web app."
+        case .privacy: "Locking the app, and the numbers hidden in the app switcher."
+        case .display: "Whether the pages that pick an account all follow the same one."
+        case .backup: "Syncing with iCloud, and the copies kept in iCloud Drive."
+        case .move: "Taking your numbers to a server of your own, or bringing them back."
+        case .help: "The Getting started card again, and the privacy policy."
+        case .tags: "Marks for lines and bills across categories, such as a trip."
+        case .tabBar: "Which pages sit in the tab bar, and in what order."
+        case .notice: "The notice you agreed to when you started, to read again."
         }
     }
 

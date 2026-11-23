@@ -87,12 +87,15 @@ struct ConfirmRow: View {
 /// window opens on this page and then goes its own way.
 struct NewWindowItem: ToolbarContent {
     let place: RootView.Place
+    /// Offered whatever the width here: Settings' pane is set to a compact
+    /// width inside a wide window (#295).
+    var wideWindow = false
     @Environment(\.supportsMultipleWindows) private var supportsMultipleWindows
     @Environment(\.openWindow) private var openWindow
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some ToolbarContent {
-        if supportsMultipleWindows && sizeClass == .regular {
+        if supportsMultipleWindows && (sizeClass == .regular || wideWindow) {
             ToolbarItem(placement: .secondaryAction) {
                 Button("Open in new window", systemImage: "macwindow.badge.plus") { openWindow(value: place) }
             }

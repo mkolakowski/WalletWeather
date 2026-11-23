@@ -7,37 +7,96 @@ import WalletWeatherKit
 // something now (↗ when it leaves the app), a switch is a switch, and red
 // comes last in its card.
 
+extension EnvironmentValues {
+    /// The page the open Duo's Settings pane shows a header card above
+    /// (#295); nil on a closed phone and on the pages pushed inside the pane.
+    @Entry var settingsHeader: SettingsPage? = nil
+}
+
 /// The page for a `SettingsPage`.
 struct SettingsPageView: View {
     let page: SettingsPage
+    @Environment(\.settingsHeader) private var header
 
     var body: some View {
-        switch page {
-        case .connection: ConnectionPage()
-        case .keep: KeepPage()
-        case .bank: BankSyncPage()
-        case .appearance: AppearancePage()
-        case .privacy: PrivacyPage()
-        case .display: DatesDisplayPage()
-        case .backup: BackupPage()
-        case .move: MovePage()
-        case .help: HelpPage()
-        case .tags: TagsPage()
-        case .tabBar: TabBarSettingsView()
-        case .notice: NoticePage()
+        let header = self.header == page ? page : nil
+        Group {
+            switch page {
+            case .connection: ConnectionPage()
+            case .keep: KeepPage()
+            case .bank: BankSyncPage()
+            case .appearance: AppearancePage()
+            case .privacy: PrivacyPage()
+            case .display: DatesDisplayPage()
+            case .backup: BackupPage()
+            case .move: MovePage()
+            case .help: HelpPage()
+            case .tags: TagsPage().modifier(ListHeader(page: header))
+            case .tabBar: TabBarSettingsView().modifier(ListHeader(page: header))
+            case .notice: NoticePage()
+            }
+        }
+        // Only this page's own frame draws it, not a page pushed from it.
+        .environment(\.settingsHeader, header)
+    }
+}
+
+/// The open Duo's header card at the top of a Settings page (#295): the
+/// page's symbol in a larger tile, its name and a line about it, as the
+/// Duo's own Settings starts each page.
+struct SettingsHeaderCard: View {
+    @Environment(AppModel.self) private var model
+    let page: SettingsPage
+
+    var body: some View {
+        let layout = SettingsLayout(household: model.settingsHousehold)
+        HStack(spacing: 14) {
+            Image(systemName: layout.symbol(of: page))
+                .font(.title2)
+                .foregroundStyle(Palette.accent)
+                .frame(width: 52, height: 52)
+                .background(Palette.accent.opacity(0.16), in: .rect(cornerRadius: 13, style: .continuous))
+            VStack(alignment: .leading, spacing: 3) {
+                Text(page == .connection ? model.settingsHouseholdName : page.title)
+                    .font(.title3.weight(.semibold))
+                Text(layout.summary(of: page))
+                    .font(.subheadline).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .card()
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// The header card above a page that is a list (Tags, Tab bar), held at
+/// the top while the list scrolls under it.
+private struct ListHeader: ViewModifier {
+    let page: SettingsPage?
+
+    func body(content: Content) -> some View {
+        content.safeAreaInset(edge: .top, spacing: 0) {
+            if let page {
+                SettingsHeaderCard(page: page).padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 4)
+            }
         }
     }
 }
 
 /// A Settings page: cards on the page's background, scrolling, with a
-/// small title.
+/// small title; under a header card in the open Duo's pane.
 private struct SettingsPageFrame<Content: View>: View {
     let title: String
     @ViewBuilder let content: Content
+    @Environment(\.settingsHeader) private var header
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
+                if let header {
+                    SettingsHeaderCard(page: header)
+                    Gap()
+                }
                 content
             }
             .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 24)
@@ -368,12 +427,17 @@ private struct HelpPage: View {
 
 /// The Important notice to read again, already agreed to.
 struct NoticePage: View {
+    @Environment(\.settingsHeader) private var header
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                ForEach(NoticeView.paragraphs.indices, id: \.self) { Text(NoticeView.paragraphs[$0]) }
+            VStack(alignment: .leading, spacing: 18) {
+                if let header { SettingsHeaderCard(page: header) }
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(NoticeView.paragraphs.indices, id: \.self) { Text(NoticeView.paragraphs[$0]) }
+                }
+                .card()
             }
-            .card()
             .padding(20)
         }
         .background(PageBackground().ignoresSafeArea())

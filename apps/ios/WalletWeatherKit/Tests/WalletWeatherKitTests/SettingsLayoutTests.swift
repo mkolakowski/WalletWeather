@@ -149,4 +149,64 @@ struct SettingsLayoutTests {
         phone.needsReconnect = true
         #expect(phone.settingsValue(connected: true, when: when) == "Needs reconnecting")
     }
+
+    // MARK: - The sidebar when the Duo is open (phase 2, #295)
+
+    @Test func everyPageHasASymbolAndALineAboutIt() {
+        for household in SettingsHousehold.allCases {
+            let layout = SettingsLayout(household: household, morePages: more)
+            for page in SettingsPage.allCases {
+                #expect(!layout.symbol(of: page).isEmpty, "\(household): \(page) has no symbol")
+                let summary = layout.summary(of: page)
+                #expect(summary.count > 20 && summary.hasSuffix("."), "\(household): \(page) has no line about it")
+            }
+        }
+        // The connection's page says which household it is.
+        let households = SettingsHousehold.allCases.map { SettingsLayout(household: $0) }
+        #expect(Set(households.map { $0.symbol(of: .connection) }).count == 3)
+        #expect(Set(households.map { $0.summary(of: .connection) }).count == 3)
+    }
+
+    @Test func theConnectionsPageIsChosenWhenNoneIs() {
+        for household in SettingsHousehold.allCases {
+            let layout = SettingsLayout(household: household, morePages: more)
+            #expect(layout.defaultEntry == .page(.connection))
+            #expect(layout.chosen("") == .page(.connection))
+            #expect(layout.chosen("nonsense") == .page(.connection))
+            #expect(layout.chosen("appearance") == .page(.appearance))
+            #expect(layout.chosen("app.calendar") == .app(.calendar))
+            // Keep on this iPhone is under the connection's page.
+            #expect(layout.chosen("keep") == .page(.connection))
+        }
+        // A page this household doesn't have, or an app page now in the tab bar.
+        #expect(SettingsLayout(household: .server, morePages: more).chosen("backup") == .page(.connection))
+        #expect(SettingsLayout(household: .thisIPhone, morePages: more).chosen("backup") == .page(.backup))
+        #expect(SettingsLayout(household: .server, morePages: []).chosen("app.calendar") == .page(.connection))
+        #expect(SettingsLayout(household: .server, morePages: []).entry("") == nil)
+    }
+
+    @Test func theSidebarHoldsEveryRowOfTheRootList() {
+        let layout = SettingsLayout(household: .thisIPhone, canWrite: true, morePages: more)
+        #expect(layout.sidebar.map(\.section) == layout.groups.map(\.section))
+        #expect(layout.sidebar.map(\.items) == [
+            [.open(.page(.connection))],
+            more.map { .open(.app($0)) },
+            [.open(.page(.tags)), .open(.page(.bank)), .open(.page(.backup)), .open(.page(.move)), .act(.addAccount), .act(.importCSV)],
+            [.open(.page(.appearance)), .open(.page(.tabBar)), .open(.page(.privacy)), .open(.page(.display))],
+            [.open(.page(.notice)), .open(.page(.help)), .info(.versions)],
+        ])
+        for household in SettingsHousehold.allCases {
+            let layout = SettingsLayout(household: household, canWrite: true, morePages: more)
+            // Every page the root list opens is a sidebar row, and each entry
+            // comes back from what the window keeps.
+            let pages = layout.sidebarEntries.compactMap { entry -> SettingsPage? in
+                if case let .page(page) = entry { return page }
+                return nil
+            }
+            #expect(pages == layout.groups.flatMap(\.rows).compactMap(\.opens))
+            for entry in layout.sidebarEntries {
+                #expect(SettingsEntry(rawValue: entry.rawValue) == entry)
+            }
+        }
+    }
 }

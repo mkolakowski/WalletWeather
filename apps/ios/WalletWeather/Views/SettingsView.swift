@@ -8,13 +8,27 @@ import WalletWeatherKit
 /// iPhone and About. What each household shows is `SettingsLayout`, in the
 /// Kit, which its tests check row by row. An admin sees nothing extra here:
 /// the Admin pages stay on the web.
+///
+/// On a regular width (the open Duo, phase 2, #295) the list becomes a
+/// sidebar about a third of the width, with the chosen page beside it under
+/// a header card, as in the Duo's own Settings: the page crosses the fold
+/// rather than splitting at it. Which page is open is kept per window
+/// (`settings.page`) and drives both layouts, so closing the Duo on a page
+/// shows it pushed on the list, and opening it shows that page chosen. The
+/// layout follows the window's width, so there is no setting for it.
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(AppSettings.self) private var settings
     @Environment(\.barOnSide) private var barOnSide
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    /// The open page's `SettingsEntry` raw value; empty for the list itself.
+    @SceneStorage("settings.page") private var openPage = ""
     /// Debug builds: `WW_DEBUG_SETTINGS=<page>` opens that page,
     /// `WW_DEBUG_TAGS=1` Tags and `WW_DEBUG_BANK` Bank sync, for screenshots.
     @State private var path = NavigationPath(SettingsView.debugPath())
+    /// What's pushed inside the open Duo's pane, past the chosen page.
+    @State private var panePath = NavigationPath(SettingsView.debugPath().dropFirst())
+    @State private var started = false
     @State private var addingAccount = false
     @State private var importingCSV = false
     @State private var bankStatus: BankStatus?
@@ -23,6 +37,27 @@ struct SettingsView: View {
 
     var body: some View {
         let layout = layout
+        Group {
+            if sizeClass == .regular {
+                split(layout)
+            } else {
+                stack(layout)
+            }
+        }
+        .sheet(isPresented: $addingAccount) { NewAccountSheet { model.accountAdded() } }
+        .csvImporter(isPresented: $importingCSV, account: nil) { model.reload() }
+        .task(id: model.generation) { await loadValues() }
+        .onAppear { start() }
+        .onChange(of: sizeClass) { old, _ in if old != nil { follow() } }
+        // Back on the list (a compact width): no page is open.
+        .onChange(of: path.count) { _, count in
+            if count == 0, sizeClass != .regular { openPage = "" }
+        }
+    }
+
+    // MARK: - Closed: the list, each row pushing its page
+
+    private func stack(_ layout: SettingsLayout) -> some View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
@@ -30,9 +65,9 @@ struct SettingsView: View {
                         if let title = group.section.title { SectionTitle(title) }
                         switch group.section {
                         case .connection:
-                            ConnectionCard(household: layout.household, accounts: accountCount)
+                            ConnectionCard(layout: layout, accounts: accountCount) { open(.page(.connection)) }
                         case .morePages:
-                            PageTiles(pages: layout.morePages)
+                            PageTiles(pages: layout.morePages) { open(.app($0)) }
                         default:
                             VStack(alignment: .leading, spacing: 0) {
                                 ForEach(Array(group.rows.enumerated()), id: \.element) { index, row in
@@ -51,22 +86,7 @@ struct SettingsView: View {
             .toolbar { NewWindowItem(place: .more) }
             .navigationDestination(for: SettingsPage.self) { SettingsPageView(page: $0) }
             .navigationDestination(for: TabPage.self) { $0.view(embedded: true) }
-            .sheet(isPresented: $addingAccount) { NewAccountSheet { model.accountAdded() } }
-            .csvImporter(isPresented: $importingCSV, account: nil) { model.reload() }
-            .task(id: model.generation) { await loadValues() }
         }
-    }
-
-    private var household: SettingsHousehold {
-        model.isDemo ? .demo : model.isLocal ? .thisIPhone : .server
-    }
-
-    private var layout: SettingsLayout {
-        SettingsLayout(household: household,
-                       canWrite: model.me?.isReadOnly != true,
-                       morePages: TabPage.notIn(TabPage.shown(settings.tabs, onSide: barOnSide)),
-                       hasBiometry: settings.biometryName != nil,
-                       hasCloudflare: model.connection?.cloudflare != nil)
     }
 
     @ViewBuilder
@@ -74,7 +94,7 @@ struct SettingsView: View {
         switch row.kind {
         case .page:
             if let page = row.opens {
-                NavigationLink(value: page) {
+                Button { open(.page(page)) } label: {
                     MoreRow { RowLabel(row: row) } trailing: {
                         if let value = value(of: row) {
                             Text(value).lineLimit(1).foregroundStyle(.secondary)
@@ -92,11 +112,107 @@ struct SettingsView: View {
         default:
             // The versions, as plain text.
             MoreRow {
-                Text(SettingsLayout.versions(app: AppInfo.version, server: model.serverVersion?.appVersion, household: household))
-                    .foregroundStyle(.secondary)
+                Text(versions).foregroundStyle(.secondary)
             } trailing: { EmptyView() }
             .accessibilityElement(children: .combine)
         }
+    }
+
+    // MARK: - Open: a sidebar and the chosen page
+
+    private func split(_ layout: SettingsLayout) -> some View {
+        let chosen = layout.chosen(openPage)
+        // The tab bar down the Duo's side is a trailing safe-area inset. It
+        // belongs to the pane, which is beside it, not to the sidebar at the
+        // other edge (which it squeezed by its width): the row spans the
+        // whole window and only the pane keeps clear of the bar.
+        return GeometryReader { window in
+            let bar = window.safeAreaInsets.trailing
+            HStack(spacing: 0) {
+                // A plain column, not a navigation stack: a stack here kept
+                // the tab bar's inset although it's at the other edge.
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Settings").font(.headline)
+                        .frame(height: 44).padding(.horizontal, 16).padding(.top, 12)  // level with the pane's title
+                        .accessibilityAddTraits(.isHeader)
+                    SettingsSidebar(layout: layout, chosen: chosen, accounts: accountCount, versions: versions,
+                                    value: { value(of: $0) }, open: { open($0) }, act: { act($0) })
+                }
+                .frame(width: min(max((window.size.width + bar) / 3, 250), 340))
+                .background {
+                    ZStack {
+                        PageBackground()
+                        Palette.panel.opacity(0.55)
+                    }
+                    .ignoresSafeArea()
+                }
+                NavigationStack(path: $panePath) {
+                    SettingsPane(entry: chosen)
+                        .id(chosen)
+                        .toolbar { NewWindowItem(place: .more, wideWindow: true) }
+                        .navigationDestination(for: SettingsPage.self) { SettingsPageView(page: $0) }
+                        .navigationDestination(for: TabPage.self) { $0.view(embedded: true) }
+                }
+                // One column in the pane: it's too narrow for a page's two
+                // panes, so the pages in it lay out as on a closed phone.
+                .environment(\.horizontalSizeClass, .compact)
+                .frame(maxWidth: .infinity)
+                .safeAreaPadding(.trailing, bar)
+            }
+            .ignoresSafeArea(.container, edges: .trailing)
+        }
+        .background(PageBackground().ignoresSafeArea())
+    }
+
+    // MARK: - The open page, shared by both
+
+    private func open(_ entry: SettingsEntry) {
+        openPage = entry.rawValue
+        panePath = NavigationPath()
+        path = Self.path(to: entry)
+    }
+
+    /// The width changed (the Duo opened or closed): the other layout shows
+    /// the same page.
+    private func follow() {
+        panePath = NavigationPath()
+        path = Self.path(to: layout.entry(openPage))
+    }
+
+    /// The first time Settings shows: the page `WW_DEBUG_SETTINGS` names, or
+    /// the one this window kept, pushed on the list.
+    private func start() {
+        guard !started else { return }
+        started = true
+        if let first = Self.debugPath().first {
+            openPage = SettingsEntry.page(first).rawValue
+        } else if path.isEmpty, let entry = layout.entry(openPage) {
+            var quiet = Transaction()
+            quiet.disablesAnimations = true
+            withTransaction(quiet) { path = Self.path(to: entry) }
+        }
+    }
+
+    private static func path(to entry: SettingsEntry?) -> NavigationPath {
+        var path = NavigationPath()
+        switch entry {
+        case let .page(page)?: path.append(page)
+        case let .app(page)?: path.append(page)
+        case nil: break
+        }
+        return path
+    }
+
+    private var layout: SettingsLayout {
+        SettingsLayout(household: model.settingsHousehold,
+                       canWrite: model.me?.isReadOnly != true,
+                       morePages: TabPage.notIn(TabPage.shown(settings.tabs, onSide: barOnSide)),
+                       hasBiometry: settings.biometryName != nil,
+                       hasCloudflare: model.connection?.cloudflare != nil)
+    }
+
+    private var versions: String {
+        SettingsLayout.versions(app: AppInfo.version, server: model.serverVersion?.appVersion, household: model.settingsHousehold)
     }
 
     private func act(_ row: SettingsRow) {
@@ -159,6 +275,22 @@ struct SettingsView: View {
     }
 }
 
+extension AppModel {
+    /// Which household Settings is for.
+    var settingsHousehold: SettingsHousehold {
+        isDemo ? .demo : isLocal ? .thisIPhone : .server
+    }
+
+    /// The connection card's name: the server's, On this iPhone, or Demo.
+    var settingsHouseholdName: String {
+        switch settingsHousehold {
+        case .server: saved?.name ?? connection?.host ?? "Your server"
+        case .thisIPhone: "On this iPhone"
+        case .demo: "Demo"
+        }
+    }
+}
+
 /// A root row's name, with its symbol.
 private struct RowLabel: View {
     let row: SettingsRow
@@ -173,55 +305,47 @@ private struct RowLabel: View {
 }
 
 /// The top of Settings: which household this is, a line of detail and its
-/// state, opening the connection's page.
+/// state, opening the connection's page. In the open Duo's sidebar it's
+/// compact (a line of detail, no state) and marked when chosen.
 private struct ConnectionCard: View {
     @Environment(AppModel.self) private var model
-    let household: SettingsHousehold
+    let layout: SettingsLayout
     let accounts: Int?
+    var compact = false
+    var chosen = false
+    let action: () -> Void
 
     var body: some View {
-        NavigationLink(value: SettingsPage.connection) {
-            HStack(spacing: 14) {
-                Image(systemName: symbol)
-                    .font(.title2)
+        let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
+        Button(action: action) {
+            HStack(spacing: compact ? 10 : 14) {
+                Image(systemName: layout.symbol(of: .connection))
+                    .font(compact ? .title3 : .title2)
                     .foregroundStyle(Palette.accent)
-                    .frame(width: 44, height: 44)
+                    .frame(width: compact ? 36 : 44, height: compact ? 36 : 44)
                     .background(Palette.accent.opacity(0.14), in: .circle)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(name).font(.headline)
-                    Text(detail).font(.footnote).foregroundStyle(.secondary).lineLimit(2)
-                    if let state {
+                    Text(model.settingsHouseholdName).font(.headline).lineLimit(compact ? 1 : nil)
+                    Text(detail).font(.footnote).foregroundStyle(.secondary).lineLimit(compact ? 1 : 2)
+                    if !compact, let state {
                         Text(state.text).font(.footnote.weight(.semibold)).foregroundStyle(state.good ? Palette.good : Color.secondary)
                     }
                 }
-                Spacer(minLength: 8)
-                Chevron()
+                Spacer(minLength: compact ? 0 : 8)
+                if !compact { Chevron() }
             }
             .contentShape(Rectangle())
             .card()
+            .background { if chosen { shape.fill(Palette.accent.opacity(0.18)) } }
+            .overlay { if chosen { shape.strokeBorder(Palette.accent.opacity(0.6), lineWidth: 1.5) } }
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
-    }
-
-    private var symbol: String {
-        switch household {
-        case .server: "server.rack"
-        case .thisIPhone: "iphone"
-        case .demo: "sparkles"
-        }
-    }
-
-    private var name: String {
-        switch household {
-        case .server: model.saved?.name ?? model.connection?.host ?? "Your server"
-        case .thisIPhone: "On this iPhone"
-        case .demo: "Demo"
-        }
+        .accessibilityAddTraits(chosen ? .isSelected : [])
     }
 
     private var detail: String {
-        switch household {
+        switch layout.household {
         case .server: SettingsLayout.serverDetail(host: model.connection?.host ?? "", email: model.me?.email)
         case .thisIPhone: SettingsLayout.thisIPhoneDetail(accounts: accounts, syncOn: LocalStore.syncOn)
         case .demo: "Sample numbers"
@@ -229,7 +353,7 @@ private struct ConnectionCard: View {
     }
 
     private var state: (text: String, good: Bool)? {
-        switch household {
+        switch layout.household {
         case .server:
             guard let me = model.me else { return nil }
             return ("Connected · \(me.isReadOnly ? "read-only" : "full access")", true)
@@ -239,17 +363,137 @@ private struct ConnectionCard: View {
     }
 }
 
+// MARK: - The open Duo's sidebar and pane (#295)
+
+/// The root list as a sidebar: the connection card, then every row in the
+/// list's order under small section names, each with a tinted symbol tile
+/// and its value in small grey text; the chosen row marked. It scrolls on
+/// its own.
+private struct SettingsSidebar: View {
+    @Environment(AppModel.self) private var model
+    let layout: SettingsLayout
+    let chosen: SettingsEntry
+    let accounts: Int?
+    let versions: String
+    let value: (SettingsRow) -> String?
+    let open: (SettingsEntry) -> Void
+    let act: (SettingsRow) -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(layout.sidebar) { group in
+                    if group.section == .connection {
+                        ConnectionCard(layout: layout, accounts: accounts, compact: true,
+                                       chosen: chosen == .page(.connection)) { open(.page(.connection)) }
+                            .padding(.bottom, 6)
+                    } else {
+                        if let title = group.section.title {
+                            Text(title).font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
+                                .padding(.horizontal, 10).padding(.top, 12).padding(.bottom, 2)
+                                .accessibilityAddTraits(.isHeader)
+                        }
+                        ForEach(group.items) { item($0) }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12).padding(.top, 4).padding(.bottom, 24)
+        }
+    }
+
+    @ViewBuilder
+    private func item(_ item: SettingsSidebarItem) -> some View {
+        switch item {
+        case let .open(.page(page)):
+            let row = layout.groups.flatMap(\.rows).first { $0.opens == page }
+            SidebarRow(symbol: layout.symbol(of: page), title: row?.title ?? page.title,
+                       detail: row.flatMap(value), chosen: chosen == .page(page)) { open(.page(page)) }
+        case let .open(.app(page)):
+            let greyed = model.isLocal && page.needsServer
+            SidebarRow(symbol: page.symbol, title: page.title, detail: greyed ? "Needs a server" : nil,
+                       chosen: chosen == .app(page), greyed: greyed) { open(.app(page)) }
+        case let .act(row):
+            SidebarRow(symbol: row.symbol ?? "plus.circle", title: row.title, isAction: true) { act(row) }
+        case .info:
+            Text(versions).font(.caption).foregroundStyle(.secondary)
+                .padding(.horizontal, 10).padding(.top, 6)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// One row of the sidebar: a small rounded tile with the symbol, tinted
+/// with the accent, the name and its value under it; a rounded highlight
+/// when chosen. An action's name is in the accent, as on the list.
+private struct SidebarRow: View {
+    let symbol: String
+    let title: String
+    var detail: String?
+    var chosen = false
+    var greyed = false
+    var isAction = false
+    let action: () -> Void
+
+    var body: some View {
+        let tint = greyed ? Color.secondary : Palette.accent
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: symbol)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 30, height: 30)
+                    .background(tint.opacity(0.16), in: .rect(cornerRadius: 8, style: .continuous))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                        .foregroundStyle(isAction ? Palette.accent : greyed ? Color.secondary : (Palette.text ?? Color.primary))
+                        .lineLimit(1).minimumScaleFactor(0.85)
+                    if let detail {
+                        Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .frame(minHeight: 44)
+            .background {
+                if chosen { RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.accent.opacity(0.18)) }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(chosen ? .isSelected : [])
+    }
+}
+
+/// The chosen row's page beside the sidebar: a Settings page under its
+/// header card, or one of More pages' app pages, with the small title.
+private struct SettingsPane: View {
+    let entry: SettingsEntry
+
+    var body: some View {
+        switch entry {
+        case let .page(page):
+            SettingsPageView(page: page).environment(\.settingsHeader, page)
+        case let .app(page):
+            page.view(embedded: true).navigationBarTitleDisplayMode(.inline)
+        }
+    }
+}
+
 /// More pages: the pages not in the tab bar, two across. On this iPhone
 /// the ones that need a server stay greyed and marked, opening the note.
 private struct PageTiles: View {
     @Environment(AppModel.self) private var model
     let pages: [TabPage]
+    let open: (TabPage) -> Void
 
     var body: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
             ForEach(pages) { page in
                 let greyed = model.isLocal && page.needsServer
-                NavigationLink(value: page) {
+                Button { open(page) } label: {
                     // The symbol beside the name, so four pages take two short
                     // rows and the rest of Settings stays on the first screen.
                     HStack(spacing: 8) {

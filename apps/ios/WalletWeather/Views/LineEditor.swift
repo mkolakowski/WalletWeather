@@ -65,6 +65,8 @@ struct LineEditor: View {
     var embedded = false
     let onClose: () -> Void
     let onSaved: () async -> Void
+    /// Embedded, how far it keeps from its pane's sides (`FoldLayout`, #304).
+    @Environment(\.paneEdges) private var edges
 
     @State private var saving = false
     @State private var problem: String?
@@ -103,7 +105,7 @@ struct LineEditor: View {
                     .disabled(!canSave)
             }
         }
-        .padding(.leading, 28).padding(.trailing, 16).padding(.vertical, 8)
+        .padding(.leading, edges.leading).padding(.trailing, edges.trailing).padding(.vertical, 8)
     }
 
     private func save() {
@@ -129,7 +131,7 @@ struct LineEditor: View {
             .background { if !embedded { PageBackground().ignoresSafeArea() } }
             // Clear of the fold in the open Duo's pane; the usual margins in a
             // sheet (a zero here ran the rows into the screen's edge, #161).
-            .contentMargins(.leading, embedded ? 12 : nil, for: .scrollContent)
+            .contentMargins(.leading, embedded ? edges.formMargin : nil, for: .scrollContent)
             .disabled(saving)
             .sensoryFeedback(.success, trigger: savedCount)
             .alert("Couldn't save", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {

@@ -90,31 +90,32 @@ struct BillsView: View {
             ProblemView(error: error) { Task { await loadAll() } }
         case let .loaded(data):
             if sizeClass == .regular {
-                HStack(spacing: 0) {
-                    listView(data).frame(maxWidth: .infinity)
-                    Group {
-                        if let binding = Binding($open) {
-                            BillEditor(open: binding, accounts: editableAccounts, categories: categories, embedded: true,
-                                       onClose: { open = nil }, onSkip: { skipping = $0 }, onEnd: { ending = $0 }) { await load() }
-                                .id(binding.wrappedValue.id)
-                        } else {
-                            ScrollView {
-                                BillsSummaryView(data: data, showEnded: showEnded, onOpen: openItem)
-                                    .padding(.leading, 28).padding(.trailing, 16).padding(.bottom, 24)
-                            }
+                // The open Duo (#304): the list on the left (above, half open
+                // like a laptop), the editor or the totals on the right (below).
+                FoldLayout { edges in
+                    listView(data, edges: edges)
+                } trailing: { edges in
+                    if let binding = Binding($open) {
+                        BillEditor(open: binding, accounts: editableAccounts, categories: categories, embedded: true,
+                                   onClose: { open = nil }, onSkip: { skipping = $0 }, onEnd: { ending = $0 }) { await load() }
+                            .id(binding.wrappedValue.id)
+                    } else {
+                        ScrollView {
+                            BillsSummaryView(data: data, showEnded: showEnded, onOpen: openItem)
+                                .padding(.leading, edges.leading).padding(.trailing, edges.trailing).padding(.bottom, 24)
                         }
                     }
-                    .frame(maxWidth: .infinity)
                 }
+                .refreshable { await load() }
             } else {
-                listView(data)
+                listView(data, edges: .plain)
+                    .refreshable { await load() }
             }
         }
     }
 
-    private func listView(_ data: RecurringList) -> some View {
-        let trailing: CGFloat = sizeClass == .regular ? 28 : 16
-        return List {
+    private func listView(_ data: RecurringList, edges: FoldPanes.Edges) -> some View {
+        List {
             Group {
                 Section {
                     VStack(alignment: .leading, spacing: 12) {
@@ -130,7 +131,7 @@ struct BillsView: View {
                 }
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: trailing))
+                .listRowInsets(EdgeInsets(top: 4, leading: edges.leading, bottom: 4, trailing: edges.trailing))
 
                 Section {
                     if data.items.isEmpty {
@@ -149,13 +150,12 @@ struct BillsView: View {
                 }
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: trailing))
+                .listRowInsets(EdgeInsets(top: 5, leading: edges.leading, bottom: 5, trailing: edges.trailing))
             }
             .listRowBackground(Palette.row)
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .refreshable { await load() }
     }
 
     @ViewBuilder
@@ -302,7 +302,7 @@ struct BillsSummaryView: View {
                 }
                 .card()
             }
-            Text("Tap a bill or paycheck on the left to change it, skip a date or end it.")
+            Text("Tap a bill or paycheck to change it, skip a date or end it.")
                 .font(.footnote).foregroundStyle(.secondary)
         }
     }
@@ -587,6 +587,8 @@ struct BillEditor: View {
     let accounts: [Account]
     let categories: [TransactionCategory]
     var embedded = false
+    /// Embedded, how far it keeps from its pane's sides (`FoldLayout`, #304).
+    @Environment(\.paneEdges) private var edges
     let onClose: () -> Void
     let onSkip: (RecurringItem) -> Void
     let onEnd: (RecurringItem) -> Void
@@ -613,7 +615,7 @@ struct BillEditor: View {
                             .buttonStyle(.glassProminent).disabled(!canSave)
                     }
                 }
-                .padding(.leading, 28).padding(.trailing, 16).padding(.vertical, 8)
+                .padding(.leading, edges.leading).padding(.trailing, edges.trailing).padding(.vertical, 8)
                 form
             }
         } else {
@@ -649,7 +651,7 @@ struct BillEditor: View {
         }
         .scrollContentBackground(.hidden)
         .background { if !embedded { PageBackground().ignoresSafeArea() } }
-        .contentMargins(.leading, embedded ? 12 : 0, for: .scrollContent)
+        .contentMargins(.leading, embedded ? edges.formMargin : 0, for: .scrollContent)
         .disabled(saving)
         .sensoryFeedback(.success, trigger: savedCount)
         .alert("Couldn't save", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {

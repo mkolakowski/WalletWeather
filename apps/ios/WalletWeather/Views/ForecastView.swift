@@ -170,39 +170,21 @@ struct ForecastView: View {
     }
 
     /// The open Duo: chart and table on the left, the editor or the
-    /// month's summary on the right, meeting at the fold with nothing to
+    /// month's summary on the right, either side of the fold with nothing to
     /// read or tap on it. Half open like a small laptop (#90), the fold runs
     /// across: the chart and table above it, the editor below, on the half
-    /// that lies on the table.
+    /// that lies on the table. `FoldLayout` (#304) does the arranging; either
+    /// half pulls to refresh.
     private func twoPanes(_ data: ForecastMonth) -> some View {
-        GeometryReader { proxy in
-            if let fold = Self.tabletopFold(proxy) {
-                VStack(spacing: 0) {
-                    listPane(data).frame(height: max(0, fold.minY))
-                    Color.clear.frame(height: fold.height)
-                    sidePane(data).frame(maxHeight: .infinity)
-                }
-            } else {
-                HStack(spacing: 0) {
-                    listPane(data).frame(maxWidth: .infinity)
-                    sidePane(data).frame(maxWidth: .infinity)
-                }
-            }
+        FoldLayout { edges in
+            listPane(data, edges: edges)
+        } trailing: { edges in
+            sidePane(data, edges: edges)
         }
+        .refreshable { await loadMonth() }
     }
 
-    /// The fold when the Duo is half open with it running across (like a
-    /// laptop on a table), in this view's space; nil otherwise (iOS 27.1's
-    /// division region).
-    static func tabletopFold(_ proxy: GeometryProxy) -> CGRect? {
-        if #available(iOS 27.1, *) {
-            return proxy.reservedRegions(kind: .division)
-                .first { $0.isActive && $0.frame.width > $0.frame.height }?.frame
-        }
-        return nil
-    }
-
-    private func listPane(_ data: ForecastMonth) -> some View {
+    private func listPane(_ data: ForecastMonth, edges: FoldPanes.Edges) -> some View {
         List {
             Group {
                 Section {
@@ -215,12 +197,12 @@ struct ForecastView: View {
                 }
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 28))
+                .listRowInsets(EdgeInsets(top: 4, leading: edges.leading, bottom: 4, trailing: edges.trailing))
                 Section {
                     if showingConfirm {
                         confirmRows(data)
                             .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 28))
+                            .listRowInsets(EdgeInsets(top: 5, leading: edges.leading, bottom: 5, trailing: edges.trailing))
                     } else {
                         if data.rows.isEmpty { emptyMonth } else { LineTableHeader().listRowSeparator(.hidden) }
                         ForEach(data.rows) { line in
@@ -234,19 +216,18 @@ struct ForecastView: View {
                     }
                 }
                 .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 28))
+                .listRowInsets(EdgeInsets(top: 0, leading: edges.leading, bottom: 0, trailing: edges.trailing))
             }
             .listRowBackground(Palette.row)
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .refreshable { await loadMonth() }
         // On the list's own half when the Duo is open, so the bar never crosses the fold.
         .undoBar($undoOffer)
     }
 
     @ViewBuilder
-    private func sidePane(_ data: ForecastMonth) -> some View {
+    private func sidePane(_ data: ForecastMonth, edges: FoldPanes.Edges) -> some View {
         Group {
             if let binding = Binding($open) {
                 LineEditor(open: binding, categories: categories, embedded: true, onClose: { open = nil }) { await loadMonth() }
@@ -254,7 +235,7 @@ struct ForecastView: View {
             } else {
                 ScrollView {
                     MonthSummaryView(month: shownMonth, data: data, onOpen: openLine)
-                        .padding(.leading, 28).padding(.trailing, 16).padding(.bottom, 24)
+                        .padding(.leading, edges.leading).padding(.trailing, edges.trailing).padding(.bottom, 24)
                 }
             }
         }
@@ -857,7 +838,7 @@ struct MonthSummaryView: View {
             }
             .card()
 
-            Text("Tap a line on the left to mark it paid or change it.")
+            Text("Tap a line to mark it paid or change it.")
                 .font(.footnote).foregroundStyle(.secondary)
         }
     }

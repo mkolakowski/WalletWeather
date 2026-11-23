@@ -34,6 +34,7 @@
 		A19BE4DB8A2A39AC4CEF0D71 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAC7A791EEE3C72BA42ED155 /* AppSettings.swift */; };
 		A1AD9EF2A808C2C34BB79713 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 760DE072423DD9D965E38BEE /* PrivacyInfo.xcprivacy */; };
 		AA6E7808084DB08B97F7A142 /* ScopedToConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 795D7F25402606692C251B7E /* ScopedToConnection.swift */; };
+		AD7809EEDA5F3AC5990C3828 /* FoldLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E7678658EAB739DFC9B70A4 /* FoldLayout.swift */; };
 		B29B4373B3A526BF9E85393F /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABF20F601A1EB2143ABA37C6 /* RootView.swift */; };
 		B789C70FB22BF28F157FB1A7 /* NoticeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FF8DF9E3C8A01A950E0D995 /* NoticeView.swift */; };
 		B9DF71AA4970ECC6F0927401 /* LineEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A91553B7086BC583359B4E5F /* LineEditor.swift */; };
@@ -70,6 +71,7 @@
 		760DE072423DD9D965E38BEE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		795D7F25402606692C251B7E /* ScopedToConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScopedToConnection.swift; sourceTree = "<group>"; };
 		7A45928D4585BBA4105DD12B /* SettingsPages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPages.swift; sourceTree = "<group>"; };
+		7E7678658EAB739DFC9B70A4 /* FoldLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoldLayout.swift; sourceTree = "<group>"; };
 		853A48B5A75D9C9B343FE58A /* AccountFollower.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountFollower.swift; sourceTree = "<group>"; };
 		8612988B4A68458DECAB4745 /* MoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreView.swift; sourceTree = "<group>"; };
 		8C093F3234CB4BC473C55E68 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
@@ -135,6 +137,7 @@
 				A3E9C40EFE3CCE23D41AA8C7 /* ConnectView.swift */,
 				D3382C27760DB4FDDB484054 /* CSVImportViews.swift */,
 				319D4205BFCC35DC6757600B /* DashboardView.swift */,
+				7E7678658EAB739DFC9B70A4 /* FoldLayout.swift */,
 				067F8A5A4984B672631E4818 /* ForecastView.swift */,
 				75BD1096AF0D745FED33F38E /* GettingStartedViews.swift */,
 				A91553B7086BC583359B4E5F /* LineEditor.swift */,
@@ -285,6 +288,7 @@
 				2BCD253633EC7F7F0D70AF73 /* ConnectView.swift in Sources */,
 				0E50FD7DF2A071A170661300 /* DashboardView.swift in Sources */,
 				769AEB2CED36BFC4608187F6 /* DebugBridge.swift in Sources */,
+				AD7809EEDA5F3AC5990C3828 /* FoldLayout.swift in Sources */,
 				BB489358CA96FB9596EE2902 /* ForecastView.swift in Sources */,
 				8DC91904DD11611BE2773B20 /* GettingStartedViews.swift in Sources */,
 				5674B2C7B6BE02CCE7EB0BA9 /* Keychain.swift in Sources */,
@@ -371,7 +375,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.42.0;
+				MARKETING_VERSION = 0.43.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -439,7 +443,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.42.0;
+				MARKETING_VERSION = 0.43.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

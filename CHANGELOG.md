@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.42.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.43.0**
 
 ### Added
 
@@ -80,6 +80,9 @@ App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** ·
 
 ### Changed
 
+- **iPhone Duo: every page folds the same way.** Half open like a laptop, each two-pane page now stacks at the hinge, as only Forecast did: the Dashboard's charts stand up and its accounts lie flat; Bills & income's list above its editor or totals; the Calendar's month above the day; Net worth's total and chart above its accounts; Budgets, Reports and Search likewise. Half open like a book, the two panes sit either side of the fold instead of the right-hand one sitting on it. The panes move from one arrangement to the other as the Duo folds, or fade if Reduce Motion is on. Lying flat, every page is exactly as it was (iOS 0.43.0).
+- **iPhone Duo: pull down in either half to refresh,** on every page, and on Reports and Search, which couldn't be refreshed before. **Breaking:** the Dashboard's Refresh button is gone; pull down instead.
+- **iPhone Duo: one title size when open.** Net worth, Budgets, Reports and Search take the small title, as the other pages do.
 - **iPhone: labels read in sentence case.** The small grey labels over figures ("Balance today", "Rest of this month", "Forecast end") are no longer in capitals, so every label in a card is written one way, as in the web app since 1.98.0 (iOS 0.42.0).
 - **iPhone: Reports' rows look like the other lists.** With the Duo open, a saved report's name is plain text with a chevron and a highlight on the open one, where it used to be tinted like a link. The Tags page takes the app's own background and row colours in every look.
 - **iPhone: with the Duo open, the Search field sits over its results,** at the top of the left half, instead of over the half where a tapped result opens.

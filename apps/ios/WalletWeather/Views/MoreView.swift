@@ -22,9 +22,11 @@ struct NetWorthView: View {
                 ProblemView(error: error) { Task { await load() } }
             case let .loaded(data):
                 if sizeClass == .regular {
-                    HStack(alignment: .top, spacing: 0) {
-                        ScrollView { summary(data).padding(.leading, 16).padding(.trailing, 28) }.frame(maxWidth: .infinity)
-                        ScrollView { accounts(data).padding(.leading, 28).padding(.trailing, 16) }.frame(maxWidth: .infinity)
+                    // Half open like a laptop (#304): the total and chart above, the accounts below.
+                    FoldLayout { edges in
+                        ScrollView { summary(data).padding(.leading, edges.leading).padding(.trailing, edges.trailing) }
+                    } trailing: { edges in
+                        ScrollView { accounts(data).padding(.leading, edges.leading).padding(.trailing, edges.trailing) }
                     }
                 } else {
                     ScrollView {
@@ -37,6 +39,8 @@ struct NetWorthView: View {
         .keptBar(kept)
         .background(PageBackground().ignoresSafeArea())
         .navigationTitle("Net worth")
+        // One title size on the open Duo (#304), as Dashboard and Forecast.
+        .navigationBarTitleDisplayMode(sizeClass == .regular ? .inline : .automatic)
         .task(id: "\(model.generation)/\(window.rawValue)") { await load() }
     }
 
@@ -128,9 +132,11 @@ struct BudgetsView: View {
                 ProblemView(error: error) { Task { await load() } }
             case let .loaded(data):
                 if sizeClass == .regular {
-                    HStack(alignment: .top, spacing: 0) {
-                        ScrollView { budgeted(data).padding(.leading, 16).padding(.trailing, 28) }.frame(maxWidth: .infinity)
-                        ScrollView { unbudgeted(data).padding(.leading, 28).padding(.trailing, 16) }.frame(maxWidth: .infinity)
+                    // Half open like a laptop (#304): the budgets above, the unbudgeted list below.
+                    FoldLayout { edges in
+                        ScrollView { budgeted(data).padding(.leading, edges.leading).padding(.trailing, edges.trailing) }
+                    } trailing: { edges in
+                        ScrollView { unbudgeted(data).padding(.leading, edges.leading).padding(.trailing, edges.trailing) }
                     }
                 } else {
                     ScrollView {
@@ -143,6 +149,7 @@ struct BudgetsView: View {
         .keptBar(kept)
         .background(PageBackground().ignoresSafeArea())
         .navigationTitle("Budgets")
+        .navigationBarTitleDisplayMode(sizeClass == .regular ? .inline : .automatic)
         .task(id: model.generation) { await load() }
     }
 
@@ -247,6 +254,8 @@ struct ReportsView: View {
     @State private var reports: Loadable<[SavedReport]> = .loading
     @State private var kept = KeptTracker()
     @State private var chosen: SavedReport?
+    /// Counts pulls to refresh, so the open report runs again.
+    @State private var refreshes = 0
 
     var body: some View {
         Group {
@@ -260,27 +269,36 @@ struct ReportsView: View {
                     ContentUnavailableView("No saved reports", systemImage: "doc.text.magnifyingglass",
                                            description: Text("Build and save a report in the web app's Reports page, and it shows here."))
                 } else if sizeClass == .regular {
-                    HStack(spacing: 0) {
-                        reportList(list).frame(maxWidth: .infinity)
-                        Group {
-                            if let chosen {
-                                ScrollView { ReportResult(report: chosen).padding(.leading, 28).padding(.trailing, 16) }
-                                    .id(chosen.id)
-                            } else {
-                                ContentUnavailableView("Pick a report", systemImage: "hand.tap",
-                                                       description: Text("It runs here."))
+                    // Half open like a laptop (#304): the list above, the report below.
+                    FoldLayout { _ in
+                        reportList(list)
+                    } trailing: { edges in
+                        if let chosen {
+                            ScrollView {
+                                ReportResult(report: chosen, refreshes: refreshes)
+                                    .padding(.leading, edges.leading).padding(.trailing, edges.trailing)
                             }
+                            .id(chosen.id)
+                        } else {
+                            ContentUnavailableView("Pick a report", systemImage: "hand.tap",
+                                                   description: Text("It runs here."))
                         }
-                        .frame(maxWidth: .infinity)
                     }
                 } else {
                     reportList(list)
                 }
             }
         }
+        // Either half, and the list on any iPhone (#304): the list again, and
+        // the open report run again.
+        .refreshable {
+            await load()
+            refreshes += 1
+        }
         .keptBar(kept)
         .background(PageBackground().ignoresSafeArea())
         .navigationTitle("Reports")
+        .navigationBarTitleDisplayMode(sizeClass == .regular ? .inline : .automatic)
         .task(id: model.generation) { await load() }
     }
 
@@ -340,6 +358,8 @@ struct ReportsView: View {
 struct ReportResult: View {
     @Environment(AppModel.self) private var model
     let report: SavedReport
+    /// Runs the report again when it changes (a pull to refresh, #304).
+    var refreshes = 0
     @State private var run: Loadable<ReportRun> = .loading
     @State private var kept = KeptTracker()
 
@@ -390,7 +410,7 @@ struct ReportResult: View {
             }
         }
         .padding(.bottom, 24)
-        .task(id: model.generation) { await load() }
+        .task(id: "\(model.generation)/\(refreshes)") { await load() }
     }
 
     private func figure(_ label: String, _ value: Money, _ color: Color) -> some View {

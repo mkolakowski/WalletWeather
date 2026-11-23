@@ -49,7 +49,9 @@ struct SearchView: View {
         NavigationStack(path: $path) {
             Group {
                 if regular {
-                    HStack(spacing: 0) {
+                    // Half open like a laptop (#304): the results above, the
+                    // opened result below.
+                    FoldLayout { _ in
                         // The system puts `.searchable`'s field at the window's top
                         // right, over the half the results are not in, and none of
                         // its placements sits over one half: so on the open Duo the
@@ -58,8 +60,8 @@ struct SearchView: View {
                             searchField
                             results
                         }
-                        .frame(maxWidth: .infinity)
-                        detail.frame(maxWidth: .infinity)
+                    } trailing: { edges in
+                        detail(edges)
                     }
                     // Ready to type on an empty page; with a search already there, the
                     // keyboard stays down so it doesn't cover the results.
@@ -68,8 +70,11 @@ struct SearchView: View {
                     results.searchable(text: $text, prompt: "Transactions, bills, accounts…")
                 }
             }
+            // Pulling down the results (or the opened result) runs the search again (#304).
+            .refreshable { await search() }
             .background(PageBackground().ignoresSafeArea())
             .navigationTitle("Search")
+            .navigationBarTitleDisplayMode(regular ? .inline : .automatic)
             .navigationDestination(for: Shown.self) { page($0, embedded: false) }
         }
         .lineEditorSheet($openLine, categories: categories) { await search() }
@@ -118,7 +123,7 @@ struct SearchView: View {
     // MARK: - The right half on the open Duo
 
     @ViewBuilder
-    private var detail: some View {
+    private func detail(_ edges: FoldPanes.Edges) -> some View {
         if let binding = Binding($openLine) {
             LineEditor(open: binding, categories: categories, embedded: true, onClose: { openLine = nil }) { await search() }
                 .id(binding.wrappedValue.id)
@@ -135,8 +140,8 @@ struct SearchView: View {
                     Text(shown.title).font(.headline).lineLimit(1)
                     Spacer(minLength: 0)
                 }
-                .padding(.leading, 28).padding(.trailing, 16).padding(.vertical, 8)
-                page(shown, embedded: true)
+                .padding(.leading, edges.leading).padding(.trailing, edges.trailing).padding(.vertical, 8)
+                page(shown, embedded: true, edges: edges)
             }
             .id(shown)
         } else {
@@ -148,12 +153,12 @@ struct SearchView: View {
     /// A tapped result's page: pushed when closed, or in the right half
     /// (`embedded`, with no title of its own) on the open Duo.
     @ViewBuilder
-    private func page(_ shown: Shown, embedded: Bool) -> some View {
+    private func page(_ shown: Shown, embedded: Bool, edges: FoldPanes.Edges = .plain) -> some View {
         switch shown {
         case let .report(report):
             let result = ScrollView {
                 ReportResult(report: report)
-                    .padding(.leading, embedded ? 28 : 16).padding(.trailing, 16)
+                    .padding(.leading, edges.leading).padding(.trailing, edges.trailing)
             }
             .background(PageBackground().ignoresSafeArea())
             if embedded {
@@ -453,6 +458,7 @@ struct FilteredTransactions: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
+                    .refreshable { await load() }
                 }
             }
         }

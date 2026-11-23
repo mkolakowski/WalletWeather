@@ -5,8 +5,8 @@ import WalletWeatherKit
 /// this month", a card per account, the charts with the Month / 30 days /
 /// 90 days switch, and pinned reports.
 /// One column on any iPhone and on the Duo closed; on the open Duo the
-/// accounts take the left half and the charts the right, meeting at the fold
-/// with nothing to read or tap on it.
+/// accounts take the left half and the charts the right, through
+/// `FoldLayout`, with nothing to read or tap on the fold.
 struct DashboardView: View {
     @Environment(AppModel.self) private var model
     @Environment(AppSettings.self) private var settings
@@ -62,11 +62,6 @@ struct DashboardView: View {
             .navigationBarTitleDisplayMode(sizeClass == .regular ? .inline : .automatic)
             .toolbar { NewWindowItem(place: .dashboard) }
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Refresh", systemImage: "arrow.clockwise") { Task { await load() } }
-                }
-            }
-            .toolbar {
                 if !editableAccounts.isEmpty {
                     AddMenu(addTitle: "Add transaction", canMove: editableAccounts.count > 1, onAdd: {
                         newDraft = NewTransactionDraft(today: .today())
@@ -116,21 +111,22 @@ struct DashboardView: View {
         .refreshable { await load() }
     }
 
-    /// Two halves; each keeps clear of the fold in the middle.
+    /// The open Duo (#304): the accounts on the left and the charts on the
+    /// right, either side of the fold; half open like a laptop, the charts
+    /// stand up and the accounts lie below. Either half pulls to refresh.
     private func twoPanes(_ dashboard: Dashboard) -> some View {
-        HStack(spacing: 0) {
+        FoldLayout(upright: .trailing) { edges in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 14) { accountsColumn(dashboard) }
-                    .padding(.leading, 16).padding(.trailing, 28).padding(.bottom, 24)
+                    .padding(.leading, edges.leading).padding(.trailing, edges.trailing).padding(.bottom, 24)
             }
-            .refreshable { await load() }
-            .frame(maxWidth: .infinity)
+        } trailing: { edges in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 14) { chartsColumn }
-                    .padding(.leading, 28).padding(.trailing, 16).padding(.bottom, 24)
+                    .padding(.leading, edges.leading).padding(.trailing, edges.trailing).padding(.bottom, 24)
             }
-            .frame(maxWidth: .infinity)
         }
+        .refreshable { await load() }
     }
 
     @ViewBuilder

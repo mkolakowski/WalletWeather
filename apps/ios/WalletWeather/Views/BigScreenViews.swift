@@ -105,7 +105,8 @@ struct NewWindowItem: ToolbarContent {
 /// Two accounts, or one account in two months, side by side on the open
 /// Duo, one in each half: each side picks its account and month, and the
 /// lines line up by day of the month, so both sides scroll together. Nothing
-/// sits on the fold between them. Read-only: a line is changed in Forecast.
+/// sits on the fold between them: half open like a book, the gap is the
+/// fold's band (#304). Read-only: a line is changed in Forecast.
 struct CompareView: View {
     struct Side: Equatable {
         var accountId: Int
@@ -120,9 +121,6 @@ struct CompareView: View {
     @State private var leftMonth: Loadable<ForecastMonth> = .loading
     @State private var rightMonth: Loadable<ForecastMonth> = .loading
     @State private var kept = KeptTracker()
-
-    /// The gap the fold runs through.
-    private let foldGap: CGFloat = 56
 
     var body: some View {
         NavigationStack {
@@ -143,23 +141,34 @@ struct CompareView: View {
         case (.failed(let error), _), (_, .failed(let error)):
             ProblemView(error: error) { Task { leftMonth = await load(left); rightMonth = await load(right) } }
         case (.loaded(let l), .loaded(let r)):
-            ScrollView {
-                VStack(spacing: 12) {
-                    HStack(alignment: .top, spacing: foldGap) {
-                        SideHeader(accounts: accounts, side: $left, data: l)
-                        SideHeader(accounts: accounts, side: $right, data: r)
-                    }
-                    LazyVStack(spacing: 8) {
-                        ForEach(Compare.days(left: l.rows, right: r.rows)) { day in
-                            HStack(alignment: .top, spacing: foldGap) {
-                                dayColumn(day.day, lines: day.left, month: l, side: left)
-                                dayColumn(day.day, lines: day.right, month: r, side: right)
+            // The two sides scroll together in every pose, so they share one
+            // scroll view rather than `FoldLayout`'s two panes; they take its
+            // arithmetic (#304): lying flat (or half open like a laptop) two
+            // equal columns 56 points apart, half open like a book one column
+            // either side of the fold's band.
+            FoldReader { size, band in
+                let panes = FoldPanes.layout(size: size, band: band.isUpright ? band : .flat)
+                let leftWidth = max(0, panes.leading.width - panes.leadingEdges.leading - panes.leadingEdges.trailing)
+                let rightWidth = max(0, panes.trailing.width - panes.trailingEdges.leading - panes.trailingEdges.trailing)
+                ScrollView {
+                    VStack(spacing: 12) {
+                        HStack(alignment: .top, spacing: panes.gap) {
+                            SideHeader(accounts: accounts, side: $left, data: l).frame(width: leftWidth)
+                            SideHeader(accounts: accounts, side: $right, data: r).frame(width: rightWidth)
+                        }
+                        LazyVStack(spacing: 8) {
+                            ForEach(Compare.days(left: l.rows, right: r.rows)) { day in
+                                HStack(alignment: .top, spacing: panes.gap) {
+                                    dayColumn(day.day, lines: day.left, month: l, side: left).frame(width: leftWidth)
+                                    dayColumn(day.day, lines: day.right, month: r, side: right).frame(width: rightWidth)
+                                }
+                                .fixedSize(horizontal: false, vertical: true)  // both cells as tall as the taller
                             }
-                            .fixedSize(horizontal: false, vertical: true)  // both cells as tall as the taller
                         }
                     }
+                    .padding(.leading, panes.leadingEdges.leading).padding(.trailing, panes.trailingEdges.trailing)
+                    .padding(.bottom, 24)
                 }
-                .padding(.horizontal, 16).padding(.bottom, 24)
             }
         default:
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -90,17 +90,18 @@ struct CalendarView: View {
             ProblemView(error: error) { Task { await loadAll() } }
         case let .loaded(data):
             if sizeClass == .regular {
-                HStack(spacing: 0) {
+                // The open Duo (#304): the month on the left (above, half open
+                // like a laptop), the day on the right (below).
+                FoldLayout { edges in
                     ScrollView {
                         VStack(alignment: .leading, spacing: 14) {
                             header
                             MonthGrid(month: shownMonth, data: data, selected: selected, wide: true, onTap: select)
                                 .card()
                         }
-                        .padding(.leading, 16).padding(.trailing, 28).padding(.bottom, 24)
+                        .padding(.leading, edges.leading).padding(.trailing, edges.trailing).padding(.bottom, 24)
                     }
-                    .refreshable { await load() }
-                    .frame(maxWidth: .infinity)
+                } trailing: { edges in
                     ScrollView {
                         Group {
                             if let day = selected {
@@ -110,10 +111,10 @@ struct CalendarView: View {
                                           showAccount: account == nil)
                             }
                         }
-                        .padding(.leading, 28).padding(.trailing, 16).padding(.bottom, 24)
+                        .padding(.leading, edges.leading).padding(.trailing, edges.trailing).padding(.bottom, 24)
                     }
-                    .frame(maxWidth: .infinity)
                 }
+                .refreshable { await load() }
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
@@ -425,7 +426,7 @@ struct TodayView: View {
             } else {
                 Text("Today isn't in \(month.label).").font(.callout).foregroundStyle(.secondary)
             }
-            Text("Tap a day on the left to see its lines.").font(.footnote).foregroundStyle(.secondary)
+            Text("Tap a day to see its lines.").font(.footnote).foregroundStyle(.secondary)
         }
     }
 }

@@ -139,7 +139,7 @@ struct CalendarView: View {
             HStack {
                 Button("Previous month", systemImage: "chevron.left") { move(-1) }.labelStyle(.iconOnly)
                 Spacer()
-                Text(shownMonth.label).font(.headline)
+                MonthMenu(month: shownMonth, onPick: jump)
                 Spacer()
                 Button("Next month", systemImage: "chevron.right") { move(1) }.labelStyle(.iconOnly)
             }
@@ -159,6 +159,11 @@ struct CalendarView: View {
     private func move(_ by: Int) {
         dayText = ""
         monthText = (by < 0 ? shownMonth.previous : shownMonth.next).description
+    }
+
+    private func jump(to month: YearMonth) {
+        dayText = ""
+        monthText = month == YearMonth(.today()) ? "" : month.description
     }
 
     // MARK: - Loading

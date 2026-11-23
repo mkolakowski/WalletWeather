@@ -245,7 +245,7 @@ struct ForecastView: View {
 
     private func header(_ data: ForecastMonth) -> some View {
         MonthHeader(accounts: accounts.value ?? [], account: account, month: shownMonth, data: data,
-                    onSwitch: switchAccount, onMove: move)
+                    onSwitch: switchAccount, onMove: move, onJump: jump)
     }
 
     // MARK: - To confirm (#90)
@@ -327,6 +327,11 @@ struct ForecastView: View {
     private func move(_ by: Int) {
         open = nil
         monthText = (by < 0 ? shownMonth.previous : shownMonth.next).description
+    }
+
+    private func jump(to month: YearMonth) {
+        open = nil
+        monthText = month == YearMonth(.today()) ? "" : month.description
     }
 
     private func switchAccount(_ id: Int) {
@@ -440,6 +445,7 @@ struct MonthHeader: View {
     let data: ForecastMonth
     let onSwitch: (Int) -> Void
     let onMove: (Int) -> Void
+    let onJump: (YearMonth) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -465,7 +471,7 @@ struct MonthHeader: View {
                 Button("Previous month", systemImage: "chevron.left") { onMove(-1) }
                     .labelStyle(.iconOnly)
                 Spacer()
-                Text(month.label).font(.headline)
+                MonthMenu(month: month, onPick: onJump)
                 Spacer()
                 Button("Next month", systemImage: "chevron.right") { onMove(1) }
                     .labelStyle(.iconOnly)

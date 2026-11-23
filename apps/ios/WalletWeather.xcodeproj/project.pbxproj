@@ -44,6 +44,7 @@
 		D5D57BB1E4FEEC41226F4577 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 56BAA46087C2B76E94F0EE25 /* Assets.xcassets */; };
 		DA2C662A3F9E9B07C17BFC68 /* BillsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D0553102CA76CF6F2551892 /* BillsView.swift */; };
 		E4B39C05F91B13F80EE5068D /* MoveViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6E160E5ACC028F9FCFF027 /* MoveViews.swift */; };
+		EC7FFE9E0118DB3EF0409912 /* MonthMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9819ED5346F2EC2B60C37AA5 /* MonthMenu.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -71,6 +72,7 @@
 		8D0553102CA76CF6F2551892 /* BillsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillsView.swift; sourceTree = "<group>"; };
 		93FEDA0F77F540CE23C05F54 /* WalletWeatherKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WalletWeatherKit; path = WalletWeatherKit; sourceTree = SOURCE_ROOT; };
 		948E8EEE1A65AFD31A880000 /* BigScreenViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BigScreenViews.swift; sourceTree = "<group>"; };
+		9819ED5346F2EC2B60C37AA5 /* MonthMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthMenu.swift; sourceTree = "<group>"; };
 		99597682BE06C6A4C37D1188 /* BackupViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupViews.swift; sourceTree = "<group>"; };
 		A3E9C40EFE3CCE23D41AA8C7 /* ConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectView.swift; sourceTree = "<group>"; };
 		A5B7EE513A73A7A19A6F7A07 /* SignInSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInSheet.swift; sourceTree = "<group>"; };
@@ -132,6 +134,7 @@
 				75BD1096AF0D745FED33F38E /* GettingStartedViews.swift */,
 				A91553B7086BC583359B4E5F /* LineEditor.swift */,
 				4EF6456B5FCCB4251D23495E /* LoadState.swift */,
+				9819ED5346F2EC2B60C37AA5 /* MonthMenu.swift */,
 				8612988B4A68458DECAB4745 /* MoreView.swift */,
 				4F10AF2509F0101D7139AD73 /* MoveMoneySheet.swift */,
 				FA6E160E5ACC028F9FCFF027 /* MoveViews.swift */,
@@ -280,6 +283,7 @@
 				5674B2C7B6BE02CCE7EB0BA9 /* Keychain.swift in Sources */,
 				B9DF71AA4970ECC6F0927401 /* LineEditor.swift in Sources */,
 				3D7A5B5BE64924E4AE8BF00A /* LoadState.swift in Sources */,
+				EC7FFE9E0118DB3EF0409912 /* MonthMenu.swift in Sources */,
 				462B717DCD44956EEC548ECB /* MoreView.swift in Sources */,
 				4E47E421774FF04019F80AA1 /* MoveMoneySheet.swift in Sources */,
 				E4B39C05F91B13F80EE5068D /* MoveViews.swift in Sources */,
@@ -359,7 +363,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.36.0;
+				MARKETING_VERSION = 0.37.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -427,7 +431,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.36.0;
+				MARKETING_VERSION = 0.37.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

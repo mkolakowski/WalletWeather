@@ -228,7 +228,7 @@ private struct SideHeader: View {
                 Button("Previous month", systemImage: "chevron.left") { side.month = side.month.previous }
                     .labelStyle(.iconOnly)
                 Spacer()
-                Text(side.month.label).font(.subheadline.weight(.semibold))
+                MonthMenu(month: side.month, font: .subheadline.weight(.semibold)) { side.month = $0 }
                 Spacer()
                 Button("Next month", systemImage: "chevron.right") { side.month = side.month.next }
                     .labelStyle(.iconOnly)

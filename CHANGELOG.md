@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.36.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.37.0**
+
+### Added
+
+- **iPhone: tap the month's name to jump.** On Forecast, Calendar and Compare the month between the arrows is now a button: This month, the months either side, and the six months ahead of today and behind it. The arrows work as before (iOS 0.37.0).
 
 ### Changed
 

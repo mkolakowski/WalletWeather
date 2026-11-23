@@ -18,7 +18,14 @@ income and its totals), `searchTransactions` (transaction search) and `search`
 (the search box's grouped results), and since core 0.4.0 `csvPreview` and
 `csvCommit` (CSV import's preview, and the bills and lines an import makes;
 Python's csv reader, strptime and float() are copied, and
-`apps/server/tests/test_csv_import.py` checks them against Python itself).
+`apps/server/tests/test_csv_import.py` checks them against Python itself),
+and since core 0.5.0 bank matching: `bankMatch` (which bill each new bank
+line pays, taught names and each bill's days and percent included),
+`bankUnmatched` (the Unmatched list), `bankCandidates` (the match pop-in's
+candidates and choices), `bankNear` (the Unmatched lines that could pay a
+planned line) and `bankCatchUp` (the lines a newly taught name pays; the
+server keeps these amounts as exact decimals, so they go in as decimal
+strings). The server doesn't run the matching from the core yet (#239).
 Each function's input is described above
 it in the source.
 

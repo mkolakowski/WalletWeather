@@ -1396,6 +1396,388 @@
     };
   }
 
+  // ---------- Bank matching ----------
+  // Which planned bill or line a bank line pays, and the Unmatched list
+  // (bank-sync phase 4, #196; taught names, #224; the match pop-in, #222,
+  // #223, #231). Plans/standalone.md, phase 8 (#239).
+  //
+  // The server keeps amounts here as Python Decimals, compared exactly, so
+  // the matching takes amounts as decimal strings ("-65.43", "10.005") and
+  // works on them as exact decimals (a number is taken as Python's
+  // str(float) would write it). Amounts it answers are floats, as the
+  // server's float(Decimal) gives them.
+  //
+  // The rows every function below takes (the account's own):
+  //   recurring:    every bill on the account, active or not: a forecast
+  //                 row (id, frequency, day_of_month, anchor_date, end_date,
+  //                 active, description, amount) with match_days,
+  //                 match_percent and match_text (its taught name, or null).
+  //   skips:        [{recurring_id, date}], the dates deleted from the forecast.
+  //   transactions: every line on the account: id, recurring_id,
+  //                 transfer_id, description, notes, amount, forecast_date,
+  //                 actual_date, is_actual, bank_match, has_bank_ref,
+  //                 has_mail_ref, bank_left.
+
+  // An exact decimal: n * 10^-e, n a BigInt.
+  function dec(v) {
+    const s = typeof v === "number" ? String(v) : String(v).trim();
+    const m = /^([+-]?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(s);
+    if (!m || (m[2] === "" && (m[3] || "") === "")) throw new Error("WalletWeatherCore: not an amount: " + s);
+    const frac = m[3] || "";
+    let n = BigInt((m[2] || "0") + frac);
+    let e = frac.length - (m[4] ? parseInt(m[4], 10) : 0);
+    if (e < 0) { n *= 10n ** BigInt(-e); e = 0; }
+    return { n: m[1] === "-" ? -n : n, e: e };
+  }
+  function decAlign(a, b) {
+    const e = Math.max(a.e, b.e);
+    return [a.n * 10n ** BigInt(e - a.e), b.n * 10n ** BigInt(e - b.e), e];
+  }
+  function decSub(a, b) {
+    const [x, y, e] = decAlign(a, b);
+    return { n: x - y, e: e };
+  }
+  function decAbs(a) {
+    return { n: a.n < 0n ? -a.n : a.n, e: a.e };
+  }
+  function decCmp(a, b) {
+    const [x, y] = decAlign(a, b);
+    return x < y ? -1 : x > y ? 1 : 0;
+  }
+  // Python's float(Decimal): the nearest double.
+  function decFloat(a) {
+    return parseFloat(a.n.toString() + "e-" + a.e);
+  }
+
+  // Python's str.isdigit(): Unicode decimal digits and the other digits
+  // (superscripts, circled digits, ...). Checked against Python.
+  const OTHER_DIGITS = [[0xB2, 0xB3], [0xB9, 0xB9], [0x1369, 0x1371], [0x19DA, 0x19DA], [0x2070, 0x2070],
+    [0x2074, 0x2079], [0x2080, 0x2089], [0x2460, 0x2468], [0x2474, 0x247C], [0x2488, 0x2490],
+    [0x24EA, 0x24EA], [0x24F5, 0x24FD], [0x24FF, 0x24FF], [0x2776, 0x277E], [0x2780, 0x2788],
+    [0x278A, 0x2792], [0x10A40, 0x10A43], [0x10E60, 0x10E68], [0x11052, 0x1105A], [0x1F100, 0x1F10A]];
+  function isDigit(ch) {
+    if (ND.test(ch)) return true;
+    const cp = ch.codePointAt(0);
+    return OTHER_DIGITS.some(([lo, hi]) => lo <= cp && cp <= hi);
+  }
+
+  const PY_SPACES = new RegExp(PY_SPACE + "+", "g");
+  const MATCH_SPLIT = new RegExp("(?:" + PY_SPACE + "|[*#])+");
+  // _match_key: how a taught name is compared (#224, #230), ignoring case,
+  // spaces and codes. Split on spaces, "*" and "#", drop each piece with a
+  // digit in it, so "AMAZON MKTPL*2K4AB1" and "AMAZON MKTPL*9XZ3" are both
+  // "amazon mktpl". A name with nothing left is compared as itself.
+  function matchKey(text) {
+    const plain = pyStrip((text || "").toLowerCase()).split(PY_SPACES).filter((w) => w).join(" ");
+    const words = plain.split(MATCH_SPLIT).filter((w) => w && !Array.from(w).some(isDigit));
+    return words.join(" ") || plain;
+  }
+
+  // simplefin.short_name: a synced line's name when the bank's text carries
+  // more than a name, the part before " / " without a leading "Withdrawal"
+  // or "Deposit" (#213); null when there's nothing to shorten.
+  const NAME_MAX = 120;
+  const DIRECTION = new RegExp("^(?:(?:ACH|POS|Debit Card|Online|Mobile|External)" + PY_SPACE + "+)?" +
+    "(?:Withdrawal|Deposit)(?:" + PY_SPACE + "+|$)", "iu");
+  function shortName(text) {
+    if (!text || text.indexOf(" / ") < 0) return null;
+    const head = pyStrip(pyStrip(text.split(" / ")[0]).replace(DIRECTION, ""));
+    return head ? cutCodePoints(head, NAME_MAX) : null;
+  }
+
+  // The name a bill learns from a synced line (_line_name): its short name,
+  // worked out again from the bank's text in its notes, else its name.
+  function lineName(t) {
+    return (t.notes ? shortName(t.notes) : null) || t.description;
+  }
+
+  // _bank_text_of: the bank's full text when the name was shortened from it.
+  function bankTextOf(t) {
+    if (t.notes && shortName(t.notes) === t.description) return t.notes;
+    return t.description;
+  }
+
+  function lineSource(t) {
+    return t.has_mail_ref ? "alert" : "bank";
+  }
+
+  function lineDay(t) {
+    return t.actual_date || t.forecast_date;
+  }
+
+  // _unmatched_query: synced lines that paid no planned line and are still
+  // to look at.
+  function isUnmatched(t) {
+    return !!(t.has_bank_ref || t.has_mail_ref) && t.bank_match == null && !t.bank_left &&
+      t.recurring_id == null && t.transfer_id == null && !!t.is_actual;
+  }
+
+  const MATCH_BY_HAND_DAYS = 60;
+  const DEFAULT_MATCH_DAYS = 5;
+
+  // _bills_to_match: the active bills, the bill dates already on a line
+  // (any line of the account with the bill and a date), the active bills'
+  // deleted dates and their taught names.
+  function billsToMatch(input) {
+    const recs = (input.recurring || []).filter((r) => r.active === true);
+    const active = new Set(recs.map((r) => r.id));
+    const covered = new Set();
+    for (const t of input.transactions || []) {
+      if (t.recurring_id != null && t.forecast_date != null) covered.add(t.recurring_id + "|" + t.forecast_date);
+    }
+    const skipped = new Set();
+    for (const s of input.skips || []) if (active.has(s.recurring_id)) skipped.add(s.recurring_id + "|" + s.date);
+    const taught = new Map();
+    for (const r of recs) if (r.match_text) taught.set(r.id, matchKey(r.match_text));
+    return { recs: recs, covered: covered, skipped: skipped, taught: taught };
+  }
+
+  function isOpen(bills, rid, iso) {
+    return !bills.covered.has(rid + "|" + iso) && !bills.skipped.has(rid + "|" + iso);
+  }
+
+  // _bill_for_bank_line: {rec, day} the bank line pays, or null (no match,
+  // or a tie). It goes the bill's way, is within the bill's match_percent of
+  // its amount and within match_days of an open date; the nearest date
+  // wins. A bill taught the line's name takes it at any amount going its
+  // way within its days, and is preferred over the bills that fit by amount.
+  function billForBankLine(bills, dayIso, amountDec, name) {
+    const taught = bills.taught;
+    const key = name && taught.size ? matchKey(name) : null;
+    const day = dayNumber(dayIso);
+    let found = [];
+    for (const rec of bills.recs) {
+      const planned = dec(rec.amount);
+      if (planned.n === 0n || amountDec.n === 0n || (planned.n < 0n) !== (amountDec.n < 0n)) continue;
+      const named = key !== null && taught.get(rec.id) === key;
+      if (!named) {
+        // abs(amount - planned) > abs(planned) * match_percent / 100
+        const diff = decAbs(decSub(amountDec, planned));
+        const limit = decAbs(planned);
+        if (decCmp({ n: diff.n * 100n, e: diff.e }, { n: limit.n * BigInt(rec.match_percent), e: limit.e }) > 0) continue;
+      }
+      for (const o of occurrences(rec, day - rec.match_days, day + rec.match_days)) {
+        const iso = isoOf(o.day);
+        if (isOpen(bills, rec.id, iso)) found.push({ apart: Math.abs(o.day - day), rec: rec, day: iso });
+      }
+    }
+    if (key !== null) {
+      const mine = found.filter((f) => taught.get(f.rec.id) === key);
+      if (mine.length) found = mine;
+    }
+    if (!found.length) return null;
+    found.sort((a, b) => a.apart - b.apart);
+    if (found.length > 1 && found[1].apart === found[0].apart) return null;
+    return { rec: found[0].rec, day: found[0].day };
+  }
+
+  // Bank sync's matching (_bank_sync_locked): the new bank lines in the
+  // order they arrive, each paying a bill's date or not. Input: the
+  // account's rows (above) and lines: [{date, amount, text}], text the
+  // bank's own. A line is matched by its short name when it has one. Each
+  // answer is {recurring_id, forecast_date} or null (it lands as its own
+  // line); a date one line pays isn't open to the next.
+  function bankMatch(input) {
+    const bills = billsToMatch(input);
+    return (input.lines || []).map((line) => {
+      const hit = billForBankLine(bills, line.date, dec(line.amount), shortName(line.text) || line.text);
+      if (!hit) return null;
+      bills.covered.add(hit.rec.id + "|" + hit.day);
+      return { recurring_id: hit.rec.id, forecast_date: hit.day };
+    });
+  }
+
+  // GET /api/accounts/{id}/bank-unmatched: the Unmatched list, newest first.
+  // Input: transactions (above).
+  function bankUnmatched(input) {
+    const rows = (input.transactions || []).filter(isUnmatched).sort((a, b) => {
+      // ORDER BY actual_date DESC (PostgreSQL puts no date first), id DESC.
+      if (a.actual_date !== b.actual_date) {
+        if (a.actual_date == null) return -1;
+        if (b.actual_date == null) return 1;
+        return cmpIso(b.actual_date, a.actual_date);
+      }
+      return b.id - a.id;
+    });
+    return {
+      count: rows.length,
+      lines: rows.map((t) => ({ id: t.id, date: lineDay(t), description: t.description,
+        amount: decFloat(dec(t.amount)), notes: t.notes, source: lineSource(t) })),
+    };
+  }
+
+  function unmatchedLine(input, id) {
+    const t = (input.transactions || []).find((x) => x.id === id);
+    if (!t || !isUnmatched(t)) throw new Error("That line isn't on the Unmatched list.");
+    return t;
+  }
+
+  function lower(s) {
+    return s.toLowerCase();
+  }
+
+  // _match_choices: the candidates as the match pop-in shows them (#222).
+  function matchChoices(cands, amountDec, dayIso, reach) {
+    const day = dayNumber(dayIso);
+    const groups = new Map();
+    for (const c of cands) {
+      const planned = dec(c.amount);
+      const opt = { transaction_id: c.transaction_id, recurring_id: c.recurring_id, forecast_date: c.forecast_date,
+        amount: c.amount, description: c.description, days_apart: c.days_apart };
+      opt.days_after = day - dayNumber(c.forecast_date);
+      opt.amount_diff = decFloat(decSub(amountDec, planned));
+      opt.same_direction = (planned.n < 0n) === (amountDec.n < 0n) && planned.n !== 0n;
+      const r = c.recurring_id != null && reach.has(c.recurring_id) ? reach.get(c.recurring_id) : DEFAULT_MATCH_DAYS;
+      opt.within_days = c.days_apart <= r;
+      const key = c.recurring_id != null ? "r" + c.recurring_id : "t" + c.transaction_id;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(opt);
+    }
+    const choices = [];
+    for (const opts of groups.values()) {
+      let best = opts[0];
+      for (const o of opts) {
+        if (o.days_apart < best.days_apart || (o.days_apart === best.days_apart && cmpIso(o.forecast_date, best.forecast_date) < 0)) best = o;
+      }
+      choices.push(Object.assign({}, best, { dates: opts.slice().sort((a, b) => cmpIso(a.forecast_date, b.forecast_date)) }));
+    }
+    choices.sort((a, b) => (a.same_direction === b.same_direction ? 0 : a.same_direction ? -1 : 1) ||
+      a.days_apart - b.days_apart || Math.abs(a.amount_diff) - Math.abs(b.amount_diff) ||
+      cmpStr(lower(a.description), lower(b.description)));
+    return choices;
+  }
+
+  // GET /api/accounts/{id}/bank-unmatched/{line}/candidates: the account's
+  // planned lines and open bill dates within 60 days of an Unmatched line,
+  // nearest first, whatever a bill's match settings say, and the same as
+  // the match pop-in's choices. Input: the account's rows (above) and
+  // transaction_id, the Unmatched line's.
+  function bankCandidates(input) {
+    const line = unmatchedLine(input, input.transaction_id);
+    const dayIso = lineDay(line);
+    const day = dayNumber(dayIso);
+    const lo = day - MATCH_BY_HAND_DAYS;
+    const hi = day + MATCH_BY_HAND_DAYS;
+    const out = [];
+    for (const t of input.transactions || []) {
+      if (t.is_actual || t.transfer_id != null || t.forecast_date == null) continue;
+      const fd = dayNumber(t.forecast_date);
+      if (fd < lo || fd > hi) continue;
+      out.push({ transaction_id: t.id, recurring_id: t.recurring_id, forecast_date: t.forecast_date,
+        description: t.description, amount: decFloat(dec(t.amount)), days_apart: Math.abs(fd - day) });
+    }
+    const bills = billsToMatch(input);
+    for (const rec of bills.recs) {
+      for (const o of occurrences(rec, lo, hi)) {
+        const iso = isoOf(o.day);
+        if (!isOpen(bills, rec.id, iso)) continue;
+        out.push({ transaction_id: null, recurring_id: rec.id, forecast_date: iso, description: rec.description,
+          amount: decFloat(dec(rec.amount)), days_apart: Math.abs(o.day - day) });
+      }
+    }
+    out.sort((a, b) => a.days_apart - b.days_apart || cmpIso(a.forecast_date, b.forecast_date) ||
+      cmpStr(lower(a.description), lower(b.description)));
+    const amount = dec(line.amount);
+    const bankText = bankTextOf(line);
+    const reach = new Map(bills.recs.map((r) => [r.id, r.match_days]));
+    return {
+      line: { id: line.id, date: dayIso, description: line.description, amount: decFloat(amount),
+        source: lineSource(line), bank_text: bankText !== line.description ? bankText : null,
+        learn_name: lineName(line) },
+      candidates: out.slice(0, 50),
+      choices: matchChoices(out, amount, dayIso, reach).slice(0, 50),
+    };
+  }
+
+  // _planned_target: a planned line a bank line could pay, or the server's
+  // error saying why not.
+  function plannedTarget(input, given) {
+    if (given.transaction_id != null) {
+      const t = (input.transactions || []).find((x) => x.id === given.transaction_id);
+      if (!t) throw new Error("Planned line not found");
+      if (t.is_actual || t.transfer_id != null || t.forecast_date == null) {
+        throw new Error("That line is already paid, or is a transfer: pick a planned line.");
+      }
+      return { transaction_id: t.id, recurring_id: t.recurring_id, forecast_date: t.forecast_date,
+        description: t.description, amount: decFloat(dec(t.amount)) };
+    }
+    if (given.recurring_id != null && given.forecast_date != null) {
+      const rec = (input.recurring || []).find((r) => r.id === given.recurring_id);
+      if (!rec) throw new Error("Bill not found");
+      const d = dayNumber(given.forecast_date);
+      if (!occurrences(rec, d, d).some((o) => o.day === d)) throw new Error("That bill has no date on that day.");
+      if (!isOpen(billsToMatch(input), rec.id, given.forecast_date)) {
+        throw new Error("That date is already paid or was deleted: pick a planned line.");
+      }
+      return { transaction_id: null, recurring_id: rec.id, forecast_date: given.forecast_date,
+        description: rec.description, amount: decFloat(dec(rec.amount)) };
+    }
+    throw new Error("Give transaction_id, or recurring_id and forecast_date.");
+  }
+
+  // GET /api/accounts/{id}/bank-unmatched/near: the Unmatched lines that
+  // could pay one planned line (#223), within 60 days of its date, lines
+  // going its way first, then the nearest. Input: the account's rows
+  // (above) and planned: {transaction_id} or {recurring_id, forecast_date}.
+  function bankNear(input) {
+    const planned = plannedTarget(input, input.planned || {});
+    const day = dayNumber(planned.forecast_date);
+    const want = dec(planned.amount);
+    const rec = planned.recurring_id != null ? (input.recurring || []).find((r) => r.id === planned.recurring_id) : null;
+    const days = rec ? rec.match_days : DEFAULT_MATCH_DAYS;
+    const out = [];
+    for (const t of input.transactions || []) {
+      if (!isUnmatched(t)) continue;
+      const whenIso = lineDay(t);
+      if (whenIso == null) continue;
+      const when = dayNumber(whenIso);
+      if (when < day - MATCH_BY_HAND_DAYS || when > day + MATCH_BY_HAND_DAYS) continue;
+      const text = bankTextOf(t);
+      const amount = dec(t.amount);
+      out.push({ id: t.id, date: whenIso, description: t.description, amount: decFloat(amount),
+        source: lineSource(t), bank_text: text !== t.description ? text : null, learn_name: lineName(t),
+        days_apart: Math.abs(when - day), days_after: when - day, amount_diff: decFloat(decSub(amount, want)),
+        same_direction: (amount.n < 0n) === (want.n < 0n) && want.n !== 0n,
+        within_days: Math.abs(when - day) <= days });
+    }
+    out.sort((a, b) => (a.same_direction === b.same_direction ? 0 : a.same_direction ? -1 : 1) ||
+      a.days_apart - b.days_apart || Math.abs(a.amount_diff) - Math.abs(b.amount_diff) || a.id - b.id);
+    return { planned: planned, match_days: days, lines: out.slice(0, 50) };
+  }
+
+  // _catch_up_taught: after a bill is taught a name (matching by hand with
+  // "remember", #224), the Unmatched lines with that name pay its open
+  // dates, oldest first, each within the bill's days at any amount going
+  // its way. Input: the account's rows (above), the bill's match_text
+  // already set, and recurring_id. Answers [{transaction_id,
+  // forecast_date}]: the Unmatched line and the date it pays.
+  function bankCatchUp(input) {
+    const rec = (input.recurring || []).find((r) => r.id === input.recurring_id);
+    if (!rec) throw new Error("Bill not found");
+    const key = matchKey(rec.match_text);
+    const bills = billsToMatch(input);
+    const only = { recs: [rec], covered: bills.covered, skipped: bills.skipped, taught: new Map([[rec.id, key]]) };
+    const lines = (input.transactions || []).filter(isUnmatched).sort((a, b) => {
+      // ORDER BY actual_date (PostgreSQL puts no date last), id.
+      if (a.actual_date !== b.actual_date) {
+        if (a.actual_date == null) return 1;
+        if (b.actual_date == null) return -1;
+        return cmpIso(a.actual_date, b.actual_date);
+      }
+      return a.id - b.id;
+    });
+    const out = [];
+    for (const t of lines) {
+      const name = lineName(t);
+      if (matchKey(name) !== key) continue;
+      const hit = billForBankLine(only, lineDay(t), dec(t.amount), name);
+      if (!hit) continue;
+      only.covered.add(rec.id + "|" + hit.day);
+      out.push({ transaction_id: t.id, forecast_date: hit.day });
+    }
+    return out;
+  }
+
   // ---------- Entry point ----------
 
   // forecast._occurrences for the hosts: a repeating item's dates in a
@@ -1418,6 +1800,11 @@
     search: search,
     csvPreview: csvPreview,
     csvCommit: csvCommit,
+    bankMatch: bankMatch,
+    bankUnmatched: bankUnmatched,
+    bankCandidates: bankCandidates,
+    bankNear: bankNear,
+    bankCatchUp: bankCatchUp,
   };
 
   // What the hosts call: a function name and a JSON string in, a JSON
@@ -1428,7 +1815,7 @@
   }
 
   root.WalletWeatherCore = {
-    version: "0.4.0",
+    version: "0.5.0",
     run: run,
     forecast: forecast,
     actualBalanceAsOf: actualBalanceAsOf,
@@ -1442,6 +1829,11 @@
     search: search,
     csvPreview: csvPreview,
     csvCommit: csvCommit,
+    bankMatch: bankMatch,
+    bankUnmatched: bankUnmatched,
+    bankCandidates: bankCandidates,
+    bankNear: bankNear,
+    bankCatchUp: bankCatchUp,
     // For the tests: the date and rounding helpers.
     _dayNumber: dayNumber,
     _isoOf: isoOf,
@@ -1452,5 +1844,8 @@
     _csvReader: csvReader,
     _parseCsvDate: parseCsvDate,
     _parseCsvAmount: parseCsvAmount,
+    _matchKey: matchKey,
+    _shortName: shortName,
+    _isDigit: isDigit,
   };
 })(typeof globalThis !== "undefined" ? globalThis : this);

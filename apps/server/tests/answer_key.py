@@ -86,12 +86,18 @@ class Household:
         return self.tags[name]
 
     def bill(self, key, account, description, amount, frequency, day_of_month=None, anchor=None,
-             end=None, category=None, notes=None, active=True, tags=()):
+             end=None, category=None, notes=None, active=True, tags=(), match_days=None,
+             match_percent=None, match_text=None):
         r = RecurringTransaction(account_id=account.id, frequency=frequency, day_of_month=day_of_month,
                                  anchor_date=date.fromisoformat(anchor) if anchor else None,
                                  end_date=date.fromisoformat(end) if end else None,
                                  category_id=self.cats[category].id if category else None, active=active)
         r.description, r.amount, r.notes = description, Decimal(amount), notes
+        if match_days is not None:
+            r.match_days = match_days
+        if match_percent is not None:
+            r.match_percent = match_percent
+        r.match_text = match_text
         self._note("rec", r)
         for t in tags:
             self.db.add(RecurringTag(recurring_id=r.id, tag_id=self.tags[t].id))
@@ -308,15 +314,106 @@ class Household:
         self.ids["txn"] += [t.id for t in txns]
         return case
 
+    # ----- bank matching (#239) -----
+
+    def match_rows(self, account) -> dict:
+        """The matching functions' input: every bill on the account (active or
+        not) with its match settings, their deleted dates and every line, the
+        amounts as the server's Decimals write them."""
+        db = self.db
+        recs = (db.query(RecurringTransaction).filter(RecurringTransaction.account_id == account.id)
+                .order_by(RecurringTransaction.id).all())
+        skips = [{"recurring_id": rid, "date": d.isoformat()} for rid, d in (
+            db.query(RecurringSkip.recurring_id, RecurringSkip.skip_date)
+            .filter(RecurringSkip.recurring_id.in_([r.id for r in recs] or [0]))
+            .order_by(RecurringSkip.recurring_id, RecurringSkip.skip_date))]
+        txns = db.query(Transaction).filter(Transaction.account_id == account.id).order_by(Transaction.id)
+        iso = lambda d: d.isoformat() if d else None  # noqa: E731
+        return {
+            "recurring": [{"id": r.id, "frequency": r.frequency, "day_of_month": r.day_of_month,
+                           "anchor_date": iso(r.anchor_date), "end_date": iso(r.end_date), "active": r.active,
+                           "description": r.description, "amount": str(r.amount), "match_days": r.match_days,
+                           "match_percent": r.match_percent, "match_text": r.match_text} for r in recs],
+            "skips": skips,
+            "transactions": [{"id": t.id, "recurring_id": t.recurring_id, "transfer_id": t.transfer_id,
+                              "description": t.description, "notes": t.notes, "amount": str(t.amount),
+                              "forecast_date": iso(t.forecast_date), "actual_date": iso(t.actual_date),
+                              "is_actual": t.is_actual, "bank_match": t.bank_match,
+                              "has_bank_ref": bool(t.bank_ref), "has_mail_ref": bool(t.mail_ref),
+                              "bank_left": bool(t.bank_left)} for t in txns],
+        }
+
+    def bank_match_case(self, label, account, lines):
+        """Bank sync's matching (main._bank_sync_locked) of new bank lines
+        [(date, amount, the bank's text)], in order: the bill date each pays."""
+        bills = main._bills_to_match(self.db, account.id)
+        expected = []
+        for day, amount, raw in lines:
+            short = main.simplefin.short_name(raw)
+            hit = main._bill_for_bank_line(bills, date.fromisoformat(day), Decimal(amount), short or raw)
+            if hit:
+                bills["covered"].add((hit[0].id, hit[1]))
+                expected.append({"recurring_id": hit[0].id, "forecast_date": hit[1].isoformat()})
+            else:
+                expected.append(None)
+        return self._case(f"Bank match: {label}", "bankMatch", {
+            **self.match_rows(account),
+            "lines": [{"date": d, "amount": a, "text": t} for d, a, t in lines]}, expected)
+
+    def unmatched_case(self, account):
+        expected = main.bank_unmatched(account.id, user=self.user, db=self.db)
+        return self._case(f"Unmatched list of {account.name}", "bankUnmatched",
+                          {"transactions": self.match_rows(account)["transactions"]}, expected)
+
+    def candidates_case(self, label, account, line):
+        expected = main.bank_unmatched_candidates(account.id, line.id, user=self.user, db=self.db)
+        return self._case(f"Match candidates: {label}", "bankCandidates",
+                          {**self.match_rows(account), "transaction_id": line.id}, expected)
+
+    def near_case(self, label, account, line=None, bill=None, day=None):
+        planned = ({"transaction_id": line.id} if line is not None
+                   else {"recurring_id": self.recs[bill].id, "forecast_date": day})
+        expected = main.bank_unmatched_near(account.id, transaction_id=planned.get("transaction_id"),
+                                            recurring_id=planned.get("recurring_id"),
+                                            forecast_date=date.fromisoformat(day) if day else None,
+                                            user=self.user, db=self.db)
+        return self._case(f"Unmatched lines near: {label}", "bankNear",
+                          {**self.match_rows(account), "planned": planned}, expected)
+
+    def catch_up_case(self, label, account, bill, name):
+        """Teaching `bill` the name `name` (matching by hand with "remember"):
+        the Unmatched lines that then pay its dates. Rolled back afterwards."""
+        db, rec = self.db, self.recs[bill]
+        nested = db.begin_nested()
+        try:
+            rec.match_text = name
+            db.flush()
+            given = {**self.match_rows(account), "recurring_id": rec.id}
+            before = {t.id: (t.bank_ref, t.mail_ref) for t in main._unmatched_query(db, account.id)}
+            last = max(t["id"] for t in given["transactions"])
+            main._catch_up_taught(db, account, rec)
+            db.flush()
+            made = (db.query(Transaction).filter(Transaction.account_id == account.id, Transaction.id > last)
+                    .order_by(Transaction.id).all())
+            by_ref = {refs: tid for tid, refs in before.items()}
+            expected = [{"transaction_id": by_ref[(t.bank_ref, t.mail_ref)],
+                         "forecast_date": t.forecast_date.isoformat()} for t in made]
+        finally:
+            nested.rollback()
+        db.expire_all()
+        return self._case(f"Catch up after teaching: {label}", "bankCatchUp", given, expected)
+
     def _case(self, name, function, given, expected):
         # A JSON round trip, so dates and Decimals are what a client would see.
         expected = json.loads(json.dumps(expected, default=str))
         # A transaction search answers {total, results: [lines]}.
         kind = "txn" if function == "searchTransactions" else None
+        # The bank matching's lines (and the one line) are transactions.
+        extra = {"line": "txn", "lines": "txn"} if function.startswith("bank") else {}
         return {"name": name, "function": function,
-                "input": self.renumber(given), "expected": self.renumber(expected, kind)}
+                "input": self.renumber(given, extra=extra), "expected": self.renumber(expected, kind, extra)}
 
-    def renumber(self, value, kind=None):
+    def renumber(self, value, kind=None, extra=None):
         """Replace every database id with its place in creation order."""
         maps = {k: {v: i + 1 for i, v in enumerate(ids)} for k, ids in self.ids.items()}
         by_key = {"transaction_id": "txn", "recurring_id": "rec", "transfer_id": "transfer",
@@ -324,6 +421,7 @@ class Household:
         lists = {"transactions": "txn", "recurring": "rec", "tags": "tag", "categories": "cat",
                  "accounts": "acc", "cards": "acc", "reports": "report", "items": "rec"}
         by_key["tag_id"] = "tag"
+        lists = {**lists, **(extra or {})}
 
         def walk(v, kind):
             if isinstance(v, dict):
@@ -649,8 +747,98 @@ def _imports(app, db) -> list:
     return cases
 
 
+def _matching(app, db) -> list:
+    """Bank matching (#239): which bill a bank line pays (exact, within a
+    bill's days and percent and just outside, the nearest date, a tie, a
+    taught name at any amount and winning a tie, money in and out, a paid,
+    deleted or switched-off bill's date, one line after another), the
+    Unmatched list (bank and email alert lines, and lines that aren't on
+    it), the match pop-in's candidates and choices (with a one-off planned
+    line), the Unmatched lines near a planned line, and the lines a newly
+    taught name catches up."""
+    h = Household(app, db, "matching")
+    acc = h.account("Checking", "2500", "2026-08-01")
+    h.bill("rent", acc, "Rent", "-1500.00", "monthly_day", day_of_month=1)
+    h.bill("phone", acc, "Phone", "-65.43", "monthly_day", day_of_month=15, match_days=3, match_percent=5)
+    h.bill("internet", acc, "Internet", "-59.99", "monthly_day", day_of_month=20, match_text="EXAMPLE INTERNET*123")
+    h.bill("gym", acc, "Gym", "-30.00", "weekly", anchor="2026-09-02")
+    h.bill("club", acc, "Climbing club", "-31.00", "weekly", anchor="2026-09-02")
+    h.bill("pay", acc, "Paycheck", "2000.00", "biweekly", anchor="2026-09-04")
+    h.bill("stream_a", acc, "Streaming A", "-15.99", "monthly_day", day_of_month=10, match_text="StreamCo")
+    h.bill("stream_b", acc, "streaming B", "-15.99", "monthly_day", day_of_month=10)
+    h.bill("old", acc, "Old magazine", "-9.99", "monthly_day", day_of_month=5, active=False)
+    h.bill("insurance", acc, "Insurance", "-100.005", "biweekly", anchor="2026-09-01", match_days=10)
+    h.bill("water", acc, "Water", "-40", "monthly_day", day_of_month=25)
+    h.bill("ended", acc, "Ended plan", "-20", "monthly_day", day_of_month=3, end="2026-08-31")
+    h.skip("rent", "2026-10-01")
+    h.skip("old", "2026-10-05")
+    # Paid and planned lines.
+    h.line(acc, "Phone", "-66.00", forecast="2026-09-15", actual="2026-09-15", cleared=True, bill="phone",
+           forecast_amount="-65.43", bank_ref="p1", bank_match="auto")
+    repair = h.line(acc, "Car repair", "-300", forecast="2026-09-12")
+    h.line(acc, "Rent (planned early)", "-1500.00", forecast="2026-11-01", bill="rent")
+    h.line(acc, "Coffee", "-4.50", actual="2026-09-03", cleared=True)
+    # Synced lines: on the Unmatched list or not.
+    shop = h.line(acc, "Car repair shop", "-310.00", forecast="2026-09-13", actual="2026-09-13", cleared=True,
+                  bank_ref="b1", notes="POS Withdrawal Car repair shop / ID: 99812")
+    h.line(acc, "CITY WATER #4411", "-41.00", forecast="2026-09-26", actual="2026-09-26", cleared=True,
+           bank_ref="b2")
+    h.line(acc, "City Water", "-45", forecast="2026-10-24", actual="2026-10-24", cleared=True,
+           notes="Withdrawal City Water / ACH Trace Number: 7", bank_ref="b3")
+    h.line(acc, "City water refund", "40", forecast="2026-10-25", actual="2026-10-25", cleared=True, bank_ref="b4")
+    h.line(acc, "CITY  WATER", "-40", forecast="2026-12-01", actual="2026-12-01", cleared=True, bank_ref="b5")
+    alert = h.line(acc, "Card ending 1234", "-30.00", forecast="2026-09-09", actual="2026-09-09", cleared=True,
+                   mail_ref="m1")
+    h.line(acc, "Parking", "-8.00", forecast="2026-09-20", actual="2026-09-20", cleared=True, bank_ref="b6",
+           bank_left=True)
+    h.line(acc, "Example Internet", "-59.99", forecast="2026-09-20", actual="2026-09-21", cleared=True,
+           bank_ref="b7", bank_match="hand", bill="internet")
+    h.line(acc, "Not yet posted", "-12", forecast="2026-09-22", bank_ref="b8")
+    h.line(acc, "No posted date", "-1.25", forecast="2026-09-24", cleared=True, bank_ref="b9")
+    db.flush()
+
+    cases = [
+        h.bank_match_case("exact amounts on the day", acc, [
+            ("2026-09-01", "-1500.00", "RENT PAYMENT"), ("2026-09-04", "2000", "PAYROLL / ACME")]),
+        h.bank_match_case("within a bill's days and percent", acc, [
+            ("2026-10-18", "-68.70", "Phone Co"), ("2026-09-06", "-1650.00", "Landlord")]),
+        h.bank_match_case("just outside", acc, [
+            ("2026-10-15", "-68.71", "Phone Co"), ("2026-10-11", "-65.43", "Phone Co"),
+            ("2026-09-06", "-1650.01", "Landlord"), ("2026-09-07", "-1500", "Landlord")]),
+        h.bank_match_case("the nearest date", acc, [("2026-09-06", "-100.00", "Insurer")]),
+        h.bank_match_case("a tie", acc, [("2026-09-09", "-30.50", "GYM OR CLUB"),
+                                         ("2026-09-10", "-15.99", "Some stream")]),
+        h.bank_match_case("a taught name wins a tie", acc, [("2026-09-10", "-15.99", "STREAMCO*99X1")]),
+        h.bank_match_case("a taught name at any amount", acc, [
+            ("2026-10-21", "-75.00", "Withdrawal Example Internet *88 / ID: 1"),
+            ("2026-10-26", "-75.00", "EXAMPLE  INTERNET#7"), ("2026-10-21", "75.00", "Example Internet")]),
+        h.bank_match_case("money in and out", acc, [
+            ("2026-10-15", "65.43", "Phone Co refund"), ("2026-09-18", "-2000", "Paycheck clawback"),
+            ("2026-09-18", "2000.00", "Paycheck")]),
+        h.bank_match_case("a one-off and other lines", acc, [
+            ("2026-09-12", "-300", "Car repair"), ("2026-09-03", "-4.50", "Coffee"), ("2026-09-05", "0", "Zero")]),
+        h.bank_match_case("paid, deleted, switched-off and ended dates", acc, [
+            ("2026-09-15", "-65.43", "Phone Co"), ("2026-10-01", "-1500", "Rent"),
+            ("2026-11-01", "-1500", "Rent"), ("2026-09-05", "-9.99", "Magazine"),
+            ("2026-09-03", "-20", "Ended plan")]),
+        h.bank_match_case("one line after another", acc, [
+            ("2026-09-01", "-1500.00", "Rent"), ("2026-09-02", "-1500.00", "Rent"),
+            ("2026-09-25", "-40", "Water"), ("2026-09-24", "-40", "Water")]),
+        h.unmatched_case(acc),
+        h.candidates_case("a bank line with its bank text", acc, shop),
+        h.candidates_case("an email alert's line", acc, alert),
+        h.near_case("a one-off planned line", acc, line=repair),
+        h.near_case("a bill's date", acc, bill="water", day="2026-10-25"),
+        h.near_case("a bill's date with its own days", acc, bill="phone", day="2026-10-15"),
+        h.near_case("an income date", acc, bill="pay", day="2026-09-18"),
+        h.catch_up_case("water", acc, "water", "CITY WATER #9"),
+        h.catch_up_case("a name no line has", acc, "gym", "Planet Gym"),
+    ]
+    return cases
+
+
 HOUSEHOLDS = {"basics": _basics, "edges": _edges, "two-accounts": _two_accounts, "words": _words,
-              "imports": _imports}
+              "imports": _imports, "matching": _matching}
 
 
 def build_cases(app) -> dict[str, list]:
@@ -670,8 +858,12 @@ def build_cases(app) -> dict[str, list]:
 def write(cases: dict[str, list]) -> None:
     KEY_DIR.mkdir(parents=True, exist_ok=True)
     for name, items in cases.items():
-        (KEY_DIR / f"{name}.json").write_text(
-            json.dumps({"household": name, "cases": items}, indent=1, ensure_ascii=False) + "\n")
+        path = KEY_DIR / f"{name}.json"
+        # Only a household whose answers changed is rewritten: the same
+        # answers with their keys in another order leave the file alone.
+        if path.is_file() and json.loads(path.read_text())["cases"] == items:
+            continue
+        path.write_text(json.dumps({"household": name, "cases": items}, indent=1, ensure_ascii=False) + "\n")
 
 
 def load() -> dict[str, list]:

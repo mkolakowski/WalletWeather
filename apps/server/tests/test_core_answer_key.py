@@ -60,7 +60,8 @@ def test_the_key_has_every_function():
     functions = {case["function"] for _, case in _committed()}
     assert functions == {"forecast", "actualBalanceAsOf", "upcomingDates", "calendar", "dashboard",
                          "dashboardCharts", "recurringList", "searchTransactions", "search",
-                         "csvPreview", "csvCommit"}
+                         "csvPreview", "csvCommit", "bankMatch", "bankUnmatched", "bankCandidates",
+                         "bankNear", "bankCatchUp"}
 
 
 def test_the_key_still_matches_the_server(app_started):
@@ -147,3 +148,33 @@ def test_strip_matches_python():
         text = f"{chr(c)}a{chr(c)}b{chr(c)}"
         got = jscore.context().eval(f"WalletWeatherCore._pyStrip({json.dumps(text)})")
         assert got == text.strip(), f"U+{c:04X}"
+
+
+def test_isdigit_matches_python():
+    """A taught name drops each word with a digit in it, by Python's
+    str.isdigit() (#239): over every assigned code point."""
+    import json
+    import unicodedata
+    chars = [chr(c) for c in range(0x110000)
+             if not 0xD800 <= c <= 0xDFFF and unicodedata.category(chr(c)) != "Cn"]
+    got = json.loads(jscore.context().eval(
+        f"JSON.stringify({json.dumps(chars)}.map(WalletWeatherCore._isDigit))"))
+    wrong = [ch for ch, js in zip(chars, got) if js != ch.isdigit()]
+    assert not wrong, [f"U+{ord(c):04X}" for c in wrong[:20]]
+
+
+def test_match_key_and_short_name_match_python():
+    """The core's taught-name key and short name give the server's."""
+    import json
+    from app.main import _match_key
+    from app.simplefin import short_name
+    texts = ["AMAZON MKTPL*2K4AB1", "amazon  mktpl*9xz3", "  ", "", "#1234", "Café ² Straße", "ΣΑΣ*12 shop",
+             "a\u2003b\x1cc", "STREAMCO*99X1", "  Example\tInternet #7 ", "x*y#z", "No digits here",
+             "Withdrawal Example Internet / TYPE: x", "ACH Deposit / x", "Deposit", "POS  withdrawal Shop / 1",
+             "Debit Card Withdrawal ſhop / 2", "External Deposit\u3000Bank / 3", " / leading", "a / b / c",
+             "Withdrawals Inc / x", "K\u212a / y", "x" * 130 + " / y", "\U0001F355" * 125 + " / pizza",
+             "İstanbul Withdrawal / z"]
+    for text in texts:
+        assert jscore.context().eval(f"WalletWeatherCore._matchKey({json.dumps(text)})") == _match_key(text), text
+        got = jscore.context().eval(f"JSON.stringify(WalletWeatherCore._shortName({json.dumps(text)}))")
+        assert json.loads(got) == short_name(text), text

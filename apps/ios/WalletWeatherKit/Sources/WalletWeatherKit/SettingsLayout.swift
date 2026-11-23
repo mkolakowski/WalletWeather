@@ -83,13 +83,17 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
     case tags, bankSync, iCloudBackup, moveToServer, addAccount, importCSV
     case appearance, tabBar, privacyLock, datesDisplay
     case notice, help, versions
-    // Connections (#300): one row per saved connection, opening its page,
-    // then Add a server.
-    case savedConnection, addServer
-    // The connection's page: a server, this iPhone, the demo.
+    // Connections (#300): one row per saved connection, opening its page;
+    // On this iPhone before the household is set up, and the demo, last
+    // (#301); then Add a server, and Restore from an iCloud backup before
+    // the household is set up.
+    case savedConnection, useOnThisPhone, demoConnection, addServer, restoreFromICloud
+    // The connection's page: a server, this iPhone, the demo. Back to the
+    // first screen and Leave the demo went in #301: choosing another
+    // connection replaces them.
     case connectionName, address, signedInAs, cloudflare, keep, openWebApp, signOut
-    case aboutThisIPhone, backToFirstScreen, deleteEverything
-    case aboutDemo, leaveDemo
+    case aboutThisIPhone, deleteEverything
+    case aboutDemo
     // Keep on this iPhone.
     case keepNothing, keepLastKnown
     // Bank sync: today's card, as it was.
@@ -97,7 +101,8 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
     // Appearance.
     case looks
     // Privacy & lock.
-    case lock, appSwitcher
+    // When locked, show the demo (#301): under the lock, while it's on.
+    case lock, lockShowsDemo, appSwitcher
     // Dates & display.
     case dateFormat, followAccount
     // iCloud & backup.
@@ -127,7 +132,10 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
         case .help: "Help & Getting started"
         case .versions: "Versions"
         case .savedConnection: "A saved connection"
+        case .useOnThisPhone: "Use on this iPhone"
+        case .demoConnection: "Demo"
         case .addServer: "Add a server"
+        case .restoreFromICloud: "Restore from an iCloud backup"
         case .connectionName: "Name"
         case .address: "Address"
         case .signedInAs: "Signed in as"
@@ -136,15 +144,14 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
         case .openWebApp: "Open the web app"
         case .signOut: "Sign out"
         case .aboutThisIPhone: "On this iPhone"
-        case .backToFirstScreen: "Back to the first screen"
         case .deleteEverything: "Delete everything on this iPhone"
         case .aboutDemo: "Demo"
-        case .leaveDemo: "Leave the demo"
         case .keepNothing: "Nothing"
         case .keepLastKnown: "Last-known numbers"
         case .bankCard: "Bank sync"
         case .looks: "Looks"
         case .lock: "Lock with Face ID or Touch ID"
+        case .lockShowsDemo: "When locked, show the demo"
         case .appSwitcher: "In the app switcher"
         case .dateFormat: "Date format"
         case .followAccount: "Pages follow the same account"
@@ -164,14 +171,14 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
         case .connection, .morePages, .tags, .bankSync, .iCloudBackup, .moveToServer,
              .appearance, .tabBar, .privacyLock, .datesDisplay, .notice, .help, .keep, .savedConnection:
             .page
-        case .addServer, .addAccount, .importCSV, .backToFirstScreen, .leaveDemo, .showGettingStarted,
+        case .addServer, .useOnThisPhone, .restoreFromICloud, .addAccount, .importCSV, .showGettingStarted,
              .backupPassphrase, .exportForServer, .importServerBackup:
             .action
         case .openWebApp, .privacyPolicy, .setupGuide:
             .link
-        case .lock, .followAccount, .syncWithICloud, .backupToICloudDrive:
+        case .lock, .lockShowsDemo, .followAccount, .syncWithICloud, .backupToICloudDrive:
             .toggle
-        case .keepNothing, .keepLastKnown, .looks, .dateFormat:
+        case .keepNothing, .keepLastKnown, .looks, .dateFormat, .demoConnection:
             .choice
         case .connectionName:
             .field
@@ -212,6 +219,9 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
         case .iCloudBackup: "icloud"
         case .moveToServer: "arrow.left.arrow.right.square"
         case .addServer: "plus.circle"
+        case .useOnThisPhone: "iphone"
+        case .demoConnection: "sparkles"
+        case .restoreFromICloud: "icloud.and.arrow.down"
         case .addAccount: "plus.circle"
         case .importCSV: "doc.text"
         case .appearance: "paintpalette"
@@ -301,14 +311,27 @@ public struct SettingsLayout: Equatable, Sendable {
     public var hasBiometry: Bool
     /// The server is behind Cloudflare Access.
     public var hasCloudflare: Bool
+    /// A household is on this iPhone already (#301): without one,
+    /// Connections offers Use on this iPhone and Restore from an iCloud
+    /// backup.
+    public var hasHousehold: Bool
+    /// The lock is on: Privacy & lock shows When locked, show the demo.
+    public var lockOn: Bool
+    /// Locked in the demo (#301): what Connections may reveal.
+    public var visibility: ConnectionsVisibility
 
     public init(household: SettingsHousehold, canWrite: Bool = true, morePages: [TabPage] = [],
-                hasBiometry: Bool = true, hasCloudflare: Bool = false) {
+                hasBiometry: Bool = true, hasCloudflare: Bool = false, hasHousehold: Bool = true,
+                lockOn: Bool = false, visibility: ConnectionsVisibility = ConnectionsVisibility(locked: false)) {
         self.household = household
         self.canWrite = canWrite
         self.morePages = morePages
         self.hasBiometry = hasBiometry
         self.hasCloudflare = hasCloudflare
+        // The household on this iPhone in front is one.
+        self.hasHousehold = hasHousehold || household == .thisIPhone
+        self.lockOn = lockOn
+        self.visibility = visibility
     }
 
     /// The root list, top to bottom. More pages is left out when every page
@@ -334,20 +357,21 @@ public struct SettingsLayout: Equatable, Sendable {
     public func rows(on page: SettingsPage) -> [SettingsRow] {
         switch page {
         case .connections:
-            // The demo isn't in the list until phase 3: its card stays at
-            // the top, with Leave the demo.
-            return (household == .demo ? [.aboutDemo, .leaveDemo] : []) + [.savedConnection, .addServer]
+            // The list (#301): the saved connections, On this iPhone until
+            // it's set up, the demo last; then the ways to add one.
+            return [.savedConnection] + (hasHousehold ? [] : [.useOnThisPhone]) + [.demoConnection, .addServer]
+                + (hasHousehold ? [] : [.restoreFromICloud])
         case .connection:
             switch household {
             case .server: return Self.rows(forConnection: .server, inFront: true, hasCloudflare: hasCloudflare)
             case .thisIPhone: return Self.rows(forConnection: .thisPhone, inFront: true)
-            case .demo: return [.aboutDemo, .leaveDemo]
+            case .demo: return [.aboutDemo]
             }
         case .keep: return household == .server ? [.keepNothing, .keepLastKnown] : []
         case .bank: return [.bankCard]
         case .appearance: return [.looks]
         case .display: return [.dateFormat, .followAccount]
-        case .privacy: return (hasBiometry ? [.lock] : []) + [.appSwitcher]
+        case .privacy: return (hasBiometry ? [.lock] + (lockOn ? [.lockShowsDemo] : []) : []) + [.appSwitcher]
         case .backup: return household == .thisIPhone ? [.syncWithICloud, .backupToICloudDrive, .backupPassphrase] : []
         case .move: return household == .thisIPhone ? [.exportForServer, .importServerBackup] : []
         case .help: return [.showGettingStarted, .privacyPolicy] + (household == .thisIPhone ? [.setupGuide] : [])
@@ -359,7 +383,8 @@ public struct SettingsLayout: Equatable, Sendable {
     /// name and the server's details show for every server; Keep on this
     /// iPhone only for the one in front, whose loading it changes. The
     /// household on this iPhone, when it isn't in front, only says what it
-    /// is: Back to the first screen and Delete everything act on it in front.
+    /// is: Delete everything acts on it in front. Choosing another
+    /// connection is how to leave it (#301).
     public static func rows(forConnection kind: SavedConnection.Kind, inFront: Bool,
                             hasCloudflare: Bool = false) -> [SettingsRow] {
         switch kind {
@@ -367,7 +392,7 @@ public struct SettingsLayout: Equatable, Sendable {
             return [.connectionName, .address, .signedInAs] + (hasCloudflare ? [.cloudflare] : [])
                 + (inFront ? [.keep] : []) + [.openWebApp, .signOut]
         case .thisPhone:
-            return inFront ? [.aboutThisIPhone, .backToFirstScreen, .deleteEverything] : [.aboutThisIPhone]
+            return inFront ? [.aboutThisIPhone, .deleteEverything] : [.aboutThisIPhone]
         }
     }
 
@@ -441,7 +466,7 @@ public struct SettingsLayout: Equatable, Sendable {
     /// Duo shows above it.
     public func summary(of page: SettingsPage) -> String {
         switch page {
-        case .connections: "The servers you're signed in to, and the one in front. Tap one to switch to it."
+        case .connections: "The servers you're signed in to, this iPhone and the demo, and the one in front. Tap one to switch to it."
         case .connection:
             switch household {
             case .server: "Your server's address, who's signed in, and signing out."
@@ -463,13 +488,14 @@ public struct SettingsLayout: Equatable, Sendable {
     }
 
     /// Every page that can be reached from the root list, in the order
-    /// they're first met.
+    /// they're first met. Locked in the demo, no connection's own page.
     public var reachablePages: [SettingsPage] {
         var pages: [SettingsPage] = []
         var queue = groups.flatMap(\.rows).compactMap(\.opens)
         while !queue.isEmpty {
             let page = queue.removeFirst()
             guard !pages.contains(page) else { continue }
+            if page == .connection && !visibility.opensConnectionPages { continue }
             pages.append(page)
             queue += rows(on: page).compactMap(\.opens)
         }

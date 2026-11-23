@@ -123,49 +123,41 @@ struct ConnectionRoute: Hashable {
 }
 
 /// Connections, opened by the card at the top of Settings: every saved
-/// connection with a tick on the one in front. Tapping another switches to
-/// it, signing out of nothing; the chevron opens its own page. Add a server
-/// opens the sign-in screen as a sheet. In the demo (not in the list until
-/// phase 3) its card and Leave the demo stay at the top, and nothing is
-/// ticked.
+/// connection, On this iPhone until it's set up, and the demo last, with a
+/// tick on the one in front (#301). Tapping another switches to it, signing
+/// out of nothing; the ⓘ opens a saved one's own page. Add a server opens
+/// the sign-in screen as a sheet; Restore from an iCloud backup sits beside
+/// it until a household is on the phone. Locked in the demo, the rows show
+/// names and icons only, no connection's page opens, and anything that
+/// leaves the demo asks for Face ID first.
 private struct ConnectionsPage: View {
     @Environment(AppModel.self) private var model
+    @Environment(AppSettings.self) private var settings
     @State private var adding = false
+    @State private var restoring = false
 
-    private var rows: [SettingsRow] { SettingsLayout(household: model.settingsHousehold).rows(on: .connections) }
+    private var visibility: ConnectionsVisibility { ConnectionsVisibility(locked: settings.lockedInDemo) }
+
+    private var layoutRows: [SettingsRow] {
+        SettingsLayout(household: model.settingsHousehold, hasHousehold: model.hasHousehold,
+                       visibility: visibility).rows(on: .connections)
+    }
+
+    private var rows: [ConnectionRow] {
+        ConnectionRow.rows(saved: model.connections, front: model.lockFront, householdExists: model.hasHousehold,
+                           email: model.me?.email, visibility: visibility)
+    }
 
     var body: some View {
         SettingsPageFrame(title: SettingsPage.connections.title) {
-            if rows.contains(.aboutDemo) {
-                Text("Demo · sample numbers built into the app. Nothing you change is saved.")
-                    .card()
-                if rows.contains(.leaveDemo) {
-                    Gap()
-                    Button { model.leaveDemo() } label: {
-                        MoreRow { Text("Leave the demo").foregroundStyle(Palette.accent) } trailing: { EmptyView() }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityHint("Goes back to the first screen")
-                    .card()
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                    if index > 0 { Divider() }
+                    ConnectionListRow(row: row)
                 }
-                Gap()
             }
-            if model.connections.isEmpty {
-                Text("No servers saved yet. Add one to sign in to it here.")
-                    .foregroundStyle(.secondary)
-                    .card()
-            } else {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(model.connections.enumerated()), id: \.element.id) { index, saved in
-                        if index > 0 { Divider() }
-                        ConnectionListRow(saved: saved)
-                    }
-                }
-                .card()
-                SettingNote(model.connections.count > 1
-                            ? "Tap one to switch to it. Each keeps its own sign-in, so switching signs you out of nothing."
-                            : "Add another server to switch between them here. Each keeps its own sign-in.")
-            }
+            .card()
+            SettingNote(note)
             if let notice = model.connectionsNotice {
                 SettingNote(notice)
             }
@@ -173,74 +165,113 @@ private struct ConnectionsPage: View {
                 SettingNote(error, color: Palette.bad)
             }
             Gap()
-            Button { adding = true } label: {
-                MoreRow {
-                    Label(SettingsRow.addServer.title, systemImage: SettingsRow.addServer.symbol ?? "plus.circle")
-                        .foregroundStyle(Palette.accent)
-                } trailing: { EmptyView() }
+            VStack(alignment: .leading, spacing: 0) {
+                Button { leaveDemoThen { adding = true } } label: {
+                    MoreRow {
+                        Label(SettingsRow.addServer.title, systemImage: SettingsRow.addServer.symbol ?? "plus.circle")
+                            .foregroundStyle(Palette.accent)
+                    } trailing: { EmptyView() }
+                }
+                .buttonStyle(.plain)
+                .disabled(model.busy)
+                if layoutRows.contains(.restoreFromICloud) {
+                    Divider()
+                    Button { leaveDemoThen { restoring = true } } label: {
+                        MoreRow {
+                            Label(SettingsRow.restoreFromICloud.title,
+                                  systemImage: SettingsRow.restoreFromICloud.symbol ?? "icloud.and.arrow.down")
+                                .foregroundStyle(Palette.accent)
+                        } trailing: { EmptyView() }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(model.busy)
+                }
             }
-            .buttonStyle(.plain)
-            .disabled(model.busy)
             .card()
-            SettingNote("Signs in to another WalletWeather server, or to the same one as someone else, and puts it in front.")
+            SettingNote(layoutRows.contains(.restoreFromICloud)
+                        ? "Add a server signs in to a WalletWeather server and puts it in front. Restore brings back the numbers another iPhone backed up to iCloud Drive, kept on this iPhone."
+                        : "Signs in to another WalletWeather server, or to the same one as someone else, and puts it in front.")
         }
         .sheet(isPresented: $adding) { AddServerSheet() }
+        .sheet(isPresented: $restoring) { RestoreFromICloudSheet { model.useOnThisPhone() } }
         .onAppear { model.reloadConnections() }
+    }
+
+    private var note: String {
+        if visibility.locked {
+            return "Choosing one asks for \(settings.biometryName ?? "your passcode") first, then opens it. Its details show once it's open."
+        }
+        return "Tap one to switch to it. Each keeps its own sign-in, so switching signs you out of nothing."
+    }
+
+    /// Adding or restoring leaves the demo: locked there, it asks first.
+    private func leaveDemoThen(_ action: @escaping () -> Void) {
+        Task { if await model.mayLeaveDemo() { action() } }
     }
 }
 
-/// One saved connection: its icon, name and a line of detail, a tick when
-/// it's in front, and a chevron to its own page. Tapping the rest switches
-/// to it (or, for the one in front, opens its page).
+/// One row of Connections: its icon, name and a line of detail (none for a
+/// server while locked in the demo), a tick when it's in front, and for a
+/// saved one, the ⓘ to its own page. Tapping the rest switches to it (or,
+/// for the saved one in front, opens its page).
 private struct ConnectionListRow: View {
     @Environment(AppModel.self) private var model
-    let saved: SavedConnection
+    let row: ConnectionRow
     // Grows with the text size, exactly as before at Large (#311).
     @ScaledMetric(relativeTo: .title3) private var infoWidth: CGFloat = 36
     @ScaledMetric(relativeTo: .title3) private var infoHeight: CGFloat = 44
     @ScaledMetric(relativeTo: .body) private var tile: CGFloat = 34
 
-    private var inFront: Bool { !model.isDemo && model.saved?.id == saved.id }
+    private var savedID: UUID? {
+        if case let .saved(id) = row.target { return id }
+        return nil
+    }
 
     var body: some View {
         HStack(spacing: 8) {
             Group {
-                if inFront {
-                    NavigationLink(value: ConnectionRoute(id: saved.id)) { label }
+                if row.ticked, row.opensPage, let savedID {
+                    NavigationLink(value: ConnectionRoute(id: savedID)) { label }
+                } else if row.ticked {
+                    label
                 } else {
-                    Button { model.switchTo(saved.id) } label: { label }
+                    Button { Task { await model.choose(row.target) } } label: { label }
                         .disabled(model.busy)
-                        .accessibilityHint("Switches to \(saved.name)")
+                        .accessibilityHint("Switches to \(row.name)")
                 }
             }
             .buttonStyle(.plain)
-            NavigationLink(value: ConnectionRoute(id: saved.id)) {
-                Image(systemName: "info.circle")
-                    .font(.title3)
-                    .foregroundStyle(Palette.accent)
-                    .frame(width: infoWidth, height: infoHeight)
-                    .contentShape(Rectangle())
+            if row.opensPage, let savedID {
+                NavigationLink(value: ConnectionRoute(id: savedID)) {
+                    Image(systemName: "info.circle")
+                        .font(.title3)
+                        .foregroundStyle(Palette.accent)
+                        .frame(width: infoWidth, height: infoHeight)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("About \(row.name)")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("About \(saved.name)")
         }
     }
 
     private var label: some View {
         HStack(spacing: 12) {
-            Image(systemName: saved.kind == .server ? "server.rack" : "iphone")
+            Image(systemName: row.symbol)
                 .font(.body.weight(.semibold))
                 .foregroundStyle(Palette.accent)
                 .frame(width: tile, height: tile)
                 .background(Palette.accent.opacity(0.14), in: .circle)
             VStack(alignment: .leading, spacing: 2) {
-                Text(saved.name).lineLimit(1)
-                Text(SettingsLayout.connectionDetail(saved, email: inFront ? model.me?.email : nil))
-                    .font(.footnote).foregroundStyle(.secondary).lineLimit(2)
-                    .multilineTextAlignment(.leading)
+                Text(row.name).lineLimit(1)
+                if let detail = row.detail {
+                    Text(detail)
+                        .font(.footnote).foregroundStyle(.secondary).lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
             }
             Spacer(minLength: 4)
-            if inFront {
+            if row.ticked {
                 Image(systemName: "checkmark").font(.body.weight(.semibold)).foregroundStyle(Palette.accent)
                     .accessibilityHidden(true)
             }
@@ -248,7 +279,7 @@ private struct ConnectionListRow: View {
         .frame(minHeight: 52)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(inFront ? .isSelected : [])
+        .accessibilityAddTraits(row.ticked ? .isSelected : [])
     }
 }
 
@@ -258,11 +289,13 @@ private struct ConnectionListRow: View {
 /// another saved one, opened from Connections. A server's name (yours to
 /// change), address, who's signed in, Cloudflare, Keep on this iPhone (in
 /// front only), Open the web app and Sign out of it; the household on this
-/// iPhone with Back to the first screen and Delete everything when it's in
-/// front; or the demo with Leave the demo.
+/// iPhone with Delete everything when it's in front; or the demo. Choosing
+/// another connection is how to leave one (#301). Locked in the demo, a
+/// saved connection's page shows nothing of it.
 struct ConnectionPage: View {
     let id: UUID?
     @Environment(AppModel.self) private var model
+    @Environment(AppSettings.self) private var settings
     @Environment(\.dismiss) private var dismiss
     @State private var confirmSignOut = false
     @State private var confirmErase = false
@@ -299,6 +332,10 @@ struct ConnectionPage: View {
         SettingsPageFrame(title: title) {
             if inFront && model.isDemo {
                 demo
+            } else if settings.lockedInDemo {
+                // A window that had it open when the lock fell due.
+                Text("Choose it in Connections to open it. Its details show once it's open.")
+                    .foregroundStyle(.secondary).card()
             } else if rows.contains(.aboutThisIPhone) {
                 thisIPhone
             } else if rows.contains(.address) {
@@ -332,6 +369,7 @@ struct ConnectionPage: View {
 
     private var title: String {
         if inFront && model.isDemo { return "Demo" }
+        if settings.lockedInDemo { return "Connection" }
         if let target { return target.name }
         if model.isLocal { return "On this iPhone" }
         return model.connection?.host ?? "Your server"
@@ -445,17 +483,9 @@ struct ConnectionPage: View {
     @ViewBuilder private var thisIPhone: some View {
         Text("Your household lives on this iPhone, with no server to run, and is included in this iPhone's iCloud or computer backup. Net worth, Budgets, Reports and sharing need a server.")
             .card()
-        if rows.contains(.backToFirstScreen) {
-            Gap()
-            Button { model.leaveLocal() } label: {
-                MoreRow { Text("Back to the first screen").foregroundStyle(Palette.accent) } trailing: { EmptyView() }
-            }
-            .buttonStyle(.plain)
-            .card()
-            SettingNote("Back to the first screen keeps your numbers on this iPhone: choose On this iPhone there to open them again.")
-        } else {
-            SettingNote("Tap it in Connections to switch to it.")
-        }
+        SettingNote(inFront
+                    ? "Choosing another connection in Connections keeps your numbers on this iPhone, to open again from there."
+                    : "Tap it in Connections to switch to it.")
         if rows.contains(.deleteEverything) {
             Gap()
             Button(role: .destructive) { confirmErase = true } label: {
@@ -469,13 +499,7 @@ struct ConnectionPage: View {
     @ViewBuilder private var demo: some View {
         Text("Sample numbers built into the app. Nothing you change is saved.")
             .card()
-        Gap()
-        Button { model.leaveDemo() } label: {
-            MoreRow { Text("Leave the demo").foregroundStyle(Palette.accent) } trailing: { EmptyView() }
-        }
-        .buttonStyle(.plain)
-        .accessibilityHint("Goes back to the first screen")
-        .card()
+        SettingNote("Choose another connection in Connections to leave it.")
     }
 
     private func cloudflareText(_ cf: CloudflareCredential) -> String {
@@ -603,6 +627,16 @@ private struct PrivacyPage: View {
                     .card()
                 SettingNote("With the lock on, WalletWeather asks when it opens and when you come back after a minute away.")
                 Gap()
+                // Under the lock, while it's on (#301): on by default.
+                if settings.lockEnabled {
+                    Toggle(SettingsRow.lockShowsDemo.title, isOn: Binding(
+                        get: { settings.lockShowsDemo },
+                        set: { on in Task { await settings.setLockShowsDemo(on) } }))
+                        .frame(minHeight: 44)
+                        .card()
+                    SettingNote("WalletWeather opens on sample numbers, and your own numbers need \(biometry) to open. Off, it shows a lock screen instead.")
+                    Gap()
+                }
             }
             MoreRow { Text("In the app switcher") } trailing: { Text("Numbers hidden").foregroundStyle(.secondary) }
                 .accessibilityElement(children: .combine)

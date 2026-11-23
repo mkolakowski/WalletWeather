@@ -69,6 +69,9 @@ final class AppModel {
     var forecastRequest: Int?
     /// With `forecastRequest`: open it on the To confirm list (#305).
     var forecastToConfirm = false
+    /// A Settings page to open, asked for by the demo's chip (Manage
+    /// connections…, #301); Settings takes it and clears it.
+    var settingsRequest: SettingsPage?
 
     private let sheet = SignInSheet()
 
@@ -267,6 +270,64 @@ final class AppModel {
     /// "Try the demo" (#92): the app on its built-in sample numbers.
     var isDemo: Bool { connection?.isDemo == true }
 
+    // MARK: - The demo and the lock (connections phase 3, #301)
+
+    /// What was in front before the demo: what leaving it goes back to, and
+    /// what a lock that sent the app to the demo remembers.
+    private(set) var beforeDemo: LockGate.Front?
+    /// The household on this iPhone is what's behind the demo: its iCloud
+    /// Drive backup and bank sync keep running while the demo is in front.
+    var householdBehindDemo: Bool { isDemo && householdWasInFront }
+    private var householdWasInFront = false
+    /// Asks Face ID first while the app is locked in the demo; true when a
+    /// real connection may open (`AppSettings.mayOpenYourNumbers`). Set by
+    /// the app before it starts.
+    var authenticateToLeaveDemo: (@MainActor () async -> Bool)?
+
+    /// What's in front, as the lock sees it.
+    var lockFront: LockGate.Front {
+        if isDemo { return .demo }
+        guard connection != nil else { return .nothing }
+        if let saved { return .saved(saved.id) }
+        return isLocal ? .household : .unsaved
+    }
+
+    /// Whether a household is on this iPhone already, saved or not:
+    /// Connections offers Use on this iPhone and Restore until there is.
+    var hasHousehold: Bool { LocalStore.exists || connections.contains { $0.kind == .thisPhone } }
+
+    /// Every way out of the demo to someone's numbers passes here: locked in
+    /// the demo, it asks first; on failure or cancel the demo stays.
+    func mayLeaveDemo() async -> Bool {
+        await authenticateToLeaveDemo?() ?? true
+    }
+
+    /// A row of Connections, or of the demo chip's menu, chosen: a real
+    /// connection asks first while locked in the demo, then opens; the demo
+    /// opens at once. The one in front stays.
+    func choose(_ target: ConnectionRow.Target) async {
+        switch target {
+        case .demo:
+            if !isDemo { tryDemo() }
+        case let .saved(id):
+            guard isDemo || saved?.id != id else { return }
+            guard await mayLeaveDemo() else { return }
+            switchTo(id)
+        case .thisIPhone:
+            guard isDemo || !isLocal else { return }
+            guard await mayLeaveDemo() else { return }
+            useOnThisPhone()
+        }
+    }
+
+    /// The lock fell due with the demo shown when locked: the demo comes in
+    /// front, remembering what was (already in the demo, it stays). Nothing
+    /// is signed out or deleted.
+    func lockIntoDemo(remember: LockGate.Front?) {
+        if !isDemo { tryDemo() }
+        if let remember { beforeDemo = remember }
+    }
+
     /// The household on this iPhone, with no server (#235).
     var isLocal: Bool { connection?.isLocal == true }
 
@@ -398,8 +459,9 @@ final class AppModel {
     /// app opens; the pages load again when lines came in. Then asks iOS for
     /// background time when the next one is due.
     func syncBankIfDue() async {
-        guard isLocal, phase == .ready else { return }
-        if let result = await phoneBank.syncIfDue(), result.added + result.matched > 0 { generation += 1 }
+        // Behind a locked demo too (#301): it shows nothing.
+        guard isLocal || householdBehindDemo, phase == .ready else { return }
+        if let result = await phoneBank.syncIfDue(), result.added + result.matched > 0, isLocal { generation += 1 }
         scheduleBankRefresh()
     }
 
@@ -407,7 +469,7 @@ final class AppModel {
     /// household on this iPhone is in use and can be read (not while a
     /// locked phone keeps it closed).
     func backgroundBankSync() async {
-        guard LocalStore.exists, phoneBank.connected, connection == nil || isLocal,
+        guard LocalStore.exists, phoneBank.connected, connection == nil || isLocal || householdBehindDemo,
               UIApplication.shared.isProtectedDataAvailable else { return }
         if let result = await phoneBank.syncIfDue(), result.added + result.matched > 0, isLocal { generation += 1 }
         scheduleBankRefresh()
@@ -506,8 +568,12 @@ final class AppModel {
 
     /// Opens the demo: no server, nothing saved in the Keychain and nothing
     /// kept, and none of a sign-in's set-up (the notice, what to keep, the
-    /// lock).
+    /// lock). What was in front is remembered for leaving it (#301).
     func tryDemo() {
+        if !isDemo {
+            beforeDemo = lockFront
+            householdWasInFront = isLocal
+        }
         connectError = nil
         connectNotice = nil
         askKeep = false
@@ -519,9 +585,22 @@ final class AppModel {
         Task { await refreshMe() }
     }
 
-    /// Leaves the demo for the Connect screen, keeping what was typed there.
+    /// Leaves the demo for what was in front before it (#301), or the
+    /// first screen when there was nothing, keeping what was typed there.
+    /// Nothing in Settings calls it now: choosing another connection is the
+    /// way out. A caller asks `mayLeaveDemo` first.
     func leaveDemo() {
         guard isDemo else { return }
+        switch beforeDemo {
+        case let .saved(id)? where store.load(id) != nil:
+            switchTo(id)
+            return
+        case .household?:
+            useOnThisPhone()
+            return
+        default:
+            break
+        }
         connection = nil
         me = nil
         serverVersion = nil
@@ -547,7 +626,10 @@ final class AppModel {
     /// (Forecast's To confirm, Compare, and a second window on a page), and
     /// `WW_DEBUG_DEMO=1` (open in the demo), and `WW_DEBUG_CLOUDKIT_SCHEMA=1`
     /// (write the CloudKit schema to Development, #270), and
-    /// `WW_DEBUG_CONNECTIONS=sample` (sample connections in memory, #300).
+    /// `WW_DEBUG_CONNECTIONS=sample` (sample connections in memory, #300),
+    /// and `WW_DEBUG_LOCKED_DEMO=1` (start as if the lock had just sent the
+    /// app to the demo) and `WW_DEBUG_CHIP_MENU=1` (the demo chip's choices
+    /// as a sheet, #301).
     /// Always nil in a
     /// Release build.
     static func debugSetting(_ name: String) -> String? {
@@ -654,7 +736,9 @@ final class AppModel {
 
     // MARK: - Starting
 
-    func start() {
+    /// `lock` is asked once what's in front is known (`AppSettings.lockAtLaunch`):
+    /// with the demo shown when locked, the app opens in the demo (#301).
+    func start(lock: (LockGate.Front) -> LockGate.Decision = { _ in LockGate.Decision(show: .asItIs) }) {
         guard phase == .starting else { return }
         // The single sign-in kept before becomes the first saved connection,
         // once; if it can't be, it stays in its old item and is used as is.
@@ -734,8 +818,9 @@ final class AppModel {
         #endif
         #if DEBUG
         // `WW_DEBUG_CONNECTIONS=sample` with no household on this iPhone:
-        // the demo, so no sample server is contacted.
-        if env["WW_DEBUG_CONNECTIONS"] == "sample", store.active?.kind != .thisPhone {
+        // the demo, so no sample server is contacted. With
+        // `WW_DEBUG_LOCKED_DEMO=1` the lock sends it there instead (below).
+        if env["WW_DEBUG_CONNECTIONS"] == "sample", env["WW_DEBUG_LOCKED_DEMO"] != "1", store.active?.kind != .thisPhone {
             reloadConnections()
             tryDemo()
             return
@@ -758,6 +843,19 @@ final class AppModel {
             phase = .connect
             return
         }
+        // The lock (#301): the demo in front, the connection remembered
+        // behind it and not opened, so none of its numbers load.
+        let decision = lock(lockFront(starting: front))
+        if decision.show == .demo {
+            tryDemo()
+            beforeDemo = decision.remember
+            householdWasInFront = front.isLocal
+            if front.isLocal {
+                Task { await backup.runIfDue() }
+                Task { await syncBankIfDue() }
+            }
+            return
+        }
         if front.isLocal {
             // Set up the store before the pages ask it anything.
             useOnThisPhone()
@@ -766,6 +864,12 @@ final class AppModel {
         connection = front
         phase = .ready
         Task { await refreshMe() }
+    }
+
+    /// What the lock sees in front at the start, before it's opened.
+    private func lockFront(starting front: Connection) -> LockGate.Front {
+        if let saved { return .saved(saved.id) }
+        return front.isLocal ? .household : .unsaved
     }
 
     /// Who's signed in; shows the Important notice until it's agreed to.

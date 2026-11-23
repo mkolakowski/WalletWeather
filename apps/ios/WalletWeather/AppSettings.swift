@@ -11,9 +11,14 @@ import WalletWeatherKit
 /// sign-in or after updating for someone already signed in; changeable in
 /// Settings. When on, it asks for Face ID or Touch ID (or the passcode) when the
 /// app starts and when it comes back after a minute or more away.
+///
+/// With "When locked, show the demo" on as well (#301, on by default), the
+/// app opens in the demo instead, and goes back to it after a minute away;
+/// a real connection then asks first. `LockGate`, in the Kit, holds the
+/// rules; this keeps one and asks Face ID.
 @MainActor @Observable
 final class AppSettings {
-    static let lockAfter: TimeInterval = 60
+    static let lockAfter: TimeInterval = LockGate.lockAfter
 
     var look: Look {
         didSet {
@@ -111,7 +116,19 @@ final class AppSettings {
     }
 
     private(set) var lockEnabled: Bool {
-        didSet { defaults.set(lockEnabled, forKey: Keys.lockEnabled) }
+        didSet {
+            defaults.set(lockEnabled, forKey: Keys.lockEnabled)
+            gate.lockOn = lockEnabled || debugLockedDemo
+        }
+    }
+
+    /// Settings → Privacy & lock → When locked, show the demo (#301): on
+    /// unless turned off; a phone that never set it reads as on.
+    private(set) var lockShowsDemo: Bool {
+        didSet {
+            defaults.set(lockShowsDemo, forKey: Keys.lockShowsDemo)
+            gate.showsDemo = lockShowsDemo
+        }
     }
 
     /// Whether the lock has been offered (once per install).
@@ -121,6 +138,19 @@ final class AppSettings {
 
     /// The app is locked: the lock screen covers it until unlocked.
     private(set) var locked: Bool
+    /// Set when the app leaves with the lock on, and cleared once the lock
+    /// has decided what comes back (#301): until then the app-switcher cover
+    /// stays up, so no number shows for a frame before the demo or the lock
+    /// screen takes over.
+    var checkingLock = false
+    /// When the lock falls due, and whether the app is locked in the demo.
+    private(set) var gate: LockGate
+    /// The lock sent the app to the demo and nobody has unlocked since: a
+    /// real connection asks first, and Connections hides their details.
+    var lockedInDemo: Bool { gate.lockedInDemo }
+    /// Debug only: `WW_DEBUG_LOCKED_DEMO=1` starts as if the lock had just
+    /// sent the app to the demo, whether or not the lock is on.
+    private let debugLockedDemo: Bool
     private var leftAt: Date?
     private let defaults: UserDefaults
 
@@ -132,6 +162,7 @@ final class AppSettings {
         static let startDismissed = "start.dismissed"
         static let lockEnabled = "lock.enabled"
         static let lockOffered = "lock.offered"
+        static let lockShowsDemo = "lock.showsDemo"
         static let followAccount = "pages.followAccount"
         static let dateFormat = "dates.format"
         static let serverDateFormat = "dates.server"
@@ -154,12 +185,19 @@ final class AppSettings {
                              dismissed: defaults.bool(forKey: Keys.startDismissed))
         let enabled = defaults.bool(forKey: Keys.lockEnabled)
         lockEnabled = enabled
+        let showsDemo = defaults.object(forKey: Keys.lockShowsDemo) as? Bool ?? true
+        lockShowsDemo = showsDemo
+        let debugLockedDemo = AppModel.debugSetting("WW_DEBUG_LOCKED_DEMO") == "1"
+        self.debugLockedDemo = debugLockedDemo
+        gate = LockGate(lockOn: enabled || debugLockedDemo, showsDemo: showsDemo || debugLockedDemo)
         lockOffered = defaults.bool(forKey: Keys.lockOffered)
         pagesFollowAccount = defaults.object(forKey: Keys.followAccount) as? Bool ?? true
         dateChoice = defaults.string(forKey: Keys.dateFormat).flatMap(DateFormatChoice.init(rawValue:)) ?? .follow
         serverDateFormat = defaults.string(forKey: Keys.serverDateFormat)
-        // Locked from a fresh start, unless launched for screenshots.
-        locked = enabled && AppModel.debugSetting("WW_DEBUG_SERVER") == nil
+        // Locked from a fresh start, unless launched for screenshots. With
+        // the demo shown when locked, the start decides instead
+        // (`lockAtLaunch`), once it knows what's in front.
+        locked = enabled && !showsDemo && !debugLockedDemo && AppModel.debugSetting("WW_DEBUG_SERVER") == nil
         Palette.look = shownLook
         DateDisplay.style = dateStyle
     }
@@ -187,10 +225,16 @@ final class AppSettings {
 
     /// Turns the lock on after one successful check, so it can't be left on
     /// with a face or finger that doesn't work; off at once.
+    /// Locked in the demo, turning it off asks first (#301): whoever holds
+    /// the phone could otherwise open the numbers that way.
     func setLock(_ on: Bool) async {
         lockOffered = true
         if !on {
+            if gate.changingTheLockNeedsAuthentication {
+                guard await authenticate(reason: "Turn off the lock") else { return }
+            }
             lockEnabled = false
+            gate.turnedOff()
             return
         }
         if await authenticate(reason: "Turn on the lock for WalletWeather") {
@@ -199,21 +243,61 @@ final class AppSettings {
         }
     }
 
+    /// When locked, show the demo (#301): on at once; off asks first while
+    /// locked in the demo, which it then leaves unlocked.
+    func setLockShowsDemo(_ on: Bool) async {
+        if !on, gate.changingTheLockNeedsAuthentication {
+            guard await authenticate(reason: "Turn off When locked, show the demo") else { return }
+            gate.turnedOff()
+        }
+        lockShowsDemo = on
+    }
+
     func unlock() async {
         if await authenticate(reason: "Unlock WalletWeather") { locked = false }
     }
 
-    /// Follows the app in and out of the background: away a minute or more
-    /// with the lock on, it locks.
-    func scenePhaseChanged(to phase: ScenePhase) {
+    /// Locked in the demo, asks for Face ID, Touch ID or the passcode before
+    /// a real connection opens (#301); true when it may. Unlocked, it asks
+    /// for nothing.
+    func mayOpenYourNumbers() async -> Bool {
+        guard gate.leavingNeedsAuthentication else { return true }
+        guard await authenticate(reason: "Open your numbers") else { return false }
+        gate.authenticated()
+        return true
+    }
+
+    /// The start, once it knows what's in front: with the demo shown when
+    /// locked, the lock falls due now. Otherwise the lock screen was
+    /// decided at init, as before #301.
+    func lockAtLaunch(front: LockGate.Front) -> LockGate.Decision {
+        guard lockShowsDemo || debugLockedDemo, gate.lockOn,
+              debugLockedDemo || AppModel.debugSetting("WW_DEBUG_SERVER") == nil else { return LockGate.Decision(show: .asItIs) }
+        return lockFallsDue(away: nil, front: front, beforeDemo: nil)
+    }
+
+    /// Back after `away` seconds with `front` in front: what the lock shows.
+    /// The lock screen is set here; the demo is the caller's to bring
+    /// forward.
+    func lockFallsDue(away: TimeInterval?, front: LockGate.Front, beforeDemo: LockGate.Front?) -> LockGate.Decision {
+        let decision = gate.comeBack(away: away, front: front, beforeDemo: beforeDemo)
+        if decision.show == .lockScreen { locked = true }
+        return decision
+    }
+
+    /// Follows the app in and out of the background. Coming back to the
+    /// front, returns how long it was away, for `lockFallsDue`.
+    func scenePhaseChanged(to phase: ScenePhase) -> TimeInterval? {
         switch phase {
         case .background:
             if leftAt == nil { leftAt = .now }
+            if lockEnabled { checkingLock = true }
+            return nil
         case .active:
-            if lockEnabled, let leftAt, Date.now.timeIntervalSince(leftAt) >= Self.lockAfter { locked = true }
-            leftAt = nil
+            defer { leftAt = nil }
+            return leftAt.map { Date.now.timeIntervalSince($0) }
         default:
-            break
+            return nil
         }
     }
 

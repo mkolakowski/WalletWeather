@@ -48,6 +48,8 @@ struct SettingsView: View {
         .csvImporter(isPresented: $importingCSV, account: nil) { model.reload() }
         .task(id: model.generation) { await loadValues() }
         .onAppear { start() }
+        // The demo chip's Manage connections… on another page (#301).
+        .onChange(of: model.settingsRequest) { _, page in takeRequest(page) }
         .onChange(of: sizeClass) { old, _ in if old != nil { follow() } }
         // Back on the list (a compact width): no page is open.
         .onChange(of: path.count) { _, count in
@@ -61,6 +63,8 @@ struct SettingsView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
+                    // Above the connection card in the demo (#301).
+                    if model.isDemo { DemoChip { open(.page(.connections)) } }
                     ForEach(layout.groups) { group in
                         if let title = group.section.title { SectionTitle(title) }
                         switch group.section {
@@ -136,6 +140,9 @@ struct SettingsView: View {
                     Text("Settings").font(.headline)
                         .frame(height: 44).padding(.horizontal, 16).padding(.top, 12)  // level with the pane's title
                         .accessibilityAddTraits(.isHeader)
+                    if model.isDemo {
+                        DemoChip { open(.page(.connections)) }.padding(.horizontal, 12).padding(.bottom, 6)
+                    }
                     SettingsSidebar(layout: layout, chosen: chosen, accounts: accountCount, versions: versions,
                                     value: { value(of: $0) }, open: { open($0) }, act: { act($0) })
                 }
@@ -186,13 +193,23 @@ struct SettingsView: View {
     private func start() {
         guard !started else { return }
         started = true
-        if let first = Self.debugPath().first {
+        if let page = model.settingsRequest {
+            takeRequest(page)
+        } else if let first = Self.debugPath().first {
             openPage = SettingsEntry.page(first).rawValue
         } else if path.isEmpty, let entry = layout.entry(openPage) {
             var quiet = Transaction()
             quiet.disablesAnimations = true
             withTransaction(quiet) { path = Self.path(to: entry) }
         }
+    }
+
+    /// A page asked for from elsewhere (the demo chip's Manage
+    /// connections…): opened, and the request cleared.
+    private func takeRequest(_ page: SettingsPage?) {
+        guard let page else { return }
+        model.settingsRequest = nil
+        open(.page(page))
     }
 
     private static func path(to entry: SettingsEntry?) -> NavigationPath {
@@ -210,7 +227,10 @@ struct SettingsView: View {
                        canWrite: model.me?.isReadOnly != true,
                        morePages: TabPage.notIn(TabPage.shown(settings.tabs, onSide: barOnSide)),
                        hasBiometry: settings.biometryName != nil,
-                       hasCloudflare: model.connection?.cloudflare != nil)
+                       hasCloudflare: model.connection?.cloudflare != nil,
+                       hasHousehold: model.hasHousehold,
+                       lockOn: settings.lockEnabled,
+                       visibility: ConnectionsVisibility(locked: settings.lockedInDemo))
     }
 
     private var versions: String {

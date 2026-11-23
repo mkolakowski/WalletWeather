@@ -47,7 +47,11 @@ struct WalletWeatherApp: App {
                     if let saved = model.saved, saved.kind == .server { settings.serverTheme = saved.webTheme }
                 }
                 .onOpenURL { model.open($0) }
-                .task { model.start() }
+                .task {
+                    // Locked in the demo, a real connection asks first (#301).
+                    model.authenticateToLeaveDemo = { [settings] in await settings.mayOpenYourNumbers() }
+                    model.start { settings.lockAtLaunch(front: $0) }
+                }
         }
         // Bank sync on this iPhone (#239), when iOS gives it background time.
         .backgroundTask(.appRefresh(PhoneBank.taskID)) { await model.backgroundBankSync() }
@@ -55,8 +59,9 @@ struct WalletWeatherApp: App {
 }
 
 /// Connect, the Important notice, or the app, by where sign-in has got to;
-/// the lock screen over it when locked, and a cover whenever the app isn't
-/// in front, so the app switcher shows no numbers.
+/// the lock screen over it when locked (or, with When locked, show the demo
+/// on, the demo in front, #301), and a cover whenever the app isn't in
+/// front, so the app switcher shows no numbers.
 struct AppRoot: View {
     var start: RootView.Place?
     @Environment(AppModel.self) private var model
@@ -76,27 +81,37 @@ struct AppRoot: View {
             case .notice:
                 NoticeView()
             case .ready:
-                // Stacked above the app, not inset over it: an inset leaves the
-                // navigation bar where it was, and the bar covered the page title (#261).
-                VStack(spacing: 0) {
-                    if model.isDemo { DemoBar().padding(.horizontal, 16).padding(.bottom, 6) }
-                    RootView(start: start)
-                }
-                .background { if model.isDemo { PageBackground().ignoresSafeArea() } }
+                // The demo says so with its chip, under the Dashboard's title
+                // and at the top of Settings (#301), not a bar over every page.
+                RootView(start: start)
+                    // Into or out of the demo, the pages are made again, so a
+                    // sheet or editor open on someone's numbers closes when
+                    // the lock brings the demo forward (#301).
+                    .id(model.isDemo)
             }
         }
         .modifier(SepiaText())
         .overlay {
             if model.phase == .ready && settings.locked {
                 LockView()
-            } else if scenePhase != .active && model.phase != .connect {
+            } else if (scenePhase != .active || settings.checkingLock) && model.phase != .connect {
                 PrivacyCover()
             }
         }
         .onChange(of: scenePhase) { _, phase in
-            settings.scenePhaseChanged(to: phase)
-            // The iCloud Drive backup runs when the app opens or leaves (#237).
-            if model.isLocal, model.phase == .ready, phase != .inactive { Task { await model.backup.runIfDue() } }
+            // Back after a minute or more: the lock screen, or the demo (#301).
+            if let away = settings.scenePhaseChanged(to: phase) {
+                let decision = settings.lockFallsDue(away: away, front: model.lockFront, beforeDemo: model.beforeDemo)
+                if decision.show == .demo { model.lockIntoDemo(remember: decision.remember) }
+            }
+            // Decided (in this same update, so the cover and the numbers
+            // never show apart): the cover can go.
+            if phase == .active { settings.checkingLock = false }
+            // The iCloud Drive backup runs when the app opens or leaves (#237),
+            // also while the demo is in front of the household (#301).
+            if model.isLocal || model.householdBehindDemo, model.phase == .ready, phase != .inactive {
+                Task { await model.backup.runIfDue() }
+            }
             // Bank sync when the app opens, at most once every 23½ hours (#239).
             if phase == .active { Task { await model.syncBankIfDue() } }
         }

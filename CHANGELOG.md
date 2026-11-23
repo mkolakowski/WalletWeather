@@ -69,10 +69,12 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.48.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.49.0**
 
 ### Added
 
+- **iPhone: with the lock on, WalletWeather opens in the demo.** When the app starts, or comes back after a minute away, it shows the demo's sample numbers instead of a lock screen, so someone handed the phone sees a working app and none of yours. Opening any of your own connections asks for Face ID, Touch ID or your passcode first. While it's like that, Settings → Connections shows only the names you gave your connections, with no addresses or email, and their pages stay shut. Turn it off with **When locked, show the demo** in Settings → Privacy & lock to get the lock screen back (iOS 0.49.0).
+- **iPhone: the demo and the household on this iPhone are in Connections,** beside your servers. Tap Demo to look around, and any other row to come back. A **Demo · sample numbers** chip under the Dashboard's title and at the top of Settings replaces the bar that ran across every page, and opens the list.
 - **iPhone: tap an account or a Calendar line to open it.** An account opens in Forecast from the Dashboard's cards, Net worth's rows and the Calendar's balances. A line on the Calendar opens in the line editor, swipes to Paid, Edit or Delete, and offers Undo, as on Forecast. With the Duo open, tapping an account on the Dashboard shows it on the right: what's coming, how many lines wait to confirm, its charts and a way into Forecast; tap it again for every account's charts (iOS 0.47.0).
 - **iPhone: several servers at once.** Settings → the card at the top now opens **Connections**: every server you're signed in to and the household on this iPhone, with a tick on the one in front. Tap another to switch to it; nothing is signed out and nothing kept is deleted. **Add a server** signs in to another one (or to the same one as someone else) with any of the usual ways. Each connection has its own page, where you can rename it and **Sign out** of that one only; signing out of the one in front brings the one you used last forward (iOS 0.46.0).
 - **Breaking: iPhone: a link or QR code from the web app adds a server** instead of replacing the one you're signed in to. Signing in again to a server and person already in the list renews that sign-in.
@@ -84,6 +86,7 @@ App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** ·
 
 ### Changed
 
+- **Breaking: iPhone: "Back to the first screen" and the demo's Leave are gone.** Choose another connection in Settings → Connections instead; the household's numbers stay on this iPhone either way.
 - **iPhone: every page reads at the largest text sizes.** With the phone's text size turned up (Settings → Accessibility → Display & Text Size → Larger Text), figures that shared a row stack one to a row, a label never breaks inside a word, an amount is never cut, and the Calendar keeps whole day numbers (its amounts move to the day's list at the largest sizes). With the Duo open, Forecast shows its line cards instead of the table at those sizes. Nothing changes at the usual size (iOS 0.48.0).
 - **iPhone: a save that fails says so at the top of the form,** with the way forward where there is one (Try again, Sign in to Cloudflare, Sign in again), in place of a "Couldn't save" alert. It stays until you try again or close the form. A problem with what you typed is still written under that field.
 - **iPhone: Appearance shows each look as a tiny screen in its own colours,** with a balance bar, an amount in and out, and a button, as the web app's Settings does. Match this iPhone is half Light and half Dark; Match the web app shows the theme saved on your server. Tap one to use it. Getting started's Choose a look uses the same previews (iOS 0.45.0).

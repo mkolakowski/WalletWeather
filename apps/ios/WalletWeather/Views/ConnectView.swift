@@ -334,7 +334,8 @@ struct ConnectLinkQuestion: ViewModifier {
                       isPresented: Binding(get: { active && model.pendingLink != nil },
                                            set: { if !$0 { model.pendingLink = nil } }),
                       presenting: model.pendingLink) { link in
-            Button("Connect") { Task { await model.connect(link: link) } }
+            // Locked in the demo, it asks first (#301).
+            Button("Connect") { Task { if await model.mayLeaveDemo() { await model.connect(link: link) } } }
             Button("Cancel", role: .cancel) { model.pendingLink = nil }
         } message: { link in
             Text(model.linkMessage(link))

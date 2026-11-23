@@ -148,6 +148,15 @@ simulator has one, which is then in front; with none, the app opens in the
 demo, so nothing is contacted. They're kept in memory and a throwaway
 settings suite only, never in the Keychain, and are gone at the next launch.
 Switching to a sample server tries to reach it, and fails.
+`SIMCTL_CHILD_WW_DEBUG_LOCKED_DEMO=1` starts as if the lock had just sent the
+app to the demo (#301), whether or not the lock is on: whatever is saved (or
+the sample connections, with `WW_DEBUG_CONNECTIONS=sample`) stays behind the
+demo, so the chip, its menu's contents and what Connections hides while
+locked can be pictured without Face ID. Choosing a real connection then asks
+as on a phone; a simulator with no passcode set says no, and the demo stays.
+A script can't open a menu, so
+`SIMCTL_CHILD_WW_DEBUG_CHIP_MENU=1` shows the chip's choices as a sheet over
+the Dashboard instead.
 On this Mac the simulators are shared with other projects' sessions, so run
 simulator commands through mkplus's `Scripts/with-simulator.sh`.
 

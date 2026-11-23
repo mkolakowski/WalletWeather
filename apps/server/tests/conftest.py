@@ -15,6 +15,7 @@ import secrets
 import sys
 import tempfile
 import uuid
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -101,6 +102,41 @@ def client(app_started):
 
 def unique_email() -> str:
     return f"test-{uuid.uuid4().hex[:12]}@example.test"
+
+
+PASSWORD = "correct-horse-battery"
+
+
+def register(app):
+    """A new signed-in user with their own client (their own cookies):
+    (client, {"email", "id"}). Files whose tests need another shape (a
+    different return value, extra setup such as bank or mail access) keep
+    their own."""
+    c = TestClient(app)
+    email = unique_email()
+    r = c.post("/api/auth/register", json={"email": email, "password": PASSWORD})
+    assert r.status_code == 200, r.text
+    return c, {"email": email, "id": r.json()["id"]}
+
+
+def make_account(c, name="Checking", balance=100.0):
+    """An account starting today; returns its id."""
+    r = c.post("/api/accounts", json={
+        "name": name, "starting_balance": balance,
+        "starting_date": date.today().isoformat()})
+    assert r.status_code == 200, r.text
+    return r.json()["id"]
+
+
+@pytest.fixture
+def admin(app_started):
+    """A signed-in admin: (client, {"email", "id"}). ADMIN_EMAILS is read at
+    start-up, so the address is added for the test and taken out again."""
+    from app import main
+    c, u = register(app_started)
+    main.ADMIN_EMAILS.add(u["email"])
+    yield c, u
+    main.ADMIN_EMAILS.discard(u["email"])
 
 
 @pytest.fixture

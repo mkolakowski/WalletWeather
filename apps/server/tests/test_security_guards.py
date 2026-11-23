@@ -26,7 +26,7 @@ from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
-from conftest import share_account, unique_email
+from conftest import make_account, register, share_account, unique_email
 
 PASSWORD = "correct-horse-battery"
 TODAY = date.today()
@@ -196,14 +196,6 @@ def _call(client, method, path, **kw):
     return client.request(method, _fill(path), **kw)
 
 
-def register(app):
-    c = TestClient(app)
-    email = unique_email()
-    r = c.post("/api/auth/register", json={"email": email, "password": PASSWORD})
-    assert r.status_code == 200, r.text
-    return c, {"email": email, "id": r.json()["id"]}
-
-
 def test_without_a_sign_in_every_guarded_route_answers_401(app_started):
     c = TestClient(app_started)
     wrong = []
@@ -259,13 +251,6 @@ def test_a_read_only_token_is_refused_on_every_write(app_started):
 
 
 # ---------- One user never reaches another's data ----------
-
-def make_account(c, name, balance=100):
-    r = c.post("/api/accounts", json={"name": name, "starting_balance": balance,
-                                      "starting_date": TODAY.isoformat()})
-    assert r.status_code == 200, r.text
-    return r.json()["id"]
-
 
 def created(r):
     assert r.status_code == 200, r.text

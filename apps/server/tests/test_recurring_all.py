@@ -10,7 +10,7 @@ from datetime import date, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from conftest import share_account, unique_email
+from conftest import make_account, share_account, unique_email
 
 PASSWORD = "correct-horse-battery"
 
@@ -22,14 +22,6 @@ def register(app):
                json={"email": unique_email(), "password": PASSWORD})
     assert r.status_code == 200, r.text
     return c, r.json()["id"]
-
-
-def make_account(c, name):
-    r = c.post("/api/accounts", json={
-        "name": name, "starting_balance": 100.0,
-        "starting_date": date.today().isoformat()})
-    assert r.status_code == 200, r.text
-    return r.json()["id"]
 
 
 def make_recurring(c, account_id, description, amount, frequency="monthly_day",

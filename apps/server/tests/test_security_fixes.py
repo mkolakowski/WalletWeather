@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from conftest import share_account, unique_email
+from conftest import make_account, share_account, unique_email
 
 PASSWORD = "correct-horse-battery"
 TODAY = date.today().isoformat()
@@ -29,13 +29,6 @@ def register(app, email=None, **extra):
     r = c.post("/api/auth/register", json={"email": email, "password": PASSWORD, **extra})
     assert r.status_code == 200, r.text
     return c, {"email": email, "id": r.json()["id"]}
-
-
-def make_account(c, name="Checking"):
-    r = c.post("/api/accounts", json={"name": name, "starting_balance": 100,
-                                      "starting_date": TODAY})
-    assert r.status_code == 200, r.text
-    return r.json()["id"]
 
 
 @pytest.fixture

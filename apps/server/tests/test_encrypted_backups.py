@@ -14,21 +14,13 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 
-from conftest import unique_email
+from conftest import register, unique_email
 
 # About 1.5-2 s a test (the stand-ins, real scrypt): the slow tier (#274).
 pytestmark = pytest.mark.slow
 
 PASSWORD = "correct-horse-battery"
 PASSPHRASE = "orange kettle window 42"
-
-
-def register(app):
-    c = TestClient(app)
-    email = unique_email()
-    r = c.post("/api/auth/register", json={"email": email, "password": PASSWORD})
-    assert r.status_code == 200, r.text
-    return c, {"email": email, "id": r.json()["id"]}
 
 
 def make_account(c, name="Checking", balance=250.0):
@@ -54,15 +46,6 @@ def source(app_started):
         "forecast_date": date.today().isoformat()})
     assert r.status_code == 200, r.text
     return c, u, acc
-
-
-@pytest.fixture
-def admin(app_started):
-    from app import main
-    c, u = register(app_started)
-    main.ADMIN_EMAILS.add(u["email"])
-    yield c, u
-    main.ADMIN_EMAILS.discard(u["email"])
 
 
 # ---------- A user's own backup ----------

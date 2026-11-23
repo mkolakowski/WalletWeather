@@ -14,26 +14,9 @@ from datetime import date
 import pytest
 from fastapi.testclient import TestClient
 
-from conftest import share_account, unique_email
+from conftest import make_account, register, share_account, unique_email
 
 PASSWORD = "correct-horse-battery"
-
-
-def register(app):
-    """A new signed-in user with their own client (their own cookies)."""
-    c = TestClient(app)
-    email = unique_email()
-    r = c.post("/api/auth/register", json={"email": email, "password": PASSWORD})
-    assert r.status_code == 200, r.text
-    return c, {"email": email, "id": r.json()["id"]}
-
-
-def make_account(c, name="Checking"):
-    r = c.post("/api/accounts", json={
-        "name": name, "starting_balance": 100.0,
-        "starting_date": date.today().isoformat()})
-    assert r.status_code == 200, r.text
-    return r.json()["id"]
 
 
 def share(c, account_id, other, level):

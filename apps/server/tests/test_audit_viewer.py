@@ -10,26 +10,9 @@ from datetime import datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from conftest import unique_email
+from conftest import register, unique_email
 
 PASSWORD = "correct-horse-battery"
-
-
-def register(app):
-    c = TestClient(app)
-    email = unique_email()
-    r = c.post("/api/auth/register", json={"email": email, "password": PASSWORD})
-    assert r.status_code == 200, r.text
-    return c, {"email": email, "id": r.json()["id"]}
-
-
-@pytest.fixture
-def admin(app_started):
-    from app import main
-    c, u = register(app_started)
-    main.ADMIN_EMAILS.add(u["email"])
-    yield c, u
-    main.ADMIN_EMAILS.discard(u["email"])
 
 
 def add_events(email, events, user_id=None, age=timedelta(0), detail=None):

@@ -69,10 +69,15 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.97.0** · Web version: **1.110.0** · Schema version: **38** · iOS version: **0.34.0**
+App version: **1.97.0** · Web version: **1.111.0** · Schema version: **38** · iOS version: **0.34.0**
 
 ### Changed
 
+- **Breaking:** Admin is split into six sections, switched like Settings' tabs: General, Sign-in security, Bank and email, Users, Backups and Audit log. Each has its own address (such as `#admin/users`), so a bookmark to a part of Admin keeps working.
+- On a wide window, Settings and Admin list their sections down the left and keep them in view while you scroll, with the settings in a narrower, easier-to-read column. Phones keep the tabs along the top.
+- Admin's on and off settings (two-factor, bank sync, email alerts) are switches, and the buttons on each user say Disable, Reset password and Delete in words.
+- Row actions in Settings and Admin stay quiet until you point at the row, and Delete reads in red. The Delete my account panel is outlined in red.
+- Reports shows its six totals three across, with forecast above actual. Its filters line up at the top and show their choices as pills, and the saved reports and templates are plain lists with the open one highlighted.
 - Every theme is easier to read: grey labels, red and green amounts, warnings and links that were too faint in Dracula, Solarized, Nord, Synthwave, Forest, Mint, Monokai and Sunset are a shade stronger, keeping their colour. The iPhone app's copies of these themes take the same colours.
 - Settings → Appearance shows each theme as a tiny screen in its own colours, with a balance, an amount in and out, and a button. System shows half Dark and half Light.
 - A calmer, more modern look for the Dark and Light themes: softer surfaces and borders, rounder cards with a light shadow, and, in Light, white cards on a tinted page. Filled buttons in Dark are now much easier to read.
@@ -86,6 +91,7 @@ App version: **1.97.0** · Web version: **1.110.0** · Schema version: **38** ·
 - When the Forecast table turns into cards in a narrower window, each figure carries one label ("Forecast date") instead of two run together ("Forecast dateStart date").
 - The Reports bar chart uses the full width of its panel instead of a narrow strip on the left.
 - The Reports filters (accounts, categories and tags) show every choice instead of cutting the list off after three rows.
+- On a phone, the Reports page no longer scrolls sideways: the report's name, Pin and buttons wrap onto a second line.
 - Tags and category chips no longer disappear into the background in the Solarized and Synthwave themes, and the selected account tab stands out from the bar.
 
 ## [1.97.0] — 2026-11-23

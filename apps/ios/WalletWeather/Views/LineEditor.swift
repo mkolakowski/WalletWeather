@@ -145,7 +145,51 @@ struct LineEditor: View {
 
     // MARK: - Sections
 
+    /// A line you added (saved, not a transfer, not from a bill) on an
+    /// account you may edit has its name, planned date and planned amount as
+    /// fields (#316); every other line shows them as text.
+    private var editsPlan: Bool { open.editable && open.draft.editsPlan }
+
+    @ViewBuilder
     private var aboutSection: some View {
+        if editsPlan { planFieldsSection } else { aboutTextSection }
+    }
+
+    private var planFieldsSection: some View {
+        Section {
+            LabeledContent("Account", value: open.account.name)
+            LabeledContent("Name") {
+                TextField("Name", text: $open.draft.name)
+                    .multilineTextAlignment(.trailing)
+                    .accessibilityLabel("Name")
+            }
+            // An unpaid line's actual amount and date follow its plan until
+            // they're changed, as they do when the line is first opened.
+            DatePicker("Planned for", selection: Binding(get: { open.draft.plannedOn.date }, set: {
+                open.draft.plannedOn = LocalDay.today(now: $0)
+                if !open.draft.paid { open.draft.paidOn = LineDraft.paidOn(planned: open.draft.plannedOn, today: .today()) }
+            }), displayedComponents: .date)
+            LabeledContent("Planned amount") {
+                TextField("0.00", text: Binding(get: { open.draft.plannedAmountText }, set: {
+                    open.draft.plannedAmountText = $0
+                    if !open.draft.paid { open.draft.amountText = $0 }
+                }))
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .monospacedDigit()
+                .accessibilityLabel("Planned amount")
+            }
+        } footer: {
+            VStack(alignment: .leading, spacing: 4) {
+                if let problem = open.draft.planProblem {
+                    Text(problem).foregroundStyle(Palette.bad)
+                }
+                Text("For a line you added. A date that comes from a repeating bill changes in its bill.")
+            }
+        }
+    }
+
+    private var aboutTextSection: some View {
         Section {
             LabeledContent("Account", value: open.account.name)
             if let planned = line.plannedDate {
@@ -184,7 +228,7 @@ struct LineEditor: View {
                 open.draft.paid = true
             }), displayedComponents: .date)
         } footer: {
-            if open.draft.paid, let problem = open.draft.problem {
+            if open.draft.paid, open.draft.planProblem == nil, let problem = open.draft.problem {
                 Text(problem).foregroundStyle(Palette.bad)
             } else if !open.draft.paid && line.isPaid {
                 Text("Saving marks it not paid: it goes back to its planned amount and date.")

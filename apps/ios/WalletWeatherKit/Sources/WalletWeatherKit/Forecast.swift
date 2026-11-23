@@ -122,6 +122,11 @@ public struct ForecastLine: Sendable, Codable, Equatable, Identifiable {
     /// Whether this line can be changed in the app: on an account you may
     /// edit. Transfers are changed on the web for now.
     public func canEdit(onEditableAccount editable: Bool) -> Bool { editable && !isTransfer }
+
+    /// A line you added: saved, not a transfer, and not from a repeating
+    /// bill. Its name, planned date and planned amount can be changed here
+    /// (#316); a bill's date changes in its bill.
+    public var isOneOff: Bool { transactionId != nil && recurringId == nil && !isTransfer }
 }
 
 /// The month at a glance, for the right half of the open Duo: income and
@@ -242,11 +247,35 @@ public struct LineDraft: Sendable, Equatable {
     /// Its tags (#251). Sent only when changed: unchanged, the server keeps
     /// a line's tags, and a bill's date marked paid takes the bill's.
     public var tagIds: [Int]
+    /// Whether the name, planned date and planned amount below are fields
+    /// for this line (a one-off you added, #316). For any other line they
+    /// hold what it has and are never sent changed.
+    public let editsPlan: Bool
+    public var name: String
+    public var plannedOn: LocalDay
+    /// The planned amount as typed, without a sign: the line keeps its own.
+    public var plannedAmountText: String
+
+    /// The longest name the server takes.
+    public static let nameMax = 500
 
     public var paidAmount: Decimal? { parseAmount(amountText) }
+    public var plannedAmount: Decimal? { parseAmount(plannedAmountText) }
+
+    /// What's wrong with the name or planned amount of a line whose fields
+    /// show (#316), or nil.
+    public var planProblem: String? {
+        guard editsPlan else { return nil }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return "Give it a name." }
+        if trimmed.count > Self.nameMax { return "A name can be up to \(Self.nameMax) characters." }
+        guard let planned = plannedAmount, planned >= 0 else { return "Enter the amount it's planned for." }
+        return nil
+    }
 
     /// What's wrong before it can be saved, or nil.
     public var problem: String? {
+        if let planProblem { return planProblem }
         guard paid else { return nil }
         guard let amount = paidAmount, amount >= 0 else { return "Enter the amount it really came to." }
         return nil
@@ -259,6 +288,10 @@ public struct LineDraft: Sendable, Equatable {
         categoryId = line.categoryId
         notes = line.notes ?? ""
         tagIds = (line.tags ?? []).map(\.id)
+        editsPlan = line.isOneOff
+        name = line.description
+        plannedOn = line.plannedDate ?? today
+        plannedAmountText = amountString(abs(line.plannedAmount.amount))
     }
 
     /// The day a line is marked paid on when no other is given (a swipe):
@@ -266,8 +299,11 @@ public struct LineDraft: Sendable, Equatable {
     /// is dated today; an old bill marked late keeps the day it was due.
     public static func paidOn(_ line: ForecastLine, today: LocalDay) -> LocalDay {
         guard let planned = line.plannedDate else { return today }
-        return min(planned, today)
+        return paidOn(planned: planned, today: today)
     }
+
+    /// The same for a planned date that was just changed in the editor.
+    public static func paidOn(planned: LocalDay, today: LocalDay) -> LocalDay { min(planned, today) }
 
     /// Paid as planned, for the swipe action.
     public static func paidAsPlanned(_ line: ForecastLine, today: LocalDay) -> LineDraft {
@@ -331,9 +367,13 @@ public struct TransactionBody: Sendable, Encodable, Equatable {
     /// An existing line saved with the editor's changes.
     public init(line: ForecastLine, draft: LineDraft) {
         let sign: Decimal = line.plannedAmount.isNegative || (line.plannedAmount == .zero && line.amount.isNegative) ? -1 : 1
-        let planned = line.forecastAmount?.amount ?? line.plannedAmount.amount
-        description = line.description
-        forecastDate = line.forecastDate ?? line.plannedDate
+        // A one-off's name, planned date and planned amount come from the
+        // draft (#316); every other line sends what it has.
+        let edited = draft.editsPlan && line.isOneOff
+        let planned = edited ? sign * abs(draft.plannedAmount ?? line.plannedAmount.amount)
+                             : line.forecastAmount?.amount ?? line.plannedAmount.amount
+        description = edited ? draft.name.trimmingCharacters(in: .whitespacesAndNewlines) : line.description
+        forecastDate = edited ? draft.plannedOn : line.forecastDate ?? line.plannedDate
         forecastAmount = planned
         recurringId = line.recurringId
         categoryId = draft.categoryId

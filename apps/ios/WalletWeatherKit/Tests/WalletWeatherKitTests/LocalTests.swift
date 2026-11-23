@@ -131,6 +131,46 @@ struct LocalTests {
         #expect(try await client.search("rent").recurring.results.map(\.description) == ["Rent"])
     }
 
+    /// A saved one-off's name, planned date and planned amount are fields
+    /// (#316): the same client call renames, re-dates and re-prices it, and
+    /// the Forecast puts it in its new place with the balances worked again.
+    @Test func aSavedOneOffIsRenamedRedatedAndRepriced() async throws {
+        let checking = try await account("Checking", 1000)
+        let ahead = LocalDay(year: 2026, month: 3, day: 20)
+        var plan = NewTransactionDraft(today: ahead)
+        plan.name = "Haircut"
+        plan.amountText = "40"
+        plan.paid = false
+        try await client.add(plan, account: checking)
+        try await spend("Books", "10", on: LocalDay(year: 2026, month: 3, day: 25), account: checking)
+
+        let month = YearMonth(day)
+        let first = try await client.forecast(account: checking, month: month, today: day)
+        #expect(first.rows.map(\.description) == ["Haircut", "Books"])
+        let haircut = try #require(first.rows.first)
+        #expect(haircut.isOneOff && !haircut.isPaid)
+
+        var draft = LineDraft(haircut, today: day)
+        draft.name = "Haircut and beard"
+        draft.plannedOn = LocalDay(year: 2026, month: 3, day: 28)
+        draft.plannedAmountText = "52.50"
+        #expect(draft.problem == nil)
+        try await client.save(haircut, draft: draft, account: checking)
+
+        let after = try await client.forecast(account: checking, month: month, today: day)
+        #expect(after.rows.map(\.description) == ["Books", "Haircut and beard"])
+        let moved = try #require(after.rows.last)
+        #expect(moved.transactionId == haircut.transactionId, "the same line, not a new one")
+        #expect(moved.plannedDate == LocalDay(year: 2026, month: 3, day: 28))
+        #expect(moved.plannedAmount == Money(Decimal(string: "-52.5")!))
+        #expect(!moved.isPaid, "changing the plan doesn't mark it paid")
+        // 1000 - 10 books, then - 52.50.
+        #expect(after.rows[0].forecastBalance == Money(Decimal(990)))
+        #expect(moved.forecastBalance == Money(Decimal(string: "937.5")!))
+        #expect(after.forecastEndingBalance == Money(Decimal(string: "937.5")!))
+        #expect(try await client.searchTransactions("beard").total == 1)
+    }
+
     /// Deleting a transfer and bringing back skipped dates (#246): the
     /// server's `DELETE /api/transfers/{id}` and `DELETE /api/recurring/{id}/skips`.
     @Test func aTransferCanBeDeletedAndSkippedDatesBroughtBack() async throws {

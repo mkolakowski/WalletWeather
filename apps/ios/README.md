@@ -218,6 +218,15 @@ money (`POST /api/transfers`). Bills are changed the same way as lines: a
 `PATCH /api/recurring/{id}` sends the whole item again, and ending one sets
 its end date.
 
+For a line you added (saved, not a transfer, not from a repeating bill), the
+editor's first section makes the name, planned date and planned amount fields,
+and the same `PATCH` sends the edited ones (a name is required, up to 500
+characters; the planned amount is typed without a sign and the line keeps its
+own). Changing the plan never marks the line paid, and a paid line keeps the
+actual amount and date set for it. A projected date, a bill's saved date and a
+transfer show those three as text, and a date that comes from a bill is changed
+in its bill. The phone's own household answers the same way.
+
 Editing shows only on an account you own or may edit (`level` in
 `/api/accounts`), and nowhere under a read-only token (`token_access` in
 `/api/me`).

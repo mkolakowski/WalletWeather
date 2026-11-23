@@ -139,6 +139,137 @@ struct ForecastTests {
         #expect(body["category_id"] == 9 as AnyHashable)
     }
 
+    // MARK: A one-off's name, planned date and planned amount (#316)
+
+    /// A line as the server sends it, built by hand: unpaid by default,
+    /// planned -40.00 on Nov 20.
+    func oneOff(paid: Bool = false, recurringId: Int? = nil, transferId: Int? = nil,
+                transactionId: Int? = 77) -> ForecastLine {
+        let planned = Money(Decimal(-40))
+        let day = LocalDay(year: 2026, month: 11, day: 20)
+        return ForecastLine(forecastDate: day, actualDate: paid ? LocalDay(year: 2026, month: 11, day: 21) : day,
+                            description: "Haircut", category: nil, categoryId: 3, notes: "tip", forecastAmount: planned,
+                            forecastBalance: .zero, actualAmount: paid ? Money(Decimal(-45)) : planned, actualBalance: .zero,
+                            diffAmount: nil, diffBalance: .zero, isActualReal: paid, recurringId: recurringId,
+                            transactionId: transactionId, transferId: transferId)
+    }
+
+    @Test func aOneOffsDraftTakesItsNameDateAndPlannedAmount() throws {
+        let draft = LineDraft(oneOff(), today: today)
+        #expect(draft.editsPlan)
+        #expect(draft.name == "Haircut" && draft.plannedOn == LocalDay("2026-11-20") && draft.plannedAmountText == "40")
+        #expect(draft.problem == nil)
+        // The existing members mean what they did.
+        #expect(!draft.paid && draft.amountText == "40" && draft.notes == "tip" && draft.categoryId == 3)
+        let paid = LineDraft(oneOff(paid: true), today: today)
+        #expect(paid.paid && paid.amountText == "45" && paid.plannedAmountText == "40")
+        #expect(paid.plannedOn == LocalDay("2026-11-20") && paid.paidOn == LocalDay("2026-11-21"))
+    }
+
+    @Test func onlyASavedLineYouAddedHasTheFields() throws {
+        let month: ForecastMonth = try sample("forecast")
+        #expect(oneOff().isOneOff)
+        #expect(try line(month, "Department store").isOneOff)
+        #expect(!(try line(month, "Rent")).isOneOff, "a projected date of a bill")
+        #expect(!oneOff(recurringId: 2).isOneOff, "a bill's saved date")
+        #expect(!oneOff(transferId: 9).isOneOff, "a transfer")
+        #expect(!oneOff(transactionId: nil).isOneOff)
+        #expect(!LineDraft(oneOff(recurringId: 2), today: today).editsPlan)
+    }
+
+    @Test func eachPlannedFieldAloneChangesOnlyItsOwnPartOfTheBody() throws {
+        let line = oneOff()
+        let before = try json(TransactionBody(line: line, draft: LineDraft(line, today: today)))
+        #expect(before["description"] == AnyHashable("Haircut") && before["forecast_date"] == AnyHashable("2026-11-20"))
+        #expect(before["forecast_amount"] == -40 as AnyHashable && before["amount"] == -40 as AnyHashable)
+
+        func changed(_ edit: (inout LineDraft) -> Void) throws -> Set<String> {
+            var draft = LineDraft(line, today: today)
+            edit(&draft)
+            let after = try json(TransactionBody(line: line, draft: draft))
+            return Set(after.keys.filter { after[$0] != before[$0] })
+        }
+        #expect(try changed { $0.name = "  Haircut and beard " } == ["description"])
+        #expect(try changed { $0.plannedOn = LocalDay("2026-11-24")! } == ["forecast_date"])
+        // Unpaid: the amount follows the planned one, and it stays unpaid.
+        #expect(try changed { $0.plannedAmountText = "$52.50" } == ["forecast_amount", "amount"])
+        var draft = LineDraft(line, today: today)
+        draft.name = "Haircut and beard"
+        draft.plannedOn = LocalDay("2026-11-24")!
+        draft.plannedAmountText = "52.50"
+        let body = try json(TransactionBody(line: line, draft: draft))
+        #expect(body["description"] == AnyHashable("Haircut and beard"))
+        #expect(body["forecast_date"] == AnyHashable("2026-11-24"))
+        #expect(body["forecast_amount"] == -52.5 as AnyHashable && body["amount"] == -52.5 as AnyHashable)
+        #expect(body["is_actual"] == false as AnyHashable && body["actual_date"] == AnyHashable("null"))
+        #expect(body["category_id"] == 3 as AnyHashable && body["notes"] == AnyHashable("tip"))
+    }
+
+    @Test func changingThePlanLeavesAPaidLinesRealAmountAndDate() throws {
+        let line = oneOff(paid: true)
+        var draft = LineDraft(line, today: today)
+        draft.plannedAmountText = "60"
+        draft.plannedOn = LocalDay("2026-11-18")!
+        let body = try json(TransactionBody(line: line, draft: draft))
+        #expect(body["forecast_amount"] == -60 as AnyHashable && body["forecast_date"] == AnyHashable("2026-11-18"))
+        #expect(body["amount"] == -45 as AnyHashable && body["actual_date"] == AnyHashable("2026-11-21"))
+        #expect(body["is_actual"] == true as AnyHashable)
+    }
+
+    @Test func aOneOffThatIsIncomeKeepsItsSign() throws {
+        let income = ForecastLine(forecastDate: today, actualDate: today, description: "Refund", category: nil, categoryId: nil,
+                                  notes: nil, forecastAmount: Money(Decimal(20)), forecastBalance: .zero,
+                                  actualAmount: Money(Decimal(20)), actualBalance: .zero, diffAmount: nil, diffBalance: .zero,
+                                  isActualReal: false, recurringId: nil, transactionId: 5, transferId: nil)
+        var draft = LineDraft(income, today: today)
+        draft.plannedAmountText = "25"
+        let body = try json(TransactionBody(line: income, draft: draft))
+        #expect(body["forecast_amount"] == 25 as AnyHashable && body["amount"] == 25 as AnyHashable)
+    }
+
+    @Test func otherLinesSendWhatTheyAlwaysDid() throws {
+        let month: ForecastMonth = try sample("forecast")
+        let rent = try line(month, "Rent")
+        let transfer = oneOff(transferId: 9)
+        let fromBill = oneOff(recurringId: 2)
+        for line in [rent, transfer, fromBill] {
+            var untouched = LineDraft(line, today: today)
+            untouched.paid = true
+            let expected = try json(TransactionBody(line: line, draft: untouched))
+            // Even a draft whose plan values were changed sends the line's own.
+            var edited = untouched
+            edited.name = "Something else"
+            edited.plannedOn = LocalDay("2026-12-30")!
+            edited.plannedAmountText = "1"
+            #expect(try json(TransactionBody(line: line, draft: edited)) == expected)
+            #expect(expected["description"] == AnyHashable(line.description))
+            #expect(expected["forecast_date"] == AnyHashable(line.forecastDate!.description))
+            #expect(edited.problem == nil, "nothing to check on fields that aren't shown")
+        }
+    }
+
+    @Test func theEditedPlanIsChecked() {
+        var draft = LineDraft(oneOff(), today: today)
+        draft.name = "   "
+        #expect(draft.problem == "Give it a name.")
+        draft.name = String(repeating: "x", count: LineDraft.nameMax + 1)
+        #expect(draft.problem == "A name can be up to 500 characters.")
+        draft.name = String(repeating: "x", count: LineDraft.nameMax)
+        #expect(draft.problem == nil)
+        for bad in ["", "abc", "1.2.3", "-"] {
+            draft.plannedAmountText = bad
+            #expect(draft.problem == "Enter the amount it's planned for.", "\(bad)")
+        }
+        draft.plannedAmountText = "0"
+        #expect(draft.problem == nil, "zero is allowed")
+        // Checked whether or not it's paid, and before the paid amount.
+        draft.paid = true
+        draft.amountText = "x"
+        #expect(draft.problem == "Enter the amount it really came to.")
+        draft.plannedAmountText = "x"
+        #expect(draft.problem == "Enter the amount it's planned for.")
+    }
+
     @Test func aPaidLineNeedsAnAmount() throws {
         let month: ForecastMonth = try sample("forecast")
         var draft = LineDraft(try line(month, "Gym"), today: today)

@@ -31,6 +31,11 @@ struct WalletWeatherApp: App {
                 .onChange(of: model.me) { _, me in
                     if let me { settings.serverTheme = me.themePreference }
                 }
+                // The theme kept with the connection now in front (#299), until
+                // its server answers.
+                .onChange(of: model.saved?.id) { _, _ in
+                    if let theme = model.saved?.webTheme { settings.serverTheme = theme }
+                }
                 .onOpenURL { model.open($0) }
                 .task { model.start() }
         }

@@ -12,6 +12,8 @@ struct BillsView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     /// 0 for all accounts.
     @SceneStorage("bills.account") private var accountId = 0
+    /// The account chosen on each other connection, in this window (#299).
+    @SceneStorage("bills.account.byConnection") private var accountMemo = ""
     @SceneStorage("bills.ended") private var showEnded = false
 
     @State private var accounts: [Account] = []
@@ -60,6 +62,7 @@ struct BillsView: View {
             EndBillSheet(item: item) { await load() }
                 .presentationDetents([.medium])
         }
+        .scopedToConnection($accountId, memo: $accountMemo)
         .task(id: model.generation) { await loadAll() }
         .task(id: "\(accountId)/\(showEnded)") { await load() }
     }

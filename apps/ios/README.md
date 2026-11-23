@@ -179,13 +179,20 @@ that's what iOS lets an app reach over plain HTTP.
 ## What's kept on the phone
 
 On this iPhone, the household itself: see "On this iPhone" below. With a
-server, only the sign-in: the server's address, the token and the Cloudflare sign-in,
-in the Keychain, on this device only (never in iCloud, never moved by a
-backup). Signing out deletes them. The app's own settings (the look, whether
-the lock is on and whether it was offered, the tab bar, Getting started and
-what the phone keeps) are in its preferences (`UserDefaults`), and stay after
-signing out. Balances and transactions are kept only when the person chooses
-Last-known numbers (phase 8, `KeptResponses`); signing out deletes them.
+server, only its sign-in: a sign-in per server (the server's address, the
+token, the Cloudflare sign-in, what the phone keeps for it and its web
+theme), each in its own Keychain item (`ConnectionStore`, account
+`connection.<id>`), on this device only (never in iCloud, never moved by a
+backup), readable only while the phone is unlocked. The preferences
+(`UserDefaults`) hold only which one is in front (`connections.active`).
+Signing out of a server deletes its item. The app's own settings (the look,
+whether the lock is on and whether it was offered, the tab bar and Getting
+started) are in its preferences, and stay after signing out. Balances and
+transactions are kept only when the person chooses Last-known numbers
+(phase 8, `KeptResponses`), in a folder per server
+(`Application Support/Kept/<id>/`); signing out of that server deletes them.
+The single sign-in kept before #299 (account `connection`) is carried over
+once, and removed only after its copy reads back.
 
 Signing out ends the token on the server first (`DELETE /api/tokens/current`:
 a token may revoke itself, and nothing else). If the server can't be reached,

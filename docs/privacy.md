@@ -72,14 +72,15 @@ to Microsoft.
 
 ## What is kept on your device
 
-What the app needs to reconnect: the address of your server and the
-sign-in it was given; and the app's own settings: the look you picked (with
-the name of the theme saved on your server, for "Match the web app"),
-whether the app lock is on, which pages are in the tab bar, which Getting
-started steps you've done, and what the phone keeps.
+What the app needs to reconnect: a sign-in per server, each kept in its own
+item in the device's Keychain, on that device only (never in iCloud): the
+server's address, the sign-in it was given, what the phone keeps for it and
+the name of the theme saved on it (for "Match the web app"). And the app's
+own settings: the look you picked, whether the app lock is on, which pages
+are in the tab bar and which Getting started steps you've done.
 
-What the phone keeps is your choice, asked when you sign in and changeable in
-the app's settings:
+What the phone keeps is your choice for each server, asked when you sign in
+and changeable in the app's settings:
 
 - **Nothing** (the default): no balances or transactions are stored on the
   device, and the app needs a connection to your server.
@@ -88,7 +89,8 @@ the app's settings:
   device, so the app can still show them, marked with when they were loaded,
   when your server can't be reached. They can't be read while the device is
   locked, are left out of iCloud and computer backups, and never leave the
-  device. They're deleted when you sign out or switch back to Nothing.
+  device. Each server's are kept apart, and deleted when you sign out of
+  that server or switch it back to Nothing.
 
 If you use the iOS app **On this iPhone**, with no server, your accounts,
 bills, income, transactions, notes and categories are kept on the iPhone,

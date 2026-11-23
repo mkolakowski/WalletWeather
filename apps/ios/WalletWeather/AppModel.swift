@@ -70,40 +70,111 @@ final class AppModel {
 
     private let sheet = SignInSheet()
 
+    // MARK: - The saved connections (Plans/connections.md, #299)
+
+    /// The connections the phone keeps, each in its own Keychain item.
+    let store: ConnectionStore
+    /// The connection in front, when it's saved (not the demo, and not a
+    /// Debug launch's server).
+    private(set) var saved: SavedConnection?
+    /// The single sign-in kept before couldn't be carried over to the store
+    /// (its copy didn't write or read back): it's still the one in front,
+    /// in its old item, and the next start tries again.
+    private var legacy = false
+
+    /// What each window's pages key their choices by (`ScopedToConnection`):
+    /// the saved connection's id, `demo`, or `unsaved`.
+    var connectionKey: String {
+        if let saved { return saved.id.uuidString }
+        return isDemo ? "demo" : "unsaved"
+    }
+
     // MARK: - What the phone keeps (#101)
 
-    /// Nothing (the default) or Last-known numbers. Asked once at each
-    /// sign-in; signing out sets it back to Nothing (decided 2026-11-15).
-    /// Someone already signed in when this arrived stays on Nothing and
-    /// isn't asked.
-    private(set) var keep: KeepChoice
+    /// Nothing (the default) or Last-known numbers, per connection. Asked
+    /// once at each sign-in; signing out removes it with the connection
+    /// (decided 2026-11-15).
+    private(set) var keep: KeepChoice = .nothing
     /// The set-up question is due: set by a fresh sign-in.
     var askKeep = false
-    let kept: KeptResponses
-    private let defaults: UserDefaults
-    private static let keepKey = "keep.choice"
+    /// The connection in front's last-known numbers: its own folder.
+    var kept: KeptResponses? {
+        if let saved { return store.kept(for: saved.id) }
+        if legacy { return store.legacyKept }
+        #if DEBUG
+        if connection != nil, !isDemo, !isLocal { return Self.debugKept }
+        #endif
+        return nil
+    }
 
-    init(defaults: UserDefaults = .standard, kept: KeptResponses = .standard) {
-        self.defaults = defaults
-        self.kept = kept
-        keep = KeepChoice(rawValue: defaults.string(forKey: Self.keepKey) ?? "") ?? .nothing
-        // Debug only: `WW_DEBUG_KEEP=lastKnown|nothing` sets the choice, for
-        // checking kept numbers from the command line.
-        if let debug = Self.debugSetting("WW_DEBUG_KEEP").flatMap(KeepChoice.init(rawValue:)) {
-            keep = debug
-            defaults.set(debug.rawValue, forKey: Self.keepKey)
-        }
-        // Nothing should be on the phone under Nothing; tidy up after a
-        // crash between choosing Nothing and the files going.
-        if keep == .nothing { kept.deleteAll() }
+    #if DEBUG
+    /// A Debug launch's server (`WW_DEBUG_SERVER`) keeps its numbers in a
+    /// temporary folder, not among the saved connections'.
+    private static var debugKept: KeptResponses {
+        KeptResponses(directory: FileManager.default.temporaryDirectory.appending(path: "ww-debug-kept", directoryHint: .isDirectory))
+    }
+    #endif
+
+    init(defaults: UserDefaults = .standard, store: ConnectionStore? = nil) {
+        self.store = store ?? ConnectionStore(secrets: KeychainConnectionSecrets(), defaults: defaults)
     }
 
     /// Choosing Nothing deletes what's kept straight away.
     func setKeep(_ choice: KeepChoice) {
         askKeep = false
         keep = choice
-        defaults.set(choice.rawValue, forKey: Self.keepKey)
-        if choice == .nothing { kept.deleteAll() }
+        if var saved, saved.keep != choice {
+            saved.keep = choice
+            if store.update(saved) { self.saved = saved }
+        } else if legacy {
+            store.legacyKeep = choice
+        }
+        if choice == .nothing { deleteKept() }
+    }
+
+    /// The connection in front's kept numbers, and only its.
+    private func deleteKept() {
+        if legacy { store.deleteLegacyKept() } else { kept?.deleteAll() }
+    }
+
+    /// Puts a saved connection in front (or none), with its keep choice.
+    /// Nothing should be on the phone under Nothing: tidies up after a crash
+    /// between choosing Nothing and the files going.
+    private func bringForward(_ front: SavedConnection?) {
+        saved = front
+        legacy = false
+        keep = front?.keep ?? .nothing
+        applyDebugKeep()
+        if keep == .nothing { deleteKept() }
+    }
+
+    /// Debug only: `WW_DEBUG_KEEP=lastKnown|nothing` sets the choice of the
+    /// connection in front, for checking kept numbers from the command line.
+    private func applyDebugKeep() {
+        guard let debug = Self.debugSetting("WW_DEBUG_KEEP").flatMap(KeepChoice.init(rawValue:)), debug != keep else { return }
+        keep = debug
+        if var saved {
+            saved.keep = debug
+            if store.update(saved) { self.saved = saved }
+        }
+    }
+
+    /// Saves a new connection and puts it in front. Until the connections
+    /// can be seen and switched between (phase 2), the phone keeps one at a
+    /// time, as before: the others are removed once the new one is saved.
+    /// If the Keychain won't take it, it's still in front for this launch.
+    private func saveAndBringForward(_ connection: Connection) {
+        guard let added = store.add(connection).flatMap({ store.activate($0.id) }) else {
+            // A single sign-in still in its old item stays the one in use.
+            let stillLegacy = legacy && store.legacy == connection
+            bringForward(nil)
+            legacy = stillLegacy
+            if stillLegacy { keep = store.legacyKeep }
+            return
+        }
+        for other in store.all() where other.id != added.id { store.remove(other.id) }
+        if legacy { store.removeLegacy() }
+        bringForward(added)
     }
 
     /// The pages' client for edits and anything not kept. With Last-known
@@ -139,7 +210,9 @@ final class AppModel {
             connectError = "WalletWeather couldn't set up its numbers on this iPhone. \(error.localizedDescription)"
             return
         }
-        Keychain.saveConnection(LocalServer.connection)
+        if saved?.kind != .thisPhone {
+            saveAndBringForward(LocalServer.connection)
+        }
         connection = LocalServer.connection
         me = nil
         serverVersion = nil
@@ -238,7 +311,7 @@ final class AppModel {
     /// iPhone opens it again.
     func leaveLocal() {
         guard isLocal else { return }
-        Keychain.deleteConnection()
+        forgetFront()
         connection = nil
         me = nil
         serverVersion = nil
@@ -284,6 +357,7 @@ final class AppModel {
         connectError = nil
         connectNotice = nil
         askKeep = false
+        saved = nil
         connection = Demo.connection
         me = nil
         generation += 1
@@ -427,6 +501,9 @@ final class AppModel {
 
     func start() {
         guard phase == .starting else { return }
+        // The single sign-in kept before becomes the first saved connection,
+        // once; if it can't be, it stays in its old item and is used as is.
+        let carried = store.carryOver()
         #if DEBUG
         // Screenshots and checks from the command line, in Debug builds only:
         // `SIMCTL_CHILD_WW_DEBUG_SERVER=… SIMCTL_CHILD_WW_DEBUG_TOKEN=… xcrun
@@ -434,6 +511,8 @@ final class AppModel {
         let env = ProcessInfo.processInfo.environment
         if let server = env["WW_DEBUG_SERVER"].flatMap(URL.init(string:)), let token = env["WW_DEBUG_TOKEN"] {
             connection = Connection(server: server, token: token)
+            applyDebugKeep()
+            if keep == .nothing { deleteKept() }
             phase = .ready
             Task { await refreshMe() }
             return
@@ -498,16 +577,28 @@ final class AppModel {
             return
         }
         #endif
-        guard let saved = Keychain.loadConnection() else {
+        let front: Connection
+        if case let .leftInPlace(old) = carried {
+            saved = nil
+            legacy = true
+            keep = store.legacyKeep
+            applyDebugKeep()
+            if keep == .nothing { deleteKept() }
+            front = old
+        } else if let found = store.active {
+            if store.activeID != found.id { store.activate(found.id) }
+            bringForward(found)
+            front = found.connection
+        } else {
             phase = .connect
             return
         }
-        if saved.isLocal {
+        if front.isLocal {
             // Set up the store before the pages ask it anything.
             useOnThisPhone()
             return
         }
-        connection = saved
+        connection = front
         phase = .ready
         Task { await refreshMe() }
     }
@@ -517,6 +608,11 @@ final class AppModel {
         guard let client else { return }
         if let found = try? await client.me() {
             me = found
+            // Match the web app's theme, kept with this connection.
+            if var saved, saved.connection == connection, saved.webTheme != found.themePreference {
+                saved.webTheme = found.themePreference
+                if store.update(saved) { self.saved = saved }
+            }
             if found.noticeRequired { phase = .notice }
         }
         serverVersion = try? await client.version()
@@ -679,9 +775,8 @@ final class AppModel {
 
     private func finishSignIn(_ signedIn: Connection) async {
         // A new sign-in starts with nothing kept, and asks what to keep.
-        kept.deleteAll()
+        saveAndBringForward(signedIn)
         askKeep = true
-        Keychain.saveConnection(signedIn)
         connection = signedIn
         me = nil
         generation += 1
@@ -697,7 +792,12 @@ final class AppModel {
     func renewCloudflare() async -> Bool {
         guard var current = connection, let cf = await signInToCloudflare(server: current.server) else { return false }
         current.cloudflare = .session(token: cf)
-        Keychain.saveConnection(current)
+        if var saved, saved.connection.server == current.server {
+            saved.connection = current
+            if store.update(saved) { self.saved = saved }
+        } else if legacy {
+            store.updateLegacy(current)
+        }
         connection = current
         generation += 1
         return true
@@ -782,14 +882,27 @@ final class AppModel {
         choseServer = true
         if keepAddress, let server = connection?.server { typedAddress = server.absoluteString }
         if !keepAddress { typedAddress = "" }
-        Keychain.deleteConnection()
-        setKeep(.nothing)
+        forgetFront()
+        askKeep = false
         connection = nil
         me = nil
         serverVersion = nil
         connectError = nil
         generation += 1
         phase = .connect
+    }
+
+    /// Removes the connection in front from the phone: its Keychain item,
+    /// its keep choice and its kept numbers.
+    private func forgetFront() {
+        if let saved {
+            store.remove(saved.id)
+        } else if legacy {
+            store.removeLegacy()
+        } else {
+            kept?.deleteAll()
+        }
+        bringForward(nil)
     }
 
     static func describe(_ error: APIError) -> String {

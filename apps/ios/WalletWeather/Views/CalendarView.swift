@@ -12,6 +12,8 @@ struct CalendarView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     /// 0 for all accounts.
     @SceneStorage("calendar.account") private var accountId = 0
+    /// The account chosen on each other connection, in this window (#299).
+    @SceneStorage("calendar.account.byConnection") private var accountMemo = ""
     @SceneStorage("calendar.month") private var monthText = ""
     @SceneStorage("calendar.day") private var dayText = ""
 
@@ -60,6 +62,7 @@ struct CalendarView: View {
         .sheet(isPresented: $moving) {
             MoveMoneySheet(accounts: editableAccounts, draft: $moveDraft) { await load() }
         }
+        .scopedToConnection($accountId, memo: $accountMemo)
         .task(id: model.generation) { await loadAll() }
         .task(id: "\(accountId)/\(monthText)") { await load() }
     }

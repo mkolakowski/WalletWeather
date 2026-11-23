@@ -3,7 +3,7 @@ import Foundation
 
 /// What this phone keeps, chosen at set-up and changeable in Settings
 /// (Plans/ios-app.md, phase 8; decided 2026-11-14 and 2026-11-15).
-public enum KeepChoice: String, CaseIterable, Identifiable, Sendable {
+public enum KeepChoice: String, CaseIterable, Codable, Identifiable, Sendable {
     /// The default: the app needs a connection, and keeps no numbers.
     case nothing
     /// The pages last loaded, shown with their age when the server can't be

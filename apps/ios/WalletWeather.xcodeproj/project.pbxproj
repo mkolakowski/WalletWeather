@@ -30,6 +30,7 @@
 		993C5B78D1DE13E67283D85E /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C580FBC80891DCC74238FFCA /* CalendarView.swift */; };
 		A19BE4DB8A2A39AC4CEF0D71 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAC7A791EEE3C72BA42ED155 /* AppSettings.swift */; };
 		A1AD9EF2A808C2C34BB79713 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 760DE072423DD9D965E38BEE /* PrivacyInfo.xcprivacy */; };
+		AA6E7808084DB08B97F7A142 /* ScopedToConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 795D7F25402606692C251B7E /* ScopedToConnection.swift */; };
 		B29B4373B3A526BF9E85393F /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABF20F601A1EB2143ABA37C6 /* RootView.swift */; };
 		B789C70FB22BF28F157FB1A7 /* NoticeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FF8DF9E3C8A01A950E0D995 /* NoticeView.swift */; };
 		B9DF71AA4970ECC6F0927401 /* LineEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A91553B7086BC583359B4E5F /* LineEditor.swift */; };
@@ -60,6 +61,7 @@
 		57CA23B0750CAA45E8AC60BD /* StandaloneViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandaloneViews.swift; sourceTree = "<group>"; };
 		75BD1096AF0D745FED33F38E /* GettingStartedViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GettingStartedViews.swift; sourceTree = "<group>"; };
 		760DE072423DD9D965E38BEE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		795D7F25402606692C251B7E /* ScopedToConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScopedToConnection.swift; sourceTree = "<group>"; };
 		8612988B4A68458DECAB4745 /* MoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreView.swift; sourceTree = "<group>"; };
 		8C093F3234CB4BC473C55E68 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
 		8D0553102CA76CF6F2551892 /* BillsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillsView.swift; sourceTree = "<group>"; };
@@ -133,6 +135,7 @@
 				501BC9A34865BA8B81980E67 /* PhoneBankViews.swift */,
 				A98C31592C4A8C02D24C2584 /* QRScanSheet.swift */,
 				ABF20F601A1EB2143ABA37C6 /* RootView.swift */,
+				795D7F25402606692C251B7E /* ScopedToConnection.swift */,
 				BDE64033EF7589F61FD10A90 /* SearchView.swift */,
 				57CA23B0750CAA45E8AC60BD /* StandaloneViews.swift */,
 				145D05F53CFC95EA650B720C /* TabBar.swift */,
@@ -278,6 +281,7 @@
 				2A3F787DFA9A3BC6817806A5 /* PhoneBankViews.swift in Sources */,
 				D15E3123C4A13434AC0DE0F8 /* QRScanSheet.swift in Sources */,
 				B29B4373B3A526BF9E85393F /* RootView.swift in Sources */,
+				AA6E7808084DB08B97F7A142 /* ScopedToConnection.swift in Sources */,
 				80669495013A8E87A3743E59 /* SearchView.swift in Sources */,
 				1B91942AA2AD6B61B89A0CA2 /* SignInSheet.swift in Sources */,
 				2B6E20C2C6B57F2469053035 /* StandaloneViews.swift in Sources */,
@@ -347,7 +351,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.34.1;
+				MARKETING_VERSION = 0.35.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -415,7 +419,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.34.1;
+				MARKETING_VERSION = 0.35.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

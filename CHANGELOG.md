@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.34.1**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.35.0**
+
+### Changed
+
+- **iPhone: the sign-in is kept per server, ready for more than one.** Nothing looks different yet. The phone's sign-in (the server's address, its token and any Cloudflare sign-in) moves from one Keychain item to one item for each server, with the same protection as before: on this device only, never in iCloud. Updating carries your sign-in over without signing you out, along with whether the phone keeps last-known numbers, the numbers themselves (now in a folder per server, deleted when that server is signed out) and the web theme it matches. The account each page shows is remembered per server in each window. If the carry-over can't be written, the old sign-in stays where it was and the next start tries again (`ConnectionStore`; iOS 0.35.0).
 
 ### Fixed
 

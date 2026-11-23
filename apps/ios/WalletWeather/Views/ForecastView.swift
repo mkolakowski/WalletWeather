@@ -12,6 +12,8 @@ struct ForecastView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(\.horizontalSizeClass) private var sizeClass
     @SceneStorage("forecast.account") private var accountId = 0
+    /// The account chosen on each other connection, in this window (#299).
+    @SceneStorage("forecast.account.byConnection") private var accountMemo = ""
     @SceneStorage("forecast.month") private var monthText = ""
     /// The "To confirm" switch (#90): only the lines due up to today and
     /// not yet paid, each with Paid as planned and a box for another amount.
@@ -81,6 +83,7 @@ struct ForecastView: View {
         } message: {
             Text(problem ?? "")
         }
+        .scopedToConnection($accountId, memo: $accountMemo)
         .task(id: model.generation) { await loadAll() }
         .task(id: "\(accountId)/\(monthText)") { await loadMonth() }
         // An account chosen in Search (#112): this month of it.

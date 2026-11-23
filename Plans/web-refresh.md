@@ -9,11 +9,13 @@ Tracking issue: #289
 | 1. Surfaces, titles and controls | Web | #281 | Built in web 1.109.0, 2026-11-23; waits for your look and the release after phase 8 |
 | 2. Four bugs the review found | Web | #282 | Built in web 1.108.1, 2026-11-23; waits for your look and the release after phase 8 |
 | 3. Readable themes, web and iPhone | Web, iOS | #283 | Built in web 1.110.0 and iOS 0.34.0, 2026-11-23; waits for your look and the release after phase 8 |
-| 4. Settings, Admin and Reports | Web | #284 | Not started |
+| 4. Settings, Admin and Reports | Web | #284 | Built in web 1.111.0, 2026-11-23; waits for your look and the release after phase 8 |
 | 5. Forecast and Bills tables | Web | #285 | Not started |
 | 6. Date format and row height settings | Server, Web | #286 | Not started |
 | 7. Dashboard, Calendar, sign-in, phone | Web | #287 | Not started |
 | 8. Top bar and account menu | Web | #288 | Not started |
+
+Phase 4 built 2026-11-23 in web 1.111.0 (no server change): Admin gets real tabs and `data-admin-section` panels (General, Sign-in security, Bank and email, Users, Backups, Audit log), switched by `showAdminSection` with `#admin/<section>` addresses, like Settings; the wide two-column layout, switches, worded user buttons, quiet row actions and the Reports tidy as trial.css sections 14 to 16. Found and fixed along the way: the phone Reports page scrolled sideways (the editor's actions row couldn't wrap). Verified: every Settings tab, every Admin section and Reports before (a128c50) and after at 1440 and 390px, on a page linked from #284; the Admin sections driven in a browser (address, clicks, arrow keys, Back, a switch saving); full API run, 1245 passed.
 
 Phase 3 built 2026-11-23 in web 1.110.0 and iOS 0.34.0 (no server change): the 21 failing colours changed in place in each theme block; Solarized and Synthwave chips; Solarized and Mint take Light's shadow; the theme blocks also style `.theme-mini[data-t]`, which the picker's tiny screens use (System split with `clip-path`); Light's caption is "Clean white". Verified: `theme-contrast.py` reports none under 4.5:1; Forecast in all ten themes and Settings → Appearance before (52f74b1) and after, on a page linked from #283; `swift test` 210 passed; the demo on Forecast in Solarized and Synthwave in the iPhone Duo simulator through `with-simulator.sh`; full API run, 1245 passed.
 

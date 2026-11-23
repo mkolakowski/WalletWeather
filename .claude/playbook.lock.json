@@ -2,18 +2,20 @@
   "policy": "ask",
   "mode": "copy",
   "publish": "general",
-  "updated": "2026-11-14 11:31 AM EST",
+  "updated": "2026-11-22 07:15 PM EST",
   "global_rules": "project",
   "values": {
     "plans_dir": "Plans",
     "default_branch": "main",
-    "version_source": "apps/server/app/main.py (APP_VERSION), with WEB_VERSION in apps/web/index.html and SCHEMA_VERSION in apps/server/app/db.py"
+    "version_source": "apps/server/app/main.py (APP_VERSION), with WEB_VERSION in apps/web/index.html and SCHEMA_VERSION in apps/server/app/db.py",
+    "test_command": "docker compose -f docker-compose.test.yml run --rm tests; (cd apps/ios/WalletWeatherKit && swift test) for iOS changes",
+    "simulator_wrapper": "~/GitHub/mkplus/Scripts/with-simulator.sh"
   },
   "target_file": "CLAUDE.md",
   "playbook": {
     "repo": "mkolakowski/claude-playbook",
-    "version": "1.8.0",
-    "commit": "613f249"
+    "version": "1.14.2",
+    "commit": "a83fb42"
   },
   "modules": {
     "own-repos-only": {
@@ -49,8 +51,8 @@
     "remote-session": {
       "decision": "take",
       "group": "personal",
-      "source_hash": "de04ace2555e",
-      "written_hash": "de04ace2555e"
+      "source_hash": "9797680fcb4f",
+      "written_hash": "9797680fcb4f"
     },
     "eastern-time": {
       "decision": "take",
@@ -65,10 +67,11 @@
       "written_hash": "9bcaeebbd21b"
     },
     "end-of-turn": {
-      "decision": "take",
+      "decision": "merge",
       "group": "personal",
-      "source_hash": "21cd5fe83551",
-      "written_hash": "21cd5fe83551"
+      "source_hash": "db85126188db",
+      "written_hash": "81a0bb634352",
+      "note": "the playbook's text, with this repo's closing rule: close once the GitHub Release is published and its Build and push to GHCR run has passed (#97, docs/dev/decisions/issue-closing.md)"
     },
     "design-calls": {
       "decision": "take",
@@ -79,20 +82,20 @@
     "issue-workflow": {
       "decision": "take",
       "group": "workflow",
-      "source_hash": "2ef461b8a1a5",
-      "written_hash": "2ef461b8a1a5"
+      "source_hash": "93ef40b1232d",
+      "written_hash": "93ef40b1232d"
     },
     "plans": {
       "decision": "take",
       "group": "workflow",
-      "source_hash": "ef31147a8c79",
-      "written_hash": "32c9748e83f3"
+      "source_hash": "50014bf3337b",
+      "written_hash": "c8873b49b98f"
     },
     "agents-and-tools": {
       "decision": "take",
       "group": "workflow",
-      "source_hash": "28a1ac43693b",
-      "written_hash": "28a1ac43693b"
+      "source_hash": "0c0b700c454e",
+      "written_hash": "0c0b700c454e"
     },
     "git-concurrent": {
       "decision": "take",
@@ -152,15 +155,15 @@
       "decision": "merge",
       "group": "releases",
       "source_hash": "6e302c9f5e02",
-      "written_hash": "dc1b4572cb11",
-      "note": "this repo's Unreleased section, three version numbers and release by tagging, with the playbook's Breaking: prefix and entries written for the person using the app"
+      "written_hash": "2b48ccc5b01e",
+      "note": "this repo's Unreleased section, its version numbers (APP_VERSION, WEB_VERSION, SCHEMA_VERSION, iOS MARKETING_VERSION) and release by tagging, with the playbook's Breaking: prefix and entries written for the person using the app"
     },
     "licensing": {
       "decision": "merge",
       "group": "safety",
       "source_hash": "71c2f9be39fc",
-      "written_hash": "a4ef6e8184d8",
-      "note": "names psycopg (LGPL-3.0, an unmodified dependency) as the one exception already in use"
+      "written_hash": "fe52a1b30810",
+      "note": "names psycopg (LGPL-3.0) and certifi (MPL-2.0, via httpx) as the exceptions in use, and the test_licences.py check (#47)"
     },
     "scheduled-checks": {
       "decision": "n/a",
@@ -168,29 +171,35 @@
       "source_hash": "b5efebc04fe0"
     },
     "tests": {
-      "decision": "n/a",
+      "decision": "merge",
       "group": "tests",
-      "source_hash": "42c13abd6ce3"
+      "source_hash": "42c13abd6ce3",
+      "written_hash": "84d264cc7937",
+      "note": "test_command is the docker compose test run, plus swift test in WalletWeatherKit for iOS changes; a TestFlight upload (testflight.sh) needs a full run; the scheduled-run line dropped: nothing runs on a schedule"
     },
     "simulator-lock": {
-      "decision": "n/a",
+      "decision": "take",
       "group": "platform",
-      "source_hash": "94e2e44e8607"
+      "source_hash": "b684c026d5eb",
+      "written_hash": "11562abdbc32"
     },
     "settings-toggle": {
-      "decision": "n/a",
+      "decision": "take",
       "group": "platform",
-      "source_hash": "f1906b0723f0"
+      "source_hash": "f1906b0723f0",
+      "written_hash": "f1906b0723f0"
     },
     "layout-locks": {
-      "decision": "n/a",
+      "decision": "take",
       "group": "platform",
-      "source_hash": "0ad7c18b5c2d"
+      "source_hash": "0ad7c18b5c2d",
+      "written_hash": "0ad7c18b5c2d"
     },
     "docs": {
-      "decision": "n/a",
+      "decision": "skip",
       "group": "docs",
-      "source_hash": "3aec8ac57253"
+      "source_hash": "3aec8ac57253",
+      "note": "docs/ is mostly dev decision pages; front matter, linters, a picture manifest and a scheduled staleness check are too heavy for it (asked 2026-11-22, #271)"
     },
     "dashboard": {
       "decision": "n/a",
@@ -201,15 +210,18 @@
       "decision": "take",
       "group": "header",
       "source_hash": "5992717be7d9",
-      "written_hash": "9af1e0745be9"
+      "written_hash": "73af4b314a05"
     }
   },
   "skills": {
-    "session-title": "1.8.0",
-    "whats-next": "1.8.0",
-    "new-plan": "1.8.0",
-    "resolve-open-questions": "1.8.0",
-    "record-decision": "1.8.0",
-    "new-skill": "1.8.0"
+    "session-title": "1.14.2",
+    "whats-next": "1.14.2",
+    "new-plan": "1.14.2",
+    "resolve-open-questions": "1.14.2",
+    "record-decision": "1.14.2",
+    "new-skill": "1.14.2",
+    "test-review": "1.14.2",
+    "offload-to-drive": "1.14.2",
+    "orchestrate": "1.14.2"
   }
 }

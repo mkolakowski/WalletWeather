@@ -1,0 +1,22 @@
+{
+  "_about": "Limits for the orchestrate skill on the Mac mini (8 cores, 8 GB), shared with every session on the machine: see .claude/skills/orchestrate/scripts/orchestrate.py DEFAULTS (#271).",
+  "_heavy": {
+    "_note": "Run each of these only as: python3 .claude/skills/orchestrate/scripts/orchestrate.py heavy --label \"<piece>\" -- <command>",
+    "server tests": "docker compose -f docker-compose.test.yml run --rm tests  (then: docker compose -f docker-compose.test.yml down)",
+    "server image": "docker compose build",
+    "iOS package tests": "cd apps/ios/WalletWeatherKit && swift test",
+    "iOS project": "cd apps/ios && xcodegen generate",
+    "iOS simulator build": "cd apps/ios && ~/GitHub/mkplus/Scripts/with-simulator.sh xcodebuild -project WalletWeather.xcodeproj -scheme WalletWeather -destination 'platform=iOS Simulator,name=iPhone Duo' build",
+    "TestFlight upload": "apps/ios/Scripts/testflight.sh  (only when asked, after a full test run passed)"
+  },
+  "_extra_locks": "mkplus's with-simulator.sh holds /tmp/pillowplayer-simulator.lock for every simulator command on this Mac, so a simulator run in any project counts as the heavy job.",
+  "max_workers": 3,
+  "max_sessions": 2,
+  "max_heavy": 1,
+  "min_memory_free_pct": 25,
+  "min_free_disk_gb": 8,
+  "load_per_core": 1.5,
+  "slot_hours": 3,
+  "stale_heavy_hours": 2,
+  "extra_locks": ["/tmp/pillowplayer-simulator.lock"]
+}

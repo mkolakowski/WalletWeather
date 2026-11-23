@@ -44,10 +44,10 @@ Rate limiting and sign-in events` or `WW: 1.44.0: release`. The prefix counts
 toward the ~60 characters and is never shortened. Why: on the phone's session
 list it tells WalletWeather threads apart from other projects'.
 
-<!-- playbook:begin project-header 1.8.0 -->
+<!-- playbook:begin project-header 1.14.2 -->
 ## Rules from claude-playbook
 
-These blocks come from claude-playbook v1.8.0 (613f249). Run `/playbook`
+These blocks come from claude-playbook v1.14.2 (a83fb42). Run `/playbook`
 to update them. To change a rule for this project, edit it inside its block
 (the next update asks whether to keep your version) or write the project's
 own rule elsewhere in this file: rules outside the blocks win where they
@@ -56,22 +56,19 @@ differ.
 In use here:
 
 - **Safety:** Only my own repos; Untrusted input; No destructive fixes; Secrets, and where files go; Stable identifiers; Licensing guardrails (merged with this repo's rule)
-- **How I work:** I'm on a remote session; Times in Eastern; Session titles; The end of a turn; Design calls are mine
+- **How I work:** I'm on a remote session; Times in Eastern; Session titles; Questions and the end of a turn (merged with this repo's rule); Design calls are mine
 - **Issues and plans:** Work from an issue; Plans: a plan file and a set of issues; Issues: agents and tools
 - **Releases and git:** The release routine (merged with this repo's rule); Git: commits and other sessions
-- **Tests:** A new endpoint lands with its tests
-- **Platform:** Docker; Images are built on release
+- **Tests:** Tests: run what a change touches (merged with this repo's rule); A new endpoint lands with its tests
+- **Platform:** Docker; Images are built on release; One simulator at a time; Settings toggles for behavior changes; Locked layouts
 - **Docs and records:** This file holds rules only; Prompt log
 - **Models, tools and skills:** Models, subagents and token use; Memory; Tools and skills
 
 Left out on purpose (don't add these back without asking):
 
 - Not needed (nothing runs on a schedule): Scheduled checks keep one issue
-- Not needed (no tests): Tests: run what a change touches
-- Not needed (no mobile app to run in a simulator): One simulator at a time
-- Not needed (no mobile app): Settings toggles for behavior changes; Locked layouts
-- Not needed (no docs folder): Docs
 - Not needed (no project dashboard): Project dashboard and agent log
+- Skipped: Docs (docs/ is mostly dev decision pages; front matter, linters, a picture manifest and a scheduled staleness check are too heavy for it (asked 2026-11-22, #271))
 <!-- playbook:end project-header -->
 
 <!-- playbook:begin own-repos-only 1.8.0 -->
@@ -195,7 +192,7 @@ Why: one copied file under the wrong licence can change what the whole
 project is allowed to ship.
 <!-- playbook:end licensing -->
 
-<!-- playbook:begin remote-session 1.8.0 -->
+<!-- playbook:begin remote-session 1.14.2 -->
 ## I'm on a remote session
 
 Assume I'm reaching the session remotely (phone, browser, another computer)
@@ -212,6 +209,12 @@ chat.
 - **Text I'll paste somewhere else** (a web dashboard, a form, another chat)
   goes in a fenced code block on its own, or as a sent file or link when it's
   long.
+- **A fresh session's first prompt** goes in a code block too: when a turn
+  ends by suggesting `/clear` (or a new session) for the next round, give the
+  exact text to paste into it in a fenced block of its own, after the steps
+  (`/clear`, a model switch). It has to stand alone: the issue, the plan and
+  phase, and any decision from this session that the new one needs and the
+  plan or issue doesn't already hold.
 - When a step truly needs someone at the machine (a cable, a Face ID prompt,
   an IDE click), say so plainly as the one thing I'll have to do in person.
 
@@ -265,14 +268,20 @@ session list on my phone says what each thread is doing.
 Why: the session list on my phone is how I tell the threads apart.
 <!-- playbook:end session-titles -->
 
-<!-- playbook:begin end-of-turn 1.8.0 -->
-## The end of a turn
+<!-- playbook:begin end-of-turn 1.14.2 -->
+## Questions and the end of a turn
 
-- End a finished turn with a clickable multiple choice of next steps
-  (AskUserQuestion). When the work is on a plan, the first choice is the
-  plan's next open phase, marked "(Recommended)", with the model it needs.
-  Offer a fresh session when the next thing is unrelated and the context is
-  big.
+- **Every question to me is a clickable multiple choice** (AskUserQuestion),
+  not a question at the end of a reply: a clarification, a confirmation
+  (close this issue? open a PR?), a design call, which item to do next. Two
+  to four concrete options, the one you'd pick first marked
+  "(Recommended)"; I can always type my own answer instead. Put the
+  question's context in the question itself, since the dialog may be all I
+  see. Where the tool isn't available, number the options in the reply.
+- End a finished turn with a multiple choice of next steps. When the work
+  is on a plan, the first choice is the plan's next open phase, marked
+  "(Recommended)", with the model it needs. Offer a fresh session when the
+  next thing is unrelated and the context is big.
 - Report outcomes faithfully: failing tests with their output, skipped steps
   named, and done-and-verified stated plainly, without hedging.
 - Close an issue once its change is released (decided 2026-11-14, #97;
@@ -290,8 +299,9 @@ Why: the session list on my phone is how I tell the threads apart.
   issues, the plan in flight, known limitations, unpushed work) and offers
   the strongest candidates.
 
-Why: picking the next step from a list is quicker than typing it on a phone,
-and a hedged report hides what actually happened.
+Why: tapping an answer is quicker than typing one on a phone, a question
+buried at the end of a reply is easy to miss, and a hedged report hides
+what actually happened.
 <!-- playbook:end end-of-turn -->
 
 <!-- playbook:begin design-calls 1.8.0 -->
@@ -314,7 +324,7 @@ Why: a choice made silently gets built on, and by the time I see it,
 undoing it costs a version.
 <!-- playbook:end design-calls -->
 
-<!-- playbook:begin issue-workflow 1.8.0 -->
+<!-- playbook:begin issue-workflow 1.14.2 -->
 ## Work from an issue
 
 Each request that changes something is worked from a GitHub issue, a
@@ -357,7 +367,7 @@ this and win where they differ. Without being asked, in this order:
    default branch would close it), comment on the issue when it lands (what
    was done, the version, how it was verified, and numbered "How to test"
    steps when something I use changed), and close it once its version is
-   released (see "The end of a turn").
+   released ("The end of a turn" says when).
 
 - No GitHub repo, `gh` can't reach it, or issues are off: skip it and say so
   once.
@@ -366,7 +376,7 @@ Why: the issue then holds what was asked, the commits that name it and how
 it was checked, in one place.
 <!-- playbook:end issue-workflow -->
 
-<!-- playbook:begin plans 1.8.0 -->
+<!-- playbook:begin plans 1.14.2 -->
 ## Plans: a plan file and a set of issues
 
 Work that ships in stages, needs a design choice or my check between steps,
@@ -413,7 +423,7 @@ Why: work that spans versions needs one place that says what's done, what's
 next and what's waiting on me.
 <!-- playbook:end plans -->
 
-<!-- playbook:begin agents-and-tools 1.8.0 -->
+<!-- playbook:begin agents-and-tools 1.14.2 -->
 ## Issues: agents and tools
 
 Every issue that describes work still to do carries an Agents and tools
@@ -490,6 +500,26 @@ Why: other sessions' work sits in the same checkout, and a commit that isn't
 pushed exists on one machine only.
 <!-- playbook:end git-concurrent -->
 
+<!-- playbook:begin tests 1.14.2 -->
+## Tests: run what a change touches
+
+- Before a release commit, run `docker compose -f docker-compose.test.yml run --rm tests` (then `docker compose -f docker-compose.test.yml down`), and `(cd apps/ios/WalletWeatherKit && swift test)` when the iOS app changed: the fast tests in full,
+  plus the slower tests the change touches.
+- Keep the tests in tiers (fast, slow, and live: needs a server, a device or
+  a flag), so a routine run stays quick.
+- When a release's changes haven't had a test run since they were made, run
+  them, or say in the summary why not.
+- A TestFlight upload (`apps/ios/Scripts/testflight.sh`) needs a full run that passed on the commit's code.
+- Tests, scripts and screenshots never use private or sensitive servers or
+  accounts, only test ones.
+- `/test-review` looks at the suite itself: where the time goes, tests in
+  the wrong tier, tests that always skip, repeats, and code no test touches.
+  It proposes merges and removals and never makes them without my OK.
+
+Why: a full run on every change is too slow to keep up, and no run at all
+ships regressions.
+<!-- playbook:end tests -->
+
 <!-- playbook:begin api-tests 1.8.0 -->
 ## A new endpoint lands with its tests
 
@@ -545,6 +575,60 @@ branch.
 Why: every published image then matches a version someone decided to put
 out, and `latest` never points at work in progress.
 <!-- playbook:end build-on-release -->
+
+<!-- playbook:begin simulator-lock 1.14.2 -->
+## One simulator at a time
+
+Several sessions can work in this repo, and two simulator or emulator jobs at
+once can bring the machine to a crawl.
+
+- Run anything that uses a simulator or emulator (UI and unit test runs,
+  installs, launches) through mkplus's `~/GitHub/mkplus/Scripts/with-simulator.sh` (the Mac-wide lock `/tmp/pillowplayer-simulator.lock`; set `SIMULATOR_UDID` for a device other than the iPhone Duo): it holds a lock shared by
+  every session, waits its turn, shuts down other simulators, adds a time
+  limit per test and skips long diagnostics on failure. A PreToolUse hook can
+  refuse simulator commands run without it.
+- Use the one designated simulator; don't boot others, except in a documented
+  flow (screenshots) that takes them one at a time.
+- Keep the disk from filling: know which caches grow back and clear them.
+  Under 8 GB free, clear those caches without asking and say so; anything
+  else in the build folder may be another session's work, so ask first. On
+  odd simulator failures, check free space first. To move the caches to an
+  external drive, use `/offload-to-drive`: simulators can't follow, and a
+  simulator app reads the drive only once macOS has been allowed to.
+
+Why: two simulator jobs at once have brought the machine to a crawl.
+<!-- playbook:end simulator-lock -->
+
+<!-- playbook:begin settings-toggle 1.14.2 -->
+## Settings toggles for behavior changes
+
+When adding or changing how an interaction behaves (gesture directions,
+which side a control sits on, automatic actions like auto-play) and some
+people would want it the other way, add a setting for it in the same piece of
+work, without being asked. Default it to the new behavior, put it where
+people would look for it, and give it a one-line footer saying what it does.
+Skip this only for pure bug fixes and changes nobody would plausibly want
+reversed, and mention in the summary when a toggle was left out on purpose.
+
+Why: a change some people would want the other way shouldn't leave them
+stuck with it.
+<!-- playbook:end settings-toggle -->
+
+<!-- playbook:begin layout-locks 1.14.2 -->
+## Locked layouts
+
+When I call a layout final, lock it with a golden-file test that records
+everything the layout code works out (positions, sizes, counts, insets) and
+compares it on every run.
+
+- Keep the lock test passing: make changes for other screens take effect only
+  off the locked one (guard on the screen, not on a single flag).
+- Re-record the golden file only when I explicitly ask to change that layout,
+  and call out the diff.
+
+Why: a layout tuned by hand for one device is easy to break while fixing
+another.
+<!-- playbook:end layout-locks -->
 
 <!-- playbook:begin claude-md-hygiene 1.8.0 -->
 ## This file holds rules only

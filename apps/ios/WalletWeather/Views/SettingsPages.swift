@@ -18,6 +18,7 @@ struct SettingsPageView: View {
         case .bank: BankSyncPage()
         case .appearance: AppearancePage()
         case .privacy: PrivacyPage()
+        case .display: DatesDisplayPage()
         case .backup: BackupPage()
         case .move: MovePage()
         case .help: HelpPage()
@@ -303,6 +304,23 @@ private struct PrivacyPage: View {
             SettingNote(settings.biometryName != nil
                         ? "The numbers are hidden in the app switcher either way, lock on or off."
                         : "The numbers are hidden in the app switcher. Set up Face ID or Touch ID in the Settings app to lock WalletWeather too.")
+        }
+    }
+}
+
+/// Dates & display: whether the pages that keep an account follow the one
+/// picked on any of them (#317). The date format joins it later (#296).
+private struct DatesDisplayPage: View {
+    @Environment(AppSettings.self) private var settings
+
+    var body: some View {
+        SettingsPageFrame(title: "Dates & display") {
+            Toggle(SettingsRow.followAccount.title, isOn: Binding(
+                get: { settings.pagesFollowAccount },
+                set: { settings.pagesFollowAccount = $0 }))
+                .frame(minHeight: 44)
+                .card()
+            SettingNote("Picking an account on Forecast, Bills & income or Calendar shows it on the other two. Off, each page keeps its own.")
         }
     }
 }

@@ -14,6 +14,8 @@ struct BillsView: View {
     @SceneStorage("bills.account") private var accountId = 0
     /// The account chosen on each other connection, in this window (#299).
     @SceneStorage("bills.account.byConnection") private var accountMemo = ""
+    @Environment(AppSettings.self) private var settings
+    private let follower = AccountFollower()
     @SceneStorage("bills.ended") private var showEnded = false
 
     @State private var accounts: [Account] = []
@@ -29,6 +31,16 @@ struct BillsView: View {
 
     private var editableAccounts: [Account] { accounts.filter(model.canEdit) }
     private var account: Account? { accounts.first { $0.id == accountId } }
+
+    /// The account menu's selection: a pick here also moves the other pages
+    /// (#317); the page's own automatic changes don't go through it.
+    private var pickedAccount: Binding<Int> {
+        Binding(get: { accountId },
+                set: { id in
+                    accountId = id
+                    follower.picked(id, on: .bills, following: settings.pagesFollowAccount)
+                })
+    }
 
     var body: some View {
         PageStack {
@@ -150,7 +162,7 @@ struct BillsView: View {
     private var accountPicker: some View {
         if accounts.count > 1 {
             Menu {
-                Picker("Account", selection: $accountId) {
+                Picker("Account", selection: pickedAccount) {
                     Text("All accounts").tag(0)
                     ForEach(accounts) { Text($0.name).tag($0.id) }
                 }

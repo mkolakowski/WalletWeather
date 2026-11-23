@@ -72,6 +72,13 @@ final class AppSettings {
         look == .web ? .matching(ServerTheme(serverTheme)) : look
     }
 
+    /// Pages follow the same account (#317): an account picked on Forecast,
+    /// Bills & income or Calendar is shown on the other two. On unless
+    /// turned off; a phone that never set it reads as on.
+    var pagesFollowAccount: Bool {
+        didSet { defaults.set(pagesFollowAccount, forKey: Keys.followAccount) }
+    }
+
     private(set) var lockEnabled: Bool {
         didSet { defaults.set(lockEnabled, forKey: Keys.lockEnabled) }
     }
@@ -94,6 +101,7 @@ final class AppSettings {
         static let startDismissed = "start.dismissed"
         static let lockEnabled = "lock.enabled"
         static let lockOffered = "lock.offered"
+        static let followAccount = "pages.followAccount"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -114,6 +122,7 @@ final class AppSettings {
         let enabled = defaults.bool(forKey: Keys.lockEnabled)
         lockEnabled = enabled
         lockOffered = defaults.bool(forKey: Keys.lockOffered)
+        pagesFollowAccount = defaults.object(forKey: Keys.followAccount) as? Bool ?? true
         // Locked from a fresh start, unless launched for screenshots.
         locked = enabled && AppModel.debugSetting("WW_DEBUG_SERVER") == nil
         Palette.look = shownLook

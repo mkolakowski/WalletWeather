@@ -14,6 +14,7 @@ struct ForecastView: View {
     @SceneStorage("forecast.account") private var accountId = 0
     /// The account chosen on each other connection, in this window (#299).
     @SceneStorage("forecast.account.byConnection") private var accountMemo = ""
+    private let follower = AccountFollower()
     @SceneStorage("forecast.month") private var monthText = ""
     /// The "To confirm" switch (#90): only the lines due up to today and
     /// not yet paid, each with Paid as planned and a box for another amount.
@@ -101,6 +102,7 @@ struct ForecastView: View {
         .onChange(of: model.forecastRequest, initial: true) { _, request in
             guard let request else { return }
             accountId = request
+            follower.picked(request, on: .forecast, following: settings.pagesFollowAccount)
             monthText = ""
             confirming = false
             model.forecastRequest = nil
@@ -353,6 +355,7 @@ struct ForecastView: View {
     private func switchAccount(_ id: Int) {
         open = nil
         accountId = id
+        follower.picked(id, on: .forecast, following: settings.pagesFollowAccount)
     }
 
     private func markPaid(_ line: ForecastLine) {

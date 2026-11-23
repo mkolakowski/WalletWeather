@@ -32,7 +32,7 @@ public enum SettingsSection: String, CaseIterable, Identifiable, Sendable {
 /// A page a row opens. The raw values are what `WW_DEBUG_SETTINGS` takes
 /// (Debug builds).
 public enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable {
-    case connection, bank, appearance, privacy, backup, move, help, keep, tags, tabBar, notice
+    case connection, bank, appearance, privacy, display, backup, move, help, keep, tags, tabBar, notice
 
     public var id: String { rawValue }
 
@@ -42,6 +42,7 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable
         case .bank: "Bank sync"
         case .appearance: "Appearance"
         case .privacy: "Privacy & lock"
+        case .display: "Dates & display"
         case .backup: "iCloud & backup"
         case .move: "Move to a server"
         case .help: "Help & Getting started"
@@ -72,7 +73,7 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
     // The root list.
     case connection, morePages
     case tags, bankSync, iCloudBackup, moveToServer, addAccount, importCSV
-    case appearance, tabBar, privacyLock
+    case appearance, tabBar, privacyLock, datesDisplay
     case notice, help, versions
     // The connection's page: a server, this iPhone, the demo.
     case address, signedInAs, cloudflare, keep, openWebApp, signOut
@@ -86,6 +87,8 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
     case looks
     // Privacy & lock.
     case lock, appSwitcher
+    // Dates & display.
+    case followAccount
     // iCloud & backup.
     case syncWithICloud, backupToICloudDrive, backupPassphrase
     // Move to a server.
@@ -108,6 +111,7 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
         case .appearance: "Appearance"
         case .tabBar: "Tab bar"
         case .privacyLock: "Privacy & lock"
+        case .datesDisplay: "Dates & display"
         case .notice: "Important notice"
         case .help: "Help & Getting started"
         case .versions: "Versions"
@@ -128,6 +132,7 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
         case .looks: "Looks"
         case .lock: "Lock with Face ID or Touch ID"
         case .appSwitcher: "In the app switcher"
+        case .followAccount: "Pages follow the same account"
         case .syncWithICloud: "Sync with iCloud"
         case .backupToICloudDrive: "Back up to iCloud Drive"
         case .backupPassphrase: "Backup passphrase"
@@ -142,14 +147,14 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
     public var kind: Kind {
         switch self {
         case .connection, .morePages, .tags, .bankSync, .iCloudBackup, .moveToServer,
-             .appearance, .tabBar, .privacyLock, .notice, .help, .keep:
+             .appearance, .tabBar, .privacyLock, .datesDisplay, .notice, .help, .keep:
             .page
         case .addAccount, .importCSV, .backToFirstScreen, .leaveDemo, .showGettingStarted,
              .backupPassphrase, .exportForServer, .importServerBackup:
             .action
         case .openWebApp, .privacyPolicy, .setupGuide:
             .link
-        case .lock, .syncWithICloud, .backupToICloudDrive:
+        case .lock, .followAccount, .syncWithICloud, .backupToICloudDrive:
             .toggle
         case .keepNothing, .keepLastKnown, .looks:
             .choice
@@ -173,6 +178,7 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
         case .appearance: .appearance
         case .tabBar: .tabBar
         case .privacyLock: .privacy
+        case .datesDisplay: .display
         case .notice: .notice
         case .help: .help
         case .keep: .keep
@@ -192,6 +198,7 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
         case .appearance: "paintpalette"
         case .tabBar: "dock.rectangle"
         case .privacyLock: "lock"
+        case .datesDisplay: "calendar"
         case .notice: "doc.plaintext"
         case .help: "questionmark.circle"
         default: nil
@@ -241,7 +248,7 @@ public struct SettingsLayout: Equatable, Sendable {
             if canWrite { household.append(.importCSV) }
         }
         groups.append(SettingsGroup(section: .household, rows: household))
-        groups.append(SettingsGroup(section: .thisIPhone, rows: [.appearance, .tabBar, .privacyLock]))
+        groups.append(SettingsGroup(section: .thisIPhone, rows: [.appearance, .tabBar, .privacyLock, .datesDisplay]))
         groups.append(SettingsGroup(section: .about, rows: [.notice, .help, .versions]))
         return groups
     }
@@ -262,6 +269,7 @@ public struct SettingsLayout: Equatable, Sendable {
         case .keep: return household == .server ? [.keepNothing, .keepLastKnown] : []
         case .bank: return [.bankCard]
         case .appearance: return [.looks]
+        case .display: return [.followAccount]
         case .privacy: return (hasBiometry ? [.lock] : []) + [.appSwitcher]
         case .backup: return household == .thisIPhone ? [.syncWithICloud, .backupToICloudDrive, .backupPassphrase] : []
         case .move: return household == .thisIPhone ? [.exportForServer, .importServerBackup] : []

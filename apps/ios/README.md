@@ -116,7 +116,8 @@ line (or that bill, on Bills & income) in the editor,
 `SIMCTL_CHILD_WW_DEBUG_ACCOUNT=Checking` picks an account and
 `SIMCTL_CHILD_WW_DEBUG_DAY=2026-11-11` a day.
 `SIMCTL_CHILD_WW_DEBUG_SETTINGS=<page>` opens Settings on one of its pages
-(#294): `connection`, `bank`, `appearance`, `privacy`, `backup`, `move`,
+(#294): `connection`, `bank`, `appearance`, `privacy`, `display` (Dates &
+display), `backup`, `move`,
 `help` or `keep` (Keep on this iPhone, under the connection's page);
 `WW_DEBUG_TAGS=1` opens Tags and `WW_DEBUG_BANK` Bank sync.
 `SIMCTL_CHILD_WW_DEBUG_UNDO=Rent` shows the Forecast's Undo bar for that line

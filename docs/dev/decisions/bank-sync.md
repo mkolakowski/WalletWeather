@@ -183,3 +183,21 @@ Decisions made while planning and building [`Plans/bank-sync.md`](../../../Plans
 **Why:** the point of passing a connection on is that the shared account keeps syncing; arriving paused would undo that for most instances, where the deleting person (or the admin) rarely thinks to tick someone afterwards.
 
 **Along with it:** a passed connection keeps its links to accounts the new holder doesn't own (question 1). Settings shows those as text rather than a dropdown, the server refuses to change them for anyone but the account's owners, and an owner's shared-account card has **Stop syncing** (`DELETE /api/accounts/{id}/bank-link`), so "their owners can unlink" has a way to happen. The sync logs a deleted person's connections made on accounts that stay are kept, under the account's owner.
+
+## 2026-11-23: each person's own Teller and Plaid keys
+
+**Decided:** 2026-11-23, by Matthew, while planning [`Plans/own-bank-keys.md`](../../../Plans/own-bank-keys.md), from the question "what would be needed to move the place to store variables for bank sync inside the database, changing the admin to turn on and allow the connections then the users themselves add the connection information to their account". **Status:** accepted; replaces the part of 2026-11-20 that has each instance bring its own keys in `.env` ("as Google sign-in does").
+
+**The questions and what was chosen** (the first option listed is the one chosen):
+
+- **Who enters Teller's and Plaid's keys:** each person, under their own account; not the admin once for everyone in Admin; not both (admin's as a default, a person's own instead).
+- **Keys already in `.env` and connections made with them:** copied on upgrade to everyone with a connection of that service, after which `.env` isn't read for them; not ignored (connections paused until reconnected); not kept as a fallback for people without keys.
+- **A connection passed on when its person is deleted (#266):** each connection keeps an encrypted copy of the keys it was made with, so it keeps syncing for its new holder; not the keys becoming the new holder's own; not paused until reconnected.
+- **Replacing or removing keys connections use:** refused until those connections are disconnected, naming them; replacing with the same id (a renewed certificate) is allowed; not allowed with the connections paused. (Whether this is still wanted, now that connections keep their own copy, is open question 2 of the plan.)
+- **Where keys are entered:** the web's Settings and the iPhone app; not the web only.
+- **Backups and moves:** only in sealed backups and moves, as bank connections; never in a plain export; not never.
+- **What an admin sees:** whether each person has keys per service and in which environment, never the keys; not nothing.
+- **Teller's certificate on the web:** Teller's zip by default, with two file pickers and pasted text as fallbacks.
+- **Scope of the first phase:** server and web together, with sealed backups and the check on save; the Admin marks (phase 2) and the iPhone (phase 3) wait. Done means tests in CI and a release, with no hands-on check between phases.
+
+**Why:** a person's bank login goes through a developer account they hold themselves, so their logins count against their own Teller or Plaid limits and nobody else's keys can read their bank. The admin keeps what they already have (the switch and the ticks) without handling anyone's secrets. Copying `.env` on upgrade and a copy per connection mean nothing that syncs today stops.

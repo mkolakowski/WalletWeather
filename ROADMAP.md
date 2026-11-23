@@ -271,6 +271,12 @@ built for 1.86.0 (#254) and out once that release is published. Phase 2
 built for 1.87.0 (#255), and phase 3 (the bank's balance next to yours, with Adjust to bank)
 for 1.88.0 (#256), also unreleased.
 
+**2026-11-23:** each person brings their own Teller and Plaid keys, entered
+in their Settings and kept encrypted in the database, instead of the
+operator's keys in `.env` (which are copied to the people using them on
+upgrade): `Plans/own-bank-keys.md` (#279). The admin keeps the Bank sync
+switch and the ticks per person.
+
 Either one stores a long-lived, read-only bank token, so encrypted backups
 (item 12) and two-factor sign-in (item 14) should come first. `PRIVACY.md`
 ("What leaves the server"), `docs/privacy.md`, `SECURITY.md` ("Known

@@ -1,6 +1,7 @@
 """Database models with field-level encryption for sensitive data."""
 import os
 import base64
+import json
 from datetime import date, datetime
 from cryptography.fernet import Fernet
 
@@ -20,7 +21,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "36"
+SCHEMA_VERSION = "37"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -31,6 +32,15 @@ SCHEMA_VERSION = "36"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v37 (2026-11-22, claude+mkolakowski): email alerts joined to bank sync
+#     rows (bank-alert-emails phase 5, #210). accounts.alert_join_days and
+#     .alert_join_percent (how many days after an alert its bank row may come
+#     and how much higher its amount may be, 7 and 30 to start);
+#     transactions.alert_enc (an alert line's own amount and date as the
+#     alert gave them, encrypted JSON, so a join can tell your edits apart
+#     and undo puts them back) and .join_enc (the bank row an alert line was
+#     joined to, encrypted JSON, enough to bring it back as its own line);
+#     bank_sync_runs.joined (how many of a sync's rows were joined).
 # v36 (2026-11-22, claude+mkolakowski): who may connect a mailbox, per
 #     person and provider (sync-access phase 5, #268). New table mail_access
 #     (one row per person and mail provider an admin has ticked). On the
@@ -185,6 +195,17 @@ def decrypt_str(value: bytes | None) -> str | None:
     return _fernet.decrypt(value).decode("utf-8")
 
 
+def _json_of(value: bytes | None) -> dict | None:
+    """An encrypted JSON object column's value, or None (#210)."""
+    if not value:
+        return None
+    try:
+        got = json.loads(decrypt_str(value))
+    except Exception:
+        return None
+    return got if isinstance(got, dict) else None
+
+
 def encrypt_decimal(value: Decimal | float | None) -> bytes | None:
     if value is None:
         return None
@@ -265,6 +286,11 @@ class Account(Base):
     starting_date = Column(Date, nullable=False)
     archived = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    # Email alerts joined to bank sync rows (#210): a bank row is the posted
+    # version of an alert's line when it comes up to this many days after the
+    # alert and its amount is at most this many percent higher (a tip).
+    alert_join_days = Column(Integer, nullable=False, default=7)
+    alert_join_percent = Column(Integer, nullable=False, default=30)
 
     owner = relationship("User", back_populates="accounts")
     recurring = relationship("RecurringTransaction", back_populates="account", cascade="all, delete-orphan")
@@ -466,6 +492,29 @@ class Transaction(Base):
     # Plaid's personal_finance_category.primary), lowercased, as it was when
     # the line landed (#255). Plain, like category_id. None for SimpleFIN.
     bank_category = Column(String(60), nullable=True)
+    # Email alerts joined to bank sync rows (#210). alert_enc: an alert
+    # line's amount and date as the alert gave them ({"amount", "date"}),
+    # set when it lands. join_enc: set while the line is joined to a bank
+    # row, what that row was ({"amount", "date", "text", ...}), so undoing
+    # the join brings it back as its own line. Both encrypted JSON.
+    alert_enc = Column(LargeBinary, nullable=True)
+    join_enc = Column(LargeBinary, nullable=True)
+
+    @property
+    def alert_values(self) -> dict | None:
+        return _json_of(self.alert_enc)
+
+    @alert_values.setter
+    def alert_values(self, v: dict | None):
+        self.alert_enc = encrypt_str(json.dumps(v)) if v else None
+
+    @property
+    def join_data(self) -> dict | None:
+        return _json_of(self.join_enc)
+
+    @join_data.setter
+    def join_data(self, v: dict | None):
+        self.join_enc = encrypt_str(json.dumps(v)) if v else None
 
     @property
     def bank_text(self) -> str | None:
@@ -832,6 +881,7 @@ class BankSyncRun(Base):
     added = Column(Integer, nullable=False, default=0)
     skipped = Column(Integer, nullable=False, default=0)
     matched = Column(Integer, nullable=False, default=0)   # paid a planned line (#196)
+    joined = Column(Integer, nullable=False, default=0)    # joined to an alert's line (#210)
     error = Column(String(300), nullable=True)
     __table_args__ = (Index("ix_bank_sync_runs_account_run", "account_id", "run_at"),)
 
@@ -1054,6 +1104,12 @@ def init_db():
     from sqlalchemy import text
     Base.metadata.create_all(engine)
     migrations = [
+        # v36 → v37: email alerts joined to bank sync rows (#210).
+        "ALTER TABLE accounts ADD COLUMN IF NOT EXISTS alert_join_days INTEGER NOT NULL DEFAULT 7",
+        "ALTER TABLE accounts ADD COLUMN IF NOT EXISTS alert_join_percent INTEGER NOT NULL DEFAULT 30",
+        "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS alert_enc BYTEA",
+        "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS join_enc BYTEA",
+        "ALTER TABLE bank_sync_runs ADD COLUMN IF NOT EXISTS joined INTEGER NOT NULL DEFAULT 0",
         # v33 → v34: the bank's balance for a linked account (#256).
         "ALTER TABLE bank_account_links ADD COLUMN IF NOT EXISTS bank_balance_enc BYTEA",
         "ALTER TABLE bank_account_links ADD COLUMN IF NOT EXISTS bank_balance_at TIMESTAMP",

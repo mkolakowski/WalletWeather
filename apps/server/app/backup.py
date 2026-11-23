@@ -246,6 +246,14 @@ def export_user(db: Session, user: User, accounts: list | None = None,
                 "bank_text": t.bank_text,
                 "bank_left": bool(t.bank_left),
             }
+            # Email alerts joined to bank sync rows (#210): the alert's own
+            # amount and date, and the bank row a joined line holds (without
+            # ids, which mean nothing in another instance). Only when set,
+            # so other backups keep their shape.
+            if t.alert_values:
+                line["alert_values"] = t.alert_values
+            if t.join_data:
+                line["join_data"] = {k: v for k, v in t.join_data.items() if k not in ("category_id", "tags")}
             if t.transfer_id is not None:
                 legs.setdefault(t.transfer_id, []).append((len(accounts_out), line))
             lines.append(line)
@@ -283,6 +291,11 @@ def export_user(db: Session, user: User, accounts: list | None = None,
             ],
             "transactions": lines,
         })
+        # How its email alerts and bank rows are joined (#210), when changed
+        # from 7 days and 30%, so other backups keep their shape.
+        if (acc.alert_join_days, acc.alert_join_percent) != (7, 30):
+            accounts_out[-1]["alert_join_days"] = acc.alert_join_days
+            accounts_out[-1]["alert_join_percent"] = acc.alert_join_percent
 
     # Each transfer whose two accounts are both in the backup, by account
     # index, with its lines pointing at it by index. A transfer to an account
@@ -577,6 +590,23 @@ def _frequency(value) -> str:
     return str(value or "monthly_day")[:20]
 
 
+def _small_dict(value) -> dict | None:
+    """A joined line's kept values from a backup (#210): a flat object of
+    short strings, numbers and booleans, else nothing."""
+    if not isinstance(value, dict) or len(value) > 20:
+        return None
+    out = {}
+    for k, v in value.items():
+        if not isinstance(k, str) or len(k) > 40:
+            return None
+        if isinstance(v, str):
+            v = v[:500]
+        elif v is not None and not isinstance(v, (bool, int, float)):
+            continue
+        out[k] = v
+    return out or None
+
+
 def _bounded_int(value, lo: int, hi: int, default: int) -> int:
     """A whole number from a backup within [lo, hi], else `default`."""
     if isinstance(value, bool) or not isinstance(value, int) or not lo <= value <= hi:
@@ -716,6 +746,8 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
         )
         acc.name = acc_name
         acc.starting_balance = _amount(acc_data.get("starting_balance", 0))
+        acc.alert_join_days = _bounded_int(acc_data.get("alert_join_days"), 0, 31, 7)
+        acc.alert_join_percent = _bounded_int(acc_data.get("alert_join_percent"), 0, 100, 30)
         db.add(acc)
         db.flush()
         # The importing user becomes the owner of every restored account.
@@ -782,6 +814,9 @@ def import_user(db: Session, user: User, payload: dict, mode: str = "merge",
                     t.bank_match = t_data["bank_match"]
                     t.bank_text = _text(t_data.get("bank_text"), 500) or None
                 t.bank_left = t_data.get("bank_left") is True
+                t.alert_values = _small_dict(t_data.get("alert_values"))
+                if t.bank_ref:   # joined to its bank row (#210)
+                    t.join_data = _small_dict(t_data.get("join_data"))
             rec_desc = t_data.get("recurring_description")
             if rec_desc and rec_desc in rec_by_desc:
                 t.recurring_id = rec_by_desc[rec_desc].id

@@ -447,6 +447,7 @@
   .rec-match { display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; font-size:11px; color:var(--muted); }
   .rec-match label { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; }
   tr.le-inline .rec-match input { width:56px; min-width:0; }
+  .acct-join input { width:56px; min-width:0; display:inline-block; padding:2px 4px; }
   .login { text-align:center; padding:80px 20px; }
   .login h1 { font-size:24px; margin-bottom:8px; }
   .login p { color:var(--muted); margin-bottom:24px; }
@@ -2821,7 +2822,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.104.0";
+const WEB_VERSION = "1.105.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2831,6 +2832,7 @@ const WEB_VERSION = "1.104.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.105.0 (2026-11-22, claude+mkolakowski): (#210) Email alerts joined to bank sync rows. A Forecast line that is an email alert joined to its bank row (the forecast row's new alert_joined_posted) wears the Bank sync mark as a bank line does (the server sends match_source 'bank'); its open line says "From an email alert, posted by the bank on <date>" (_alertJoinedNote) and offers Un-join (_forecastUnjoinBtn → unjoinAlertLine → POST /api/transactions/{id}/alert-unjoin). The Unmatched list (bankShowUnmatched) offers Join… on an alert line or a bank row when GET .../bank-unmatched/joins says the account has bank sync (it also lists the joined and never-posted lines) (openJoinPopin → GET .../bank-unmatched/{id}/join-candidates, the match pop-in's cards with "Join these" → POST .../join), and a "Never posted" tag with its hint, Delete (bankDeleteNeverPosted → DELETE /api/transactions/{id}) and Keep (leave) on an alert line no bank row met in 10 days. Settings → Accounts gets one sentence row under an account you own with both email alerts and bank sync (/api/accounts' new alerts_and_bank): "Join an alert to the bank's line within [7] days, up to [30]% higher (tips)" with Save (saveAlertJoin → PATCH /api/accounts/{id} {alert_join_days, alert_join_percent}). The email alert account pickers no longer grey out accounts with bank sync, and the sync log has a Joined column.
 // 1.104.0 (2026-11-22, claude+mkolakowski): (#268) Email alerts on the same model as bank sync. Admin → Users gets an "Email alerts" column: a Microsoft 365 tick per person ("Always" for an admin); a change sends the row's list to PUT /api/admin/users/{id}/mail-access (adminSetMailAccess). Settings → Email alerts shows when alerts are on and /api/mail's new providers_allowed isn't empty, or there's a mailbox, or an account you own or edit takes alerts from someone else's mailbox (/api/mail's new `shared`): "Shared accounts with email alerts" (_mailSharedHtml), a card per account with whose mailbox feeds it, its last check, a paused / needs-reconnecting / can't-sign-in note naming that person, Check now (mailCheckShared → POST /api/mail/check {account_id}) and Unmatched (N). A mailbox an admin has paused (`paused`) says so, with Check now off.
 // 1.103.0 (2026-11-21, claude+mkolakowski): (#266) A bank connection passes on. Settings → Delete account and Admin → Users' delete (adminDeleteUser now reads GET /api/admin/users/{id}/deletion-check first) list the bank connections that pass to another owner ("→ email") and those that are removed, from the deletion check's new bank_connections_passed / bank_connections_deleted. Settings → Bank sync shows a match to an account you don't own (/api/bank's new `locked`) as text, not a dropdown, so Save matches leaves it alone; an owner's shared card gets Stop syncing (bankStopSyncing → DELETE /api/accounts/{id}/bank-link).
 // 1.102.0 (2026-11-21, claude+mkolakowski): (#265) The account holds its sync. Settings → Bank sync also shows for someone with owner or edit on an account that syncs from another person's connection (/api/bank's new `shared`): "Shared accounts that sync" (_bankSharedHtml), a card per account with "Synced from <name>'s <provider> connection · <bank account>", its last sync from its own sync log, a paused or needs-reconnecting note naming that person, and Sync now (bankSyncShared → POST /api/bank/sync {account_id}), Sync log and Unmatched (N). The Forecast's Unmatched pill, Match… and bank balance with Adjust to bank now reach editors because the server sends them.
@@ -8493,7 +8495,7 @@ function _renderForecastEditRow(r) {
          ${renderTagPicker('editFcTags', selectedTagIds)}</div>`
     : `<input type="hidden" id="editFcTags" value="">`;
   return `
-    <td><label class="inline-label">Description</label><input class="inline-edit" id="editFcDesc" value="${escapeAttr(r.description||'')}" style="width:100%">${tagBlock}</td>
+    <td><label class="inline-label">Description</label><input class="inline-edit" id="editFcDesc" value="${escapeAttr(r.description||'')}" style="width:100%">${_alertJoinedNote(r)}${tagBlock}</td>
     <td><label class="inline-label">Forecast date</label><input type="date" class="inline-edit date" id="editFcFDate" value="${r.forecast_date||''}"></td>
     <td><label class="inline-label">Actual date</label><input type="date" class="inline-edit date" id="editFcADate" value="${r.actual_date||''}"></td>
     <td><label class="inline-label">Category</label><select id="editFcCat" style="width:100%">${catOptions}</select></td>
@@ -8505,6 +8507,7 @@ function _renderForecastEditRow(r) {
       <button title="Save" onclick="saveForecastRowEdit('${rowKey}')">✓</button>
       <button class="ghost" title="Cancel" onclick="cancelEditForecastRow()">✕</button>
       ${_forecastUnmatchBtn(r, 'ghost', 'Un-match')}
+      ${_forecastUnjoinBtn(r, 'ghost')}
       ${_forecastMatchBtn(r, 'ghost')}
       ${_forecastDeleteBtn(r, 'danger')}
     </td>`;
@@ -8609,6 +8612,29 @@ async function unmatchBankLine(txnId, source) {
     await api(`/api/transactions/${txnId}/bank-unmatch`, { method: 'POST' });
   } catch (e) {
     notifyError('Could not un-match', e);
+    return;
+  }
+  editingForecastRowKey = null;
+  await loadForecast();
+}
+
+// An email alert's line joined to its bank row (#210): the open line says
+// when the bank posted it, and Un-join splits it back into the two lines.
+function _alertJoinedNote(r) {
+  if (!r.alert_joined_posted) return '';
+  return `<div class="le-ro le-hint">From an email alert, posted by the bank on ${escapeHtml(_gsDay(r.alert_joined_posted))}</div>`;
+}
+function _forecastUnjoinBtn(r, cls) {
+  if (!r.alert_joined_posted || !r.transaction_id) return '';
+  return `<button class="${cls}" title="Split it back into the alert's line and the bank's line" onclick="unjoinAlertLine(${Number(r.transaction_id)})">Un-join</button>`;
+}
+async function unjoinAlertLine(txnId) {
+  if (!(await confirmDialog("Un-join this line? The email alert's line goes back to the alert's amount and date, and the bank's line becomes its own line again.",
+                            { title: 'Un-join email alert', okLabel: 'Un-join' }))) return;
+  try {
+    await api(`/api/transactions/${txnId}/alert-unjoin`, { method: 'POST' });
+  } catch (e) {
+    notifyError('Could not un-join', e);
     return;
   }
   editingForecastRowKey = null;
@@ -8802,6 +8828,7 @@ function _renderForecastLineEditor(r) {
   return [
     _leTd(_leField(descLabel, 'fcEdit_desc', inp('desc', 'text', r.description, ' maxlength="120"'))
           + (r.bank_match ? `<div class="le-ro">${_bankMatchPill(r).trim()}</div>` : '')
+          + _alertJoinedNote(r)
           + '<div class="le-status" id="fcEditStatus" role="alert"></div>'),
     _leTd(_leField('Forecast date', 'fcEdit_fdate', inp('fdate', 'date', r.forecast_date))),
     _leTd(_leField('Actual date', 'fcEdit_adate', inp('adate', 'date', r.actual_date))),
@@ -8816,6 +8843,7 @@ function _renderForecastLineEditor(r) {
     _leNotesActionsTd(_leField('Notes', 'fcEdit_notes', inp('notes', 'text', r.notes, ' maxlength="256" placeholder="Notes"')),
       `<button onclick="saveEditedForecastRow('${k}')" title="Save (Enter)">Save</button>
               ${_forecastUnmatchBtn(r, 'ghost')}
+              ${_forecastUnjoinBtn(r, 'ghost')}
               ${_forecastMatchBtn(r, 'ghost')}
               ${_forecastDeleteBtn(r, 'danger', '🗑 Delete')}
               <button class="ghost" onclick="cancelEditForecastRow()" title="Cancel (Esc)">Cancel</button>`),
@@ -8864,7 +8892,7 @@ function _renderForecastGridRow(r, rowIdx, opts) {
   const delBtn = _forecastUnmatchBtn(r, 'ghost') + _forecastDeleteBtn(r, 'ghost');
   const actionsTd = editing
     ? `<td style="white-space:nowrap"><button title="Save and close this line (Enter)" onclick="saveEditedForecastRow('${escapeAttr(rowKey)}')">✓</button>
-         ${_forecastMatchBtn(r, 'ghost')}${delBtn}
+         ${_forecastMatchBtn(r, 'ghost')}${_forecastUnjoinBtn(r, 'ghost')}${delBtn}
          <button class="ghost close-btn" title="Cancel (Esc)" onclick="cancelEditForecastRow()">✕</button></td>`
     : `<td>${delBtn}</td>`;
   const input = (field, c, extra) =>
@@ -9106,15 +9134,48 @@ async function loadManageAccounts() {
     } else if (!canEdit) {
       actions = '<span style="color:var(--muted);font-size:12px">Read only</span>';
     }
+    // How its email alerts and bank rows are joined (#210): the owner's,
+    // shown only on an account that takes both.
+    const join = isOwner && a.alerts_and_bank ? `<tr class="acct-join-row"><td colspan="3" style="font-size:13px;padding-top:0">
+        <label class="acct-join">Join an alert to the bank's line within
+          <input id="joinDays${a.id}" type="number" min="0" max="31" step="1" value="${Number(a.alert_join_days)}" aria-label="Days after the alert">
+          days, up to
+          <input id="joinPct${a.id}" type="number" min="0" max="100" step="1" value="${Number(a.alert_join_percent)}" aria-label="Percent higher">%
+          higher (tips)</label>
+        <button class="ghost" onclick="saveAlertJoin(${a.id})">Save</button>
+        <span id="joinSaid${a.id}" role="status" style="font-size:12px;color:var(--muted)"></span></td></tr>` : '';
     return `<tr>
       <td>${escapeHtml(a.name)}${archivedBadge}</td>
       <td style="color:var(--muted);font-size:12px">${escapeHtml(a.level)}</td>
       <td style="text-align:right">${actions}</td>
-    </tr>`;
+    </tr>${join}`;
   }).join('');
   wrap.innerHTML = `<table style="width:100%"><thead><tr>
     <th>Account</th><th>Access</th><th></th>
   </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function saveAlertJoin(id) {
+  const said = document.getElementById('joinSaid' + id);
+  const n = (elId, max) => {
+    const v = Number(document.getElementById(elId).value);
+    return Number.isInteger(v) && v >= 0 && v <= max ? v : null;
+  };
+  const days = n('joinDays' + id, 31), pct = n('joinPct' + id, 100);
+  if (days == null || pct == null) {
+    said.textContent = 'Days are 0 to 31 and the percent 0 to 100.';
+    said.style.color = 'var(--bad)';
+    return;
+  }
+  try {
+    await api('/api/accounts/' + id, { method: 'PATCH', body: JSON.stringify({ alert_join_days: days, alert_join_percent: pct }) });
+  } catch (e) {
+    said.textContent = errText(e);
+    said.style.color = 'var(--bad)';
+    return;
+  }
+  said.textContent = 'Saved.';
+  said.style.color = 'var(--good)';
 }
 
 async function setAccountArchived(id, archived) {
@@ -9665,6 +9726,7 @@ async function bankSyncShared(accountId) {
     const r = await api('/api/bank/sync', { method: 'POST', body: JSON.stringify({ account_id: accountId }) });
     _bankSay(`${r.added} new line${r.added === 1 ? '' : 's'} came in`
              + (r.matched ? `, ${r.matched} of them paid a bill` : '')
+             + (r.joined ? `; ${r.joined} joined an email alert's line` : '')
              + `; ${r.skipped} ${r.skipped === 1 ? 'was' : 'were'} already here.`
              + (r.messages && r.messages.length ? ` ${name} said: ` + r.messages.join('; ') : ''), 'var(--good)');
     await loadBank();
@@ -9837,14 +9899,16 @@ async function bankShowLog(accountId) {
       <td>${r.trigger === 'schedule' ? 'Daily' : 'Sync now'}</td>
       <td style="text-align:right">${r.added}</td>
       <td style="text-align:right">${r.matched || 0}</td>
+      <td style="text-align:right">${r.joined || 0}</td>
       <td style="text-align:right">${r.skipped}</td>
       <td>${r.error ? `<span style="color:var(--bad)">${escapeHtml(r.error)}</span>`
-           : (r.added || r.matched) ? `<button class="ghost" onclick="bankShowLogLines(${accountId}, ${r.id}, this)">Show lines</button>` : ''}</td>
-    </tr><tr class="hidden" id="bankLogLines${r.id}"><td colspan="6"></td></tr>`).join('');
+           : (r.added || r.matched || r.joined) ? `<button class="ghost" onclick="bankShowLogLines(${accountId}, ${r.id}, this)">Show lines</button>` : ''}</td>
+    </tr><tr class="hidden" id="bankLogLines${r.id}"><td colspan="7"></td></tr>`).join('');
   box.innerHTML = `<h3 class="backup-subhead">Sync log${acc ? ': ' + escapeHtml(acc.name) : ''}
       <button class="ghost" style="float:right" onclick="document.getElementById('bankLog').classList.add('hidden')">Close</button></h3>`
     + (runs.length ? `<table style="width:100%"><thead><tr><th>When</th><th>How</th><th style="text-align:right">Came in</th>
         <th style="text-align:right" title="Lines that paid a bill by themselves">Matched</th>
+        <th style="text-align:right" title="Lines that were an email alert's purchase, posted, and joined the alert's line">Joined</th>
         <th style="text-align:right">Already here</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
       : '<div style="color:var(--muted);font-size:13px">No syncs yet.</div>');
 }
@@ -9861,7 +9925,7 @@ async function bankShowLogLines(accountId, runId, btn) {
     const run = await api(`/api/accounts/${accountId}/bank-syncs/${runId}`);
     cell.innerHTML = run.lines.length
       ? '<ul style="margin:0;padding-left:18px;font-size:13px">' + run.lines.map(l =>
-          `<li>${escapeHtml(l.date)} · ${escapeHtml(l.description)} · ${escapeHtml(fmt(l.amount))}${l.matched ? ` <span class="pill actual" title="${l.matched === 'auto' ? 'Paid a bill by itself' : 'You matched it to a bill by hand'}">paid a bill</span>` : ''}</li>`).join('') + '</ul>'
+          `<li>${escapeHtml(l.date)} · ${escapeHtml(l.description)} · ${escapeHtml(fmt(l.amount))}${l.matched ? ` <span class="pill actual" title="${l.matched === 'auto' ? 'Paid a bill by itself' : 'You matched it to a bill by hand'}">paid a bill</span>` : ''}${l.joined ? ' · joined an email alert' : ''}</li>`).join('') + '</ul>'
       : '<span style="color:var(--muted);font-size:13px">The lines it brought in have since been deleted.</span>';
   } catch (e) { cell.innerHTML = `<span style="color:var(--bad)">${escapeHtml(errText(e))}</span>`; }
 }
@@ -9878,14 +9942,30 @@ async function bankShowUnmatched(accountId, boxId) {
   let data;
   try { data = await api(`/api/accounts/${accountId}/bank-unmatched`); }
   catch (e) { box.innerHTML = `<span style="color:var(--bad)">${escapeHtml(errText(e))}</span>`; return; }
+  // Which lines can be joined by hand, are joined, or never posted (#210).
+  let joins = { can_join: false, joined: [], never_posted: [] };
+  try { joins = await api(`/api/accounts/${accountId}/bank-unmatched/joins`); } catch (_) {}
+  data.lines.forEach(l => {
+    l.joined = (joins.joined || []).includes(l.id);
+    l.never_posted = (joins.never_posted || []).includes(l.id);
+    l.can_join = !!joins.can_join && !l.joined;
+  });
   const acc = (accounts || []).find(a => a.id === accountId);
+  // An alert line and a bank row on an account with both can be joined by
+  // hand; an alert line no bank row met in 10 days is "Never posted" (#210).
   const rows = data.lines.map(l => `<tr>
-      <td>${escapeHtml(l.description)}</td>
+      <td>${escapeHtml(l.description)}${l.never_posted
+          ? ` <span class="pill unmatched" title="No line from your bank has met this email alert.">Never posted</span>
+             <div class="le-hint" style="font-size:11px;color:var(--muted)">No bank line in 10 days: a dropped hold or a declined charge? Delete it or keep it.</div>` : ''}</td>
       <td class="fit">${escapeHtml(l.date)}</td>
       <td class="num fit ${l.amount >= 0 ? 'pos' : 'neg'}">${escapeHtml(fmt(l.amount))}</td>
       ${l.notes ? `<td class="notes-col" title="${escapeAttr(l.notes)}">${escapeHtml(l.notes)}</td>` : '<td class="notes-col muted">—</td>'}
       <td class="fit"><button class="ghost" onclick="openMatchPopin(${accountId}, ${l.id})">Match…</button>
-        <button class="ghost" onclick="bankLeaveLine(${accountId}, ${l.id})">Leave as its own line</button></td>
+        ${l.can_join ? `<button class="ghost" onclick="openJoinPopin(${accountId}, ${l.id})">Join…</button>` : ''}
+        ${l.never_posted
+          ? `<button class="ghost" onclick="bankDeleteNeverPosted(${accountId}, ${l.id})">Delete</button>
+             <button class="ghost" onclick="bankLeaveLine(${accountId}, ${l.id})">Keep</button>`
+          : `<button class="ghost" onclick="bankLeaveLine(${accountId}, ${l.id})">Leave as its own line</button>`}</td>
     </tr>`).join('');
   box.style.maxWidth = 'none';   // wide enough for the Forecast-style columns; the sync log keeps its own width
   box.innerHTML = `<h3 class="backup-subhead">Unmatched lines${acc ? ': ' + escapeHtml(acc.name) : ''}
@@ -10187,6 +10267,86 @@ async function _matchLeave() {
   await m.onDone(`Left ${m.line.description} as its own line.`);
 }
 
+// Join by hand (#210): an alert line or a bank row from the Unmatched list
+// on top, and a card per line it could be joined to (the account's bank rows,
+// or its alert lines), each saying how the bank's line compares with the
+// alert's. The match pop-in's dialog and cards, with "Join these".
+async function openJoinPopin(accountId, txnId) {
+  const m = _match = { join: true, accountId, txnId, line: null, lines: [],
+                       onDone: said => _bankRefreshUnmatched(accountId, said) };
+  const dlg = _showMatchDialog('Join an email alert');
+  let data;
+  try { data = await api(`/api/accounts/${accountId}/bank-unmatched/${txnId}/join-candidates`); }
+  catch (e) {
+    dlg.querySelector('.match-body').innerHTML = `<span style="color:var(--bad)">${escapeHtml(errText(e))}</span>`;
+    return;
+  }
+  if (_match !== m) return;   // closed or reopened meanwhile
+  m.line = data.line;
+  m.lines = (data.lines || []).map(x => Object.assign({}, x, { within_days: x.within }));
+  const l = m.line, alert = l.source === 'alert';
+  const split = _matchSplit(m.lines);
+  const cards = m.lines.map((x, i) => {
+    const best = i === split.best;
+    const bankAmt = alert ? x.amount : l.amount, alertAmt = alert ? l.amount : x.amount;
+    return `<div class="match-card${best ? ' best' : ''}${split.far[i] ? ' mc-far hidden' : ''}">
+      <div class="mc-main">
+        ${best ? '<div class="mc-best">Closest match</div>' : ''}
+        <div class="mc-top"><span class="mc-name">${escapeHtml(x.description)}</span>
+          <span class="mc-amt ${x.amount >= 0 ? 'pos' : 'neg'}">${escapeHtml(fmt(x.amount))}</span></div>
+        <div class="mc-words"><span>${escapeHtml(_gsDay(x.date))}${x.source === 'alert' ? ' · email alert' : ' · from your bank'}</span>
+          <span>${_matchWords(x, bankAmt, alertAmt, x.source === 'bank')}</span></div>
+        ${x.bank_text ? `<div class="match-sub match-raw" title="${escapeAttr(x.bank_text)}">${escapeHtml(x.bank_text)}</div>` : ''}
+      </div>
+      <button type="button"${best ? '' : ' class="ghost"'} onclick="_joinPick(${i})">Join these</button>
+    </div>`;
+  }).join('') + (m.lines.length ? _matchMoreLink(split, `this account's ${Number(data.join_days)} days and ${Number(data.join_percent)}%`) : '');
+  dlg.innerHTML = `<div class="match-head">
+      <h3>${alert ? 'Join an email alert' : 'Join a bank line'}</h3>
+      <div class="match-line"><span class="ml-name">${escapeHtml(l.description)}</span>
+        <span class="ml-amt ${l.amount >= 0 ? 'pos' : 'neg'}">${escapeHtml(fmt(l.amount))}</span></div>
+      <div class="match-sub">${escapeHtml(_gsDay(l.date))}${alert ? ' · from an email alert' : ' · from your bank'}</div>
+    </div>
+    <div class="match-body">
+      ${cards
+        ? `<p class="match-hint">${alert ? "Which of your bank's lines is this alert, posted?" : 'Which email alert is this bank line?'} Each one says how the bank's line compares with the alert's.</p>${cards}`
+        : `<p class="match-hint">${alert ? 'No bank line within 60 days to join this alert to.' : 'No email alert within 60 days to join this bank line to.'}</p>`}
+      <div class="dlg-err" id="matchErr" role="alert"></div>
+    </div>
+    <div class="match-foot"><span></span>
+      <button type="button" class="ghost" onclick="closeMatchPopin()">Close</button>
+    </div>`;
+}
+
+async function _joinPick(i) {
+  const m = _match;
+  const x = m && m.join && m.lines[i];
+  if (!x) return;
+  document.querySelectorAll('#matchDialog button').forEach(b => { b.disabled = true; });
+  try {
+    await api(`/api/accounts/${m.accountId}/bank-unmatched/${m.txnId}/join`,
+              { method: 'POST', body: JSON.stringify({ transaction_id: x.id }) });
+  } catch (e) {
+    document.querySelectorAll('#matchDialog button').forEach(b => { b.disabled = false; });
+    const err = document.getElementById('matchErr');
+    if (err) err.textContent = errText(e);
+    return;
+  }
+  closeMatchPopin();
+  const alertLine = m.line.source === 'alert' ? m.line : x;
+  await m.onDone(`Joined ${alertLine.description} to the bank's line.`);
+}
+
+// "Never posted" (#210): delete the alert's line, after asking.
+async function bankDeleteNeverPosted(accountId, txnId) {
+  if (!(await confirmDialog('Delete this email alert\'s line? No line from your bank has met it.',
+                            { title: 'Delete line', okLabel: 'Delete', danger: true }))) return;
+  try {
+    await api(`/api/transactions/${txnId}`, { method: 'DELETE' });
+  } catch (e) { _bankUnmatchedSay(errText(e), 'var(--bad)'); return; }
+  await _bankRefreshUnmatched(accountId, 'Deleted.');
+}
+
 async function bankLeaveLine(accountId, txnId) {
   try {
     await api(`/api/accounts/${accountId}/bank-unmatched/${txnId}/leave`, { method: 'POST' });
@@ -10339,6 +10499,7 @@ async function bankSyncNow(connectionId) {
     const r = await api('/api/bank/sync', { method: 'POST', body: JSON.stringify({ connection_id: connectionId }) });
     _bankSay(`${r.added} new line${r.added === 1 ? '' : 's'} came in`
              + (r.matched ? `, ${r.matched} of them paid a bill` : '')
+             + (r.joined ? `; ${r.joined} joined an email alert's line` : '')
              + `; ${r.skipped} ${r.skipped === 1 ? 'was' : 'were'} already here.`
              + (r.messages && r.messages.length ? ` ${name} said: ` + r.messages.join('; ') : ''), 'var(--good)');
     await loadBank();
@@ -10574,7 +10735,9 @@ function _mailAccName(id) {
 function _mailAccOpts(sel, blank, disableLinked) {
   const linked = (mailState && mailState.bank_linked_account_ids) || [];
   return `<option value="">${escapeHtml(blank)}</option>` + mailOwned.map(a => {
-    const dis = disableLinked && linked.includes(a.id);
+    // Alerts and bank sync on one account are joined since #210, so a
+    // bank-linked account is offered like any other.
+    const dis = false && disableLinked && linked.includes(a.id);
     return `<option value="${a.id}"${a.id === sel ? ' selected' : ''}${dis ? ' disabled' : ''}>${escapeHtml(a.name)}${a.archived ? ' (archived)' : ''}${dis ? ' (bank sync)' : ''}</option>`;
   }).join('');
 }

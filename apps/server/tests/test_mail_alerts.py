@@ -460,7 +460,8 @@ def test_teaching_checks_what_was_marked(connected, ms):
     assert r.json()["senders"][0]["kinds"][0]["fields"] == ["amount"]
 
 
-def test_teaching_refuses_an_account_linked_to_bank_sync(connected, ms):
+def test_teaching_an_account_linked_to_bank_sync(connected, ms):
+    """Allowed since alerts and bank rows are joined (#210; refused before)."""
     from app.db import BankAccountLink, BankConnection, SessionLocal, encrypt_str
     c, u, acc = connected
     db = SessionLocal()
@@ -478,7 +479,7 @@ def test_teaching_refuses_an_account_linked_to_bank_sync(connected, ms):
     r = c.post("/api/mail/senders", json={"message_id": "graph-s1", "label": "B", "direction": "out",
                                           "subject_key": "you made a", "account_id": acc,
                                           "amount": pv["guess"]["fields"]["amount"]})
-    assert r.status_code == 400 and "bank sync" in r.json()["detail"]
+    assert r.status_code == 200, r.text
     assert c.get("/api/mail").json()["bank_linked_account_ids"] == [acc]
 
 

@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.93.0"
+APP_VERSION = "1.94.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,21 @@ APP_VERSION = "1.93.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.94.0 (2026-11-22, claude+mkolakowski): email alerts joined to bank sync
+#     rows (bank-alert-emails phase 5, #210; schema 37). An account may take
+#     both: a bank row that is an alert line's posted version (same way, 0 to
+#     the account's alert_join_days after it, up to alert_join_percent
+#     higher; nearest date, a tie left on the Unmatched list) joins that line
+#     instead of landing (_alert_for_bank_row, _join_alert_line), and an
+#     alert landing after its bank row joins it (_bank_row_for_alert).
+#     GET/PATCH /api/accounts gain alert_join_days, alert_join_percent (owner,
+#     0-31 and 0-100) and alerts_and_bank. New GET
+#     /api/accounts/{id}/bank-unmatched/{txn_id}/join-candidates, POST
+#     .../{txn_id}/join {transaction_id}, POST /api/transactions/{id}/
+#     alert-unjoin. New GET /api/accounts/{id}/bank-unmatched/joins {can_join, joined, never_posted} (the Unmatched list's own shape is unchanged);
+#     joined forecast rows gain alert_joined_posted; sync results, runs and the
+#     sync log gain joined. Teaching an alert to a bank-linked account is
+#     allowed. Backups carry the settings and a joined line's kept values.
 # 1.93.0 (2026-11-22, claude+mkolakowski): email alerts on the same model
 #     as bank sync (sync-access phase 5, #268; schema 36). An admin ticks
 #     who may connect a mailbox (PUT /api/admin/users/{id}/mail-access,
@@ -3428,7 +3443,9 @@ def list_accounts(include_archived: bool = False, today: date | None = None,
                   user: User = Depends(current_user), db: Session = Depends(get_db)):
     today = _viewer_today(today)
     out = []
-    for a in _user_visible_accounts(db, user, include_archived=include_archived):
+    accs = _user_visible_accounts(db, user, include_archived=include_archived)
+    both = _accounts_with_alerts_and_bank(db, [a.id for a in accs])
+    for a in accs:
         out.append({
             "id": a.id, "name": a.name,
             "starting_balance": float(a.starting_balance),
@@ -3439,8 +3456,30 @@ def list_accounts(include_archived: bool = False, today: date | None = None,
             "current_balance": round(_current_balance(db, a, today), 2),
             "archived": a.archived,
             "level": _user_level(db, user, a.id),
+            # Email alerts joined to bank sync rows (#210): the account's two
+            # join settings, and whether it has both (the editor shows them
+            # only then).
+            "alert_join_days": a.alert_join_days,
+            "alert_join_percent": a.alert_join_percent,
+            "alerts_and_bank": a.id in both,
         })
     return out
+
+
+def _accounts_with_alerts_and_bank(db: Session, ids: list[int]) -> set[int]:
+    """Which of these accounts take lines from bank sync and from email
+    alerts (a taught sender or card points at it, or alert lines are on it)."""
+    if not ids:
+        return set()
+    linked = {a for (a,) in db.query(BankAccountLink.account_id).filter(BankAccountLink.account_id.in_(ids))}
+    if not linked:
+        return set()
+    alerted = {a for (a,) in db.query(Transaction.account_id).filter(
+        Transaction.account_id.in_(linked), Transaction.mail_ref.isnot(None)).distinct()}
+    for s in db.query(MailSender).filter(or_(MailSender.account_id.in_(linked), MailSender.cards_json != "{}")):
+        alerted.add(s.account_id)
+        alerted.update(_mail_cards(s).values())
+    return linked & alerted
 
 
 @app.post("/api/accounts")
@@ -3459,6 +3498,10 @@ def create_account(payload: AccountIn, user: User = Depends(current_user), db: S
 class AccountPatchIn(BaseModel):
     archived: bool | None = None
     name: str | None = Field(default=None, max_length=ACCOUNT_NAME_MAX)
+    # How an email alert's line and its bank row are joined (#210), with the
+    # same limits as a bill's bank-match settings.
+    alert_join_days: int | None = Field(default=None, ge=0, le=MATCH_DAYS_MAX)
+    alert_join_percent: int | None = Field(default=None, ge=0, le=MATCH_PERCENT_MAX)
 
 
 @app.patch("/api/accounts/{account_id}")
@@ -3478,10 +3521,19 @@ def update_account(account_id: int, payload: AccountPatchIn,
         if not name:
             raise HTTPException(400, "Name is required")
         acc.name = name
+    if payload.alert_join_days is not None or payload.alert_join_percent is not None:
+        # Like renaming, the owner's: they change what lands in the account.
+        if LEVEL_RANK[_user_level(db, user, account_id)] < LEVEL_RANK["owner"]:
+            raise HTTPException(403, "Only the account owner can change how alerts are joined")
+        if payload.alert_join_days is not None:
+            acc.alert_join_days = payload.alert_join_days
+        if payload.alert_join_percent is not None:
+            acc.alert_join_percent = payload.alert_join_percent
     if payload.archived is not None:
         acc.archived = payload.archived
     db.commit()
-    return {"ok": True, "archived": acc.archived, "name": acc.name}
+    return {"ok": True, "archived": acc.archived, "name": acc.name,
+            "alert_join_days": acc.alert_join_days, "alert_join_percent": acc.alert_join_percent}
 
 
 @app.delete("/api/accounts/{account_id}")
@@ -4071,7 +4123,29 @@ def forecast(account_id: int, days: int = 90,
                                     if LEVEL_RANK[_user_level(db, user, acc.id)] >= LEVEL_RANK["edit"]
                                     else 0)
     data["bank_balance"] = _bank_balance_info(db, user, acc, Decimal(str(data["current_balance"])), today)
+    _mark_joined_rows(db, acc, data["rows"])
     return data
+
+
+def _mark_joined_rows(db: Session, acc: Account, rows: list[dict]) -> None:
+    """An email alert's line joined to its bank row (#210) shows as the
+    bank's: match_source 'bank', and alert_joined_posted, the date the bank
+    posted it, for the open line's "posted by the bank on"."""
+    ids = {r["transaction_id"] for r in rows if r.get("transaction_id")}
+    if not ids:
+        return
+    posted = {}
+    for t in (db.query(Transaction).filter(Transaction.account_id == acc.id, Transaction.id.in_(ids),
+                                           Transaction.join_enc.isnot(None),
+                                           Transaction.mail_ref.isnot(None),
+                                           Transaction.bank_ref.isnot(None))):
+        posted[t.id] = (t.join_data or {}).get("date") or (t.actual_date.isoformat() if t.actual_date else None)
+    for r in rows:
+        when = posted.get(r.get("transaction_id"))
+        if when:   # only on joined rows, so other rows keep the core's shape
+            r["alert_joined_posted"] = when
+            if r.get("match_source") == "alert":
+                r["match_source"] = "bank"
 
 
 # ---------- The bank's balance next to yours (bank-providers phase 3, #256) ----------
@@ -5094,7 +5168,7 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
         _set_bank_listing(conn, data["accounts"])
     by_account = {bank_account_ref(a["id"], provider): a for a in data["accounts"]}
     seen_cats: dict = {}   # the user's categories and mapping rows, read once (#255)
-    added = skipped = matched = 0
+    added = skipped = matched = joined = 0
     calibrated: set[int] = set()
     for link in links:
         acc = db.get(Account, link.account_id)
@@ -5109,12 +5183,17 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
             continue
         refs = refs_of(acc.id)
         bills = _bills_to_match(db, acc.id)
+        # Email alerts' lines this account's new rows may be the posted
+        # version of (#210).
+        alert_lines = _alert_lines_to_join(db, acc.id)
         # Paid lines that came by CSV or by hand, by date, amount and
         # description (the CSV import's own test for a duplicate). A bank
-        # line that finds one claims it instead of landing a second.
+        # line that finds one claims it instead of landing a second. An
+        # alert's line is joined instead (below), never claimed.
         unclaimed: dict[tuple, list[Transaction]] = {}
         for t in db.query(Transaction).filter(Transaction.account_id == acc.id,
                                               Transaction.bank_ref.is_(None),
+                                              Transaction.mail_ref.is_(None),
                                               Transaction.is_actual.is_(True)):
             d = t.actual_date or t.forecast_date
             if d:
@@ -5141,6 +5220,22 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
             # The provider's own category, mapped onto one of the user's (#255).
             pcat = tx.get("category")
             mapped = _bank_category_id(db, user, provider, pcat, seen_cats)
+            # The posted version of an email alert's line joins it (#210),
+            # whether or not the alert paid a bill. Two alerts as near are
+            # left for the user: the row lands on the Unmatched list.
+            if alert_lines:
+                mine, tie = _alert_for_bank_row(acc, alert_lines, tx["date"], tx["amount"])
+                if mine is not None:
+                    _join_alert_line(mine, {"text": raw, "category_id": mapped, "how": "auto"},
+                                     tx["date"], tx["amount"], ref, run.id, pcat)
+                    alert_lines.remove(mine)
+                    run.joined += 1
+                    continue
+                if tie:
+                    _bank_own_line(db, user, acc.id, tx["date"], tx["amount"], raw, ref, run.id,
+                                   category_id=mapped, bank_category=pcat)
+                    run.added += 1
+                    continue
             # A planned bill or income line close in date and amount is
             # paid by this line instead of a second line landing (#196).
             hit = _bill_for_bank_line(bills, tx["date"], tx["amount"], short or raw)
@@ -5156,8 +5251,9 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
             run.added += 1
         added, skipped = added + run.added, skipped + run.skipped
         matched += run.matched
+        joined += run.joined
         link.synced_through = today
-        _keep_bank_balance(link, bank_acc, provider, now, run.added + run.matched > 0)
+        _keep_bank_balance(link, bank_acc, provider, now, run.added + run.matched + run.joined > 0)
         if acc.id in calibrate and bank_acc.get("balance") is not None:
             # A new account made from this bank account (#215): its starting
             # balance is what makes today's balance the bank's, given the
@@ -5170,6 +5266,7 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
             calibrated.add(acc.id)
     status = (f"{added} new line{'' if added == 1 else 's'}, "
               + (f"{matched} matched a bill, " if matched else "")
+              + (f"{joined} joined an email alert, " if joined else "")
               + f"{skipped} already here")
     if data["messages"]:
         status += f". {pname} said: " + "; ".join(data["messages"])
@@ -5179,8 +5276,10 @@ def _bank_sync_locked(db: Session, user: User, conn: BankConnection, request: Re
         conn.cursor = data.get("cursor") or conn.cursor
     db.commit()
     record_event(db, "bank_sync_run", request, user=who,
-                 detail=f"{added} added, {matched} matched, {skipped} skipped, {trigger}{whose}")
-    return {"added": added, "matched": matched, "skipped": skipped, "messages": data["messages"],
+                 detail=f"{added} added, {matched} matched, "
+                        + (f"{joined} joined, " if joined else "") + f"{skipped} skipped, {trigger}{whose}")
+    return {"added": added, "matched": matched, "joined": joined, "skipped": skipped,
+            "messages": data["messages"],
             "calibrated": sorted(calibrated)}
 
 
@@ -5462,8 +5561,20 @@ def _bank_own_line(db: Session, user: User, account_id: int, day: date, amount: 
 
 
 def _line_source(t: Transaction) -> str:
-    """'alert' for a line an email alert brought in, else 'bank'."""
-    return "alert" if t.mail_ref else "bank"
+    """'alert' for a line an email alert brought in, else 'bank' (a line
+    joined to its bank row, #210, is the bank's)."""
+    return "alert" if t.mail_ref and not t.bank_ref else "bank"
+
+
+# The columns that say where a synced or alert line came from, carried
+# whole when a match moves the line onto a planned one or back (#210: a
+# joined line has both an alert's and a bank row's).
+_SOURCE_COLUMNS = ("bank_ref", "bank_sync_run_id", "mail_ref", "mail_run_id", "alert_enc", "join_enc")
+
+
+def _carry_sources(src: Transaction, dst: Transaction) -> None:
+    for col in _SOURCE_COLUMNS:
+        setattr(dst, col, getattr(src, col))
 
 
 def _bank_text_of(t: Transaction) -> str:
@@ -5508,6 +5619,22 @@ def bank_unmatched(account_id: int, user: User = Depends(current_user), db: Sess
                        "description": t.description, "amount": float(t.amount), "notes": t.notes,
                        "source": _line_source(t)}
                       for t in rows]}
+
+
+@app.get("/api/accounts/{account_id}/bank-unmatched/joins")
+def bank_unmatched_joins(account_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """What the Unmatched list adds for email alerts joined to bank rows
+    (#210), apart from the list itself, whose shape the shared core's answer
+    key pins: whether lines can be joined by hand here (the account takes
+    bank sync), which lines are joined already, and which alert lines never
+    posted."""
+    acc = _sync_log_account(db, user, account_id)
+    hit = _account_bank_link(db, acc.id)
+    link = hit[0] if hit else None
+    rows = _unmatched_query(db, acc.id).order_by(Transaction.id).all()
+    return {"can_join": link is not None,
+            "joined": [t.id for t in rows if t.mail_ref and t.bank_ref],
+            "never_posted": [t.id for t in rows if _never_posted(t, link)]}
 
 
 @app.get("/api/accounts/{account_id}/bank-unmatched/{txn_id}/candidates")
@@ -5673,10 +5800,7 @@ def bank_match_by_hand(account_id: int, txn_id: int, body: BankMatchIn,
             t.forecast_date = day
         t.amount, t.actual_date, t.is_actual = line.amount, day, True
         t.bank_match, t.bank_text = "hand", raw
-        if line.mail_ref:
-            t.mail_ref, t.mail_run_id = line.mail_ref, line.mail_run_id
-        else:
-            t.bank_ref, t.bank_sync_run_id = line.bank_ref, line.bank_sync_run_id
+        _carry_sources(line, t)
         paid = t
     elif body.recurring_id is not None and body.forecast_date is not None:
         rec = db.get(RecurringTransaction, body.recurring_id)
@@ -5692,6 +5816,7 @@ def bank_match_by_hand(account_id: int, txn_id: int, body: BankMatchIn,
         paid = _pay_bill_from_bank(
             db, rec, occ, day, line.amount, line.mail_ref or line.bank_ref, raw, "hand",
             line.mail_run_id if src == "alert" else line.bank_sync_run_id, src)
+        _carry_sources(line, paid)
     else:
         raise HTTPException(400, "Give transaction_id, or recurring_id and forecast_date.")
     name = _line_name(line)
@@ -5726,8 +5851,9 @@ def _catch_up_taught(db: Session, acc: Account, rec: RecurringTransaction) -> in
             continue
         occ = hit[1]
         src = _line_source(t)
-        _pay_bill_from_bank(db, rec, occ, day, t.amount, t.mail_ref or t.bank_ref, _bank_text_of(t), "auto",
-                            t.mail_run_id if src == "alert" else t.bank_sync_run_id, src)
+        paid = _pay_bill_from_bank(db, rec, occ, day, t.amount, t.mail_ref or t.bank_ref, _bank_text_of(t),
+                                   "auto", t.mail_run_id if src == "alert" else t.bank_sync_run_id, src)
+        _carry_sources(t, paid)
         only["covered"].add((rec.id, occ))
         db.delete(t)
         db.flush()
@@ -5760,15 +5886,17 @@ def bank_unmatch(txn_id: int, user: User = Depends(current_user), db: Session = 
     day = t.actual_date or t.forecast_date
     raw, amount = t.bank_text or t.description, t.amount
     ref, run_id = ((t.mail_ref, t.mail_run_id) if src == "alert" else (t.bank_ref, t.bank_sync_run_id))
+    sources = {col: getattr(t, col) for col in _SOURCE_COLUMNS}   # a joined line keeps both (#210)
     if t.recurring_id is not None:
         db.delete(t)   # the bill's date shows as planned again
     else:
         if t.forecast_amount is not None:
             t.amount = t.forecast_amount
         t.is_actual, t.actual_date = False, None
-        t.bank_ref = t.bank_match = t.mail_ref = None
+        t.bank_match = None
         t.bank_text = None
-        t.bank_sync_run_id = t.mail_run_id = None
+        for col in _SOURCE_COLUMNS:
+            setattr(t, col, None)
     db.flush()
     # A bank line gets the tag rules it came in with: those of the person
     # whose connection feeds the account, whoever un-matches it (#265).
@@ -5777,8 +5905,316 @@ def bank_unmatch(txn_id: int, user: User = Depends(current_user), db: Session = 
     if hit is not None:
         rules_of = db.get(User, hit[1].user_id) or user
     own = _bank_own_line(db, rules_of, acc.id, day, amount, raw, ref, run_id, left=True, source=src)
+    for col, v in sources.items():
+        setattr(own, col, v)
     db.commit()
     return {"ok": True, "transaction_id": own.id}
+
+
+# ---------- Email alerts joined to bank sync rows (bank-alert-emails phase 5, #210) ----------
+# Decided 2026-11-16 (the plan's open questions 7 and 8): an account may have
+# both. A bank row is the posted version of an alert's line when it is on the
+# same account and goes the same way, comes 0 to alert_join_days days after
+# the alert, and its amount is the alert's or up to alert_join_percent higher
+# (a tip): 7 days and 30% to start, set per account. The nearest date wins
+# and a tie is left for the user. A join keeps one line: the alert's merchant
+# name, the bank's id, amount and date, and the user's own edits over both
+# (an amount or date the user changed stays). What the bank row was is kept
+# on the line (join_data) so undoing the join brings it back as its own
+# line. A row is only joined as it arrives (or an alert as it lands), so a
+# pair that was undone isn't joined again by itself. An alert line no bank
+# row has met within ALERT_NEVER_POSTED_DAYS of bank sync reading past it is
+# flagged "never posted" on the Unmatched list; nothing is removed by itself.
+ALERT_JOIN_DAYS, ALERT_JOIN_PERCENT = 7, 30
+ALERT_NEVER_POSTED_DAYS = 10
+
+
+def _alert_own(t: Transaction) -> tuple[date, Decimal]:
+    """An alert line's date and amount as the alert gave them. A line that
+    landed before 1.94.0 didn't keep them: its values as they are now."""
+    v = t.alert_values or {}
+    try:
+        return date.fromisoformat(v["date"]), Decimal(v["amount"])
+    except (KeyError, TypeError, ValueError, ArithmeticError):
+        return (t.actual_date or t.forecast_date), t.amount
+
+
+def _alert_join_fits(acc: Account, alert_day: date, alert_amount: Decimal,
+                     bank_day: date, bank_amount: Decimal) -> int | None:
+    """How many days after the alert the bank row came, when the row may be
+    the alert's posted version under the account's own settings; else None."""
+    if not alert_amount or not bank_amount or (alert_amount < 0) != (bank_amount < 0):
+        return None
+    days = (bank_day - alert_day).days
+    if not 0 <= days <= acc.alert_join_days:
+        return None
+    a, b = abs(alert_amount), abs(bank_amount)
+    if b < a or b * 100 > a * (100 + acc.alert_join_percent):
+        return None
+    return days
+
+
+def _nearest_only(found: list) -> tuple:
+    """(the nearest, False), or (None, True) on a tie, or (None, False)."""
+    if not found:
+        return None, False
+    found.sort(key=lambda f: f[0])
+    if len(found) > 1 and found[1][0] == found[0][0]:
+        return None, True
+    return found[0][1], False
+
+
+def _alert_lines_to_join(db: Session, account_id: int) -> list[Transaction]:
+    """An account's alert lines that no bank row has joined yet: their own
+    lines and bills they paid, on the Unmatched list or left."""
+    return (db.query(Transaction)
+            .filter(Transaction.account_id == account_id, Transaction.mail_ref.isnot(None),
+                    Transaction.bank_ref.is_(None), Transaction.transfer_id.is_(None),
+                    Transaction.is_actual.is_(True))
+            .order_by(Transaction.id).all())
+
+
+def _bank_rows_to_join(db: Session, account_id: int) -> list[Transaction]:
+    """An account's bank rows that are their own line (on the Unmatched list
+    or left), so an alert may still be joined to them."""
+    return (db.query(Transaction)
+            .filter(Transaction.account_id == account_id, Transaction.bank_ref.isnot(None),
+                    Transaction.mail_ref.is_(None), Transaction.bank_match.is_(None),
+                    Transaction.recurring_id.is_(None), Transaction.transfer_id.is_(None),
+                    Transaction.is_actual.is_(True))
+            .order_by(Transaction.id).all())
+
+
+def _alert_for_bank_row(acc: Account, alert_lines: list[Transaction], day: date, amount: Decimal):
+    """(alert line, tie) for a bank row arriving: the line it is the posted
+    version of, or None, and whether two were as near."""
+    found = []
+    for t in alert_lines:
+        a_day, a_amt = _alert_own(t)
+        d = _alert_join_fits(acc, a_day, a_amt, day, amount)
+        if d is not None:
+            found.append((d, t))
+    return _nearest_only(found)
+
+
+def _bank_row_for_alert(acc: Account, rows: list[Transaction], day: date, amount: Decimal):
+    """(bank line, tie) for an alert landing after its bank row (#210)."""
+    found = []
+    for b in rows:
+        d = _alert_join_fits(acc, day, amount, b.actual_date or b.forecast_date, b.amount)
+        if d is not None:
+            found.append((d, b))
+    return _nearest_only(found)
+
+
+def _join_alert_line(t: Transaction, bank: dict, day: date, amount: Decimal, ref: str,
+                     run_id: int | None, bank_category: str | None) -> None:
+    """Joins a bank row to an alert's line (#210): the line takes the bank's
+    id, and its amount and date unless the user changed them; the name,
+    category, tags, notes and any bill it paid stay. `bank` is what the row
+    was, kept for undoing (text, category_id, and a whole line's fields when
+    it was one)."""
+    a_day, a_amt = _alert_own(t)
+    if t.alert_values is None:
+        t.alert_values = {"amount": str(a_amt), "date": a_day.isoformat()}
+    cur = t.actual_date or t.forecast_date
+    if t.amount == a_amt:
+        t.amount = amount
+    if cur == a_day:
+        if t.recurring_id is None and t.forecast_date == cur:
+            t.forecast_date = day
+        t.actual_date = day
+    t.join_data = {**bank, "amount": str(amount), "date": day.isoformat(),
+                   "bank_category": bank_category, "line_bank_category": t.bank_category}
+    t.bank_ref, t.bank_sync_run_id = ref, run_id
+    if bank_category and not t.bank_category:
+        t.bank_category = bank_category
+
+
+def _bank_line_kept(db: Session, b: Transaction, how: str) -> dict:
+    """What a bank row that was its own line is, kept on the joined line so
+    undoing the join brings it back as it was (#210)."""
+    tags = [tid for (tid,) in db.query(TransactionTag.tag_id).filter_by(transaction_id=b.id)]
+    return {"text": _bank_text_of(b), "description": b.description, "notes": b.notes,
+            "category_id": b.category_id, "tags": tags, "left": bool(b.bank_left),
+            "forecast_date": b.forecast_date.isoformat() if b.forecast_date else None, "how": how}
+
+
+def _join_lines(db: Session, alert: Transaction, bank: Transaction, how: str) -> None:
+    """Joins a bank row that is already a line to an alert's line: the bank
+    row's line goes into the alert's, and comes back if the join is undone."""
+    kept = _bank_line_kept(db, bank, how)
+    day, amount, ref, run_id, pcat = (bank.actual_date or bank.forecast_date, bank.amount, bank.bank_ref,
+                                      bank.bank_sync_run_id, bank.bank_category)
+    db.delete(bank)
+    db.flush()
+    _join_alert_line(alert, kept, day, amount, ref, run_id, pcat)
+
+
+def _unjoin_line(db: Session, user: User, acc: Account, t: Transaction) -> Transaction:
+    """Undoes a join (#210): the line goes back to the alert's amount and date
+    (where they're still the bank's) and the bank row becomes its own line
+    again, off the Unmatched list unless it was on it before a join by hand.
+    Returns the bank row's line."""
+    data = t.join_data or {}
+    try:
+        bank_day, bank_amt = date.fromisoformat(data["date"]), Decimal(data["amount"])
+    except (KeyError, TypeError, ValueError, ArithmeticError):
+        bank_day, bank_amt = (t.actual_date or t.forecast_date), t.amount
+    a_day, a_amt = _alert_own(t)
+    ref, run_id = t.bank_ref, t.bank_sync_run_id
+    if t.amount == bank_amt:
+        t.amount = a_amt
+    if (t.actual_date or t.forecast_date) == bank_day:
+        if t.recurring_id is None and t.forecast_date == bank_day:
+            t.forecast_date = a_day
+        t.actual_date = a_day
+    t.bank_ref = t.bank_sync_run_id = None
+    t.bank_category = data.get("line_bank_category")
+    t.join_data = None
+    db.flush()
+    cat = data.get("category_id")
+    if cat is not None and not db.query(Category.id).filter_by(id=cat).first():
+        cat = None
+    left = data.get("left", True) is not False
+    if "description" in data:   # a line of its own before a join by hand: as it was
+        b = Transaction(account_id=acc.id, actual_date=bank_day, is_actual=True, bank_left=left,
+                        forecast_date=_date_or(data.get("forecast_date"), bank_day),
+                        bank_ref=ref, bank_sync_run_id=run_id, category_id=cat,
+                        bank_category=data.get("bank_category"))
+        b.description = str(data.get("description") or data.get("text") or t.description)[:DESCRIPTION_MAX]
+        b.amount = bank_amt
+        b.notes = data.get("notes") or None
+        db.add(b)
+        db.flush()
+        tags = [x for x in (data.get("tags") or []) if isinstance(x, int)]
+        for (tid,) in (db.query(Tag.id).filter(Tag.id.in_(tags)).all() if tags else []):
+            db.add(TransactionTag(transaction_id=b.id, tag_id=tid))
+        return b
+    # It came straight from the bank: as it would have landed, with the tag
+    # rules of the person whose connection feeds the account (#265).
+    rules_of = user
+    hit = _account_bank_link(db, acc.id)
+    if hit is not None:
+        rules_of = db.get(User, hit[1].user_id) or user
+    return _bank_own_line(db, rules_of, acc.id, bank_day, bank_amt, data.get("text") or t.description, ref,
+                          run_id, left=left, category_id=cat, bank_category=data.get("bank_category"))
+
+
+def _date_or(text, default: date) -> date:
+    try:
+        return date.fromisoformat(text)
+    except (TypeError, ValueError):
+        return default
+
+
+def _never_posted(t: Transaction, link: BankAccountLink | None) -> bool:
+    """An alert line no bank row has met, though bank sync has read the
+    bank ALERT_NEVER_POSTED_DAYS past it (#210): a hold that dropped off or a
+    declined charge, for the user to delete or keep."""
+    if link is None or not t.mail_ref or t.bank_ref or link.synced_through is None:
+        return False
+    day = t.actual_date or t.forecast_date
+    return (day is not None and day >= link.start_date
+            and day + timedelta(days=ALERT_NEVER_POSTED_DAYS) <= link.synced_through)
+
+
+def _join_line(db: Session, acc: Account, txn_id: int) -> Transaction:
+    """A line on the Unmatched list that can be joined by hand: an alert's
+    line or a bank row, not one already joined."""
+    t = _unmatched_line(db, acc, txn_id)
+    if t.bank_ref and t.mail_ref:
+        raise HTTPException(409, "That line is already joined to its bank row.")
+    return t
+
+
+def _join_partners(db: Session, acc: Account, line: Transaction) -> list[Transaction]:
+    """What an alert line could be joined to (the account's bank rows that
+    are their own line) or a bank row (its alert lines not joined yet)."""
+    return _bank_rows_to_join(db, acc.id) if line.mail_ref else _alert_lines_to_join(db, acc.id)
+
+
+@app.get("/api/accounts/{account_id}/bank-unmatched/{txn_id}/join-candidates")
+def alert_join_candidates(account_id: int, txn_id: int, user: User = Depends(current_user),
+                          db: Session = Depends(get_db)):
+    """Join by hand (#210): for an alert line on the Unmatched list, the
+    account's bank rows within 60 days; for a bank row, the alert lines not
+    joined yet. Each says how the bank's row compares with the alert's
+    (amount_diff and days_after are the bank's minus the alert's) and
+    whether it is within the account's join settings; those going the same
+    way first, then the nearest."""
+    acc = _sync_log_account(db, user, account_id)
+    if _account_bank_link(db, acc.id) is None:
+        raise HTTPException(409, "This account doesn't take lines from bank sync, so there's nothing to join.")
+    line = _join_line(db, acc, txn_id)
+    is_alert = bool(line.mail_ref)
+    day = line.actual_date or line.forecast_date
+    lo, hi = day - timedelta(days=MATCH_BY_HAND_DAYS), day + timedelta(days=MATCH_BY_HAND_DAYS)
+    out = []
+    for o in _join_partners(db, acc, line):
+        when = o.actual_date or o.forecast_date
+        if when is None or not lo <= when <= hi:
+            continue
+        (a_day, a_amt), (b_day, b_amt) = ((_alert_own(line), (when, o.amount)) if is_alert
+                                          else (_alert_own(o), (day, line.amount)))
+        text = _bank_text_of(o) if not is_alert else None
+        out.append({"id": o.id, "date": when.isoformat(), "description": o.description,
+                    "amount": float(o.amount), "source": "bank" if is_alert else "alert",
+                    "bank_text": text if text and text != o.description else None,
+                    "paid_bill": o.recurring_id is not None,
+                    "days_apart": abs((when - day).days), "days_after": (b_day - a_day).days,
+                    "amount_diff": float(abs(b_amt) - abs(a_amt)),
+                    "same_direction": (o.amount < 0) == (line.amount < 0) and o.amount != 0,
+                    "within": _alert_join_fits(acc, a_day, a_amt, b_day, b_amt) is not None})
+    out.sort(key=lambda x: (not x["same_direction"], not x["within"], x["days_apart"],
+                            abs(x["amount_diff"]), x["id"]))
+    return {"line": {"id": line.id, "date": day.isoformat(), "description": line.description,
+                     "amount": float(line.amount), "source": _line_source(line)},
+            "join_days": acc.alert_join_days, "join_percent": acc.alert_join_percent,
+            "lines": out[:50]}
+
+
+class AlertJoinIn(BaseModel):
+    transaction_id: int   # the other line: a bank row for an alert line, or an alert line for a bank row
+
+
+@app.post("/api/accounts/{account_id}/bank-unmatched/{txn_id}/join")
+def alert_join_by_hand(account_id: int, txn_id: int, body: AlertJoinIn,
+                       user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Joins an alert line and a bank row by hand (#210), whatever the
+    account's join settings say, as a bank row arriving would be: one line,
+    with the alert's name and the bank's amount and date. Undone with
+    POST /api/transactions/{id}/alert-unjoin."""
+    acc = _sync_log_account(db, user, account_id)
+    if _account_bank_link(db, acc.id) is None:
+        raise HTTPException(409, "This account doesn't take lines from bank sync, so there's nothing to join.")
+    line = _join_line(db, acc, txn_id)
+    other = next((o for o in _join_partners(db, acc, line) if o.id == body.transaction_id), None)
+    if other is None:
+        raise HTTPException(404, "Pick a bank row for an email alert's line, or an alert's line for a bank "
+                                 "row, on this account and not joined yet.")
+    alert, bank = (line, other) if line.mail_ref else (other, line)
+    if (alert.amount < 0) != (bank.amount < 0):
+        raise HTTPException(409, "One is money in and the other money out: they can't be the same purchase.")
+    _join_lines(db, alert, bank, "hand")
+    db.commit()
+    return {"ok": True, "transaction_id": alert.id}
+
+
+@app.post("/api/transactions/{txn_id}/alert-unjoin")
+def alert_unjoin(txn_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """Undoes a join (#210): the bank row becomes its own line again and the
+    alert's line goes back to the alert's amount and date. Neither is joined
+    again by itself."""
+    t = db.get(Transaction, txn_id)
+    if t is None:
+        raise HTTPException(404, "Transaction not found")
+    acc = _sync_log_account(db, user, t.account_id)
+    if not (t.join_enc and t.mail_ref and t.bank_ref):
+        raise HTTPException(409, "That line isn't an email alert joined to its bank row.")
+    own = _unjoin_line(db, user, acc, t)
+    db.commit()
+    return {"ok": True, "transaction_id": t.id, "bank_transaction_id": own.id}
 
 
 def shorten_synced_names(db: Session) -> int:
@@ -6115,7 +6551,8 @@ def bank_sync_log(account_id: int, user: User = Depends(current_user), db: Sessi
     runs = (db.query(BankSyncRun).filter_by(account_id=acc.id)
             .order_by(BankSyncRun.run_at.desc(), BankSyncRun.id.desc()).limit(200).all())
     return [{"id": r.id, "run_at": r.run_at.isoformat() + "Z", "trigger": r.trigger,
-             "added": r.added, "matched": r.matched, "skipped": r.skipped, "error": r.error}
+             "added": r.added, "matched": r.matched, "joined": r.joined, "skipped": r.skipped,
+             "error": r.error}
             for r in runs]
 
 
@@ -6130,11 +6567,14 @@ def bank_sync_log_lines(account_id: int, run_id: int, user: User = Depends(curre
     rows = (db.query(Transaction).filter_by(account_id=acc.id, bank_sync_run_id=run.id)
             .order_by(Transaction.actual_date, Transaction.id).all())
     return {"id": run.id, "run_at": run.run_at.isoformat() + "Z", "trigger": run.trigger,
-            "added": run.added, "matched": run.matched, "skipped": run.skipped, "error": run.error,
+            "added": run.added, "matched": run.matched, "joined": run.joined, "skipped": run.skipped,
+            "error": run.error,
             "lines": [{"id": t.id, "date": (t.actual_date or t.forecast_date).isoformat(),
                        "description": t.description, "amount": float(t.amount),
                        # Paid a planned line (#196): auto or hand; else None.
-                       "matched": t.bank_match} for t in rows]}
+                       "matched": t.bank_match,
+                       # Joined to an email alert's line (#210).
+                       "joined": bool(t.mail_ref)} for t in rows]}
 
 
 class BankDisconnectIn(BaseModel):
@@ -6215,7 +6655,9 @@ MAIL_REASONS = {
     "unverified": "May not be from your bank: it failed your mailbox's sender check.",
     "card": "Its card isn't matched to an account.",
     "no_account": "No account to put it in.",
-    "bank_linked": "Its account takes lines from bank sync; alerts join it in a later version.",
+    # No longer given since alerts and bank sync share an account (#210);
+    # one kept from before lands at the next check.
+    "bank_linked": "Its account takes lines from bank sync; it's brought in at the next check.",
 }
 # Tried again on each check, from the kept text; an unverified or dismissed
 # alert never is.
@@ -6794,11 +7236,8 @@ class MailTeachIn(MailSourceIn):
 
 def _mail_account_ok(db: Session, user: User, account_id: int) -> Account:
     # Alerts land lines in the account, so its owner only, as bank sync does.
-    acc = _account_with_perm(db, user, account_id, "owner")
-    if acc.id in _bank_linked_ids(db, user):
-        raise HTTPException(400, "That account takes lines from bank sync. Alerts and bank sync "
-                                 "on one account arrive in a later version; pick another account.")
-    return acc
+    # An account may take lines from bank sync too: they're joined (#210).
+    return _account_with_perm(db, user, account_id, "owner")
 
 
 @app.post("/api/mail/senders")
@@ -6954,28 +7393,36 @@ def _mail_land(db: Session, user: User, conn: MailConnection, sender: MailSender
         acc = _account_with_perm(db, user, account_id, "owner")
     except HTTPException:
         return ("no_account", "The account it was matched to is gone or no longer yours.")
-    if acc.id in _bank_linked_ids(db, user):
-        return ("bank_linked", None)
     amount = values["amount"] if kind.direction == "in" else -values["amount"]
     when = values.get("date") or day
     merchant = values.get("merchant") or sender.label
+    own = {"amount": str(amount), "date": when.isoformat()}   # the alert's own values (#210)
+    # An alert that lands after its bank row (bank sync read it first) is
+    # joined to it (#210); two as near are left for the user, so the alert
+    # lands on the Unmatched list and pays no bill.
+    bank_row, tie = None, False
+    if _account_bank_link(db, acc.id) is not None:
+        bank_row, tie = _bank_row_for_alert(acc, _bank_rows_to_join(db, acc.id), when, amount)
     cache = bills_cache if bills_cache is not None else {}
     bills = cache.get(acc.id)
     if bills is None:
         bills = cache[acc.id] = _bills_to_match(db, acc.id)
-    hit = _bill_for_bank_line(bills, when, amount, merchant)
+    hit = None if tie else _bill_for_bank_line(bills, when, amount, merchant)
     if hit:
         rec, occ = hit
-        paid = _pay_bill_from_bank(db, rec, occ, when, amount, ref, merchant, "auto", run_id, "alert")
+        t = _pay_bill_from_bank(db, rec, occ, when, amount, ref, merchant, "auto", run_id, "alert")
         bills["covered"].add((rec.id, occ))
-        return paid
-    t = Transaction(account_id=acc.id, actual_date=when, forecast_date=when, is_actual=True,
-                    mail_ref=ref, mail_run_id=run_id)
-    t.description = merchant
-    t.amount = amount
-    db.add(t)
-    db.flush()
-    _apply_tag_rules(db, user, t)
+    else:
+        t = Transaction(account_id=acc.id, actual_date=when, forecast_date=when, is_actual=True,
+                        mail_ref=ref, mail_run_id=run_id)
+        t.description = merchant
+        t.amount = amount
+        db.add(t)
+        db.flush()
+        _apply_tag_rules(db, user, t)
+    t.alert_values = own
+    if bank_row is not None:
+        _join_lines(db, t, bank_row, "auto")
     return t
 
 

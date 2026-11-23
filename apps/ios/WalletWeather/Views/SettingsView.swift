@@ -263,7 +263,7 @@ struct SettingsView: View {
     static func short(_ date: Date) -> String {
         Calendar.current.isDateInToday(date)
             ? date.formatted(date: .omitted, time: .shortened)
-            : date.formatted(.dateTime.month(.abbreviated).day())
+            : LocalDay.display(of: date)
     }
 
     private static func debugPath() -> [SettingsPage] {

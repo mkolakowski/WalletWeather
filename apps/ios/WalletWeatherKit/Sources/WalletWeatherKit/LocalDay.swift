@@ -55,11 +55,6 @@ public struct LocalDay: Sendable, Hashable, Comparable, Codable, CustomStringCon
         return Calendar.current.date(from: c) ?? .distantPast
     }
 
-    /// "Nov 3".
-    public var short: String {
-        date.formatted(.dateTime.month(.abbreviated).day())
-    }
-
     /// The last day of this day's month.
     public var endOfMonth: LocalDay {
         var c = DateComponents()

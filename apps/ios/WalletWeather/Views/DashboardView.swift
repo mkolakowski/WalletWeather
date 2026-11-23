@@ -238,7 +238,7 @@ struct RestOfMonthCard: View {
 
     var body: some View {
         let rest = dashboard.restOfMonth
-        let end = LocalDay.today().endOfMonth.date.formatted(.dateTime.month(.wide).day())
+        let end = LocalDay.today().endOfMonth.short
         VStack(alignment: .leading, spacing: 6) {
             Caption("Rest of this month")
             if rest.count == 0 {

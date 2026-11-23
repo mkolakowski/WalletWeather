@@ -23,6 +23,10 @@ public struct Me: Sendable, Codable, Equatable {
     public let tokenAccess: String?
     /// The theme saved in the web app, for "Match the web app" (#102).
     public let themePreference: String?
+    /// How the web app writes dates, `short` or `iso` (server 1.98.0); nil
+    /// from an older server, the demo and the household on this iPhone, which
+    /// read as short (#296).
+    public let dateFormat: String?
 
     /// A read-only token: the app shows no editing anywhere.
     public var isReadOnly: Bool { tokenAccess == "read" }

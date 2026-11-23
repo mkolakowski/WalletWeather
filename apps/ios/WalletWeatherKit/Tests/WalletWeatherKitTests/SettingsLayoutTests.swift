@@ -18,13 +18,13 @@ struct SettingsLayoutTests {
         #expect(layout.rows(on: .connection) == [.address, .signedInAs, .cloudflare, .keep, .openWebApp, .signOut])
         #expect(layout.rows(on: .keep) == [.keepNothing, .keepLastKnown])
         #expect(layout.rows(on: .privacy) == [.lock, .appSwitcher])
-        #expect(layout.rows(on: .display) == [.followAccount])
+        #expect(layout.rows(on: .display) == [.dateFormat, .followAccount])
         #expect(layout.rows(on: .help) == [.showGettingStarted, .privacyPolicy])
         #expect(Set(layout.reachablePages) == [.connection, .keep, .tags, .bank, .appearance, .tabBar, .privacy, .display, .notice, .help])
         #expect(Set(layout.reachableRows) == [
             .connection, .morePages, .tags, .bankSync, .importCSV, .appearance, .tabBar, .privacyLock, .datesDisplay,
             .notice, .help, .versions, .address, .signedInAs, .cloudflare, .keep, .openWebApp, .signOut,
-            .keepNothing, .keepLastKnown, .bankCard, .looks, .lock, .appSwitcher, .followAccount, .showGettingStarted, .privacyPolicy,
+            .keepNothing, .keepLastKnown, .bankCard, .looks, .lock, .appSwitcher, .dateFormat, .followAccount, .showGettingStarted, .privacyPolicy,
         ])
     }
 
@@ -38,13 +38,13 @@ struct SettingsLayoutTests {
         #expect(layout.rows(on: .connection) == [.aboutThisIPhone, .backToFirstScreen, .deleteEverything])
         #expect(layout.rows(on: .backup) == [.syncWithICloud, .backupToICloudDrive, .backupPassphrase])
         #expect(layout.rows(on: .move) == [.exportForServer, .importServerBackup])
-        #expect(layout.rows(on: .display) == [.followAccount])
+        #expect(layout.rows(on: .display) == [.dateFormat, .followAccount])
         #expect(layout.rows(on: .help) == [.showGettingStarted, .privacyPolicy, .setupGuide])
         #expect(Set(layout.reachablePages) == [.connection, .tags, .bank, .backup, .move, .appearance, .tabBar, .privacy, .display, .notice, .help])
         #expect(Set(layout.reachableRows) == [
             .connection, .morePages, .tags, .bankSync, .iCloudBackup, .moveToServer, .addAccount, .importCSV,
             .appearance, .tabBar, .privacyLock, .datesDisplay, .notice, .help, .versions,
-            .aboutThisIPhone, .backToFirstScreen, .deleteEverything, .bankCard, .looks, .lock, .appSwitcher, .followAccount,
+            .aboutThisIPhone, .backToFirstScreen, .deleteEverything, .bankCard, .looks, .lock, .appSwitcher, .dateFormat, .followAccount,
             .syncWithICloud, .backupToICloudDrive, .backupPassphrase, .exportForServer, .importServerBackup,
             .showGettingStarted, .privacyPolicy, .setupGuide,
         ])
@@ -57,11 +57,11 @@ struct SettingsLayoutTests {
             [.appearance, .tabBar, .privacyLock, .datesDisplay], [.notice, .help, .versions],
         ])
         #expect(layout.rows(on: .connection) == [.aboutDemo, .leaveDemo])
-        #expect(layout.rows(on: .display) == [.followAccount])
+        #expect(layout.rows(on: .display) == [.dateFormat, .followAccount])
         #expect(Set(layout.reachablePages) == [.connection, .tags, .bank, .appearance, .tabBar, .privacy, .display, .notice, .help])
         #expect(Set(layout.reachableRows) == [
             .connection, .morePages, .tags, .bankSync, .importCSV, .appearance, .tabBar, .privacyLock, .datesDisplay,
-            .notice, .help, .versions, .aboutDemo, .leaveDemo, .bankCard, .looks, .lock, .appSwitcher, .followAccount,
+            .notice, .help, .versions, .aboutDemo, .leaveDemo, .bankCard, .looks, .lock, .appSwitcher, .dateFormat, .followAccount,
             .showGettingStarted, .privacyPolicy,
         ])
     }

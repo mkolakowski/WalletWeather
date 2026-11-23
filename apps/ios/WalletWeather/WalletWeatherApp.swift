@@ -22,14 +22,22 @@ struct WalletWeatherApp: App {
         // asked for by "Open in new window" (#90).
         WindowGroup(for: RootView.Place.self) { $start in
             AppRoot(start: start)
-                .id(settings.shownLook)  // every page reads its colours again
+                // Every page reads its colours and its dates again.
+                .id("\(settings.shownLook.rawValue)/\(settings.dateStyle.rawValue)")
                 .environment(model)
                 .environment(settings)
                 .tint(Palette.accent)
                 .preferredColorScheme(settings.shownLook.colorScheme)
                 // Match the web app follows the theme saved on the server.
                 .onChange(of: model.me) { _, me in
-                    if let me { settings.serverTheme = me.themePreference }
+                    if let me {
+                        settings.serverTheme = me.themePreference
+                        // Follow the web app's date format, with a server only (#296).
+                        settings.serverDateFormat = model.settingsHousehold == .server ? me.dateFormat : nil
+                    }
+                }
+                .onChange(of: model.settingsHousehold) { _, household in
+                    if household != .server { settings.serverDateFormat = nil }
                 }
                 // The theme kept with the connection now in front (#299), until
                 // its server answers.

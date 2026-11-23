@@ -123,6 +123,9 @@ display), `backup`, `move`,
 width (the open Duo, #295) Settings is a sidebar with the chosen page beside
 it, and these choose that page there; the open page is kept per window
 (`settings.page`), so closing or opening the Duo keeps it.
+`SIMCTL_CHILD_WW_DEBUG_DATES=iso` (or `short`) forces how dates are written
+(Settings → Dates & display → Date format, #296), whatever is chosen there or
+saved in the web app; `WW_DEBUG_LOOK=<look>` picks the look the same way.
 `SIMCTL_CHILD_WW_DEBUG_UNDO=Rent` shows the Forecast's Undo bar for that line
 once the page has loaded (#315); it saves nothing and stays until dismissed.
 On this Mac the simulators are shared with other projects' sessions, so run

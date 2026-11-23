@@ -388,7 +388,7 @@ final class AppModel {
     /// `WW_DEBUG_OPEN_LINE` (a Forecast line's or a bill's name, opened in
     /// the editor), `WW_DEBUG_SEARCH` (search text), and `WW_DEBUG_ACCOUNT`
     /// and `WW_DEBUG_DAY` (the Calendar's account and day), and
-    /// `WW_DEBUG_KEEP` (what the phone keeps), `WW_DEBUG_LOOK` (the look),
+    /// `WW_DEBUG_KEEP` (what the phone keeps), `WW_DEBUG_LOOK` (the look), `WW_DEBUG_DATES` (iso or short),
     /// and `WW_DEBUG_CONFIRM`, `WW_DEBUG_COMPARE` and `WW_DEBUG_NEW_WINDOW`
     /// (Forecast's To confirm, Compare, and a second window on a page), and
     /// `WW_DEBUG_DEMO=1` (open in the demo), and `WW_DEBUG_CLOUDKIT_SCHEMA=1`

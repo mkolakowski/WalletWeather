@@ -331,11 +331,11 @@ private struct MovePage: View {
 
 // MARK: - This iPhone
 
-/// Appearance: every look with a tick on the chosen one.
+/// Appearance: every look as a tile of previews, the chosen one ringed (#296).
 private struct AppearancePage: View {
     var body: some View {
         SettingsPageFrame(title: "Appearance") {
-            LookList()
+            LookGrid()
             SettingNote("Pick one and the app changes straight away. Match the web app uses the theme you chose in the web app's Settings.")
         }
     }
@@ -367,13 +367,47 @@ private struct PrivacyPage: View {
     }
 }
 
-/// Dates & display: whether the pages that keep an account follow the one
-/// picked on any of them (#317). The date format joins it later (#296).
+/// Dates & display: Date format (Follow the web app, Nov 12 or 2026-11-12)
+/// and whether the pages that keep an account follow the one picked on any
+/// of them (#317). Date pickers and typed dates don't change (#296).
 private struct DatesDisplayPage: View {
+    @Environment(AppModel.self) private var model
     @Environment(AppSettings.self) private var settings
+
+    private var hasServer: Bool { model.settingsHousehold == .server }
+
+    /// The choice ticked: Follow the web app reads as Nov 12 with no server.
+    private var shown: DateFormatChoice {
+        !hasServer && settings.dateChoice == .follow ? .short : settings.dateChoice
+    }
 
     var body: some View {
         SettingsPageFrame(title: "Dates & display") {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(SettingsRow.dateFormat.title).font(.headline).padding(.top, 4).padding(.bottom, 2)
+                    .accessibilityAddTraits(.isHeader)
+                ForEach(Array(DateFormatChoice.offered(hasServer: hasServer).enumerated()), id: \.element) { index, choice in
+                    if index > 0 { Divider() }
+                    Button { settings.dateChoice = choice } label: {
+                        HStack {
+                            Text(choice.title)
+                            Spacer()
+                            if shown == choice {
+                                Image(systemName: "checkmark").foregroundStyle(Palette.accent)
+                            }
+                        }
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(shown == choice ? .isSelected : [])
+                }
+            }
+            .card()
+            SettingNote(hasServer
+                        ? "Follow the web app writes dates the way the web app's Settings does, Nov 12 or 2026-11-12, and Nov 12 when your server is older than 1.98.0. Nov 12 adds the year for other years. Date pickers and the dates you type don't change."
+                        : "Pick how dates are written. Nov 12 adds the year for other years. Date pickers and the dates you type don't change.")
+            Gap()
             Toggle(SettingsRow.followAccount.title, isOn: Binding(
                 get: { settings.pagesFollowAccount },
                 set: { settings.pagesFollowAccount = $0 }))

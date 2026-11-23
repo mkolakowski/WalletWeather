@@ -69,10 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.44.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.45.0**
 
 ### Added
 
+- **iPhone: a Date format choice.** Settings → Dates & display → Date format: **Follow the web app** (with a server on 1.98.0 or later, dates are written the way you chose in the web app's Settings → Appearance), **Nov 12**, or **2026-11-12**. On this iPhone alone the choice is Nov 12 or 2026-11-12. `GET /api/me`'s `date_format` is read for this. Date pickers, and long forms with a weekday such as "Wed, Nov 18", don't change (iOS 0.45.0).
 - **iPhone: Undo after marking a line paid, and haptics.** After a swipe to Paid or a tap on Paid in To confirm, a bar at the bottom of Forecast says "Rent marked paid" with **Undo** for five seconds (fifteen with VoiceOver). Undo puts the line back to not paid at its planned amount and date, as switching Paid off in the editor does. The phone gives a short tap when a line is marked paid and when a save goes through; its own System Haptics setting turns that off (iOS 0.40.0).
 - **iPhone: change a line's name, date and planned amount.** For a line you added yourself, the editor's Name, Planned for and Planned amount are now fields, so a mistyped one-off no longer has to be deleted and added again. A line that comes from a repeating bill, and a transfer, show them as text as before: a bill's date changes in its bill. While a line isn't paid, its actual amount and date follow the plan you set (iOS 0.39.0).
 - **iPhone: a + menu on the Dashboard.** Add a transaction (it asks which account), move money or import a CSV from the first page, without going to Forecast first. It shows when you may change at least one account (iOS 0.38.0).
@@ -80,6 +81,8 @@ App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** ·
 
 ### Changed
 
+- **iPhone: Appearance shows each look as a tiny screen in its own colours,** with a balance bar, an amount in and out, and a button, as the web app's Settings does. Match this iPhone is half Light and half Dark; Match the web app shows the theme saved on your server. Tap one to use it. Getting started's Choose a look uses the same previews (iOS 0.45.0).
+- **Breaking: iPhone: a date outside this year now shows its year,** as in the web app: "Dec 29, 2027" where it read "Dec 29".
 - **iPhone Duo: Settings is a sidebar and a page when open,** like the Duo's own Settings. The list (where you are, the other pages, your household, this iPhone, About) stands down the left with each row's value under its name, and the row you choose opens beside it under a card with its name and a line about it. Calendar, Net worth, Budgets and Reports open there too when they aren't in the tab bar. Closing the Duo on a page shows that page; opening it again shows the sidebar with the same page chosen. Closed, Settings is the list it was (iOS 0.44.0).
 - **iPhone Duo: every page folds the same way.** Half open like a laptop, each two-pane page now stacks at the hinge, as only Forecast did: the Dashboard's charts stand up and its accounts lie flat; Bills & income's list above its editor or totals; the Calendar's month above the day; Net worth's total and chart above its accounts; Budgets, Reports and Search likewise. Half open like a book, the two panes sit either side of the fold instead of the right-hand one sitting on it. The panes move from one arrangement to the other as the Duo folds, or fade if Reduce Motion is on. Lying flat, every page is exactly as it was (iOS 0.43.0).
 - **iPhone Duo: pull down in either half to refresh,** on every page, and on Reports and Search, which couldn't be refreshed before. **Breaking:** the Dashboard's Refresh button is gone; pull down instead.

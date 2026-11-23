@@ -72,6 +72,37 @@ final class AppSettings {
         look == .web ? .matching(ServerTheme(serverTheme)) : look
     }
 
+    /// Settings → Dates & display → Date format (#296): Follow the web app
+    /// (the default), Nov 12 or 2026-11-12.
+    var dateChoice: DateFormatChoice {
+        didSet {
+            defaults.set(dateChoice.rawValue, forKey: Keys.dateFormat)
+            applyDateStyle()
+        }
+    }
+
+    /// The web app's `date_format`, from `/api/me` of the server in front:
+    /// kept here so it still applies when the app opens without a
+    /// connection. Nil with no server (this iPhone alone, the demo).
+    var serverDateFormat: String? {
+        didSet {
+            guard serverDateFormat != oldValue else { return }
+            defaults.set(serverDateFormat, forKey: Keys.serverDateFormat)
+            applyDateStyle()
+        }
+    }
+
+    /// How dates are written now. Debug only: `WW_DEBUG_DATES=iso|short`
+    /// forces it, for screenshots.
+    var dateStyle: DateStyle {
+        if let forced = AppModel.debugSetting("WW_DEBUG_DATES").flatMap(DateStyle.init(rawValue:)) { return forced }
+        return dateChoice.style(server: serverDateFormat)
+    }
+
+    /// Sets the style every `LocalDay.short` reads; the root re-reads it by
+    /// rebuilding the pages when `dateStyle` changes.
+    private func applyDateStyle() { DateDisplay.style = dateStyle }
+
     /// Pages follow the same account (#317): an account picked on Forecast,
     /// Bills & income or Calendar is shown on the other two. On unless
     /// turned off; a phone that never set it reads as on.
@@ -102,6 +133,8 @@ final class AppSettings {
         static let lockEnabled = "lock.enabled"
         static let lockOffered = "lock.offered"
         static let followAccount = "pages.followAccount"
+        static let dateFormat = "dates.format"
+        static let serverDateFormat = "dates.server"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -123,9 +156,12 @@ final class AppSettings {
         lockEnabled = enabled
         lockOffered = defaults.bool(forKey: Keys.lockOffered)
         pagesFollowAccount = defaults.object(forKey: Keys.followAccount) as? Bool ?? true
+        dateChoice = defaults.string(forKey: Keys.dateFormat).flatMap(DateFormatChoice.init(rawValue:)) ?? .follow
+        serverDateFormat = defaults.string(forKey: Keys.serverDateFormat)
         // Locked from a fresh start, unless launched for screenshots.
         locked = enabled && AppModel.debugSetting("WW_DEBUG_SERVER") == nil
         Palette.look = shownLook
+        DateDisplay.style = dateStyle
     }
 
     // MARK: - The lock

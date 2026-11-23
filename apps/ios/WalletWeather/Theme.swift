@@ -13,7 +13,14 @@ enum Look: Hashable, Identifiable {
     case system, web, light, dark, amoled, sepia
     case theme(WebTheme)
 
-    static let allCases: [Look] = [.system, .web, .light, .dark, .amoled, .sepia] + WebTheme.allCases.map(Look.theme)
+    /// In the order the Appearance page lists them (`LookPreview.rawValues`).
+    static let allCases: [Look] = LookPreview.rawValues.compactMap { Look(rawValue: $0) }
+
+    /// The screens a tile draws for this look; `server` is the theme saved
+    /// on the server, which Match the web app shows (#296).
+    func swatches(server: String?) -> [LookPreview.Swatch] {
+        LookPreview.swatches(for: rawValue, server: ServerTheme(server)) ?? []
+    }
 
     init?(rawValue: String) {
         switch rawValue {
@@ -90,55 +97,42 @@ enum Palette {
         return nil
     }
 
-    static var accent: Color {
-        if let theme { return hex(theme.accent) }
+    // The literals for the looks that have their own are `BuiltInLook`'s,
+    // which the Appearance page's previews read too, so they can't drift.
+
+    private static func dynamic(_ keyPath: KeyPath<WebTheme.Colors, UInt32>) -> Color {
+        dynamic(light: BuiltInLook.light.colors[keyPath: keyPath], dark: BuiltInLook.dark.colors[keyPath: keyPath])
+    }
+
+    /// One colour for the look in use: a web theme's, AMOLED black's or
+    /// Sepia's own, or Light's and Dark's, which follow the phone.
+    private static func color(_ keyPath: KeyPath<WebTheme.Colors, UInt32>) -> Color {
+        if let theme { return hex(theme[keyPath: keyPath]) }
         switch look {
-        case .amoled: return hex(0x58A6FF)
-        case .sepia: return hex(0x9C4410)
-        default: return dynamic(light: 0x0969DA, dark: 0x58A6FF)
+        case .amoled: return hex(BuiltInLook.amoled.colors[keyPath: keyPath])
+        case .sepia: return hex(BuiltInLook.sepia.colors[keyPath: keyPath])
+        default: return dynamic(keyPath)
         }
     }
 
-    static var good: Color {
-        if let theme { return hex(theme.good) }
-        switch look {
-        case .amoled: return hex(0x3FB950)
-        case .sepia: return hex(0x2F6B2F)
-        default: return dynamic(light: 0x1A7F37, dark: 0x3FB950)
-        }
-    }
-
-    static var bad: Color {
-        if let theme { return hex(theme.bad) }
-        switch look {
-        case .amoled: return hex(0xFF7B72)
-        case .sepia: return hex(0xA32A1C)
-        default: return dynamic(light: 0xCF222E, dark: 0xF85149)
-        }
-    }
-
-    static var warn: Color {
-        if let theme { return hex(theme.warn) }
-        switch look {
-        case .amoled: return hex(0xF0883E)
-        case .sepia: return hex(0x8A6D00)
-        default: return dynamic(light: 0x9A6700, dark: 0xD29922)
-        }
-    }
+    static var accent: Color { color(\.accent) }
+    static var good: Color { color(\.good) }
+    static var bad: Color { color(\.bad) }
+    static var warn: Color { color(\.warn) }
 
     /// The text colour for Sepia (brown) and the web themes; nil keeps the
     /// system's.
     static var text: Color? {
         if let theme { return hex(theme.text) }
-        return look == .sepia ? hex(0x3D2B1C) : nil
+        return look == .sepia ? hex(BuiltInLook.sepia.colors.text) : nil
     }
 
     /// Behind everything: black for AMOLED, tan for Sepia, a web theme's own.
     static var page: Color {
         if let theme { return hex(theme.page) }
         switch look {
-        case .amoled: return .black
-        case .sepia: return hex(0xEAD5B3)
+        case .amoled: return hex(BuiltInLook.amoled.colors.page)
+        case .sepia: return hex(BuiltInLook.sepia.colors.page)
         default: return Color(.systemGroupedBackground)
         }
     }
@@ -147,8 +141,8 @@ enum Palette {
     static var panel: Color {
         if let theme { return hex(theme.panel) }
         switch look {
-        case .amoled: return hex(0x101317)
-        case .sepia: return hex(0xFDF3E3)
+        case .amoled: return hex(BuiltInLook.amoled.colors.panel)
+        case .sepia: return hex(BuiltInLook.sepia.colors.panel)
         default: return Color(.secondarySystemGroupedBackground)
         }
     }
@@ -167,8 +161,8 @@ enum Palette {
     static var outline: Color {
         if let theme { return hex(theme.border) }
         switch look {
-        case .amoled: return hex(0x2A3038)
-        case .sepia: return hex(0xCFAE82)
+        case .amoled: return hex(BuiltInLook.amoled.colors.border)
+        case .sepia: return hex(BuiltInLook.sepia.colors.border)
         default: return .clear
         }
     }
@@ -244,11 +238,11 @@ struct Card: ViewModifier {
                 switch Palette.look {
                 case .amoled:
                     padded.glassEffect(.regular, in: shape)
-                        .overlay(shape.strokeBorder(Palette.hex(0x2A3038), lineWidth: 1))
+                        .overlay(shape.strokeBorder(Palette.outline, lineWidth: 1))
                 case .sepia:
-                    padded.glassEffect(.regular.tint(Palette.hex(0xFDF3E3).opacity(0.7)), in: shape)
-                        .overlay(shape.strokeBorder(Palette.hex(0xCFAE82), lineWidth: 1))
-                        .shadow(color: Color(red: 61 / 255, green: 43 / 255, blue: 28 / 255).opacity(0.14), radius: 3, y: 2)
+                    padded.glassEffect(.regular.tint(Palette.panel.opacity(0.7)), in: shape)
+                        .overlay(shape.strokeBorder(Palette.outline, lineWidth: 1))
+                        .shadow(color: Palette.hex(BuiltInLook.sepia.colors.text).opacity(0.14), radius: 3, y: 2)
                 case .theme:
                     // The theme's panel colour under the glass, so text in
                     // the theme's colour stays on the colour it was made for.

@@ -9,6 +9,13 @@ public enum WebTheme: String, CaseIterable, Sendable {
         public let page, panel, border, text, accent, good, bad, warn: UInt32
         /// Drawn on a dark page: the system's own parts (bars, sheets) go dark.
         public let isDark: Bool
+
+        public init(page: UInt32, panel: UInt32, border: UInt32, text: UInt32, accent: UInt32,
+                    good: UInt32, bad: UInt32, warn: UInt32, isDark: Bool) {
+            self.page = page; self.panel = panel; self.border = border; self.text = text
+            self.accent = accent; self.good = good; self.bad = bad; self.warn = warn
+            self.isDark = isDark
+        }
     }
 
     public var title: String {

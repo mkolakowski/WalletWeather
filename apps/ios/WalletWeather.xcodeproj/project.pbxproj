@@ -48,10 +48,12 @@
 		E4B39C05F91B13F80EE5068D /* MoveViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6E160E5ACC028F9FCFF027 /* MoveViews.swift */; };
 		EC7FFE9E0118DB3EF0409912 /* MonthMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9819ED5346F2EC2B60C37AA5 /* MonthMenu.swift */; };
 		FB73D58433046DB107B7663B /* AccountFollower.swift in Sources */ = {isa = PBXBuildFile; fileRef = 853A48B5A75D9C9B343FE58A /* AccountFollower.swift */; };
+		FC679BF76B513DDEC977EA25 /* AppearanceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F9C229869953F8F6C9FAB0 /* AppearanceViews.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		067F8A5A4984B672631E4818 /* ForecastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastView.swift; sourceTree = "<group>"; };
+		11F9C229869953F8F6C9FAB0 /* AppearanceViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceViews.swift; sourceTree = "<group>"; };
 		13149321E10C325276768DD5 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		145D05F53CFC95EA650B720C /* TabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBar.swift; sourceTree = "<group>"; };
 		16E9ED45DC22B1C2B1AFC65C /* TagViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagViews.swift; sourceTree = "<group>"; };
@@ -129,6 +131,7 @@
 			isa = PBXGroup;
 			children = (
 				853A48B5A75D9C9B343FE58A /* AccountFollower.swift */,
+				11F9C229869953F8F6C9FAB0 /* AppearanceViews.swift */,
 				99597682BE06C6A4C37D1188 /* BackupViews.swift */,
 				948E8EEE1A65AFD31A880000 /* BigScreenViews.swift */,
 				8D0553102CA76CF6F2551892 /* BillsView.swift */,
@@ -278,6 +281,7 @@
 				FB73D58433046DB107B7663B /* AccountFollower.swift in Sources */,
 				CA8A6A4039A2495FB3EC052F /* AppModel.swift in Sources */,
 				A19BE4DB8A2A39AC4CEF0D71 /* AppSettings.swift in Sources */,
+				FC679BF76B513DDEC977EA25 /* AppearanceViews.swift in Sources */,
 				12B45AEEC84F77C8BF0B4F8F /* BackupViews.swift in Sources */,
 				3517A60C2350816D3F25BC07 /* BigScreenViews.swift in Sources */,
 				DA2C662A3F9E9B07C17BFC68 /* BillsView.swift in Sources */,
@@ -375,7 +379,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.44.0;
+				MARKETING_VERSION = 0.45.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -443,7 +447,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.44.0;
+				MARKETING_VERSION = 0.45.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

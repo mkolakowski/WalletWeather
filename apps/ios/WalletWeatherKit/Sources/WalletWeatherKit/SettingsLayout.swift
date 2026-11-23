@@ -90,7 +90,7 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
     // Privacy & lock.
     case lock, appSwitcher
     // Dates & display.
-    case followAccount
+    case dateFormat, followAccount
     // iCloud & backup.
     case syncWithICloud, backupToICloudDrive, backupPassphrase
     // Move to a server.
@@ -134,6 +134,7 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
         case .looks: "Looks"
         case .lock: "Lock with Face ID or Touch ID"
         case .appSwitcher: "In the app switcher"
+        case .dateFormat: "Date format"
         case .followAccount: "Pages follow the same account"
         case .syncWithICloud: "Sync with iCloud"
         case .backupToICloudDrive: "Back up to iCloud Drive"
@@ -158,7 +159,7 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
             .link
         case .lock, .followAccount, .syncWithICloud, .backupToICloudDrive:
             .toggle
-        case .keepNothing, .keepLastKnown, .looks:
+        case .keepNothing, .keepLastKnown, .looks, .dateFormat:
             .choice
         case .signOut, .deleteEverything:
             .destructive
@@ -328,7 +329,7 @@ public struct SettingsLayout: Equatable, Sendable {
         case .keep: return household == .server ? [.keepNothing, .keepLastKnown] : []
         case .bank: return [.bankCard]
         case .appearance: return [.looks]
-        case .display: return [.followAccount]
+        case .display: return [.dateFormat, .followAccount]
         case .privacy: return (hasBiometry ? [.lock] : []) + [.appSwitcher]
         case .backup: return household == .thisIPhone ? [.syncWithICloud, .backupToICloudDrive, .backupPassphrase] : []
         case .move: return household == .thisIPhone ? [.exportForServer, .importServerBackup] : []
@@ -415,7 +416,7 @@ public struct SettingsLayout: Equatable, Sendable {
         case .bank: "Your bank's lines coming in on their own, and how the last sync went."
         case .appearance: "The app's colours, light or dark, or a theme from the web app."
         case .privacy: "Locking the app, and the numbers hidden in the app switcher."
-        case .display: "Whether the pages that pick an account all follow the same one."
+        case .display: "How dates are written, and whether the pages that pick an account all follow the same one."
         case .backup: "Syncing with iCloud, and the copies kept in iCloud Drive."
         case .move: "Taking your numbers to a server of your own, or bringing them back."
         case .help: "The Getting started card again, and the privacy policy."

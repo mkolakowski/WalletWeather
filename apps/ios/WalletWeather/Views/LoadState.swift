@@ -104,10 +104,7 @@ struct KeptBar: View {
         if let yesterday = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(date, inSameDayAs: yesterday) {
             return "yesterday at \(time)"
         }
-        let day = calendar.isDate(date, equalTo: now, toGranularity: .year)
-            ? date.formatted(.dateTime.month(.abbreviated).day())
-            : date.formatted(.dateTime.month(.abbreviated).day().year())
-        return "\(day) at \(time)"
+        return "\(LocalDay.display(of: date, now: now)) at \(time)"
     }
 }
 

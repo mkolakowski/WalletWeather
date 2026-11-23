@@ -241,7 +241,7 @@ private struct LockTaskSheet: View {
     }
 }
 
-/// Choose a look: every look, applied as it's picked. Keep this look
+/// Choose a look: every look as a tile, applied as it's picked. Keep this look
 /// ticks the task, Match this iPhone included.
 private struct LookTaskSheet: View {
     @Environment(AppSettings.self) private var settings
@@ -250,7 +250,7 @@ private struct LookTaskSheet: View {
     var body: some View {
         TaskSheetFrame(title: "Choose a look") {
             Text("Pick one and the app changes straight away. Match the web app uses the theme you chose in the web app's Settings.")
-            LookList()
+            LookGrid()
             Button {
                 settings.start.done.insert(.look)
                 dismiss()
@@ -261,35 +261,6 @@ private struct LookTaskSheet: View {
             Text("You can change it any time in Settings → Appearance.")
                 .font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 4)
         }
-    }
-}
-
-/// Every look with a tick on the chosen one, applied as it's picked
-/// (which ticks Getting started's look task): Choose a look's list, and
-/// Settings → Appearance's (#294).
-struct LookList: View {
-    @Environment(AppSettings.self) private var settings
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(Look.allCases.enumerated()), id: \.element) { index, look in
-                if index > 0 { Divider() }
-                Button { settings.look = look } label: {
-                    HStack {
-                        Text(look.title)
-                        Spacer()
-                        if settings.look == look {
-                            Image(systemName: "checkmark").foregroundStyle(Palette.accent)
-                        }
-                    }
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(settings.look == look ? .isSelected : [])
-            }
-        }
-        .card()
     }
 }
 

@@ -51,8 +51,19 @@ struct DemoTests {
         for (computed, name) in pairs {
             let url = try #require(Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Samples"))
             let recorded = try JSONSerialization.jsonObject(with: Data(contentsOf: url))
-            let problems = Self.differences(try JSONSerialization.jsonObject(with: computed), recorded, missingIsFine: Self.newerFields)
+            // The demo's sample tags (#293) are on top of the recording, which has none.
+            let problems = Self.differences(Self.withoutTags(try JSONSerialization.jsonObject(with: computed)), Self.withoutTags(recorded),
+                                            missingIsFine: Self.newerFields)
             #expect(problems.isEmpty, "\(name): \(problems.prefix(5).joined(separator: "; "))")
+        }
+    }
+
+    /// A JSON value with every `tags` key left out.
+    static func withoutTags(_ value: Any) -> Any {
+        switch value {
+        case let object as [String: Any]: return object.filter { $0.key != "tags" }.mapValues(withoutTags)
+        case let list as [Any]: return list.map(withoutTags)
+        default: return value
         }
     }
 
@@ -180,5 +191,79 @@ struct DemoTests {
         #expect(keeper.load(key) == nil)
         #expect(Demo.connection.isDemo)
         #expect(!Connection(server: URL(string: "https://example.com")!).isDemo)
+    }
+
+    /// Every read request the pages Settings links to make (#293), so a page
+    /// added to Settings without a demo answer fails here instead of
+    /// dead-ending in the demo: each is sent through a real `APIClient` and
+    /// decoded with the real models, and a 404 would throw.
+    @Test func everyPageSettingsLinksToAnswers() async throws {
+        let today = november
+        #expect(try await client.checkServer().appVersion.isEmpty == false)
+        #expect(try await client.me().noticeRequired == false)
+        // Tags (TagsPage, the editors' Tags row and picker).
+        let tags = try await client.tags()
+        #expect(tags.count >= 3)
+        let rules = try await client.tagRules()
+        #expect(!rules.isEmpty && rules.allSatisfy { rule in tags.contains { $0.id == rule.tagId } })
+        let tagged = try await client.transactions(.tag(try #require(tags.first).id))
+        #expect(tagged.total == tagged.results.count)
+        // Net worth, budgets, saved reports and one run of a report.
+        for window in ChartWindow.allCases { _ = try await client.netWorth(window, today: today) }
+        _ = try await client.budgets(today: today)
+        let reports = try await client.savedReports()
+        _ = try await client.runReport(try #require(reports.first).id, today: today)
+        // Bank sync, Calendar, categories and accounts.
+        #expect(try await client.bankStatus() != nil)
+        _ = try await client.calendar(YearMonth(today))
+        #expect(!(try await client.categories()).isEmpty)
+        #expect(!(try await client.accounts(today: today)).isEmpty)
+        // Bills, and Search (which opens a tag or a category).
+        _ = try await client.recurring(today: today)
+        _ = try await client.search("a")
+        _ = try await client.transactions(.category(1))
+    }
+
+    @Test func theDemoHasSampleTagsAndRules() async throws {
+        let tags = try await client.tags()
+        #expect(tags.map(\.name) == ["Holiday", "Kids", "Work"])
+        #expect(tags.allSatisfy { $0.color?.hasPrefix("#") == true })
+        let rules = try await client.tagRules()
+        #expect(rules.count == 2 && rules.allSatisfy(\.active))
+        #expect(rules.map(\.id) == [2, 1])
+        // Every tag that is used lists its lines, and Search's count agrees.
+        let everything = try await client.search("o")
+        for tag in tags {
+            let lines = try await client.transactions(.tag(tag.id))
+            #expect(!lines.results.isEmpty, "\(tag.name) has no lines")
+            #expect(lines.results.allSatisfy { $0.tags?.contains(tag) == true })
+            if let named = everything.tags.results.first(where: { $0.id == tag.id }) {
+                #expect(named.transactionCount == lines.total)
+            }
+        }
+        let all = try await client.search("holiday")
+        #expect(all.tags.results.map(\.name) == ["Holiday"] && all.tags.results[0].transactionCount == 2)
+    }
+
+    @Test func taggedLinesAndBillsShowTheirChips() async throws {
+        let forecast = try await client.forecast(account: 1, month: YearMonth(november), today: november)
+        let store = try #require(forecast.rows.first { $0.description == "Department store" })
+        #expect(store.tags?.map(\.name) == ["Holiday"])
+        let bills = try await client.recurring(today: november)
+        #expect(bills.items.first { $0.description == "Phone bill" }?.tags?.map(\.name) == ["Work"])
+        #expect(bills.items.first { $0.description == "Rent" }?.tags?.isEmpty == true)
+    }
+
+    @Test func tagsAndRulesAreReadOnlyInTheDemo() async throws {
+        await #expect(throws: APIError.demoReadOnly) { try await client.createTag(name: "New", color: nil) }
+        await #expect(throws: APIError.demoReadOnly) { try await client.updateTag(1, name: "Trips", color: nil) }
+        await #expect(throws: APIError.demoReadOnly) { try await client.deleteTag(1) }
+        await #expect(throws: APIError.demoReadOnly) {
+            try await client.createTagRule(TagRuleBody(descriptionPattern: "cafe", tagId: 1))
+        }
+        await #expect(throws: APIError.demoReadOnly) { try await client.updateTagRule(1, TagRuleBody(descriptionPattern: "cafe", tagId: 1)) }
+        await #expect(throws: APIError.demoReadOnly) { try await client.deleteTagRule(1) }
+        await #expect(throws: APIError.demoReadOnly) { _ = try await client.applyTagRules() }
+        #expect(try await client.tags().count == 3)
     }
 }

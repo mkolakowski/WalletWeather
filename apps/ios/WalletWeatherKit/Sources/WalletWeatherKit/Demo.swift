@@ -72,6 +72,9 @@ public enum Demo {
         case ("GET", "networth", _): found = (sample("networth"), thisMonth)
         case ("GET", "budgets", _): found = (sample("budgets"), thisMonth)
         case ("GET", "categories", 2): found = (sample("categories"), thisMonth)
+        // Sample tags and auto-tag rules (#293); reading only, like the rest.
+        case ("GET", "tags", 2): found = (json(tagList()), thisMonth)
+        case ("GET", "tag-rules", 2): found = (json(tagSamples()["rules"] as? [[String: Any]] ?? []), thisMonth)
         // Bank sync's status: times are made from now, so they aren't moved
         // by months like the sample dates are.
         case ("GET", "bank", 3) where parts[2] == "status": found = (bankStatus(), recorded)
@@ -104,7 +107,43 @@ public enum Demo {
     /// categories.
     static func household(today: LocalDay) -> [String: Any] {
         let moved = shift(sample("household"), days: today.days(since: recordedDay))
-        return (try? JSONSerialization.jsonObject(with: moved)) as? [String: Any] ?? [:]
+        var household = (try? JSONSerialization.jsonObject(with: moved)) as? [String: Any] ?? [:]
+        // The sample tags (`Demo/tags.json`) go on its lines and bills.
+        household["accounts"] = householdAccounts(household).map { account in
+            var account = account
+            account["transactions"] = tagged(account["transactions"] as? [[String: Any]] ?? [], "lines")
+            account["recurring"] = tagged(account["recurring"] as? [[String: Any]] ?? [], "bills")
+            return account
+        }
+        return household
+    }
+
+    // MARK: Sample tags (#293)
+
+    /// `Demo/tags.json`: the tags, the auto-tag rules, and which lines and
+    /// bills (by id) carry which tags.
+    static func tagSamples() -> [String: Any] { object("tags") as? [String: Any] ?? [:] }
+
+    /// The sample tags in name order, as `GET /api/tags` sends them.
+    static func tagList() -> [[String: Any]] {
+        (tagSamples()["tags"] as? [[String: Any]] ?? []).sorted { ($0["name"] as? String ?? "") < ($1["name"] as? String ?? "") }
+    }
+
+    /// The tag ids a line (`"lines"`) or a bill (`"bills"`) carries.
+    static func tagIds(_ kind: String, of id: Int?) -> [Int] {
+        guard let id else { return [] }
+        return ((tagSamples()[kind] as? [String: Any])?[String(id)] as? [Int]) ?? []
+    }
+
+    /// The rows with their `tags` set to the sample tags they carry (id, name, colour), in name order.
+    static func tagged(_ rows: [[String: Any]], _ kind: String) -> [[String: Any]] {
+        let list = tagList()
+        return rows.map { row in
+            var row = row
+            let ids = tagIds(kind, of: row["id"] as? Int)
+            row["tags"] = list.filter { ids.contains($0["id"] as? Int ?? 0) }
+            return row
+        }
     }
 
     static func householdAccounts(_ household: [String: Any]) -> [[String: Any]] {
@@ -175,7 +214,7 @@ public enum Demo {
     /// demo. The totals are worked out again for what's listed.
     static func recurring(account: Int?, ended: Bool) -> Data {
         var list = object("recurring") as? [String: Any] ?? [:]
-        let items = ended ? [] : (list["items"] as? [[String: Any]] ?? []).filter { account == nil || $0["account_id"] as? Int == account }
+        let items = ended ? [] : tagged(list["items"] as? [[String: Any]] ?? [], "bills").filter { account == nil || $0["account_id"] as? Int == account }
         let bills = items.filter { ($0["amount"] as? Double ?? 0) < 0 }
         let income = items.filter { ($0["amount"] as? Double ?? 0) > 0 }
         func sum(_ rows: [[String: Any]], _ key: String) -> Double {
@@ -194,11 +233,11 @@ public enum Demo {
     }
 
     /// Transactions whose name or notes contain `text`, or that carry a
-    /// category (the demo has no tags), newest first.
+    /// category or a sample tag, newest first.
     static func searchTransactions(_ text: String, category: Int? = nil, tag: Int? = nil) -> Data {
         let found = transactions().filter { row in
             if let category { return row["category_id"] as? Int == category }
-            if tag != nil { return false }
+            if let tag { return tagIds("lines", of: row["id"] as? Int).contains(tag) }
             return matches(row, text, keys: ["description", "notes"])
         }
         return json(["total": found.count, "results": found])
@@ -221,9 +260,16 @@ public enum Demo {
             t["date"] = t["actual_date"] ?? t["forecast_date"] ?? NSNull()
             return t
         }, ["description", "notes"])
-        all["recurring"] = group((object("recurring") as? [String: Any])?["items"] as? [[String: Any]] ?? [], ["description", "notes"])
+        all["recurring"] = group(tagged((object("recurring") as? [String: Any])?["items"] as? [[String: Any]] ?? [], "bills"), ["description", "notes"])
         all["accounts"] = group(accounts, ["name"])
-        for name in ["categories", "tags", "reports"] { all[name] = group(rows(name), ["name"]) }
+        for name in ["categories", "reports"] { all[name] = group(rows(name), ["name"]) }
+        // Each tag with how many of the demo's lines carry it.
+        let lines = transactions()
+        all["tags"] = group(tagList().map { tag in
+            var tag = tag
+            tag["transaction_count"] = lines.filter { tagIds("lines", of: $0["id"] as? Int).contains(tag["id"] as? Int ?? 0) }.count
+            return tag
+        }, ["name"])
         return json(all)
     }
 
@@ -289,9 +335,9 @@ public enum Demo {
             guard let id = row["id"] as? Int, seen.insert(id).inserted else { continue }
             var row = row
             row.removeValue(forKey: "date")
-            if row["tags"] == nil { row["tags"] = [String]() }
             rows.append(row)
         }
+        rows = tagged(rows, "lines")
         func day(_ r: [String: Any]) -> String { r["actual_date"] as? String ?? r["forecast_date"] as? String ?? "" }
         return rows.sorted { day($0) > day($1) }
     }

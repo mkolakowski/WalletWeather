@@ -1,0 +1,15 @@
+{
+  "tags": [
+    {"id": 1, "name": "Holiday", "color": "#d29922"},
+    {"id": 2, "name": "Work", "color": "#58a6ff"},
+    {"id": 3, "name": "Kids", "color": "#a371f7"}
+  ],
+  "rules": [
+    {"id": 2, "name": null, "description_pattern": "theater", "category_id": null, "category_name": null,
+     "tag_id": 3, "tag_name": "Kids", "tag_color": "#a371f7", "active": true},
+    {"id": 1, "name": "Coffee runs", "description_pattern": "coffee", "category_id": 2, "category_name": "Dining",
+     "tag_id": 2, "tag_name": "Work", "tag_color": "#58a6ff", "active": true}
+  ],
+  "lines": {"3": [1], "5": [1], "6": [2], "7": [2], "8": [2], "9": [3]},
+  "bills": {"7": [2]}
+}

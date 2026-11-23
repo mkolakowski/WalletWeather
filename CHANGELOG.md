@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.34.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.34.1**
+
+### Fixed
+
+- **iPhone: the demo no longer dead-ends on Tags.** In "Try the demo", Settings → Tags said "The server said no" with a Try again that could never work, because the demo had no tags. It now has three sample tags (Holiday, Work, Kids) and two rules, a few of its lines and one bill carry them, a tag found in Search lists its lines, and the editors' Tags row opens. Like the rest of the demo they can be looked at and not changed (`Demo/tags.json`; iOS 0.34.1).
 
 ## [1.98.0] — 2026-11-23
 

@@ -446,9 +446,15 @@ can't exist), and `APIClient` answers it from
   every date moves by whole months to the month asked for, so each month
   looks like the recorded one. Forecast and the Calendar on the accounts the
   samples weren't recorded on are built from the Calendar's lines.
+- **Sample tags and a rule** (#293): Holiday, Work and Kids, two auto-tag
+  rules, and a few lines and one bill carrying them (`Demo/tags.json`), so
+  Settings → Tags, the editors' Tags row, the chips on lines and opening a
+  tag from Search all work. Creating, changing or deleting a tag or rule is
+  refused like any other save.
 
 `DemoTests` sends every page's request to the demo and decodes the answers
-with the real models. When the test samples are re-recorded, copy the same
+with the real models, including one test that asks for every page Settings
+links to, so a page added there without a demo answer fails the tests. When the test samples are re-recorded, copy the same
 files into `Demo/` and run `swift test`.
 
 ## Before listing in the App Store

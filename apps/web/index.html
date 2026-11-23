@@ -10,14 +10,14 @@
 <!-- Installable web app (#41). use-credentials so the manifest request
      carries the Cloudflare Access cookie when the server is behind it. -->
 <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
-<meta name="theme-color" content="#0f1419">
+<meta name="theme-color" content="#0b0f15">
 <style>
   /* web-refresh phase 1 (#281): calmer Dark and Light surfaces, softer borders, dark text on
      Dark's accent (filled buttons 2.5:1 → about 7.6:1). The shape tokens below (hairline,
      shadow, radii) are shared by every theme; --hair follows each theme's own border. */
   .theme-mini[data-t="dark"], :root { --bg:#0b0f15; --panel:#141a23; --border:#242d3a; --text:#e9edf4; --muted:#8d98a9;
           --accent:#5aa9ff; --good:#3ecf8e; --bad:#ff6b6b; --warn:#e3b341;
-          --bg-deep:#0f141c; --chip-bg:#1c2430; --good-bg:#10291f; --field-bg:#0f141c;
+          --bg-deep:#0f141c; --chip-bg:#1c2430; --muted-chip:#8d98a9; --accent-ink:#5aa9ff; --bad-ink:#ff6b6b; --good-bg:#10291f; --field-bg:#0f141c;
           --bad-bg:rgba(255,107,107,0.1); --on-accent:#06121f; color-scheme:dark;
           --hair:color-mix(in srgb, var(--border) 62%, transparent);
           --r-card:14px; --r-ctl:9px;
@@ -26,53 +26,53 @@
   .theme-mini[data-t="light"], :root[data-theme="light"] {
           --bg:#f2f4f7; --panel:#ffffff; --border:#e1e5eb; --text:#141a22; --muted:#5c6777;
           --accent:#1b66d6; --good:#0f7a55; --bad:#cf2f3c; --warn:#946200;
-          --bg-deep:#eef1f5; --chip-bg:#edf0f4; --good-bg:#e2f5ea; --field-bg:#ffffff;
+          --bg-deep:#eef1f5; --chip-bg:#edf0f4; --muted-chip:#5c6777; --accent-ink:#1a61cb; --bad-ink:#bc2b37; --good-bg:#e2f5ea; --field-bg:#ffffff;
           --bad-bg:rgba(207,47,60,0.08); --on-accent:#ffffff; color-scheme:light;
           --shadow:0 1px 2px rgba(16,24,40,.05), 0 10px 26px -18px rgba(16,24,40,.25);
           --seg-shadow:0 1px 2px rgba(16,24,40,.14); }
   .theme-mini[data-t="dracula"], :root[data-theme="dracula"] {
           --bg:#282a36; --panel:#343746; --border:#44475a; --text:#f8f8f2; --muted:#96a0c2;
           --accent:#bd93f9; --good:#50fa7b; --bad:#ff7676; --warn:#f1fa8c;
-          --bg-deep:#21222c; --chip-bg:#44475a; --good-bg:#1e3b2a; --field-bg:#21222c;
+          --bg-deep:#21222c; --chip-bg:#44475a; --muted-chip:#b1b9d2; --accent-ink:#caa9fa; --bad-ink:#ffacac; --good-bg:#1e3b2a; --field-bg:#21222c;
           --bad-bg:rgba(255,85,85,0.12); --on-accent:#282a36; color-scheme:dark; }
   .theme-mini[data-t="solarized"], :root[data-theme="solarized"] {
           --bg:#fdf6e3; --panel:#eee8d5; --border:#cbc4a8; --text:#073642; --muted:#586b72;
           --accent:#1e6da5; --good:#5f6e00; --bad:#ca2522; --warn:#826200;
-          --bg-deep:#f5ead0; --chip-bg:#e3dbbf; --good-bg:#e4eecb; --field-bg:#fdf6e3;
+          --bg-deep:#f5ead0; --chip-bg:#e3dbbf; --muted-chip:#506268; --accent-ink:#1a6092; --bad-ink:#a91f1c; --good-bg:#e4eecb; --field-bg:#fdf6e3;
           --bad-bg:rgba(220,50,47,0.08); --on-accent:#fdf6e3; color-scheme:light;
           --shadow:0 1px 2px rgba(16,24,40,.05), 0 10px 26px -18px rgba(16,24,40,.25);
           --seg-shadow:0 1px 2px rgba(16,24,40,.14); }
   .theme-mini[data-t="nord"], :root[data-theme="nord"] {
           --bg:#2e3440; --panel:#3b4252; --border:#434c5e; --text:#eceff4; --muted:#97b2cc;
           --accent:#88c0d0; --good:#a3be8c; --bad:#d89fa4; --warn:#ebcb8b;
-          --bg-deep:#292e39; --chip-bg:#434c5e; --good-bg:#2e3d2e; --field-bg:#292e39;
+          --bg-deep:#292e39; --chip-bg:#434c5e; --muted-chip:#aac0d5; --accent-ink:#a0cdd9; --bad-ink:#e6c1c5; --good-bg:#2e3d2e; --field-bg:#292e39;
           --bad-bg:rgba(191,97,106,0.12); --on-accent:#2e3440; color-scheme:dark; }
   .theme-mini[data-t="synthwave"], :root[data-theme="synthwave"] {
           --bg:#2b213a; --panel:#3a2c4a; --border:#55456b; --text:#f9f2e7; --muted:#b8aebc;
           --accent:#ff6ac1; --good:#00f5d4; --bad:#ff6386; --warn:#fede1b;
-          --bg-deep:#1e1530; --chip-bg:#4b3a60; --good-bg:#0f4a45; --field-bg:#1e1530;
+          --bg-deep:#1e1530; --chip-bg:#4b3a60; --muted-chip:#b8aebc; --accent-ink:#ff86cd; --bad-ink:#ff9bb2; --good-bg:#0f4a45; --field-bg:#1e1530;
           --bad-bg:rgba(255,56,100,0.14); --on-accent:#1e1530; color-scheme:dark; }
   .theme-mini[data-t="forest"], :root[data-theme="forest"] {
           --bg:#1a2421; --panel:#243330; --border:#3a5048; --text:#e4ebe3; --muted:#8fa598;
           --accent:#5eb583; --good:#9bd680; --bad:#e67777; --warn:#f0c674;
-          --bg-deep:#151e1b; --chip-bg:#2d413c; --good-bg:#1e3a28; --field-bg:#151e1b;
+          --bg-deep:#151e1b; --chip-bg:#2d413c; --muted-chip:#9aaea2; --accent-ink:#6ebc8f; --bad-ink:#ed9c9c; --good-bg:#1e3a28; --field-bg:#151e1b;
           --bad-bg:rgba(229,115,115,0.12); --on-accent:#1a2421; color-scheme:dark; }
   .theme-mini[data-t="mint"], :root[data-theme="mint"] {
           --bg:#f3faf5; --panel:#e1f2e5; --border:#b8d9bf; --text:#15372a; --muted:#4f745f;
           --accent:#267955; --good:#1e7a4c; --bad:#c23030; --warn:#8c640e;
-          --bg-deep:#e7f4ea; --chip-bg:#d3e9d8; --good-bg:#cde8d2; --field-bg:#ffffff;
+          --bg-deep:#e7f4ea; --chip-bg:#d3e9d8; --muted-chip:#496b58; --accent-ink:#226b4b; --bad-ink:#ae2b2b; --good-bg:#cde8d2; --field-bg:#ffffff;
           --bad-bg:rgba(194,48,48,0.08); --on-accent:#ffffff; color-scheme:light;
           --shadow:0 1px 2px rgba(16,24,40,.05), 0 10px 26px -18px rgba(16,24,40,.25);
           --seg-shadow:0 1px 2px rgba(16,24,40,.14); }
   .theme-mini[data-t="monokai"], :root[data-theme="monokai"] {
           --bg:#272822; --panel:#34352f; --border:#49483e; --text:#f8f8f2; --muted:#a29e8b;
           --accent:#fd971f; --good:#a6e22e; --bad:#fb6b9f; --warn:#e6db74;
-          --bg-deep:#1e1f1a; --chip-bg:#49483e; --good-bg:#2e3d24; --field-bg:#1e1f1a;
+          --bg-deep:#1e1f1a; --chip-bg:#49483e; --muted-chip:#bbb8aa; --accent-ink:#fda43b; --bad-ink:#fda7c6; --good-bg:#2e3d24; --field-bg:#1e1f1a;
           --bad-bg:rgba(249,38,114,0.12); --on-accent:#272822; color-scheme:dark; }
   .theme-mini[data-t="sunset"], :root[data-theme="sunset"] {
           --bg:#2a1e1a; --panel:#3a2a25; --border:#5a3e35; --text:#fce8d8; --muted:#ab8f7e;
           --accent:#ff7f3f; --good:#80c26e; --bad:#f1696f; --warn:#ffb84a;
-          --bg-deep:#1f1613; --chip-bg:#4a342d; --good-bg:#2c3d25; --field-bg:#1f1613;
+          --bg-deep:#1f1613; --chip-bg:#4a342d; --muted-chip:#b79f91; --accent-ink:#ff884c; --bad-ink:#f59195; --good-bg:#2c3d25; --field-bg:#1f1613;
           --bad-bg:rgba(239,79,86,0.12); --on-accent:#1f1613; color-scheme:dark; }
   * { box-sizing:border-box; }
   body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
@@ -108,10 +108,10 @@
   button.ghost:hover { filter:none; border-color:var(--border); }
   button.ghost.active { background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
   /* Destructive buttons are tinted, not filled red (#281). */
-  button.danger, button.ghost.danger { background:var(--bad-bg); color:var(--bad);
+  button.danger, button.ghost.danger { background:color-mix(in srgb, var(--bad) 8%, transparent); color:var(--bad-ink);
            border:1px solid color-mix(in srgb, var(--bad) 35%, transparent); }
   button.danger:hover, button.ghost.danger:hover { filter:none;
-           background:color-mix(in srgb, var(--bad) 18%, transparent); }
+           border-color:color-mix(in srgb, var(--bad) 70%, transparent); }
   /* Line editor (#66): a line opened for editing on Forecast, Transactions or
      Bills & income becomes a labelled form spanning the table. Pinned to the
      visible width so every field stays on screen when the table scrolls
@@ -476,7 +476,7 @@
   .neg { color:var(--bad); }
   /* One pill style on Forecast and Bills & income: filled, no outline (#285). */
   .pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:500;
-          background:var(--chip-bg); color:var(--muted); }
+          background:var(--chip-bg); color:var(--muted-chip); }
   .pill.actual { background:var(--good-bg); color:var(--good); }
   .pill.unmatched { background:color-mix(in srgb, var(--warn) 16%, transparent); color:var(--warn); }
   .rec-match { display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; font-size:11px; color:var(--muted); }
@@ -516,7 +516,7 @@
                   background:var(--chip-bg); border-radius:13px; flex-wrap:nowrap; overflow-x:auto;
                   margin-bottom:18px; }
   .account-tab { padding:7px 14px; border-radius:10px; background:transparent; border:none;
-                 color:var(--muted); font-weight:550; white-space:nowrap; flex:0 0 auto; cursor:pointer; }
+                 color:var(--muted-chip); font-weight:550; white-space:nowrap; flex:0 0 auto; cursor:pointer; }
   .account-tab:hover { color:var(--text); }
   .account-tab.active { background:var(--panel); color:var(--text); box-shadow:var(--seg-shadow); }
   /* Even weeks of the month (2nd, 4th, 6th Sun–Sat week) get a slightly
@@ -598,7 +598,7 @@
   .nav-btn { background:transparent; color:var(--muted); border:none;
              padding:7px 12px; border-radius:8px; font-weight:550; font-size:13.5px; cursor:pointer; }
   .nav-btn:hover { color:var(--text); background:var(--chip-bg); filter:none; }
-  .nav-btn.active { background:color-mix(in srgb, var(--accent) 15%, transparent); color:var(--accent); }
+  .nav-btn.active { background:color-mix(in srgb, var(--accent) 10%, transparent); color:var(--accent-ink); }
   /* Top bar (#288), wide windows only: the phone keeps its plain bar. The mark sits beside the
      name; the bar stays in view while the page scrolls, on a translucent, blurred wash of the
      theme's background (on ::before, so the blur doesn't become the containing block of the
@@ -620,7 +620,7 @@
     .gsearch .gsearch-open { border-radius:999px; border-color:transparent; background:var(--chip-bg); padding:8px; }
     .user-wrap { position:relative; display:inline-flex; margin-left:12px; }
     .user-btn { width:34px; height:34px; padding:0; border-radius:999px; display:inline-flex; align-items:center; justify-content:center;
-                background:color-mix(in srgb, var(--accent) 22%, var(--panel)); color:var(--accent);
+                background:color-mix(in srgb, var(--accent) 13%, var(--panel)); color:var(--accent-ink);
                 font-size:12px; font-weight:700; letter-spacing:.02em; border:1px solid var(--hair); }
     .user-btn:hover, .user-btn[aria-expanded="true"] { filter:none; border-color:var(--accent); }
     .user-btn:focus-visible, .nav-btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
@@ -761,7 +761,7 @@
   /* Account cards (#287): highs and lows are plain label and figure pairs, one hairline
      above the charts; auto-fit so three cards fill the row. */
   .dashboard-grid { display:grid; gap:18px;
-                    grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); }
+                    grid-template-columns:repeat(auto-fit, minmax(min(320px, 100%), 1fr)); }
   #dashUpcoming { box-shadow:none; }
   .dash-card { background:var(--panel); border:1px solid var(--border); border-radius:var(--r-card);
                padding:20px 22px; box-shadow:var(--shadow); transition:border-color 0.15s; }
@@ -786,10 +786,10 @@
   /* A panel outside the chosen Settings tab. Separate from .hidden, which
      some panels use for their own reasons (Permissions with no accounts). */
   #pageSettings .section-off { display:none !important; }
-  .settings-tabs button { background:var(--chip-bg); color:var(--muted); border:1px solid transparent;
+  .settings-tabs button { background:var(--chip-bg); color:var(--muted-chip); border:1px solid transparent;
                           border-radius:999px; padding:6px 14px; font-size:13px; white-space:nowrap; }
   .settings-tabs button:hover { color:var(--text); }
-  .settings-tabs button.active { background:color-mix(in srgb, var(--accent) 15%, transparent); color:var(--accent); border-color:transparent; }
+  .settings-tabs button.active { background:color-mix(in srgb, var(--accent) 10%, transparent); color:var(--accent-ink); border-color:transparent; }
 
   /* ---------- Mobile (≤768px) ---------- */
   @media (max-width: 768px) {
@@ -1134,7 +1134,7 @@
   .page-title-row { display:flex; align-items:center; gap:10px;
                     flex-wrap:wrap; margin:0 0 10px; }
   .icon-btn { display:inline-flex; align-items:center; gap:5px;
-              background:var(--chip-bg); color:var(--muted);
+              background:var(--chip-bg); color:var(--muted-chip);
               border:1px solid transparent; border-radius:var(--r-ctl);
               padding:6px 10px; font-size:12px; cursor:pointer;
               line-height:1; }
@@ -1157,7 +1157,7 @@
   .dash-window-bar .seg { display:inline-flex; gap:2px; padding:3px; background:var(--chip-bg);
                           border-radius:11px; }
   .dash-window-bar .seg button { background:transparent; border:none; border-radius:8px;
-                                  color:var(--muted); padding:5px 13px;
+                                  color:var(--muted-chip); padding:5px 13px;
                                   font-size:13px; cursor:pointer; }
   .dash-window-bar .seg button:hover { color:var(--text); filter:none; }
   .dash-window-bar .seg button.active { background:var(--panel); color:var(--text);
@@ -1314,6 +1314,10 @@
   /* ---------- web-refresh phase 4 (#284): Settings, Admin and Reports ---------- */
   #pageAdmin .section-off { display:none !important; }
   :is(#pageSettings, #pageAdmin) > .panel { padding:22px 24px; }
+  /* The wide-window paddings above and for the Forecast and Bills panels out-rank the phone's 12px, so the phone puts them back here, after them (#292). */
+  @media (max-width: 768px) {
+    :is(#pageSettings, #pageAdmin) > .panel, .panel:has(#forecastTable), .panel:has(#recurringTable) { padding:12px; }
+  }
   :is(#pageSettings, #pageAdmin) .panel p { max-width:72ch; }
   /* Fields fill their row; the button sits beside the last one. */
   :is(#pageSettings, #pageAdmin) .row { gap:12px; }
@@ -1365,11 +1369,11 @@
   #pageReports .row { align-items:flex-start; }
   .account-checklist { background:transparent; border:none; padding:0; }
   .account-checklist label { background:var(--chip-bg); border-color:transparent; border-radius:999px; padding:4px 12px; }
-  .account-checklist label:has(input:checked) { background:color-mix(in srgb, var(--accent) 15%, transparent); color:var(--accent); }
+  .account-checklist label:has(input:checked) { background:color-mix(in srgb, var(--accent) 10%, transparent); color:var(--accent-ink); }
   .report-rail-item, .report-tpl-item { border-color:transparent; background:transparent; border-radius:9px; margin-bottom:2px; }
   .report-rail-item:hover, .report-tpl-item:hover { background:var(--chip-bg); border-color:transparent; }
-  .report-rail-item.active { background:color-mix(in srgb, var(--accent) 15%, transparent); border-color:transparent; }
-  .report-rail-item.active .name { color:var(--accent); }
+  .report-rail-item.active { background:color-mix(in srgb, var(--accent) 10%, transparent); border-color:transparent; }
+  .report-rail-item.active .name { color:var(--accent-ink); }
   .reports-rail .panel { padding:16px 12px; }
   .reports-layout { gap:18px; }
   .reports-main, .reports-rail { gap:18px; }
@@ -1550,7 +1554,7 @@
         <div id="userPop" class="acct-menu user-pop hidden">
           <div id="userEmail" class="user-who"></div>
           <div id="userMenu" class="user-items" role="menu" aria-label="Account">
-            <button type="button" id="userMenuAccount" role="menuitem" tabindex="-1" onclick="toggleUserMenu(false); showPage('settings', { section: 'your-account' })">Your account</button>
+            <button type="button" id="userMenuAccount" role="menuitem" tabindex="-1" onclick="toggleUserMenu(false, { focusBtn: true }); showPage('settings', { section: 'your-account' })">Your account</button>
             <button type="button" id="userMenuLogout" role="menuitem" tabindex="-1" onclick="toggleUserMenu(false); logout()">Log out</button>
           </div>
         </div>
@@ -3102,9 +3106,10 @@ let me=null, accounts=[], currentAccountId=null, categories=[], tags=[], recView
 const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(n);
 // Short money for tight places ($1.7k, -$22.4k), used by the Calendar's day cells on a phone (#291).
 const fmtShort = v => {
-  const a = Math.abs(v), s = v < 0 ? '-$' : '$';
-  if (a >= 1e6) return s + (a / 1e6).toFixed(1) + 'M';
-  if (a >= 1000) return s + (a / 1000).toFixed(1) + 'k';
+  const n = Math.round(v);                       // a few cents never print as -$0
+  const a = Math.abs(n), s = n < 0 ? '-$' : '$';
+  if (a >= 999950) return s + (Math.round(a / 1e5) / 10).toFixed(1) + 'M';   // not $1000.0k
+  if (a >= 1000) return s + (Math.round(a / 100) / 10).toFixed(1) + 'k';
   return s + a.toFixed(0);
 };
 
@@ -3125,7 +3130,7 @@ const fmtShort = v => {
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.115.1";
+const WEB_VERSION = "1.115.2";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -3135,6 +3140,7 @@ const WEB_VERSION = "1.115.1";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.115.2 (2026-11-23, claude+mkolakowski): (#292) fixes from the web-refresh code review: three new theme tokens, --muted-chip (grey text on --chip-bg), --accent-ink (accent text on its tint) and --bad-ink (red text on the tinted Delete buttons), each the theme's own colour moved just far enough in lightness to reach 4.5:1 on every surface it sits on, so the segmented controls, chips, active pills, checked account list, initials button and danger buttons read in all ten themes (tints are now 10% for pills, 13% for the initials button and 8% for danger buttons; the danger hover strengthens the border instead of the fill); the Settings, Admin, Forecast and Bills panels take the phone's 12px padding again (their wide-window rules out-ranked it); the account menu returns focus to its button after Your account, closes when the window narrows to phone width, and ignores a +alias in an email for the initials; changing Date format also redraws the dates already shown in Settings; fmtShort rounds first; the Dashboard grid uses minmax(min(320px,100%),1fr) so it no longer overflows under 340px; the theme-color meta is Dark's page colour.
 // 1.115.1 (2026-11-23, claude+mkolakowski): (#291) Calendar on a phone (max-width 768px): .cal-nav wraps (the month title takes its own row, order:-1; its min-width moved from inline style to .cal-month), so the page no longer scrolls sideways; each day cell stacks the date over a short amount (fmtShort, $1.7k: .cal-full / .cal-short spans, the latter shown on a phone) with the events as small colour bars, so no amount is cut mid-figure; the day panel below the grid still lists everything.
 // 1.115.0 (2026-11-23, claude+mkolakowski): (#288) web-refresh phase 8, top bar and account menu (from 769px; the phone bar is unchanged): the header is sticky (z-index 500; --bar-h follows its height, set by _fitGlobalSearch, and offsets the Settings/Admin section list and html scroll-padding-top; the blur is on header::before because a backdrop-filter on the header would become the containing block of the compact search's fixed box), the app's mark (<symbol id="wwMark">) sits beside the name ([data-app-title] moved to a span inside h1 so the title code no longer wipes the mark), page buttons are border-less with a tinted active pill, and #userEmail plus Log out fold into a round initials button (#userMenuBtn, aria-haspopup/expanded) opening #userPop: the email (#userEmail, now a div), Your account (#userMenuAccount, showPage('settings',{section:'your-account'})) and Log out (#userMenuLogout, logout()). Opens on click or Enter/Space and focuses the first item; ArrowUp/Down/Home/End move; Escape closes and returns focus to the button; a click outside, choosing an item, or Tabbing out closes it. _userInitials/renderUserButton/toggleUserMenu; renderUserButton runs at start-up where userEmail was set.
 // 1.114.0 (2026-11-23, claude+mkolakowski): (#287) web-refresh phase 7, Dashboard, Calendar, sign-in and phone: Dashboard cards (auto-fit minmax(320px,1fr) grid so three fill a row, plain label and figure pairs for high and low at 20px, hairlines (--hair) instead of dashed dividers, .dash-card-charts, a 56px sparkline, a 112px donut whose total font follows its length, a legend that shows all rows); Calendar as one hairline-joined grid with a filled today, border-less category-tinted events and bold amounts; sign-in centred with the app's mark (hidden SVG sprite <symbol id="wwMark">, used as <svg class="ww-mark"><use href="#wwMark"/></svg>, reused by phase 8) above the name; phone: Forecast's current balance spans the strip, the bottom bar marks the active page with colour and a short bar; Net worth's Per account heading matches the others.
@@ -4590,7 +4596,7 @@ document.addEventListener('keydown', (ev) => {
 // of the parts of the email address before the @ when there's no name.
 function _userInitials(u) {
   const name = ((u && u.name) || '').trim();
-  const parts = (name ? name.split(/\s+/) : ((u && u.email) || '').split('@')[0].split(/[^\p{L}\p{N}]+/u)).filter(Boolean);
+  const parts = (name ? name.split(/\s+/) : ((u && u.email) || '').split('@')[0].split('+')[0].split(/[^\p{L}\p{N}]+/u)).filter(Boolean);
   const letters = parts.slice(0, 2).map(w => Array.from(w)[0]).join('');
   return (letters || '?').toUpperCase();
 }
@@ -4631,6 +4637,8 @@ document.addEventListener('keydown', (ev) => {
     items[ev.key === 'Home' ? 0 : items.length - 1].focus();
   }
 });
+// Narrowing the window to phone width while the menu is open closes it.
+window.matchMedia('(max-width: 768px)').addEventListener('change', (ev) => { if (ev.matches) toggleUserMenu(false); });
 // Tabbing out of the button and its menu closes it.
 document.getElementById('userMenuWrap').addEventListener('focusout', (ev) => {
   const wrap = document.getElementById('userMenuWrap');
@@ -4820,6 +4828,8 @@ async function onDateFormatChange(event) {
   if (!DATE_FORMATS.includes(v)) return;
   if (me) me.date_format = v;
   markDisplayPrefs();
+  // Dates already drawn in Settings (the notice, tokens, browsers, bank sync, mail) are drawn again.
+  renderSettingsNotice(); loadApiTokens(); loadRememberedBrowsers(); loadBank(); loadMail();
   await _savePreference({ date_format: v });
 }
 async function onRowHeightChange(event) {

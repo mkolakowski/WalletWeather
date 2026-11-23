@@ -65,3 +65,19 @@ for name, ch in fixes.items():
 for r in out: print(r.get("note", ""), f'{r["theme"]:10} {r["what"]:34} {r["old"]} on {r["on"]}  {r["ratio"]:5.2f} -> {r["new"]} {r["newRatio"]:5.2f}')
 print(summary)
 print("\n".join(css))
+
+# Text on the tinted surfaces the refresh added (#292): grey on a chip, accent text on its tint, red text
+# on a Delete button's tint. Each uses its own *-ink token; every pair must reach 4.5:1.
+TINTED = [("muted-chip", ["chip-bg", "panel", "bg"], None),
+          ("accent-ink", ["bg", "panel"], ("accent", .10)),
+          ("accent-ink", ["panel"], ("accent", .13)),            # the initials button
+          ("bad-ink", ["panel", "bg", "chip-bg"], ("bad", .08))]
+bad_pairs = []
+for name, t in themes.items():
+    for fg, onto, tint in TINTED:
+        for o in onto:
+            bgc = t[o] if tint is None else mix(t[o], t[tint[0]], tint[1])
+            if cr(t[fg], bgc) < 4.5:
+                bad_pairs.append(f'{name:10} {fg} on {o}{"" if tint is None else " + " + str(round(tint[1]*100)) + "% " + tint[0]}  {cr(t[fg], bgc):.2f}')
+print("\nTinted surfaces under 4.5:1:", "none" if not bad_pairs else "")
+print("\n".join(bad_pairs))

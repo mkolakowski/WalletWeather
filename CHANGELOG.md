@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.1** · Schema version: **39** · iOS version: **0.34.0**
+App version: **1.98.0** · Web version: **1.115.2** · Schema version: **39** · iOS version: **0.34.0**
 
 ### Added
 
@@ -109,6 +109,10 @@ App version: **1.98.0** · Web version: **1.115.1** · Schema version: **39** ·
 
 ### Fixed
 
+- **Grey, accent and red text on the new tinted surfaces is readable in every theme.** The account switcher, Settings tabs, Dashboard window switcher and chips (grey text), the active page pills, the checked account list and the initials button (accent text), and the tinted Delete buttons (red text) were under the 4.5:1 contrast target in Dracula, Solarized, Nord, Synthwave, Forest, Mint, Monokai and Sunset (and some in Light). Each uses a shade of its own colour that reaches 4.5:1.
+- **Settings, Admin, Forecast and Bills panels use the phone's tighter padding again,** so they get their width back on a phone.
+- **The account menu behaves better with the keyboard and when the window narrows:** choosing Your account returns focus to the account button, the menu closes if the window becomes phone-width, and an email like `sam+shopping@example.com` shows S rather than SS.
+- **Changing Date format updates the dates already on the Settings page** (the notice, API tokens, remembered browsers, bank sync), without a reload. The Calendar's phone amounts no longer print -$0 or $1000.0k, the Dashboard no longer overflows on a very narrow phone, and the browser's theme colour matches the Dark theme.
 - **The Calendar fits a phone.** Its Prev, month, Next, Today and Future view buttons wrap onto lines instead of running off the right edge (so the page no longer scrolls sideways), and each day shows its date over a short amount such as -$1.7k, with its events as small colour bars, instead of cutting an amount off mid-figure. Tap a day to see its events listed in full below the grid.
 - The Net worth chart shows its amounts in full, in short form inside the chart (such as $22.4k), instead of cut off at the left edge ("9.67" for $22,449.67).
 - When the Forecast table turns into cards in a narrower window, each figure carries one label ("Forecast date") instead of two run together ("Forecast dateStart date").

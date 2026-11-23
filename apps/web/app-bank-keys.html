@@ -1,0 +1,216 @@
+<!doctype html>
+<!--
+  "Your bank keys" from the iPhone app (own-bank-keys phase 3, #278). The
+  app opens this page in the phone's system sign-in sheet, which shares
+  Safari's sign-in, as /app-bank-keys. It signs in if needed and shows a
+  card for your own Teller keys and one for your own Plaid keys (each
+  service an admin lets you use, or that you have keys for): add, replace
+  or remove them, with a fresh two-factor code when it's on. It saves
+  through the same browser-only routes as the web app's Settings
+  (PUT /api/bank/keys/teller, PUT /api/bank/keys/plaid, POST
+  /api/bank/keys/remove), so keys never travel with the app's token and
+  the app never holds them. Teller's certificate comes from Files: the
+  teller.zip Teller downloads, or the two files inside it. "Back to the
+  app" sends the sheet to
+    walletweather://bank-keys?state=changed   (or closed | off)
+  which closes it; nothing about the keys goes with it. Its script is
+  app-bank-keys.js; the server gives the page a Content-Security-Policy of
+  its own (scripts from this server only).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="referrer" content="no-referrer">
+<title>Your bank keys · WalletWeather</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<style>
+  :root { --bg:#0f1419; --panel:#1a2027; --border:#2a323c; --text:#e6edf3; --muted:#8b949e;
+          --accent:#58a6ff; --bad:#f85149; --good:#3fb950; --on-accent:#0f1419; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#ffffff; --panel:#f6f8fa; --border:#d0d7de; --text:#1f2328; --muted:#656d76;
+            --accent:#0969da; --bad:#cf222e; --good:#1a7f37; --on-accent:#ffffff; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         padding:max(24px, env(safe-area-inset-top)) 16px 32px; }
+  main { max-width:440px; margin:0 auto; }
+  header { display:flex; align-items:center; gap:10px; margin-bottom:20px; }
+  header img { width:36px; height:36px; }
+  header h1 { font-size:20px; margin:0; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:14px; }
+  h2 { font-size:17px; margin:0 0 6px; }
+  p { margin:0 0 12px; }
+  ol { margin:0 0 10px 18px; padding:0; }
+  .muted { color:var(--muted); font-size:13px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:12px 0 4px; }
+  input[type=email], input[type=password], input[type=text], select, textarea {
+    width:100%; padding:11px 12px; font:inherit; color:var(--text); background:var(--bg);
+    border:1px solid var(--border); border-radius:8px; }
+  textarea { font-family:ui-monospace, Menlo, monospace; font-size:12px; }
+  input[type=file] { width:100%; font-size:14px; color:var(--text); }
+  code { font-family:ui-monospace, Menlo, monospace; font-size:13px; word-break:break-all; }
+  details { margin-top:10px; }
+  summary { cursor:pointer; font-size:14px; color:var(--accent); }
+  .buttons { display:flex; flex-direction:column; gap:10px; margin-top:16px; }
+  .row { display:flex; gap:10px; margin-top:12px; }
+  .row button { flex:1; }
+  button, .button { width:100%; padding:12px; font:inherit; font-weight:600; border-radius:10px; cursor:pointer;
+                    border:1px solid var(--accent); background:var(--accent); color:var(--on-accent);
+                    text-align:center; text-decoration:none; display:block; }
+  button.ghost, .button.ghost { background:transparent; color:var(--accent); }
+  button.danger { background:transparent; color:var(--bad); border-color:var(--bad); }
+  button:disabled { opacity:.6; cursor:default; }
+  .or { text-align:center; color:var(--muted); font-size:13px; margin:14px 0; }
+  .error { color:var(--bad); font-size:14px; margin-top:10px; }
+  .good { color:var(--good); font-size:14px; margin-top:10px; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header><img src="/static/favicon.svg" alt=""><h1 id="title">Your bank keys</h1></header>
+
+  <div id="loading" class="panel"><p class="muted" id="loadingText">Loading…</p></div>
+
+  <form id="signIn" class="panel hidden" autocomplete="on">
+    <h2>Sign in to continue</h2>
+    <p class="muted">Then you'll add or change your Teller and Plaid keys.</p>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username" required>
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" required>
+    <div class="buttons"><button id="signInBtn" type="submit">Sign in</button></div>
+    <div id="googleWrap" class="hidden">
+      <div class="or">or</div>
+      <a id="googleBtn" class="button ghost" href="#">Sign in with Google</a>
+    </div>
+    <div id="signInError" class="error hidden" role="alert"></div>
+    <div class="buttons"><button type="button" class="ghost" data-back="closed">Cancel</button></div>
+  </form>
+
+  <form id="codeStep" class="panel hidden">
+    <h2>Enter your code</h2>
+    <p class="muted">Your account has two-factor sign-in on.</p>
+    <label for="code">Code from your authenticator app</label>
+    <input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="40" required>
+    <p class="muted">No phone? Type one of your recovery codes instead.</p>
+    <div class="buttons"><button id="codeBtn" type="submit">Sign in</button></div>
+    <div id="codeError" class="error hidden" role="alert"></div>
+  </form>
+
+  <div id="keys" class="hidden">
+    <div class="panel">
+      <p>Teller and Plaid each need keys from a developer account of your own, so your bank logins count
+        against your own account there. They're checked with the service before they're saved, kept
+        encrypted on your server, and the secret part is never shown again, here or in the app.</p>
+      <div id="keysCodeWrap" class="hidden">
+        <label for="keysCode">Code from your authenticator app</label>
+        <input id="keysCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="40">
+        <p class="muted">Two-factor sign-in is on, so saving or removing keys takes a fresh code each time.</p>
+      </div>
+    </div>
+
+    <section id="card-teller" class="panel hidden" data-provider="teller">
+      <h2>Your Teller keys</h2>
+      <div id="saved-teller" class="hidden">
+        <p id="savedText-teller"></p>
+        <p id="inUse-teller" class="muted hidden"></p>
+        <div class="row">
+          <button type="button" class="ghost" id="replace-teller">Replace</button>
+          <button type="button" class="danger" id="remove-teller">Remove</button>
+        </div>
+      </div>
+      <p id="none-teller" class="muted hidden">Add your Teller keys to connect a bank through Teller.</p>
+      <form id="form-teller" class="hidden">
+        <ol class="muted">
+          <li>In Teller's dashboard, copy your application id.</li>
+          <li>Under Certificates, make a certificate: Teller downloads it as <code>teller.zip</code>. Save it to Files.</li>
+          <li>Pick that zip here, choose the environment, and tap Check and save. The sandbox needs no certificate.</li>
+        </ol>
+        <label for="tellerApp">Application id</label>
+        <input id="tellerApp" type="text" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="app_…">
+        <label for="tellerEnv">Environment</label>
+        <select id="tellerEnv">
+          <option value="sandbox">Sandbox</option>
+          <option value="development" selected>Development</option>
+          <option value="production">Production</option>
+        </select>
+        <label for="tellerZip">Teller's zip (teller.zip)</label>
+        <input id="tellerZip" type="file" accept=".zip,application/zip">
+        <details>
+          <summary>Or pick the two files</summary>
+          <label for="tellerCertFile">certificate.pem</label>
+          <input id="tellerCertFile" type="file">
+          <label for="tellerKeyFile">private_key.pem</label>
+          <input id="tellerKeyFile" type="file">
+        </details>
+        <details>
+          <summary>Or paste their text</summary>
+          <label for="tellerCertText">Certificate</label>
+          <textarea id="tellerCertText" rows="4" spellcheck="false" autocomplete="off" autocapitalize="off" maxlength="20000"
+                    placeholder="-----BEGIN CERTIFICATE-----"></textarea>
+          <label for="tellerKeyText">Private key</label>
+          <textarea id="tellerKeyText" rows="4" spellcheck="false" autocomplete="off" autocapitalize="off" maxlength="20000"
+                    placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
+        </details>
+        <div class="row">
+          <button type="button" class="ghost hidden" id="cancel-teller">Cancel</button>
+          <button type="submit" id="save-teller">Check and save</button>
+        </div>
+      </form>
+      <div id="status-teller" class="hidden" role="status"></div>
+    </section>
+
+    <section id="card-plaid" class="panel hidden" data-provider="plaid">
+      <h2>Your Plaid keys</h2>
+      <div id="saved-plaid" class="hidden">
+        <p id="savedText-plaid"></p>
+        <p id="inUse-plaid" class="muted hidden"></p>
+        <div class="row">
+          <button type="button" class="ghost" id="replace-plaid">Replace</button>
+          <button type="button" class="danger" id="remove-plaid">Remove</button>
+        </div>
+      </div>
+      <p id="none-plaid" class="muted hidden">Add your Plaid keys to connect a bank through Plaid.</p>
+      <form id="form-plaid" class="hidden">
+        <ol class="muted">
+          <li>In Plaid's dashboard, open Developers → Keys.</li>
+          <li>Copy your client id and the secret for the environment you'll use, and tap Check and save.</li>
+        </ol>
+        <label for="plaidClient">Client id</label>
+        <input id="plaidClient" type="text" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <label for="plaidSecret">Secret</label>
+        <input id="plaidSecret" type="password" maxlength="200" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <label for="plaidEnv">Environment</label>
+        <select id="plaidEnv">
+          <option value="sandbox">Sandbox</option>
+          <option value="production" selected>Production</option>
+        </select>
+        <div class="row">
+          <button type="button" class="ghost hidden" id="cancel-plaid">Cancel</button>
+          <button type="submit" id="save-plaid">Check and save</button>
+        </div>
+      </form>
+      <div id="status-plaid" class="hidden" role="status"></div>
+    </section>
+
+    <div class="buttons"><button type="button" id="backBtn">Back to the app</button></div>
+  </div>
+
+  <div id="stop" class="panel hidden">
+    <h2 id="stopTitle">Can't add keys here</h2>
+    <p id="stopText"></p>
+    <div class="buttons"><button type="button" id="stopBack">Back to the app</button></div>
+  </div>
+
+  <div id="done" class="panel hidden">
+    <h2>Back to the app…</h2>
+    <p class="muted">If nothing happens, close this sheet: the app checks again when it opens.</p>
+  </div>
+</main>
+<script src="/static/app-bank-keys.js"></script>
+</body>
+</html>

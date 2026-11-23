@@ -10,7 +10,10 @@ import Foundation
 // also says which services the person may connect a bank through
 // (`providers_allowed`), and from 1.92.0 it lists the accounts shared with
 // them that sync from someone else's connection (`shared`; sync-access
-// phase 4, #267), each with its own Sync now.
+// phase 4, #267), each with its own Sync now. From 1.97.0 it also says
+// which services the person is ticked for (`providers_ticked`) and which of
+// Teller and Plaid have their own keys (`own_keys`, the environment only;
+// own-bank-keys phase 3, #278), and the server has a page for adding them.
 
 /// `GET /api/bank/status`: the sync's state, readable with any API token.
 /// A person with no bank connected gets only `enabled` and `connected`.
@@ -39,6 +42,12 @@ public struct BankStatus: Sendable, Codable, Equatable {
     /// (`simplefin`, `teller`, `plaid`; server 1.92.1 or later); nil from an
     /// older server, which has no way to say.
     public let providersAllowed: [String]?
+    /// The services an admin lets this person use, whether or not they've
+    /// added keys yet (server 1.97.0 or later); nil from an older server.
+    public let providersTicked: [String]?
+    /// Which of Teller and Plaid have the person's own keys, and their
+    /// environment (server 1.97.0 or later): never the id or the secret.
+    public let ownKeys: OwnBankKeys?
 
     /// The most syncs the server allows in 24 hours (the web app says the same).
     public static let syncsPerDay = 20
@@ -49,7 +58,8 @@ public struct BankStatus: Sendable, Codable, Equatable {
                 lastSyncOk: Bool? = nil, lastSyncStatus: String? = nil, needsReconnect: Bool? = nil,
                 failingOverADay: Bool? = nil, nextSyncAt: String? = nil, syncsLeftToday: Int? = nil,
                 syncWaitSeconds: Int? = nil, connections: [BankConnection]? = nil,
-                shared: [SharedBankAccount]? = nil, providersAllowed: [String]? = nil) {
+                shared: [SharedBankAccount]? = nil, providersAllowed: [String]? = nil,
+                providersTicked: [String]? = nil, ownKeys: OwnBankKeys? = nil) {
         self.enabled = enabled
         self.connected = connected
         self.linkedAccountIds = linkedAccountIds
@@ -64,12 +74,24 @@ public struct BankStatus: Sendable, Codable, Equatable {
         self.connections = connections
         self.shared = shared
         self.providersAllowed = providersAllowed
+        self.providersTicked = providersTicked
+        self.ownKeys = ownKeys
     }
 
     /// Whether the person may connect a bank at all: false only when the
     /// server says they're ticked for no service. An older server that
-    /// doesn't say gets today's behaviour (the card offers it).
-    public var mayConnect: Bool { providersAllowed?.isEmpty != true }
+    /// doesn't say gets today's behaviour (the card offers it). Someone
+    /// ticked for Teller or Plaid who hasn't added keys yet may, once they
+    /// do (#278).
+    public var mayConnect: Bool { providersAllowed?.isEmpty != true || addKeysFirst }
+
+    /// Ticked for Teller or Plaid, but neither can be used yet because the
+    /// person hasn't added their own keys (#276, #278).
+    public var addKeysFirst: Bool {
+        guard enabled, let providersTicked else { return false }
+        let ticked = providersTicked.filter { $0 == "teller" || $0 == "plaid" }
+        return !ticked.isEmpty && !ticked.contains { providersAllowed?.contains($0) == true }
+    }
 
     /// Whether the app's own Connect a bank applies: it runs Teller and
     /// Plaid (SimpleFIN is connected in the web app), so someone ticked for
@@ -106,7 +128,7 @@ public struct BankStatus: Sendable, Codable, Equatable {
             matched: linkedAccountIds?.isEmpty == false, needsReconnect: needsReconnect == true,
             lastSyncAt: lastSyncAt, lastSyncOk: lastSyncOk, lastSyncStatus: lastSyncStatus,
             nextSyncAt: nextSyncAt, syncWaitSeconds: syncWaitSeconds, mayConnect: mayConnect,
-            now: now, when: when)
+            addKeysFirst: addKeysFirst, now: now, when: when)
     }
 
     /// One row for each connection, in the server's order; empty when a
@@ -314,13 +336,18 @@ public struct BankSyncSummary: Sendable, Equatable {
     /// list connections, for the one the top-level fields describe).
     static func make(provider: String, enabled: Bool, connected: Bool, matched: Bool, needsReconnect: Bool,
                      lastSyncAt: String?, lastSyncOk: Bool?, lastSyncStatus: String?, nextSyncAt: String?,
-                     syncWaitSeconds: Int?, mayConnect: Bool = true, now: Date,
-                     when: (Date) -> String) -> BankSyncSummary {
+                     syncWaitSeconds: Int?, mayConnect: Bool = true, addKeysFirst: Bool = false,
+                     now: Date, when: (Date) -> String) -> BankSyncSummary {
         guard connected else {
             if !enabled {
                 return BankSyncSummary(
                     tone: .neutral, headline: "Bank sync is off",
                     detail: "An admin switches it on in the web app's Admin page. Then each person connects their own bank in Settings → Bank sync.")
+            }
+            if addKeysFirst {
+                return BankSyncSummary(
+                    tone: .neutral, headline: "No bank connected",
+                    detail: "Teller and Plaid each need keys from a developer account of your own. Add yours below, then connect a bank.")
             }
             return BankSyncSummary(
                 tone: .neutral, headline: "No bank connected",
@@ -407,6 +434,102 @@ public enum BankConnect {
         case "expired": return ("That took too long, so nothing was connected. Try again.", true)
         case "off": return ("This server can't connect a bank right now: bank sync is off, or it has no Teller or Plaid keys.", true)
         case "failed": return ("The bank didn't finish connecting. If it did, it shows here after a moment.", true)
+        default: return nil
+        }
+    }
+}
+
+/// `own_keys` in `GET /api/bank/status` (server 1.97.0 or later): which of
+/// Teller and Plaid have the person's own keys. Only the environment comes
+/// to the app; the id and the secret stay on the server.
+public struct OwnBankKeys: Sendable, Codable, Equatable {
+    public struct Key: Sendable, Codable, Equatable {
+        public let environment: String
+        public init(environment: String) { self.environment = environment }
+    }
+    public let teller: Key?
+    public let plaid: Key?
+
+    public init(teller: Key? = nil, plaid: Key? = nil) {
+        self.teller = teller
+        self.plaid = plaid
+    }
+
+    public func key(_ provider: String) -> Key? {
+        switch provider {
+        case "teller": teller
+        case "plaid": plaid
+        default: nil
+        }
+    }
+}
+
+/// Your own Teller and Plaid keys from the app (own-bank-keys phase 3, #278;
+/// decided 2026-11-23): the server's `/app-bank-keys` page in the sign-in
+/// sheet, which shares Safari's sign-in and saves, replaces or removes them
+/// through the browser-only routes with a fresh two-factor code. The app
+/// never holds the keys; the page hands back only
+/// `walletweather://bank-keys?state=changed|closed|off`.
+public enum BankKeys {
+    /// The first server with the page and `own_keys`.
+    public static let minimumServer = "1.97.0"
+
+    public static func url(server: ServerAddress) -> URL { server.url("/app-bank-keys") }
+
+    /// One line of the card: a service and whether it has your keys.
+    public struct Row: Sendable, Equatable, Identifiable {
+        public let provider: String
+        public let name: String
+        public let text: String
+        public let hasKeys: Bool
+        public var id: String { provider }
+    }
+
+    /// The services the card lists: those with keys, and those an admin
+    /// lets the person use while bank sync is on (they can add keys). Empty
+    /// from a server before 1.97.0.
+    public static func rows(_ status: BankStatus) -> [Row] {
+        guard let own = status.ownKeys else { return [] }
+        let ticked = status.enabled ? (status.providersTicked ?? []) : []
+        return [("teller", "Teller"), ("plaid", "Plaid")].compactMap { provider, name in
+            if let key = own.key(provider) {
+                return Row(provider: provider, name: name, text: "Your own keys · \(environmentName(key.environment))",
+                           hasKeys: true)
+            }
+            guard ticked.contains(provider) else { return nil }
+            return Row(provider: provider, name: name, text: "No keys yet", hasKeys: false)
+        }
+    }
+
+    /// "Sandbox", "Development", "Production"; anything else as it came.
+    public static func environmentName(_ environment: String) -> String {
+        switch environment {
+        case "sandbox": "Sandbox"
+        case "development": "Development"
+        case "production": "Production"
+        default: environment
+        }
+    }
+
+    /// Whether the card offers the keys page: a server with it, not a
+    /// read-only token, and a service to list.
+    public static func offered(_ status: BankStatus, serverVersion: String?, readOnly: Bool) -> Bool {
+        guard !readOnly, let serverVersion, isVersion(serverVersion, atLeast: minimumServer) == true else { return false }
+        return !rows(status).isEmpty
+    }
+
+    /// The button's words: "Add your keys" while none are saved.
+    public static func buttonTitle(_ status: BankStatus) -> String {
+        rows(status).contains { $0.hasKeys } ? "Your bank keys" : "Add your bank keys"
+    }
+
+    /// What the card says after the sheet closes; nil when there's nothing
+    /// to say (closed by hand, or nothing changed).
+    public static func outcome(_ link: AppLink?) -> (text: String, failed: Bool)? {
+        guard case let .bankKeys(state)? = link else { return nil }
+        switch state {
+        case "changed": return ("Your bank keys are updated.", false)
+        case "off": return ("Keys can't be added right now: bank sync is off, or an admin hasn't let you use Teller or Plaid.", true)
         default: return nil
         }
     }

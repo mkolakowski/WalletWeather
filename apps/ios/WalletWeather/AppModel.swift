@@ -711,6 +711,15 @@ final class AppModel {
         return await sheet.open(BankConnect.url(server: address))
     }
 
+    /// Your own Teller and Plaid keys (#278): the server's `/app-bank-keys`
+    /// page in the sign-in sheet; nil when it was closed by hand. The keys
+    /// go in on that page under the browser's sign-in and never reach the app.
+    func editBankKeys() async -> AppLink? {
+        guard let server = connection?.server,
+              let address = try? ServerAddress.parse(server.absoluteString) else { return nil }
+        return await sheet.open(BankKeys.url(server: address))
+    }
+
     /// The sheet at `/app-sign-in/cloudflare`: the person's Cloudflare
     /// sign-in, handed back by the server.
     private func signInToCloudflare(server: URL) async -> String? {

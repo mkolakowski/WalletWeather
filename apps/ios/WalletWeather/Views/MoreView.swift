@@ -680,7 +680,9 @@ struct ReportResult: View {
 /// bank through Teller or Plaid in the sign-in sheet (phase 5, #258), shown
 /// only to someone ticked for one of them, and the accounts shared with the
 /// person that sync from someone else's connection, each with its own Sync
-/// now (sync-access phase 4, #267). Matching accounts, the sync log and the Unmatched list are in the web app.
+/// now (sync-access phase 4, #267), and which of Teller and Plaid have the
+/// person's own keys, with the server's keys page in the sign-in sheet to add,
+/// replace or remove them (own-bank-keys phase 3, #278). Matching accounts, the sync log and the Unmatched list are in the web app.
 private struct BankSyncCard: View {
     @Environment(AppModel.self) private var model
     private enum Load { case loading, unavailable, failed(String), shown(BankStatus) }
@@ -692,6 +694,7 @@ private struct BankSyncCard: View {
     @State private var outcome: String?
     @State private var outcomeFailed = false
     @State private var connecting = false
+    @State private var editingKeys = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -759,7 +762,11 @@ private struct BankSyncCard: View {
                 }
             }
             .buttonStyle(.glass)
-            .disabled(connecting || syncing != nil)
+            .disabled(connecting || syncing != nil || editingKeys)
+        }
+        let keyVersion = model.isDemo ? BankKeys.minimumServer : model.serverVersion?.appVersion
+        if BankKeys.offered(status, serverVersion: keyVersion, readOnly: model.me?.isReadOnly == true) {
+            keysSection(status)
         }
         if let outcome {
             Text(outcome).font(.footnote).foregroundStyle(outcomeFailed ? Palette.bad : .secondary)
@@ -793,6 +800,57 @@ private struct BankSyncCard: View {
                     Text(wait).font(.footnote).foregroundStyle(Palette.warn)
                 }
             }
+        }
+    }
+
+    /// Which of Teller and Plaid have your own keys (never the keys), and the
+    /// server's keys page to add, replace or remove them (#278).
+    @ViewBuilder
+    private func keysSection(_ status: BankStatus) -> some View {
+        Divider()
+        Text("Your Teller and Plaid keys").font(.subheadline.weight(.semibold))
+        ForEach(BankKeys.rows(status)) { row in
+            HStack(alignment: .firstTextBaseline) {
+                Label {
+                    Text(row.name)
+                } icon: {
+                    Image(systemName: row.hasKeys ? "key.fill" : "key")
+                        .foregroundStyle(row.hasKeys ? Palette.good : .secondary)
+                }
+                .font(.subheadline)
+                Spacer(minLength: 8)
+                Text(row.text).font(.footnote).foregroundStyle(.secondary)
+            }
+            .accessibilityElement(children: .combine)
+        }
+        Text("Each needs keys from a developer account of your own. They're added on your server's page, signed in with a fresh code, and never kept on this iPhone.")
+            .font(.footnote).foregroundStyle(.secondary)
+        Button { Task { await editKeys() } } label: {
+            HStack(spacing: 8) {
+                if editingKeys { ProgressView() } else { Image(systemName: "key") }
+                Text(BankKeys.buttonTitle(status)).frame(maxWidth: .infinity)
+            }
+        }
+        .buttonStyle(.glass)
+        .disabled(editingKeys || connecting || syncing != nil)
+    }
+
+    /// The server's keys page in the sign-in sheet (#278); what it hands back
+    /// is only whether anything changed.
+    private func editKeys() async {
+        outcome = nil
+        if model.isDemo {
+            outcome = "The demo can't save bank keys: it saves nothing."
+            outcomeFailed = false
+            return
+        }
+        editingKeys = true
+        defer { editingKeys = false }
+        let answer = await model.editBankKeys()
+        await refresh()
+        if let said = BankKeys.outcome(answer) {
+            outcome = said.text
+            outcomeFailed = said.failed
         }
     }
 

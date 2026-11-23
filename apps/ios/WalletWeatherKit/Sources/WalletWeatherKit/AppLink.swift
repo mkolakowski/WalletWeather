@@ -13,6 +13,8 @@ import Foundation
 /// - `bank-connected?connection=…` (or `?state=exited|expired|cancelled|failed|off`):
 ///   the sheet's answer from the server's "connect a bank" page (#258), which
 ///   hands back only the new connection's number, never anything from the bank.
+/// - `bank-keys?state=changed|closed|off`: the sheet's answer from the
+///   server's "your bank keys" page (#278); never a key.
 public enum AppLink: Sendable, Equatable {
     case signedIn(code: String, state: String, cloudflare: String?)
     case cloudflare(state: String, token: String)
@@ -20,6 +22,7 @@ public enum AppLink: Sendable, Equatable {
     case cancelled(state: String)
     case connect(server: String, token: String)
     case bankConnected(connection: Int?, state: String?)
+    case bankKeys(state: String)
 
     public static let scheme = "walletweather"
 
@@ -44,6 +47,9 @@ public enum AppLink: Sendable, Equatable {
             let state = q["state"].flatMap { $0.isEmpty ? nil : String($0.prefix(20)) }
             guard connection != nil || state != nil else { return nil }
             self = .bankConnected(connection: connection, state: state)
+        case "bank-keys":
+            guard !state.isEmpty else { return nil }
+            self = .bankKeys(state: String(state.prefix(20)))
         case "connect":
             guard let server = q["server"], !server.isEmpty,
                   let token = q["token"], !token.isEmpty else { return nil }
@@ -58,7 +64,7 @@ public enum AppLink: Sendable, Equatable {
         switch self {
         case let .signedIn(_, state, _), let .cloudflare(state, _),
              let .noCloudflare(state), let .cancelled(state): state
-        case .connect, .bankConnected: nil
+        case .connect, .bankConnected, .bankKeys: nil
         }
     }
 }

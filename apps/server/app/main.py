@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.96.0"
+APP_VERSION = "1.97.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,19 @@ APP_VERSION = "1.96.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.97.0 (2026-11-23, claude+mkolakowski): (#278) Your own Teller and Plaid
+#     keys from the iPhone app (own-bank-keys phase 3). New page
+#     /app-bank-keys (app-bank-keys.html/.js, the same tight policy as
+#     /app-connect-bank), opened in the app's sign-in sheet: signs in, shows
+#     your Teller and Plaid key cards and saves, replaces or removes them
+#     through PUT /api/bank/keys/teller|plaid and POST /api/bank/keys/remove
+#     (browser session, fresh two-factor code, as before), then sends the
+#     sheet to walletweather://bank-keys?state=changed|closed|off. Keys never
+#     go with the app's token. Google sign-in may return to the page.
+#     GET /api/bank/status gains `own_keys` ({"teller": {"environment": ...}
+#     or null, "plaid": ...}; never the id or the secret) and
+#     `providers_ticked` (the services an admin lets this person use), so the
+#     app shows which services have keys and offers the page.
 # 1.96.0 (2026-11-23, claude+mkolakowski): (#277) Admin → Users shows who has
 #     their own Teller and Plaid keys (own-bank-keys phase 2). GET
 #     /api/admin/users gains `bank_keys`: {"teller": {"environment": ...} or
@@ -1922,9 +1935,9 @@ def app_token(payload: AppTokenIn, request: Request, db: Session = Depends(get_d
 
 def _safe_next(path: str | None) -> str | None:
     """Where Google sign-in may return to besides "/": only the "sign in an
-    app" page (#87) and the app's "connect a bank" page (#258), so `next`
-    can't send anyone off the site."""
-    for page in ("/app-sign-in", "/app-connect-bank"):
+    app" page (#87), the app's "connect a bank" page (#258) and its "your
+    bank keys" page (#278), so `next` can't send anyone off the site."""
+    for page in ("/app-sign-in", "/app-connect-bank", "/app-bank-keys"):
         if path and (path == page or path.startswith(page + "?")) and "\\" not in path:
             return path
     return None
@@ -6668,6 +6681,18 @@ def _bank_conn_short(db: Session, conn: BankConnection, now: datetime, enabled: 
     }
 
 
+def _bank_own_keys_short(db: Session, user: User) -> dict:
+    """Which of Teller and Plaid this person has their own keys for, and
+    their environment, for an app (#278). One query; never the id, the
+    secret, the certificate or the key."""
+    out: dict = {p: None for p in bank_keys.PROVIDERS}
+    for provider, environment in (db.query(BankKeys.provider, BankKeys.environment)
+                                  .filter(BankKeys.user_id == user.id)):
+        if provider in out:
+            out[provider] = {"environment": environment}
+    return out
+
+
 def _bank_short_status(db: Session, user: User, shared: list[dict] | None = None) -> dict:
     """What an app needs to show the sync's state (#195): no bank account
     names. The top-level fields keep their one-connection shape (the iPhone
@@ -6683,7 +6708,13 @@ def _bank_short_status(db: Session, user: User, shared: list[dict] | None = None
            # and their own keys, #276), so an app knows whether to offer
            # Connect a bank (sync-access phase 4, #267).
            "providers_allowed": [k for k, v in bank_providers(db, user).items() if v and k in access],
-           "shared": shared if shared is not None else _bank_shared(db, user, with_names=False)}
+           "shared": shared if shared is not None else _bank_shared(db, user, with_names=False),
+           # The services an admin lets this person use, keys or not, and
+           # which of Teller and Plaid have their own keys (the environment
+           # only: never the id or the secret), so the app shows them and
+           # offers its keys page (#278).
+           "providers_ticked": [k for k in BANK_PROVIDER_NAMES if k in access],
+           "own_keys": _bank_own_keys_short(db, user)}
     if not conns:
         return out
     now = datetime.utcnow()
@@ -10474,6 +10505,16 @@ if STATIC_DIR.exists():
     @app.get("/app-connect-bank")
     def app_connect_bank_page():
         return FileResponse(STATIC_DIR / "app-connect-bank.html",
+                            headers={"Cache-Control": "no-cache",
+                                     "Content-Security-Policy": APP_CONNECT_PAGE_CSP})
+
+    # "Your bank keys" from the iPhone app (#278), opened in the phone's
+    # sign-in sheet: signs in if needed and saves, replaces or removes your
+    # own Teller and Plaid keys through the browser-only routes, so keys
+    # never travel with the app's token. Same policy as /app-connect-bank.
+    @app.get("/app-bank-keys")
+    def app_bank_keys_page():
+        return FileResponse(STATIC_DIR / "app-bank-keys.html",
                             headers={"Cache-Control": "no-cache",
                                      "Content-Security-Policy": APP_CONNECT_PAGE_CSP})
 

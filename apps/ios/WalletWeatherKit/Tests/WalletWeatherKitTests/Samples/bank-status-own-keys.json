@@ -1,0 +1,8 @@
+{
+  "enabled": true,
+  "connected": false,
+  "providers_allowed": ["simplefin", "teller"],
+  "shared": [],
+  "providers_ticked": ["simplefin", "teller", "plaid"],
+  "own_keys": {"teller": {"environment": "development"}, "plaid": null}
+}

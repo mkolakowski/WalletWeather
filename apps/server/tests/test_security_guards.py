@@ -57,6 +57,8 @@ PUBLIC = {
     ("GET", "/app-sign-in"): "a static page; its script signs in",
     ("GET", "/app-connect-bank"): "a static page with its own Content-Security-Policy; its script "
                                   "signs in and connects a bank from the iPhone app (#258)",
+    ("GET", "/app-bank-keys"): "a static page with its own Content-Security-Policy; its script signs "
+                               "in and saves your own bank keys through browser-only routes (#278)",
     ("GET", "/bank/teller"): "a static page with its own Content-Security-Policy; its script "
                              "connects through Teller and posts to signed-in routes (#254)",
     ("GET", "/"): "the web app's page",

@@ -230,7 +230,8 @@ public enum Demo {
     /// A sample bank sync status: two banks connected (one through SimpleFIN,
     /// one through Teller) and matched, last synced a few hours ago, with the
     /// next sync due tomorrow (#197, #257), ticked for both, plus one account
-    /// shared with the demo that syncs from someone else's connection (#267).
+    /// shared with the demo that syncs from someone else's connection (#267),
+    /// with its own Teller keys and ticked for Plaid without keys yet (#278).
     static func bankStatus(now: Date = .now) -> Data {
         func connection(_ id: Int, _ provider: String, _ providerName: String, _ name: String, account: Int,
                         hoursAgo: Double, status: String, left: Int) -> [String: Any] {
@@ -257,6 +258,8 @@ public enum Demo {
         return json([
             "enabled": true, "connected": true, "linked_account_ids": [1, 2],
             "providers_allowed": ["simplefin", "teller"], "shared": [shared],
+            "providers_ticked": ["simplefin", "teller", "plaid"],
+            "own_keys": ["teller": ["environment": "development"], "plaid": NSNull()],
             "last_sync_at": BankStatus.text(now.addingTimeInterval(-3 * 3600)), "last_sync_ok": true,
             "last_sync_status": "Northwind Bank: 2 new lines, 1 matched a bill, 14 already here; Contoso Credit Union: 0 new lines, 6 already here",
             "last_ok_at": BankStatus.text(now.addingTimeInterval(-3 * 3600)), "needs_reconnect": false,

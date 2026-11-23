@@ -91,7 +91,7 @@
     }
     if (!offered.length) {
       stop('Add your keys first',
-           'Teller and Plaid each need keys from a developer account of your own. Add them in the web app: Settings → Bank sync. SimpleFIN is connected there too.', 'off');
+           'Teller and Plaid each need keys from a developer account of your own. Add them with Your bank keys under More → Bank sync in the app, or in the web app: Settings → Bank sync. SimpleFIN is connected there.', 'off');
       return;
     }
     offered.forEach(p => $(p.key).classList.remove('hidden'));

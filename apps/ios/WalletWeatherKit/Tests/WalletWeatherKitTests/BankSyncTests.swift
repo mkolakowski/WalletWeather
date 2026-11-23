@@ -199,6 +199,76 @@ struct BankSyncTests {
         #expect(BankConnect.offered(status, serverVersion: "1.89.0", readOnly: false))
     }
 
+    // MARK: Your own Teller and Plaid keys (own-bank-keys phase 3, #278)
+
+    @Test func ownKeysReadAsTheServerWritesThemWithTheEnvironmentOnly() throws {
+        let status: BankStatus = try sample("bank-status-own-keys")
+        #expect(status.providersTicked == ["simplefin", "teller", "plaid"])
+        #expect(status.ownKeys == OwnBankKeys(teller: .init(environment: "development"), plaid: nil))
+        let rows = BankKeys.rows(status)
+        #expect(rows.map(\.provider) == ["teller", "plaid"])
+        #expect(rows.map(\.text) == ["Your own keys · Development", "No keys yet"])
+        #expect(rows.map(\.hasKeys) == [true, false])
+        #expect(BankKeys.buttonTitle(status) == "Your bank keys")
+        // An older server says neither, so the card lists nothing and offers no page.
+        let older: BankStatus = try sample("bank-status-connected")
+        #expect(older.ownKeys == nil && older.providersTicked == nil && BankKeys.rows(older).isEmpty)
+        #expect(!BankKeys.offered(older, serverVersion: "1.97.0", readOnly: false))
+    }
+
+    @Test func theKeysCardListsServicesWithKeysOrTickedWhileSyncIsOn() {
+        func rows(enabled: Bool = true, ticked: [String], own: OwnBankKeys) -> [String] {
+            BankKeys.rows(BankStatus(enabled: enabled, connected: false, providersAllowed: [],
+                                     providersTicked: ticked, ownKeys: own)).map(\.provider)
+        }
+        #expect(rows(ticked: ["teller", "plaid"], own: OwnBankKeys()) == ["teller", "plaid"])
+        #expect(rows(ticked: ["simplefin"], own: OwnBankKeys()).isEmpty)          // SimpleFIN takes no keys
+        #expect(rows(ticked: [], own: OwnBankKeys(plaid: .init(environment: "sandbox"))) == ["plaid"])   // unticked, keys still shown
+        #expect(rows(enabled: false, ticked: ["teller"], own: OwnBankKeys()).isEmpty)                     // switched off: nothing to add
+        #expect(BankKeys.environmentName("production") == "Production" && BankKeys.environmentName("odd") == "odd")
+        let none = BankStatus(enabled: true, connected: false, providersAllowed: [], providersTicked: ["plaid"], ownKeys: OwnBankKeys())
+        #expect(BankKeys.buttonTitle(none) == "Add your bank keys")
+    }
+
+    @Test func theKeysPageIsOfferedFromServer1_97WithAWritingTokenAndSomethingToList() throws {
+        let status: BankStatus = try sample("bank-status-own-keys")
+        #expect(BankKeys.offered(status, serverVersion: "1.97.0", readOnly: false))
+        #expect(BankKeys.offered(status, serverVersion: "1.98.2", readOnly: false))
+        #expect(!BankKeys.offered(status, serverVersion: "1.96.0", readOnly: false))   // no page yet
+        #expect(!BankKeys.offered(status, serverVersion: nil, readOnly: false))
+        #expect(!BankKeys.offered(status, serverVersion: "1.97.0", readOnly: true))
+        let address = try ServerAddress.parse("https://ww.example.com")
+        #expect(BankKeys.url(server: address).absoluteString == "https://ww.example.com/app-bank-keys")
+    }
+
+    @Test func theKeysPageAnswerSaysWhetherAnythingChangedAndNeverCarriesAKey() throws {
+        let changed = try #require(AppLink(URL(string: "walletweather://bank-keys?state=changed")!))
+        #expect(changed == .bankKeys(state: "changed") && changed.state == nil)
+        #expect(BankKeys.outcome(changed)?.text == "Your bank keys are updated.")
+        #expect(BankKeys.outcome(changed)?.failed == false)
+        #expect(BankKeys.outcome(AppLink(URL(string: "walletweather://bank-keys?state=closed")!)) == nil)
+        #expect(BankKeys.outcome(AppLink(URL(string: "walletweather://bank-keys?state=off")!))?.failed == true)
+        #expect(BankKeys.outcome(nil) == nil)                       // closed by hand
+        #expect(AppLink(URL(string: "walletweather://bank-keys")!) == nil)
+        // Connect a bank's answer isn't this page's.
+        #expect(BankKeys.outcome(AppLink(URL(string: "walletweather://bank-connected?connection=7")!)) == nil)
+    }
+
+    @Test func tickedWithoutKeysIsToldToAddThemNotThatAnAdminChooses() throws {
+        let status: BankStatus = try sample("bank-status-own-keys")
+        #expect(status.addKeysFirst == false)   // Teller has keys, so Teller is offered
+        let noKeys = BankStatus(enabled: true, connected: false, providersAllowed: ["simplefin"],
+                                providersTicked: ["simplefin", "teller", "plaid"], ownKeys: OwnBankKeys())
+        #expect(noKeys.addKeysFirst && noKeys.mayConnect && !noKeys.mayConnectInApp)
+        #expect(noKeys.summary(now: now, when: when).detail?.hasPrefix("Teller and Plaid each need keys") == true)
+        let onlyTeller = BankStatus(enabled: true, connected: false, providersAllowed: [],
+                                    providersTicked: ["teller"], ownKeys: OwnBankKeys())
+        #expect(onlyTeller.addKeysFirst && onlyTeller.mayConnect)
+        // An older server doesn't say, so nothing changes.
+        let older = BankStatus(enabled: true, connected: false, providersAllowed: [])
+        #expect(!older.addKeysFirst && !older.mayConnect)
+    }
+
     // MARK: Who may connect, and shared accounts (sync-access phase 4, #267)
 
     @Test func connectIsOfferedOnlyToSomeoneTickedForTellerOrPlaid() throws {

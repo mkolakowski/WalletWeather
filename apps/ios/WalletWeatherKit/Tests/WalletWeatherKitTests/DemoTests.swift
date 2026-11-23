@@ -158,6 +158,8 @@ struct DemoTests {
         #expect(rows.allSatisfy { $0.summary.tone == .ok && $0.summary.canSync })
         // One account shared by someone else's connection, ticked for Teller (#267).
         #expect(status.mayConnectInApp)
+        // Its own Teller keys, and ticked for Plaid without keys yet (#278).
+        #expect(BankKeys.rows(status).map(\.text) == ["Your own keys · Development", "No keys yet"])
         let shared = try #require(status.shared?.first)
         #expect(shared.accountName == "Credit Card" && shared.from == "Synced from Sam's Plaid connection")
         let sharedSummary = shared.summary(when: { _ in "earlier" })

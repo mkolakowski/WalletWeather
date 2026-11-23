@@ -105,11 +105,11 @@ struct AppRoot: View {
                 offeringLock = true
             }
         }
-        .alert("What should this phone keep?", isPresented: $askingKeep) {
+        .alert("What should this iPhone keep?", isPresented: $askingKeep) {
             Button("Last-known numbers") { answerKeep(.lastKnown) }
             Button("Nothing", role: .cancel) { answerKeep(.nothing) }
         } message: {
-            Text("With last-known numbers, WalletWeather still opens when your server can't be reached, showing the pages you last loaded and when they were loaded. They can't be read while the phone is locked, stay out of backups, and are deleted when you sign out. With nothing, the app needs a connection. You can change this in Settings.")
+            Text("With last-known numbers, WalletWeather still opens when your server can't be reached, showing the pages you last loaded and when they were loaded. They can't be read while this iPhone is locked, stay out of backups, and are deleted when you sign out. With nothing, the app needs a connection. You can change this in Settings.")
         }
         .alert("Lock WalletWeather with \(settings.biometryName ?? "Face ID")?", isPresented: $offeringLock) {
             Button("Lock with \(settings.biometryName ?? "Face ID")") { Task { await settings.setLock(true) } }

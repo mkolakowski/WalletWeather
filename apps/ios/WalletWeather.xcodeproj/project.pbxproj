@@ -14,6 +14,7 @@
 		2A3F787DFA9A3BC6817806A5 /* PhoneBankViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 501BC9A34865BA8B81980E67 /* PhoneBankViews.swift */; };
 		2B6E20C2C6B57F2469053035 /* StandaloneViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57CA23B0750CAA45E8AC60BD /* StandaloneViews.swift */; };
 		2BCD253633EC7F7F0D70AF73 /* ConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3E9C40EFE3CCE23D41AA8C7 /* ConnectView.swift */; };
+		2E4B6985EA92C2FAEFF88C7D /* SettingsPages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A45928D4585BBA4105DD12B /* SettingsPages.swift */; };
 		342087AFBFCCAD445AFB2659 /* CloudBackupModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFD2173D8B902D535067E208 /* CloudBackupModel.swift */; };
 		34B3D211AEFC9C768C051569 /* WalletWeatherApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC920553659CFFE6259EBA9C /* WalletWeatherApp.swift */; };
 		3517A60C2350816D3F25BC07 /* BigScreenViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 948E8EEE1A65AFD31A880000 /* BigScreenViews.swift */; };
@@ -22,6 +23,7 @@
 		4E47E421774FF04019F80AA1 /* MoveMoneySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F10AF2509F0101D7139AD73 /* MoveMoneySheet.swift */; };
 		55BE2153B1D9850CFDFD5234 /* TagViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E9ED45DC22B1C2B1AFC65C /* TagViews.swift */; };
 		5674B2C7B6BE02CCE7EB0BA9 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = D477F5ED78FD4EA9DBFD3630 /* Keychain.swift */; };
+		66D0E0D108EE2E5B6E19A390 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CB3A8CA4A133C6BA5A01D89 /* SettingsView.swift */; };
 		69134DA34F6EE1EFE219CBE5 /* ChartViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFB26B2201D3541193633A07 /* ChartViews.swift */; };
 		769AEB2CED36BFC4608187F6 /* DebugBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5BA074FBBDD01FF1B577DD8 /* DebugBridge.swift */; };
 		7F55D88A9F9D45F195025027 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13149321E10C325276768DD5 /* Theme.swift */; };
@@ -49,6 +51,7 @@
 		13149321E10C325276768DD5 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		145D05F53CFC95EA650B720C /* TabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBar.swift; sourceTree = "<group>"; };
 		16E9ED45DC22B1C2B1AFC65C /* TagViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagViews.swift; sourceTree = "<group>"; };
+		1CB3A8CA4A133C6BA5A01D89 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		319D4205BFCC35DC6757600B /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		34D31157F799FA2DD3673952 /* WalletWeather.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WalletWeather.entitlements; sourceTree = "<group>"; };
 		354C1F47B2C105A157D90B7C /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
@@ -62,6 +65,7 @@
 		75BD1096AF0D745FED33F38E /* GettingStartedViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GettingStartedViews.swift; sourceTree = "<group>"; };
 		760DE072423DD9D965E38BEE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		795D7F25402606692C251B7E /* ScopedToConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScopedToConnection.swift; sourceTree = "<group>"; };
+		7A45928D4585BBA4105DD12B /* SettingsPages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPages.swift; sourceTree = "<group>"; };
 		8612988B4A68458DECAB4745 /* MoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreView.swift; sourceTree = "<group>"; };
 		8C093F3234CB4BC473C55E68 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
 		8D0553102CA76CF6F2551892 /* BillsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillsView.swift; sourceTree = "<group>"; };
@@ -137,6 +141,8 @@
 				ABF20F601A1EB2143ABA37C6 /* RootView.swift */,
 				795D7F25402606692C251B7E /* ScopedToConnection.swift */,
 				BDE64033EF7589F61FD10A90 /* SearchView.swift */,
+				7A45928D4585BBA4105DD12B /* SettingsPages.swift */,
+				1CB3A8CA4A133C6BA5A01D89 /* SettingsView.swift */,
 				57CA23B0750CAA45E8AC60BD /* StandaloneViews.swift */,
 				145D05F53CFC95EA650B720C /* TabBar.swift */,
 				16E9ED45DC22B1C2B1AFC65C /* TagViews.swift */,
@@ -283,6 +289,8 @@
 				B29B4373B3A526BF9E85393F /* RootView.swift in Sources */,
 				AA6E7808084DB08B97F7A142 /* ScopedToConnection.swift in Sources */,
 				80669495013A8E87A3743E59 /* SearchView.swift in Sources */,
+				2E4B6985EA92C2FAEFF88C7D /* SettingsPages.swift in Sources */,
+				66D0E0D108EE2E5B6E19A390 /* SettingsView.swift in Sources */,
 				1B91942AA2AD6B61B89A0CA2 /* SignInSheet.swift in Sources */,
 				2B6E20C2C6B57F2469053035 /* StandaloneViews.swift in Sources */,
 				D13FCDB6E06382F99755241E /* TabBar.swift in Sources */,
@@ -351,7 +359,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.35.0;
+				MARKETING_VERSION = 0.36.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -419,7 +427,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.35.0;
+				MARKETING_VERSION = 0.36.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

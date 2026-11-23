@@ -866,7 +866,7 @@ final class AppModel {
                 // Already ended.
             } catch {
                 signOut()
-                connectNotice = "Signed out on this phone. The server couldn't be reached, so this phone's token is still listed in the web app's Settings → API tokens until you revoke it there."
+                connectNotice = "Signed out on this iPhone. The server couldn't be reached, so this iPhone's token is still listed in the web app's Settings → API tokens until you revoke it there."
                 busy = false
                 return
             }

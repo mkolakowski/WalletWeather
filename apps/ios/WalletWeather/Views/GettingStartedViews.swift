@@ -86,7 +86,7 @@ struct TabBarTour: View {
                     }
                     .card()
 
-                    Text("Pages left out stay one tap away, at the top of Settings. You can change the bar again, and its order, in Settings → Tab bar.")
+                    Text("Pages left out stay one tap away, under More pages in Settings. You can change the bar again, and its order, in Settings → Tab bar.")
                         .font(.footnote).foregroundStyle(.secondary)
                         .padding(.horizontal, 4)
                 }
@@ -221,7 +221,7 @@ private struct TaskSheetFrame<Content: View>: View {
     }
 }
 
-/// Lock the app: the same switch as Settings → This phone. Turning it on
+/// Lock the app: the same switch as Settings → Privacy & lock. Turning it on
 /// asks for Face ID once, and ticks the task.
 private struct LockTaskSheet: View {
     @Environment(AppSettings.self) private var settings
@@ -242,7 +242,7 @@ private struct LockTaskSheet: View {
 }
 
 /// Choose a look: every look, applied as it's picked. Keep this look
-/// ticks the task, Match the phone included.
+/// ticks the task, Match this iPhone included.
 private struct LookTaskSheet: View {
     @Environment(AppSettings.self) private var settings
     @Environment(\.dismiss) private var dismiss
@@ -250,25 +250,7 @@ private struct LookTaskSheet: View {
     var body: some View {
         TaskSheetFrame(title: "Choose a look") {
             Text("Pick one and the app changes straight away. Match the web app uses the theme you chose in the web app's Settings.")
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(Look.allCases.enumerated()), id: \.element) { index, look in
-                    if index > 0 { Divider() }
-                    Button { settings.look = look } label: {
-                        HStack {
-                            Text(look.title)
-                            Spacer()
-                            if settings.look == look {
-                                Image(systemName: "checkmark").foregroundStyle(Palette.accent)
-                            }
-                        }
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(settings.look == look ? .isSelected : [])
-                }
-            }
-            .card()
+            LookList()
             Button {
                 settings.start.done.insert(.look)
                 dismiss()
@@ -279,6 +261,35 @@ private struct LookTaskSheet: View {
             Text("You can change it any time in Settings → Appearance.")
                 .font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 4)
         }
+    }
+}
+
+/// Every look with a tick on the chosen one, applied as it's picked
+/// (which ticks Getting started's look task): Choose a look's list, and
+/// Settings → Appearance's (#294).
+struct LookList: View {
+    @Environment(AppSettings.self) private var settings
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(Look.allCases.enumerated()), id: \.element) { index, look in
+                if index > 0 { Divider() }
+                Button { settings.look = look } label: {
+                    HStack {
+                        Text(look.title)
+                        Spacer()
+                        if settings.look == look {
+                            Image(systemName: "checkmark").foregroundStyle(Palette.accent)
+                        }
+                    }
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(settings.look == look ? .isSelected : [])
+            }
+        }
+        .card()
     }
 }
 

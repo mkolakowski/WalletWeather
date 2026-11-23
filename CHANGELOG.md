@@ -69,10 +69,13 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.35.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.36.0**
 
 ### Changed
 
+- **Breaking: iPhone: Settings is a short list of sections, each opening its own page.** At the top a card says where you are (your server and who's signed in, On this iPhone, or the demo) and opens that connection's page: Keep on this iPhone, Cloudflare, Open the web app and Sign out for a server; Back to the first screen and Delete everything for the household on this iPhone; Leave the demo in the demo. Under it: the pages that aren't in the tab bar, as tiles; **Your household** (Tags, Bank sync with its state on the row, Import a CSV, and on this iPhone Add an account, iCloud & backup and Move to a server); **This iPhone** (Appearance, Tab bar, Privacy & lock); **About** (Important notice, Help & Getting started, the versions). Every setting that was there is still there, and nothing you chose is reset. Each explanation now sits under the setting it explains, on that setting's page (iOS 0.36.0).
+- **iPhone: the app says "this iPhone" everywhere,** where some screens said "this phone". The look "Match the phone" is now "Match this iPhone"; what you chose is unchanged.
+- **iPhone: Help & Getting started** (Settings → About) can bring the Getting started card back to the Dashboard, and links to the privacy policy.
 - **iPhone: the sign-in is kept per server, ready for more than one.** Nothing looks different yet. The phone's sign-in (the server's address, its token and any Cloudflare sign-in) moves from one Keychain item to one item for each server, with the same protection as before: on this device only, never in iCloud. Updating carries your sign-in over without signing you out, along with whether the phone keeps last-known numbers, the numbers themselves (now in a folder per server, deleted when that server is signed out) and the web theme it matches. The account each page shows is remembered per server in each window. If the carry-over can't be written, the old sign-in stays where it was and the next start tries again (`ConnectionStore`; iOS 0.35.0).
 
 ### Fixed

@@ -54,14 +54,14 @@ struct ConnectView: View {
                         .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
                         .accessibilityLabel("Server address")
                     VStack(alignment: .leading, spacing: 4) {
-                        TextField("Name for this phone", text: $model.phoneName)
+                        TextField("Name for this iPhone", text: $model.phoneName)
                             .textInputAutocapitalization(.words)
                             .autocorrectionDisabled()
                             .submitLabel(.done)
                             .padding(12)
                             .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
-                            .accessibilityLabel("Name for this phone")
-                        Text("Shown beside this phone's sign-in in the web app's Settings → API tokens.")
+                            .accessibilityLabel("Name for this iPhone")
+                        Text("Shown beside this iPhone's sign-in in the web app's Settings → API tokens.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     if homeHTTP {
@@ -142,7 +142,7 @@ struct ConnectView: View {
                         .disabled(model.busy)
                         problem(for: .scan)
                         Divider()
-                        Text("In the web app on this phone, open **Settings → API tokens**, make a token and tap **Open in WalletWeather**.")
+                        Text("In the web app on this iPhone, open **Settings → API tokens**, make a token and tap **Open in WalletWeather**.")
                             .font(.callout)
                         Divider()
                         Text("Or paste a token").font(.subheadline.weight(.semibold))
@@ -166,7 +166,7 @@ struct ConnectView: View {
 
                 DisclosureGroup("Advanced", isExpanded: $showAdvanced) {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("A Cloudflare service token, if your server is behind Cloudflare Access and you'd rather not sign in to Cloudflare on this phone.")
+                        Text("A Cloudflare service token, if your server is behind Cloudflare Access and you'd rather not sign in to Cloudflare on this iPhone.")
                             .font(.callout)
                         TextField("Client ID", text: $clientID)
                             .textInputAutocapitalization(.never)

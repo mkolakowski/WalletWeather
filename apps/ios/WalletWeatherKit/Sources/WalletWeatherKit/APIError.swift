@@ -59,7 +59,7 @@ public enum APIError: Error, Sendable, Equatable {
     public var message: String {
         switch self {
         case .offline:
-            "This page isn't kept on this phone, so it'll show once you're connected again."
+            "This page isn't kept on this iPhone, so it'll show once you're connected again."
         case .slowServer:
             "WalletWeather didn't answer in time. It may be busy or starting up."
         case let .cannotReach(host):
@@ -69,9 +69,9 @@ public enum APIError: Error, Sendable, Equatable {
         case .cloudflareSignInNeeded:
             "Your server is behind Cloudflare Access, and your Cloudflare sign-in has ended. Sign in again to carry on."
         case .tokenExpired:
-            "This phone's sign-in has run out. Sign in again to carry on."
+            "This iPhone's sign-in has run out. Sign in again to carry on."
         case .tokenRevoked:
-            "This phone's token was revoked in Settings, or no longer works. Sign in again to carry on."
+            "This iPhone's token was revoked in Settings, or no longer works. Sign in again to carry on."
         case .wrongPassword:
             "The email or password isn't right. If you sign in with Google, use the Sign in button above instead."
         case let .serverTooOld(found, needed):

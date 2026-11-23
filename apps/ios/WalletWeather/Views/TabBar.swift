@@ -36,7 +36,7 @@ extension TabPage {
     }
 }
 
-/// Settings → This phone → Tab bar: the pages in the bar (drag to reorder,
+/// Settings → This iPhone → Tab bar: the pages in the bar (drag to reorder,
 /// Swap for another page, or delete to move it into Settings), then the
 /// others (Add while there's room, or Swap in for a page in the bar, #174).
 /// Settings and Search always stay. Room is three pages with the bar along
@@ -116,7 +116,7 @@ struct TabBarSettingsView: View {
                 } header: {
                     Text("In Settings")
                 } footer: {
-                    Text("These are listed at the top of Settings.")
+                    Text("These are under More pages in Settings.")
                 }
                 Section {
                     Button("Back to the usual tab bar") { settings.tabs = TabPage.defaultBar }

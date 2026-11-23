@@ -1,0 +1,361 @@
+import Foundation
+
+// Settings on the iPhone (Plans/ios-settings.md, phase 1, #294): a short
+// root list (the connection card, More pages, Your household, This iPhone,
+// About) whose rows open their own pages. The views draw what this model
+// lists, and `SettingsLayoutTests` lists the rows each household shows, so a
+// row that goes missing fails a test.
+
+/// Which household Settings is for: a server, the one kept on this iPhone,
+/// or the demo.
+public enum SettingsHousehold: String, CaseIterable, Sendable {
+    case server, thisIPhone, demo
+}
+
+/// A heading on the root list, in its order. The connection card has none.
+public enum SettingsSection: String, CaseIterable, Identifiable, Sendable {
+    case connection, morePages, household, thisIPhone, about
+
+    public var id: String { rawValue }
+
+    public var title: String? {
+        switch self {
+        case .connection: nil
+        case .morePages: "More pages"
+        case .household: "Your household"
+        case .thisIPhone: "This iPhone"
+        case .about: "About"
+        }
+    }
+}
+
+/// A page a row opens. The raw values are what `WW_DEBUG_SETTINGS` takes
+/// (Debug builds).
+public enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable {
+    case connection, bank, appearance, privacy, backup, move, help, keep, tags, tabBar, notice
+
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .connection: "Connection"
+        case .bank: "Bank sync"
+        case .appearance: "Appearance"
+        case .privacy: "Privacy & lock"
+        case .backup: "iCloud & backup"
+        case .move: "Move to a server"
+        case .help: "Help & Getting started"
+        case .keep: "Keep on this iPhone"
+        case .tags: "Tags"
+        case .tabBar: "Tab bar"
+        case .notice: "Important notice"
+        }
+    }
+
+    /// The pages to push for `WW_DEBUG_SETTINGS=<page>`: Keep on this
+    /// iPhone sits under the connection's page.
+    public static func debugPath(_ name: String?) -> [SettingsPage] {
+        guard let page = name.flatMap(SettingsPage.init(rawValue:)) else { return [] }
+        return page == .keep ? [.connection, .keep] : [page]
+    }
+}
+
+/// One row of Settings, on the root list or on a page.
+public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
+    /// How a row looks and what tapping it does (finding R20): a chevron
+    /// opens a page; blue does something now (with ↗ when it leaves the
+    /// app); a switch is a switch; red comes last in its card.
+    public enum Kind: Sendable, Equatable {
+        case page, action, link, toggle, choice, destructive, info
+    }
+
+    // The root list.
+    case connection, morePages
+    case tags, bankSync, iCloudBackup, moveToServer, addAccount, importCSV
+    case appearance, tabBar, privacyLock
+    case notice, help, versions
+    // The connection's page: a server, this iPhone, the demo.
+    case address, signedInAs, cloudflare, keep, openWebApp, signOut
+    case aboutThisIPhone, backToFirstScreen, deleteEverything
+    case aboutDemo, leaveDemo
+    // Keep on this iPhone.
+    case keepNothing, keepLastKnown
+    // Bank sync: today's card, as it was.
+    case bankCard
+    // Appearance.
+    case looks
+    // Privacy & lock.
+    case lock, appSwitcher
+    // iCloud & backup.
+    case syncWithICloud, backupToICloudDrive, backupPassphrase
+    // Move to a server.
+    case exportForServer, importServerBackup
+    // Help & Getting started.
+    case showGettingStarted, privacyPolicy, setupGuide
+
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .connection: "Connection"
+        case .morePages: "More pages"
+        case .tags: "Tags"
+        case .bankSync: "Bank sync"
+        case .iCloudBackup: "iCloud & backup"
+        case .moveToServer: "Move to a server"
+        case .addAccount: "Add an account"
+        case .importCSV: "Import a CSV…"
+        case .appearance: "Appearance"
+        case .tabBar: "Tab bar"
+        case .privacyLock: "Privacy & lock"
+        case .notice: "Important notice"
+        case .help: "Help & Getting started"
+        case .versions: "Versions"
+        case .address: "Address"
+        case .signedInAs: "Signed in as"
+        case .cloudflare: "Cloudflare"
+        case .keep: "Keep on this iPhone"
+        case .openWebApp: "Open the web app"
+        case .signOut: "Sign out"
+        case .aboutThisIPhone: "On this iPhone"
+        case .backToFirstScreen: "Back to the first screen"
+        case .deleteEverything: "Delete everything on this iPhone"
+        case .aboutDemo: "Demo"
+        case .leaveDemo: "Leave the demo"
+        case .keepNothing: "Nothing"
+        case .keepLastKnown: "Last-known numbers"
+        case .bankCard: "Bank sync"
+        case .looks: "Looks"
+        case .lock: "Lock with Face ID or Touch ID"
+        case .appSwitcher: "In the app switcher"
+        case .syncWithICloud: "Sync with iCloud"
+        case .backupToICloudDrive: "Back up to iCloud Drive"
+        case .backupPassphrase: "Backup passphrase"
+        case .exportForServer: "Export for a server"
+        case .importServerBackup: "Import a server backup"
+        case .showGettingStarted: "Show Getting started again"
+        case .privacyPolicy: "Privacy policy"
+        case .setupGuide: "How to set up a server"
+        }
+    }
+
+    public var kind: Kind {
+        switch self {
+        case .connection, .morePages, .tags, .bankSync, .iCloudBackup, .moveToServer,
+             .appearance, .tabBar, .privacyLock, .notice, .help, .keep:
+            .page
+        case .addAccount, .importCSV, .backToFirstScreen, .leaveDemo, .showGettingStarted,
+             .backupPassphrase, .exportForServer, .importServerBackup:
+            .action
+        case .openWebApp, .privacyPolicy, .setupGuide:
+            .link
+        case .lock, .syncWithICloud, .backupToICloudDrive:
+            .toggle
+        case .keepNothing, .keepLastKnown, .looks:
+            .choice
+        case .signOut, .deleteEverything:
+            .destructive
+        case .versions, .address, .signedInAs, .cloudflare, .aboutThisIPhone, .aboutDemo,
+             .bankCard, .appSwitcher:
+            .info
+        }
+    }
+
+    /// The page a chevron row opens. More pages' tiles open the pages
+    /// themselves (`TabPage`), so that row has none.
+    public var opens: SettingsPage? {
+        switch self {
+        case .connection: .connection
+        case .tags: .tags
+        case .bankSync: .bank
+        case .iCloudBackup: .backup
+        case .moveToServer: .move
+        case .appearance: .appearance
+        case .tabBar: .tabBar
+        case .privacyLock: .privacy
+        case .notice: .notice
+        case .help: .help
+        case .keep: .keep
+        default: nil
+        }
+    }
+
+    /// The SF Symbol beside a row of the root list.
+    public var symbol: String? {
+        switch self {
+        case .tags: "tag"
+        case .bankSync: "building.columns"
+        case .iCloudBackup: "icloud"
+        case .moveToServer: "arrow.left.arrow.right.square"
+        case .addAccount: "plus.circle"
+        case .importCSV: "doc.text"
+        case .appearance: "paintpalette"
+        case .tabBar: "dock.rectangle"
+        case .privacyLock: "lock"
+        case .notice: "doc.plaintext"
+        case .help: "questionmark.circle"
+        default: nil
+        }
+    }
+}
+
+/// One card of the root list: its section and its rows.
+public struct SettingsGroup: Identifiable, Equatable, Sendable {
+    public let section: SettingsSection
+    public let rows: [SettingsRow]
+    public var id: SettingsSection { section }
+}
+
+/// What Settings shows for one household: the root list's cards and each
+/// page's rows. Nothing here is stored; the views build it each time.
+public struct SettingsLayout: Equatable, Sendable {
+    public var household: SettingsHousehold
+    /// The person may change things (not a read-only token).
+    public var canWrite: Bool
+    /// The pages not in the tab bar, for More pages.
+    public var morePages: [TabPage]
+    /// Face ID, Touch ID or Optic ID is set up, so the lock can be offered.
+    public var hasBiometry: Bool
+    /// The server is behind Cloudflare Access.
+    public var hasCloudflare: Bool
+
+    public init(household: SettingsHousehold, canWrite: Bool = true, morePages: [TabPage] = [],
+                hasBiometry: Bool = true, hasCloudflare: Bool = false) {
+        self.household = household
+        self.canWrite = canWrite
+        self.morePages = morePages
+        self.hasBiometry = hasBiometry
+        self.hasCloudflare = hasCloudflare
+    }
+
+    /// The root list, top to bottom. More pages is left out when every page
+    /// is in the tab bar.
+    public var groups: [SettingsGroup] {
+        var groups = [SettingsGroup(section: .connection, rows: [.connection])]
+        if !morePages.isEmpty { groups.append(SettingsGroup(section: .morePages, rows: [.morePages])) }
+        var household: [SettingsRow] = [.tags, .bankSync]
+        switch self.household {
+        case .thisIPhone:
+            household += [.iCloudBackup, .moveToServer, .addAccount, .importCSV]
+        case .server, .demo:
+            if canWrite { household.append(.importCSV) }
+        }
+        groups.append(SettingsGroup(section: .household, rows: household))
+        groups.append(SettingsGroup(section: .thisIPhone, rows: [.appearance, .tabBar, .privacyLock]))
+        groups.append(SettingsGroup(section: .about, rows: [.notice, .help, .versions]))
+        return groups
+    }
+
+    /// A page's own rows, in order. Tags, Tab bar and the Important notice
+    /// are pages of their own, with none listed here.
+    public func rows(on page: SettingsPage) -> [SettingsRow] {
+        switch page {
+        case .connection:
+            switch household {
+            case .server:
+                return [.address, .signedInAs] + (hasCloudflare ? [.cloudflare] : []) + [.keep, .openWebApp, .signOut]
+            case .thisIPhone:
+                return [.aboutThisIPhone, .backToFirstScreen, .deleteEverything]
+            case .demo:
+                return [.aboutDemo, .leaveDemo]
+            }
+        case .keep: return household == .server ? [.keepNothing, .keepLastKnown] : []
+        case .bank: return [.bankCard]
+        case .appearance: return [.looks]
+        case .privacy: return (hasBiometry ? [.lock] : []) + [.appSwitcher]
+        case .backup: return household == .thisIPhone ? [.syncWithICloud, .backupToICloudDrive, .backupPassphrase] : []
+        case .move: return household == .thisIPhone ? [.exportForServer, .importServerBackup] : []
+        case .help: return [.showGettingStarted, .privacyPolicy] + (household == .thisIPhone ? [.setupGuide] : [])
+        case .tags, .tabBar, .notice: return []
+        }
+    }
+
+    /// Every page that can be reached from the root list, in the order
+    /// they're first met.
+    public var reachablePages: [SettingsPage] {
+        var pages: [SettingsPage] = []
+        var queue = groups.flatMap(\.rows).compactMap(\.opens)
+        while !queue.isEmpty {
+            let page = queue.removeFirst()
+            guard !pages.contains(page) else { continue }
+            pages.append(page)
+            queue += rows(on: page).compactMap(\.opens)
+        }
+        return pages
+    }
+
+    /// Every row that can be reached: the root list's, then each reachable
+    /// page's.
+    public var reachableRows: [SettingsRow] {
+        groups.flatMap(\.rows) + reachablePages.flatMap { rows(on: $0) }
+    }
+
+    // MARK: - The words on the rows
+
+    /// Privacy & lock's value on the root list.
+    public static func privacyValue(biometry: String?, lockOn: Bool) -> String {
+        guard let biometry else { return "Hidden in the app switcher" }
+        return lockOn ? "\(biometry) on" : "Off"
+    }
+
+    /// The versions line in About.
+    public static func versions(app: String, server: String?, household: SettingsHousehold) -> String {
+        switch household {
+        case .server: "WalletWeather \(app), server \(server ?? "…")"
+        case .thisIPhone: "WalletWeather \(app), with no server"
+        case .demo: "WalletWeather \(app), in the demo"
+        }
+    }
+
+    /// The connection card's line under the name for the household on this
+    /// iPhone: how many accounts, and whether iCloud sync is on.
+    public static func thisIPhoneDetail(accounts: Int?, syncOn: Bool) -> String {
+        let sync = syncOn ? "iCloud sync on" : "iCloud sync off"
+        guard let accounts else { return sync }
+        return "\(accounts) account\(accounts == 1 ? "" : "s") · \(sync)"
+    }
+
+    /// The connection card's line under the name for a server: its address
+    /// and who's signed in.
+    public static func serverDetail(host: String, email: String?) -> String {
+        guard let email else { return host }
+        return "\(host) · \(email)"
+    }
+}
+
+// MARK: - Bank sync's row
+
+extension BankStatus {
+    /// Bank sync's value on Settings' root list, in a few words: "2 banks ·
+    /// synced 7:22 AM", "Needs reconnecting", "Off", "No bank connected".
+    /// `when` writes a time short ("7:22 AM", "Nov 12").
+    public func settingsValue(when: (Date) -> String) -> String {
+        guard enabled else { return "Off" }
+        let list = connections ?? []
+        guard connected else {
+            let shared = shared?.count ?? 0
+            return shared > 0 ? "\(shared) shared account\(shared == 1 ? "" : "s")" : "No bank connected"
+        }
+        if needsReconnect == true || list.contains(where: { $0.needsReconnect == true }) { return "Needs reconnecting" }
+        if list.isEmpty ? lastSyncOk == false : list.contains(where: { $0.lastSyncOk == false }) { return "Last sync failed" }
+        let count = max(list.count, 1)
+        let banks = "\(count) bank\(count == 1 ? "" : "s")"
+        let times = list.isEmpty ? [lastSyncAt] : list.map(\.lastSyncAt)
+        guard let last = times.compactMap({ BankStatus.date($0) }).max() else { return "\(banks) · not synced yet" }
+        return "\(banks) · synced \(when(last))"
+    }
+}
+
+extension PhoneBankState {
+    /// Bank sync's value on Settings' root list for the household on this
+    /// iPhone (SimpleFIN): its banks counted by name.
+    public func settingsValue(connected: Bool, when: (Date) -> String) -> String {
+        guard connected else { return "No bank connected" }
+        if needsReconnect { return "Needs reconnecting" }
+        if lastSyncOk == false { return "Last sync failed" }
+        let count = max(Set(bankAccounts.map(\.org).filter { !$0.isEmpty }).count, 1)
+        let banks = "\(count) bank\(count == 1 ? "" : "s")"
+        guard let lastSyncAt else { return "\(banks) · not synced yet" }
+        return "\(banks) · synced \(when(lastSyncAt))"
+    }
+}

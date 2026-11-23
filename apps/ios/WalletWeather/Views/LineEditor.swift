@@ -268,7 +268,7 @@ struct LineEditor: View {
                                  : open.canDeleteTransfer ? "Transfers between accounts can be deleted here and changed in the web app."
                                  : "Transfers between accounts are changed in the web app."
         }
-        if model.me?.isReadOnly == true { return "This phone signed in with a read-only token, so nothing can be changed here." }
+        if model.me?.isReadOnly == true { return "This iPhone signed in with a read-only token, so nothing can be changed here." }
         return "You can see this account but not change it."
     }
 

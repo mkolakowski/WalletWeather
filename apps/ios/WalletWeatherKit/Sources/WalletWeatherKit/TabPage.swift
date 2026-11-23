@@ -1,8 +1,8 @@
 /// The pages that can sit in the tab bar, and which do (#158): chosen in
-/// Settings → This phone → Tab bar. Settings and Search are always there;
+/// Settings → This iPhone → Tab bar. Settings and Search are always there;
 /// three pages fit beside them when the bar is along the bottom and four when
-/// it runs down the side (as on the iPhone Duo), and the rest are listed at
-/// the top of Settings (#174).
+/// it runs down the side (as on the iPhone Duo), and the rest are listed
+/// under More pages in Settings (#174, #294).
 public enum TabPage: String, CaseIterable, Identifiable, Sendable {
     case dashboard, forecast, bills, calendar, netWorth, budgets, reports
 

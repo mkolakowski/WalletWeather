@@ -115,6 +115,10 @@ line (or that bill, on Bills & income) in the editor,
 `report` or `account` opening its first result of that kind), and on the Calendar
 `SIMCTL_CHILD_WW_DEBUG_ACCOUNT=Checking` picks an account and
 `SIMCTL_CHILD_WW_DEBUG_DAY=2026-11-11` a day.
+`SIMCTL_CHILD_WW_DEBUG_SETTINGS=<page>` opens Settings on one of its pages
+(#294): `connection`, `bank`, `appearance`, `privacy`, `backup`, `move`,
+`help` or `keep` (Keep on this iPhone, under the connection's page);
+`WW_DEBUG_TAGS=1` opens Tags and `WW_DEBUG_BANK` Bank sync.
 On this Mac the simulators are shared with other projects' sessions, so run
 simulator commands through mkplus's `Scripts/with-simulator.sh`.
 
@@ -231,7 +235,9 @@ The app checks `GET /api/version` when it connects. A server older than
 
 ## Bank sync
 
-Settings has a **Bank sync** card (`BankSyncCard` in `MoreView.swift`, with
+Settings → Bank sync (a row in Your household, its state in a few words
+beside it, `BankStatus.settingsValue`) opens a page with the **Bank sync**
+card (`BankSyncCard` in `MoreView.swift`, with
 the words in `BankSync.swift` in `WalletWeatherKit`, which tests check state
 by state). It reads `GET /api/bank/status` (server 1.70.0; an older server
 gets "Bank sync shows here from server 1.70.0"). From server 1.86.0 the
@@ -325,7 +331,7 @@ On this iPhone keeps the household in a SwiftData store
 protection (unreadable while the phone is locked). It's the only copy, so
 unlike kept numbers it's in the phone's iCloud or computer backup, and phase 6
 adds a sealed backup to iCloud Drive (below). **Sync with iCloud** (phase 7,
-#238; on unless turned off in Settings → On this iPhone, a choice kept per
+#238; on unless turned off in Settings → iCloud & backup, a choice kept per
 device) mirrors the store to the private CloudKit database of the container
 `iCloud.net.iptater.walletweather`, also in the background through silent
 pushes (`UIBackgroundModes: remote-notification`, `aps-environment`), so
@@ -359,7 +365,7 @@ server and get the server's shapes back.
   balances, Bills & income and its totals, and both searches, from the rows
   as the server hands them over (`apps/server/app/forecast.py`).
 - **Saved as the server saves:** new accounts (`POST /api/accounts`, from an
-  empty Dashboard or Settings → On this iPhone), lines, bills, skipped dates
+  empty Dashboard or Settings → Add an account), lines, bills, skipped dates
   and Move money, with the server's checks. A new household starts with the
   server's default categories. Rows get random ids below 2^52, not counts,
   so two devices can't pick the same one once phase 7 syncs them.
@@ -375,12 +381,14 @@ server and get the server's shapes back.
 - **No network:** the local session's only handlers are the household's and
   one that refuses everything else (`RefuseProtocol`); `LocalTests` drives
   every page and checks nothing was refused.
-- **Settings → On this iPhone:** Add an account, the Important notice (asked
-  once, as after signing up), Back to the first screen (the numbers stay;
-  On this iPhone opens them again) and Delete everything on this iPhone.
+- **Settings** (#294): Your household has Add an account, iCloud & backup
+  and Move to a server; About has the Important notice (asked once, as
+  after signing up); the connection card at the top opens Back to the
+  first screen (the numbers stay; On this iPhone opens them again) and
+  Delete everything on this iPhone.
 
-**Moving to or from a server** (phase 5, #236): Settings → On this iPhone →
-Move to or from a server. **Export for a server** writes the server's own
+**Moving to or from a server** (phase 5, #236): Settings → Move to a
+server. **Export for a server** writes the server's own
 sealed backup (`BackupFile.swift`: scrypt, then AES-256-GCM, the header bound
 as Python's `json.dumps` writes it; `Scrypt.swift`, since CryptoKit has none),
 in backup version 5 (`LocalBackup.swift`, as `export_user`), and saves it
@@ -390,7 +398,7 @@ household after asking (decided 2026-11-18), as the server's "replace"
 import does, with its checks. Tags, tag rules and bank and email-alert links
 aren't kept on the phone. The backup passphrase is chosen the first time and
 kept in iCloud Keychain (`BackupPassphrase` in `Keychain.swift`, synced);
-Settings → Backup passphrase shows it after Face ID, Touch ID or the
+Settings → iCloud & backup → Backup passphrase shows it after Face ID, Touch ID or the
 passcode. The files that make the trip are committed in
 `Tests/WalletWeatherKitTests/Samples/moves/` and checked from both sides:
 `BackupTests` and `ScryptTests` here, `apps/server/tests/test_backup_moves.py`
@@ -404,8 +412,8 @@ shown in Files through `NSUbiquitousContainers`; the entitlements come from
 the background: on, something changed since the last backup (the household
 stamps every change in its store, `LocalServer.markChanged`), and none made
 today yet; the newest 14 are kept. It turns on with the first account
-(`AppModel.accountAdded`) and Settings → On this iPhone → Backup switches it.
-**Restore** (`BackupViews.swift`) is on the first screen and in that card:
+(`AppModel.accountAdded`) and Settings → iCloud & backup switches it.
+**Restore** (`BackupViews.swift`) is on the first screen and on that page:
 it lists the folder, asks iCloud for a file not yet downloaded, opens it with
 the iCloud Keychain passphrase (or one typed) and replaces the household.
 `CloudBackupTests` runs it all in a temporary folder; the real iCloud round
@@ -445,8 +453,9 @@ can't exist), and `APIClient` answers it from
 - **Read-only.** Editors open as usual; saving says "The demo doesn't save
   changes" (`APIError.demoReadOnly`). Running a saved report still works.
 - **A bar on every page,** "Demo · sample numbers", with **Leave** back to
-  the Connect screen.
-- **No set-up:** no Important notice, no "What should this phone keep?", no
+  the Connect screen; Settings' connection card opens the same as **Leave
+  the demo** (#294).
+- **No set-up:** no Important notice, no "What should this iPhone keep?", no
   lock offer, no Getting started card, nothing kept and nothing in the
   Keychain.
 - **Dates follow the calendar.** The samples were recorded in November 2026;

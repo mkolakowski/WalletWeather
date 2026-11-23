@@ -12,7 +12,6 @@ import WalletWeatherKit
 struct MoveRows: View {
     @Environment(AppModel.self) private var model
     @State private var choosingPassphrase = false
-    @State private var showingPassphrase = false
     @State private var exportFile: BackupDocument?
     @State private var exporting = false
     @State private var working = false
@@ -31,17 +30,6 @@ struct MoveRows: View {
                 row("Import a server backup", symbol: "square.and.arrow.down")
             }
             .disabled(working)
-            Divider()
-            Button { showingPassphrase = true } label: {
-                HStack {
-                    Text("Backup passphrase").foregroundStyle(Palette.accent)
-                    Spacer()
-                    Text(BackupPassphrase.load() == nil ? "Not chosen yet" : "In iCloud Keychain")
-                        .font(.footnote).foregroundStyle(.secondary)
-                }
-                .frame(minHeight: 44)
-                .contentShape(Rectangle())
-            }
             if working {
                 Divider()
                 HStack(spacing: 8) { ProgressView(); Text("Working…").foregroundStyle(.secondary) }.frame(minHeight: 44)
@@ -55,7 +43,6 @@ struct MoveRows: View {
         .sheet(isPresented: $choosingPassphrase) {
             ChoosePassphraseSheet { export() }
         }
-        .sheet(isPresented: $showingPassphrase) { PassphraseSheet() }
         .fileExporter(isPresented: $exporting, document: exportFile, contentType: .json,
                       defaultFilename: "walletweather-backup-\(LocalDay.today().description).json") { result in
             switch result {
@@ -105,6 +92,28 @@ struct MoveRows: View {
     }
 }
 
+/// Settings → iCloud & backup → Backup passphrase (#294; in Move to or
+/// from a server before): whether one is chosen, opening it to show or
+/// change after Face ID, Touch ID or the passcode.
+struct PassphraseRow: View {
+    @State private var showing = false
+
+    var body: some View {
+        Button { showing = true } label: {
+            HStack {
+                Text("Backup passphrase").foregroundStyle(Palette.accent)
+                Spacer()
+                Text(BackupPassphrase.load() == nil ? "Not chosen yet" : "In iCloud Keychain")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showing) { PassphraseSheet() }
+    }
+}
+
 /// The sealed backup, for the system's Save to Files.
 struct BackupDocument: FileDocument {
     static let readableContentTypes: [UTType] = [.json]
@@ -150,7 +159,7 @@ struct ChoosePassphraseSheet: View {
                     Label("Nobody can recover this passphrase, not even WalletWeather's authors. Without it, your backups can't be opened.",
                           systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(Palette.warn)
-                    Text("It's kept in your iCloud Keychain, so your other Apple devices know it. You'll type it on your server to open the backup there; Settings → Backup passphrase shows it.")
+                    Text("It's kept in your iCloud Keychain, so your other Apple devices know it. You'll type it on your server to open the backup there; Settings → iCloud & backup → Backup passphrase shows it.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }
@@ -171,7 +180,7 @@ struct ChoosePassphraseSheet: View {
     }
 }
 
-/// Settings → Backup passphrase: shown after Face ID, Touch ID or the
+/// Settings → iCloud & backup → Backup passphrase: shown after Face ID, Touch ID or the
 /// phone's passcode, so it can be typed on a server; or changed. Backups
 /// already made keep the passphrase they were made with.
 struct PassphraseSheet: View {
@@ -214,7 +223,7 @@ struct PassphraseSheet: View {
                 shown = saved
             }
         } catch {
-            problem = "The passphrase stays hidden until the phone knows it's you."
+            problem = "The passphrase stays hidden until this iPhone knows it's you."
         }
     }
 }

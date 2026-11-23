@@ -83,6 +83,8 @@ struct RootView: View {
                 openWindow(value: second)
             }
             started = true
+            // Debug only: `WW_DEBUG_SETTINGS=<page>` opens Settings on that page (#294).
+            if AppModel.debugSetting("WW_DEBUG_SETTINGS") != nil { place = .more }
             if let debug = AppModel.debugSetting("WW_DEBUG_PLACE").flatMap(Place.init(rawValue:)) { place = debug }
             if let page = place.page, !settings.tabs.contains(page) { place = settings.tabs.first.map(Place.init) ?? .more }
         }

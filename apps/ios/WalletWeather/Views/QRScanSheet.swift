@@ -33,7 +33,7 @@ struct QRScanSheet: View {
             ContentUnavailableView {
                 Label("Can't scan here", systemImage: "qrcode.viewfinder")
             } description: {
-                Text("This phone's camera can't scan QR codes in the app. Point the Camera app at the code instead, or paste the token.")
+                Text("This iPhone's camera can't scan QR codes in the app. Point the Camera app at the code instead, or paste the token.")
             }
         } else {
             switch access {

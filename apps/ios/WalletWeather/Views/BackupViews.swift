@@ -1,7 +1,7 @@
 import SwiftUI
 import WalletWeatherKit
 
-/// Settings → On this iPhone → Backup to iCloud Drive (Plans/standalone.md,
+/// Settings → iCloud & backup → Back up to iCloud Drive (Plans/standalone.md,
 /// phase 6, #237): the switch, when it last ran, Back up now, and Restore.
 struct CloudBackupRows: View {
     @Environment(AppModel.self) private var model
@@ -118,7 +118,7 @@ struct RestoreFromICloudSheet: View {
                     }
                 case let .found(entries) where entries.isEmpty:
                     Section {
-                        Text("No backups yet. WalletWeather's backups appear here once iCloud Drive has them, which can take a few minutes on a new phone.")
+                        Text("No backups yet. WalletWeather's backups appear here once iCloud Drive has them, which can take a few minutes on a new iPhone.")
                         Button("Look again") { Task { await load() } }
                     }
                 case let .found(entries):
@@ -212,7 +212,7 @@ nonisolated private struct SendablePayload: @unchecked Sendable {
     let value: [String: Any]
 }
 
-/// Settings → On this iPhone → Sync with iCloud (Plans/standalone.md, phase
+/// Settings → iCloud & backup → Sync with iCloud (Plans/standalone.md, phase
 /// 7, #238): on by default (decided 2026-11-20). Off keeps every number on
 /// this phone and stops sending changes; on joins them with iCloud's.
 struct SyncRow: View {

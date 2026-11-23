@@ -764,7 +764,7 @@ struct BillEditor: View {
             if let notes = item.notes, !notes.isEmpty { LabeledContent("Notes", value: notes) }
         } footer: {
             Text(model.me?.isReadOnly == true
-                 ? "This phone signed in with a read-only token, so nothing can be changed here."
+                 ? "This iPhone signed in with a read-only token, so nothing can be changed here."
                  : "You can see this account but not change it.")
         }
     }

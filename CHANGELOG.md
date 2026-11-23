@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.113.0** · Schema version: **39** · iOS version: **0.34.0**
+App version: **1.98.0** · Web version: **1.114.0** · Schema version: **39** · iOS version: **0.34.0**
 
 ### Added
 
@@ -77,6 +77,11 @@ App version: **1.98.0** · Web version: **1.113.0** · Schema version: **39** ·
 
 ### Changed
 
+- **Dashboard cards are plainer and fill the row.** Three cards sit across a wide window instead of leaving an empty column. Each card's highest and lowest forecast balances are a label over a 20px figure with no boxes around them, the dashed dividers are single thin lines, the balance trend line is taller, the donut's total fits inside its ring and its legend shows every category instead of cutting off. Where the charts go (above, below or inside the cards) still works as you set it in Settings.
+- **Calendar is one grid.** The days join into a single grid with thin lines between them, today is a filled date on a light wash, and each event keeps its category colour without an outline, with its amount in bold.
+- **Sign-in sits in the middle of the window,** with the app's mark above its name and taller fields and button. The notice, two-factor and offline screens share the centred layout.
+- **On a phone, Forecast's current balance spans the full width** above the other figures in a two-column strip, and the bottom bar marks the page you're on with its colour and a short bar.
+- **Net worth's "Per account" heading** matches the other page headings.
 - **Dates now read "Nov 12" instead of 2026-11-12** in tables, cards, charts, the calendar, search results and Admin, with the year added when it isn't the current one (Nov 12, 2025). Choose Full under Settings → Appearance → Date format to get 2026-11-12 back. Date fields you type into, CSV exports and the API are unchanged.
 - **Table rows on Forecast and Bills & income are 36px high, with a taller toolbar** (the buttons and dropdowns above the table are 38px). Choose Compact under Settings → Appearance → Row height for the earlier 34px rows and toolbar.
 - On Forecast, Bills & income, Net worth and Reports the summary tiles join into one strip. On Forecast the current balance leads in large type and the other figures sit under each other by column: opening balance over the difference, forecast out and in over forecast end, actual out and in over actual end, highest over lowest point. The order is the same in All accounts, which has no current balance.

@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.95.0"
+APP_VERSION = "1.96.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,11 @@ APP_VERSION = "1.95.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.96.0 (2026-11-23, claude+mkolakowski): (#277) Admin → Users shows who has
+#     their own Teller and Plaid keys (own-bank-keys phase 2). GET
+#     /api/admin/users gains `bank_keys`: {"teller": {"environment": ...} or
+#     null, "plaid": ...}, from one query over bank_keys. Set or not and the
+#     environment only: never the id, the secret, the certificate or the key.
 # 1.95.0 (2026-11-23, claude+mkolakowski): each person's own Teller and
 #     Plaid keys (own-bank-keys phase 1, #276; schema 38). teller.py and
 #     plaid.py take keys (teller.Keys, plaid.Keys) instead of reading
@@ -9932,6 +9937,12 @@ def admin_list_users(user: User = Depends(current_admin), db: Session = Depends(
     ticked: dict[int, list[str]] = {}
     for uid, provider in db.query(BankAccess.user_id, BankAccess.provider).order_by(BankAccess.provider):
         ticked.setdefault(uid, []).append(provider)
+    # Who has saved their own Teller or Plaid keys, and in which environment
+    # (own-bank-keys phase 2, #277): one query for everyone, and only the
+    # environment is read, never the id or the secret.
+    own_keys: dict[int, dict] = {}
+    for uid, provider, environment in db.query(BankKeys.user_id, BankKeys.provider, BankKeys.environment):
+        own_keys.setdefault(uid, {})[provider] = {"environment": environment}
     mailed = {uid for (uid,) in db.query(MailConnection.user_id)}
     mail_ticked: dict[int, list[str]] = {}
     for uid, provider in db.query(MailAccess.user_id, MailAccess.provider).order_by(MailAccess.provider):
@@ -9960,6 +9971,9 @@ def admin_list_users(user: User = Depends(current_admin), db: Session = Depends(
             # The providers an admin lets them connect through (#264); an
             # admin may always connect, whatever is ticked.
             "bank_access": ticked.get(u.id, []),
+            # Whether they've saved their own keys for Teller and Plaid, and
+            # the environment: set or not, never the keys (#277).
+            "bank_keys": {p: own_keys.get(u.id, {}).get(p) for p in ("teller", "plaid")},
             "mail_connected": u.id in mailed,
             # The mail providers an admin lets them connect a mailbox
             # through (#268); an admin may always connect.

@@ -2823,7 +2823,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.106.0";
+const WEB_VERSION = "1.107.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2833,6 +2833,7 @@ const WEB_VERSION = "1.106.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.107.0 (2026-11-23, claude+mkolakowski): (#277) Admin → Users shows who has their own Teller and Plaid keys. In the Bank sync column (_adminBankAccessHtml) each of Teller and Plaid gets a small note after its tick from the users list's new `bank_keys`: "own keys, <environment>" when they've saved keys, "ticked, no keys yet" when ticked without any. An admin (always allowed) shows only the "own keys" note. Set or not only: the server never sends an id or a secret.
 // 1.106.0 (2026-11-23, claude+mkolakowski): (#276) Your own Teller and Plaid keys. Settings → Bank sync gets "Your Teller and Plaid keys" (_bankKeysHtml): a card per provider you're ticked for or have keys for. Without keys, a form: Teller's application id, environment (development by default), Teller's zip with the two files or pasted text as fallbacks; Plaid's client id, secret and environment (production by default); "Check and save" sends PUT /api/bank/keys/teller or /plaid (bankKeysSave) with the two-factor code. Saved, the card shows the id, environment and when checked from /api/bank's new `keys` (never the secret), which connections use them, Replace and Remove (bankKeysRemove → POST /api/bank/keys/remove). The tab also shows while you're ticked for Teller or Plaid without keys. Admin → Bank sync says .env's Teller and Plaid lines aren't read any more, and to how many people they were copied. app-connect-bank.js tells a ticked person without keys to add theirs in Settings.
 // 1.105.0 (2026-11-22, claude+mkolakowski): (#210) Email alerts joined to bank sync rows. A Forecast line that is an email alert joined to its bank row (the forecast row's new alert_joined_posted) wears the Bank sync mark as a bank line does (the server sends match_source 'bank'); its open line says "From an email alert, posted by the bank on <date>" (_alertJoinedNote) and offers Un-join (_forecastUnjoinBtn → unjoinAlertLine → POST /api/transactions/{id}/alert-unjoin). The Unmatched list (bankShowUnmatched) offers Join… on an alert line or a bank row when GET .../bank-unmatched/joins says the account has bank sync (it also lists the joined and never-posted lines) (openJoinPopin → GET .../bank-unmatched/{id}/join-candidates, the match pop-in's cards with "Join these" → POST .../join), and a "Never posted" tag with its hint, Delete (bankDeleteNeverPosted → DELETE /api/transactions/{id}) and Keep (leave) on an alert line no bank row met in 10 days. Settings → Accounts gets one sentence row under an account you own with both email alerts and bank sync (/api/accounts' new alerts_and_bank): "Join an alert to the bank's line within [7] days, up to [30]% higher (tips)" with Save (saveAlertJoin → PATCH /api/accounts/{id} {alert_join_days, alert_join_percent}). The email alert account pickers no longer grey out accounts with bank sync, and the sync log has a Joined column.
 // 1.104.0 (2026-11-22, claude+mkolakowski): (#268) Email alerts on the same model as bank sync. Admin → Users gets an "Email alerts" column: a Microsoft 365 tick per person ("Always" for an admin); a change sends the row's list to PUT /api/admin/users/{id}/mail-access (adminSetMailAccess). Settings → Email alerts shows when alerts are on and /api/mail's new providers_allowed isn't empty, or there's a mailbox, or an account you own or edit takes alerts from someone else's mailbox (/api/mail's new `shared`): "Shared accounts with email alerts" (_mailSharedHtml), a card per account with whose mailbox feeds it, its last check, a paused / needs-reconnecting / can't-sign-in note naming that person, Check now (mailCheckShared → POST /api/mail/check {account_id}) and Unmatched (N). A mailbox an admin has paused (`paused`) says so, with Check now off.
@@ -11390,12 +11391,24 @@ async function resetAppTitle() {
 const BANK_PROVIDER_NAMES = { simplefin: 'SimpleFIN', teller: 'Teller', plaid: 'Plaid' };
 let adminBankOffered = ['simplefin'];
 function _adminBankAccessHtml(u) {
-  if (u.is_admin) return '<span style="color:var(--muted);font-size:12px" title="Admins may always connect a bank">Always</span>';
+  const own = u.bank_keys || {};
+  // Own Teller and Plaid keys (#277): set or not and the environment, never the keys.
+  const keysNote = k => {
+    if (!(k in own)) return '';
+    const kk = own[k], ticked = (u.bank_access || []).includes(k);
+    const text = kk ? 'own keys, ' + escapeHtml(String(kk.environment || '')) : (!u.is_admin && ticked ? 'ticked, no keys yet' : '');
+    return text ? `<span class="admin-bank-keys" data-provider="${k}" style="color:var(--muted);font-size:11px">${text}</span>` : '';
+  };
+  if (u.is_admin) {
+    const notes = ['teller', 'plaid'].map(k => { const n = keysNote(k); return n ? BANK_PROVIDER_NAMES[k] + ': ' + n : ''; }).join('');
+    return '<span style="color:var(--muted);font-size:12px" title="Admins may always connect a bank">Always</span>' +
+      (notes ? '<div style="margin-top:2px">' + notes + '</div>' : '');
+  }
   const ticked = u.bank_access || [];
   const keys = Object.keys(BANK_PROVIDER_NAMES).filter(k => adminBankOffered.includes(k) || ticked.includes(k));
-  return keys.map(k => `<label style="display:inline-flex;gap:4px;align-items:center;margin-right:8px;font-size:12px;white-space:nowrap">
+  return keys.map(k => `<span style="display:flex;flex-wrap:wrap;align-items:center;gap:0 6px;margin-right:8px"><label style="display:inline-flex;gap:4px;align-items:center;font-size:12px;white-space:nowrap">
       <input type="checkbox" class="admin-bank-access" data-user="${Number(u.id)}" value="${k}"${ticked.includes(k) ? ' checked' : ''}
-             onchange="adminSetBankAccess(${Number(u.id)}, this)">${BANK_PROVIDER_NAMES[k]}</label>`).join('');
+             onchange="adminSetBankAccess(${Number(u.id)}, this)">${BANK_PROVIDER_NAMES[k]}</label>${keysNote(k)}</span>`).join('');
 }
 async function adminSetBankAccess(uid, box) {
   const boxes = [...document.querySelectorAll(`.admin-bank-access[data-user="${uid}"]`)];

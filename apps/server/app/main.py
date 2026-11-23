@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.97.0"
+APP_VERSION = "1.98.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,11 @@ APP_VERSION = "1.97.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.98.0 (2026-11-23, claude+mkolakowski): (#286) Two display settings per
+#     person (web-refresh phase 6; schema 39). GET /api/me gains `date_format`
+#     ('short' or 'iso') and `row_height` ('roomy' or 'compact'), null while
+#     unset; PATCH /api/me/preferences takes both (400 for any other value)
+#     and echoes them back.
 # 1.97.0 (2026-11-23, claude+mkolakowski): (#278) Your own Teller and Plaid
 #     keys from the iPhone app (own-bank-keys phase 3). New page
 #     /app-bank-keys (app-bank-keys.html/.js, the same tight policy as
@@ -2177,6 +2182,8 @@ def me(request: Request, user: User = Depends(current_user),
             "theme_preference": user.theme_preference,
             "chart_position": user.chart_position,
             "recurring_position": user.recurring_position,
+            "date_format": user.date_format,
+            "row_height": user.row_height,
             "notice_required": _notice_required(user),
             "notice_acknowledged_at": _iso(user.notice_ack_at),
             "has_password": user.password_hash is not None,
@@ -2866,6 +2873,8 @@ ALLOWED_THEMES = {
 }
 ALLOWED_CHART_POSITIONS = {"above", "below", "inside"}
 ALLOWED_RECURRING_POSITIONS = {"above", "below"}
+ALLOWED_DATE_FORMATS = {"short", "iso"}
+ALLOWED_ROW_HEIGHTS = {"roomy", "compact"}
 
 
 class PreferencesIn(BaseModel):
@@ -2874,6 +2883,8 @@ class PreferencesIn(BaseModel):
     theme_preference: str | None = None
     chart_position: str | None = None
     recurring_position: str | None = None
+    date_format: str | None = None
+    row_height: str | None = None
 
 
 @app.patch("/api/me/preferences")
@@ -2893,12 +2904,22 @@ def update_preferences(payload: PreferencesIn,
         if payload.recurring_position not in ALLOWED_RECURRING_POSITIONS:
             raise HTTPException(400, f"recurring_position must be one of {sorted(ALLOWED_RECURRING_POSITIONS)}")
         user.recurring_position = payload.recurring_position
+    if payload.date_format is not None:
+        if payload.date_format not in ALLOWED_DATE_FORMATS:
+            raise HTTPException(400, f"date_format must be one of {sorted(ALLOWED_DATE_FORMATS)}")
+        user.date_format = payload.date_format
+    if payload.row_height is not None:
+        if payload.row_height not in ALLOWED_ROW_HEIGHTS:
+            raise HTTPException(400, f"row_height must be one of {sorted(ALLOWED_ROW_HEIGHTS)}")
+        user.row_height = payload.row_height
     db.commit()
     return {
         "ok": True,
         "theme_preference": user.theme_preference,
         "chart_position": user.chart_position,
         "recurring_position": user.recurring_position,
+        "date_format": user.date_format,
+        "row_height": user.row_height,
     }
 
 

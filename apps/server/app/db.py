@@ -21,7 +21,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "38"
+SCHEMA_VERSION = "39"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -32,6 +32,10 @@ SCHEMA_VERSION = "38"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v39 (2026-11-23, claude+mkolakowski): two display settings per person
+#     (web-refresh phase 6, #286). users.date_format ('short' or 'iso') and
+#     users.row_height ('roomy' or 'compact'), stored like chart_position;
+#     NULL means unset, which the web client reads as 'short' and 'roomy'.
 # v38 (2026-11-23, claude+mkolakowski): each person's own Teller and Plaid
 #     keys (own-bank-keys phase 1, #276). New table bank_keys (one row per
 #     person and provider: environment, the application or client id, and
@@ -260,6 +264,12 @@ class User(Base):
     # relative to the forecast table. One of: 'above' | 'below'.
     # NULL means unset → frontend falls back to 'above'.
     recurring_position = Column(String(10), nullable=True)
+    # How the web client prints dates: 'short' ("Nov 12") or 'iso'
+    # (2026-11-12). NULL means unset → 'short' (#286).
+    date_format = Column(String(10), nullable=True)
+    # Height of table rows in the web client: 'roomy' (36px) or 'compact'
+    # (34px). NULL means unset → 'roomy' (#286).
+    row_height = Column(String(10), nullable=True)
     # When the user acknowledged the "Important notice" (the disclaimer shown
     # once after sign-in). NULL means not yet. Demo users are never asked.
     notice_ack_at = Column(DateTime, nullable=True)
@@ -1135,6 +1145,9 @@ def init_db():
     from sqlalchemy import text
     Base.metadata.create_all(engine)
     migrations = [
+        # v38 → v39: per-person date format and row height (#286)
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS date_format VARCHAR(10)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS row_height VARCHAR(10)",
         # v37 → v38: each person's own Teller and Plaid keys (#276). bank_keys
         # comes from create_all; the copy of .env's keys runs at startup
         # (bank_keys.copy_env_keys), since it reads files and encrypts.

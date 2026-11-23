@@ -193,7 +193,9 @@
      The wrapper takes no width of its own, so no column moves. The header
      over them loses its inner lines and reads Repeats / Tags the same way
      (_setAddRowHeadings). */
-  :root { --add-rep-w:100px; }
+  :root { --add-rep-w:100px; --row-h:36px; --ctl-h:38px; }
+  /* Settings -> Appearance -> Row height (#286): Compact is the earlier 34px rows and toolbar. */
+  :root[data-rows="compact"] { --row-h:34px; --ctl-h:34px; }
   tr.fc-addrow .add-rt { display:flex; gap:6px; align-items:center; width:0; min-width:100%; }
   tr.fc-addrow .add-rt > .le-f { width:auto; min-width:0; }
   tr.fc-addrow .add-rt > .le-f:first-child { flex:0 0 var(--add-rep-w); }
@@ -252,9 +254,9 @@
                                  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
     tr.le-inline .le-ro { padding-bottom:0; }
     tr.le-inline input, tr.le-inline select, tr.le-inline .tag-dd-btn { height:30px; min-height:30px; padding-top:2px; padding-bottom:2px; }
-    #forecastTable tbody tr:not(.today-marker):not(.week-divider) { height:34px; }
+    #forecastTable tbody tr:not(.today-marker):not(.week-divider) { height:var(--row-h); }
     #txnSearchTable tbody tr { height:38px; }
-    #recurringTable tbody tr { height:34px; }
+    #recurringTable tbody tr { height:var(--row-h); }
   }
   @media (max-width: 768px) {
     /* Forecast on a phone: the open line is a two-column stacked form. */
@@ -547,7 +549,7 @@
   .month-nav { padding:6px 10px; font-size:13px; }
   /* Prev, Next, the dropdowns and the action buttons share one height (#285). */
   @media (min-width:769px) {
-    .fc-controls :is(button, select) { height:34px; padding-top:0; padding-bottom:0; box-sizing:border-box; font-size:13px; }
+    .fc-controls :is(button, select) { height:var(--ctl-h); padding-top:0; padding-bottom:0; box-sizing:border-box; font-size:13px; }
   }
   .account-tab .tab-bal { margin-left:8px; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
   .today-bar .today-bal { color:var(--text); text-transform:none; letter-spacing:0; }
@@ -2517,6 +2519,40 @@
           </label>
         </div>
         </div><!-- /#dashLayoutSection -->
+
+        <div id="dateFormatSection">
+        <h3 style="margin:16px 0 6px;font-size:14px">Date format</h3>
+        <div id="dateFormatPicker" class="row" style="gap:8px" onchange="onDateFormatChange(event)">
+          <label style="flex:0 0 auto;display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="radio" name="dateFormat" value="short">
+            <span>Short (Nov 12)</span>
+          </label>
+          <label style="flex:0 0 auto;display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="radio" name="dateFormat" value="iso">
+            <span>Full (2026-11-12)</span>
+          </label>
+        </div>
+        <p style="color:var(--muted);margin:6px 0 0;font-size:13px">
+          How dates read in tables, cards, charts and the calendar; the year shows in short dates when it isn't this one.
+        </p>
+        </div><!-- /#dateFormatSection -->
+
+        <div id="rowHeightSection">
+        <h3 style="margin:16px 0 6px;font-size:14px">Row height</h3>
+        <div id="rowHeightPicker" class="row" style="gap:8px" onchange="onRowHeightChange(event)">
+          <label style="flex:0 0 auto;display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="radio" name="rowHeight" value="roomy">
+            <span>Roomy</span>
+          </label>
+          <label style="flex:0 0 auto;display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="radio" name="rowHeight" value="compact">
+            <span>Compact</span>
+          </label>
+        </div>
+        <p style="color:var(--muted);margin:6px 0 0;font-size:13px">
+          Roomy rows are 36px with a taller toolbar; Compact fits more rows in the window.
+        </p>
+        </div><!-- /#rowHeightSection -->
       </div>
 
       <div class="panel" data-settings-section="accounts">
@@ -2987,7 +3023,7 @@ const fmt = n => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.112.0";
+const WEB_VERSION = "1.113.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -2997,6 +3033,7 @@ const WEB_VERSION = "1.112.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.113.0 (2026-11-23, claude+mkolakowski): (#286) web-refresh phase 6, Date format and Row height settings (Settings → Appearance, saved as me.date_format 'short'|'iso' and me.row_height 'roomy'|'compact' through PATCH /api/me/preferences; unset = short and roomy). fmtDate(iso|Date) and fmtDateTime(timestamp) are the one place a date becomes screen text ("Nov 12", "Nov 12, 2025" outside the current year, or 2026-11-12): Forecast, Bills & income, Dashboard cards, sparkline, ranges, Net worth chart ends, calendar day title, search, transfers, import preview, Unmatched and the bank and mail logs, Admin's Joined column, Settings dates; _gsDay now calls it. Date inputs, CSV exports and API values are untouched; timestamps that show a time (bank and mail 'when', audit, last used) keep their own format. Row height is :root[data-rows] with --row-h (36px, 34px compact) for the Forecast and Bills rows and --ctl-h (38px, 34px compact) for .fc-controls buttons and selects, set by applyRowHeight() at start-up and on change.
 // 1.112.0 (2026-11-23, claude+mkolakowski): (#285) web-refresh phase 5, Forecast and Bills tables: .summary is one strip (hairlines, clipped outer edge) and #summary lists its nine figures in column order in the markup (opening, forecast out/in, actual out/in, highest / difference, forecast end, actual end, lowest) with #summary.has-current set by renderForecast, so All accounts (no current balance) takes four columns; read view has row lines only (border-right only under .sheet-mode, which #recurringTable now gets from toggleRecSpreadsheetMode), a row hover, no "/" between pairs (5px air instead), the pencil is PENCIL_ICON in button.row-edit (Forecast, Bills, Transactions search), .pill/.cat-pill/.tag-pill in the tables filled and round with no outline (subsCategoryCell loses its border; .pill.unmatched tinted), .fc-controls buttons and selects 34px high from 769px, the Spreadsheet button loses its outline. Forecast's table minimum width +10px (1241 to 1251px window), Bills' -14px (1290 to 1276px).
 // 1.111.0 (2026-11-23, claude+mkolakowski): (#284) web-refresh phase 4, Settings, Admin and Reports: on windows ≥1000px Settings and Admin list their sections down the left (sticky, a "Settings"/"Admin" title from ::before) beside an 840px (Admin 1060px) column; Admin gets tabs and six sections (data-admin-section: general, security, bank, users, backups, audit) switched by showAdminSection, with #admin/<section> addresses, arrow keys and the last one remembered; Admin's on/off settings are switches; the user row says Disable/Enable, Reset password and Delete; row actions are quiet, Delete in red (Settings → Accounts' Delete is now ghost danger); Delete my account is outlined in red; fields fill their .row; Reports: totals 3×2 forecast over actual, filters top-aligned, checklists as pills (ticked ones tinted), flat saved/template lists; the report editor's actions wrap (.report-editor-actions), which ends the phone page's sideways scroll.
 // 1.110.0 (2026-11-23, claude+mkolakowski): (#283) web-refresh phase 3, readable themes: the 21 text colours under 4.5:1 in eight named themes move to theme-contrast.py's values, changed inside each theme's own block (WebThemeTests reads them there); Solarized and Synthwave get a --chip-bg that differs from the panel; Solarized and Mint take Light's soft --shadow/--seg-shadow (the dark themes inherit Dark's); each theme block also applies to .theme-mini[data-t=…], so the theme picker draws a tiny screen per card (balance, a green and a red amount, a button) in that theme's colours, System as half Dark, half Light (clip-path); Light gets the caption "Clean white".
@@ -4087,7 +4124,7 @@ function showPage(name, opts) {
   document.getElementById('navAdmin').classList.toggle('active', name==='admin');
   document.getElementById('navSettings').classList.toggle('active', name==='settings');
   _syncPhoneNav(name);
-  if (name === 'settings') { showSettingsSection(settingsSection, { noHash: true }); loadThemePicker(); markChartPositionRadio(currentChartPosition()); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); loadApiTokens(); loadChangePassword(); loadTwoFactor(); loadDeleteAccount(); loadBank(); loadMail(); }
+  if (name === 'settings') { showSettingsSection(settingsSection, { noHash: true }); loadThemePicker(); markChartPositionRadio(currentChartPosition()); markDisplayPrefs(); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); loadApiTokens(); loadChangePassword(); loadTwoFactor(); loadDeleteAccount(); loadBank(); loadMail(); }
   if (name === 'dashboard') loadDashboard();
   if (name === 'networth') loadNetworth();
   if (name === 'subscriptions') {
@@ -4120,11 +4157,7 @@ const GSEARCH_GROUPS = [
   ['categories', 'Categories'], ['tags', 'Tags'], ['reports', 'Reports'],
 ];
 let _gsearchTimer = null, _gsearchSeq = 0, _gsearchLast = null;
-function _gsDay(iso) {
-  if (!iso) return '';
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-}
+function _gsDay(iso) { return fmtDate(iso); }
 function _gsCount(n) { return n === 1 ? '1 transaction' : `${n} transactions`; }
 function _gsDetail(kind, r) {
   switch (kind) {
@@ -4572,6 +4605,70 @@ let dashboardWindow = DEFAULT_DASHBOARD_WINDOW;
 let dashboardCards = null;   // cached response from /api/dashboard (month-only)
 let dashboardCharts = null;  // cached response from /api/dashboard/charts
 
+// ---------- Date format and row height (#286) ----------
+// Two per-person display settings stored like chart_position: me.date_format
+// ('short' "Nov 12", or 'iso' 2026-11-12) and me.row_height ('roomy' or
+// 'compact'). NULL means unset: short and roomy.
+const DATE_FORMATS = ['short', 'iso'], ROW_HEIGHTS = ['roomy', 'compact'];
+function currentDateFormat() { const f = me && me.date_format; return DATE_FORMATS.includes(f) ? f : 'short'; }
+function currentRowHeight() { const h = me && me.row_height; return ROW_HEIGHTS.includes(h) ? h : 'roomy'; }
+const _MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// The one place a date is turned into text for the screen. Takes 'YYYY-MM-DD'
+// (or a longer ISO string, whose first ten characters are used) or a Date.
+// Short form: "Nov 12", and "Nov 12, 2025" when the year isn't this one.
+// Date inputs, CSV exports and API values never go through it.
+function fmtDate(v) {
+  if (v == null || v === '') return '';
+  let y, m, d;
+  if (v instanceof Date) { y = v.getFullYear(); m = v.getMonth() + 1; d = v.getDate(); }
+  else {
+    const t = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v));
+    if (!t) return String(v);
+    y = +t[1]; m = +t[2]; d = +t[3];
+  }
+  if (currentDateFormat() === 'iso') return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  return `${_MONTH_SHORT[m - 1]} ${d}` + (y === new Date().getFullYear() ? '' : `, ${y}`);
+}
+// A timestamp from the API (UTC, "…Z" or none): its date in the viewer's own time zone.
+function fmtDateTime(iso) {
+  if (!iso) return '';
+  const hasZone = /(Z|[+-]\d{2}:?\d{2})$/.test(iso);
+  const dt = new Date(hasZone || !/T/.test(iso) ? iso : iso + 'Z');
+  return isNaN(dt) ? String(iso) : fmtDate(dt);
+}
+function applyRowHeight() {
+  document.documentElement.setAttribute('data-rows', currentRowHeight());
+}
+async function _savePreference(body) {
+  try {
+    drain(await fetch('/api/me/preferences', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    }));
+  } catch { /* network hiccup — the choice shows now and the server catches up on the next change */ }
+}
+function _markPref(name, value) {
+  const el = document.querySelector(`input[name="${name}"][value="${value}"]`);
+  if (el) el.checked = true;
+}
+function markDisplayPrefs() { _markPref('dateFormat', currentDateFormat()); _markPref('rowHeight', currentRowHeight()); }
+async function onDateFormatChange(event) {
+  const v = event.target.value;
+  if (!DATE_FORMATS.includes(v)) return;
+  if (me) me.date_format = v;
+  markDisplayPrefs();
+  await _savePreference({ date_format: v });
+}
+async function onRowHeightChange(event) {
+  const v = event.target.value;
+  if (!ROW_HEIGHTS.includes(v)) return;
+  if (me) me.row_height = v;
+  applyRowHeight();
+  markDisplayPrefs();
+  await _savePreference({ row_height: v });
+}
+
 function currentChartPosition() {
   const p = me && me.chart_position;
   return ALLOWED_CHART_POSITIONS.includes(p) ? p : DEFAULT_CHART_POSITION;
@@ -4640,7 +4737,7 @@ function renderPinnedReport(id, d) {
   const t = d.totals;
   const summary = `
     <div class="pinned-summary">
-      <span><strong>Range:</strong> ${escapeHtml(d.range_label || `${d.start} → ${d.end}`)}</span>
+      <span><strong>Range:</strong> ${escapeHtml(d.range_label || `${fmtDate(d.start)} → ${fmtDate(d.end)}`)}</span>
       <span><strong>Actual net:</strong> ${fmt(t.actual_net)}</span>
       <span><strong>Items:</strong> ${(d.groups || []).reduce((s,g)=>s+(g.actual_count||0),0)}</span>
     </div>`;
@@ -4680,7 +4777,7 @@ async function loadDashBankWarn() {
   const show = st.connected && (st.needs_reconnect || st.failing_over_a_day);
   el.classList.toggle('hidden', !show);
   if (!show) return;
-  const since = st.failing_since ? new Date(st.failing_since).toLocaleDateString() : '';
+  const since = st.failing_since ? fmtDateTime(st.failing_since) : '';
   el.innerHTML = (st.needs_reconnect
       ? (() => {
           const gone = (st.connections || []).filter(c => c.needs_reconnect);
@@ -4702,7 +4799,7 @@ async function loadDashMailWarn() {
   try { st = await api('/api/mail/status'); } catch (_) { el.classList.add('hidden'); return; }
   const parts = [];
   if (st.connected && st.needs_reconnect) parts.push('Email alerts have stopped: Microsoft no longer accepts your mailbox sign-in.');
-  else if (st.connected && st.failing_over_a_day) parts.push(`Email alerts have been failing since ${escapeHtml(new Date(st.failing_since).toLocaleDateString())}.`);
+  else if (st.connected && st.failing_over_a_day) parts.push(`Email alerts have been failing since ${escapeHtml(fmtDateTime(st.failing_since))}.`);
   if (st.connected && st.unread_count) parts.push(`${st.unread_count} alert${st.unread_count === 1 ? '' : 's'} couldn't be read.`);
   el.classList.toggle('hidden', !parts.length);
   if (!parts.length) return;
@@ -4744,7 +4841,7 @@ function renderDashboardUpcoming() {
   const projected = cards.reduce((s, c) => s + (c.forecast_end || 0), 0);
   const today = new Date();
   const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-  const label = monthEnd.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
+  const label = fmtDate(monthEnd);
   if (!count) {
     wrap.innerHTML = `<div style="color:var(--muted);font-size:13px">
       Nothing left pending before ${escapeHtml(label)} — you're all caught up for the rest of the month.
@@ -4792,7 +4889,7 @@ function renderDashboard() {
   // Update the range label.
   const rangeEl = document.getElementById('dashWindowRange');
   if (dashboardCharts) {
-    rangeEl.textContent = `${dashboardCharts.label} · ${dashboardCharts.start} → ${dashboardCharts.end}`;
+    rangeEl.textContent = `${dashboardCharts.label} · ${fmtDate(dashboardCharts.start)} → ${fmtDate(dashboardCharts.end)}`;
   }
 
   const pos = currentChartPosition();
@@ -4804,8 +4901,8 @@ function renderDashboard() {
     const fLow  = fmt(c.forecast_low);
     const aHigh = fmt(c.actual_high);
     const aLow  = fmt(c.actual_low);
-    const fHighDate = c.forecast_high_date || '—';
-    const fLowDate  = c.forecast_low_date  || '—';
+    const fHighDate = c.forecast_high_date ? fmtDate(c.forecast_high_date) : '—';
+    const fLowDate  = c.forecast_low_date ? fmtDate(c.forecast_low_date) : '—';
     const chartsInline = (pos === 'inside' && chartsByAccount[c.id])
       ? `<div style="margin-top:14px;border-top:1px dashed var(--border);padding-top:10px">
            ${renderChartBlock(chartsByAccount[c.id], true)}
@@ -5084,8 +5181,8 @@ function renderSparkline(points) {
       <path class="spark-line" d="${linePath}"></path>
     </svg>
     <div class="spark-meta">
-      <span>${first.date} · ${fmt(first.balance)}</span>
-      <span>${last.date} · ${fmt(last.balance)}</span>
+      <span>${fmtDate(first.date)} · ${fmt(first.balance)}</span>
+      <span>${fmtDate(last.date)} · ${fmt(last.balance)}</span>
     </div>`;
 }
 
@@ -5862,7 +5959,7 @@ async function loadApiTokens() {
 // "Made 11/15/2026 · Expires 2/13/2027 · Last used 11/15/2026, 1:02 AM" for a
 // token row from /api/tokens or /api/admin/tokens (the same words in both lists).
 function apiTokenDetails(t) {
-  const day = iso => new Date(iso).toLocaleDateString();
+  const day = iso => fmtDateTime(iso);
   const parts = ['Made ' + day(t.created_at)];
   if (t.revoked_at) parts.push('Revoked ' + day(t.revoked_at));
   else if (t.expired) parts.push('Expired ' + day(t.expires_at));
@@ -6219,7 +6316,7 @@ async function loadRememberedBrowsers() {
     list.innerHTML = '<div style="font-size:13px;color:var(--muted)">None. Every sign-in asks for a code.</div>';
     return;
   }
-  const day = iso => new Date(iso).toLocaleDateString();
+  const day = iso => fmtDateTime(iso);
   list.innerHTML = '<ul style="list-style:none;padding:0;margin:0">' + rows.map(b =>
     '<li style="display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border)">' +
       '<div style="min-width:0"><div><strong>' + escapeHtml(b.label) + '</strong>' +
@@ -6413,7 +6510,7 @@ function renderSettingsNotice() {
   const when = document.getElementById('settingsNoticeWhen');
   if (me && me.notice_acknowledged_at) {
     when.textContent = 'You agreed to this on ' +
-      new Date(me.notice_acknowledged_at).toLocaleDateString() + '.';
+      fmtDateTime(me.notice_acknowledged_at) + '.';
   } else {
     when.textContent = '';
   }
@@ -6492,6 +6589,7 @@ async function init() {
   // Server is the sole source of truth for theme. Apply whatever preference
   // the user has (or fall back to 'system' if they haven't set one).
   applyTheme(me.theme_preference || DEFAULT_THEME);
+  applyRowHeight();
   document.getElementById('newAccDate').value = _isoDate(new Date());   // valueAsDate would use the UTC date (#62)
   // Populate year dropdown (current - 2 .. current + 5) and default to current month/year
   const now = new Date();
@@ -7336,8 +7434,8 @@ function _recReadCells(r, ro) {
     ? '<span class="ro-badge" title="You can view this account but not change it">read only</span>'
     : `<button class="ghost row-edit" onclick="startEditRecurring(${r.id})" title="Edit or delete this item" aria-label="Edit ${escapeAttr(r.description)}">${PENCIL_ICON}</button>`;
   return `<td class="rec-desc">${escapeHtml(r.description)}</td>
-    <td>${r.anchor_date || muted}</td>
-    <td>${r.end_date || muted}</td>
+    <td>${r.anchor_date ? fmtDate(r.anchor_date) : muted}</td>
+    <td>${r.end_date ? fmtDate(r.end_date) : muted}</td>
     <td>${subsCategoryCell(r)}</td>
     <td class="num ${r.amount>=0?'pos':'neg'}">${fmt(r.amount)}</td>
     <td>${escapeHtml(r.account_name || '')}</td>
@@ -7698,13 +7796,13 @@ async function runRecBulkUpdate() {
   if (document.getElementById('recBulkAnchorClear').checked) {
     body.anchor_date = null; changes.push('clear start date (monthly rows)');
   } else if (anchorVal) {
-    body.anchor_date = anchorVal; changes.push(`start date → ${anchorVal}`);
+    body.anchor_date = anchorVal; changes.push(`start date → ${fmtDate(anchorVal)}`);
   }
   const endVal = document.getElementById('recBulkEnd').value;
   if (document.getElementById('recBulkEndClear').checked) {
     body.end_date = null; changes.push('clear end date');
   } else if (endVal) {
-    body.end_date = endVal; changes.push(`end date → ${endVal}`);
+    body.end_date = endVal; changes.push(`end date → ${fmtDate(endVal)}`);
   }
   if (!changes.length) { status.textContent = 'Fill in at least one field to change.'; return; }
   const n = _recSelected.size;
@@ -8228,10 +8326,10 @@ function _todayMarkerRow(mode, range, currentBalance) {
   const pct = Math.max(0, Math.min(100, Math.round(elapsed / total * 100)));
   const label = mode === 'month'
     ? `Today · day ${elapsed} of ${total}`
-    : `Today · ${_isoDate(now)}`;
+    : `Today · ${fmtDate(now)}`;
   const tr = document.createElement('tr');
   tr.className = 'today-marker';
-  tr.innerHTML = `<td colspan="12"><div class="today-bar" title="${_isoDate(now)}">
+  tr.innerHTML = `<td colspan="12"><div class="today-bar" title="${fmtDate(now)}">
       <span>${label}</span>
       <span class="today-track"><span class="today-fill" style="display:block;width:${pct}%"></span></span>
       <span class="today-pct">${pct}%</span>
@@ -8465,8 +8563,8 @@ function renderForecast() {
   const deltaCls = Math.abs(deltaEnd) < 0.005 ? '' : (deltaEnd > 0 ? 'pos' : 'neg');
   const deltaSign = deltaEnd > 0 ? '+' : '';
 
-  const hiDateLabel = maxDate || '—';
-  const loDateLabel = minDate || '—';
+  const hiDateLabel = maxDate ? fmtDate(maxDate) : '—';
+  const loDateLabel = minDate ? fmtDate(minDate) : '—';
 
   const curBal = typeof data.current_balance === 'number'
     ? `<div class="stat current"><div class="l">Current balance</div><div class="v ${data.current_balance<0?'neg':''}">${fmt(data.current_balance)}</div><div class="d" title="Matches the Actual bal column at today">as of today</div>${_bankBalanceHtml(data.bank_balance)}</div>`
@@ -8622,7 +8720,7 @@ function renderForecast() {
     const notesCell = r.notes
       ? `<td class="notes-col" title="${escapeAttr(r.notes)}">${escapeHtml(r.notes)}</td>`
       : `<td class="notes-col muted">—</td>`;
-    const actDateCell = `<td class="${defaultedCls}">${actDateVal || '—'}</td>`;
+    const actDateCell = `<td class="${defaultedCls}">${actDateVal ? fmtDate(actDateVal) : '—'}</td>`;
     const actAmtCell  = `<td class="num${defaultedCls}">${actAmtVal != null ? fmt(actAmtVal) : '—'}</td>`;
     // ✎ opens the line for editing (as double-click does); Delete is inside
     // the open line (#52). Read-only accounts get an empty cell, hidden by CSS.
@@ -8645,7 +8743,7 @@ function renderForecast() {
       : '';
     tr.innerHTML = `
       <td>${escapeHtml(r.description)}${_bankMatchPill(r)}${tagBits}</td>
-      <td>${r.forecast_date || '—'}</td>
+      <td>${r.forecast_date ? fmtDate(r.forecast_date) : '—'}</td>
       ${actDateCell}
       <td>${cat}</td>
       <td class="num ${r.forecast_amount>=0?'pos':'neg'}">${fAmt}</td>
@@ -8894,7 +8992,7 @@ async function deleteForecastRow(tid, fromRecurring) {
 }
 
 async function skipForecastOccurrence(recId, dateStr) {
-  if (!(await confirmDialog(`Delete this occurrence on ${dateStr}? The recurring transaction keeps its other dates — only this one is removed. You can restore deleted dates from the recurring transaction's edit row.`, { title: 'Delete this date', okLabel: 'Delete', danger: true }))) return;
+  if (!(await confirmDialog(`Delete this occurrence on ${fmtDate(dateStr)}? The recurring transaction keeps its other dates — only this one is removed. You can restore deleted dates from the recurring transaction's edit row.`, { title: 'Delete this date', okLabel: 'Delete', danger: true }))) return;
   try {
     await api(`/api/recurring/${recId}/skip`, { method: 'POST', body: JSON.stringify({ skip_date: dateStr }) });
   } catch (e) {
@@ -9748,7 +9846,7 @@ function _adminBankSyncShow(data) {
   // were copied once, on the upgrade, to the people using them.
   const copied = data.env_keys_copied || {};
   const copiedText = ['teller', 'plaid'].filter(k => copied[k] && copied[k].people > 0).map(k =>
-    `${k === 'teller' ? 'Teller' : 'Plaid'}'s keys from .env were copied to ${copied[k].people} ${copied[k].people === 1 ? 'person' : 'people'} on ${new Date(copied[k].at).toLocaleDateString()}.`);
+    `${k === 'teller' ? 'Teller' : 'Plaid'}'s keys from .env were copied to ${copied[k].people} ${copied[k].people === 1 ? 'person' : 'people'} on ${fmtDateTime(copied[k].at)}.`);
   status.textContent = (data.enabled ? 'On. ' : 'Off. ')
     + (n === 0 ? 'No user has a bank connected.' : n + ' user' + (n === 1 ? ' has a bank' : 's have a bank') + ' connected.')
     + ' The TELLER_ and PLAID_ lines in .env are no longer read: each person adds their own keys in Settings → Bank sync.'
@@ -10327,7 +10425,7 @@ async function bankShowLogLines(accountId, runId, btn) {
     const run = await api(`/api/accounts/${accountId}/bank-syncs/${runId}`);
     cell.innerHTML = run.lines.length
       ? '<ul style="margin:0;padding-left:18px;font-size:13px">' + run.lines.map(l =>
-          `<li>${escapeHtml(l.date)} · ${escapeHtml(l.description)} · ${escapeHtml(fmt(l.amount))}${l.matched ? ` <span class="pill actual" title="${l.matched === 'auto' ? 'Paid a bill by itself' : 'You matched it to a bill by hand'}">paid a bill</span>` : ''}${l.joined ? ' · joined an email alert' : ''}</li>`).join('') + '</ul>'
+          `<li>${escapeHtml(fmtDate(l.date))} · ${escapeHtml(l.description)} · ${escapeHtml(fmt(l.amount))}${l.matched ? ` <span class="pill actual" title="${l.matched === 'auto' ? 'Paid a bill by itself' : 'You matched it to a bill by hand'}">paid a bill</span>` : ''}${l.joined ? ' · joined an email alert' : ''}</li>`).join('') + '</ul>'
       : '<span style="color:var(--muted);font-size:13px">The lines it brought in have since been deleted.</span>';
   } catch (e) { cell.innerHTML = `<span style="color:var(--bad)">${escapeHtml(errText(e))}</span>`; }
 }
@@ -10359,7 +10457,7 @@ async function bankShowUnmatched(accountId, boxId) {
       <td>${escapeHtml(l.description)}${l.never_posted
           ? ` <span class="pill unmatched" title="No line from your bank has met this email alert.">Never posted</span>
              <div class="le-hint" style="font-size:11px;color:var(--muted)">No bank line in 10 days: a dropped hold or a declined charge? Delete it or keep it.</div>` : ''}</td>
-      <td class="fit">${escapeHtml(l.date)}</td>
+      <td class="fit">${escapeHtml(fmtDate(l.date))}</td>
       <td class="num fit ${l.amount >= 0 ? 'pos' : 'neg'}">${escapeHtml(fmt(l.amount))}</td>
       ${l.notes ? `<td class="notes-col" title="${escapeAttr(l.notes)}">${escapeHtml(l.notes)}</td>` : '<td class="notes-col muted">—</td>'}
       <td class="fit"><button class="ghost" onclick="openMatchPopin(${accountId}, ${l.id})">Match…</button>
@@ -11336,7 +11434,7 @@ async function mailShowRun(id) {
   catch (e) { el.innerHTML = `<span style="color:var(--bad)">${escapeHtml(errText(e))}</span>`; return; }
   el.innerHTML = run.lines.length ? run.lines.map(l => `
     <div style="margin-top:4px;display:flex;gap:8px;flex-wrap:wrap">
-      <span style="color:var(--muted)">${escapeHtml(l.date)}</span>
+      <span style="color:var(--muted)">${escapeHtml(fmtDate(l.date))}</span>
       <span style="overflow-wrap:anywhere">${escapeHtml(l.description)}</span>
       <strong>${escapeHtml(fmt(l.amount))}</strong>
       <span style="color:var(--muted)">${escapeHtml(l.account_name)}${l.matched ? ' · paid a bill' : ''}</span></div>`).join('')
@@ -11695,7 +11793,7 @@ async function loadAdminUsers() {
         <td>${escapeHtml(u.name || '—')}</td>
         <td style="color:var(--muted);font-size:12px">${authMethods.join(', ')}</td>
         <td class="num">${u.owned_count} owned, ${u.account_count} total</td>
-        <td style="color:var(--muted);font-size:12px">${u.created_at ? u.created_at.slice(0,10) : '—'}</td>
+        <td style="color:var(--muted);font-size:12px">${u.created_at ? fmtDateTime(u.created_at) : '—'}</td>
         <td>${_adminBankAccessHtml(u)}</td>
         <td>${_adminMailAccessHtml(u)}</td>
         <td style="white-space:nowrap">
@@ -12112,7 +12210,7 @@ async function loadNetworth() {
     summary.innerHTML = `<div class="stat" style="grid-column:1/-1;color:var(--bad)">Could not load: ${escapeHtml(errText(e))}</div>`;
     return;
   }
-  document.getElementById('networthRange').textContent = `${data.label} · ${data.start} → ${data.end}`;
+  document.getElementById('networthRange').textContent = `${data.label} · ${fmtDate(data.start)} → ${fmtDate(data.end)}`;
   const deltaActual = data.actual_end_total - data.opening_total;
   const deltaForecast = data.forecast_end_total - data.opening_total;
   summary.innerHTML = `
@@ -12513,8 +12611,7 @@ function renderCalendarDay(iso) {
   const tb = document.querySelector('#calDayTable tbody');
 
   const d = new Date(iso + 'T00:00:00');
-  title.textContent = d.toLocaleDateString(undefined,
-    { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  title.textContent = d.toLocaleDateString(undefined, { weekday: 'long' }) + ', ' + fmtDate(d);
 
   // Balance of the account being viewed, as of this date. Only meaningful
   // with a single account selected — dailyBalances is null under "All
@@ -12593,8 +12690,8 @@ function renderNetworthChart(points) {
     ${ticks}
     <path d="${areaPath}" fill="var(--accent)" opacity="0.15" />
     <path d="${linePath}" fill="none" stroke="var(--accent)" stroke-width="2" />
-    <text x="${P}" y="${H-6}" font-size="10" fill="var(--muted)">${escapeHtml(points[0].date)}</text>
-    <text x="${W-P}" y="${H-6}" text-anchor="end" font-size="10" fill="var(--muted)">${escapeHtml(points[points.length-1].date)}</text>
+    <text x="${P}" y="${H-6}" font-size="10" fill="var(--muted)">${escapeHtml(fmtDate(points[0].date))}</text>
+    <text x="${W-P}" y="${H-6}" text-anchor="end" font-size="10" fill="var(--muted)">${escapeHtml(fmtDate(points[points.length-1].date))}</text>
   </svg>`;
 }
 
@@ -12698,7 +12795,7 @@ async function runTxnSearch() {
   }));
   tb.innerHTML = data.results.map(r => {
     if (editingTxnSearchRowId === r.id) return _renderTxnSearchEditRow(r);
-    const d = r.actual_date || r.forecast_date || '—';
+    const d = fmtDate(r.actual_date || r.forecast_date) || '—';
     const status = r.transfer_id != null ? '<span class="pill">Transfer</span>'
                  : r.is_actual ? '<span class="pill actual">Cleared</span>'
                               : '<span class="pill">Forecast</span>';
@@ -12969,7 +13066,7 @@ async function loadRecentTransfers() {
   }
   wrap.innerHTML = `<div class="transfers-list">${data.transfers.map(t => `
     <div class="transfer-item">
-      <div>${escapeHtml(t.transfer_date)}</div>
+      <div>${escapeHtml(fmtDate(t.transfer_date))}</div>
       <div>${escapeHtml(t.from_account_name||'?')} <span class="arrow">→</span> ${escapeHtml(t.to_account_name||'?')}
         <div style="color:var(--muted);font-size:12px">${escapeHtml(t.description)}</div>
       </div>
@@ -13297,7 +13394,7 @@ async function runImportPreview() {
         `<span style="color:var(--muted);font-size:11px">(${isNew ? 'new' : 'existing'})</span></span>`;
     }
     return `<tr class="${r.duplicate?'duplicate':''}">
-    <td>${escapeHtml(r.date)}</td>
+    <td>${escapeHtml(fmtDate(r.date))}</td>
     <td>${escapeHtml(r.description)}</td>
     <td class="num">${fmt(r.amount)}</td>
     <td>${catCell}</td>
@@ -13359,7 +13456,7 @@ async function loadBudgets() {
     wrap.innerHTML = `<div style="color:var(--bad)">Could not load: ${escapeHtml(errText(e))}</div>`;
     return;
   }
-  document.getElementById('budgetWindowRange').textContent = `${data.label} · ${data.start} → ${data.end}`;
+  document.getElementById('budgetWindowRange').textContent = `${data.label} · ${fmtDate(data.start)} → ${fmtDate(data.end)}`;
   if (!data.rows.length) {
     wrap.innerHTML = `<div style="color:var(--muted);font-size:13px">No expense categories yet. Expenses will show up here once you have actual postings.</div>`;
     return;

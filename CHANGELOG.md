@@ -69,10 +69,16 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.97.0** · Web version: **1.112.0** · Schema version: **38** · iOS version: **0.34.0**
+App version: **1.98.0** · Web version: **1.113.0** · Schema version: **39** · iOS version: **0.34.0**
+
+### Added
+
+- **Settings → Appearance has a Date format choice and a Row height choice,** each saved to your account so they follow you across browsers. Date format is Short (Nov 12) or Full (2026-11-12); Row height is Roomy or Compact. `GET /api/me` returns `date_format` (`short` or `iso`) and `row_height` (`roomy` or `compact`), both null until you choose, and `PATCH /api/me/preferences` takes either and refuses any other value.
 
 ### Changed
 
+- **Dates now read "Nov 12" instead of 2026-11-12** in tables, cards, charts, the calendar, search results and Admin, with the year added when it isn't the current one (Nov 12, 2025). Choose Full under Settings → Appearance → Date format to get 2026-11-12 back. Date fields you type into, CSV exports and the API are unchanged.
+- **Table rows on Forecast and Bills & income are 36px high, with a taller toolbar** (the buttons and dropdowns above the table are 38px). Choose Compact under Settings → Appearance → Row height for the earlier 34px rows and toolbar.
 - On Forecast, Bills & income, Net worth and Reports the summary tiles join into one strip. On Forecast the current balance leads in large type and the other figures sit under each other by column: opening balance over the difference, forecast out and in over forecast end, actual out and in over actual end, highest over lowest point. The order is the same in All accounts, which has no current balance.
 - The Forecast, Bills & income and Unmatched tables show lines between rows only, with the row under the pointer highlighted. The slash between a forecast figure and its actual one is gone. Spreadsheet mode keeps its full grid.
 - The pencil that opens a row is a drawn icon with no box until you point at the row. Category and tag pills in these tables are one filled style with no outline, and Unmatched is a tinted pill.
@@ -89,6 +95,10 @@ App version: **1.97.0** · Web version: **1.112.0** · Schema version: **38** ·
 - Dashboard and Net worth open with a proper page title, and their cards sit straight on the page instead of inside another box. Section headings and labels read in normal sentence case rather than capitals; table headers keep their capitals.
 - Controls look the same everywhere: the account switcher and the Month / 30 days / 90 days choice are one segmented control, secondary buttons have a soft fill, dropdowns match the other fields, and buttons that delete something are tinted red rather than solid red.
 - The footer stays at the bottom of the window on short pages.
+
+### Database
+
+- Schema 39: each person gains two display settings, `users.date_format` and `users.row_height` (empty until set, which means Short dates and Roomy rows). Added by itself on the first start.
 
 ### Fixed
 

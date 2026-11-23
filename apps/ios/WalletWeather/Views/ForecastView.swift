@@ -11,6 +11,9 @@ struct ForecastView: View {
     @Environment(AppModel.self) private var model
     @Environment(AppSettings.self) private var settings
     @Environment(\.horizontalSizeClass) private var sizeClass
+    /// At the accessibility text sizes the open Duo's table becomes the
+    /// cards the closed phone shows, in its pane (#311).
+    @Environment(\.dynamicTypeSize) private var typeSize
     @SceneStorage("forecast.account") private var accountId = 0
     /// The account chosen on each other connection, in this window (#299).
     @SceneStorage("forecast.account.byConnection") private var accountMemo = ""
@@ -31,7 +34,7 @@ struct ForecastView: View {
     @State private var importingCSV = false
     @State private var moveDraft = MoveMoneyDraft(today: .today())
     @State private var pendingDelete: ForecastLine?
-    @State private var problem: String?
+    @State private var problem: ListProblem?
     @State private var comparing = false
     /// The Undo bar after a line is marked paid from the list (#315), and
     /// the count that gives the success haptic.
@@ -84,11 +87,7 @@ struct ForecastView: View {
         } message: { line in
             Text(line.isProjection ? "The repeating bill or paycheck keeps its other dates." : "This can't be undone.")
         }
-        .alert("Couldn't save", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(problem ?? "")
-        }
+        .problemAlert($problem)
         .scopedToConnection($accountId, memo: $accountMemo)
         // The bar belongs to the account and month it was shown on, and goes
         // when the editor opens or the connection changes.
@@ -205,14 +204,34 @@ struct ForecastView: View {
                             .listRowSeparator(.hidden)
                             .listRowInsets(EdgeInsets(top: 5, leading: edges.leading, bottom: 5, trailing: edges.trailing))
                     } else {
-                        if data.rows.isEmpty { emptyMonth } else { LineTableHeader().listRowSeparator(.hidden) }
-                        ForEach(data.rows) { line in
-                            Button { openLine(line) } label: {
-                                LineTableRow(line: line, selected: open?.id == line.id)
+                        if typeSize.isAccessibilitySize {
+                            if data.rows.isEmpty { emptyMonth }
+                            ForEach(data.rows) { line in
+                                Button { openLine(line) } label: {
+                                    LineCard(line: line, today: .today())
+                                        .overlay {
+                                            if open?.id == line.id {
+                                                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                                    .strokeBorder(Palette.accent, lineWidth: 2.5)
+                                            }
+                                        }
+                                }
+                                .buttonStyle(.plain)
+                                .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onEdit: openLine,
+                                                     onDelete: { pendingDelete = $0 }))
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets(top: 5, leading: edges.leading, bottom: 5, trailing: edges.trailing))
                             }
-                            .buttonStyle(.plain)
-                            .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onEdit: openLine,
-                                                 onDelete: { pendingDelete = $0 }))
+                        } else {
+                            if data.rows.isEmpty { emptyMonth } else { LineTableHeader().listRowSeparator(.hidden) }
+                            ForEach(data.rows) { line in
+                                Button { openLine(line) } label: {
+                                    LineTableRow(line: line, selected: open?.id == line.id)
+                                }
+                                .buttonStyle(.plain)
+                                .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onEdit: openLine,
+                                                     onDelete: { pendingDelete = $0 }))
+                            }
                         }
                     }
                 }
@@ -360,11 +379,11 @@ struct ForecastView: View {
     /// Takes "paid" back the way the editor's Paid switch does: finds the
     /// line again in the reloaded month (a projected date is a transaction
     /// now) and saves it not paid, which keeps it at its planned amount with
-    /// its notes and category. A failure shows the "Couldn't save" alert.
+    /// its notes and category. A failure shows the problem's alert.
     private func undoPaid(_ line: ForecastLine, account: Int) async -> Bool {
         guard let client = model.client else { return false }
         guard let paid = month.value?.reloaded(line) else {
-            problem = "\(line.description) isn't in this month any more, so it can't be undone here."
+            problem = .gone("\(line.description) isn't in this month any more, so it can't be undone here.")
             return false
         }
         var done = false
@@ -372,7 +391,7 @@ struct ForecastView: View {
             try await client.save(paid, draft: .unpaid(paid, today: .today()), account: account)
             done = true
         } catch {
-            problem = AppModel.describe(error)
+            problem = ListProblem(error)
         }
         await loadMonth()
         return done
@@ -389,7 +408,7 @@ struct ForecastView: View {
             try await action(client)
             done = true
         } catch {
-            problem = AppModel.describe(error)
+            problem = ListProblem(error)
         }
         if open?.id == line.id { open = nil }
         await loadMonth()
@@ -521,26 +540,26 @@ struct MonthHeader: View {
                     Text(account.name).font(.title3.weight(.semibold))
                 }
             }
-            HStack {
-                Button("Previous month", systemImage: "chevron.left") { onMove(-1) }
-                    .labelStyle(.iconOnly)
-                Spacer()
-                MonthMenu(month: month, onPick: onJump)
-                Spacer()
-                Button("Next month", systemImage: "chevron.right") { onMove(1) }
-                    .labelStyle(.iconOnly)
-            }
-            .buttonStyle(.glass)
-            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
-                GridRow(alignment: .bottom) {
-                    Caption("Today")
-                    Caption("Forecast end").fixedSize(horizontal: false, vertical: true)
-                    Caption("Actual end").fixedSize(horizontal: false, vertical: true)
+            MonthBar(month: month, onMove: onMove, onPick: onJump)
+            FitsAcross {
+                Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
+                    GridRow(alignment: .bottom) {
+                        Caption("Today")
+                        Caption("Forecast end").fixedSize(horizontal: false, vertical: true)
+                        Caption("Actual end").fixedSize(horizontal: false, vertical: true)
+                    }
+                    GridRow {
+                        figure(data.currentBalance)
+                        figure(data.forecastEndingBalance)
+                        figure(data.actualEndingBalance)
+                    }
                 }
-                GridRow {
-                    figure(data.currentBalance)
-                    figure(data.forecastEndingBalance)
-                    figure(data.actualEndingBalance)
+            } stacked: {
+                // The larger text sizes: one to a row, the label over it (#311).
+                VStack(alignment: .leading, spacing: 10) {
+                    stackedFigure("Today", data.currentBalance)
+                    stackedFigure("Forecast end", data.forecastEndingBalance)
+                    stackedFigure("Actual end", data.actualEndingBalance)
                 }
             }
         }
@@ -551,9 +570,16 @@ struct MonthHeader: View {
         Text(value.formatted)
             .font(.callout.weight(.semibold).monospacedDigit())
             .foregroundStyle(Palette.amount(value.isNegative))
-            .minimumScaleFactor(0.7)
-            .lineLimit(1)
+            .wholeFigure(defaultScale: 0.7)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func stackedFigure(_ label: String, _ value: Money) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Caption(label)
+            figure(value)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -568,29 +594,43 @@ struct LineCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                PaidMark(line: line, today: today)
-                Text(line.description).font(.headline).lineLimit(2)
-                Spacer(minLength: 8)
-                Text(line.amount.formatted)
-                    .font(.headline.monospacedDigit())
-                    .foregroundStyle(line.amount.isNegative ? Palette.bad : Palette.good)
+            FitsAcross {
+                HStack(alignment: .firstTextBaseline) {
+                    PaidMark(line: line, today: today)
+                    Text(line.description).font(.headline).lineLimit(2)
+                    Spacer(minLength: 8)
+                    amount
+                }
+            } stacked: {
+                // The larger text sizes: the name, then the amount under it (#311).
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline) {
+                        PaidMark(line: line, today: today)
+                        Text(line.description).font(.headline).fixedSize(horizontal: false, vertical: true)
+                    }
+                    amount
+                }
             }
-            HStack(spacing: 6) {
-                Text(dates).font(.subheadline).foregroundStyle(.secondary)
-                if let category = line.category {
-                    Text("·").foregroundStyle(.tertiary)
-                    Text(category).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+            FitsAcross {
+                HStack(spacing: 6) {
+                    Text(dates).font(.subheadline).foregroundStyle(.secondary)
+                    if let category = line.category {
+                        Text("·").foregroundStyle(.tertiary)
+                        Text(category).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    marks
                 }
-                if line.isTransfer {
-                    Text("Transfer").font(.caption.weight(.semibold))
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(.quaternary, in: Capsule())
+            } stacked: {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(dates).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    if let category = line.category {
+                        Text(category).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    }
+                    if line.isTransfer || line.bankUnmatched == true { HStack(spacing: 6) { marks } }
                 }
-                if line.bankUnmatched == true { UnmatchedPill() }
             }
             TagChips(tags: line.tags ?? [])
-            HStack(spacing: 14) {
+            FigureRow(spacing: 14) {
                 balance("Balance", line.actualBalance)
                 balance("Planned", line.forecastBalance)
                 if line.differsFromPlan, let diff = line.diffAmount, diff != .zero {
@@ -608,6 +648,23 @@ struct LineCard: View {
         .accessibilityHint("Opens the line")
     }
 
+    private var amount: some View {
+        Text(line.amount.formatted)
+            .font(.headline.monospacedDigit())
+            .foregroundStyle(line.amount.isNegative ? Palette.bad : Palette.good)
+            .wholeFigure()
+    }
+
+    @ViewBuilder
+    private var marks: some View {
+        if line.isTransfer {
+            Text("Transfer").font(.caption.weight(.semibold))
+                .padding(.horizontal, 6).padding(.vertical, 2)
+                .background(.quaternary, in: Capsule())
+        }
+        if line.bankUnmatched == true { UnmatchedPill() }
+    }
+
     private var dates: String {
         let planned = line.plannedDate?.short ?? ""
         guard line.isPaid, let paid = line.actualDate else { return planned }
@@ -619,6 +676,7 @@ struct LineCard: View {
             Text(label).font(.caption2).foregroundStyle(.secondary)
             Text(value.formatted).font(.caption.weight(.medium).monospacedDigit())
                 .foregroundStyle(colored ? (value.isNegative ? Palette.bad : Palette.good) : Palette.amount(value.isNegative))
+                .wholeFigure()
         }
     }
 }
@@ -651,18 +709,18 @@ struct PaidMark: View {
 /// The full table on the open Duo, in half its width: each money column
 /// holds two figures, so all seven of the web app's columns fit — date;
 /// name over category; forecast over actual; balance over the difference.
-private enum Column {
-    static let date: CGFloat = 24
-    static let money: CGFloat = 80
-}
-
 struct LineTableHeader: View {
+    // The columns' widths grow with the text size (#311); at the
+    // accessibility sizes the pane shows cards instead (`listPane`).
+    @ScaledMetric(relativeTo: .footnote) private var dateWidth: CGFloat = 24
+    @ScaledMetric(relativeTo: .footnote) private var moneyWidth: CGFloat = 80
+
     var body: some View {
         HStack(alignment: .bottom, spacing: 6) {
-            Text("Day").frame(width: Column.date, alignment: .leading)
+            Text("Day").frame(width: dateWidth, alignment: .leading)
             Text("Name\nCategory").frame(maxWidth: .infinity, alignment: .leading)
-            Text("Forecast\nActual").frame(width: Column.money, alignment: .trailing)
-            Text("Balance\nDifference").frame(width: Column.money, alignment: .trailing)
+            Text("Forecast\nActual").frame(width: moneyWidth, alignment: .trailing)
+            Text("Balance\nDifference").frame(width: moneyWidth, alignment: .trailing)
         }
         .font(.caption2.weight(.semibold))
         .foregroundStyle(.secondary)
@@ -675,11 +733,15 @@ struct LineTableHeader: View {
 struct LineTableRow: View {
     let line: ForecastLine
     let selected: Bool
+    // The columns' widths grow with the text size (#311); at the
+    // accessibility sizes the pane shows cards instead (`listPane`).
+    @ScaledMetric(relativeTo: .footnote) private var dateWidth: CGFloat = 24
+    @ScaledMetric(relativeTo: .footnote) private var moneyWidth: CGFloat = 80
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             // The table is always one month, so the day is enough.
-            Text(line.plannedDate.map { String($0.day) } ?? "").frame(width: Column.date, alignment: .leading)
+            Text(line.plannedDate.map { String($0.day) } ?? "").frame(width: dateWidth, alignment: .leading)
                 .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
@@ -697,12 +759,12 @@ struct LineTableRow: View {
                 money(line.forecastAmount, colored: false)
                 money(line.isPaid ? line.actualAmount : nil, colored: false).font(.caption2)
             }
-            .frame(width: Column.money, alignment: .trailing)
+            .frame(width: moneyWidth, alignment: .trailing)
             VStack(alignment: .trailing, spacing: 2) {
                 money(line.actualBalance, colored: false)
                 money(line.differsFromPlan ? line.diffAmount : nil, colored: true, blank: true).font(.caption2)
             }
-            .frame(width: Column.money, alignment: .trailing)
+            .frame(width: moneyWidth, alignment: .trailing)
         }
         .font(.footnote.monospacedDigit())
         .padding(.vertical, 7)
@@ -725,7 +787,7 @@ struct LineTableRow: View {
         Text(value?.formatted ?? (blank ? " " : "—"))
             .foregroundStyle(value.map { colored ? ($0.isNegative ? Palette.bad : Palette.good) : Palette.amount($0.isNegative) }
                              ?? Color.secondary)
-            .lineLimit(1).minimumScaleFactor(0.7)
+            .wholeFigure(defaultScale: 0.7)
     }
 }
 
@@ -805,6 +867,9 @@ struct MonthSummaryView: View {
     let month: YearMonth
     let data: ForecastMonth
     let onOpen: (ForecastLine) -> Void
+    /// The dates' column grows with the text size (#311).
+    @ScaledMetric(relativeTo: .subheadline) private var dateWidth: CGFloat = 50
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let today = LocalDay.today()
@@ -812,14 +877,25 @@ struct MonthSummaryView: View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 10) {
                 Caption("\(month.label) against plan")
-                Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
-                    GridRow {
-                        Text("")
-                        Text("So far").font(.caption).foregroundStyle(.secondary)
-                        Text("Planned").font(.caption).foregroundStyle(.secondary)
+                Group {
+                    if typeSize <= .large {
+                        Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
+                            GridRow {
+                                Text("")
+                                Text("So far").font(.caption).foregroundStyle(.secondary)
+                                Text("Planned").font(.caption).foregroundStyle(.secondary)
+                            }
+                            row("Income", s.incomeSoFar, s.incomePlanned, Palette.good)
+                            row("Spending", s.spendingSoFar, s.spendingPlanned, Palette.bad)
+                        }
+                    } else {
+                        // Past Large: each row's name, then its two figures
+                        // labelled, one to a line (#311).
+                        VStack(alignment: .leading, spacing: 12) {
+                            stackedRow("Income", s.incomeSoFar, s.incomePlanned, Palette.good)
+                            stackedRow("Spending", s.spendingSoFar, s.spendingPlanned, Palette.bad)
+                        }
                     }
-                    row("Income", s.incomeSoFar, s.incomePlanned, Palette.good)
-                    row("Spending", s.spendingSoFar, s.spendingPlanned, Palette.bad)
                 }
                 .font(.callout)
             }
@@ -844,7 +920,7 @@ struct MonthSummaryView: View {
             }
             .card()
 
-            HStack(spacing: 14) {
+            FigureRow(spacing: 14) {
                 extreme("Low", s.low.balance, s.low.date)
                 extreme("High", s.high.balance, s.high.date)
             }
@@ -872,12 +948,24 @@ struct MonthSummaryView: View {
         }
     }
 
+    private func stackedRow(_ label: String, _ soFar: Money, _ planned: Money, _ color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).font(.callout.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
+            LabeledLine(label: "So far") {
+                Text(soFar.formatted).monospacedDigit().foregroundStyle(color).wholeFigure()
+            }
+            LabeledLine(label: "Planned") {
+                Text(planned.formatted).monospacedDigit().foregroundStyle(.secondary).wholeFigure()
+            }
+        }
+    }
+
     private func extreme(_ label: String, _ value: Money, _ day: LocalDay?) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Caption(label)
             Text(value.formatted).font(.title3.weight(.semibold).monospacedDigit())
                 .foregroundStyle(Palette.amount(value.isNegative))
-                .minimumScaleFactor(0.7).lineLimit(1)
+                .wholeFigure(defaultScale: 0.7)
             Text(day?.short ?? "Start of month").font(.caption).foregroundStyle(.secondary)
         }
         .card()
@@ -885,21 +973,38 @@ struct MonthSummaryView: View {
 
     private func lineButton(_ line: ForecastLine, showingDiff: Bool = false) -> some View {
         Button { onOpen(line) } label: {
-            HStack {
-                Text(line.plannedDate?.short ?? "").foregroundStyle(.secondary).frame(width: 50, alignment: .leading)
-                Text(line.description).lineLimit(1)
-                Spacer()
-                if showingDiff, let diff = line.diffAmount, diff != .zero {
-                    Text(diff.formatted).foregroundStyle(diff.isNegative ? Palette.bad : Palette.good)
-                } else if showingDiff {
-                    Text("paid \(line.actualDate?.short ?? "")").foregroundStyle(.secondary)
-                } else {
-                    Text(line.plannedAmount.formatted).foregroundStyle(Palette.amount(line.plannedAmount.isNegative))
+            FitsAcross {
+                HStack {
+                    Text(line.plannedDate?.short ?? "").foregroundStyle(.secondary).frame(width: dateWidth, alignment: .leading)
+                    Text(line.description).lineLimit(1)
+                    Spacer()
+                    lineFigure(line, showingDiff: showingDiff)
+                }
+            } stacked: {
+                // The larger text sizes: the name, then its date and figure (#311).
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(line.description).fixedSize(horizontal: false, vertical: true)
+                    HStack {
+                        Text(line.plannedDate?.short ?? "").foregroundStyle(.secondary)
+                        Spacer(minLength: 8)
+                        lineFigure(line, showingDiff: showingDiff)
+                    }
                 }
             }
             .font(.subheadline.monospacedDigit())
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func lineFigure(_ line: ForecastLine, showingDiff: Bool) -> some View {
+        if showingDiff, let diff = line.diffAmount, diff != .zero {
+            Text(diff.formatted).foregroundStyle(diff.isNegative ? Palette.bad : Palette.good).wholeFigure()
+        } else if showingDiff {
+            Text("paid \(line.actualDate?.short ?? "")").foregroundStyle(.secondary).wholeFigure()
+        } else {
+            Text(line.plannedAmount.formatted).foregroundStyle(Palette.amount(line.plannedAmount.isNegative)).wholeFigure()
+        }
     }
 }

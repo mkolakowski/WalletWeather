@@ -48,6 +48,8 @@ struct SettingsPageView: View {
 struct SettingsHeaderCard: View {
     @Environment(AppModel.self) private var model
     let page: SettingsPage
+    // Grows with the text size, exactly as before at Large (#311).
+    @ScaledMetric(relativeTo: .title2) private var tile: CGFloat = 52
 
     var body: some View {
         let layout = SettingsLayout(household: model.settingsHousehold)
@@ -55,7 +57,7 @@ struct SettingsHeaderCard: View {
             Image(systemName: layout.symbol(of: page))
                 .font(.title2)
                 .foregroundStyle(Palette.accent)
-                .frame(width: 52, height: 52)
+                .frame(width: tile, height: tile)
                 .background(Palette.accent.opacity(0.16), in: .rect(cornerRadius: 13, style: .continuous))
             VStack(alignment: .leading, spacing: 3) {
                 Text(page == .connection ? model.settingsHouseholdName : page.title)
@@ -193,6 +195,10 @@ private struct ConnectionsPage: View {
 private struct ConnectionListRow: View {
     @Environment(AppModel.self) private var model
     let saved: SavedConnection
+    // Grows with the text size, exactly as before at Large (#311).
+    @ScaledMetric(relativeTo: .title3) private var infoWidth: CGFloat = 36
+    @ScaledMetric(relativeTo: .title3) private var infoHeight: CGFloat = 44
+    @ScaledMetric(relativeTo: .body) private var tile: CGFloat = 34
 
     private var inFront: Bool { !model.isDemo && model.saved?.id == saved.id }
 
@@ -212,7 +218,7 @@ private struct ConnectionListRow: View {
                 Image(systemName: "info.circle")
                     .font(.title3)
                     .foregroundStyle(Palette.accent)
-                    .frame(width: 36, height: 44)
+                    .frame(width: infoWidth, height: infoHeight)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -225,7 +231,7 @@ private struct ConnectionListRow: View {
             Image(systemName: saved.kind == .server ? "server.rack" : "iphone")
                 .font(.body.weight(.semibold))
                 .foregroundStyle(Palette.accent)
-                .frame(width: 34, height: 34)
+                .frame(width: tile, height: tile)
                 .background(Palette.accent.opacity(0.14), in: .circle)
             VStack(alignment: .leading, spacing: 2) {
                 Text(saved.name).lineLimit(1)

@@ -309,16 +309,18 @@ struct RestOfMonthCard: View {
                     .font(.callout)
             } else {
                 Text("**\(rest.count)** upcoming item\(rest.count == 1 ? "" : "s") before \(end)")
-                HStack(spacing: 18) {
+                FigureRow(spacing: 18) {
                     VStack(alignment: .leading) {
                         Text("Net").font(.caption).foregroundStyle(.secondary)
                         Text(rest.net.formatted).font(.headline.monospacedDigit())
                             .foregroundStyle(rest.net.isNegative ? Palette.bad : Palette.good)
+                            .wholeFigure()
                     }
                     VStack(alignment: .leading) {
                         Text("Projected balance").font(.caption).foregroundStyle(.secondary)
                         Text(rest.projected.formatted).font(.headline.monospacedDigit())
                             .foregroundStyle(Palette.amount(rest.projected.isNegative))
+                            .wholeFigure()
                     }
                 }
             }
@@ -342,15 +344,17 @@ struct AccountCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(card.name).font(.headline)
-                if chosen {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Palette.accent).accessibilityLabel("Chosen")
+            FitsAcross {
+                HStack(alignment: .firstTextBaseline) {
+                    name
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 2) { month }
                 }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(card.monthLabel).font(.caption).foregroundStyle(.secondary)
-                    if tap == .forecast { ForecastHint() }
+            } stacked: {
+                // The larger text sizes: the month and the hint under the name (#311).
+                VStack(alignment: .leading, spacing: 2) {
+                    name
+                    month
                 }
             }
             VStack(alignment: .leading, spacing: 2) {
@@ -358,15 +362,27 @@ struct AccountCard: View {
                 Text(card.currentBalance.formatted)
                     .font(.system(.largeTitle, design: .rounded, weight: .semibold).monospacedDigit())
                     .foregroundStyle(Palette.amount(card.currentBalance.isNegative))
-                    .minimumScaleFactor(0.6)
-                    .lineLimit(1)
+                    .wholeFigure(defaultScale: 0.6)
+                    // Already the biggest text on the page: it stops growing
+                    // where a whole balance still fits the card (#311).
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility2)
             }
-            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 10) {
-                GridRow {
+            FitsAcross {
+                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 10) {
+                    GridRow {
+                        figure("Month-end forecast", card.forecastEnd)
+                        figure("Month-end actual", card.actualEnd)
+                    }
+                    GridRow {
+                        figure("Low", card.forecastLow, on: card.forecastLowDate)
+                        figure("High", card.forecastHigh, on: card.forecastHighDate)
+                    }
+                }
+            } stacked: {
+                // The larger text sizes: one to a row (#311).
+                VStack(alignment: .leading, spacing: 10) {
                     figure("Month-end forecast", card.forecastEnd)
                     figure("Month-end actual", card.actualEnd)
-                }
-                GridRow {
                     figure("Low", card.forecastLow, on: card.forecastLowDate)
                     figure("High", card.forecastHigh, on: card.forecastHighDate)
                 }
@@ -382,11 +398,27 @@ struct AccountCard: View {
         .accessibilityElement(children: .combine)
     }
 
+    private var name: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(card.name).font(.headline)
+            if chosen {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(Palette.accent).accessibilityLabel("Chosen")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var month: some View {
+        Text(card.monthLabel).font(.caption).foregroundStyle(.secondary)
+        if tap == .forecast { ForecastHint() }
+    }
+
     private func figure(_ label: String, _ value: Money, on day: LocalDay? = nil) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label).font(.caption).foregroundStyle(.secondary)
             Text(value.formatted).font(.body.weight(.semibold).monospacedDigit())
                 .foregroundStyle(Palette.amount(value.isNegative))
+                .wholeFigure()
             if let day {
                 Text(day.short).font(.caption2).foregroundStyle(.secondary)
             }
@@ -454,6 +486,7 @@ struct ChosenAccountPane: View {
                     Spacer(minLength: 8)
                     Text(line.amount.formatted).monospacedDigit()
                         .foregroundStyle(line.isTransfer ? .secondary : (line.amount.isNegative ? Palette.bad : Palette.good))
+                        .wholeFigure()
                 }
                 .font(.subheadline)
                 .accessibilityElement(children: .combine)

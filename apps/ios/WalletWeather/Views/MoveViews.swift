@@ -153,7 +153,7 @@ struct ChoosePassphraseSheet: View {
                     SecureField("Passphrase", text: $first).textContentType(.newPassword)
                     SecureField("Again", text: $second).textContentType(.newPassword)
                 } footer: {
-                    if !first.isEmpty, let problem { Text(problem) }
+                    if !first.isEmpty, let problem { Text(problem).foregroundStyle(Palette.bad) }
                 }
                 Section {
                     Label("Nobody can recover this passphrase, not even WalletWeather's authors. Without it, your backups can't be opened.",

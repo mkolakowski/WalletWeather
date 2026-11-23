@@ -35,7 +35,7 @@ struct CalendarView: View {
     @State private var undoOffer: UndoOffer?
     @State private var paidCount = 0
     @State private var pendingDelete: CalendarEvent?
-    @State private var problem: String?
+    @State private var problem: ListProblem?
 
     private var shownMonth: YearMonth { YearMonth(monthText) ?? YearMonth(.today()) }
     private var account: Account? { accounts.first { $0.id == accountId } }
@@ -96,11 +96,7 @@ struct CalendarView: View {
             Text(event.recurringId != nil && event.transactionId == nil
                  ? "The repeating bill or paycheck keeps its other dates." : "This can't be undone.")
         }
-        .alert("Couldn't save", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(problem ?? "")
-        }
+        .problemAlert($problem)
         // The editor and the bar belong to the account and month they were shown on.
         .onChange(of: accountId) { undoOffer = nil; openLine = nil }
         .onChange(of: monthText) { undoOffer = nil; openLine = nil }
@@ -199,14 +195,7 @@ struct CalendarView: View {
                 }
                 .accessibilityLabel("Showing \(account?.name ?? "all accounts"). Switch account")
             }
-            HStack {
-                Button("Previous month", systemImage: "chevron.left") { move(-1) }.labelStyle(.iconOnly)
-                Spacer()
-                MonthMenu(month: shownMonth, onPick: jump)
-                Spacer()
-                Button("Next month", systemImage: "chevron.right") { move(1) }.labelStyle(.iconOnly)
-            }
-            .buttonStyle(.glass)
+            MonthBar(month: shownMonth, onMove: move, onPick: jump)
             if account == nil && accounts.count > 1 {
                 Text("Pick one account to see each day's closing balance.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -251,12 +240,12 @@ struct CalendarView: View {
         guard let client = model.client, let account = accounts.first(where: { $0.id == event.accountId }) else { return }
         do {
             guard let line = try await client.forecastLine(for: event) else {
-                problem = "\(event.description) isn't in the forecast any more. Pull down to refresh the Calendar."
+                problem = .gone("\(event.description) isn't in the forecast any more. Pull down to refresh the Calendar.")
                 return
             }
             openLine = OpenLine(line, account: account, editable: model.canEdit(account))
         } catch {
-            problem = AppModel.describe(error)
+            problem = ListProblem(error)
         }
     }
 
@@ -265,7 +254,7 @@ struct CalendarView: View {
             guard let client = model.client else { return }
             do {
                 guard let line = try await client.forecastLine(for: event) else {
-                    problem = "\(event.description) isn't in the forecast any more. Pull down to refresh the Calendar."
+                    problem = .gone("\(event.description) isn't in the forecast any more. Pull down to refresh the Calendar.")
                     return
                 }
                 try await client.save(line, draft: .paidAsPlanned(line, today: .today()), account: event.accountId)
@@ -275,7 +264,7 @@ struct CalendarView: View {
                     await undoPaid(line, account: event.accountId)
                 }
             } catch {
-                problem = AppModel.describe(error)
+                problem = ListProblem(error)
             }
             await load()
         }
@@ -293,10 +282,10 @@ struct CalendarView: View {
                 try await client.save(paid, draft: .unpaid(paid, today: .today()), account: account)
                 done = true
             } else {
-                problem = "\(line.description) isn't in the forecast any more, so it can't be undone here."
+                problem = .gone("\(line.description) isn't in the forecast any more, so it can't be undone here.")
             }
         } catch {
-            problem = AppModel.describe(error)
+            problem = ListProblem(error)
         }
         await load()
         return done
@@ -308,7 +297,7 @@ struct CalendarView: View {
             do {
                 if let line = try await client.forecastLine(for: event) { try await client.delete(line) }
             } catch {
-                problem = AppModel.describe(error)
+                problem = ListProblem(error)
             }
             await load()
         }
@@ -411,17 +400,40 @@ struct DayCell: View {
     let selected: Bool
     let wide: Bool
 
+    // Sizes that hold text grow with it (#311): the day's circle, the dots
+    // and the 9 and 10 point figures, each exactly as before at Large.
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ScaledMetric(relativeTo: .callout) private var scaledCircle: CGFloat = 30
+    @ScaledMetric(relativeTo: .callout) private var dotSize: CGFloat = 5
+    @ScaledMetric(relativeTo: .caption2) private var countSize: CGFloat = 9
+    @ScaledMetric(relativeTo: .caption2) private var balanceSize: CGFloat = 10
+
+    /// The day's net and balance written in. At the accessibility sizes
+    /// seven columns can't hold amounts: the grid shows the day and its dots,
+    /// and the amounts are in the day's list below.
+    private var showsAmounts: Bool { wide && !typeSize.isAccessibilitySize }
+
+    /// The day's circle: 30 at Large, growing with the text up to the width
+    /// a column has on the closed phone (seven across the card); past that
+    /// the number shrinks inside it.
+    private var circle: CGFloat { min(scaledCircle, 44) }
+
     var body: some View {
         let isToday = day == .today()
-        VStack(spacing: wide ? 2 : 3) {
+        VStack(spacing: showsAmounts ? 2 : 3) {
             Text("\(day.day)")
                 .font(wide ? .subheadline.weight(isToday ? .bold : .regular) : .callout.weight(isToday ? .bold : .regular))
                 .foregroundStyle(selected ? Color.white : (isToday ? Palette.accent : .primary))
-                .frame(width: 30, height: 30)
+                // Always the whole number: past where the circle fits its
+                // column, the number shrinks inside it rather than cut.
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .padding(.horizontal, typeSize <= .large ? 0 : 3)
+                .frame(width: circle, height: circle)
                 .background {
                     if selected { Circle().fill(Palette.accent) } else if isToday { Circle().strokeBorder(Palette.accent, lineWidth: 1.5) }
                 }
-            if wide {
+            if showsAmounts {
                 amounts
             } else {
                 HStack(spacing: 3) {
@@ -429,11 +441,11 @@ struct DayCell: View {
                     if summary.hasIncome { dot(Palette.good) }
                     if summary.hasTransfer { dot(.secondary) }
                 }
-                .frame(height: 6)
+                .frame(height: dotSize + 1)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: wide ? 78 : 44, alignment: .top)
-        .padding(.vertical, wide ? 4 : 2)
+        .frame(maxWidth: .infinity, minHeight: showsAmounts ? 78 : 44, alignment: .top)
+        .padding(.vertical, showsAmounts ? 4 : 2)
         .background(wide && selected ? Palette.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 10))
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
@@ -445,24 +457,38 @@ struct DayCell: View {
     @ViewBuilder
     private var amounts: some View {
         if summary.count > 0 {
-            Text((summary.net.isNegative ? "" : "+") + summary.net.short)
-                .font(.caption2.weight(.semibold).monospacedDigit())
-                .foregroundStyle(summary.net.isNegative ? Palette.bad : Palette.good)
-                .lineLimit(1).minimumScaleFactor(0.7)
+            fitted { _ in
+                Text((summary.net.isNegative ? "" : "+") + summary.net.short)
+                    .font(.caption2.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(summary.net.isNegative ? Palette.bad : Palette.good)
+            }
             if summary.count > 1 {
-                Text("\(summary.count) lines").font(.system(size: 9)).foregroundStyle(.secondary)
+                fitted { scaled in
+                    Text("\(summary.count) lines").font(.system(size: scaled ? countSize : 9)).foregroundStyle(.secondary)
+                }
             }
         }
         Spacer(minLength: 0)
         if let balance {
-            Text(balance.short).font(.system(size: 10).monospacedDigit())
-                .foregroundStyle(balance.isNegative ? Palette.bad : .secondary)
-                .lineLimit(1).minimumScaleFactor(0.7)
+            fitted { scaled in
+                Text(balance.short).font(.system(size: scaled ? balanceSize : 10).monospacedDigit())
+                    .foregroundStyle(balance.isNegative ? Palette.bad : .secondary)
+            }
+        }
+    }
+
+    /// A figure in a cell: whole at the phone's text size when it fits the
+    /// column, else as at the default size, shrinking a little as it always
+    /// has. Never cut short.
+    private func fitted<Figure: View>(@ViewBuilder _ text: @escaping (_ scaled: Bool) -> Figure) -> some View {
+        ViewThatFits(in: .horizontal) {
+            text(true).fixedSize()
+            text(false).dynamicTypeSize(.large).lineLimit(1).minimumScaleFactor(0.7)
         }
     }
 
     private func dot(_ color: Color) -> some View {
-        Circle().fill(color).frame(width: 5, height: 5)
+        Circle().fill(color).frame(width: dotSize, height: dotSize)
     }
 
     private var accessibilityText: String {
@@ -515,11 +541,20 @@ struct DayLines: View {
                     }
                 }
                 if let balance = data.balance(on: day) {
-                    HStack {
-                        Caption("Closing balance")
-                        Spacer()
-                        Text(balance.formatted).font(.callout.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(Palette.amount(balance.isNegative))
+                    let figure = Text(balance.formatted).font(.callout.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(Palette.amount(balance.isNegative))
+                        .wholeFigure()
+                    FitsAcross {
+                        HStack {
+                            Caption("Closing balance")
+                            Spacer()
+                            figure
+                        }
+                    } stacked: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Caption("Closing balance")
+                            figure
+                        }
                     }
                 }
                 if lines.isEmpty {
@@ -544,31 +579,42 @@ struct CalendarLineRow: View {
     let line: CalendarEvent
     let showAccount: Bool
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
+        let large = typeSize.isAccessibilitySize
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: line.isPaid ? "checkmark.circle.fill" : (line.isTransfer ? "arrow.left.arrow.right" : "circle"))
                 .foregroundStyle(line.isPaid ? Palette.good : .secondary)
                 .font(.subheadline)
                 .accessibilityLabel(line.isPaid ? "Paid" : "Not paid yet")
             VStack(alignment: .leading, spacing: 2) {
-                Text(line.description).lineLimit(2)
+                Text(line.description).lineLimit(large ? nil : 2)
                 let detail = [showAccount ? line.accountName : nil, line.categoryName,
                               line.recurringId != nil ? "repeats" : nil].compactMap { $0 }
                 if !detail.isEmpty {
-                    Text(detail.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text(detail.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(large ? nil : 1)
                 }
+                // The accessibility sizes: the amount under the words (#311).
+                if large { amount }
             }
             Spacer(minLength: 8)
-            if let amount = line.amount {
-                Text(amount.formatted).monospacedDigit()
-                    .foregroundStyle(line.isTransfer ? .secondary : (amount.isNegative ? Palette.bad : Palette.good))
-            }
+            if !large { amount }
             Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
                 .accessibilityHidden(true)
         }
         .font(.subheadline)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var amount: some View {
+        if let amount = line.amount {
+            Text(amount.formatted).monospacedDigit()
+                .foregroundStyle(line.isTransfer ? .secondary : (amount.isNegative ? Palette.bad : Palette.good))
+                .wholeFigure()
+        }
     }
 }
 
@@ -596,6 +642,7 @@ struct TodayView: View {
                             Spacer()
                             Text(account.currentBalance.formatted).monospacedDigit()
                                 .foregroundStyle(Palette.amount(account.currentBalance.isNegative))
+                                .wholeFigure()
                         }
                         .font(.callout)
                         .contentShape(Rectangle())

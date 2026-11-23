@@ -230,16 +230,25 @@ private struct BillTotalsGrid: View {
     let totals: RecurringList.Totals
 
     var body: some View {
-        Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
-            GridRow(alignment: .bottom) {
-                Caption("Bills a month")
-                Caption("Income a month")
-                Caption("Left over")
+        FitsAcross {
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
+                GridRow(alignment: .bottom) {
+                    Caption("Bills a month")
+                    Caption("Income a month")
+                    Caption("Left over")
+                }
+                GridRow {
+                    figure(Money(-totals.billsMonthly.amount), color: Palette.bad)
+                    figure(totals.incomeMonthly, color: Palette.good)
+                    figure(totals.netMonthly, color: Palette.amount(totals.netMonthly.isNegative))
+                }
             }
-            GridRow {
-                figure(Money(-totals.billsMonthly.amount), color: Palette.bad)
-                figure(totals.incomeMonthly, color: Palette.good)
-                figure(totals.netMonthly, color: Palette.amount(totals.netMonthly.isNegative))
+        } stacked: {
+            // The larger text sizes: one to a row, the label over it (#311).
+            VStack(alignment: .leading, spacing: 10) {
+                stacked("Bills a month", Money(-totals.billsMonthly.amount), color: Palette.bad)
+                stacked("Income a month", totals.incomeMonthly, color: Palette.good)
+                stacked("Left over", totals.netMonthly, color: Palette.amount(totals.netMonthly.isNegative))
             }
         }
     }
@@ -248,8 +257,16 @@ private struct BillTotalsGrid: View {
         Text(value.formatted)
             .font(.callout.weight(.semibold).monospacedDigit())
             .foregroundStyle(color)
-            .minimumScaleFactor(0.7).lineLimit(1)
+            .wholeFigure(defaultScale: 0.7)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func stacked(_ label: String, _ value: Money, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Caption(label)
+            figure(value, color: color)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -259,6 +276,8 @@ struct BillsSummaryView: View {
     let data: RecurringList
     let showEnded: Bool
     let onOpen: (RecurringItem) -> Void
+    /// The dates' column grows with the text size (#311).
+    @ScaledMetric(relativeTo: .subheadline) private var dateWidth: CGFloat = 56
 
     var body: some View {
         let today = LocalDay.today()
@@ -286,13 +305,26 @@ struct BillsSummaryView: View {
                     }
                     ForEach(soon) { item in
                         Button { onOpen(item) } label: {
-                            HStack {
-                                Text(item.nextDate.map { $0 == today ? "Today" : $0.short } ?? "")
-                                    .foregroundStyle(.secondary).frame(width: 56, alignment: .leading)
-                                Text(item.description).lineLimit(1)
-                                Spacer()
-                                Text(item.amount.formatted)
-                                    .foregroundStyle(item.isIncome ? Palette.good : Palette.bad)
+                            let date = item.nextDate.map { $0 == today ? "Today" : $0.short } ?? ""
+                            let amount = Text(item.amount.formatted)
+                                .foregroundStyle(item.isIncome ? Palette.good : Palette.bad)
+                            FitsAcross {
+                                HStack {
+                                    Text(date).foregroundStyle(.secondary).frame(width: dateWidth, alignment: .leading)
+                                    Text(item.description).lineLimit(1)
+                                    Spacer()
+                                    amount.wholeFigure()
+                                }
+                            } stacked: {
+                                // The larger text sizes: the name, then its date and amount (#311).
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.description).fixedSize(horizontal: false, vertical: true)
+                                    HStack {
+                                        Text(date).foregroundStyle(.secondary)
+                                        Spacer(minLength: 8)
+                                        amount.wholeFigure()
+                                    }
+                                }
                             }
                             .font(.subheadline.monospacedDigit())
                             .contentShape(Rectangle())
@@ -308,10 +340,17 @@ struct BillsSummaryView: View {
     }
 
     private func row(_ label: String, _ value: Money, _ color: Color) -> some View {
-        HStack {
-            Text(label).foregroundStyle(.secondary)
-            Spacer()
-            Text(value.formatted).monospacedDigit().foregroundStyle(color)
+        FitsAcross {
+            HStack {
+                Text(label).foregroundStyle(.secondary)
+                Spacer()
+                Text(value.formatted).monospacedDigit().foregroundStyle(color).wholeFigure()
+            }
+        } stacked: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Text(value.formatted).monospacedDigit().foregroundStyle(color).wholeFigure()
+            }
         }
         .font(.callout)
     }
@@ -328,24 +367,50 @@ struct BillCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Image(systemName: item.isIncome ? "arrow.down.left.circle.fill" : "arrow.up.right.circle")
-                    .foregroundStyle(item.isIncome ? Palette.good : .secondary)
-                    .accessibilityLabel(item.isIncome ? "Income" : "Bill")
-                Text(item.description).font(.headline).lineLimit(2)
-                Spacer(minLength: 8)
-                Text(item.amount.formatted)
-                    .font(.headline.monospacedDigit())
-                    .foregroundStyle(item.isIncome ? Palette.good : Palette.bad)
+            let mark = Image(systemName: item.isIncome ? "arrow.down.left.circle.fill" : "arrow.up.right.circle")
+                .foregroundStyle(item.isIncome ? Palette.good : .secondary)
+                .accessibilityLabel(item.isIncome ? "Income" : "Bill")
+            let amount = Text(item.amount.formatted)
+                .font(.headline.monospacedDigit())
+                .foregroundStyle(item.isIncome ? Palette.good : Palette.bad)
+                .wholeFigure()
+            FitsAcross {
+                HStack(alignment: .firstTextBaseline) {
+                    mark
+                    Text(item.description).font(.headline).lineLimit(2)
+                    Spacer(minLength: 8)
+                    amount
+                }
+            } stacked: {
+                // The larger text sizes: the name, then the amount under it (#311).
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline) {
+                        mark
+                        Text(item.description).font(.headline).fixedSize(horizontal: false, vertical: true)
+                    }
+                    amount
+                }
             }
             Text(item.howOften).font(.subheadline).foregroundStyle(.secondary)
-            HStack(spacing: 6) {
-                Text(nextText).font(.subheadline.weight(.medium))
-                    .foregroundStyle(item.expired ? .secondary : .primary)
-                let detail = [showAccount ? item.accountName : nil, item.categoryName].compactMap { $0 }
-                if !detail.isEmpty {
-                    Text("·").foregroundStyle(.tertiary)
-                    Text(detail.joined(separator: " · ")).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+            let detail = [showAccount ? item.accountName : nil, item.categoryName].compactMap { $0 }
+            FitsAcross {
+                HStack(spacing: 6) {
+                    Text(nextText).font(.subheadline.weight(.medium))
+                        .foregroundStyle(item.expired ? .secondary : .primary)
+                    if !detail.isEmpty {
+                        Text("·").foregroundStyle(.tertiary)
+                        Text(detail.joined(separator: " · ")).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
+            } stacked: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(nextText).font(.subheadline.weight(.medium))
+                        .foregroundStyle(item.expired ? .secondary : .primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if !detail.isEmpty {
+                        Text(detail.joined(separator: " · ")).font(.subheadline).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
             TagChips(tags: item.tags ?? [])
@@ -405,7 +470,7 @@ struct SkipDateSheet: View {
     let onSkipped: () async -> Void
 
     @State private var confirm: LocalDay?
-    @State private var problem: String?
+    @State private var problem: FormProblem?
 
     var body: some View {
         NavigationStack {
@@ -430,6 +495,7 @@ struct SkipDateSheet: View {
             }
             .navigationTitle("Skip a date of \(item.description)")
             .navigationBarTitleDisplayMode(.inline)
+            .problemBanner($problem)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel", role: .cancel) { dismiss() } }
             }
@@ -438,18 +504,17 @@ struct SkipDateSheet: View {
                                 titleVisibility: .visible, presenting: confirm) { day in
                 Button("Skip \(day.short)", role: .destructive) { Task { await skip(day) } }
             }
-            .alert("Couldn't skip it", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
-                Button("OK", role: .cancel) {}
-            } message: { Text(problem ?? "") }
         }
     }
 
     private func skip(_ day: LocalDay) async {
         guard let client = model.client else { return }
+        problem = nil
         do {
+            try FormProblem.failIfAsked()
             try await client.skip(item, on: day)
         } catch {
-            problem = AppModel.describe(error)
+            problem = FormProblem(error) { Task { await skip(day) } }
             return
         }
         await onSkipped()
@@ -467,7 +532,7 @@ struct EndBillSheet: View {
 
     @State private var last = LocalDay.today()
     @State private var saving = false
-    @State private var problem: String?
+    @State private var problem: FormProblem?
 
     var body: some View {
         NavigationStack {
@@ -485,26 +550,26 @@ struct EndBillSheet: View {
             .navigationTitle("End \(item.description)")
             .navigationBarTitleDisplayMode(.inline)
             .disabled(saving)
+            .problemBanner($problem)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel", role: .cancel) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("End") { Task { await end() } }.buttonStyle(.glassProminent)
                 }
             }
-            .alert("Couldn't end it", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
-                Button("OK", role: .cancel) {}
-            } message: { Text(problem ?? "") }
         }
     }
 
     private func end() async {
         guard let client = model.client else { return }
         saving = true
+        problem = nil
         defer { saving = false }
         do {
+            try FormProblem.failIfAsked()
             try await client.updateRecurring(item.id, RecurringBody(ending: item, after: last))
         } catch {
-            problem = AppModel.describe(error)
+            problem = FormProblem(error) { Task { await end() } }
             return
         }
         await onEnded()
@@ -595,7 +660,7 @@ struct BillEditor: View {
     let onSaved: () async -> Void
 
     @State private var saving = false
-    @State private var problem: String?
+    @State private var problem: FormProblem?
     @State private var confirmRestore = false
     @State private var savedCount = 0
 
@@ -653,10 +718,10 @@ struct BillEditor: View {
         .background { if !embedded { PageBackground().ignoresSafeArea() } }
         .contentMargins(.leading, embedded ? edges.formMargin : 0, for: .scrollContent)
         .disabled(saving)
+        .problemBanner($problem, edges: embedded ? edges : .plain)
         .sensoryFeedback(.success, trigger: savedCount)
-        .alert("Couldn't save", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
-            Button("OK", role: .cancel) {}
-        } message: { Text(problem ?? "") }
+        // Another bill in the pane: the last one's problem goes with it.
+        .onChange(of: open.id) { problem = nil }
         .confirmationDialog(restoreTitle, isPresented: $confirmRestore, titleVisibility: .visible) {
             Button("Bring back", role: .destructive) { Task { await restoreDates() } }
         } message: {
@@ -672,11 +737,13 @@ struct BillEditor: View {
     private func restoreDates() async {
         guard let client = model.client, let item = open.item else { return }
         saving = true
+        problem = nil
         defer { saving = false }
         do {
+            try FormProblem.failIfAsked()
             try await client.restoreSkippedDates(item)
         } catch {
-            problem = AppModel.describe(error)
+            problem = FormProblem(error) { Task { await restoreDates() } }
             return
         }
         await onSaved()
@@ -806,15 +873,17 @@ struct BillEditor: View {
     private func save() async {
         guard let client = model.client else { return }
         saving = true
+        problem = nil
         defer { saving = false }
         do {
+            try FormProblem.failIfAsked()
             if let item = open.item {
                 try await client.updateRecurring(item.id, RecurringBody(open.draft, active: item.active))
             } else if let account = open.accountId {
                 try await client.addRecurring(open.draft, account: account)
             }
         } catch {
-            problem = AppModel.describe(error)
+            problem = FormProblem(error) { Task { await save() } }
             return
         }
         savedCount += 1

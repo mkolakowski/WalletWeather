@@ -133,6 +133,14 @@ it, and these choose that page there; the open page is kept per window
 saved in the web app; `WW_DEBUG_LOOK=<look>` picks the look the same way.
 `SIMCTL_CHILD_WW_DEBUG_UNDO=Rent` shows the Forecast's Undo bar for that line
 once the page has loaded (#315); it saves nothing and stays until dismissed.
+`SIMCTL_CHILD_WW_DEBUG_FAIL_SAVE=offline` opens every editor and sheet (the
+line and bill editors, Add transaction, Move money, Skip a date, End, New
+account) already showing the problem banner at its top, as if a save had just
+failed, and makes every save fail the same way (#311): `offline` (or `1`) and
+`slow` offer Try again, `signin` offers Sign in again, `cloudflare` Sign in to
+Cloudflare, and `server` (a refusal with the server's reason) and `demo` (the
+demo's "doesn't save changes") offer no button. With
+`WW_DEBUG_OPEN_LINE` it puts the line editor in that state with no taps.
 `SIMCTL_CHILD_WW_DEBUG_CONNECTIONS=sample` fills Settings → Connections for
 pictures (#300): two sample servers, "Home" (home.example.com) and "Mum &
 Dad" (ww.parents.example), plus the household on this iPhone when the

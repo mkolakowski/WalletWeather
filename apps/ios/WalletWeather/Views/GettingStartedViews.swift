@@ -11,6 +11,9 @@ import WalletWeatherKit
 struct GettingStartedCard: View {
     @Environment(AppSettings.self) private var settings
     let open: (StartTask) -> Void
+    // Grows with the text size, exactly as before at Large (#311).
+    @ScaledMetric(relativeTo: .footnote) private var closeSize: CGFloat = 30
+    @ScaledMetric(relativeTo: .title3) private var symbolWidth: CGFloat = 28
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -26,7 +29,7 @@ struct GettingStartedCard: View {
                     withAnimation { settings.start.dismissed = true }
                 } label: {
                     Image(systemName: "xmark").font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
-                        .frame(width: 30, height: 30).contentShape(Rectangle())
+                        .frame(width: closeSize, height: closeSize).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Close Getting started")
@@ -38,7 +41,7 @@ struct GettingStartedCard: View {
                         Image(systemName: done ? "checkmark.circle.fill" : task.symbol)
                             .font(.title3)
                             .foregroundStyle(done ? Palette.good : Palette.accent)
-                            .frame(width: 28)
+                            .frame(width: symbolWidth)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(task.title).strikethrough(done)
                             Text(task.detail).font(.footnote).foregroundStyle(.secondary)
@@ -62,6 +65,8 @@ struct GettingStartedCard: View {
 /// → Tab bar does the same and can reorder.
 struct TabBarTour: View {
     @Environment(AppSettings.self) private var settings
+    // Grows with the text size, exactly as before at Large (#311).
+    @ScaledMetric(relativeTo: .footnote) private var placeWidth: CGFloat = 18
     @Environment(\.barOnSide) private var barOnSide
     @Environment(\.dismiss) private var dismiss
     @State private var draft: [TabPage] = []
@@ -114,7 +119,7 @@ struct TabBarTour: View {
     private func row(at place: Int) -> some View {
         let others = TabPage.notIn(draft)
         HStack(spacing: 8) {
-            Text("\(place + 1)").font(.footnote.monospacedDigit()).foregroundStyle(.secondary).frame(width: 18)
+            Text("\(place + 1)").font(.footnote.monospacedDigit()).foregroundStyle(.secondary).frame(width: placeWidth)
             if place < draft.count {
                 let page = draft[place]
                 VStack(alignment: .leading, spacing: 2) {

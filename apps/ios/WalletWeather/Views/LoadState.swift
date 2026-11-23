@@ -29,19 +29,9 @@ struct ProblemView: View {
         } description: {
             Text(error.message)
         } actions: {
-            switch error {
-            case .cloudflareSignInNeeded:
-                Button("Sign in to Cloudflare") {
-                    Task { if await model.renewCloudflare() { retry() } }
-                }
+            // A page that couldn't load always offers at least Try again.
+            WayForwardButton(way: error.wayForward ?? .tryAgain, signingIn: $signingIn, retry: retry)
                 .buttonStyle(.glassProminent)
-            case .tokenExpired, .tokenRevoked:
-                Button("Sign in again") { signingIn = true }
-                    .buttonStyle(.glassProminent)
-            default:
-                Button("Try again", action: retry)
-                    .buttonStyle(.glassProminent)
-            }
         }
         .sheet(isPresented: $signingIn) { AddServerSheet(server: model.connection?.server) }
     }

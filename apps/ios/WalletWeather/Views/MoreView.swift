@@ -58,7 +58,10 @@ struct NetWorthView: View {
                 Text(total.formatted)
                     .font(.system(.largeTitle, design: .rounded, weight: .semibold).monospacedDigit())
                     .foregroundStyle(Palette.amount(total.isNegative))
-                    .minimumScaleFactor(0.6).lineLimit(1)
+                    .wholeFigure(defaultScale: 0.6)
+                    // Already the biggest text on the page: it stops growing
+                    // where a whole total still fits the card (#311).
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility2)
                 if let change = data.change(through: today) {
                     Text("\(change.isNegative ? "" : "+")\(change.formatted) since \(data.start.short)")
                         .font(.subheadline.monospacedDigit())
@@ -66,7 +69,7 @@ struct NetWorthView: View {
                 }
                 BalanceChart(points: data.trend)
                 if data.window == .month {
-                    HStack {
+                    FigureRow {
                         figure("Month-end forecast", data.forecastEndTotal)
                         figure("Month-end actual", data.actualEndTotal)
                     }
@@ -92,6 +95,7 @@ struct NetWorthView: View {
                         VStack(alignment: .trailing, spacing: 2) {
                             Text(account.actualEnd.formatted).monospacedDigit()
                                 .foregroundStyle(Palette.amount(account.actualEnd.isNegative))
+                                .wholeFigure()
                             Text("from \(account.openingBalance.formatted)").font(.caption).foregroundStyle(.secondary)
                         }
                     }
@@ -112,6 +116,7 @@ struct NetWorthView: View {
             Text(label).font(.caption).foregroundStyle(.secondary)
             Text(value.formatted).font(.body.weight(.semibold).monospacedDigit())
                 .foregroundStyle(Palette.amount(value.isNegative))
+                .wholeFigure()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -170,7 +175,7 @@ struct BudgetsView: View {
                 if data.budgeted.isEmpty {
                     Text("No budgets yet. Set them in the web app's Budgets page, and they show here.").font(.callout)
                 } else {
-                    HStack {
+                    FigureRow {
                         figure("Budgeted", data.totals.budget, Palette.text ?? .primary)
                         figure("Spent", data.budgetedSpend, Palette.text ?? .primary)
                         figure(data.budgetedLeft.isNegative ? "Over" : "Left", Money(abs(data.budgetedLeft.amount)),
@@ -215,7 +220,7 @@ struct BudgetsView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label).font(.caption).foregroundStyle(.secondary)
             Text(value.formatted).font(.callout.weight(.semibold).monospacedDigit()).foregroundStyle(color)
-                .minimumScaleFactor(0.7).lineLimit(1)
+                .wholeFigure(defaultScale: 0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -232,10 +237,19 @@ struct BudgetRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(row.categoryName).font(.body.weight(.medium))
-                Spacer()
-                Text("\(row.spend.formatted) of \(row.budget.formatted)").font(.subheadline.monospacedDigit())
+            let spent = Text("\(row.spend.formatted) of \(row.budget.formatted)").font(.subheadline.monospacedDigit())
+            FitsAcross {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(row.categoryName).font(.body.weight(.medium))
+                    Spacer()
+                    spent.wholeFigure()
+                }
+            } stacked: {
+                // The larger text sizes: the figures under the name (#311).
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(row.categoryName).font(.body.weight(.medium)).fixedSize(horizontal: false, vertical: true)
+                    spent.fixedSize(horizontal: false, vertical: true)
+                }
             }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
@@ -384,7 +398,7 @@ struct ReportResult: View {
             case let .loaded(data):
                 VStack(alignment: .leading, spacing: 8) {
                     Caption(data.rangeLabel)
-                    HStack {
+                    FigureRow {
                         figure("Income", data.totals.actualIncome, Palette.good)
                         figure("Spending", data.totals.actualSpending, Palette.bad)
                         figure("Net", data.totals.actualNet, Palette.amount(data.totals.actualNet.isNegative))
@@ -427,7 +441,7 @@ struct ReportResult: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label).font(.caption).foregroundStyle(.secondary)
             Text(value.formatted).font(.callout.weight(.semibold).monospacedDigit()).foregroundStyle(color)
-                .minimumScaleFactor(0.7).lineLimit(1)
+                .wholeFigure(defaultScale: 0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

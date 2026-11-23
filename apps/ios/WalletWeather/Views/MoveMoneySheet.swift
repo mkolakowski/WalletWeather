@@ -39,7 +39,7 @@ struct MoveMoneySheet: View {
     let onMoved: () async -> Void
 
     @State private var saving = false
-    @State private var problem: String?
+    @State private var problem: FormProblem?
     @State private var movedCount = 0
 
     var body: some View {
@@ -66,7 +66,7 @@ struct MoveMoneySheet: View {
                                    displayedComponents: .date)
                     } footer: {
                         if let problem = draft.problem, !draft.amountText.isEmpty || draft.fromAccountId != nil {
-                            Text(problem)
+                            Text(problem).foregroundStyle(Palette.bad)
                         } else {
                             Text("Recorded as paid on this date, on both accounts.")
                         }
@@ -83,6 +83,7 @@ struct MoveMoneySheet: View {
             .navigationTitle("Move money")
             .navigationBarTitleDisplayMode(.inline)
             .disabled(saving)
+            .problemBanner($problem)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", role: .cancel) { dismiss() }
@@ -93,11 +94,6 @@ struct MoveMoneySheet: View {
                         .disabled(draft.problem != nil)
                 }
             }
-            .alert("Couldn't move it", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(problem ?? "")
-            }
             .sensoryFeedback(.success, trigger: movedCount)
         }
     }
@@ -105,11 +101,13 @@ struct MoveMoneySheet: View {
     private func move() async {
         guard let client = model.client, let body = TransferBody(draft) else { return }
         saving = true
+        problem = nil
         defer { saving = false }
         do {
+            try FormProblem.failIfAsked()
             try await client.moveMoney(body)
         } catch {
-            problem = AppModel.describe(error)
+            problem = FormProblem(error) { Task { await move() } }
             return
         }
         movedCount += 1

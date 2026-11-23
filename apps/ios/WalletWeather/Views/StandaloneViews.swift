@@ -216,7 +216,7 @@ struct NewAccountSheet: View {
 
     @State private var draft = AccountDraft(today: .today())
     @State private var saving = false
-    @State private var problem: String?
+    @State private var problem: FormProblem?
     @FocusState private var nameFocused: Bool
 
     var body: some View {
@@ -236,7 +236,7 @@ struct NewAccountSheet: View {
                                                                 set: { draft.startingDate = LocalDay.today(now: $0) }),
                                displayedComponents: .date)
                 } footer: {
-                    if let problem = problem ?? (draft.name.isEmpty && draft.balanceText.isEmpty ? nil : draft.problem) {
+                    if let problem = draft.name.isEmpty && draft.balanceText.isEmpty ? nil : draft.problem {
                         Text(problem).foregroundStyle(Palette.bad)
                     } else {
                         Text("The balance on the starting date. For money owed, such as a credit card, start it with a minus: -300.")
@@ -245,6 +245,7 @@ struct NewAccountSheet: View {
             }
             .navigationTitle("New account")
             .navigationBarTitleDisplayMode(.inline)
+            .problemBanner($problem)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
@@ -258,13 +259,15 @@ struct NewAccountSheet: View {
     private func add() async {
         guard let body = draft.body, let client = model.client else { return }
         saving = true
+        problem = nil
         defer { saving = false }
         do {
+            try FormProblem.failIfAsked()
             try await client.createAccount(body)
             await onAdded()
             dismiss()
         } catch {
-            problem = AppModel.describe(error)
+            problem = FormProblem(error) { Task { await add() } }
         }
     }
 }

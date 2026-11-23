@@ -9,7 +9,7 @@ struct UndoOffer: Identifiable {
     /// "Rent marked paid".
     let message: String
     /// Takes it back; true when that went through. It reports its own
-    /// failure (the page's "Couldn't save" alert), so the bar only needs to
+    /// failure (the page's problem alert), so the bar only needs to
     /// know whether to give the lighter haptic.
     let undo: @MainActor () async -> Bool
     /// Stays until dismissed: a Debug launch setting shows it for a picture.

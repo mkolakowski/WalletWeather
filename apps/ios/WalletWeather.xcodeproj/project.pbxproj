@@ -11,6 +11,7 @@
 		0E50FD7DF2A071A170661300 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 319D4205BFCC35DC6757600B /* DashboardView.swift */; };
 		12B45AEEC84F77C8BF0B4F8F /* BackupViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99597682BE06C6A4C37D1188 /* BackupViews.swift */; };
 		1B91942AA2AD6B61B89A0CA2 /* SignInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B7EE513A73A7A19A6F7A07 /* SignInSheet.swift */; };
+		1FCF02B71067FD3EBB3F9DE1 /* ProblemBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D8B8F746C4489B2D9FC26F6 /* ProblemBanner.swift */; };
 		2A3F787DFA9A3BC6817806A5 /* PhoneBankViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 501BC9A34865BA8B81980E67 /* PhoneBankViews.swift */; };
 		2B6E20C2C6B57F2469053035 /* StandaloneViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57CA23B0750CAA45E8AC60BD /* StandaloneViews.swift */; };
 		2BCD253633EC7F7F0D70AF73 /* ConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3E9C40EFE3CCE23D41AA8C7 /* ConnectView.swift */; };
@@ -28,6 +29,7 @@
 		769AEB2CED36BFC4608187F6 /* DebugBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5BA074FBBDD01FF1B577DD8 /* DebugBridge.swift */; };
 		7F55D88A9F9D45F195025027 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13149321E10C325276768DD5 /* Theme.swift */; };
 		80669495013A8E87A3743E59 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDE64033EF7589F61FD10A90 /* SearchView.swift */; };
+		86C2917221963763A2AA523A /* LargeText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE6D34667F5BB86D58712D /* LargeText.swift */; };
 		8DC91904DD11611BE2773B20 /* GettingStartedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75BD1096AF0D745FED33F38E /* GettingStartedViews.swift */; };
 		961F8837BB7456E29B052F79 /* UndoBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B996A28417EBEFEBDF64CE1 /* UndoBar.swift */; };
 		993C5B78D1DE13E67283D85E /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C580FBC80891DCC74238FFCA /* CalendarView.swift */; };
@@ -63,6 +65,7 @@
 		34D31157F799FA2DD3673952 /* WalletWeather.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WalletWeather.entitlements; sourceTree = "<group>"; };
 		354C1F47B2C105A157D90B7C /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		38A0E0386259C1431BB7F2D1 /* WalletWeather.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = WalletWeather.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3D8B8F746C4489B2D9FC26F6 /* ProblemBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProblemBanner.swift; sourceTree = "<group>"; };
 		3FF8DF9E3C8A01A950E0D995 /* NoticeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoticeView.swift; sourceTree = "<group>"; };
 		477E3FB4D8EDDD73201F110E /* OpenInForecast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenInForecast.swift; sourceTree = "<group>"; };
 		4EF6456B5FCCB4251D23495E /* LoadState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadState.swift; sourceTree = "<group>"; };
@@ -82,6 +85,7 @@
 		8D0553102CA76CF6F2551892 /* BillsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillsView.swift; sourceTree = "<group>"; };
 		93FEDA0F77F540CE23C05F54 /* WalletWeatherKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WalletWeatherKit; path = WalletWeatherKit; sourceTree = SOURCE_ROOT; };
 		948E8EEE1A65AFD31A880000 /* BigScreenViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BigScreenViews.swift; sourceTree = "<group>"; };
+		94AE6D34667F5BB86D58712D /* LargeText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargeText.swift; sourceTree = "<group>"; };
 		9819ED5346F2EC2B60C37AA5 /* MonthMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthMenu.swift; sourceTree = "<group>"; };
 		99597682BE06C6A4C37D1188 /* BackupViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupViews.swift; sourceTree = "<group>"; };
 		A3E9C40EFE3CCE23D41AA8C7 /* ConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectView.swift; sourceTree = "<group>"; };
@@ -145,6 +149,7 @@
 				7E7678658EAB739DFC9B70A4 /* FoldLayout.swift */,
 				067F8A5A4984B672631E4818 /* ForecastView.swift */,
 				75BD1096AF0D745FED33F38E /* GettingStartedViews.swift */,
+				94AE6D34667F5BB86D58712D /* LargeText.swift */,
 				A91553B7086BC583359B4E5F /* LineEditor.swift */,
 				4EF6456B5FCCB4251D23495E /* LoadState.swift */,
 				9819ED5346F2EC2B60C37AA5 /* MonthMenu.swift */,
@@ -154,6 +159,7 @@
 				3FF8DF9E3C8A01A950E0D995 /* NoticeView.swift */,
 				477E3FB4D8EDDD73201F110E /* OpenInForecast.swift */,
 				501BC9A34865BA8B81980E67 /* PhoneBankViews.swift */,
+				3D8B8F746C4489B2D9FC26F6 /* ProblemBanner.swift */,
 				A98C31592C4A8C02D24C2584 /* QRScanSheet.swift */,
 				ABF20F601A1EB2143ABA37C6 /* RootView.swift */,
 				795D7F25402606692C251B7E /* ScopedToConnection.swift */,
@@ -299,6 +305,7 @@
 				BB489358CA96FB9596EE2902 /* ForecastView.swift in Sources */,
 				8DC91904DD11611BE2773B20 /* GettingStartedViews.swift in Sources */,
 				5674B2C7B6BE02CCE7EB0BA9 /* Keychain.swift in Sources */,
+				86C2917221963763A2AA523A /* LargeText.swift in Sources */,
 				B9DF71AA4970ECC6F0927401 /* LineEditor.swift in Sources */,
 				3D7A5B5BE64924E4AE8BF00A /* LoadState.swift in Sources */,
 				EC7FFE9E0118DB3EF0409912 /* MonthMenu.swift in Sources */,
@@ -308,6 +315,7 @@
 				B789C70FB22BF28F157FB1A7 /* NoticeView.swift in Sources */,
 				FE6DB983F28367B5822AB69E /* OpenInForecast.swift in Sources */,
 				2A3F787DFA9A3BC6817806A5 /* PhoneBankViews.swift in Sources */,
+				1FCF02B71067FD3EBB3F9DE1 /* ProblemBanner.swift in Sources */,
 				D15E3123C4A13434AC0DE0F8 /* QRScanSheet.swift in Sources */,
 				B29B4373B3A526BF9E85393F /* RootView.swift in Sources */,
 				AA6E7808084DB08B97F7A142 /* ScopedToConnection.swift in Sources */,
@@ -383,7 +391,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.47.0;
+				MARKETING_VERSION = 0.48.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -451,7 +459,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.47.0;
+				MARKETING_VERSION = 0.48.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

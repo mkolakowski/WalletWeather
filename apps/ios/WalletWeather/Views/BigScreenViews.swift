@@ -236,16 +236,9 @@ private struct SideHeader: View {
                 }
                 .foregroundStyle(.primary)
             }
-            HStack {
-                Button("Previous month", systemImage: "chevron.left") { side.month = side.month.previous }
-                    .labelStyle(.iconOnly)
-                Spacer()
-                MonthMenu(month: side.month, font: .subheadline.weight(.semibold)) { side.month = $0 }
-                Spacer()
-                Button("Next month", systemImage: "chevron.right") { side.month = side.month.next }
-                    .labelStyle(.iconOnly)
-            }
-            .buttonStyle(.glass)
+            MonthBar(month: side.month, font: .subheadline.weight(.semibold),
+                     onMove: { side.month = $0 < 0 ? side.month.previous : side.month.next },
+                     onPick: { side.month = $0 })
             HStack {
                 figure("Starts", data.openingBalance)
                 figure("Forecast end", data.forecastEndingBalance)

@@ -103,6 +103,36 @@ public enum APIError: Error, Sendable, Equatable {
         }
     }
 
+    /// The way forward a problem offers as a button (#311): signing in
+    /// again where the sign-in ran out, else trying the same thing again.
+    public enum WayForward: Equatable, Sendable {
+        case tryAgain
+        case signInToCloudflare
+        case signInAgain
+    }
+
+    /// The button a form's problem banner offers, or nil when trying the
+    /// same thing again can't help: the server refused what was sent (a 4xx
+    /// with its reason), the demo saves nothing, or the address or the
+    /// password is what needs changing. A page that couldn't load always
+    /// offers at least Try again (`ProblemView`).
+    public var wayForward: WayForward? {
+        switch self {
+        case .cloudflareSignInNeeded: .signInToCloudflare
+        case .tokenExpired, .tokenRevoked: .signInAgain
+        case .offline, .slowServer, .cannotReach, .insecure, .serverTooOld, .unexpectedResponse: .tryAgain
+        case let .server(status, _): status >= 500 ? .tryAgain : nil
+        case .wrongPassword, .twoFactorCodeNeeded, .notWalletWeather, .demoReadOnly: nil
+        }
+    }
+
+    /// Any thrown error as one of these, so a banner or an alert has a title
+    /// and a message: an `APIError` as it is, anything else as "Something
+    /// went wrong".
+    public init(_ error: any Error) {
+        self = error as? APIError ?? .unexpectedResponse(error.localizedDescription)
+    }
+
     static func from(_ error: URLError, host: String) -> APIError {
         switch error.code {
         case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed, .internationalRoamingOff,

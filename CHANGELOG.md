@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.47.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.48.0**
 
 ### Added
 
@@ -84,6 +84,8 @@ App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** ·
 
 ### Changed
 
+- **iPhone: every page reads at the largest text sizes.** With the phone's text size turned up (Settings → Accessibility → Display & Text Size → Larger Text), figures that shared a row stack one to a row, a label never breaks inside a word, an amount is never cut, and the Calendar keeps whole day numbers (its amounts move to the day's list at the largest sizes). With the Duo open, Forecast shows its line cards instead of the table at those sizes. Nothing changes at the usual size (iOS 0.48.0).
+- **iPhone: a save that fails says so at the top of the form,** with the way forward where there is one (Try again, Sign in to Cloudflare, Sign in again), in place of a "Couldn't save" alert. It stays until you try again or close the form. A problem with what you typed is still written under that field.
 - **iPhone: Appearance shows each look as a tiny screen in its own colours,** with a balance bar, an amount in and out, and a button, as the web app's Settings does. Match this iPhone is half Light and half Dark; Match the web app shows the theme saved on your server. Tap one to use it. Getting started's Choose a look uses the same previews (iOS 0.45.0).
 - **Breaking: iPhone: a date outside this year now shows its year,** as in the web app: "Dec 29, 2027" where it read "Dec 29".
 - **iPhone Duo: Settings is a sidebar and a page when open,** like the Duo's own Settings. The list (where you are, the other pages, your household, this iPhone, About) stands down the left with each row's value under its name, and the row you choose opens beside it under a card with its name and a line about it. Calendar, Net worth, Budgets and Reports open there too when they aren't in the tab bar. Closing the Duo on a page shows that page; opening it again shows the sidebar with the same page chosen. Closed, Settings is the list it was (iOS 0.44.0).

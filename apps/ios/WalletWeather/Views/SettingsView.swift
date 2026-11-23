@@ -324,6 +324,9 @@ private struct ConnectionCard: View {
     var compact = false
     var chosen = false
     let action: () -> Void
+    // Grows with the text size, exactly as before at Large (#311).
+    @ScaledMetric(relativeTo: .title3) private var compactTile: CGFloat = 36
+    @ScaledMetric(relativeTo: .title2) private var fullTile: CGFloat = 44
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
@@ -332,7 +335,7 @@ private struct ConnectionCard: View {
                 Image(systemName: layout.symbol(of: .connection))
                     .font(compact ? .title3 : .title2)
                     .foregroundStyle(Palette.accent)
-                    .frame(width: compact ? 36 : 44, height: compact ? 36 : 44)
+                    .frame(width: compact ? compactTile : fullTile, height: compact ? compactTile : fullTile)
                     .background(Palette.accent.opacity(0.14), in: .circle)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(model.settingsHouseholdName).font(.headline).lineLimit(compact ? 1 : nil)
@@ -444,6 +447,8 @@ private struct SidebarRow: View {
     var greyed = false
     var isAction = false
     let action: () -> Void
+    // Grows with the text size, exactly as before at Large (#311).
+    @ScaledMetric(relativeTo: .subheadline) private var tile: CGFloat = 30
 
     var body: some View {
         let tint = greyed ? Color.secondary : Palette.accent
@@ -452,7 +457,7 @@ private struct SidebarRow: View {
                 Image(systemName: symbol)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(tint)
-                    .frame(width: 30, height: 30)
+                    .frame(width: tile, height: tile)
                     .background(tint.opacity(0.16), in: .rect(cornerRadius: 8, style: .continuous))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title)

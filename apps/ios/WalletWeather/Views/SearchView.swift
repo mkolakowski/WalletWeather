@@ -348,21 +348,40 @@ struct SearchHitRow: View {
 
     var body: some View {
         let line = hit.line
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            PaidMark(line: line, today: .today())
-            VStack(alignment: .leading, spacing: 3) {
-                Text(hit.description).font(.body.weight(.medium)).lineLimit(2)
-                Text([hit.accountName, line.plannedDate.map { ($0 == line.actualDate || !line.isPaid) ? $0.short : "paid \(line.actualDate?.short ?? "")" },
-                      hit.categoryName].compactMap { $0 }.joined(separator: " · "))
-                    .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                TagChips(tags: hit.tags ?? [])
-                if let notes = hit.notes, !notes.isEmpty {
-                    Text(notes).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+        let detail = [hit.accountName, line.plannedDate.map { ($0 == line.actualDate || !line.isPaid) ? $0.short : "paid \(line.actualDate?.short ?? "")" },
+                      hit.categoryName].compactMap { $0 }.joined(separator: " · ")
+        let amount = Text(hit.amount.formatted).font(.body.monospacedDigit())
+            .foregroundStyle(hit.amount.isNegative ? Palette.bad : Palette.good)
+            .wholeFigure()
+        FitsAcross {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                PaidMark(line: line, today: .today())
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(hit.description).font(.body.weight(.medium)).lineLimit(2)
+                    Text(detail).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    TagChips(tags: hit.tags ?? [])
+                    if let notes = hit.notes, !notes.isEmpty {
+                        Text(notes).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+                    }
                 }
+                Spacer(minLength: 8)
+                amount
             }
-            Spacer(minLength: 8)
-            Text(hit.amount.formatted).font(.body.monospacedDigit())
-                .foregroundStyle(hit.amount.isNegative ? Palette.bad : Palette.good)
+        } stacked: {
+            // The larger text sizes: the amount under the words (#311).
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                PaidMark(line: line, today: .today())
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(hit.description).font(.body.weight(.medium)).fixedSize(horizontal: false, vertical: true)
+                    Text(detail).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    TagChips(tags: hit.tags ?? [])
+                    if let notes = hit.notes, !notes.isEmpty {
+                        Text(notes).font(.footnote).foregroundStyle(.secondary).lineLimit(3)
+                    }
+                    amount
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 6)
@@ -381,21 +400,42 @@ struct SearchRow: View {
     var trailingColor: Color?
     var dot: Color?
     let selected: Bool
+    /// The category's dot grows with the text (#311), 9 at Large as before.
+    @ScaledMetric(relativeTo: .body) private var dotSize: CGFloat = 9
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            if let dot {
-                Circle().fill(dot).frame(width: 9, height: 9).accessibilityHidden(true)
-            }
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.body.weight(.medium)).lineLimit(2)
-                if let detail {
-                    Text(detail).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+        FitsAcross {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                if let dot {
+                    Circle().fill(dot).frame(width: dotSize, height: dotSize).accessibilityHidden(true)
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title).font(.body.weight(.medium)).lineLimit(2)
+                    if let detail {
+                        Text(detail).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 8)
+                if let trailing {
+                    Text(trailing).font(.body.monospacedDigit()).foregroundStyle(trailingColor ?? .secondary).wholeFigure()
                 }
             }
-            Spacer(minLength: 8)
-            if let trailing {
-                Text(trailing).font(.body.monospacedDigit()).foregroundStyle(trailingColor ?? .secondary)
+        } stacked: {
+            // The larger text sizes: the amount, balance or count under the words (#311).
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                if let dot {
+                    Circle().fill(dot).frame(width: dotSize, height: dotSize).accessibilityHidden(true)
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title).font(.body.weight(.medium)).fixedSize(horizontal: false, vertical: true)
+                    if let detail {
+                        Text(detail).font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    }
+                    if let trailing {
+                        Text(trailing).font(.body.monospacedDigit()).foregroundStyle(trailingColor ?? .secondary).wholeFigure()
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(.vertical, 4)

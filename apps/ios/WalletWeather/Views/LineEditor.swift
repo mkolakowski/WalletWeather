@@ -69,7 +69,7 @@ struct LineEditor: View {
     @Environment(\.paneEdges) private var edges
 
     @State private var saving = false
-    @State private var problem: String?
+    @State private var problem: FormProblem?
     @State private var confirmDelete = false
     /// Counts saves that went through, for the success haptic (#315).
     @State private var savedCount = 0
@@ -133,12 +133,10 @@ struct LineEditor: View {
             // sheet (a zero here ran the rows into the screen's edge, #161).
             .contentMargins(.leading, embedded ? edges.formMargin : nil, for: .scrollContent)
             .disabled(saving)
+            .problemBanner($problem, edges: embedded ? edges : .plain)
             .sensoryFeedback(.success, trigger: savedCount)
-            .alert("Couldn't save", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(problem ?? "")
-            }
+            // Another line in the pane: the last one's problem goes with it.
+            .onChange(of: open.id) { problem = nil }
             .confirmationDialog(deleteTitle, isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button(line.isTransfer ? "Delete transfer" : line.isProjection ? "Delete this date" : "Delete", role: .destructive) {
                     Task { await run { try await $0.delete(line) } }
@@ -344,14 +342,16 @@ struct LineEditor: View {
                 set: { open.draft[keyPath: key] = LocalDay.today(now: $0) })
     }
 
-    private func run(buzz: Bool = false, _ action: (APIClient) async throws -> Void) async {
+    private func run(buzz: Bool = false, _ action: @escaping (APIClient) async throws -> Void) async {
         guard let client = model.client else { return }
         saving = true
+        problem = nil
         defer { saving = false }
         do {
+            try FormProblem.failIfAsked()
             try await action(client)
         } catch {
-            problem = AppModel.describe(error)
+            problem = FormProblem(error) { Task { await run(buzz: buzz, action) } }
             return
         }
         if buzz { savedCount += 1 }
@@ -374,7 +374,7 @@ struct AddTransactionSheet: View {
     let onSaved: () async -> Void
 
     @State private var saving = false
-    @State private var problem: String?
+    @State private var problem: FormProblem?
     @State private var addedCount = 0
     @State private var chosenAccount: Int?
     @FocusState private var amountFocused: Bool
@@ -431,6 +431,7 @@ struct AddTransactionSheet: View {
             .navigationTitle(accountChoices.count > 1 ? "Add transaction" : "Add to \(account.name)")
             .navigationBarTitleDisplayMode(.inline)
             .disabled(saving)
+            .problemBanner($problem)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", role: .cancel) { dismiss() }
@@ -441,11 +442,6 @@ struct AddTransactionSheet: View {
                         .disabled(draft.problem != nil || draft.notes.count > 256)
                 }
             }
-            .alert("Couldn't add it", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(problem ?? "")
-            }
             .onAppear { amountFocused = draft.amountText.isEmpty }
             .sensoryFeedback(.success, trigger: addedCount)
         }
@@ -454,11 +450,13 @@ struct AddTransactionSheet: View {
     private func add() async {
         guard let client = model.client else { return }
         saving = true
+        problem = nil
         defer { saving = false }
         do {
+            try FormProblem.failIfAsked()
             try await client.add(draft, account: target.id)
         } catch {
-            problem = AppModel.describe(error)
+            problem = FormProblem(error) { Task { await add() } }
             return
         }
         addedCount += 1

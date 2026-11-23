@@ -22,6 +22,9 @@ from test_bank_sync import epoch, fake  # noqa: F401  (the stand-in SimpleFIN)
 from test_mail_alerts import TODAY, ms  # noqa: F401  (the stand-in Microsoft)
 from test_mail_alerts_matching import alert, bill, check, forecast_rows
 
+# About 1.5-2 s a test (the stand-ins, real scrypt): the slow tier (#274).
+pytestmark = pytest.mark.slow
+
 DAY = TODAY - timedelta(days=2)
 
 

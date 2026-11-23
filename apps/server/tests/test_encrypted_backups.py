@@ -16,6 +16,9 @@ from fastapi.testclient import TestClient
 
 from conftest import unique_email
 
+# About 1.5-2 s a test (the stand-ins, real scrypt): the slow tier (#274).
+pytestmark = pytest.mark.slow
+
 PASSWORD = "correct-horse-battery"
 PASSPHRASE = "orange kettle window 42"
 

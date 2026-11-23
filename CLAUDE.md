@@ -23,8 +23,12 @@ throwaway PostgreSQL). Run them from the repo root with
 go to pytest), then `docker compose -f docker-compose.test.yml down`. They
 need `TEST_DATABASE_URL` and refuse to run without it, so they can't reach a
 database with real data. The `Tests` workflow runs them on every pull
-request and push to `main`. Why: one command that works without a local
-Python, and the same tests in CI.
+request and push to `main`. Tiers (decided 2026-11-23, #274): files whose
+tests take over a second each on average carry `pytestmark =
+pytest.mark.slow`; a quick run while working is `... run --rm tests -m "not
+slow"` (about 2 minutes), and the full run (no `-m`, about 3 minutes) is what
+CI and a release use. Why: one command that works without a local Python,
+and the same tests in CI.
 
 **Security checks** (decided 2026-11-16, #179, #180):
 `apps/server/tests/test_security_guards.py` pins who can reach what. A new

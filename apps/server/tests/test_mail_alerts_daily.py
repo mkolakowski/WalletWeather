@@ -17,6 +17,9 @@ from test_mail_alerts import (  # noqa: F401  (fixtures)
     set_switch, switched_on, taught, teach,
 )
 
+# About 1.5-2 s a test (the stand-ins, real scrypt): the slow tier (#274).
+pytestmark = pytest.mark.slow
+
 
 def conn_row(user_id):
     from app.db import MailConnection, SessionLocal

@@ -10,9 +10,14 @@ test_mail_alerts.py.
 """
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from conftest import share_account
 from test_mail_alerts import (BANK, TODAY, connect_with_code, connected, lines, make_account,  # noqa: F401
                               ms, register, set_switch, switched_on, taught, teach)
+
+# About 1.5-2 s a test (the stand-ins, real scrypt): the slow tier (#274).
+pytestmark = pytest.mark.slow
 
 DAY = TODAY - timedelta(days=2)
 WHEN = DAY.strftime("%b %d, %Y").replace(" 0", " ")     # "Nov 15, 2026"

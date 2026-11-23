@@ -783,6 +783,8 @@
   /* ---------- Phone bottom bar and Settings tabs (#54) ---------- */
   .bottom-nav, .more-sheet, .more-backdrop { display:none; }
   .settings-tabs { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 14px; }
+  /* Settings and Admin each open with a real page heading (#292); on a wide window it sits above the section list. */
+  .settings-nav > h1 { margin:0 0 10px; font-size:22px; font-weight:680; letter-spacing:-.02em; color:var(--text); line-height:1.2; }
   /* A panel outside the chosen Settings tab. Separate from .hidden, which
      some panels use for their own reasons (Permissions with no accounts). */
   #pageSettings .section-off { display:none !important; }
@@ -1079,6 +1081,10 @@
                background:var(--chip-bg); }
   .cal-event .amt { font-variant-numeric:tabular-nums; font-weight:700; }
   .cal-event.pending { opacity:0.65; font-style:italic; }
+  /* An event with no category colour shows its kind by a tint: green in, red out, outlined for a transfer (#292). */
+  .cal-event.uncat.income { background:color-mix(in srgb, var(--good) 16%, transparent); }
+  .cal-event.uncat.spend { background:color-mix(in srgb, var(--bad) 16%, transparent); }
+  .cal-event.uncat.transfer { background:transparent; box-shadow:inset 0 0 0 1px var(--border); }
   .cal-more { font-size:11px; color:var(--muted); margin-top:2px; }
   .cal-detail-head { display:flex; justify-content:space-between;
                      align-items:center; margin-bottom:8px; }
@@ -1099,6 +1105,9 @@
     .cal-cell.today .daynum { margin:0; }
     .cal-event { height:5px; padding:0; margin-top:3px; font-size:0; border-radius:3px; background:currentColor !important; opacity:.55; }
     .cal-event.pending { opacity:.3; }
+    .cal-event.uncat.income { color:var(--good); }
+    .cal-event.uncat.spend { color:var(--bad); }
+    .cal-event.uncat.transfer { color:var(--muted); box-shadow:none; }
     .cal-more { font-size:10px; }
   }
 
@@ -1350,18 +1359,16 @@
     #pageSettings:not(.hidden), #pageAdmin:not(.hidden) { display:grid; grid-template-columns:210px minmax(0, 840px);
       column-gap:44px; align-items:start; }
     #pageAdmin:not(.hidden) { grid-template-columns:210px minmax(0, 1060px); }
-    :is(#pageSettings, #pageAdmin) > .settings-tabs { grid-column:1; grid-row:1 / span 30; display:flex; flex-direction:column;
-      flex-wrap:nowrap; gap:2px; margin:0; position:sticky; top:calc(var(--bar-h) + 20px); }
-    :is(#pageSettings, #pageAdmin) > .settings-tabs::before { font-size:26px; font-weight:680; letter-spacing:-.025em;
-      color:var(--text); padding:0 12px 14px; line-height:1.2; }
-    #pageSettings > .settings-tabs::before { content:"Settings"; }
-    #pageAdmin > .settings-tabs::before { content:"Admin"; }
+    :is(#pageSettings, #pageAdmin) > .settings-nav { grid-column:1; grid-row:1 / span 30;
+      position:sticky; top:calc(var(--bar-h) + 20px); }
+    :is(#pageSettings, #pageAdmin) > .settings-nav > h1 { font-size:26px; padding:0 12px 14px; margin:0; line-height:1.2; }
+    :is(#pageSettings, #pageAdmin) .settings-tabs { display:flex; flex-direction:column; flex-wrap:nowrap; gap:2px; margin:0; }
     :is(#pageSettings, #pageAdmin) > .panel { grid-column:2; }
-    :is(#pageSettings, #pageAdmin) > .settings-tabs button { text-align:left; border-radius:9px; background:transparent;
+    :is(#pageSettings, #pageAdmin) .settings-tabs button { text-align:left; border-radius:9px; background:transparent;
       border:none; padding:8px 12px; font-size:14px; }
-    :is(#pageSettings, #pageAdmin) > .settings-tabs button:hover { background:var(--chip-bg); }
-    :is(#pageSettings, #pageAdmin) > .settings-tabs button.active { background:color-mix(in srgb, var(--accent) 15%, transparent);
-      color:var(--accent); }
+    :is(#pageSettings, #pageAdmin) .settings-tabs button:hover { background:var(--chip-bg); }
+    :is(#pageSettings, #pageAdmin) .settings-tabs button.active { background:color-mix(in srgb, var(--accent) 10%, transparent);
+      color:var(--accent-ink); }
     /* Reports: six totals, three across and two down, forecast above actual. */
     #reportSummary { grid-template-columns:repeat(3, 1fr); grid-template-rows:auto auto; grid-auto-flow:column; }
   }
@@ -2390,6 +2397,8 @@
     <div id="pageAdmin" class="hidden">
       <!-- Admin sections (#284): one shows at a time, like Settings; each has
            its own address, #admin/<section>. -->
+      <div class="settings-nav">
+      <h1>Admin</h1>
       <div class="settings-tabs" role="tablist" aria-label="Admin sections">
         <button type="button" role="tab" data-admin-tab="general">General</button>
         <button type="button" role="tab" data-admin-tab="security">Sign-in security</button>
@@ -2397,6 +2406,7 @@
         <button type="button" role="tab" data-admin-tab="users">Users</button>
         <button type="button" role="tab" data-admin-tab="backups">Backups</button>
         <button type="button" role="tab" data-admin-tab="audit">Audit log</button>
+      </div>
       </div>
       <div class="panel" data-admin-section="general">
         <h2>Instance branding</h2>
@@ -2578,6 +2588,8 @@
     <div id="pageSettings" class="hidden">
       <!-- Settings tabs (#54): one section shows at a time; each has its own
            address, #settings/<section>. -->
+      <div class="settings-nav">
+      <h1>Settings</h1>
       <div class="settings-tabs" role="tablist" aria-label="Settings sections">
         <button type="button" role="tab" data-section="appearance">Appearance</button>
         <button type="button" role="tab" data-section="accounts">Accounts</button>
@@ -2588,6 +2600,7 @@
         <button type="button" role="tab" data-section="bank" id="bankTab" class="hidden">Bank sync</button>
         <button type="button" role="tab" data-section="mail" id="mailTab" class="hidden">Email alerts</button>
         <button type="button" role="tab" data-section="your-account">Your account</button>
+      </div>
       </div>
       <div class="panel" data-settings-section="appearance">
         <h2>Appearance</h2>
@@ -3130,7 +3143,7 @@ const fmtShort = v => {
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.115.2";
+const WEB_VERSION = "1.115.3";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -3140,6 +3153,7 @@ const WEB_VERSION = "1.115.2";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.115.3 (2026-11-23, claude+mkolakowski): (#292) two design calls from the code review: Settings and Admin open with a real <h1> in a .settings-nav wrapper that holds the heading and the tab list (it replaces the ::before text on .settings-tabs; on a wide window the wrapper is the sticky left column, the heading 26px; on a phone the heading is 22px above the scrolling tabs), and the wide-window active section in the list uses the 10% tint with --accent-ink like the other pills (it was left at 15% and --accent); a Calendar event with no category colour gets class uncat and shows its kind by a tint (green in, red out, an outline for a transfer; on a phone its colour bar takes the kind's colour).
 // 1.115.2 (2026-11-23, claude+mkolakowski): (#292) fixes from the web-refresh code review: three new theme tokens, --muted-chip (grey text on --chip-bg), --accent-ink (accent text on its tint) and --bad-ink (red text on the tinted Delete buttons), each the theme's own colour moved just far enough in lightness to reach 4.5:1 on every surface it sits on, so the segmented controls, chips, active pills, checked account list, initials button and danger buttons read in all ten themes (tints are now 10% for pills, 13% for the initials button and 8% for danger buttons; the danger hover strengthens the border instead of the fill); the Settings, Admin, Forecast and Bills panels take the phone's 12px padding again (their wide-window rules out-ranked it); the account menu returns focus to its button after Your account, closes when the window narrows to phone width, and ignores a +alias in an email for the initials; changing Date format also redraws the dates already shown in Settings; fmtShort rounds first; the Dashboard grid uses minmax(min(320px,100%),1fr) so it no longer overflows under 340px; the theme-color meta is Dark's page colour.
 // 1.115.1 (2026-11-23, claude+mkolakowski): (#291) Calendar on a phone (max-width 768px): .cal-nav wraps (the month title takes its own row, order:-1; its min-width moved from inline style to .cal-month), so the page no longer scrolls sideways; each day cell stacks the date over a short amount (fmtShort, $1.7k: .cal-full / .cal-short spans, the latter shown on a phone) with the events as small colour bars, so no amount is cut mid-figure; the day panel below the grid still lists everything.
 // 1.115.0 (2026-11-23, claude+mkolakowski): (#288) web-refresh phase 8, top bar and account menu (from 769px; the phone bar is unchanged): the header is sticky (z-index 500; --bar-h follows its height, set by _fitGlobalSearch, and offsets the Settings/Admin section list and html scroll-padding-top; the blur is on header::before because a backdrop-filter on the header would become the containing block of the compact search's fixed box), the app's mark (<symbol id="wwMark">) sits beside the name ([data-app-title] moved to a span inside h1 so the title code no longer wipes the mark), page buttons are border-less with a tinted active pill, and #userEmail plus Log out fold into a round initials button (#userMenuBtn, aria-haspopup/expanded) opening #userPop: the email (#userEmail, now a div), Your account (#userMenuAccount, showPage('settings',{section:'your-account'})) and Log out (#userMenuLogout, logout()). Opens on click or Enter/Space and focuses the first item; ArrowUp/Down/Home/End move; Escape closes and returns focus to the button; a click outside, choosing an item, or Tabbing out closes it. _userInitials/renderUserButton/toggleUserMenu; renderUserButton runs at start-up where userEmail was set.
@@ -12721,7 +12735,7 @@ function renderCalendar() {
         ? `background:${colorSource}22;color:${colorSource};border-color:${colorSource}55`
         : '';
       const dimCls = ev.is_actual_real ? '' : ' pending';
-      return `<div class="cal-event ${cls}${dimCls}" style="${style}" title="${escapeAttr(ev.account_name+' · '+ev.description+' · '+fmt(ev.amount))}">
+      return `<div class="cal-event ${cls}${colorSource ? '' : ' uncat'}${dimCls}" style="${style}" title="${escapeAttr(ev.account_name+' · '+ev.description+' · '+fmt(ev.amount))}">
         <span class="amt">${fmt(ev.amount)}</span>
         <span class="desc">${escapeHtml(ev.description)}</span>
       </div>`;

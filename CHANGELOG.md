@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.2** · Schema version: **39** · iOS version: **0.34.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.34.0**
 
 ### Added
 
@@ -109,6 +109,8 @@ App version: **1.98.0** · Web version: **1.115.2** · Schema version: **39** ·
 
 ### Fixed
 
+- **Settings and Admin have a real page heading,** which screen readers find (it was drawn text beside the section list), looking the same on a wide window and shown above the tabs on a phone. The active section in the list reads clearly in every theme.
+- **Calendar events with no category colour show their kind again:** a soft green tint for income, red for spending and an outline for a transfer (on a phone, the colour of the event's bar).
 - **Grey, accent and red text on the new tinted surfaces is readable in every theme.** The account switcher, Settings tabs, Dashboard window switcher and chips (grey text), the active page pills, the checked account list and the initials button (accent text), and the tinted Delete buttons (red text) were under the 4.5:1 contrast target in Dracula, Solarized, Nord, Synthwave, Forest, Mint, Monokai and Sunset (and some in Light). Each uses a shade of its own colour that reaches 4.5:1.
 - **Settings, Admin, Forecast and Bills panels use the phone's tighter padding again,** so they get their width back on a phone.
 - **The account menu behaves better with the keyboard and when the window narrows:** choosing Your account returns focus to the account button, the menu closes if the window becomes phone-width, and an email like `sam+shopping@example.com` shows S rather than SS.

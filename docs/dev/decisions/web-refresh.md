@@ -26,3 +26,12 @@ Decisions for `Plans/web-refresh.md`: a more modern look for the web client, fro
 **Also settled in the review:** the system font stays (no hosted typeface); the full-width layout and its 40px gutter stay on the data pages; every table column stays; the Forecast table keeps its present width, so it falls back to cards at about the same window width as today.
 
 **What it changes:** `Plans/web-refresh.md` and its phase issues. Call 3 changes the look #81 and #220 chose; the phone bottom bar and the tabs inside Settings (2026-11-14, [usability](usability.md)) stay, with the Settings tabs drawn as a list down the left on wide windows.
+
+## 2026-11-23: two calls left over from the code review
+
+**Decided:** 2026-11-23, by Matthew, after the code review of the whole refresh (#292). **Status:** accepted.
+
+1. **An uncategorised Calendar event shows its kind by a tint.** The refresh gave events no borders, which removed the coloured left edge that told income, spend and transfer apart when a category has no colour. Now such an event is tinted green for income and red for spend, and a transfer is outlined; on a phone the event's colour bar takes the kind's colour. Leaving them all neutral, or restoring the left edge for those events only, were the other options.
+2. **Settings and Admin have a real page heading.** On a wide window the title was text drawn by the stylesheet above the section list, which a screen reader doesn't find. It is now an `h1` that looks the same on a wide window and is shown above the tabs on a phone, like the other pages' titles. A heading only screen readers get, or leaving it, were the other options.
+
+**What it changes:** the Calendar's chips and the Settings and Admin page headers (web 1.115.3).

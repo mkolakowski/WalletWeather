@@ -62,10 +62,8 @@ struct CalendarView: View {
                 .sensoryFeedback(.success, trigger: paidCount)
                 .sensoryFeedback(.success, trigger: movedCount)
                 .background(PageBackground().ignoresSafeArea())
-                .navigationTitle("Calendar")
-                // Two scroll panes side by side leave a large title nothing to collapse against, so cards
-                // slide under it (#260): the open Duo gets the small title.
-                .navigationBarTitleDisplayMode(sizeClass == .regular ? .inline : .automatic)
+                // The large title on the phone; a glass capsule on the open Duo (#341).
+                .pageTitle("Calendar")
                 .toolbar { NewWindowItem(place: .calendar) }
                 .toolbar {
                     if !editableAccounts.isEmpty {

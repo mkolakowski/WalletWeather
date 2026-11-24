@@ -69,7 +69,15 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.4** · Web version: **1.117.0** · Schema version: **39** · iOS version: **0.69.0**
+App version: **1.98.4** · Web version: **1.117.0** · Schema version: **39** · iOS version: **0.70.0**
+
+### Changed
+
+- **iPhone Duo, open: the page's name in a small glass capsule.** On the open Duo, Dashboard, Forecast, Bills & income and Calendar now show their name ("Forecast" and so on) in a small Liquid Glass capsule fixed at the top left, instead of in a bar across the top. Cards scroll under it and fade into a soft blur at the top of each half, with no see-through tinted band. The new-window, + and … buttons stay where they were, in the side bar. An iPhone, and the Duo closed, keep the large title.
+
+### Fixed
+
+- **iPhone Duo, open: one half no longer jumps when you scroll the other.** Scrolling one half of a two-half page on the open Duo used to fold away the bar's title row, which moved the other half up or down by its height. Both halves now start level and stay put while the other scrolls, lying flat or half open.
 
 ## [1.98.4] — 2026-11-24
 

@@ -159,7 +159,10 @@ the app in one of them, and with `WW_DEBUG_SETTINGS=appearance`,
 theme's name, or `new` for a copy of the look in use) opens the theme editor
 over Settings → Appearance. Debug only.
 `SIMCTL_CHILD_WW_DEBUG_SCROLL=bottom` opens a Settings page, or the theme
-editor, scrolled to its end.
+editor, scrolled to its end. On the open Duo,
+`SIMCTL_CHILD_WW_DEBUG_PANE_SCROLL=leading` (or `trailing`) scrolls that half
+of a two-half page down a little once it shows (#340), for pictures of the
+glass title with cards under it.
 `SIMCTL_CHILD_WW_DEBUG_UNDO=Rent` shows the Forecast's Undo bar for that line
 once the page has loaded (#315); it saves nothing and stays until dismissed.
 `SIMCTL_CHILD_WW_DEBUG_FAIL_SAVE=offline` opens every editor and sheet (the

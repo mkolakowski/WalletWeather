@@ -69,10 +69,8 @@ struct ForecastView: View {
                 .keptBar(kept)
                 .sensoryFeedback(.success, trigger: paidCount)
                 .background(PageBackground().ignoresSafeArea())
-                .navigationTitle("Forecast")
-                // Two scroll panes side by side leave a large title nothing to collapse against, so cards
-                // slide under it (#260): the open Duo gets the small title.
-                .navigationBarTitleDisplayMode(sizeClass == .regular ? .inline : .automatic)
+                // The large title on the phone; a glass capsule on the open Duo (#341).
+                .pageTitle("Forecast")
                 .toolbar { NewWindowItem(place: .forecast) }
                 .toolbar { toolbar }
         }

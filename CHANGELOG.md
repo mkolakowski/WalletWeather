@@ -69,7 +69,13 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.2** · Web version: **1.116.1** · Schema version: **39** · iOS version: **0.68.1**
+App version: **1.98.3** · Web version: **1.116.1** · Schema version: **39** · iOS version: **0.68.1**
+
+## [1.98.3] — 2026-11-24
+
+App version: **1.98.3** · Web version: **1.116.1** · Schema version: **39** · iOS version: **0.68.1**
+
+The iPhone app gains two more Siri and Shortcuts actions, Add a transaction and Mark a bill paid, also for the Action button. This release also gets the Siri, Shortcuts and search work of 1.98.2 onto TestFlight: Apple had turned those iPhone builds away over a word in two actions' descriptions. Nothing changes on the server or in the web app.
 
 ### Added
 
@@ -2939,7 +2945,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.98.2...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.98.3...HEAD
+[1.98.3]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.3
 [1.98.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.2
 [1.98.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.1
 [1.98.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.0

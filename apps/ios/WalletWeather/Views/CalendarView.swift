@@ -3,8 +3,8 @@ import WalletWeatherKit
 
 /// Calendar: the month with each day's bills and paychecks, today marked.
 /// All accounts by default, or one, which adds each day's closing balance
-/// (decided 2026-11-15). Closed: a compact month with dots, and the tapped
-/// day's lines under it. Open: the month on the left with amounts written
+/// (decided 2026-11-15). Closed: a compact month with each day's net and a
+/// colour bar per line (#323), and the tapped day's lines under it. Open: the month on the left with amounts written
 /// in each day, and on the right the tapped day's lines, or today's lines
 /// and balances until a day is tapped. A line opens in the line editor (the
 /// right half when open, a sheet when closed) and swipes to Paid, Edit and
@@ -487,11 +487,18 @@ struct DayCell: View {
     @ScaledMetric(relativeTo: .callout) private var dotSize: CGFloat = 5
     @ScaledMetric(relativeTo: .caption2) private var countSize: CGFloat = 9
     @ScaledMetric(relativeTo: .caption2) private var balanceSize: CGFloat = 10
+    @ScaledMetric(relativeTo: .caption2) private var netSize: CGFloat = 10
+    @ScaledMetric(relativeTo: .caption2) private var barHeight: CGFloat = 4
 
     /// The day's net and balance written in. At the accessibility sizes
     /// seven columns can't hold amounts: the grid shows the day and its dots,
     /// and the amounts are in the day's list below.
     private var showsAmounts: Bool { wide && !typeSize.isAccessibilitySize }
+
+    /// The closed phone's cell (#323): the day's net under the number and a
+    /// bar per line, as the web's phone Calendar draws it. Past the
+    /// accessibility sizes there is no room, so the day keeps its dots.
+    private var showsBars: Bool { !wide && !typeSize.isAccessibilitySize }
 
     /// The day's circle: 30 at Large, growing with the text up to the width
     /// a column has on the closed phone (seven across the card); past that
@@ -502,8 +509,10 @@ struct DayCell: View {
         let isToday = day == .today()
         VStack(spacing: showsAmounts ? 2 : 3) {
             Text("\(day.day)")
-                .font(wide ? .subheadline.weight(isToday ? .bold : .regular) : .callout.weight(isToday ? .bold : .regular))
-                .foregroundStyle(selected ? Color.white : (isToday ? Palette.accent : .primary))
+                .font(wide ? .subheadline.weight(isToday || selected ? .bold : .regular) : .callout.weight(isToday || selected ? .bold : .regular))
+                // Today is the filled circle (#323); the chosen day is the
+                // tinted cell around its number.
+                .foregroundStyle(isToday ? Color.white : (selected ? Palette.accent : .primary))
                 // Always the whole number: past where the circle fits its
                 // column, the number shrinks inside it rather than cut.
                 .lineLimit(1)
@@ -511,10 +520,21 @@ struct DayCell: View {
                 .padding(.horizontal, typeSize <= .large ? 0 : 3)
                 .frame(width: circle, height: circle)
                 .background {
-                    if selected { Circle().fill(Palette.accent) } else if isToday { Circle().strokeBorder(Palette.accent, lineWidth: 1.5) }
+                    if isToday { Circle().fill(Palette.accent) }
                 }
             if showsAmounts {
                 amounts
+            } else if showsBars {
+                if let net = summary.shortNet {
+                    fitted { scaled in
+                        Text(net)
+                            .font(.system(size: scaled ? netSize : 10, weight: .semibold).monospacedDigit())
+                            .foregroundStyle(summary.net.isNegative ? Palette.bad : Palette.good)
+                    }
+                }
+                bars(spacing: 2)
+                    .padding(.horizontal, 3)
+                    .frame(height: barsHeight(spacing: 2), alignment: .top)
             } else {
                 HStack(spacing: 3) {
                     if summary.hasBill { dot(Palette.bad) }
@@ -524,9 +544,15 @@ struct DayCell: View {
                 .frame(height: dotSize + 1)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: showsAmounts ? 78 : 44, alignment: .top)
+        .frame(maxWidth: .infinity, minHeight: showsAmounts ? 100 : (showsBars ? 66 : 44), alignment: .top)
         .padding(.vertical, showsAmounts ? 4 : 2)
-        .background(wide && selected ? Palette.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 10))
+        .background(selected ? Palette.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 10))
+        .overlay {
+            if selected && !wide {
+                RoundedRectangle(cornerRadius: 10).strokeBorder(Palette.accent.opacity(0.6), lineWidth: 1)
+                    .allowsHitTesting(false)
+            }
+        }
         .overlay {
             if dropTarget {
                 ZStack {
@@ -542,12 +568,42 @@ struct DayCell: View {
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
+    // MARK: Colour bars (#323)
+
+    /// One thin bar per line, the first three; decorative (the cell's label
+    /// carries the count and net).
+    private func bars(spacing: CGFloat) -> some View {
+        VStack(spacing: spacing) {
+            ForEach(Array(summary.visibleBars.enumerated()), id: \.offset) { _, bar in
+                barShape(bar)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    /// The room `DayBar.limit` bars take, held whether or not a day has
+    /// them, so every cell in the month is the same height.
+    private func barsHeight(spacing: CGFloat) -> CGFloat {
+        CGFloat(DayBar.limit) * barHeight + CGFloat(DayBar.limit - 1) * spacing
+    }
+
+    @ViewBuilder
+    private func barShape(_ bar: DayBar) -> some View {
+        let opacity = bar.isPaid ? 0.85 : 0.45
+        switch bar.style {
+        case let .category(hex): Capsule().fill(Palette.category(hex, name: "").opacity(opacity)).frame(height: barHeight)
+        case .income: Capsule().fill(Palette.good.opacity(opacity)).frame(height: barHeight)
+        case .spending: Capsule().fill(Palette.bad.opacity(opacity)).frame(height: barHeight)
+        case .transfer: Capsule().strokeBorder(Color.secondary.opacity(bar.isPaid ? 1 : 0.6), lineWidth: 1).frame(height: barHeight)
+        }
+    }
+
     /// Wide: the day's net, and the closing balance with one account.
     @ViewBuilder
     private var amounts: some View {
         if summary.count > 0 {
             fitted { _ in
-                Text((summary.net.isNegative ? "" : "+") + summary.net.short)
+                Text(summary.shortNet ?? "")
                     .font(.caption2.weight(.semibold).monospacedDigit())
                     .foregroundStyle(summary.net.isNegative ? Palette.bad : Palette.good)
             }
@@ -556,6 +612,9 @@ struct DayCell: View {
                     Text("\(summary.count) lines").font(.system(size: scaled ? countSize : 9)).foregroundStyle(.secondary)
                 }
             }
+            bars(spacing: 2)
+                .padding(.horizontal, 4)
+                .padding(.top, 1)
         }
         Spacer(minLength: 0)
         if let balance {

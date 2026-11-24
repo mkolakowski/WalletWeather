@@ -277,6 +277,7 @@ public struct CalendarMonth: Sendable, Codable, Equatable {
             if e.isTransfer { s.hasTransfer = true } else if amount.isNegative { s.hasBill = true } else { s.hasIncome = true }
             s.net = s.net + amount
             s.count += 1
+            s.bars.append(DayBar(of: e))
         }
         return s
     }
@@ -287,6 +288,61 @@ public struct CalendarMonth: Sendable, Codable, Equatable {
         public var hasTransfer = false
         public var net = Money.zero
         public var count = 0
+        /// One per line, in the server's order (#323).
+        public var bars: [DayBar] = []
+
+        /// The bars a cell draws: the first `DayBar.limit`, so cells keep
+        /// one height across the month; the rest are implied.
+        public var visibleBars: [DayBar] { Array(bars.prefix(DayBar.limit)) }
+
+        /// The day's net as a short amount, "+$2.8K" or "-$1.6K", or nil
+        /// with no lines (#323).
+        public var shortNet: String? {
+            guard count > 0 else { return nil }
+            return (net.isNegative ? "" : "+") + net.short
+        }
+    }
+}
+
+/// The thin bar a Calendar cell draws for one line (#323), as the web's
+/// phone Calendar does: the line's category colour when it has a valid
+/// `#rrggbb` (a transfer's too); else green for money in, red for spending, and an outline for
+/// a transfer. A line not yet paid is drawn paler.
+public struct DayBar: Sendable, Equatable {
+    public enum Style: Sendable, Equatable {
+        /// The category's own `#rrggbb`, as the server sent it.
+        case category(String)
+        case income, spending, transfer
+    }
+
+    /// The most bars a cell draws.
+    public static let limit = 3
+
+    public let style: Style
+    public let isPaid: Bool
+
+    public init(style: Style, isPaid: Bool) {
+        self.style = style
+        self.isPaid = isPaid
+    }
+
+    public init(of event: CalendarEvent) {
+        let amount = event.amount ?? .zero
+        if let hex = Self.validHex(event.categoryColor) {
+            style = .category(hex)
+        } else if event.isTransfer {
+            style = .transfer
+        } else {
+            style = amount.isNegative ? .spending : .income
+        }
+        isPaid = event.isPaid
+    }
+
+    /// `#rrggbb` only; anything else is no colour.
+    static func validHex(_ text: String?) -> String? {
+        guard let text, text.count == 7, text.hasPrefix("#"),
+              text.dropFirst().allSatisfy({ $0.isHexDigit }) else { return nil }
+        return text
     }
 }
 

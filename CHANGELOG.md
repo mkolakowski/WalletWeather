@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.56.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.57.0**
 
 ### Added
 
@@ -92,6 +92,7 @@ App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** ·
 
 ### Changed
 
+- **iPhone: the Calendar shows amounts and colour bars,** as the web's phone Calendar does: each day with lines shows its net as a short amount and a bar per line in its category's colour (green for income, red for spending, an outline for a transfer when there's no colour), paler until paid. Today is a filled circle, and the chosen day is tinted. At the largest text sizes the closed Calendar keeps its dots (iOS 0.57.0).
 - **iPhone: Forecast's summary as one strip,** as the web draws it: today's balance leads in large type, with Forecast end, Actual end and the month's lowest point (and its day) in one strip under it. At the largest text sizes the strip stacks (iOS 0.56.0).
 - **Breaking: iPhone: "Back to the first screen" and the demo's Leave are gone.** Choose another connection in Settings → Connections instead; the household's numbers stay on this iPhone either way.
 - **iPhone: every page reads at the largest text sizes.** With the phone's text size turned up (Settings → Accessibility → Display & Text Size → Larger Text), figures that shared a row stack one to a row, a label never breaks inside a word, an amount is never cut, and the Calendar keeps whole day numbers (its amounts move to the day's list at the largest sizes). With the Duo open, Forecast shows its line cards instead of the table at those sizes. Nothing changes at the usual size (iOS 0.48.0).

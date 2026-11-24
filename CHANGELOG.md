@@ -92,6 +92,7 @@ App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** ·
 
 ### Changed
 
+- **iPhone: Forecast's summary as one strip,** as the web draws it: today's balance leads in large type, with Forecast end, Actual end and the month's lowest point (and its day) in one strip under it. At the largest text sizes the strip stacks (iOS 0.56.0).
 - **Breaking: iPhone: "Back to the first screen" and the demo's Leave are gone.** Choose another connection in Settings → Connections instead; the household's numbers stay on this iPhone either way.
 - **iPhone: every page reads at the largest text sizes.** With the phone's text size turned up (Settings → Accessibility → Display & Text Size → Larger Text), figures that shared a row stack one to a row, a label never breaks inside a word, an amount is never cut, and the Calendar keeps whole day numbers (its amounts move to the day's list at the largest sizes). With the Duo open, Forecast shows its line cards instead of the table at those sizes. Nothing changes at the usual size (iOS 0.48.0).
 - **iPhone: a save that fails says so at the top of the form,** with the way forward where there is one (Try again, Sign in to Cloudflare, Sign in again), in place of a "Couldn't save" alert. It stays until you try again or close the form. A problem with what you typed is still written under that field.

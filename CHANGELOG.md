@@ -78,7 +78,7 @@ App version: **1.98.2** · Web version: **1.116.1** · Schema version: **39** ·
 
 ### Changed
 
-- **The bank sync guide is up to date, and the app links to it.** The guide on the project's GitHub Pages (Set up bank sync) now has a **Service pages** table with each service's own sign-in, setup and help pages (SimpleFIN Bridge, Teller, Plaid), says each service has its own card under Connect a bank, covers connecting SimpleFIN from an iPhone used on its own, and uses SimpleFIN Bridge's current address. In the web app's Settings → Bank sync and in the iPhone app, each service's links and the setup steps now point to the matching section of the guide (web 1.116.1, app 1.98.2, iOS 0.66.1).
+- **The bank sync guide is up to date, and the app links to it.** The guide on the project's GitHub Pages (Set up bank sync) now has a **Service pages** table with each service's own sign-in, setup and help pages (SimpleFIN Bridge, Teller, Plaid), says each service has its own card under Connect a bank, covers connecting SimpleFIN from an iPhone used on its own, uses SimpleFIN Bridge's current address, and now names where the Admin switch and each person's tick are, that SimpleFIN needs an admin's tick like Teller and Plaid, how a deleted person's connections pass on, and joining a bank line to an email alert's line. In the web app's Settings → Bank sync and in the iPhone app, each service's links and the setup steps now point to the matching section of the guide (web 1.116.1, app 1.98.2, iOS 0.66.1).
 
 ## [1.98.1] — 2026-11-24
 

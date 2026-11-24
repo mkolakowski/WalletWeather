@@ -93,7 +93,7 @@ of 1.95.0, the `TELLER_APP_ID`, `TELLER_ENV` and `PLAID_...` lines and
 Teller's certificate in `TELLER_CERT_DIR` are copied, once, to everyone who
 has a Teller or Plaid connection, as their own keys, and into each of those
 connections, so they keep syncing. Keep those lines until you've started
-1.95.0 once; **Admin → Bank sync** then says how many people they were copied
+1.95.0 once; **Admin → Bank and email → Bank sync** then says how many people they were copied
 to, and you can remove them. If connections exist but the keys couldn't be
 read on that start, the copy is tried again at the next one.
 
@@ -106,12 +106,13 @@ that loads it; through Plaid they sign in on Plaid's own site
 ### Switch bank sync on
 
 Bank sync is off until an admin switches it on. Sign in as an admin (an
-address in `ADMIN_EMAILS`), open **Admin → Bank sync** and tick **Allow bank
-sync**.
+address in `ADMIN_EMAILS`), open **Admin → Bank and email**, and in the **Bank sync** panel tick **Allow
+bank sync**.
 
-With it on, each user can connect their own banks, through SimpleFIN, and
-through Teller or Plaid once you've ticked them for it in Admin → Users and
-they've added their own keys. Nobody's bank is connected
+With it on, you then tick in **Admin → Users**, under **Bank sync**, who may
+connect through each service (SimpleFIN, Teller, Plaid); nobody is ticked to
+begin with, and admins always may. Teller and Plaid also need the person's own
+keys. Nobody's bank is connected
 until they do it themselves. The server calls a provider only for users who
 have connected through it. Admin's user list shows a **bank connected** badge for each
 of them.
@@ -310,8 +311,9 @@ want one sooner.
 
 Each matched bank account has a **Sync log** button: every sync of that
 account, newest first, whether it ran by itself (Daily) or by **Sync now**,
-how many lines came in, how many were already there, and any error. **Show
-lines** lists the lines a sync brought in. The account's owners and the
+how many lines came in, how many were already there, how many joined an
+email alert's line (see [The Unmatched list](#the-unmatched-list)), and any
+error; the last 200 syncs are listed. **Show lines** lists the lines a sync brought in. The account's owners and the
 people it's shared with to edit see it (from 1.91.0; before, only the person
 who connected the bank did); people it's shared with read-only don't. Entries
 are kept as long as the server keeps its audit log (180 days unless its admin
@@ -333,7 +335,9 @@ Some things stay with the person who connected the bank: reconnecting or
 disconnecting it, and where its bank's categories land. Only an account's
 owners can match it to a bank account or take the match away. If an admin
 pauses that person's connection, the card says so and Sync now waits until
-it's back. People the account is shared with read-only see the lines that
+it's back. If the person who connected has been turned off by an admin, it
+doesn't sync until an admin turns them back on or an owner matches it to
+their own bank account. People the account is shared with read-only see the lines that
 come in and nothing about the sync.
 
 If you're an owner of such an account, its card also has **Stop syncing**:
@@ -459,6 +463,10 @@ count beside the account on the Bank sync tab. For each one:
   in date first (whatever the bill's settings say). Pick one: it's marked paid
   with the bank's date and amount, and the separate line goes away.
 - **Leave as its own line** takes it off the list.
+- **Join…** (when the account also takes lines from
+  [email alerts](email-alerts.md)) pairs an alert's line with this bank line.
+  An alert no bank line has met in 10 days shows **Never posted**, with
+  **Delete** or **Keep**.
 
 Lines synced before 1.73.0 are on the list too, so you can match any that
 duplicate a bill you hadn't marked paid.
@@ -466,9 +474,10 @@ duplicate a bill you hadn't marked paid.
 ### If sync keeps failing
 
 The Dashboard shows a warning when bank sync has been failing for more than a
-day, or when SimpleFIN no longer accepts the connection. The daily sync
-retries a failed sync about 6 hours later, and stops altogether once
-SimpleFIN has stopped accepting the connection, until you connect again.
+day, or when a service (SimpleFIN, Teller or Plaid) no longer accepts the
+connection. The daily sync retries a failed sync about 6 hours later, and
+stops altogether once the service has stopped accepting the connection, until
+you connect again.
 
 ## What a sync does
 
@@ -488,12 +497,15 @@ SimpleFIN has stopped accepting the connection, until you connect again.
   after its category is set, so a rule limited to a category sees it.
 - **Nothing comes in twice.** A line already brought in is recognised by the
   bank's own id. A paid line you added by CSV or by hand, with the same date,
-  amount and description, is recognised too and isn't doubled.
+  amount and description, is recognised too and isn't doubled. A line that is
+  the posted version of an [email alert](email-alerts.md)'s line joins the
+  alert's line instead of becoming a second one.
 - **Late postings are caught.** Each sync looks back 14 days before the
   last one, for lines a bank posts late.
-- **At most 20 syncs in 24 hours, per connection.** SimpleFIN disables a connection that asks
-  much more often than about 24 times a day, so Sync now stops at 20 and
-  says when it can run again. The tab shows how many are left. SimpleFIN
+- **At most 20 syncs in 24 hours, per connection** (SimpleFIN, Teller or
+  Plaid). SimpleFIN disables a connection that asks much more often than
+  about 24 times a day, so Sync now stops at 20 and says when it can run
+  again. The tab shows how many are left. SimpleFIN
   itself refreshes from banks about once a day, so syncing more often rarely
   brings anything new.
 
@@ -510,14 +522,16 @@ anyway and the message says to remove it in that service's dashboard.
 For SimpleFIN, disconnecting stops WalletWeather asking. To stop SimpleFIN
 reading your bank too, disable the app's access at [SimpleFIN Bridge](https://beta-bridge.simplefin.org/my-account).
 
-Deleting your WalletWeather user removes your connections too, and ends them
-at Teller and Plaid.
+Deleting your WalletWeather user removes your connections and ends them at
+Teller and Plaid, except a connection that feeds an account another owner
+keeps: that passes to them (see [When the person who connected
+leaves](#when-the-person-who-connected-leaves)).
 
 ## If something goes wrong
 
 | The message says | What to do |
 | --- | --- |
-| *Bank sync is switched off on this instance* | An admin switches it on in Admin → Bank sync. |
+| *Bank sync is switched off on this instance* | An admin switches it on in Admin → Bank and email → Bank sync. |
 | *That doesn't look like a SimpleFIN setup token* | Copy the token again from SimpleFIN Bridge, all of it. |
 | *That token points at …, which isn't SimpleFIN* | The token isn't from SimpleFIN Bridge, or the server's `SIMPLEFIN_HOSTS` doesn't include the host it came from. Nothing was sent to that host. |
 | *SimpleFIN says this token was already used or doesn't exist* | Make a new setup token. If you didn't use the old one yourself, disable it at SimpleFIN Bridge. |
@@ -531,7 +545,7 @@ at Teller and Plaid.
 | *Plaid is still gathering your bank's history* | Plaid fetches your history after you connect. Sync again in a few minutes. |
 | *Your bank wants you to sign in again* / *Plaid no longer reaches this bank* | Disconnect that bank and connect it again, then match its accounts again. |
 | *That account already takes lines from …* | That account is matched to a bank account on another connection. Leave one of them out. |
-| *Bank sync has asked SimpleFIN 20 times in the last 24 hours* | Wait for the time it gives. The daily sync counts toward the 20 too. |
+| *Bank sync has asked SimpleFIN (or Teller, or Plaid) 20 times in the last 24 hours* | Wait for the time it gives. The daily sync counts toward the 20 too. |
 | *A sync is already running* | The daily sync was running at that moment. Try again in a minute. |
 | *Match at least one bank account to one of your accounts first* | Pick an account for at least one bank account and press Save matches. |
 | Sync says *0 new lines* the first time | The "Bring in from" date is today, so only new transactions come in. Move it back and Save matches. |

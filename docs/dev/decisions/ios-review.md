@@ -79,3 +79,8 @@ Widgets, reminders, and Shortcuts, Siri and Spotlight each put numbers outside t
 3. **Shortcuts, Siri and Spotlight (#320): Siri answers balance questions only when the phone is unlocked, and the phone's search lists bills and accounts by name, without amounts.** Amounts in search, always answering, and not building these yet were the other options.
 
 Each still updates `docs/privacy.md` and `apps/ios/README.md` ("What's kept on the phone") in the same change.
+
+Two more, settled the same day while planning them ([Plans/outside-the-app.md](../../../Plans/outside-the-app.md)):
+
+4. **With the app's own lock on, amounts stay hidden outside the app even on an unlocked phone.** Widgets show ••••, Siri asks for Face ID before answering, and names still show in the phone's search. Only the phone's lock counting was the other option.
+5. **A server set to keep Nothing gets a widget with no numbers:** the widget names the connection and says to turn on Last-known numbers to see numbers there. Keeping the widget's few numbers anyway was the other option.

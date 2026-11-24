@@ -3143,7 +3143,7 @@ const fmtShort = v => {
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.115.3";
+const WEB_VERSION = "1.116.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -3153,6 +3153,7 @@ const WEB_VERSION = "1.115.3";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.116.0 (2026-11-24, claude+mkolakowski): (#334) Bank sync setup links and a card per provider. BANK_PROVIDERS gains teller and plaid (name, home, links[]); _bankProviderLinks draws a provider's `links` when it has them. The Teller and Plaid key steps link to the provider's dashboard, quickstart, certificates and Keys pages (_bankLink). _bankConnectHtml draws Teller, Plaid and SimpleFIN Bridge each as a bordered .bank-provider card (title, provider links, what it does, its connect button; SimpleFIN's token form stays inside its card), the same look as the .bank-keys cards.
 // 1.115.3 (2026-11-23, claude+mkolakowski): (#292) two design calls from the code review: Settings and Admin open with a real <h1> in a .settings-nav wrapper that holds the heading and the tab list (it replaces the ::before text on .settings-tabs; on a wide window the wrapper is the sticky left column, the heading 26px; on a phone the heading is 22px above the scrolling tabs), and the wide-window active section in the list uses the 10% tint with --accent-ink like the other pills (it was left at 15% and --accent); a Calendar event with no category colour gets class uncat and shows its kind by a tint (green in, red out, an outline for a transfer; on a phone its colour bar takes the kind's colour).
 // 1.115.2 (2026-11-23, claude+mkolakowski): (#292) fixes from the web-refresh code review: three new theme tokens, --muted-chip (grey text on --chip-bg), --accent-ink (accent text on its tint) and --bad-ink (red text on the tinted Delete buttons), each the theme's own colour moved just far enough in lightness to reach 4.5:1 on every surface it sits on, so the segmented controls, chips, active pills, checked account list, initials button and danger buttons read in all ten themes (tints are now 10% for pills, 13% for the initials button and 8% for danger buttons; the danger hover strengthens the border instead of the fill); the Settings, Admin, Forecast and Bills panels take the phone's 12px padding again (their wide-window rules out-ranked it); the account menu returns focus to its button after Your account, closes when the window narrows to phone width, and ignores a +alias in an email for the initials; changing Date format also redraws the dates already shown in Settings; fmtShort rounds first; the Dashboard grid uses minmax(min(320px,100%),1fr) so it no longer overflows under 340px; the theme-color meta is Dark's page colour.
 // 1.115.1 (2026-11-23, claude+mkolakowski): (#291) Calendar on a phone (max-width 768px): .cal-nav wraps (the month title takes its own row, order:-1; its min-width moved from inline style to .cal-month), so the page no longer scrolls sideways; each day cell stacks the date over a short amount (fmtShort, $1.7k: .cal-full / .cal-short spans, the latter shown on a phone) with the events as small colour bars, so no amount is cut mid-figure; the day panel below the grid still lists everything.
@@ -10079,8 +10080,21 @@ const BANK_PROVIDERS = {
     account: 'https://beta-bridge.simplefin.org/my-account',
     setup: 'https://beta-bridge.simplefin.org/simplefin/create',
   },
+  // Teller and Plaid (#334): pages for the key setup steps and the cards.
+  teller: {
+    name: 'Teller',
+    home: 'https://teller.io/',
+    links: [['Quickstart', 'https://teller.io/docs/guides/quickstart'],
+            ['Certificates', 'https://teller.io/docs/api/authentication']],
+  },
+  plaid: {
+    name: 'Plaid',
+    home: 'https://dashboard.plaid.com/',
+    links: [['Keys page', 'https://dashboard.plaid.com/developers/keys'],
+            ['Docs', 'https://plaid.com/docs/quickstart/']],
+  },
 };
-const BANK_PROVIDER = 'simplefin';   // whose pages Admin links to; Teller and Plaid have no pages to link (#254)
+const BANK_PROVIDER = 'simplefin';   // whose pages Admin links to (#254)
 const SIMPLEFIN_CREATE_URL = BANK_PROVIDERS.simplefin.setup;
 function _bankLink(href, text) {
   return `<a href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">${escapeHtml(text)}</a>`;
@@ -10090,11 +10104,11 @@ function _bankLink(href, text) {
 function _bankProviderLinks(key) {
   const p = BANK_PROVIDERS[key || BANK_PROVIDER];
   if (!p) return '';
-  const links = [
+  const links = (p.links ? p.links.map(([t, h]) => _bankLink(h, t)) : [
     p.signIn && _bankLink(p.signIn, 'Sign in'),
     p.account && _bankLink(p.account, 'Your account'),
     p.setup && _bankLink(p.setup, 'Make a setup token'),
-  ].filter(Boolean).join(' · ');
+  ]).filter(Boolean).join(' · ');
   return `<div style="font-size:13px;margin:0 0 12px"><strong>${_bankLink(p.home, p.name)}:</strong> ${links}</div>`;
 }
 // The "New account…" choice in a bank account's select (#215).
@@ -10363,8 +10377,10 @@ function _bankEnvSelect(p, id, dflt) {
 function _bankTellerForm() {
   return `<div class="bank-keys-form" style="margin-top:10px;max-width:560px">
       <ol style="margin:0 0 10px 18px;padding:0;font-size:13px;line-height:1.6;color:var(--muted)">
-        <li>In Teller's dashboard, copy your application id.</li>
-        <li>Under Certificates, make a certificate: Teller downloads it as <code>teller.zip</code>.</li>
+        <li>In ${_bankLink('https://teller.io/', "Teller's dashboard")}, copy your application id from Application Settings
+          (${_bankLink('https://teller.io/docs/guides/quickstart', 'Teller\'s quickstart')} shows where).</li>
+        <li>Under Certificates, make a certificate: Teller downloads it as <code>teller.zip</code>
+          (${_bankLink('https://teller.io/docs/api/authentication', 'about certificates')}).</li>
         <li>Pick that zip here, choose the environment, and press Check and save. The sandbox needs no certificate.</li>
       </ol>
       <label for="bankTellerApp">Application id</label>
@@ -10397,7 +10413,8 @@ function _bankTellerForm() {
 function _bankPlaidForm() {
   return `<div class="bank-keys-form" style="margin-top:10px;max-width:560px">
       <ol style="margin:0 0 10px 18px;padding:0;font-size:13px;line-height:1.6;color:var(--muted)">
-        <li>In Plaid's dashboard, open Developers → Keys.</li>
+        <li>In ${_bankLink('https://dashboard.plaid.com/', "Plaid's dashboard")}, open the
+          ${_bankLink('https://dashboard.plaid.com/developers/keys', 'Keys page')} (under Developers).</li>
         <li>Copy your client id and the secret for the environment you'll use, and press Check and save.</li>
       </ol>
       <label for="bankPlaidClient">Client id</label>
@@ -10475,9 +10492,13 @@ async function bankKeysRemove(p) {
 
 function _bankConnectHtml(more) {
   const teller = _bankOffered('teller'), plaid = _bankOffered('plaid'), simplefin = _bankOffered('simplefin');
-  const choice = (key, label, text) => `<div style="display:flex;gap:12px;align-items:flex-start;margin:0 0 10px">
-      <button style="min-width:170px" onclick="bankStartProvider('${key}')">${label}</button>
-      <span style="font-size:13px;color:var(--muted)">${text}</span></div>`;
+  // One card per provider (#334).
+  const card = (key, title, inner) => `<div class="bank-provider" data-provider="${key}" style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin:0 0 14px;max-width:760px">
+      <h3 class="backup-subhead" style="margin:0 0 6px">${title}</h3>${inner}</div>`;
+  const choice = (key, label, text) => card(key, escapeHtml(BANK_PROVIDERS[key].name), `
+      ${_bankProviderLinks(key)}
+      <p style="font-size:13px;color:var(--muted);margin:0 0 10px">${text}</p>
+      <button onclick="bankStartProvider('${key}')">${label}</button>`);
   return `
     <h3 class="backup-subhead" style="margin-top:${more ? 24 : 0}px">${more ? 'Connect another bank' : 'Connect a bank'}</h3>
     <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
@@ -10487,12 +10508,13 @@ function _bankConnectHtml(more) {
     ${teller ? choice('teller', 'Connect with Teller', 'You sign in to your bank on Teller Connect, on a page of its own in a new tab.') : ''}
     ${plaid ? choice('plaid', 'Connect with Plaid', "You sign in to your bank on Plaid's own site, in a new tab.") : ''}
     ${(teller || plaid) ? _bankCodeField('bankConnectCode') : ''}
-    ${simplefin ? `<details style="margin-top:12px"${(teller || plaid) ? '' : ' open'}>
-      <summary style="cursor:pointer;font-size:13px">Paste a SimpleFIN token</summary>
-      <div style="margin-top:10px">
+    ${simplefin ? card('simplefin', 'SimpleFIN Bridge', `
       ${_bankProviderLinks('simplefin')}
       <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
         SimpleFIN Bridge is a service you subscribe to yourself (about $15 a year).</p>
+      <details${(teller || plaid) ? '' : ' open'}>
+      <summary style="cursor:pointer;font-size:13px">Paste a SimpleFIN token</summary>
+      <div style="margin-top:10px">
       <ol style="margin:0 0 12px 18px;padding:0;font-size:13px;line-height:1.6">
         <li>At <a href="${SIMPLEFIN_CREATE_URL}" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">SimpleFIN Bridge</a>,
           link your bank and make a setup token.</li>
@@ -10505,7 +10527,7 @@ function _bankConnectHtml(more) {
       ${_bankCodeField('bankSimplefinCode')}
       <div style="margin-top:10px"><button onclick="bankConnect()">Connect</button></div>
       </div>
-    </details>` : ''}`;
+      </details>`) : ''}`;
 }
 
 function _bankConnHtml(c, owned) {

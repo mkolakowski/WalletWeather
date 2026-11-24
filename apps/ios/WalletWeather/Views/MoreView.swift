@@ -651,7 +651,7 @@ struct BankSyncCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
         }
-        Text("Each needs keys from a developer account of your own. They're added on your server's page, signed in with a fresh code, and never kept on this iPhone.")
+        Text("Each needs keys from a developer account of your own. They're added on your server's page, signed in with a fresh code, and never kept on this iPhone. [Step by step](https://mkolakowski.github.io/WalletWeather/bank-sync#add-your-own-teller-or-plaid-keys)." )
             .font(.footnote).foregroundStyle(.secondary)
         Button { Task { await editKeys() } } label: {
             HStack(spacing: 8) {

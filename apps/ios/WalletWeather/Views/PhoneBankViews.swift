@@ -33,7 +33,7 @@ struct PhoneBankCard: View {
                 Label {
                     Text("No bank connected").font(.subheadline.weight(.semibold))
                 } icon: { Image(systemName: "building.columns") }
-                Text("Bring your bank's posted lines in through SimpleFIN Bridge: [make a setup token](https://beta-bridge.simplefin.org/simplefin/create) (or [sign in](https://beta-bridge.simplefin.org/auth/login) first), then paste it here. The connection is kept in this iPhone's Keychain only. It syncs at most once a day, when you open the app or when iOS gives it time in the background.")
+                Text("Bring your bank's posted lines in through SimpleFIN Bridge: [make a setup token](https://beta-bridge.simplefin.org/simplefin/create) (or [sign in](https://beta-bridge.simplefin.org/auth/login) first), then paste it here; [the guide](https://mkolakowski.github.io/WalletWeather/bank-sync#through-simplefin) has the steps. The connection is kept in this iPhone's Keychain only. It syncs at most once a day, when you open the app or when iOS gives it time in the background.")
                     .font(.footnote).foregroundStyle(.secondary)
                 Button { connecting = true } label: {
                     Label("Connect SimpleFIN", systemImage: "plus").frame(maxWidth: .infinity)

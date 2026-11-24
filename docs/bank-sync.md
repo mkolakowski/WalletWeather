@@ -12,7 +12,7 @@ uploading a CSV file.
 
 Bank sync works through one of three services, picked per bank:
 
-- **[SimpleFIN Bridge](https://bridge.simplefin.org/)**, a service you
+- **[SimpleFIN Bridge](https://beta-bridge.simplefin.org/)**, a service you
   subscribe to yourself (about $15 a year). Nothing to set up on the server.
 - **[Teller](https://teller.io/)** (from 1.86.0), with keys from a Teller
   developer account of your own (from 1.95.0). Teller's development tier is
@@ -20,6 +20,9 @@ Bank sync works through one of three services, picked per bank:
 - **[Plaid](https://plaid.com/)** (from 1.86.0), with keys from a Plaid
   account of your own (from 1.95.0). Plaid's Trial plan is free for 10 bank
   logins.
+
+Each service has its own card under **Connect a bank**, and its own pages to
+sign in and set up: see [Service pages](#service-pages).
 
 Each reads your bank's transactions and balances. None can move money. If
 your bank won't connect through one, try another: each reaches banks its own
@@ -36,6 +39,23 @@ way. You can have as many connections as you like, from any mix of them.
 1. TOC
 {:toc}
 </details>
+
+## Service pages
+
+Where to sign in, set up and read each service's own help. They open on the
+service's own site, and the app's setup steps link to the same pages.
+
+| Service | Sign in and set up | Help |
+| --- | --- | --- |
+| **SimpleFIN Bridge** | [Home](https://beta-bridge.simplefin.org/) · [Sign in](https://beta-bridge.simplefin.org/auth/login) · [Your account](https://beta-bridge.simplefin.org/my-account) · [Make a setup token](https://beta-bridge.simplefin.org/simplefin/create) | [simplefin.org](https://www.simplefin.org/) · [How WalletWeather uses it](#through-simplefin) |
+| **Teller** | [Teller dashboard](https://teller.io/) (application id under Application Settings; certificates) | [Quickstart](https://teller.io/docs/guides/quickstart) · [Certificates](https://teller.io/docs/api/authentication) · [Teller Connect](https://teller.io/docs/guides/connect) · [How WalletWeather uses it](#through-teller-or-plaid) |
+| **Plaid** | [Plaid dashboard](https://dashboard.plaid.com/) · [Keys page](https://dashboard.plaid.com/developers/keys) | [Quickstart](https://plaid.com/docs/quickstart/) · [Plaid Link](https://plaid.com/docs/link/) · [How WalletWeather uses it](#through-teller-or-plaid) |
+
+{: .note }
+SimpleFIN Bridge's pages are on `beta-bridge.simplefin.org`: the older
+`bridge.simplefin.org` now sends every address to its home page. Plaid's
+menus move around now and then; if Developers → Keys isn't where you expect,
+use the Keys page link above.
 
 ## For the person who runs the server
 
@@ -116,8 +136,9 @@ stay until their users disconnect.
 Open **Settings → Bank sync**. If there's no Bank sync tab, bank sync isn't
 switched on yet: ask whoever runs the server (see [For the person who runs
 the server](#for-the-person-who-runs-the-server)). Under **Connect a bank**
-are the services your server offers. With two-factor sign-in on, type the
-code from your authenticator app first.
+each service your server offers has a card of its own (SimpleFIN Bridge,
+Teller, Plaid), with its links and its connect button. With two-factor
+sign-in on, type the code from your authenticator app first.
 
 ### Add your own Teller or Plaid keys
 
@@ -131,8 +152,11 @@ shows the id, the environment and when they were checked, never the secret.
 **Teller:**
 
 1. Make a developer account at [teller.io](https://teller.io/) and an
-   application. Copy its **application id** (it starts `app_`).
-2. Under **Certificates**, make a certificate. Teller downloads it as
+   application ([Teller's quickstart](https://teller.io/docs/guides/quickstart)
+   shows how). Copy its **application id** (it starts `app_`) from
+   Application Settings.
+2. Under **Certificates** ([about certificates](https://teller.io/docs/api/authentication)),
+   make a certificate. Teller downloads it as
    `teller.zip`, holding `certificate.pem` and `private_key.pem`. The private
    key is a secret: don't share it.
 3. On the **Your Teller keys** card, enter the application id, pick the
@@ -149,8 +173,9 @@ shows the id, the environment and when they were checked, never the secret.
    The free **Trial** plan allows 10 bank logins, Chase, Bank of America and
    Wells Fargo included. Applying for full production later ends the Trial
    plan for good.
-2. Under **Developers → Keys**, copy the client id and the secret for the
-   environment you'll use.
+2. Open the [Keys page](https://dashboard.plaid.com/developers/keys) (under
+   Developers), and copy the client id and the secret for the environment
+   you'll use.
 3. On the **Your Plaid keys** card, enter them, pick the environment and
    press **Check and save**. `production` reaches your real banks (on the
    Trial plan too); `sandbox` uses Plaid's made-up banks with the sandbox
@@ -165,7 +190,8 @@ keeps syncing for whoever it passes to if you delete your account.
 
 ### Through Teller or Plaid
 
-1. Press **Connect with Teller** or **Connect with Plaid**. A new tab opens:
+1. On the **Teller** or **Plaid** card, press **Connect with Teller** or
+   **Connect with Plaid**. A new tab opens:
    Plaid's own site, or WalletWeather's Teller page with Teller Connect.
 2. Pick your bank and sign in to it there. You sign in on Teller's or Plaid's
    pages, not WalletWeather's; WalletWeather never sees your bank password.
@@ -186,10 +212,10 @@ the phone: Settings → Bank sync → **Connect a bank**.
 1. The phone's sign-in sheet opens your server's connect page. If it asks,
    sign in as you do in the web app; it shares Safari's sign-in, so usually
    you're signed in already.
-2. Pick **Teller** or **Plaid** (only the ones you're ticked for and have
-   added your keys for, in the web app's Settings → Bank sync), and
-   type your two-factor code if it's on: connecting a bank always takes a
-   fresh one.
+2. Pick **Teller** or **Plaid** on its card (only the ones you're ticked for
+   and have added your keys for, in the web app's Settings → Bank sync or on
+   the keys page the app opens from Settings → Bank sync), and type your
+   two-factor code if it's on: connecting a bank always takes a fresh one.
 3. Sign in to your bank on Teller's or Plaid's page. When it's done the sheet
    closes by itself and the card says which bank was connected.
 4. Match its accounts to yours in the web app, Settings → Bank sync, as for a
@@ -197,8 +223,10 @@ the phone: Settings → Bank sync → **Connect a bank**.
 
 The phone never holds anything that reads your bank: the page runs in the
 sheet under your browser sign-in, as Settings does, and hands the app only
-"connected" and the connection's number. SimpleFIN is still connected in
-the web app, since it means pasting a setup token. A bank that would hand
+"connected" and the connection's number. With a server, SimpleFIN is
+connected in the web app, since it means pasting a setup token (an iPhone
+used on its own can paste one in the app: see [On an iPhone without a
+server](#on-an-iphone-without-a-server)). A bank that would hand
 off to its own app (Plaid's app-to-app sign-in) shows its web sign-in in the
 sheet instead, so there's no Universal Link to set up.
 
@@ -206,8 +234,9 @@ sheet instead, so there's no Universal Link to set up.
 
 #### Get a setup token from SimpleFIN
 
-1. Go to [SimpleFIN Bridge](https://bridge.simplefin.org/simplefin/create)
-   and subscribe.
+1. Go to [SimpleFIN Bridge](https://beta-bridge.simplefin.org/simplefin/create)
+   and subscribe ([sign in](https://beta-bridge.simplefin.org/auth/login) if
+   you already have an account).
 2. Link your bank there. You sign in to your bank on SimpleFIN's pages, not
    in WalletWeather; WalletWeather never sees your bank password.
 3. Make a **setup token** for a new app and copy it. It's a long line of
@@ -224,8 +253,25 @@ accepted, or you connect again later, make a new one.
    sign-in on, type the code from your authenticator app too.
 3. Your bank accounts are listed, as SimpleFIN names them.
 
-Connecting works in a browser only. An API token or the iPhone app can't
-connect a bank.
+With a server, connecting works in a browser only: an API token or the
+iPhone app talking to a server can't connect a bank.
+
+### On an iPhone without a server
+
+From iOS 0.32.0, an iPhone used on its own (**On this iPhone**, no server)
+can connect SimpleFIN itself. Open **Settings → Bank sync → Connect
+SimpleFIN**, paste a setup token made as above, and pick which of your
+accounts each bank account fills and how far back to bring lines in (up to 90
+days). The connection is kept in the iPhone's Keychain only, never in iCloud,
+a backup or an exported file. It syncs at most once a day, when you open the
+app or when iOS gives it time in the background, and **Sync now** works any
+time. Only SimpleFIN can connect this way: Teller and Plaid need keys that
+stay on a server.
+
+Lines that don't pay a bill wait under **Unmatched** in the same card, where
+**Match…** pays a bill or planned line with one and **Leave** keeps it as its
+own line. When bank sync needs something, a slim card at the top of the
+Dashboard says so.
 
 ### Match your accounts
 
@@ -462,7 +508,7 @@ anyway and the message says to remove it in that service's dashboard.
 
 {: .warning }
 For SimpleFIN, disconnecting stops WalletWeather asking. To stop SimpleFIN
-reading your bank too, disable the app's access at [SimpleFIN Bridge](https://bridge.simplefin.org/).
+reading your bank too, disable the app's access at [SimpleFIN Bridge](https://beta-bridge.simplefin.org/my-account).
 
 Deleting your WalletWeather user removes your connections too, and ends them
 at Teller and Plaid.

@@ -46,7 +46,6 @@ struct WalletWeatherApp: App {
                     // last one's (#300).
                     if let saved = model.saved, saved.kind == .server { settings.serverTheme = saved.webTheme }
                 }
-                .onOpenURL { model.open($0) }
                 .task {
                     // Locked in the demo, a real connection asks first (#301).
                     model.authenticateToLeaveDemo = { [settings] in await settings.mayOpenYourNumbers() }
@@ -69,6 +68,9 @@ struct AppRoot: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var offeringLock = false
     @State private var askingKeep = false
+    /// A CSV opened into this window (#326): kept here, not on the shared
+    /// model, so with two windows only the one it was opened in offers it.
+    @State private var csvHere: CSVFile?
 
     var body: some View {
         @Bindable var model = model
@@ -118,6 +120,29 @@ struct AppRoot: View {
         .sheet(isPresented: $model.offeringBackup) { BackupOfferSheet() }
         .sheet(item: Binding(get: { model.phase == .ready ? model.debugCSV : nil }, set: { model.debugCSV = $0 })) {
             CSVImportSheet(file: $0, startAccount: nil) { model.reload() }
+        }
+        // A CSV opened from Files, Mail or Open in… (#326): waits for the app
+        // to be showing a household, and for the lock to be open, so the sheet
+        // never shows over the lock screen.
+        .sheet(item: Binding(get: { model.phase == .ready && !settings.locked ? csvHere : nil },
+                             set: { csvHere = $0 })) {
+            CSVImportSheet(file: $0, startAccount: nil) { model.reload() }
+        }
+        // Links and files open here, in the window that received them; a CSV
+        // stays with this window rather than the shared model.
+        .onOpenURL { url in
+            model.open(url)
+            if let file = model.openedCSV {
+                csvHere = file
+                model.openedCSV = nil
+            }
+        }
+        .onChange(of: model.phase) { _, phase in if phase == .connect { csvHere = nil } }
+        .alert(model.openedCSVAlert?.title ?? "", isPresented: Binding(get: { model.openedCSVAlert != nil },
+                                                                        set: { if !$0 { model.openedCSVAlert = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(model.openedCSVAlert?.message ?? "")
         }
         // After a sign-in: what this phone keeps (asked at each sign-in),
         // then the lock (offered once: at first sign-in, or after updating

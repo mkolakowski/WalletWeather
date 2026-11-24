@@ -20,7 +20,7 @@ settings:
     SWIFT_APPROACHABLE_CONCURRENCY: YES
     # The iOS app's version (CHANGELOG.md tracks it beside the app, web and
     # schema versions). Keep AppInfo.version in WalletWeatherKit equal to it.
-    MARKETING_VERSION: "0.59.0"
+    MARKETING_VERSION: "0.60.0"
     CURRENT_PROJECT_VERSION: "1"
     IPHONEOS_DEPLOYMENT_TARGET: "26.0"
     # iPhone only for now (decided 2026-11-14): no iPad, no Mac.
@@ -66,6 +66,15 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: net.iptater.walletweather
             CFBundleURLSchemes: [walletweather]
+        # A bank's CSV in Files, Mail or a share sheet's Open in… offers
+        # WalletWeather (#326): a Viewer at Alternate rank, since the app
+        # imports a copy and edits no CSV. Not in place: it reads a copy.
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: CSV
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.comma-separated-values-text]
+        LSSupportsOpeningDocumentsInPlace: false
         # Plain http:// for home-network addresses only (ServerAddress):
         # iOS's own local-networking exception, nothing wider.
         NSAppTransportSecurity:

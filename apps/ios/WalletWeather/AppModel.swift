@@ -45,6 +45,13 @@ final class AppModel {
     let phoneBank = AppModel.makePhoneBank()
     /// A CSV to import, from `WW_DEBUG_CSV` (debug builds only).
     var debugCSV: CSVFile?
+    /// A CSV opened from Files, Mail or a share sheet's Open in… (#326): the
+    /// import sheet opens on it once the app is showing a household and
+    /// isn't locked.
+    var openedCSV: CSVFile?
+    /// Why an opened CSV wasn't imported (#326): not signed in, a read-only
+    /// token, or a file that couldn't be read.
+    var openedCSVAlert: OpenedCSVAlert?
     /// The last line dragged onto a Calendar day (#308), in any window: the
     /// pages showing lines read them again, and an editor open on that line
     /// closes, since what it holds is out of date.
@@ -1202,10 +1209,37 @@ final class AppModel {
     }
 
     func open(_ url: URL) {
-        // The sheet's own answers go to the sheet; only connect links land here.
-        guard case let .connect(server, token) = AppLink(url),
-              let address = try? ServerAddress.parse(server) else { return }
-        pendingLink = PendingLink(address: address, token: token)
+        switch OpenedURL(url) {
+        case .csv:
+            openCSV(url)
+        case let .link(link):
+            // The sheet's own answers go to the sheet; only connect links land here.
+            guard case let .connect(server, token) = link,
+                  let address = try? ServerAddress.parse(server) else { return }
+            pendingLink = PendingLink(address: address, token: token)
+        case .other:
+            return
+        }
+    }
+
+    /// A CSV from Files, Mail or Open in… (#326): read at once (the copy
+    /// iOS made for the app is removed after), then Import a CSV opens on
+    /// it. On the Connect screen, or with a read-only token, an alert says
+    /// why not. While the app is still starting, or locked, the file waits.
+    private func openCSV(_ url: URL) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        let data = try? Data(contentsOf: url)
+        if scoped { url.stopAccessingSecurityScopedResource() }
+        // Open in… hands over a copy in the app's Inbox folder: no longer needed.
+        if url.deletingLastPathComponent().lastPathComponent == "Inbox" { try? FileManager.default.removeItem(at: url) }
+        let decision = OpenedCSV.decide(signedIn: phase != .connect, readOnly: me?.isReadOnly == true)
+        if let refusal = decision.refusal {
+            openedCSVAlert = OpenedCSVAlert(title: refusal.title, message: refusal.message)
+        } else if let data, let file = CSVFile.read(data, name: OpenedURL.fileName(url)) {
+            openedCSV = file
+        } else {
+            openedCSVAlert = OpenedCSVAlert(title: "Couldn't open the file", message: "That file couldn't be read.")
+        }
     }
 
     /// Sign out: ends this phone's token on the server (#145), then removes
@@ -1238,6 +1272,7 @@ final class AppModel {
         if !keepAddress { typedAddress = "" }
         forgetFront()
         askKeep = false
+        openedCSV = nil
         connection = nil
         me = nil
         serverVersion = nil
@@ -1267,4 +1302,11 @@ final class AppModel {
         if let error = error as? APIError { return describe(error) }
         return error.localizedDescription
     }
+}
+
+/// An alert about a CSV that was opened but not imported (#326).
+struct OpenedCSVAlert: Identifiable {
+    let id = UUID()
+    let title: String
+    let message: String
 }

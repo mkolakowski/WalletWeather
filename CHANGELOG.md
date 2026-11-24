@@ -69,10 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.59.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.60.0**
 
 ### Added
 
+- **iPhone: open a bank's CSV in WalletWeather.** WalletWeather now shows up for a CSV in Files, Mail and the share sheet, and opens its import on that file. If WalletWeather is locked, the import waits until you unlock it (iOS 0.60.0).
 - **iPhone: quick add remembers names.** As you type a name in Add transaction, names you've used in the last six months are offered with their category; tapping one fills both. When a tag rule will apply, a note says so ("Will be tagged Work"). Nothing new is kept on the iPhone (iOS 0.59.0).
 - **iPhone: change a transfer.** Open a transfer and tap Change transfer: the Move money form opens filled in, and saving changes both of its lines together, with a server and for the household on this iPhone. Before, a transfer could only be deleted in the app and changed in the web app (iOS 0.58.0).
 - **iPhone: bank sync on the Dashboard.** When bank sync needs something, a slim card at the top of the Dashboard says so: "3 bank lines to match" opens the lines to match, and "Northwind Bank needs reconnecting" opens Settings → Bank sync. With nothing to do, the Dashboard is as before (iOS 0.55.0).

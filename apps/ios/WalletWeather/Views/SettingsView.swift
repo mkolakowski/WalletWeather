@@ -42,6 +42,8 @@ struct SettingsView: View {
     @State private var bankStatus: BankStatus?
     /// Lines waiting on the Unmatched lists, for Bank sync's value (#306).
     @State private var bankUnmatched = 0
+    /// Email alerts' state, for the Bank sync row's value (#211).
+    @State private var mailStatus: MailStatus?
     @State private var tagCount: Int?
     @State private var accountCount: Int?
 
@@ -268,7 +270,7 @@ struct SettingsView: View {
             if model.isLocal {
                 return model.phoneBank.state.settingsValue(connected: model.phoneBank.connected, when: Self.short)
             }
-            return bankStatus?.settingsValue(unmatched: bankUnmatched, when: Self.short)
+            return bankStatus?.settingsValue(unmatched: bankUnmatched, mail: mailStatus, when: Self.short)
         case .appearance:
             return settings.look.title
         case .tabBar:
@@ -293,7 +295,9 @@ struct SettingsView: View {
             accountCount = (try? await client.accounts())?.count
             bankStatus = nil
             bankUnmatched = 0
+            mailStatus = nil
         } else {
+            mailStatus = try? await client.mailStatus()
             accountCount = nil
             bankStatus = try? await client.bankStatus()
             if let status = bankStatus {

@@ -520,6 +520,21 @@ which leaves them as they are. In the demo the status is a sample made from
 the time now, with two connections (one through SimpleFIN, one through
 Teller), and Sync now says the demo saves nothing.
 
+**Email alerts** (iOS 0.69.0, phase 6 of `Plans/bank-alert-emails.md`, #211;
+placed and worded 2026-11-24) is a card under the banks on the same page
+(`MailAlertsCard`, the words in `MailAlerts.swift` in WalletWeatherKit). It
+reads `GET /api/mail/status` (server 1.74.0; an older server, and the
+household on this iPhone, show no card) and says in plain words whether a
+mailbox is connected, when it was last checked and what came in, when the next
+check is, how many alerts couldn't be read, and a failed check, a sign-in to
+reconnect or an admin's pause. **Check now** posts `POST /api/mail/check` with
+the phone's offset from UTC; it's hidden for a read-only token and while the
+mailbox needs reconnecting or is paused. Connecting a mailbox, teaching
+senders and the couldn't-read list stay in the web app (Settings → Email
+alerts), which the card names. The Bank sync row's value shows the mailbox's
+trouble ("2 alerts unread", "Alerts: reconnect") when the banks have none.
+The demo shows a sample, and its Check now says the demo saves nothing.
+
 **Connect a bank** (iOS 0.30.0, server 1.89.0, phase 5 of
 `Plans/bank-providers.md`, #258; decided 2026-11-21) opens the server's
 `/app-connect-bank` page in the sign-in sheet (`AppModel.connectBank`, the

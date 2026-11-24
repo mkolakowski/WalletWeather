@@ -664,6 +664,8 @@ private struct BankSyncPage: View {
                 PhoneBankCard()
             } else {
                 BankSyncCard()
+                // Email alerts, under the banks (#211).
+                MailAlertsCard()
             }
         }
     }

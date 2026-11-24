@@ -49,6 +49,7 @@
 		945C6F0FBBEEA88681FA2302 /* Views.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E7C0698DD43BBAA1A0A748C /* Views.swift */; };
 		961F8837BB7456E29B052F79 /* UndoBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B996A28417EBEFEBDF64CE1 /* UndoBar.swift */; };
 		993C5B78D1DE13E67283D85E /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C580FBC80891DCC74238FFCA /* CalendarView.swift */; };
+		9B72C8E2EB4869EAAF48A76B /* MailAlertsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0DF7CFDA42F8ABF93ACA727 /* MailAlertsCard.swift */; };
 		A17AC0FA003662A634A88EAB /* Configuration.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFE45031D964385DAC6CD4F5 /* Configuration.swift */; };
 		A19BE4DB8A2A39AC4CEF0D71 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAC7A791EEE3C72BA42ED155 /* AppSettings.swift */; };
 		A1AD9EF2A808C2C34BB79713 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 760DE072423DD9D965E38BEE /* PrivacyInfo.xcprivacy */; };
@@ -176,6 +177,7 @@
 		DBF83CE463D1DA7FB421457A /* WalletWeatherNotifications.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = WalletWeatherNotifications.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		DFB26B2201D3541193633A07 /* ChartViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartViews.swift; sourceTree = "<group>"; };
 		DFD2173D8B902D535067E208 /* CloudBackupModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudBackupModel.swift; sourceTree = "<group>"; };
+		E0DF7CFDA42F8ABF93ACA727 /* MailAlertsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailAlertsCard.swift; sourceTree = "<group>"; };
 		E707B8D7EB9DAE7B10EAB407 /* PhoneSearchIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneSearchIndex.swift; sourceTree = "<group>"; };
 		EC920553659CFFE6259EBA9C /* WalletWeatherApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletWeatherApp.swift; sourceTree = "<group>"; };
 		EFE45031D964385DAC6CD4F5 /* Configuration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Configuration.swift; sourceTree = "<group>"; };
@@ -258,6 +260,7 @@
 				94AE6D34667F5BB86D58712D /* LargeText.swift */,
 				A91553B7086BC583359B4E5F /* LineEditor.swift */,
 				4EF6456B5FCCB4251D23495E /* LoadState.swift */,
+				E0DF7CFDA42F8ABF93ACA727 /* MailAlertsCard.swift */,
 				9819ED5346F2EC2B60C37AA5 /* MonthMenu.swift */,
 				8612988B4A68458DECAB4745 /* MoreView.swift */,
 				4F10AF2509F0101D7139AD73 /* MoveMoneySheet.swift */,
@@ -538,6 +541,7 @@
 				86C2917221963763A2AA523A /* LargeText.swift in Sources */,
 				B9DF71AA4970ECC6F0927401 /* LineEditor.swift in Sources */,
 				3D7A5B5BE64924E4AE8BF00A /* LoadState.swift in Sources */,
+				9B72C8E2EB4869EAAF48A76B /* MailAlertsCard.swift in Sources */,
 				EC7FFE9E0118DB3EF0409912 /* MonthMenu.swift in Sources */,
 				462B717DCD44956EEC548ECB /* MoreView.swift in Sources */,
 				4E47E421774FF04019F80AA1 /* MoveMoneySheet.swift in Sources */,
@@ -669,7 +673,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.68.1;
+				MARKETING_VERSION = 0.69.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -737,7 +741,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.68.1;
+				MARKETING_VERSION = 0.69.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

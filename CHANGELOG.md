@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.3** · Web version: **1.116.1** · Schema version: **39** · iOS version: **0.68.1**
+App version: **1.98.3** · Web version: **1.116.1** · Schema version: **39** · iOS version: **0.69.0**
+
+### Added
+
+- **iPhone: email alerts on the Bank sync page.** Under your banks, Settings → Bank sync now shows your email alerts: whether a mailbox is connected, when it was last checked and what came in, when it checks next, and how many alerts couldn't be read. A failed check, a mailbox to reconnect or an admin's pause is said in plain words, and the Bank sync row on Settings says so too when your banks are fine. **Check now** reads new alerts straight away (not with a read-only sign-in). Connecting a mailbox and teaching it your bank's alerts are still done in the web app's Settings → Email alerts (iOS 0.69.0).
 
 ## [1.98.3] — 2026-11-24
 

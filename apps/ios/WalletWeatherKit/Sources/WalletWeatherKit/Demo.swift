@@ -85,6 +85,8 @@ public enum Demo {
         // Bank sync's status: times are made from now, so they aren't moved
         // by months like the sample dates are.
         case ("GET", "bank", 3) where parts[2] == "status": found = (bankStatus(), recorded)
+        // Email alerts' status (#211), times made from now like bank sync's.
+        case ("GET", "mail", 3) where parts[2] == "status": found = (mailStatus(), recorded)
         case ("GET", "recurring", 2):
             found = (recurring(account: query["account_id"].flatMap(Int.init), ended: query["archived"] == "true"), thisMonth)
         case ("GET", "calendar", 2):
@@ -281,6 +283,20 @@ public enum Demo {
             return tag
         }, ["name"])
         return json(all)
+    }
+
+    /// A sample email alerts status (#211): a mailbox checked 35 minutes
+    /// ago that brought in two lines, one alert it couldn't read, and the
+    /// next check in 25 minutes.
+    static func mailStatus(now: Date = .now) -> Data {
+        json([
+            "enabled": true, "connected": true, "check_minutes": 60,
+            "last_check_at": BankStatus.text(now.addingTimeInterval(-35 * 60)), "last_check_ok": true,
+            "last_check_status": "2 new lines, 1 paid a planned bill",
+            "last_ok_at": BankStatus.text(now.addingTimeInterval(-35 * 60)), "needs_reconnect": false,
+            "paused": false, "failing_since": NSNull(), "failing_over_a_day": false,
+            "next_check_at": BankStatus.text(now.addingTimeInterval(25 * 60)), "unread_count": 1,
+        ])
     }
 
     /// A sample bank sync status: two banks connected (one through SimpleFIN,

@@ -40,6 +40,12 @@ struct DashboardView: View {
     @State private var importingCSV = false
 
     private var editableAccounts: [Account] { accounts.filter(model.canEdit) }
+    /// The account a dropped CSV starts on (#308): the one chosen on the open
+    /// Duo, when this person may change it; else the sheet asks.
+    private var droppedCSVAccount: Int? {
+        guard sizeClass == .regular, chosenId != 0 else { return nil }
+        return editableAccounts.first { $0.id == chosenId }?.id
+    }
 
     struct PinnedReport: Identifiable {
         let report: SavedReport
@@ -63,6 +69,8 @@ struct DashboardView: View {
                     }
                 }
             }
+            // A bank's CSV dropped here imports (#308), where + offers Import a CSV: to the chosen account, if one.
+            .csvDropTarget(enabled: !editableAccounts.isEmpty, account: droppedCSVAccount) { await load() }
             .opensForecast()
             .keptBar(kept)
             .background(PageBackground().ignoresSafeArea())

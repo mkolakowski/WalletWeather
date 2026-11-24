@@ -20,7 +20,7 @@ settings:
     SWIFT_APPROACHABLE_CONCURRENCY: YES
     # The iOS app's version (CHANGELOG.md tracks it beside the app, web and
     # schema versions). Keep AppInfo.version in WalletWeatherKit equal to it.
-    MARKETING_VERSION: "0.52.0"
+    MARKETING_VERSION: "0.53.0"
     CURRENT_PROJECT_VERSION: "1"
     IPHONEOS_DEPLOYMENT_TARGET: "26.0"
     # iPhone only for now (decided 2026-11-14): no iPad, no Mac.
@@ -86,6 +86,13 @@ targets:
             NSUbiquitousContainerName: WalletWeather
             NSUbiquitousContainerSupportedFolderLevels: Any
         NSCameraUsageDescription: "WalletWeather uses the camera to scan the sign-in QR code from your WalletWeather server's Settings, only when you choose to."
+        # A line dragged onto a Calendar day, between WalletWeather's own
+        # windows (#308; WalletWeatherKit's LineDrag). Never rename it.
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: net.iptater.walletweather.line
+            UTTypeDescription: WalletWeather line
+            UTTypeConformsTo: [public.data]
+            UTTypeTagSpecification: {}
     # iCloud Drive (#237): the backup of the household on this iPhone goes to
     # this container's Backups folder. Xcode registers the container with the
     # team the first time it signs the app with this capability.

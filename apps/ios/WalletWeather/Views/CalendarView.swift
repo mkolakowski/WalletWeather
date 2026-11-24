@@ -36,6 +36,8 @@ struct CalendarView: View {
     @State private var paidCount = 0
     @State private var pendingDelete: CalendarEvent?
     @State private var problem: ListProblem?
+    /// Counts lines moved by a drop on a day (#308), for the success haptic.
+    @State private var movedCount = 0
 
     private var shownMonth: YearMonth { YearMonth(monthText) ?? YearMonth(.today()) }
     private var account: Account? { accounts.first { $0.id == accountId } }
@@ -58,6 +60,7 @@ struct CalendarView: View {
                 .opensForecast()
                 .keptBar(kept)
                 .sensoryFeedback(.success, trigger: paidCount)
+                .sensoryFeedback(.success, trigger: movedCount)
                 .background(PageBackground().ignoresSafeArea())
                 .navigationTitle("Calendar")
                 // Two scroll panes side by side leave a large title nothing to collapse against, so cards
@@ -100,6 +103,11 @@ struct CalendarView: View {
         .onChange(of: monthText) { undoOffer = nil; openLine = nil }
         .onChange(of: model.generation) { undoOffer = nil; openLine = nil }
         .onChange(of: openLine != nil) { _, isOpen in if isOpen { undoOffer = nil } }
+        // A line moved by a drop here or in another window (#308).
+        .onChange(of: model.lastLineMove) { _, move in
+            if let move, openLine?.line.transactionId == move.transactionId { openLine = nil }
+            Task { await load() }
+        }
         .scopedToConnection($accountId, memo: $accountMemo)
         .task(id: model.generation) { await loadAll() }
         .task(id: "\(accountId)/\(monthText)") { await load() }
@@ -122,7 +130,7 @@ struct CalendarView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 14) {
                             header
-                            MonthGrid(month: shownMonth, data: data, selected: selected, wide: true, onTap: select)
+                            MonthGrid(month: shownMonth, data: data, selected: selected, wide: true, onTap: select, drop: dayDrop)
                                 .card()
                         }
                         .padding(.leading, edges.leading).padding(.trailing, edges.trailing).padding(.bottom, 24)
@@ -135,7 +143,7 @@ struct CalendarView: View {
                 List {
                     Section {
                         header
-                        MonthGrid(month: shownMonth, data: data, selected: selected, wide: false, onTap: select)
+                        MonthGrid(month: shownMonth, data: data, selected: selected, wide: false, onTap: select, drop: dayDrop)
                             .card()
                     }
                     .calendarRows(EdgeInsets(top: 7, leading: 16, bottom: 7, trailing: 16))
@@ -241,7 +249,59 @@ struct CalendarView: View {
             canEdit: { event in accounts.first { $0.id == event.accountId }.map(model.canEdit) ?? false },
             open: { event in Task { await open(event) } },
             paid: markPaid,
-            delete: { pendingDelete = $0 })
+            delete: { pendingDelete = $0 },
+            drag: { event in
+                let canEdit = accounts.first { $0.id == event.accountId }.map(model.canEdit) ?? false
+                return LineDrag(event: event, canChange: LineDrag.allowed(canEdit: canEdit, lockedInDemo: settings.lockedInDemo))
+            })
+    }
+
+    // MARK: - Drag a line to a day (#308)
+
+    /// The month takes dropped lines when some account may change and the
+    /// lock hasn't put the demo in front; nil otherwise, so no day is a target.
+    private var dayDrop: DayDrop? {
+        guard !settings.lockedInDemo, !editableAccounts.isEmpty else { return nil }
+        let debug = DropDebug.highlightedDay(AppModel.debugSetting("WW_DEBUG_DROP"), month: shownMonth, today: .today())
+        return DayDrop(debugDay: debug, onDrop: dropLine)
+    }
+
+    /// A line dropped on `day`: taken when it moves to another day on an
+    /// account this person may change; saved after the drop ends.
+    private func dropLine(_ drag: LineDrag, on day: LocalDay) -> Bool {
+        guard drag.moves(to: day), let account = accounts.first(where: { $0.id == drag.accountId }),
+              LineDrag.allowed(canEdit: model.canEdit(account), lockedInDemo: settings.lockedInDemo) else { return false }
+        Task { await moveLine(drag, to: day, offeringUndo: true) }
+        return true
+    }
+
+    /// Moves the line's planned date as the editor's "Planned for" does: the
+    /// line is read again from its account's Forecast and saved with only
+    /// that changed. Then every page showing lines reads them again. Undo
+    /// moves it back the same way. True when the server took it.
+    private func moveLine(_ drag: LineDrag, to day: LocalDay, offeringUndo: Bool) async -> Bool {
+        guard let client = model.client else { return false }
+        var done = false
+        do {
+            let forecast = try await client.forecast(account: drag.accountId, month: drag.month)
+            if let line = drag.line(in: forecast), let draft = LineDraft.moved(line, to: day, today: .today()) {
+                try await client.save(line, draft: draft, account: drag.accountId)
+                done = true
+            } else {
+                problem = .gone("\(drag.name) isn't planned for \(drag.plannedOn.short) any more. Pull down to refresh.")
+            }
+        } catch {
+            problem = ListProblem(error)
+        }
+        if done && offeringUndo {
+            movedCount += 1
+            let moved = drag.moved(to: day)
+            undoOffer = UndoOffer(message: "\(drag.name) moved to \(day.short)") {
+                await moveLine(moved, to: drag.plannedOn, offeringUndo: false)
+            }
+        }
+        model.lastLineMove = LineMove(transactionId: drag.transactionId)
+        return done
     }
 
     /// The line in the editor: the Calendar's line is found again in its
@@ -368,6 +428,9 @@ struct MonthGrid: View {
     let selected: LocalDay?
     let wide: Bool
     let onTap: (LocalDay) -> Void
+    /// Lines dropped on a day move there (#308); nil where nothing may move.
+    var drop: DayDrop? = nil
+    @State private var hovered: LocalDay?
 
     private var calendar: Calendar { .current }
 
@@ -385,9 +448,11 @@ struct MonthGrid: View {
                     let day = LocalDay(year: month.year, month: month.month, day: n)
                     Button { onTap(day) } label: {
                         DayCell(day: day, summary: data.summary(of: day), balance: data.balance(on: day),
-                                selected: day == selected, wide: wide)
+                                selected: day == selected, wide: wide,
+                                dropTarget: drop != nil && (day == hovered || day == drop?.debugDay))
                     }
                     .buttonStyle(.plain)
+                    .modifier(DayDropTarget(day: day, drop: drop, hovered: $hovered))
                 }
             }
         }
@@ -411,6 +476,9 @@ struct DayCell: View {
     let balance: Money?
     let selected: Bool
     let wide: Bool
+    /// A dragged line is over this day (#308): outlined and tinted, with no
+    /// change to the cell's size.
+    var dropTarget = false
 
     // Sizes that hold text grow with it (#311): the day's circle, the dots
     // and the 9 and 10 point figures, each exactly as before at Large.
@@ -459,6 +527,15 @@ struct DayCell: View {
         .frame(maxWidth: .infinity, minHeight: showsAmounts ? 78 : 44, alignment: .top)
         .padding(.vertical, showsAmounts ? 4 : 2)
         .background(wide && selected ? Palette.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 10))
+        .overlay {
+            if dropTarget {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10).fill(Palette.accent.opacity(0.18))
+                    RoundedRectangle(cornerRadius: 10).strokeBorder(Palette.accent, lineWidth: 2.5)
+                }
+                .allowsHitTesting(false)
+            }
+        }
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
@@ -521,6 +598,9 @@ struct CalendarLineActions {
     let open: (CalendarEvent) -> Void
     let paid: (CalendarEvent) -> Void
     let delete: (CalendarEvent) -> Void
+    /// The line as something to drag onto a day (#308), or nil when its
+    /// date can't move here.
+    let drag: (CalendarEvent) -> LineDrag?
 }
 
 extension View {
@@ -582,6 +662,7 @@ struct DayLines: View {
                     .accessibilityHint("Opens the line")
                     .modifier(LineSwipes(event: line, editable: actions.canEdit(line), onPaid: actions.paid,
                                          onEdit: actions.open, onDelete: actions.delete))
+                    .lineDrag(actions.drag(line))
                     .calendarRows(insets)
             }
         }

@@ -170,6 +170,14 @@ The keyboard and pointer (#307) can't be driven from a script either, so
 page, and `SIMCTL_CHILD_WW_DEBUG_CONTEXT=1` shows the long-press menu of
 Forecast's first line (the Kit's `RowAction`s, as that person may use them)
 as a sheet over Forecast. Both are Debug only.
+Drag and drop (#308) can't be driven from a script either:
+`SIMCTL_CHILD_WW_DEBUG_DROP=csv` shows Forecast's (and the Dashboard's) drop
+highlight as if a bank's CSV were held over the page, and
+`SIMCTL_CHILD_WW_DEBUG_DROP=day` shows a Calendar day highlighted as if a line
+were held over it (the day after today, or the 15th when today isn't in the
+month shown; a `YYYY-MM-DD` in the month instead picks that day). Each shows
+only where the drop would be taken: an account that can change, and not
+while the lock has the demo in front. Debug only.
 On this Mac the simulators are shared with other projects' sessions, so run
 simulator commands through mkplus's `Scripts/with-simulator.sh`.
 

@@ -1,7 +1,8 @@
 // swift-tools-version: 6.2
 // WalletWeatherKit: everything in the iOS app with no screen — the API
 // client, the models, and money and date formatting. System frameworks only
-// (Foundation, CryptoKit, JavaScriptCore). Tested with `swift test` on the
+// (Foundation, CryptoKit, JavaScriptCore; CoreTransferable and
+// UniformTypeIdentifiers for a dragged line, #308). Tested with `swift test` on the
 // Mac, no simulator.
 import PackageDescription
 

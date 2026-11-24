@@ -45,6 +45,10 @@ final class AppModel {
     let phoneBank = AppModel.makePhoneBank()
     /// A CSV to import, from `WW_DEBUG_CSV` (debug builds only).
     var debugCSV: CSVFile?
+    /// The last line dragged onto a Calendar day (#308), in any window: the
+    /// pages showing lines read them again, and an editor open on that line
+    /// closes, since what it holds is out of date.
+    var lastLineMove: LineMove?
     /// The first account was just added and the backup isn't decided yet:
     /// the app offers it.
     var offeringBackup = false
@@ -658,7 +662,8 @@ final class AppModel {
     /// `WW_DEBUG_CONNECTIONS=sample` (sample connections in memory, #300),
     /// and `WW_DEBUG_LOCKED_DEMO=1` (start as if the lock had just sent the
     /// app to the demo) and `WW_DEBUG_CHIP_MENU=1` (the demo chip's choices
-    /// as a sheet, #301).
+    /// as a sheet, #301), and `WW_DEBUG_DROP=csv` or `day` (a drop
+    /// highlight with nothing dragged, #308).
     /// Always nil in a
     /// Release build.
     static func debugSetting(_ name: String) -> String? {

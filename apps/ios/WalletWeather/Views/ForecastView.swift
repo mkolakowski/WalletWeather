@@ -50,9 +50,20 @@ struct ForecastView: View {
     private var editable: Bool { account.map(model.canEdit) ?? false }
     private var editableAccounts: [Account] { (accounts.value ?? []).filter(model.canEdit) }
 
+    /// A line as something to drag onto a Calendar day (#308): a one-off
+    /// not yet paid, on an account this person may change, not while the
+    /// lock has the demo in front.
+    private func drag(_ line: ForecastLine) -> LineDrag? {
+        guard let account else { return nil }
+        return LineDrag(line: line, accountId: account.id,
+                        canChange: LineDrag.allowed(canEdit: editable, lockedInDemo: settings.lockedInDemo))
+    }
+
     var body: some View {
         PageStack {
             content
+                // A bank's CSV dropped here imports to this account (#308), where + offers Import a CSV.
+                .csvDropTarget(enabled: editable, account: account?.id) { await loadMonth() }
                 .keptBar(kept)
                 .sensoryFeedback(.success, trigger: paidCount)
                 .background(PageBackground().ignoresSafeArea())
@@ -102,6 +113,11 @@ struct ForecastView: View {
         .onChange(of: monthText) { undoOffer = nil }
         .onChange(of: model.generation) { undoOffer = nil }
         .onChange(of: open != nil) { _, isOpen in if isOpen { undoOffer = nil } }
+        // A line dragged onto a Calendar day, in this window or another (#308).
+        .onChange(of: model.lastLineMove) { _, move in
+            if let move, open?.line.transactionId == move.transactionId { open = nil }
+            Task { await loadMonth() }
+        }
         .task(id: model.generation) { await loadAll() }
         .task(id: "\(accountId)/\(monthText)") { await loadMonth() }
         // An account chosen in Search (#112): this month of it.
@@ -161,6 +177,7 @@ struct ForecastView: View {
                                 .pointerCard()
                                 .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onEdit: openLine,
                                                      onDelete: { pendingDelete = $0 }))
+                                .lineDrag(drag(line))
                         }
                     }
                 }
@@ -228,6 +245,7 @@ struct ForecastView: View {
                                 .pointerCard()
                                 .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onEdit: openLine,
                                                      onDelete: { pendingDelete = $0 }))
+                                .lineDrag(drag(line))
                                 .listRowSeparator(.hidden)
                                 .listRowInsets(EdgeInsets(top: 5, leading: edges.leading, bottom: 5, trailing: edges.trailing))
                             }
@@ -241,6 +259,7 @@ struct ForecastView: View {
                                 .pointerRow()
                                 .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onEdit: openLine,
                                                      onDelete: { pendingDelete = $0 }))
+                                .lineDrag(drag(line))
                             }
                         }
                     }

@@ -71,6 +71,12 @@ same commit (or session) that introduces it.
 
 App version: **1.98.1** · Web version: **1.116.0** · Schema version: **39** · iOS version: **0.65.1**
 
+## [1.98.1] — 2026-11-24
+
+App version: **1.98.1** · Web version: **1.116.0** · Schema version: **39** · iOS version: **0.65.1**
+
+Setting up bank sync is easier to follow: the steps for adding your Teller and Plaid keys link to the pages they name, and Teller, Plaid and SimpleFIN Bridge each have a card under Connect a bank, on the web and in the iPhone app. This release also carries the iPhone app's work since 0.34.0 (reminders, widgets, several servers at once, Duo layouts and more); see the iPhone entries below.
+
 ### Added
 
 - **iPhone: reminders.** Settings → Reminders has three switches, all off until you turn them on, when the iPhone asks to allow notifications. **Bill due tomorrow** arrives at 9:00 AM the day before each bill (change the time under the switch). **Balance heading under** watches one account you pick and warns once when its forecast first goes under your amount (starting at $100) within the next 7 days, and again only after it's back above and dips again. **New bank lines to match** tells you when bank sync on this iPhone brings in lines to match. Reminders are worked out on the iPhone for the connection you're using, none for the demo or a server set to keep Nothing. Their text never shows an amount ("Rent is due tomorrow"); press and hold one to see the amount, which stays hidden while your iPhone or WalletWeather is locked. Tapping one opens Bills & income, the account in Forecast, or the Dashboard (iOS 0.65.0).
@@ -2910,7 +2916,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.98.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.98.1...HEAD
+[1.98.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.1
 [1.98.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.0
 [1.97.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.97.0
 [1.92.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.92.0

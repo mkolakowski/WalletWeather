@@ -7,7 +7,7 @@ Tracking issue: #333
 | Phase | Issue | State |
 | --- | --- | --- |
 | 1. Widgets and the summary they read | #318 | On TestFlight (0.64.0, build 473); pictures and phone check to come |
-| 2. Reminders worked out on the phone | #319 | Not started |
+| 2. Reminders worked out on the phone | #319 | Built in iOS 0.65.0; TestFlight, pictures and phone check to come |
 | 3. Open To confirm and What's my balance | #320 | Not started |
 | 4. Bills and accounts in the phone's search | #331 | Not started |
 | 5. Add a transaction and Mark a bill paid | #332 | Not started |
@@ -15,6 +15,7 @@ Tracking issue: #333
 Planned 2026-11-23 (about 11:00 PM ET), from #318, #319 and #320 (ideas F1 to F3 of the iOS review), on iOS 0.63.0.
 
 - **Phase 1:** iOS 0.64.0, 2026-11-23 (042eea0). Verified: 16 new Kit tests on the summary (written, read, refused while locked, deleted on sign-out, on Nothing and on Delete everywhere, no numbers for Nothing) in a full `swift test` of 468 that passed; the app and widget extension build for the simulator. Not yet: simulator pictures (the shared simulator lock refused while the external SSD was unplugged) and the check on the phone from TestFlight.
+- **Phase 2:** iOS 0.65.0, 2026-11-24 (e6b7213). Settled while building (2026-11-24, ios-review.md): Balance heading under watches one picked account, starting at $100; reminders follow the connection in front. Verified: 15 new Kit tests (each switch, nothing when off, for the demo or Nothing, a dip told once, bank lines once, no amount in any text, the expanded view's ••••) in a full `swift test` of 483 that passed; app and both extensions build. Not yet: TestFlight (the new expanded-view extension needs its App ID registered), simulator pictures (PortSSD) and the check on the phone.
 
 Sessions: may span — five iOS versions, each tried on your phone from TestFlight before the next builds on it.
 

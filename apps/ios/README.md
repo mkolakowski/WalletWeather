@@ -132,6 +132,9 @@ Card; on the household on this iPhone, as `WW_DEBUG_BANK=unmatched`). On a regul
 width (the open Duo, #295) Settings is a sidebar with the chosen page beside
 it, and these choose that page there; the open page is kept per window
 (`settings.page`), so closing or opening the Duo keeps it.
+The Dashboard's bank card (#321) shows in the demo as "N bank lines to match";
+`SIMCTL_CHILD_WW_DEBUG_BANK_CARD=reconnect` also makes the demo's first bank need
+reconnecting, so the card shows both lines.
 `SIMCTL_CHILD_WW_DEBUG_DATES=iso` (or `short`) forces how dates are written
 (Settings → Dates & display → Date format, #296), whatever is chosen there or
 saved in the web app; `WW_DEBUG_LOOK=<look>` picks the look the same way.

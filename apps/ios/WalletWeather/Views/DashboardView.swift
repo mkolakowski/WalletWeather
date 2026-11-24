@@ -38,6 +38,18 @@ struct DashboardView: View {
     @State private var moving = false
     @State private var moveDraft = MoveMoneyDraft(today: .today())
     @State private var importingCSV = false
+    /// What bank sync asks of the person on a server (#321); the iPhone's own
+    /// bank is read live from `model.phoneBank`.
+    @State private var serverBankLines: [BankCardLine] = []
+    /// The Unmatched list the bank card opened.
+    @State private var unmatchedRoute: UnmatchedRoute?
+
+    /// The bank card's lines: none while the lock has the demo in front.
+    private var bankLines: [BankCardLine] {
+        if settings.lockedInDemo { return [] }
+        if model.isLocal { return BankCard.lines(phone: model.phoneBank.state, connected: model.phoneBank.connected) }
+        return serverBankLines
+    }
 
     private var editableAccounts: [Account] { accounts.filter(model.canEdit) }
     /// The account a dropped CSV starts on (#308): the one chosen on the open
@@ -72,6 +84,7 @@ struct DashboardView: View {
             // A bank's CSV dropped here imports (#308), where + offers Import a CSV: to the chosen account, if one.
             .csvDropTarget(enabled: !editableAccounts.isEmpty, account: droppedCSVAccount) { await load() }
             .opensForecast()
+            .unmatchedList($unmatchedRoute)
             .keptBar(kept)
             .background(PageBackground().ignoresSafeArea())
             .navigationTitle("Dashboard")
@@ -95,6 +108,11 @@ struct DashboardView: View {
                let card = summary.value?.cards.first(where: { $0.name == name }) { chosenId = card.id }
         }
         .task(id: model.generation) { await loadChoices() }
+        // Bank sync's asks, read again with each load and when back from the Unmatched list.
+        .task(id: "\(model.generation)/\(loadCount)/\(settings.lockedInDemo)") { await loadBank() }
+        .onChange(of: unmatchedRoute) { _, now in
+            if now == nil { Task { await loadBank() } }
+        }
         .scopedToConnection($chosenId, memo: $accountMemo)
         .sheet(isPresented: $adding) {
             if let target = editableAccounts.first {
@@ -182,6 +200,10 @@ struct DashboardView: View {
             ContentUnavailableView("No accounts yet", systemImage: "building.columns",
                                    description: Text("Add an account in the web app's Settings, and it shows here."))
         } else {
+            // Only while bank sync has something to do (#321): no card, no gap, otherwise.
+            if !bankLines.isEmpty {
+                BankStatusCard(lines: bankLines) { open($0) }
+            }
             RestOfMonthCard(dashboard: dashboard)
             ForEach(dashboard.cards) { card in
                 if sizeClass == .regular {
@@ -276,6 +298,42 @@ struct DashboardView: View {
         await loadPinned()
     }
 
+    /// What a tap on a bank card line opens: the Unmatched list, or the
+    /// Settings page where a bank is connected again.
+    @Environment(\.openPlace) private var openPlace
+
+    private func open(_ line: BankCardLine) {
+        switch line.action {
+        case let .unmatched(accounts): unmatchedRoute = UnmatchedRoute(accounts: accounts)
+        case .reconnect:
+            model.settingsRequest = .bank
+            openPlace(.more)
+        }
+    }
+
+    /// Bank sync's status and Unmatched counts on a server, asked quietly: a
+    /// status that can't be read, or a server before bank sync, shows no card.
+    private func loadBank() async {
+        guard !settings.lockedInDemo, !model.isLocal, let client = model.client(kept) else {
+            serverBankLines = []
+            return
+        }
+        var status = try? await client.bankStatus()
+        #if DEBUG
+        // `WW_DEBUG_BANK_CARD=reconnect` shows the first connection as needing to be connected again.
+        if AppModel.debugSetting("WW_DEBUG_BANK_CARD") == "reconnect", let found = status, let first = found.connections?.first {
+            var list = found.connections ?? []
+            list[0] = BankConnection(id: first.id, provider: first.provider, providerName: first.providerName, name: first.name,
+                                     linkedAccountIds: first.linkedAccountIds, needsReconnect: true)
+            status = BankStatus(enabled: found.enabled, connected: found.connected, linkedAccountIds: found.linkedAccountIds,
+                                connections: list, shared: found.shared)
+        }
+        #endif
+        var counts: [Int: Int] = [:]
+        if let status { counts = await client.unmatchedCounts(for: status) }
+        serverBankLines = BankCard.lines(status: status, counts: counts)
+    }
+
     /// The accounts and categories the + menu works from.
     private func loadChoices() async {
         guard let client = model.client(kept) else { return }
@@ -343,6 +401,37 @@ struct RestOfMonthCard: View {
         }
         .card()
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// What bank sync asks of the person (#321): one slim line each, at most two,
+/// most urgent first, each opening where it's dealt with. Shown by the
+/// Dashboard only when there's a line.
+struct BankStatusCard: View {
+    let lines: [BankCardLine]
+    let open: (BankCardLine) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(lines) { line in
+                if line.id != lines.first?.id { Divider() }
+                Button { open(line) } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: line.symbol)
+                            .foregroundStyle(line.action == .reconnect ? Palette.warn : Color.secondary)
+                            .frame(width: 22)
+                        Text(line.text).font(.subheadline.weight(.semibold)).multilineTextAlignment(.leading)
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                    }
+                    .frame(minHeight: 36)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint(line.action == .reconnect ? "Opens Settings, Bank sync" : "Opens the bank lines that paid no planned line")
+            }
+        }
+        .card()
     }
 }
 

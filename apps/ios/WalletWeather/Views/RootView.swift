@@ -39,12 +39,15 @@ struct RootView: View {
     /// ⌘F's count, which Search watches (#307), and the Debug shortcut table.
     @State private var searchFocusRequest = 0
     @State private var showingShortcutTable = false
+    /// Debug only: `WW_DEBUG_WIDGETS=<mode>` shows the widgets' faces (#318).
+    @State private var widgetGallery: String?
     /// The window's own bottom inset (the home indicator), and the open
     /// page's, which includes a bar along the bottom; nil until measured.
     @State private var windowBottom: CGFloat = 0
     @State private var pageBottom: CGFloat?
     @Environment(\.openWindow) private var openWindow
     @Environment(AppSettings.self) private var settings
+    @Environment(AppModel.self) private var model
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 
     /// Down the side when the page's bottom inset is no more than the
@@ -92,11 +95,30 @@ struct RootView: View {
         .pageShortcuts(.everywhere, tabShortcuts)
         // Debug only: `WW_DEBUG_SHORTCUTS=1` shows the shortcut table as a sheet (#307).
         .sheet(isPresented: $showingShortcutTable) { ShortcutTableSheet() }
+        #if DEBUG
+        .fullScreenCover(item: Binding(get: { widgetGallery.map(GalleryMode.init) }, set: { widgetGallery = $0?.id })) {
+            WidgetGallery(mode: $0.id)
+        }
+        #endif
         .environment(\.barOnSide, barOnSide)
         // A page taken out of the bar while open, or a fourth page when the
         // bar moves to the bottom: Settings, where it's listed now.
         .onChange(of: shown) { _, shown in
             if pageBottom != nil, let page = place.page, !shown.contains(page) { place = .more }
+        }
+        // A widget tapped (#318): its connection in front, then its page,
+        // in the first window to take it.
+        .onChange(of: model.widgetOpen, initial: true) { _, open in
+            guard let open else { return }
+            model.widgetOpen = nil
+            Task {
+                guard let target = await model.follow(open) else { return }
+                if let page = target.page, !shown.contains(page) {
+                    place = .more   // not in the tab bar: Settings lists it under More pages
+                } else {
+                    place = target
+                }
+            }
         }
         .onAppear {
             if let start, !started { place = start }
@@ -106,6 +128,13 @@ struct RootView: View {
             }
             started = true
             if AppModel.debugSetting("WW_DEBUG_SHORTCUTS") == "1" { showingShortcutTable = true }
+            // Debug only: after the summary has had a moment to be written.
+            if let mode = AppModel.debugSetting("WW_DEBUG_WIDGETS") {
+                Task {
+                    try? await Task.sleep(for: .seconds(2))
+                    widgetGallery = mode
+                }
+            }
             // Debug only: `WW_DEBUG_SETTINGS=<page>` opens Settings on that page (#294).
             // `WW_DEBUG_COPY` opens Move to a server with Copy to a server over it (#328).
             if AppModel.debugSetting("WW_DEBUG_SETTINGS") != nil || AppModel.debugSetting("WW_DEBUG_COPY") != nil { place = .more }
@@ -125,3 +154,11 @@ private struct MeasureBottom: ViewModifier {
         content.onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { if $0 < 200 { bottom = $0 } }
     }
 }
+
+#if DEBUG
+/// The Debug widget gallery's mode, as a sheet's item.
+private struct GalleryMode: Identifiable {
+    let id: String
+    init(_ id: String) { self.id = id }
+}
+#endif

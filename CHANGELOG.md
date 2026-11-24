@@ -69,10 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.63.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.64.0**
 
 ### Added
 
+- **iPhone: widgets.** Three widgets for the Home Screen (small and medium, the small one in StandBy too) and the Lock Screen (rectangular, inline and round): **Balance** (one account's balance and the month's low), **Next bills** (the next three, with dates and amounts) and **To confirm** (how many lines wait). Each shows a connection, the one in front when you add it; press and hold the widget and choose Edit Widget to pick another connection or account. Tapping one opens that page in the app, on its connection. Amounts show as •••• while the iPhone is locked, and while WalletWeather's own lock is on. A server set to keep Nothing shows its name and "Turn on Last-known numbers to see numbers here". The widgets read a small summary the app keeps on the iPhone and never contact your server; the privacy policy says what it holds and when it's deleted (iOS 0.64.0).
 - **iPhone: copy your household to a server, inside the app.** Settings → Move to a server → Copy to a server…: pick a server you're signed in to with full access, see what goes, and choose to add to what's there or replace it (Replace asks again, and is never chosen for you). No file or passphrase is needed, and this iPhone keeps its copy. Export for a server and Import a server backup are still there (iOS 0.63.0).
 - **iPhone: connections at a glance.** Settings → Connections shows each connection's total today and how old it is ("as of 2 h ago"): a server's from its last-known numbers (only when it keeps them), the household on this iPhone's as of now, and the demo's sample. While the lock has the demo in front, totals are hidden like addresses (iOS 0.62.0).
 - **iPhone: filter Forecast by category or tag.** A row of chips under All lines and To confirm lists the month's categories (most spending first) and tags. Choose one to see only its lines, with their count and total for the month; All puts everything back (iOS 0.61.0).

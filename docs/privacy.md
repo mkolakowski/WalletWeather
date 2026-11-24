@@ -131,6 +131,28 @@ Keychain so your other Apple devices can open your backups. Nobody else,
 including WalletWeather's authors, can recover the passphrase or open the
 file without it.
 
+**Widgets** in the iOS app (Balance, Next bills and To confirm, on the Home
+Screen, the Lock Screen and in StandBy) read a small summary the app keeps on
+the iPhone for each connection, in storage the app shares only with its own
+widgets: the connection's name, when the summary was made, each account's name,
+balance and the month's lowest forecast balance, your bills and income with
+their names, amounts and next dates, and how many lines wait to be confirmed.
+
+- The app writes it while the iPhone is unlocked, when its pages load and when
+  you open or leave the app. The widgets only read it and never contact a
+  server.
+- It can't be read while the iPhone is locked, is left out of iCloud and
+  computer backups, and never leaves the iPhone.
+- Amounts in a widget show as •••• while the iPhone is locked, and also while
+  the app's own lock is on, even on an unlocked iPhone. Names, labels and
+  counts still show.
+- A server set to keep **Nothing** gets a summary with its name only, and its
+  widgets show no numbers. Switching a server to Nothing removes the rest of
+  its summary straight away.
+- A server's summary is deleted when you sign out of it. The summary of **On
+  this iPhone** is deleted when you leave it, delete everything on this iPhone,
+  or delete everywhere.
+
 Removing the app removes all of it.
 
 The app asks for the camera only when you choose **Scan a QR code** to sign

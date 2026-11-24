@@ -325,6 +325,35 @@ transactions are kept only when the person chooses Last-known numbers
 The single sign-in kept before #299 (account `connection`) is carried over
 once, and removed only after its copy reads back.
 
+**The widgets' summary** (#318, `SummaryStore` in WalletWeatherKit): one
+JSON file per saved connection, `Summaries/<connection id>.json`, in the app
+group `group.net.iptater.walletweather` that the app shares with its widget
+extension (`Widgets/`, bundle `net.iptater.walletweather.widgets`). It holds
+the connection's name and kind, when it was made, each account's name,
+balance and month's low (with its day), the bills and income (name, account,
+amount, next date) and how many lines wait to confirm on the accounts this
+person can change. The app writes it from the connection's own client (never
+a kept copy) after the pages load, when someone's sign-in is known, and when
+the app opens or leaves, then asks WidgetKit to reload; the widgets only read
+it. It's written with complete file protection (nothing reads it while the
+phone is locked, the widgets included) and left out of backups, file and
+folder alike. The household on this iPhone always gets numbers; a server set
+to Nothing gets a summary with its name only (nothing is asked of the server),
+and choosing Nothing replaces the file at once. `ConnectionStore.remove`
+deletes it, so it goes with signing out of a server, leaving the household,
+Delete everything on this iPhone and Delete everywhere; summaries of
+connections no longer saved are pruned at start. Two settings are copied into
+the group's preferences for the widgets, neither of them a number: whether the
+app lock is on (`lock.enabled`; on, every amount shows as •••• even on an
+unlocked phone) and which connection is in front (`connections.front`, where a
+new widget starts). Amounts are marked privacy-sensitive, so a locked phone
+redacts them to ••••; names, labels and counts still show. A widget's tap opens
+`walletweather://open?page=dashboard|bills|to-confirm&connection=…&account=…`,
+ids only. The app group, the file names, the widget kinds
+(`net.iptater.walletweather.balance`, `.next-bills`, `.to-confirm`) and the
+link's pages are stable identifiers. `KeptResponses` and the household's store
+stay in the app's own container: nothing moved into the group.
+
 Signing out of a server (its page, from Connections) ends that server's
 token first (`DELETE /api/tokens/current`, sent with that connection's own
 sign-in, so it works for one that isn't in front: a token may revoke itself,

@@ -5,7 +5,8 @@
   collected: the app talks only to the person's own server, or to nothing in
   the demo. The two APIs Apple asks a reason for:
   - UserDefaults: the app's own settings (CA92.1, read and written by this
-    app only).
+    app only), and two settings copied into the app group for the widgets,
+    the app lock and the connection in front (1C8F.1, #318).
   - File timestamps: when kept numbers were saved, shown as "as loaded …",
     on files in the app's own container (C617.1).
   Update this with docs/privacy.md if the app ever stores or sends more.
@@ -26,6 +27,7 @@
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
 				<string>CA92.1</string>
+				<string>1C8F.1</string>
 			</array>
 		</dict>
 		<dict>

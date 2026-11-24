@@ -235,6 +235,8 @@ public final class MemoryConnectionSecrets: ConnectionSecretStore, @unchecked Se
 ///   (`connections.active`); nothing else about a connection is.
 /// - Its last-known numbers are in a folder of its own,
 ///   `Application Support/Kept/<id>/`, deleted when it's removed.
+/// - Its summary for the widgets (`SummaryStore`, in the app group) is
+///   deleted when it's removed too (#318).
 /// - The single sign-in kept before (account `connection`, with
 ///   `keep.choice` and `appearance.web` in the settings) is carried over
 ///   once by `carryOver()`, and removed only once its copy reads back.
@@ -251,6 +253,9 @@ public final class ConnectionStore: @unchecked Sendable {
 
     public let secrets: ConnectionSecretStore
     public let keptRoot: URL
+    /// The widgets' summaries (#318); nil where there are none (tests that
+    /// don't look at them, a build without the app group).
+    public let summaries: SummaryStore?
     private let defaults: UserDefaults
     private let now: @Sendable () -> Date
 
@@ -272,10 +277,12 @@ public final class ConnectionStore: @unchecked Sendable {
     }
 
     public init(secrets: ConnectionSecretStore, defaults: UserDefaults = .standard,
-                keptRoot: URL = ConnectionStore.standardKeptRoot, now: @escaping @Sendable () -> Date = { Date() }) {
+                keptRoot: URL = ConnectionStore.standardKeptRoot, summaries: SummaryStore? = nil,
+                now: @escaping @Sendable () -> Date = { Date() }) {
         self.secrets = secrets
         self.defaults = defaults
         self.keptRoot = keptRoot
+        self.summaries = summaries
         self.now = now
     }
 
@@ -378,9 +385,11 @@ public final class ConnectionStore: @unchecked Sendable {
         return write(saved)
     }
 
-    /// Removes a connection: its last-known numbers, then its Keychain item.
+    /// Removes a connection: its last-known numbers and its widgets'
+    /// summary, then its Keychain item.
     public func remove(_ id: UUID) {
         kept(for: id).deleteAll()
+        summaries?.delete(id)
         secrets.delete(Self.account(for: id))
         if activeID == id { defaults.removeObject(forKey: Self.activeKey) }
     }

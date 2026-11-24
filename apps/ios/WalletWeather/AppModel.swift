@@ -4,6 +4,7 @@ import Observation
 import SwiftUI
 import UIKit
 import WalletWeatherKit
+import WidgetKit
 
 /// Where sign-in has got to, and the connection the pages use.
 ///
@@ -151,7 +152,8 @@ final class AppModel {
     #endif
 
     init(defaults: UserDefaults = .standard, store: ConnectionStore? = nil) {
-        self.store = store ?? Self.debugConnections() ?? ConnectionStore(secrets: KeychainConnectionSecrets(), defaults: defaults)
+        self.store = store ?? Self.debugConnections()
+            ?? ConnectionStore(secrets: KeychainConnectionSecrets(), defaults: defaults, summaries: SummaryStore.shared)
     }
 
     /// Debug only: `WW_DEBUG_CONNECTIONS=sample` keeps the connections in
@@ -209,6 +211,93 @@ final class AppModel {
     }
     #endif
 
+    // MARK: - The widgets' summary (Plans/outside-the-app.md, phase 1, #318)
+
+    /// A widget tapped: the page to open, on its connection. A window's
+    /// pages take it (`RootView`) and clear it.
+    var widgetOpen: WidgetOpen?
+    /// The last summary written: for which connection and load, and when, so
+    /// coming back to the app doesn't ask the server again every time.
+    @ObservationIgnored private var lastSummary: (key: String, at: Date)?
+    @ObservationIgnored private var summaryTask: Task<Void, Never>?
+
+    /// Writes the summary of the connection in front for the widgets, after
+    /// its pages load (a new connection, a reload, someone signed in) and
+    /// when the app opens or leaves; `force` skips the wait between two.
+    /// Only a saved connection has one; never the demo. A server set to
+    /// Nothing gets its name alone, and nothing is asked of it.
+    func refreshSummary(force: Bool = false, within: TimeInterval = 120) {
+        guard store.summaries != nil, let saved, connection == saved.connection, !isDemo, phase == .ready else { return }
+        // Who's signed in says whether the token may confirm lines: wait for it.
+        if ConnectionSummary.keepsNumbers(saved), me == nil { return }
+        let key = "\(saved.id)/\(generation)/\(me?.id ?? -1)"
+        if !force, let lastSummary, lastSummary.key == key, Date.now.timeIntervalSince(lastSummary.at) < within { return }
+        lastSummary = (key, .now)
+        summaryTask?.cancel()
+        // Leaving the app is when the widgets matter: a little background
+        // time to finish.
+        let time = BackgroundTime()
+        time.id = UIApplication.shared.beginBackgroundTask(withName: "Widgets' summary") { time.end() }
+        summaryTask = Task {
+            await writeSummary()
+            time.end()
+        }
+    }
+
+    /// Loads and writes the summary now (see `refreshSummary`). The numbers
+    /// come from the connection's own client, not a kept copy, so the
+    /// summary says when they were really loaded; if they can't be loaded,
+    /// the summary before stays.
+    func writeSummary() async {
+        guard let summaries = store.summaries, let front = saved, connection == front.connection, !isDemo else { return }
+        var summary = ConnectionSummary.nameOnly(front)
+        if ConnectionSummary.keepsNumbers(front) {
+            // A locked phone can't read the household, and wouldn't let the
+            // widgets read what's written.
+            guard UIApplication.shared.isProtectedDataAvailable else { return }
+            guard let loaded = try? await ConnectionSummary.fetch(front, client: APIClient(connection: front.connection),
+                                                                  readOnly: me?.isReadOnly == true) else { return }
+            summary = loaded
+        }
+        // Signed out, switched or set to Nothing while it loaded: it's not
+        // written, or only the name is.
+        guard !Task.isCancelled, saved?.id == front.id, let current = store.load(front.id) else { return }
+        if !ConnectionSummary.keepsNumbers(current) { summary = .nameOnly(current) }
+        if summaries.write(summary) { WidgetCenter.shared.reloadAllTimelines() }
+    }
+
+    /// Summaries of connections no longer saved go (a crash between signing
+    /// out and the file going). Only while the Keychain can be read: a
+    /// locked phone would make every connection look gone.
+    private func pruneSummaries() {
+        guard let summaries = store.summaries, UIApplication.shared.isProtectedDataAvailable else { return }
+        summaries.prune(keeping: Set(store.all().map(\.id)))
+    }
+
+    /// Follows a widget's tap: its connection comes in front (asking first
+    /// while the lock has the demo in front; on cancel the demo stays and
+    /// nothing opens), then the page it showed. Returns the place to open,
+    /// or nil to stay.
+    func follow(_ open: WidgetOpen) async -> RootView.Place? {
+        if let id = open.connection, id != saved?.id || isDemo {
+            guard store.load(id) != nil else { return .dashboard }   // signed out since: the page in front
+            await choose(.saved(id))
+            guard saved?.id == id, !isDemo else { return nil }
+        }
+        switch open.page {
+        case .dashboard:
+            return .dashboard
+        case .bills:
+            return .bills
+        case .toConfirm:
+            if let account = open.account {
+                forecastRequest = account
+                forecastToConfirm = true
+            }
+            return .forecast
+        }
+    }
+
     /// Choosing Nothing deletes what's kept straight away.
     func setKeep(_ choice: KeepChoice) {
         askKeep = false
@@ -221,6 +310,8 @@ final class AppModel {
             store.legacyKeep = choice
         }
         if choice == .nothing { deleteKept() }
+        // The widgets' summary follows (#318): Nothing leaves only the name.
+        refreshSummary(force: true)
     }
 
     /// The connection in front's kept numbers, and only its.
@@ -238,6 +329,14 @@ final class AppModel {
         applyDebugKeep()
         if keep == .nothing { deleteKept() }
         reloadConnections()
+        // Where a new widget starts (#318); a server set to Nothing has only
+        // its name in its summary, whatever was there before.
+        if let front {
+            OutsideSettings.shared.front = front.id
+            if let saved, !ConnectionSummary.keepsNumbers(saved), store.summaries?.write(.nameOnly(saved)) == true {
+                WidgetCenter.shared.reloadAllTimelines()
+            }
+        }
     }
 
     /// Reads the saved connections again, for Connections.
@@ -495,11 +594,13 @@ final class AppModel {
         }
         guard saved?.id == id else {
             store.remove(id)
+            WidgetCenter.shared.reloadAllTimelines()
             reloadConnections()
             connectionsNotice = notice
             return
         }
         store.remove(id)
+        WidgetCenter.shared.reloadAllTimelines()
         if let next = store.mostRecentlyUsed {
             switchTo(next.id)
             connectionsNotice = notice
@@ -540,7 +641,11 @@ final class AppModel {
     /// locked phone keeps it closed).
     func backgroundBankSync() async {
         guard phoneBank.connected, householdMayRun else { return }
-        if let result = await phoneBank.syncIfDue(), result.added + result.matched > 0, isLocal { generation += 1 }
+        if let result = await phoneBank.syncIfDue(), result.added + result.matched > 0, isLocal {
+            generation += 1
+            // New lines change the widgets' numbers (#318).
+            await writeSummary()
+        }
         scheduleBankRefresh()
     }
 
@@ -698,6 +803,7 @@ final class AppModel {
     /// `WW_DEBUG_DEMO=1` (open in the demo), and `WW_DEBUG_CLOUDKIT_SCHEMA=1`
     /// (write the CloudKit schema to Development, #270), and
     /// `WW_DEBUG_CONNECTIONS=sample` (sample connections in memory, #300),
+    /// `WW_DEBUG_WIDGETS=amounts|applock|locked|nothing` (the widgets' faces, #318),
     /// and `WW_DEBUG_LOCKED_DEMO=1` (start as if the lock had just sent the
     /// app to the demo) and `WW_DEBUG_CHIP_MENU=1` (the demo chip's choices
     /// as a sheet, #301), and `WW_DEBUG_DROP=csv` or `day` (a drop
@@ -819,6 +925,7 @@ final class AppModel {
         // The single sign-in kept before becomes the first saved connection,
         // once; if it can't be, it stays in its old item and is used as is.
         let carried = store.carryOver()
+        pruneSummaries()
         #if DEBUG
         // Screenshots and checks from the command line, in Debug builds only:
         // `SIMCTL_CHILD_WW_DEBUG_SERVER=… SIMCTL_CHILD_WW_DEBUG_TOKEN=… xcrun
@@ -1238,6 +1345,9 @@ final class AppModel {
         switch OpenedURL(url) {
         case .csv:
             openCSV(url)
+        case let .link(.open(page, connection, account)):
+            // A widget tapped (#318): the window's pages follow it.
+            widgetOpen = WidgetOpen(page: page, connection: connection, account: account)
         case let .link(link):
             // The sheet's own answers go to the sheet; only connect links land here.
             guard case let .connect(server, token) = link,
@@ -1311,7 +1421,10 @@ final class AppModel {
     /// its keep choice and its kept numbers.
     private func forgetFront() {
         if let saved {
+            // Its widgets' summary goes with it (#318), on sign-out, leaving
+            // the household and Delete everywhere.
             store.remove(saved.id)
+            WidgetCenter.shared.reloadAllTimelines()
         } else if legacy {
             store.removeLegacy()
         } else {
@@ -1335,4 +1448,22 @@ struct OpenedCSVAlert: Identifiable {
     let id = UUID()
     let title: String
     let message: String
+}
+
+/// A widget's tap (#318): the page it shows, on its connection, at an account.
+struct WidgetOpen: Equatable {
+    let page: AppLink.OpenPage
+    let connection: UUID?
+    let account: Int?
+}
+
+/// The background time asked for while a summary is written.
+@MainActor private final class BackgroundTime {
+    var id = UIBackgroundTaskIdentifier.invalid
+
+    func end() {
+        guard id != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(id)
+        id = .invalid
+    }
 }

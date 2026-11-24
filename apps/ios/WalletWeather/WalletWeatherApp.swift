@@ -116,7 +116,12 @@ struct AppRoot: View {
             }
             // Bank sync when the app opens, at most once every 23½ hours (#239).
             if phase == .active { Task { await model.syncBankIfDue() } }
+            // The widgets' summary when the app opens or leaves (#318).
+            if phase == .active { model.refreshSummary() }
+            if phase == .background { model.refreshSummary(within: 30) }
         }
+        // And whenever the pages load again, or who's signed in is known.
+        .task(id: "\(model.generation)/\(model.me?.id ?? -1)/\(model.phase == .ready)") { model.refreshSummary() }
         .sheet(isPresented: $model.offeringBackup) { BackupOfferSheet() }
         .sheet(item: Binding(get: { model.phase == .ready ? model.debugCSV : nil }, set: { model.debugCSV = $0 })) {
             CSVImportSheet(file: $0, startAccount: nil) { model.reload() }

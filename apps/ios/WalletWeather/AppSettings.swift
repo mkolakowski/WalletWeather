@@ -2,6 +2,7 @@ import LocalAuthentication
 import Observation
 import SwiftUI
 import WalletWeatherKit
+import WidgetKit
 
 /// The app's own settings, kept on this phone in its preferences (not the
 /// Keychain: they hold no money data): the look (and, for Match the web app,
@@ -162,7 +163,17 @@ final class AppSettings {
         didSet {
             defaults.set(lockEnabled, forKey: Keys.lockEnabled)
             gate.lockOn = lockEnabled || debugLockedDemo
+            Self.copyLockForWidgets(lockEnabled)
         }
+    }
+
+    /// The widgets hide every amount while the app's lock is on, even on an
+    /// unlocked phone (#318, decided 2026-11-23): the setting is copied into
+    /// the app group, and they draw again.
+    private static func copyLockForWidgets(_ on: Bool) {
+        guard OutsideSettings.shared.lockOn != on else { return }
+        OutsideSettings.shared.lockOn = on
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// Settings → Privacy & lock → When locked, show the demo (#301): on
@@ -244,6 +255,7 @@ final class AppSettings {
                              dismissed: defaults.bool(forKey: Keys.startDismissed))
         let enabled = defaults.bool(forKey: Keys.lockEnabled)
         lockEnabled = enabled
+        Self.copyLockForWidgets(enabled)
         let showsDemo = defaults.object(forKey: Keys.lockShowsDemo) as? Bool ?? true
         lockShowsDemo = showsDemo
         let debugLockedDemo = AppModel.debugSetting("WW_DEBUG_LOCKED_DEMO") == "1"

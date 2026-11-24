@@ -15,6 +15,9 @@ import Foundation
 ///   hands back only the new connection's number, never anything from the bank.
 /// - `bank-keys?state=changed|closed|off`: the sheet's answer from the
 ///   server's "your bank keys" page (#278); never a key.
+/// - `open?page=dashboard|bills|to-confirm[&connection=…][&account=…]`: a
+///   widget tapped (#318), opening the page it shows on its connection.
+///   Carries ids only, never a number.
 public enum AppLink: Sendable, Equatable {
     case signedIn(code: String, state: String, cloudflare: String?)
     case cloudflare(state: String, token: String)
@@ -23,8 +26,29 @@ public enum AppLink: Sendable, Equatable {
     case connect(server: String, token: String)
     case bankConnected(connection: Int?, state: String?)
     case bankKeys(state: String)
+    case open(OpenPage, connection: UUID?, account: Int?)
 
     public static let scheme = "walletweather"
+
+    /// The pages a widget opens. The raw values are in links on people's
+    /// Home Screens: never rename them.
+    public enum OpenPage: String, Sendable, Equatable {
+        case dashboard
+        case bills
+        case toConfirm = "to-confirm"
+    }
+
+    /// The link for a widget: the page, on a connection, at an account.
+    public static func openURL(_ page: OpenPage, connection: UUID?, account: Int? = nil) -> URL {
+        var parts = URLComponents()
+        parts.scheme = scheme
+        parts.host = "open"
+        var items = [URLQueryItem(name: "page", value: page.rawValue)]
+        if let connection { items.append(URLQueryItem(name: "connection", value: connection.uuidString.lowercased())) }
+        if let account { items.append(URLQueryItem(name: "account", value: String(account))) }
+        parts.queryItems = items
+        return parts.url!
+    }
 
     public init?(_ url: URL) {
         guard url.scheme?.lowercased() == Self.scheme,
@@ -50,6 +74,10 @@ public enum AppLink: Sendable, Equatable {
         case "bank-keys":
             guard !state.isEmpty else { return nil }
             self = .bankKeys(state: String(state.prefix(20)))
+        case "open":
+            guard let page = q["page"].flatMap(OpenPage.init(rawValue:)) else { return nil }
+            let account = q["account"].flatMap { Int($0) }.flatMap { $0 > 0 ? $0 : nil }
+            self = .open(page, connection: q["connection"].flatMap(UUID.init(uuidString:)), account: account)
         case "connect":
             guard let server = q["server"], !server.isEmpty,
                   let token = q["token"], !token.isEmpty else { return nil }
@@ -64,7 +92,7 @@ public enum AppLink: Sendable, Equatable {
         switch self {
         case let .signedIn(_, state, _), let .cloudflare(state, _),
              let .noCloudflare(state), let .cancelled(state): state
-        case .connect, .bankConnected, .bankKeys: nil
+        case .connect, .bankConnected, .bankKeys, .open: nil
         }
     }
 }

@@ -94,7 +94,7 @@
            'Teller and Plaid each need keys from a developer account of your own. Add them with Your bank keys under More → Bank sync in the app, or in the web app: Settings → Bank sync. SimpleFIN is connected there.', 'off');
       return;
     }
-    offered.forEach(p => $(p.key).classList.remove('hidden'));
+    offered.forEach(p => $('card-' + p.key).classList.remove('hidden'));
     const code = !!(me && me.two_factor_enabled);
     $('startCodeWrap').classList.toggle('hidden', !code);
     show('choose');

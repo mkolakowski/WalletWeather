@@ -40,6 +40,7 @@
   header { display:flex; align-items:center; gap:10px; margin-bottom:20px; }
   header img { width:36px; height:36px; }
   header h1 { font-size:20px; margin:0; }
+  a { color:var(--accent); }
   .panel { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:14px; }
   h2 { font-size:17px; margin:0 0 6px; }
   p { margin:0 0 12px; }
@@ -126,8 +127,8 @@
       <p id="none-teller" class="muted hidden">Add your Teller keys to connect a bank through Teller.</p>
       <form id="form-teller" class="hidden">
         <ol class="muted">
-          <li>In Teller's dashboard, copy your application id.</li>
-          <li>Under Certificates, make a certificate: Teller downloads it as <code>teller.zip</code>. Save it to Files.</li>
+          <li>In <a href="https://teller.io/" target="_blank" rel="noopener noreferrer">Teller&#39;s dashboard</a>, copy your application id from Application Settings (<a href="https://teller.io/docs/guides/quickstart" target="_blank" rel="noopener noreferrer">quickstart</a>).</li>
+          <li>Under Certificates, make a certificate: Teller downloads it as <code>teller.zip</code>. Save it to Files (<a href="https://teller.io/docs/api/authentication" target="_blank" rel="noopener noreferrer">about certificates</a>).</li>
           <li>Pick that zip here, choose the environment, and tap Check and save. The sandbox needs no certificate.</li>
         </ol>
         <label for="tellerApp">Application id</label>
@@ -177,7 +178,7 @@
       <p id="none-plaid" class="muted hidden">Add your Plaid keys to connect a bank through Plaid.</p>
       <form id="form-plaid" class="hidden">
         <ol class="muted">
-          <li>In Plaid's dashboard, open Developers → Keys.</li>
+          <li>In <a href="https://dashboard.plaid.com/" target="_blank" rel="noopener noreferrer">Plaid&#39;s dashboard</a>, open the <a href="https://dashboard.plaid.com/developers/keys" target="_blank" rel="noopener noreferrer">Keys page</a> (under Developers).</li>
           <li>Copy your client id and the secret for the environment you'll use, and tap Check and save.</li>
         </ol>
         <label for="plaidClient">Client id</label>

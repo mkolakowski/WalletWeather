@@ -625,6 +625,7 @@ struct BankSyncCard: View {
         Divider()
         Text("Your Teller and Plaid keys").font(.subheadline.weight(.semibold))
         ForEach(BankKeys.rows(status)) { row in
+            VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 Label {
                     Text(row.name)
@@ -637,6 +638,18 @@ struct BankSyncCard: View {
                 Text(row.text).font(.footnote).foregroundStyle(.secondary)
             }
             .accessibilityElement(children: .combine)
+            Group {
+                if row.provider == "teller" {
+                    Text("[Dashboard](https://teller.io/) · [Quickstart](https://teller.io/docs/guides/quickstart) · [Certificates](https://teller.io/docs/api/authentication)")
+                } else {
+                    Text("[Dashboard](https://dashboard.plaid.com/) · [Keys page](https://dashboard.plaid.com/developers/keys)")
+                }
+            }
+            .font(.footnote)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
         }
         Text("Each needs keys from a developer account of your own. They're added on your server's page, signed in with a fresh code, and never kept on this iPhone.")
             .font(.footnote).foregroundStyle(.secondary)

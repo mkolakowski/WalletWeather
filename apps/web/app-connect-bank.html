@@ -51,6 +51,10 @@
                     text-align:center; text-decoration:none; display:block; }
   button.ghost, .button.ghost { background:transparent; color:var(--accent); }
   button:disabled { opacity:.6; cursor:default; }
+  .provider-card { border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-top:14px; }
+  .provider-card h3 { font-size:15px; margin:0 0 4px; }
+  .provider-card p { margin:0 0 10px; }
+  a { color:var(--accent); }
   .provider small { display:block; font-weight:400; font-size:13px; opacity:.85; }
   .or { text-align:center; color:var(--muted); font-size:13px; margin:14px 0; }
   .error { color:var(--bad); font-size:14px; margin-top:10px; }
@@ -98,11 +102,19 @@
       <input id="startCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="40">
       <p class="muted">Two-factor sign-in is on, so connecting a bank takes a fresh code.</p>
     </div>
+    <section id="card-teller" class="provider-card hidden">
+      <h3>Teller</h3>
+      <p class="muted">Your bank's sign-in in Teller's window.
+        <a href="https://teller.io/" target="_blank" rel="noopener noreferrer">About Teller</a></p>
+      <button id="teller" type="button" class="provider" data-provider="teller">Connect with Teller</button>
+    </section>
+    <section id="card-plaid" class="provider-card hidden">
+      <h3>Plaid</h3>
+      <p class="muted">Your bank's sign-in on Plaid's page.
+        <a href="https://dashboard.plaid.com/" target="_blank" rel="noopener noreferrer">About Plaid</a></p>
+      <button id="plaid" type="button" class="provider" data-provider="plaid">Connect with Plaid</button>
+    </section>
     <div class="buttons">
-      <button id="teller" type="button" class="provider hidden" data-provider="teller">Teller
-        <small>Your bank's sign-in in Teller's window</small></button>
-      <button id="plaid" type="button" class="provider hidden" data-provider="plaid">Plaid
-        <small>Your bank's sign-in on Plaid's page</small></button>
       <button type="button" class="ghost" data-back="cancelled">Cancel</button>
     </div>
     <p class="muted" style="margin-top:12px">Once it's connected, match its accounts to yours in the web app:

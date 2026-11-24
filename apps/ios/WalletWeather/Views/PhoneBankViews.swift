@@ -33,7 +33,7 @@ struct PhoneBankCard: View {
                 Label {
                     Text("No bank connected").font(.subheadline.weight(.semibold))
                 } icon: { Image(systemName: "building.columns") }
-                Text("Bring your bank's posted lines in through SimpleFIN Bridge: make a setup token at bridge.simplefin.org, then paste it here. The connection is kept in this iPhone's Keychain only. It syncs at most once a day, when you open the app or when iOS gives it time in the background.")
+                Text("Bring your bank's posted lines in through SimpleFIN Bridge: [make a setup token](https://beta-bridge.simplefin.org/simplefin/create) (or [sign in](https://beta-bridge.simplefin.org/auth/login) first), then paste it here. The connection is kept in this iPhone's Keychain only. It syncs at most once a day, when you open the app or when iOS gives it time in the background.")
                     .font(.footnote).foregroundStyle(.secondary)
                 Button { connecting = true } label: {
                     Label("Connect SimpleFIN", systemImage: "plus").frame(maxWidth: .infinity)
@@ -216,7 +216,7 @@ private struct ConnectSimpleFINSheet: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 } footer: {
-                    Text("At bridge.simplefin.org, connect your bank and make a new setup token, then paste it here. A token works once: this iPhone swaps it for a connection kept in its Keychain only, never in iCloud or a backup.")
+                    Text("At [SimpleFIN Bridge](https://beta-bridge.simplefin.org/simplefin/create), connect your bank and make a new setup token, then paste it here. A token works once: this iPhone swaps it for a connection kept in its Keychain only, never in iCloud or a backup.")
                 }
                 if let problem {
                     Section { Text(problem).foregroundStyle(Palette.bad) }

@@ -144,7 +144,7 @@ public struct ForecastLine: Sendable, Codable, Equatable, Identifiable {
     }
 
     /// Whether this line can be changed in the app: on an account you may
-    /// edit. Transfers are changed on the web for now.
+    /// edit. A transfer is changed as a whole, from its line editor (#324).
     public func canEdit(onEditableAccount editable: Bool) -> Bool { editable && !isTransfer }
 
     /// A line you added: saved, not a transfer, and not from a repeating

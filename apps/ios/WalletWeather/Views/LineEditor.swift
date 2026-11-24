@@ -8,9 +8,13 @@ struct OpenLine: Identifiable, Equatable {
     let line: ForecastLine
     let account: Account
     let editable: Bool
-    /// A transfer's lines can't be changed, but a person who can edit the
-    /// account may delete the transfer (#246).
+    /// A transfer's lines aren't changed one by one, but a person who can
+    /// edit the account may delete the transfer (#246) or change it whole
+    /// (#324).
     let canDeleteTransfer: Bool
+    /// The same person may also change it (Change transfer, #324), in the
+    /// app's own Move money form.
+    var canChangeTransfer: Bool { canDeleteTransfer }
     var draft: LineDraft
     var id: String { line.id }
 
@@ -71,6 +75,9 @@ struct LineEditor: View {
     @State private var saving = false
     @State private var problem: FormProblem?
     @State private var confirmDelete = false
+    /// Change transfer (#324): the Move money form, filled in, over the editor.
+    @State private var changing: ChangingTransfer?
+    @State private var loadingTransfer = false
     /// Counts saves that went through, for the success haptic (#315).
     @State private var savedCount = 0
 
@@ -124,6 +131,7 @@ struct LineEditor: View {
                         deleteSection
                     } else {
                         readOnlySection
+                        if open.canChangeTransfer, !model.isDemo { changeTransferSection }
                         if open.canDeleteTransfer { deleteSection }
                     }
                 }
@@ -139,6 +147,18 @@ struct LineEditor: View {
             .sensoryFeedback(.success, trigger: savedCount)
             // Another line in the pane: the last one's problem goes with it.
             .onChange(of: open.id) { problem = nil }
+            .sheet(item: $changing) { change in
+                MoveMoneySheet(accounts: change.accounts, draft: Binding(get: { changing?.draft ?? change.draft },
+                                                                         set: { changing?.draft = $0 }),
+                               changing: change.id) {
+                    await onSaved()
+                    onClose()
+                }
+            }
+            // Debug only: `WW_DEBUG_CHANGE_TRANSFER=1` opens Change transfer on a transfer line (#324).
+            .task {
+                if AppModel.debugSetting("WW_DEBUG_CHANGE_TRANSFER") == "1", open.canChangeTransfer { await startChanging() }
+            }
             .confirmationDialog(deleteTitle, isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button(line.isTransfer ? "Delete transfer" : line.isProjection ? "Delete this date" : "Delete", role: .destructive) {
                     Task { await run { try await $0.delete(line) } }
@@ -268,6 +288,34 @@ struct LineEditor: View {
         }
     }
 
+    /// A transfer you may change: Change transfer opens the Move money form
+    /// filled in from the server's copy of it (#324).
+    private var changeTransferSection: some View {
+        Section {
+            Button {
+                Task { await startChanging() }
+            } label: {
+                Label("Change transfer", systemImage: "arrow.left.arrow.right")
+            }
+            .disabled(loadingTransfer)
+        }
+    }
+
+    private func startChanging() async {
+        guard let client = model.client, let id = line.transferId else { return }
+        loadingTransfer = true
+        problem = nil
+        defer { loadingTransfer = false }
+        do {
+            try FormProblem.failIfAsked()
+            let transfer = try await client.transfer(id)
+            let editable = try await client.accounts().filter(model.canEdit)
+            changing = ChangingTransfer(id: id, accounts: editable, draft: MoveMoneyDraft(changing: transfer))
+        } catch {
+            problem = FormProblem(error) { Task { await startChanging() } }
+        }
+    }
+
     private var readOnlySection: some View {
         Section {
             LabeledContent("Paid", value: line.isPaid ? "Yes" : "Not yet")
@@ -279,7 +327,7 @@ struct LineEditor: View {
             if let tags = line.tags, !tags.isEmpty { LabeledContent("Tags") { TagChips(tags: tags) } }
             if let notes = line.notes, !notes.isEmpty { LabeledContent("Notes", value: notes) }
         } footer: {
-            Text(readOnlyReason)
+            if let reason = readOnlyReason { Text(reason) }
         }
     }
 
@@ -313,12 +361,10 @@ struct LineEditor: View {
         return categories + [TransactionCategory(id: id, name: line.category ?? "This line's category", color: nil)]
     }
 
-    private var readOnlyReason: String {
-        if line.isTransfer {
-            return model.isLocal ? "A transfer can't be changed on this iPhone. Delete it and move the money again."
-                                 : open.canDeleteTransfer ? "Transfers between accounts can be deleted here and changed in the web app."
-                                 : "Transfers between accounts are changed in the web app."
-        }
+    /// Why nothing can be changed; none for a transfer you may change or
+    /// delete, which has its own buttons (#324).
+    private var readOnlyReason: String? {
+        if line.isTransfer, open.canDeleteTransfer { return nil }
         if model.me?.isReadOnly == true { return "This iPhone signed in with a read-only token, so nothing can be changed here." }
         return "You can see this account but not change it."
     }
@@ -362,6 +408,13 @@ struct LineEditor: View {
         await onSaved()
         onClose()
     }
+}
+
+/// A transfer open in the Move money form to be changed (#324).
+struct ChangingTransfer: Identifiable {
+    let id: Int
+    let accounts: [Account]
+    var draft: MoveMoneyDraft
 }
 
 /// Add transaction: Spending or Income, the amount, a name, the date and

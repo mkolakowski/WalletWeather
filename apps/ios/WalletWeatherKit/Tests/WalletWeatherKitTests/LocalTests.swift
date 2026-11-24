@@ -212,6 +212,71 @@ struct LocalTests {
         #expect(end.forecastEndingBalance == start.forecastEndingBalance)
     }
 
+    /// Changing a transfer (#324): the server's `PATCH /api/transfers/{id}`
+    /// changes both lines together, and its errors keep their shapes.
+    @Test func aTransferCanBeChanged() async throws {
+        let checking = try await account("Checking", 1000)
+        let savings = try await account("Savings", 5000)
+        let cash = try await account("Cash", 100)
+        let move = try #require(TransferBody({
+            var d = MoveMoneyDraft(today: day, from: checking, to: savings)
+            d.amountText = "250"
+            return d
+        }()))
+        let transfer = try await client.moveMoney(move)
+
+        // The list gives the form what it fills in with.
+        let listed = try await client.transfer(transfer.id)
+        let draft = MoveMoneyDraft(changing: listed)
+        #expect(draft.fromAccountId == checking && draft.toAccountId == savings)
+        #expect(draft.amountText == "250" && draft.date == day && draft.description == "Transfer")
+        #expect(try await client.transfers().total == 1)
+
+        // Another amount, day, account and description: both lines follow.
+        var changed = draft
+        changed.amountText = "75.5"
+        changed.date = day.adding(days: 2)
+        changed.toAccountId = cash
+        changed.description = "Pocket money"
+        let saved = try await client.updateTransfer(transfer.id, try #require(TransferBody(changed)))
+        #expect(saved.id == transfer.id && saved.amount == Money(Decimal(string: "75.5")!))
+        #expect(saved.toAccountName == "Cash" && saved.transferDate == day.adding(days: 2))
+        let after = try await client.accounts(today: day.adding(days: 2))
+        #expect(after[0].currentBalance == Money(Decimal(string: "924.5")!))
+        #expect(after[1].currentBalance == Money(Decimal(5000)))  // Savings is out of it now
+        #expect(after[2].currentBalance == Money(Decimal(string: "175.5")!))
+        let lines = try await client.search("pocket money").transactions.results
+        #expect(lines.map(\.description).sorted() == ["← Pocket money", "→ Pocket money"])
+        #expect(try await client.transfers().total == 1)  // changed, not duplicated
+
+        // The server's errors: the same account on both sides, an amount of
+        // nothing, and a transfer that isn't there.
+        do {
+            try await client.updateTransfer(transfer.id, TransferBody(from: checking, to: checking, amount: 75.5, on: day))
+            Issue.record("moved money from an account to itself")
+        } catch {
+            guard case let .server(status, detail) = error else { Issue.record("\(error)"); return }
+            #expect(status == 400 && detail == "from_account and to_account must differ")
+        }
+        do {
+            try await client.updateTransfer(transfer.id, TransferBody(from: checking, to: cash, amount: 0, on: day))
+            Issue.record("changed a transfer to an amount of nothing")
+        } catch {
+            guard case let .server(status, _) = error else { Issue.record("\(error)"); return }
+            #expect(status == 400)
+        }
+        let again = try #require(TransferBody(changed))
+        do {
+            try await client.updateTransfer(transfer.id + 1000, again)
+            Issue.record("changed a transfer that isn't there")
+        } catch {
+            guard case let .server(status, _) = error else { Issue.record("\(error)"); return }
+            #expect(status == 404)
+        }
+        // Nothing above changed it.
+        #expect(try await client.transfer(transfer.id).amount == Money(Decimal(string: "75.5")!))
+    }
+
     /// Deleting a transfer and bringing back skipped dates (#246): the
     /// server's `DELETE /api/transfers/{id}` and `DELETE /api/recurring/{id}/skips`.
     @Test func aTransferCanBeDeletedAndSkippedDatesBroughtBack() async throws {

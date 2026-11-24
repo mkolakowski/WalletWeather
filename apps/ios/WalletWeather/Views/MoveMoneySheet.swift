@@ -30,12 +30,15 @@ struct AddMenu: ToolbarContent {
 }
 
 /// Move money between two accounts you may edit. It's recorded as paid on
-/// the day you pick, on both accounts.
+/// the day you pick, on both accounts. Given `changing`, the id of a
+/// transfer, it's Change transfer instead: the same form filled in, and
+/// saving changes both of the transfer's lines together (#324).
 struct MoveMoneySheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let accounts: [Account]
     @Binding var draft: MoveMoneyDraft
+    var changing: Int?
     let onMoved: () async -> Void
 
     @State private var saving = false
@@ -68,7 +71,8 @@ struct MoveMoneySheet: View {
                         if let problem = draft.problem, !draft.amountText.isEmpty || draft.fromAccountId != nil {
                             Text(problem).foregroundStyle(Palette.bad)
                         } else {
-                            Text("Recorded as paid on this date, on both accounts.")
+                            Text(changing == nil ? "Recorded as paid on this date, on both accounts."
+                                                 : "Both of the transfer's lines change together, on both accounts.")
                         }
                     }
                     Section {
@@ -80,7 +84,7 @@ struct MoveMoneySheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(PageBackground().ignoresSafeArea())
-            .navigationTitle("Move money")
+            .navigationTitle(changing == nil ? "Move money" : "Change transfer")
             .navigationBarTitleDisplayMode(.inline)
             .disabled(saving)
             .problemBanner($problem)
@@ -89,7 +93,7 @@ struct MoveMoneySheet: View {
                     Button("Cancel", role: .cancel) { dismiss() }.keyShortcut(.cancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Move") { Task { await move() } }
+                    Button(changing == nil ? "Move" : "Save") { Task { await move() } }
                         .buttonStyle(.glassProminent)
                         .keyShortcut(.save)
                         .disabled(draft.problem != nil)
@@ -106,7 +110,11 @@ struct MoveMoneySheet: View {
         defer { saving = false }
         do {
             try FormProblem.failIfAsked()
-            try await client.moveMoney(body)
+            if let changing {
+                try await client.updateTransfer(changing, body)
+            } else {
+                try await client.moveMoney(body)
+            }
         } catch {
             problem = FormProblem(error) { Task { await move() } }
             return

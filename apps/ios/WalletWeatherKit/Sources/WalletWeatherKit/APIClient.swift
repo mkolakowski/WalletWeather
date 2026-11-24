@@ -5,7 +5,7 @@ public enum AppInfo {
     /// The iOS app's own version (CHANGELOG.md tracks it beside the app,
     /// web and schema versions). Keep it equal to MARKETING_VERSION in the
     /// Xcode project.
-    public static let version = "0.57.0"
+    public static let version = "0.58.0"
     /// The first server version with what the app's pages need: the
     /// phone's date on Net worth, Budgets and Reports (#91), on top of each
     /// bill's next dates (#89) and the Forecast's (#88).
@@ -252,6 +252,30 @@ public final class APIClient: Sendable {
         var query = ["start": month.start.description, "end": month.end.description]
         if let account { query["account_id"] = String(account) }
         return try await get("/api/calendar", query: query, keep: true)
+    }
+
+    /// The transfers you can see, newest first (the server caps a page at 500).
+    public func transfers(limit: Int = 100, offset: Int = 0) async throws(APIError) -> TransferList {
+        try await get("/api/transfers", query: ["limit": String(limit), "offset": String(offset)])
+    }
+
+    /// One transfer, found in the list (the server has no call for a single
+    /// one); a 404 as the server's when it isn't there (#324).
+    public func transfer(_ id: Int) async throws(APIError) -> Transfer {
+        var offset = 0
+        while true {
+            let page = try await transfers(limit: 500, offset: offset)
+            if let found = page.transfers.first(where: { $0.id == id }) { return found }
+            offset += 500
+            if page.transfers.isEmpty || offset >= page.total { throw .server(status: 404, detail: "Transfer not found") }
+        }
+    }
+
+    /// Changes a transfer, and both its lines with it (#324): the whole
+    /// transfer again, as the server's `PATCH /api/transfers/{id}` takes it.
+    @discardableResult
+    public func updateTransfer(_ id: Int, _ body: TransferBody) async throws(APIError) -> Transfer {
+        try await send("PATCH", "/api/transfers/\(id)", body: body)
     }
 
     /// Moves money between two accounts you may edit, recorded as paid.

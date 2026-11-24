@@ -478,6 +478,8 @@ struct ForecastView: View {
         if AppModel.debugSetting("WW_DEBUG_COMPARE") != nil { comparing = true }
         if let name = AppModel.debugSetting("WW_DEBUG_OPEN_LINE"),
            let line = month.value?.rows.first(where: { $0.description == name }) { openLine(line) }
+        // Debug only: `WW_DEBUG_CHANGE_TRANSFER=1` opens Change transfer on the month's first transfer (#324).
+        if AppModel.debugSetting("WW_DEBUG_CHANGE_TRANSFER") == "1", let line = month.value?.rows.first(where: \.isTransfer) { openLine(line) }
         if AppModel.debugSetting("WW_DEBUG_CONTEXT") == "1", let first = month.value?.rows.first { debugMenuLine = first }
         // Debug only: `WW_DEBUG_UNDO=<line name>` shows the Undo bar for that line, saving nothing (#315).
         if let name = AppModel.debugSetting("WW_DEBUG_UNDO"), month.value?.rows.contains(where: { $0.description == name }) == true {

@@ -388,6 +388,16 @@ public struct MoveMoneyDraft: Sendable, Equatable {
         toAccountId = to
     }
 
+    /// The sheet filled in from a transfer, to change it (#324).
+    public init(changing transfer: Transfer) {
+        date = transfer.transferDate
+        fromAccountId = transfer.fromAccountId
+        toAccountId = transfer.toAccountId
+        amountText = amountString(transfer.amount.amount)
+        description = transfer.description ?? "Transfer"
+        notes = transfer.notes ?? ""
+    }
+
     public var amount: Decimal? { parseAmount(amountText) }
 
     public var problem: String? {
@@ -400,7 +410,7 @@ public struct MoveMoneyDraft: Sendable, Equatable {
     }
 }
 
-/// The body of `POST /api/transfers`.
+/// The body of `POST /api/transfers` and of `PATCH /api/transfers/{id}`.
 public struct TransferBody: Sendable, Encodable, Equatable {
     public let fromAccountId: Int
     public let toAccountId: Int
@@ -412,6 +422,17 @@ public struct TransferBody: Sendable, Encodable, Equatable {
     enum CodingKeys: String, CodingKey {
         case amount, description, notes
         case fromAccountId = "from_account_id", toAccountId = "to_account_id", transferDate = "transfer_date"
+    }
+
+    /// As typed, without the form's checks: what the tests send to see the
+    /// server's own answers to a bad one.
+    init(from: Int, to: Int, amount: Double, on day: LocalDay, description: String = "Transfer", notes: String? = nil) {
+        fromAccountId = from
+        toAccountId = to
+        self.amount = amount
+        transferDate = day
+        self.description = description
+        self.notes = notes
     }
 
     public init?(_ draft: MoveMoneyDraft) {
@@ -441,8 +462,18 @@ public struct TransferBody: Sendable, Encodable, Equatable {
 /// `POST /api/transfers`: the money moved, as much as the app shows.
 public struct Transfer: Sendable, Codable, Equatable, Identifiable {
     public let id: Int
+    public let fromAccountId: Int?
     public let fromAccountName: String?
+    public let toAccountId: Int?
     public let toAccountName: String?
     public let amount: Money
     public let transferDate: LocalDay
+    public let description: String?
+    public let notes: String?
+}
+
+/// `GET /api/transfers`: newest first, with how many there are in all.
+public struct TransferList: Sendable, Decodable, Equatable {
+    public let total: Int
+    public let transfers: [Transfer]
 }

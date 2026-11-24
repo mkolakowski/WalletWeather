@@ -214,8 +214,12 @@ public final class LocalServer: @unchecked Sendable {
             return try deleteTransaction(id, context)
         case ("GET", "transactions", 2) where rest[1] == "search":
             return try searchTransactions(query: query, context)
+        case ("GET", "transfers", 1):
+            return try listTransfers(query: query, context)
         case ("POST", "transfers", 1):
             return try createTransfer(body, context)
+        case ("PATCH", "transfers", 2):
+            return try updateTransfer(id, body, context)
         case ("DELETE", "transfers", 2):
             return try deleteTransfer(id, context)
         case ("GET", "search", 1):
@@ -683,6 +687,51 @@ public final class LocalServer: @unchecked Sendable {
         return ["ok": true]
     }
 
+    /// A transfer's two lines on the day, as the server's `_create_transfer_legs`:
+    /// paid, minus on the from-account and plus on the to-account.
+    private func insertLegs(for transfer: LocalTransfer, from: LocalAccount, to: LocalAccount, _ context: ModelContext) -> [Int] {
+        var legs: [Int] = []
+        for (account, sign, arrow) in [(from, -1.0, "→"), (to, 1.0, "←")] {
+            let leg = LocalTransaction(accountID: account.id)
+            leg.transferID = transfer.id
+            leg.actualDate = transfer.date
+            leg.forecastDate = transfer.date
+            leg.isActual = true
+            leg.name = "\(arrow) \(transfer.name)"
+            leg.amount = sign * transfer.amount
+            leg.notes = transfer.notes
+            context.insert(leg)
+            legs.append(leg.id)
+        }
+        return legs.sorted()
+    }
+
+    /// The server's `_transfer_to_dict`.
+    private func transferRow(_ transfer: LocalTransfer, from: LocalAccount?, to: LocalAccount?, legs: [Int]) -> [String: Any] {
+        ["id": transfer.id, "from_account_id": transfer.fromAccountID, "from_account_name": from?.name as Any? ?? NSNull(),
+         "to_account_id": transfer.toAccountID, "to_account_name": to?.name as Any? ?? NSNull(),
+         "amount": transfer.amount, "transfer_date": transfer.date, "description": transfer.name,
+         "notes": transfer.notes as Any? ?? NSNull(), "transaction_ids": legs,
+         "created_at": ISO8601DateFormatter().string(from: transfer.added)]
+    }
+
+    /// `GET /api/transfers`: newest first, with the total (the server's
+    /// `list_transfers`).
+    private func listTransfers(query: [String: String], _ context: ModelContext) throws -> Any {
+        let all = try context.fetch(FetchDescriptor<LocalTransfer>()).sorted {
+            $0.date != $1.date ? $0.date > $1.date : $0.id > $1.id
+        }
+        let offset = max(0, query["offset"].flatMap(Int.init) ?? 0)
+        let limit = min(max(1, query["limit"].flatMap(Int.init) ?? 50), 500)
+        let accountsByID = Dictionary(try context.fetch(FetchDescriptor<LocalAccount>()).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let legs = try context.fetch(FetchDescriptor<LocalTransaction>()).filter { $0.transferID != nil }
+        let rows = all.dropFirst(offset).prefix(limit).map { transfer in
+            transferRow(transfer, from: accountsByID[transfer.fromAccountID], to: accountsByID[transfer.toAccountID],
+                        legs: legs.filter { $0.transferID == transfer.id }.map(\.id).sorted())
+        }
+        return ["total": all.count, "transfers": rows]
+    }
+
     private func createTransfer(_ body: [String: Any], _ context: ModelContext) throws -> Any {
         guard let fromID = int(body, "from_account_id"), let toID = int(body, "to_account_id") else {
             throw Problem.invalid("from_account_id and to_account_id are required")
@@ -696,24 +745,38 @@ public final class LocalServer: @unchecked Sendable {
         let notes = try text(body, "notes", max: Self.notesMax, required: false)
         let transfer = LocalTransfer(fromAccountID: from.id, toAccountID: to.id, amount: amount, date: date, name: name, notes: notes)
         context.insert(transfer)
-        var legs: [Int] = []
-        // Two paid lines on the day, as the server's _create_transfer_legs.
-        for (account, sign, arrow) in [(from, -1.0, "→"), (to, 1.0, "←")] {
-            let leg = LocalTransaction(accountID: account.id)
-            leg.transferID = transfer.id
-            leg.actualDate = date
-            leg.forecastDate = date
-            leg.isActual = true
-            leg.name = "\(arrow) \(name)"
-            leg.amount = sign * amount
-            leg.notes = notes
-            context.insert(leg)
-            legs.append(leg.id)
+        let legs = insertLegs(for: transfer, from: from, to: to, context)
+        return transferRow(transfer, from: from, to: to, legs: legs)
+    }
+
+    /// Changes a transfer and both its lines together (the server's
+    /// `update_transfer`: the lines are removed and made again from the new
+    /// values, so a bank match or tag on an old line goes with it).
+    private func updateTransfer(_ id: Int?, _ body: [String: Any], _ context: ModelContext) throws -> Any {
+        guard let fromID = int(body, "from_account_id"), let toID = int(body, "to_account_id") else {
+            throw Problem.invalid("from_account_id and to_account_id are required")
         }
-        return ["id": transfer.id, "from_account_id": from.id, "from_account_name": from.name, "to_account_id": to.id,
-                "to_account_name": to.name, "amount": amount, "transfer_date": date, "description": name,
-                "notes": notes as Any? ?? NSNull(), "transaction_ids": legs.sorted(),
-                "created_at": ISO8601DateFormatter().string(from: transfer.added)]
+        guard let amount = try money(body, "amount"), amount > 0 else { throw Problem.invalid("amount must be more than 0") }
+        guard let date = try day(body, "transfer_date") else { throw Problem.invalid("transfer_date is required") }
+        guard let id,
+              let transfer = try context.fetch(FetchDescriptor<LocalTransfer>(predicate: #Predicate { $0.id == id })).first
+        else { throw Problem.notFound("Transfer not found") }
+        guard fromID != toID else { throw Problem.invalid("from_account and to_account must differ") }
+        let from = try account(fromID, context), to = try account(toID, context)
+        let typed = (try text(body, "description", max: 120, required: false) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let notes = try text(body, "notes", max: Self.notesMax, required: false)
+        transfer.fromAccountID = from.id
+        transfer.toAccountID = to.id
+        transfer.date = date
+        transfer.name = typed.isEmpty ? "Transfer" : typed
+        transfer.amount = amount
+        transfer.notes = notes
+        for leg in try context.fetch(FetchDescriptor<LocalTransaction>(predicate: #Predicate { $0.transferID == id })) {
+            try dropLinks(line: leg.id, context)
+            context.delete(leg)
+        }
+        let legs = insertLegs(for: transfer, from: from, to: to, context)
+        return transferRow(transfer, from: from, to: to, legs: legs)
     }
 
     // MARK: CSV import (#243)

@@ -183,6 +183,11 @@ The keyboard and pointer (#307) can't be driven from a script either, so
 page, and `SIMCTL_CHILD_WW_DEBUG_CONTEXT=1` shows the long-press menu of
 Forecast's first line (the Kit's `RowAction`s, as that person may use them)
 as a sheet over Forecast. Both are Debug only.
+`SIMCTL_CHILD_WW_DEBUG_CHANGE_TRANSFER=1` opens a transfer line (Forecast's
+first one this month) in the line editor with Change transfer already open
+over it (#324): the Move money form filled in. The demo has no transfers, so
+use it with `SIMCTL_CHILD_WW_DEBUG_LOCAL=sample`, whose household has one.
+Debug only.
 Drag and drop (#308) can't be driven from a script either:
 `SIMCTL_CHILD_WW_DEBUG_DROP=csv` shows Forecast's (and the Dashboard's) drop
 highlight as if a bank's CSV were held over the page, and

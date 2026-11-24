@@ -23,8 +23,9 @@ out on the phone by the shared JavaScript core (phase 3 of
 Bank sync (phase 5 of `Plans/bank-sync.md`, #197) shows its status and Sync
 now under Settings, each connection on its own (SimpleFIN, Teller or Plaid,
 phase 4 of `Plans/bank-providers.md`, #257), and a bill's bank match settings
-in its editor; the sync log, the Unmatched list and connecting a bank stay in
-the web app.
+in its editor; the sync log stays in the web app. The Unmatched list opens in
+the app with a server too (duo-more phase 3, #306), and connecting a bank is
+in the app from 0.30.0 (see Bank sync below).
 
 Changes in this folder don't trigger the container build.
 
@@ -124,7 +125,10 @@ Dashboard's right half, on the open Duo.
 `connection` (the page of the connection in front), `bank`, `appearance`,
 `privacy`, `display` (Dates & display), `backup`, `move`,
 `help` or `keep` (Keep on this iPhone, under the connection's page);
-`WW_DEBUG_TAGS=1` opens Tags and `WW_DEBUG_BANK` Bank sync. On a regular
+`WW_DEBUG_TAGS=1` opens Tags and `WW_DEBUG_BANK` Bank sync;
+`WW_DEBUG_UNMATCHED=1` opens Bank sync and, once its lines are counted, the
+Unmatched list of the first account with lines waiting (in the demo, the Credit
+Card; on the household on this iPhone, as `WW_DEBUG_BANK=unmatched`). On a regular
 width (the open Duo, #295) Settings is a sidebar with the chosen page beside
 it, and these choose that page there; the open page is kept per window
 (`settings.page`), so closing or opening the Duo keeps it.
@@ -351,6 +355,34 @@ shows when bank sync is on, the server is 1.89.0 or later and the token can
 write; in the demo it says the demo saves nothing. Matching the new
 connection's accounts stays in the web app.
 
+**Unmatched lines with a server** (duo-more phase 3, #306): a connection's block
+and each shared account with lines waiting show a row, "3 lines to match",
+that opens `UnmatchedListView(accounts:)` for those accounts, the same list the
+household on this iPhone has, now on the server's
+`GET /api/accounts/{id}/bank-unmatched` and `.../{line}/candidates`
+(`BankUnmatched`, `BankCandidates`; `test_app_shapes.py` pins the fields the app
+reads). The status carries a count only for shared accounts, so the person's own
+accounts are asked one by one (`APIClient.unmatchedCounts(for:)`). **Match…**
+shows each bill or planned line the bank's line could pay (**Pay this**,
+**Always match "name"**, which teaches the bill the name, and **Leave as its own
+line**); `POST .../match` and `.../leave` are what the web app's pop-in sends.
+On a regular width (the open Duo) the list is one pane and the tapped line's
+choices the other (`FoldLayout`); closed, the list is pushed and the choices are a sheet. In the
+wide Settings window the detail pane is forced to a compact width, so there the
+row presents the list as a full-screen cover over the whole window with its
+regular width back and a Done button (`unmatchedList` in `PhoneBankViews.swift`;
+the pane says it is wide through the `settingsIsWide` environment value), as
+Compare does from Forecast; Done returns to Bank sync. `WW_DEBUG_UNMATCHED=1`
+lands in the same place on each. A
+read-only token sees the list and the choices with Pay this and Leave off, and a
+line saying so. Settings' Bank sync row says "3 to match" while lines wait
+(after a bank that needs reconnecting or failed, which still come first;
+`BankStatus.settingsValue(unmatched:)`). The demo has two sample lines on the
+Credit Card (`Demo/unmatched.json`), one close to the Phone bill; Match and
+Leave say the demo saves nothing. There is no setting for it: matching from the
+phone is what the web app already offers, so no one is left with a behaviour
+they'd want the other way.
+
 **On an iPhone without a server** (iOS 0.32.0, phase 8 of
 `Plans/standalone.md`, #239; design calls settled 2026-11-22) the card is
 `PhoneBankCard` (`PhoneBankViews.swift`) instead, and SimpleFIN runs on the
@@ -379,7 +411,7 @@ core's `bankMatch`, the rest as their own lines with the short name.
 **Unmatched (N)** opens `UnmatchedListView`, answered by `LocalServer` in the
 server's shapes (`/api/accounts/{id}/bank-unmatched`, `.../candidates`,
 `.../match`, `.../leave`) through the core, with **Match…** (cards like the
-web app's pop-in, Pay this, and "Match lines named … from now on") and
+web app's pop-in, Pay this, and "Always match …") and
 **Leave**. Forecast rows on the list wear the Unmatched pill. Debug builds:
 `WW_DEBUG_BANK=1` swaps in a stand-in SimpleFIN (`DebugBridge`), and
 `connected` or `unmatched` (with `WW_DEBUG_LOCAL=sample`) connects, matches
@@ -392,7 +424,7 @@ owns or edits that sync from someone else's connection
 (`BankStatus.shared`, `SharedBankAccount`), each saying "Synced from <name>'s
 <provider> connection", how its own last sync went, a paused, needs-reconnect
 or can't-sign-in note naming that person, how many lines wait to be matched
-(in the web app), and a **Sync now** of its own (`POST /api/bank/sync` with
+(a row that opens them, see below), and a **Sync now** of its own (`POST /api/bank/sync` with
 `account_id`, `APIClient.syncBankNow(account:)`) that is off while the account
 is paused, needs a reconnect, its person can't sign in or the day's limit is
 reached. Someone with only shared accounts skips "No bank connected". **Connect

@@ -100,3 +100,44 @@ extension APIClient {
                                             body: [String: String]())
     }
 }
+
+// MARK: - Counts for Settings → Bank sync (duo-more phase 3, #306)
+
+extension BankStatus {
+    /// The accounts the person's own connections fill (not the shared
+    /// ones, whose counts the status gives), in order, each once. A server
+    /// from before the connections list has the one list at the top.
+    public var ownLinkedAccountIds: [Int] {
+        let sharedIds = Set((shared ?? []).map(\.accountId))
+        var seen = Set<Int>(), out: [Int] = []
+        let all = (connections ?? []).flatMap(\.linkedAccountIds) + (connections == nil ? linkedAccountIds ?? [] : [])
+        for id in all where !sharedIds.contains(id) && seen.insert(id).inserted { out.append(id) }
+        return out
+    }
+}
+
+extension BankConnection {
+    /// How many lines wait on this connection's accounts, from the counts
+    /// (`APIClient.unmatchedCounts`).
+    public func unmatched(in counts: [Int: Int]) -> Int {
+        linkedAccountIds.reduce(0) { $0 + (counts[$1] ?? 0) }
+    }
+}
+
+extension APIClient {
+    /// How many lines wait on the Unmatched list of each account the bank
+    /// fills, by account number; accounts with none are left out. The
+    /// shared accounts' counts come from the status, the person's own are
+    /// asked for one by one (`GET .../bank-unmatched`). One that can't be
+    /// asked (an account the person may not match) counts as none.
+    public func unmatchedCounts(for status: BankStatus) async -> [Int: Int] {
+        var counts: [Int: Int] = [:]
+        for account in status.shared ?? [] {
+            if let n = account.unmatchedCount, n > 0 { counts[account.accountId] = n }
+        }
+        for id in status.ownLinkedAccountIds {
+            if let list = try? await bankUnmatched(account: id), list.count > 0 { counts[id] = list.count }
+        }
+        return counts
+    }
+}

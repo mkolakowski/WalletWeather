@@ -64,6 +64,13 @@ public enum Demo {
         case ("GET", "accounts", 2): found = computed { try accounts(today: today) }
         case ("GET", "accounts", 4) where parts[3] == "forecast":
             found = Int(parts[2]).flatMap { account in computed { try forecast(account: account, start: start, end: end, today: today) } }
+        // The sample Unmatched lines (duo-more phase 3, #306), made from today.
+        case ("GET", "accounts", 4) where parts[3] == "bank-unmatched":
+            found = Int(parts[2]).map { account in (bankUnmatched(account: account, today: today), recorded) }
+        case ("GET", "accounts", 6) where parts[3] == "bank-unmatched" && parts[5] == "candidates":
+            found = Int(parts[2]).flatMap { account in
+                Int(parts[4]).flatMap { line in bankCandidates(account: account, line: line, today: today).map { ($0, recorded) } }
+            }
         case ("GET", "dashboard", 2): found = computed { try dashboard(today: today) }
         case ("GET", "dashboard", 3) where parts[2] == "charts":
             found = computed { try charts(window: query["window"] ?? ChartWindow.month.rawValue, today: today) }

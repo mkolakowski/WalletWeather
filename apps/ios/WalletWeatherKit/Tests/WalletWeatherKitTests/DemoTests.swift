@@ -215,6 +215,10 @@ struct DemoTests {
         _ = try await client.runReport(try #require(reports.first).id, today: today)
         // Bank sync, Calendar, categories and accounts.
         #expect(try await client.bankStatus() != nil)
+        // The sample Unmatched lines and what the first could pay (#306).
+        let waiting = try await client.bankUnmatched(account: 3)
+        #expect(waiting.count == waiting.lines.count && !waiting.lines.isEmpty)
+        #expect(!(try await client.bankCandidates(account: 3, line: try #require(waiting.lines.first).id)).choices.isEmpty)
         _ = try await client.calendar(YearMonth(today))
         #expect(!(try await client.categories()).isEmpty)
         #expect(!(try await client.accounts(today: today)).isEmpty)

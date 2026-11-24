@@ -461,7 +461,9 @@ struct ReportResult: View {
 /// person that sync from someone else's connection, each with its own Sync
 /// now (sync-access phase 4, #267), and which of Teller and Plaid have the
 /// person's own keys, with the server's keys page in the sign-in sheet to add,
-/// replace or remove them (own-bank-keys phase 3, #278). Matching accounts, the sync log and the Unmatched list are in the web app.
+/// replace or remove them (own-bank-keys phase 3, #278), and the lines waiting
+/// on each connection's and shared account's Unmatched list, opening it here
+/// (duo-more phase 3, #306). Matching accounts and the sync log are in the web app.
 struct BankSyncCard: View {
     @Environment(AppModel.self) private var model
     private enum Load { case loading, unavailable, failed(String), shown(BankStatus) }
@@ -474,6 +476,12 @@ struct BankSyncCard: View {
     @State private var outcomeFailed = false
     @State private var connecting = false
     @State private var editingKeys = false
+    /// How many lines wait on each account's Unmatched list (accounts with none are left out).
+    @State private var counts: [Int: Int] = [:]
+    /// The Unmatched list being shown, for these accounts.
+    @State private var opening: UnmatchedRoute?
+    /// `WW_DEBUG_UNMATCHED=1` (debug builds) opens the list once.
+    @State private var openedByDebug = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -493,6 +501,32 @@ struct BankSyncCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .card()
         .task(id: model.generation) { await refresh() }
+        .unmatchedList($opening)
+        // Back from the list, its lines may have gone.
+        .onChange(of: opening) { _, now in
+            if now == nil, case let .shown(status) = load { Task { await recount(status) } }
+        }
+    }
+
+    /// "N lines to match", opening the Unmatched list of those accounts that
+    /// have lines waiting; nothing when none do.
+    @ViewBuilder
+    private func unmatchedRow(_ accounts: [Int]) -> some View {
+        let waiting = accounts.filter { (counts[$0] ?? 0) > 0 }
+        let total = waiting.reduce(0) { $0 + (counts[$1] ?? 0) }
+        if total > 0 {
+            Button { opening = UnmatchedRoute(accounts: waiting) } label: {
+                HStack {
+                    Text("\(total) line\(total == 1 ? "" : "s") to match").font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens the bank lines that paid no planned line")
+        }
     }
 
     @ViewBuilder
@@ -506,6 +540,7 @@ struct BankSyncCard: View {
             if status.connected || !status.enabled || shared.isEmpty {
                 let summary = status.summary(when: { KeptBar.when($0) })
                 summaryView(summary)
+                unmatchedRow(status.ownLinkedAccountIds)
                 syncButton(summary, connection: nil)
             }
         } else {
@@ -518,6 +553,7 @@ struct BankSyncCard: View {
                         Text(row.provider).font(.caption).foregroundStyle(.secondary)
                     }
                     summaryView(row.summary)
+                    unmatchedRow(status.connections?.first { $0.id == row.id }?.linkedAccountIds ?? [])
                     syncButton(row.summary, connection: row.id)
                 }
             }
@@ -562,10 +598,7 @@ struct BankSyncCard: View {
                 .font(.subheadline.weight(.semibold))
             Text(account.from).font(.caption).foregroundStyle(.secondary)
             summaryView(summary)
-            if let count = account.unmatchedCount, count > 0 {
-                Text("\(count) line\(count == 1 ? " waits" : "s wait") to be matched, in the web app: Settings → Bank sync.")
-                    .font(.footnote).foregroundStyle(.secondary)
-            }
+            unmatchedRow([account.accountId])
             if model.me?.isReadOnly != true, summary.canSync || summary.waitText != nil {
                 Button { Task { await syncShared(account.accountId) } } label: {
                     HStack(spacing: 8) {
@@ -697,11 +730,23 @@ struct BankSyncCard: View {
         do {
             if let status = try await client.bankStatus() {
                 load = .shown(status)
+                await recount(status)
             } else {
                 load = .unavailable
             }
         } catch {
             load = .failed(AppModel.describe(error))
+        }
+    }
+
+    /// The lines waiting on each account's Unmatched list, asked quietly.
+    private func recount(_ status: BankStatus) async {
+        guard let client = model.client else { return }
+        counts = await client.unmatchedCounts(for: status)
+        if !openedByDebug, AppModel.debugSetting("WW_DEBUG_UNMATCHED") == "1",
+           let first = (status.ownLinkedAccountIds + (status.shared ?? []).map(\.accountId)).first(where: { (counts[$0] ?? 0) > 0 }) {
+            openedByDebug = true
+            opening = UnmatchedRoute(accounts: [first])
         }
     }
 

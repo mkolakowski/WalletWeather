@@ -16,6 +16,13 @@ import WalletWeatherKit
 /// (`settings.page`) and drives both layouts, so closing the Duo on a page
 /// shows it pushed on the list, and opening it shows that page chosen. The
 /// layout follows the window's width, so there is no setting for it.
+extension EnvironmentValues {
+    /// True inside the wide window's detail pane, whose size class is forced
+    /// to compact: a page there that wants the whole window (the Unmatched
+    /// list's two panes, #306) presents itself over it.
+    @Entry var settingsIsWide = false
+}
+
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(AppSettings.self) private var settings
@@ -24,7 +31,8 @@ struct SettingsView: View {
     /// The open page's `SettingsEntry` raw value; empty for the list itself.
     @SceneStorage("settings.page") private var openPage = ""
     /// Debug builds: `WW_DEBUG_SETTINGS=<page>` opens that page,
-    /// `WW_DEBUG_TAGS=1` Tags and `WW_DEBUG_BANK` Bank sync, for screenshots.
+    /// `WW_DEBUG_TAGS=1` Tags and `WW_DEBUG_BANK` or `WW_DEBUG_UNMATCHED`
+    /// Bank sync (the latter also opens its Unmatched list), for screenshots.
     @State private var path = NavigationPath(SettingsView.debugPath())
     /// What's pushed inside the open Duo's pane, past the chosen page.
     @State private var panePath = NavigationPath(SettingsView.debugPanePath())
@@ -32,6 +40,8 @@ struct SettingsView: View {
     @State private var addingAccount = false
     @State private var importingCSV = false
     @State private var bankStatus: BankStatus?
+    /// Lines waiting on the Unmatched lists, for Bank sync's value (#306).
+    @State private var bankUnmatched = 0
     @State private var tagCount: Int?
     @State private var accountCount: Int?
 
@@ -167,6 +177,7 @@ struct SettingsView: View {
                 // One column in the pane: it's too narrow for a page's two
                 // panes, so the pages in it lay out as on a closed phone.
                 .environment(\.horizontalSizeClass, .compact)
+                .environment(\.settingsIsWide, true)
                 .frame(maxWidth: .infinity)
                 .safeAreaPadding(.trailing, bar)
             }
@@ -257,7 +268,7 @@ struct SettingsView: View {
             if model.isLocal {
                 return model.phoneBank.state.settingsValue(connected: model.phoneBank.connected, when: Self.short)
             }
-            return bankStatus?.settingsValue(when: Self.short)
+            return bankStatus?.settingsValue(unmatched: bankUnmatched, when: Self.short)
         case .appearance:
             return settings.look.title
         case .tabBar:
@@ -277,9 +288,15 @@ struct SettingsView: View {
         if model.isLocal {
             accountCount = (try? await client.accounts())?.count
             bankStatus = nil
+            bankUnmatched = 0
         } else {
             accountCount = nil
             bankStatus = try? await client.bankStatus()
+            if let status = bankStatus {
+                bankUnmatched = await client.unmatchedCounts(for: status).values.reduce(0, +)
+            } else {
+                bankUnmatched = 0
+            }
         }
     }
 
@@ -302,7 +319,7 @@ struct SettingsView: View {
         let named = SettingsPage.debugPath(AppModel.debugSetting("WW_DEBUG_SETTINGS"))
         if !named.isEmpty { return named }
         if AppModel.debugSetting("WW_DEBUG_TAGS") == "1" { return [.tags] }
-        if AppModel.debugSetting("WW_DEBUG_BANK") != nil { return [.bank] }
+        if AppModel.debugSetting("WW_DEBUG_BANK") != nil || AppModel.debugSetting("WW_DEBUG_UNMATCHED") != nil { return [.bank] }
         return []
     }
 }

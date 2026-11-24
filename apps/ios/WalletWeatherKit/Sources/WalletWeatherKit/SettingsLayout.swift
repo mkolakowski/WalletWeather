@@ -555,16 +555,21 @@ public struct SettingsLayout: Equatable, Sendable {
 extension BankStatus {
     /// Bank sync's value on Settings' root list, in a few words: "2 banks ·
     /// synced 7:22 AM", "Needs reconnecting", "Off", "No bank connected".
-    /// `when` writes a time short ("7:22 AM", "Nov 12").
-    public func settingsValue(when: (Date) -> String) -> String {
+    /// `when` writes a time short ("7:22 AM", "Nov 12"). With lines waiting
+    /// on the Unmatched list (`unmatched`, from `APIClient.unmatchedCounts`)
+    /// it says so instead of the banks and the sync time: "3 to match"; a
+    /// bank that needs reconnecting or failed to sync still comes first.
+    public func settingsValue(unmatched: Int = 0, when: (Date) -> String) -> String {
         guard enabled else { return "Off" }
         let list = connections ?? []
         guard connected else {
             let shared = shared?.count ?? 0
+            if unmatched > 0 { return "\(unmatched) to match" }
             return shared > 0 ? "\(shared) shared account\(shared == 1 ? "" : "s")" : "No bank connected"
         }
         if needsReconnect == true || list.contains(where: { $0.needsReconnect == true }) { return "Needs reconnecting" }
         if list.isEmpty ? lastSyncOk == false : list.contains(where: { $0.lastSyncOk == false }) { return "Last sync failed" }
+        if unmatched > 0 { return "\(unmatched) to match" }
         let count = max(list.count, 1)
         let banks = "\(count) bank\(count == 1 ? "" : "s")"
         let times = list.isEmpty ? [lastSyncAt] : list.map(\.lastSyncAt)
@@ -575,11 +580,13 @@ extension BankStatus {
 
 extension PhoneBankState {
     /// Bank sync's value on Settings' root list for the household on this
-    /// iPhone (SimpleFIN): its banks counted by name.
+    /// iPhone (SimpleFIN): its banks counted by name, or "3 to match" with
+    /// lines waiting on the Unmatched list.
     public func settingsValue(connected: Bool, when: (Date) -> String) -> String {
         guard connected else { return "No bank connected" }
         if needsReconnect { return "Needs reconnecting" }
         if lastSyncOk == false { return "Last sync failed" }
+        if unmatched > 0 { return "\(unmatched) to match" }
         let count = max(Set(bankAccounts.map(\.org).filter { !$0.isEmpty }).count, 1)
         let banks = "\(count) bank\(count == 1 ? "" : "s")"
         guard let lastSyncAt else { return "\(banks) · not synced yet" }

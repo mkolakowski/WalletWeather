@@ -1,0 +1,10 @@
+{
+  "account_id": 3,
+  "lines": [
+    {"id": 9001, "days_ago": 2, "description": "VERIZON WIRELESS", "bank_text": "VERIZON WIRELESS 800-555-0142 NY", "amount": -67.4, "notes": null, "source": "bank"},
+    {"id": 9002, "days_ago": 5, "description": "TARGET", "bank_text": null, "amount": -34.12, "notes": "Store 0231", "source": "bank"}
+  ],
+  "bills": [
+    {"recurring_id": 7, "description": "Phone bill", "amount": -65.0, "day_of_month": 20, "match_days": 5}
+  ]
+}

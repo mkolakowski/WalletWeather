@@ -7,6 +7,9 @@ apps/ios/WalletWeatherKit (and its recorded samples).
 """
 from datetime import date, timedelta
 
+from test_bank_sync import connected, fake, link, register, switched_on  # noqa: F401 (fixtures)
+from test_bank_sync_matching import GROCERY_DAY, bill, sync
+
 NUM = (int, float)
 
 
@@ -111,3 +114,71 @@ def test_pinned_reports(client, registered):
 
 def test_running_someone_elses_report_is_404(client, registered):
     assert client.post("/api/saved-reports/999999/run", json={}).status_code == 404
+
+
+# ---------- Unmatched bank lines (duo-more phase 3, #306) ----------
+
+def unmatched_setup(c, acc, status):
+    """A bill 41% off the bank's CORNER GROCERY line, so the line stays on
+    the Unmatched list with the bill as a close choice."""
+    rec = bill(c, acc, "Groceries", -60.00, GROCERY_DAY)
+    link(c, status, acc)
+    sync(c)
+    return rec
+
+
+def test_bank_unmatched_list(connected, fake):
+    c, u, acc, status = connected
+    unmatched_setup(c, acc, status)
+    got = c.get(f"/api/accounts/{acc}/bank-unmatched").json()
+    has(got, {"count": int, "lines": list})
+    assert got["count"] == len(got["lines"]) >= 1
+    for line in got["lines"]:
+        has(line, {"id": int, "date": str, "description": str, "amount": NUM,
+                   "notes": (str, type(None)), "source": str})
+        assert line["source"] in ("bank", "alert")
+        date.fromisoformat(line["date"])
+    assert "CORNER GROCERY" in [x["description"] for x in got["lines"]]
+
+
+def test_bank_unmatched_candidates(connected, fake):
+    c, u, acc, status = connected
+    rec = unmatched_setup(c, acc, status)
+    lines = c.get(f"/api/accounts/{acc}/bank-unmatched").json()["lines"]
+    line = next(x for x in lines if x["description"] == "CORNER GROCERY")
+    r = c.get(f"/api/accounts/{acc}/bank-unmatched/{line['id']}/candidates")
+    assert r.status_code == 200, r.text
+    got = r.json()
+    has(got, {"line": dict, "choices": list})
+    has(got["line"], {"id": int, "date": str, "description": str, "amount": NUM,
+                      "bank_text": (str, type(None)), "learn_name": str})
+    assert got["line"]["id"] == line["id"]
+    assert got["choices"]
+    for ch in got["choices"]:
+        has(ch, {"transaction_id": (int, type(None)), "recurring_id": (int, type(None)),
+                 "forecast_date": str, "amount": NUM, "description": str,
+                 "days_apart": int, "days_after": int, "amount_diff": NUM,
+                 "same_direction": bool, "within_days": bool})
+    close = next(ch for ch in got["choices"] if ch["recurring_id"] == rec)
+    assert close["description"] == "Groceries" and close["forecast_date"] == GROCERY_DAY.isoformat()
+    assert close["transaction_id"] is None and close["same_direction"] is True
+
+
+def test_bank_unmatched_unknown_account_or_line_is_404(connected, fake):
+    c, u, acc, status = connected
+    unmatched_setup(c, acc, status)
+    assert c.get("/api/accounts/999999/bank-unmatched").status_code == 404
+    assert c.get(f"/api/accounts/{acc}/bank-unmatched/999999/candidates").status_code == 404
+    assert c.post(f"/api/accounts/{acc}/bank-unmatched/999999/leave").status_code == 404
+    assert c.get("/api/accounts/999999/bank-unmatched/1/candidates").status_code == 404
+
+
+def test_bank_unmatched_someone_elses_account_is_refused(app_started, connected, fake):
+    c, u, acc, status = connected
+    unmatched_setup(c, acc, status)
+    line = c.get(f"/api/accounts/{acc}/bank-unmatched").json()["lines"][0]
+    other, _ou = register(app_started)
+    assert other.get(f"/api/accounts/{acc}/bank-unmatched").status_code == 404
+    assert other.get(f"/api/accounts/{acc}/bank-unmatched/{line['id']}/candidates").status_code == 404
+    assert other.post(f"/api/accounts/{acc}/bank-unmatched/{line['id']}/leave").status_code == 404
+    assert c.get(f"/api/accounts/{acc}/bank-unmatched").json()["count"] >= 1

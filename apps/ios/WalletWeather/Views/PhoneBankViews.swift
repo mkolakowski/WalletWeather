@@ -19,7 +19,9 @@ struct PhoneBankCard: View {
     @State private var confirmDisconnect = false
     @State private var accounts: [Account] = []
     /// `WW_DEBUG_BANK=unmatched` (debug builds): opens the Unmatched list.
-    @State private var showUnmatched = AppModel.debugSetting("WW_DEBUG_BANK") == "unmatched"
+    @State private var unmatchedRoute: UnmatchedRoute? =
+        AppModel.debugSetting("WW_DEBUG_BANK") == "unmatched" || AppModel.debugSetting("WW_DEBUG_UNMATCHED") == "1"
+        ? UnmatchedRoute(accounts: nil) : nil
 
     private var bank: PhoneBank { model.phoneBank }
 
@@ -61,7 +63,7 @@ struct PhoneBankCard: View {
             accounts = (try? await model.client?.accounts()) ?? []
             bank.recount()
         }
-        .navigationDestination(isPresented: $showUnmatched) { UnmatchedListView() }
+        .unmatchedList($unmatchedRoute)
     }
 
     @ViewBuilder
@@ -84,7 +86,7 @@ struct PhoneBankCard: View {
         }
         if state.unmatched > 0 {
             Divider()
-            Button { showUnmatched = true } label: {
+            Button { unmatchedRoute = UnmatchedRoute(accounts: nil) } label: {
                 HStack {
                     Text("Unmatched (\(state.unmatched))")
                     Spacer()
@@ -252,10 +254,60 @@ private struct ConnectSimpleFINSheet: View {
 
 // MARK: - The Unmatched list
 
-/// Bank lines that paid no planned line, in every matched account, newest
-/// first, with Match… and Leave, as the web app's Unmatched list.
+/// The Unmatched list to show: for these accounts, or nil for the household
+/// on this iPhone's.
+struct UnmatchedRoute: Hashable { let accounts: [Int]? }
+
+extension View {
+    /// Shows the Unmatched list for `route`: pushed on a navigation stack, or,
+    /// in the wide Settings window's pane (`settingsIsWide`, whose size class
+    /// is forced to compact), over the whole window with its regular width back,
+    /// so its two panes show (#306).
+    func unmatchedList(_ route: Binding<UnmatchedRoute?>) -> some View {
+        modifier(UnmatchedPresenter(route: route))
+    }
+}
+
+private struct UnmatchedPresenter: ViewModifier {
+    @Environment(\.settingsIsWide) private var wide
+    @Binding var route: UnmatchedRoute?
+
+    func body(content: Content) -> some View {
+        content
+            .navigationDestination(item: Binding(get: { wide ? nil : route }, set: { route = $0 })) {
+                UnmatchedListView(accounts: $0.accounts)
+            }
+            .fullScreenCover(item: Binding(get: { wide ? route : nil }, set: { route = $0 })) { route in
+                NavigationStack {
+                    UnmatchedListView(accounts: route.accounts)
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar { ToolbarItem(placement: .confirmationAction) { DoneButton() } }
+                }
+                .environment(\.horizontalSizeClass, .regular)
+            }
+    }
+}
+
+private struct DoneButton: View {
+    @Environment(\.dismiss) private var dismiss
+    var body: some View { Button("Done") { dismiss() } }
+}
+
+extension UnmatchedRoute: Identifiable {
+    var id: String { accounts?.map(String.init).joined(separator: ",") ?? "phone" }
+}
+
+/// Bank lines that paid no planned line, newest first, with Match… and
+/// Leave, as the web app's Unmatched list. `accounts` names the accounts to
+/// list (a connection's, or one shared account, from Settings → Bank sync
+/// with a server); nil lists every account the household on this iPhone
+/// matched. Open (a regular width), the list is one pane and the tapped
+/// line's choices the other, on `FoldLayout`; closed, the choices are a sheet.
+/// A read-only sign-in sees them and can't change anything (#306).
 struct UnmatchedListView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    var accounts: [Int]?
     @State private var groups: [(account: Account, lines: [BankUnmatched.Line])] = []
     @State private var loaded = false
     @State private var problem: String?
@@ -268,46 +320,78 @@ struct UnmatchedListView: View {
         var id: Int { line.id }
     }
 
+    private var canWrite: Bool { model.me?.isReadOnly != true }
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("Lines from your bank that paid no planned line. Match one to the bill or line it paid, or leave it as its own line.")
-                    .font(.footnote).foregroundStyle(.secondary)
-                    .padding(.horizontal, 4)
-                if let note {
-                    Text(note).font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 4)
-                }
-                if let problem {
-                    Text(problem).foregroundStyle(Palette.bad).card()
-                } else if loaded && groups.isEmpty {
-                    Text("Nothing to match.").foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).card()
-                }
-                ForEach(groups, id: \.account.id) { group in
-                    Text(group.account.name).font(.headline).padding(.horizontal, 4).padding(.top, 6)
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array(group.lines.enumerated()), id: \.element.id) { index, line in
-                            if index > 0 { Divider() }
-                            row(line, account: group.account.id)
-                        }
+        Group {
+            if sizeClass == .regular {
+                FoldLayout { edges in
+                    ScrollView { page(edges: edges, selected: matching?.id) }
+                } trailing: { edges in
+                    if let matching {
+                        MatchChoices(account: matching.account, line: matching.line, canWrite: canWrite,
+                                     onClose: { self.matching = nil }, done: finished)
+                            .id("\(matching.account)/\(matching.id)")
+                            .padding(.leading, edges.leading).padding(.trailing, edges.trailing)
+                    } else {
+                        Text("Pick a line to see what it could pay.")
+                            .font(.callout).foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .padding(.leading, edges.leading).padding(.trailing, edges.trailing)
                     }
-                    .card()
                 }
+            } else {
+                ScrollView { page(edges: .plain, selected: nil) }
             }
-            .padding(.horizontal, 16).padding(.bottom, 24)
         }
         .background(PageBackground().ignoresSafeArea())
         .navigationTitle("Unmatched")
-        .task(id: model.generation) { await load() }
-        .sheet(item: $matching) { m in
-            MatchSheet(account: m.account, line: m.line) { said in
-                note = said
-                Task { await load() }
-                model.reload()
-            }
+        .task(id: "\(model.generation)/\(accounts?.map(String.init).joined(separator: ",") ?? "phone")") { await load() }
+        .sheet(item: Binding(get: { sizeClass == .regular ? nil : matching }, set: { matching = $0 })) { m in
+            MatchSheet(account: m.account, line: m.line, canWrite: canWrite, done: finished)
         }
     }
 
-    private func row(_ line: BankUnmatched.Line, account: Int) -> some View {
+    /// A match or a leave went through: say so, and ask again.
+    private func finished(_ said: String) {
+        note = said
+        matching = nil
+        Task { await load() }
+        model.reload()
+    }
+
+    private func page(edges: FoldPanes.Edges, selected: Int?) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Lines from your bank that paid no planned line. Match one to the bill or line it paid, or leave it as its own line.")
+                .font(.footnote).foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+            if !canWrite {
+                Text("This iPhone signed in with a read-only token, so Match and Leave are off.")
+                    .font(.footnote).foregroundStyle(Palette.warn).padding(.horizontal, 4)
+            }
+            if let note {
+                Text(note).font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 4)
+            }
+            if let problem {
+                Text(problem).foregroundStyle(Palette.bad).card()
+            } else if loaded && groups.isEmpty {
+                Text("Nothing to match.").foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).card()
+            }
+            ForEach(groups, id: \.account.id) { group in
+                Text(group.account.name).font(.headline).padding(.horizontal, 4).padding(.top, 6)
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(group.lines.enumerated()), id: \.element.id) { index, line in
+                        if index > 0 { Divider() }
+                        row(line, account: group.account.id, selected: selected == line.id)
+                    }
+                }
+                .card()
+            }
+        }
+        .padding(.leading, edges.leading).padding(.trailing, edges.trailing).padding(.bottom, 24)
+    }
+
+    private func row(_ line: BankUnmatched.Line, account: Int, selected: Bool) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 Text(line.description).font(.subheadline.weight(.semibold)).lineLimit(2)
@@ -324,18 +408,25 @@ struct UnmatchedListView: View {
                     .buttonStyle(.glass)
                 Button("Leave") { Task { await leave(line, account: account) } }
                     .buttonStyle(.glass)
+                    .disabled(!canWrite)
             }
         }
         .padding(.vertical, 8)
+        .padding(.horizontal, selected ? 8 : 0)
+        .background(selected ? Palette.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 10))
+        .contentShape(Rectangle())
+        .onTapGesture { if sizeClass == .regular { matching = Matching(account: account, line: line) } }
     }
 
     private func load() async {
         guard let client = model.client else { return }
-        let linked = Set(model.phoneBank.state.links.map(\.account))
+        let wanted = accounts.map(Set.init) ?? Set(model.phoneBank.state.links.map(\.account))
         do {
-            let accounts = try await client.accounts().filter { linked.contains($0.id) }
+            let all = try await client.accounts().filter { wanted.contains($0.id) }
+            // The order asked for, else the accounts' own.
+            let ordered = accounts.map { ids in ids.compactMap { id in all.first { $0.id == id } } } ?? all
             var found: [(Account, [BankUnmatched.Line])] = []
-            for account in accounts {
+            for account in ordered {
                 let list = try await client.bankUnmatched(account: account.id)
                 if !list.lines.isEmpty { found.append((account, list.lines)) }
             }
@@ -345,13 +436,14 @@ struct UnmatchedListView: View {
             problem = AppModel.describe(error)
         }
         loaded = true
-        model.phoneBank.recount()
+        if accounts == nil { model.phoneBank.recount() }
     }
 
     private func leave(_ line: BankUnmatched.Line, account: Int) async {
         guard let client = model.client else { return }
         do {
             try await client.bankLeave(account: account, line: line.id)
+            if matching?.id == line.id { matching = nil }
             note = "Left \(line.description) as its own line."
             await load()
         } catch {
@@ -360,13 +452,40 @@ struct UnmatchedListView: View {
     }
 }
 
-/// Match…: the bank's line on top and a card for each bill or planned line
-/// it could pay, saying how the bank's line compares, with Pay this.
+/// Match…, closed: the choices in a sheet.
 private struct MatchSheet: View {
-    @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let account: Int
     let line: BankUnmatched.Line
+    let canWrite: Bool
+    let done: (String) -> Void
+
+    var body: some View {
+        NavigationStack {
+            MatchChoices(account: account, line: line, canWrite: canWrite, onClose: nil) { said in
+                done(said)
+                dismiss()
+            }
+            .background(PageBackground().ignoresSafeArea())
+            .navigationTitle("Match")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
+            }
+        }
+    }
+}
+
+/// What a bank line could pay: the line on top and a card for each bill or
+/// planned line, saying how the bank's line compares, with Pay this, "Always
+/// match" its name and Leave. A sheet holds it closed, and the second pane
+/// of the open Duo (`onClose` then adds Close at the top).
+private struct MatchChoices: View {
+    @Environment(AppModel.self) private var model
+    let account: Int
+    let line: BankUnmatched.Line
+    let canWrite: Bool
+    let onClose: (() -> Void)?
     let done: (String) -> Void
     @State private var candidates: BankCandidates?
     @State private var problem: String?
@@ -375,37 +494,45 @@ private struct MatchSheet: View {
     @State private var working = false
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(alignment: .firstTextBaseline) {
-                            Text(line.description).font(.headline)
-                            Spacer(minLength: 8)
-                            Text(line.amount.formatted).font(.headline.monospacedDigit())
-                                .foregroundStyle(line.amount.isNegative ? Palette.bad : Palette.good)
-                        }
-                        Text(line.date.short).font(.subheadline).foregroundStyle(.secondary)
-                        if let text = candidates?.line.bankText {
-                            Text(text).font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
-                    .card()
-                    if let problem { Text(problem).foregroundStyle(Palette.bad) }
-                    if let candidates {
-                        choices(candidates)
-                    } else if problem == nil {
-                        ProgressView().frame(maxWidth: .infinity)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                if let onClose {
+                    HStack {
+                        Text("Match").font(.headline)
+                        Spacer()
+                        Button("Close", action: onClose)
                     }
                 }
-                .padding(16)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(line.description).font(.headline)
+                        Spacer(minLength: 8)
+                        Text(line.amount.formatted).font(.headline.monospacedDigit())
+                            .foregroundStyle(line.amount.isNegative ? Palette.bad : Palette.good)
+                    }
+                    Text(line.date.short).font(.subheadline).foregroundStyle(.secondary)
+                    if let text = candidates?.line.bankText {
+                        Text(text).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .card()
+                if !canWrite {
+                    Text("This iPhone signed in with a read-only token, so Pay this and Leave are off.")
+                        .font(.footnote).foregroundStyle(Palette.warn)
+                }
+                if let problem { Text(problem).foregroundStyle(Palette.bad) }
+                if let candidates {
+                    choices(candidates)
+                } else if problem == nil {
+                    ProgressView().frame(maxWidth: .infinity)
+                }
+                Button { Task { await leave() } } label: {
+                    Text("Leave as its own line").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glass)
+                .disabled(working || !canWrite)
             }
-            .background(PageBackground().ignoresSafeArea())
-            .navigationTitle("Match")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
-            }
+            .padding(.horizontal, onClose == nil ? 16 : 0).padding(.vertical, 16)
         }
         .task { await load() }
     }
@@ -419,8 +546,9 @@ private struct MatchSheet: View {
             Text("No planned lines within 60 days of this one.").foregroundStyle(.secondary)
         } else {
             if c.choices.contains(where: { $0.recurringId != nil }) {
-                Toggle("Match lines named “\(c.line.learnName)” from now on", isOn: $remember)
+                Toggle("Always match “\(c.line.learnName)”", isOn: $remember)
                     .font(.footnote)
+                    .disabled(!canWrite)
             }
             ForEach(shown) { choice in
                 VStack(alignment: .leading, spacing: 6) {
@@ -435,7 +563,7 @@ private struct MatchSheet: View {
                         Text("Pay this").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.glass)
-                    .disabled(working)
+                    .disabled(working || !canWrite)
                 }
                 .card()
             }
@@ -479,7 +607,18 @@ private struct MatchSheet: View {
                 said += ", and \(result.alsoMatched) more line\(result.alsoMatched == 1 ? "" : "s") like it matched"
             }
             done(said + ".")
-            dismiss()
+        } catch {
+            problem = AppModel.describe(error)
+        }
+    }
+
+    private func leave() async {
+        guard let client = model.client else { return }
+        working = true
+        defer { working = false }
+        do {
+            try await client.bankLeave(account: account, line: line.id)
+            done("Left \(line.description) as its own line.")
         } catch {
             problem = AppModel.describe(error)
         }

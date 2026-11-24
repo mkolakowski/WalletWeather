@@ -1,8 +1,8 @@
 import Foundation
 
 // Bank sync in the app (bank-sync phase 5, #197): the status under Settings
-// and Sync now. Connecting a bank, the sync log and the Unmatched list stay
-// in the web app. Server 1.70.0 or later has `GET /api/bank/status`; an older
+// and Sync now. Connecting a bank and the sync log stay
+// in the web app; the Unmatched list is in the app too (duo-more phase 3, #306). Server 1.70.0 or later has `GET /api/bank/status`; an older
 // server just doesn't show the row's details. From server 1.86.0 the status
 // also lists every connection (SimpleFIN, Teller or Plaid, bank-providers
 // phase 4, #257), each with its own state and Sync now; before that the

@@ -107,7 +107,8 @@ struct RootView: View {
             started = true
             if AppModel.debugSetting("WW_DEBUG_SHORTCUTS") == "1" { showingShortcutTable = true }
             // Debug only: `WW_DEBUG_SETTINGS=<page>` opens Settings on that page (#294).
-            if AppModel.debugSetting("WW_DEBUG_SETTINGS") != nil { place = .more }
+            // `WW_DEBUG_COPY` opens Move to a server with Copy to a server over it (#328).
+            if AppModel.debugSetting("WW_DEBUG_SETTINGS") != nil || AppModel.debugSetting("WW_DEBUG_COPY") != nil { place = .more }
             if let debug = AppModel.debugSetting("WW_DEBUG_PLACE").flatMap(Place.init(rawValue:)) { place = debug }
             if let page = place.page, !settings.tabs.contains(page) { place = settings.tabs.first.map(Place.init) ?? .more }
         }

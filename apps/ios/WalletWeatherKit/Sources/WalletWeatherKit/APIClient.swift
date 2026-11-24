@@ -5,7 +5,7 @@ public enum AppInfo {
     /// The iOS app's own version (CHANGELOG.md tracks it beside the app,
     /// web and schema versions). Keep it equal to MARKETING_VERSION in the
     /// Xcode project.
-    public static let version = "0.62.0"
+    public static let version = "0.63.0"
     /// The first server version with what the app's pages need: the
     /// phone's date on Net worth, Budgets and Reports (#91), on top of each
     /// bill's next dates (#89) and the Forecast's (#88).
@@ -330,10 +330,18 @@ public final class APIClient: Sendable {
 
     func send<T: Decodable, B: Encodable>(_ method: String, _ path: String, query: [String: String] = [:],
                                           body: B?, keep: Bool = false) async throws(APIError) -> T {
+        try await send(method, path, query: query, json: body.map { (try? JSONEncoder().encode($0)) ?? Data() }, keep: keep)
+    }
+
+    /// The same with a body already written as JSON: a backup, which is
+    /// built as `JSONSerialization` objects rather than `Encodable` (#328).
+    func send<T: Decodable>(_ method: String, _ path: String, query: [String: String] = [:],
+                            json body: Data?, keep: Bool = false,
+                            timeout: TimeInterval = APIClient.timeout) async throws(APIError) -> T {
         if connection.isDemo, !Demo.allows(method, path) { throw .demoReadOnly }
         let key = keep ? KeptResponses.key(server: connection.server, method: method, path: path, query: query) : nil
         var request = URLRequest(url: ServerAddress.url(connection.server, path, query: query),
-                                 cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: Self.timeout)
+                                 cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: timeout)
         request.httpMethod = method
         request.httpShouldHandleCookies = false
         request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -345,7 +353,7 @@ public final class APIClient: Sendable {
         }
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try? JSONEncoder().encode(body)
+            request.httpBody = body
         }
         let data: Data
         let response: URLResponse

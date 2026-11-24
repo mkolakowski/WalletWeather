@@ -693,6 +693,8 @@ final class AppModel {
     /// and `WW_DEBUG_CONFIRM`, `WW_DEBUG_COMPARE` and `WW_DEBUG_NEW_WINDOW`
     /// (Forecast's To confirm, Compare, and a second window on a page), and
     /// `WW_DEBUG_ADD_NAME=<text>` (Forecast opens Add transaction with it typed as the name, #325),
+    /// `WW_DEBUG_COPY=sample` or `replace` (Copy to a server open, the first server chosen, or Replace
+    /// chosen with its confirmation; nothing is checked or sent, #328),
     /// `WW_DEBUG_DEMO=1` (open in the demo), and `WW_DEBUG_CLOUDKIT_SCHEMA=1`
     /// (write the CloudKit schema to Development, #270), and
     /// `WW_DEBUG_CONNECTIONS=sample` (sample connections in memory, #300),

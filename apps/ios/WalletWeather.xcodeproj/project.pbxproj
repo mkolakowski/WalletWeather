@@ -13,6 +13,7 @@
 		12B45AEEC84F77C8BF0B4F8F /* BackupViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99597682BE06C6A4C37D1188 /* BackupViews.swift */; };
 		1B91942AA2AD6B61B89A0CA2 /* SignInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B7EE513A73A7A19A6F7A07 /* SignInSheet.swift */; };
 		1FCF02B71067FD3EBB3F9DE1 /* ProblemBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D8B8F746C4489B2D9FC26F6 /* ProblemBanner.swift */; };
+		28FD295F2FE845B31C9F936B /* CopyToServerViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4460223E3EE434655554208 /* CopyToServerViews.swift */; };
 		2A3F787DFA9A3BC6817806A5 /* PhoneBankViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 501BC9A34865BA8B81980E67 /* PhoneBankViews.swift */; };
 		2B6E20C2C6B57F2469053035 /* StandaloneViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57CA23B0750CAA45E8AC60BD /* StandaloneViews.swift */; };
 		2BCD253633EC7F7F0D70AF73 /* ConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3E9C40EFE3CCE23D41AA8C7 /* ConnectView.swift */; };
@@ -108,6 +109,7 @@
 		BDF9E32523EA53BC9E7065F1 /* DragAndDrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragAndDrop.swift; sourceTree = "<group>"; };
 		C580FBC80891DCC74238FFCA /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
 		D3382C27760DB4FDDB484054 /* CSVImportViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVImportViews.swift; sourceTree = "<group>"; };
+		D4460223E3EE434655554208 /* CopyToServerViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopyToServerViews.swift; sourceTree = "<group>"; };
 		D477F5ED78FD4EA9DBFD3630 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
 		DFB26B2201D3541193633A07 /* ChartViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartViews.swift; sourceTree = "<group>"; };
 		DFD2173D8B902D535067E208 /* CloudBackupModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudBackupModel.swift; sourceTree = "<group>"; };
@@ -155,6 +157,7 @@
 				DFB26B2201D3541193633A07 /* ChartViews.swift */,
 				60D4A1DCD8715B9A0F59BB88 /* ConnectionChip.swift */,
 				A3E9C40EFE3CCE23D41AA8C7 /* ConnectView.swift */,
+				D4460223E3EE434655554208 /* CopyToServerViews.swift */,
 				D3382C27760DB4FDDB484054 /* CSVImportViews.swift */,
 				319D4205BFCC35DC6757600B /* DashboardView.swift */,
 				BDF9E32523EA53BC9E7065F1 /* DragAndDrop.swift */,
@@ -315,6 +318,7 @@
 				342087AFBFCCAD445AFB2659 /* CloudBackupModel.swift in Sources */,
 				2BCD253633EC7F7F0D70AF73 /* ConnectView.swift in Sources */,
 				3890DA3AB0F11364FACBAA42 /* ConnectionChip.swift in Sources */,
+				28FD295F2FE845B31C9F936B /* CopyToServerViews.swift in Sources */,
 				0E50FD7DF2A071A170661300 /* DashboardView.swift in Sources */,
 				769AEB2CED36BFC4608187F6 /* DebugBridge.swift in Sources */,
 				2DF216ED65FF70A18AB75519 /* DragAndDrop.swift in Sources */,
@@ -411,7 +415,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.60.0;
+				MARKETING_VERSION = 0.62.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -479,7 +483,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.60.0;
+				MARKETING_VERSION = 0.62.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

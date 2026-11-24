@@ -69,10 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.62.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.63.0**
 
 ### Added
 
+- **iPhone: copy your household to a server, inside the app.** Settings → Move to a server → Copy to a server…: pick a server you're signed in to with full access, see what goes, and choose to add to what's there or replace it (Replace asks again, and is never chosen for you). No file or passphrase is needed, and this iPhone keeps its copy. Export for a server and Import a server backup are still there (iOS 0.63.0).
 - **iPhone: connections at a glance.** Settings → Connections shows each connection's total today and how old it is ("as of 2 h ago"): a server's from its last-known numbers (only when it keeps them), the household on this iPhone's as of now, and the demo's sample. While the lock has the demo in front, totals are hidden like addresses (iOS 0.62.0).
 - **iPhone: filter Forecast by category or tag.** A row of chips under All lines and To confirm lists the month's categories (most spending first) and tags. Choose one to see only its lines, with their count and total for the month; All puts everything back (iOS 0.61.0).
 - **iPhone: open a bank's CSV in WalletWeather.** WalletWeather now shows up for a CSV in Files, Mail and the share sheet, and opens its import on that file. If WalletWeather is locked, the import waits until you unlock it (iOS 0.60.0).

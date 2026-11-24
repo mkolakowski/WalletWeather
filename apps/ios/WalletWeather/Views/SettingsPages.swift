@@ -685,13 +685,13 @@ private struct BackupPage: View {
     }
 }
 
-/// Move to a server, for the household on this iPhone: Export for a server
-/// and Import a server backup.
+/// Move to a server, for the household on this iPhone: Copy to a server
+/// (#328), Export for a server and Import a server backup.
 private struct MovePage: View {
     var body: some View {
         SettingsPageFrame(title: "Move to a server") {
             MoveRows().card()
-            SettingNote("Export for a server saves your numbers as your server's own encrypted backup, for its Settings → Restore. Import a server backup replaces what's on this iPhone with a backup your server made. Tags and bank links aren't kept on this iPhone.")
+            SettingNote("Copy to a server sends your numbers to a server you're signed in to, adding to what's there or replacing it; this iPhone keeps its copy. Export for a server saves your numbers as your server's own encrypted backup, for its Settings → Restore. Import a server backup replaces what's on this iPhone with a backup your server made. Tags and bank links aren't kept on this iPhone.")
         }
     }
 }

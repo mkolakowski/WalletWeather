@@ -112,3 +112,61 @@ def test_the_servers_backup_of_it_is_committed_for_the_phone(imported):
         return out
 
     assert comparable(committed) == comparable(fresh), "rewrite from-server.json (see this file's docstring)"
+
+
+# Copy to a server (#328): the iPhone sends the backup Export for a server
+# seals (from-phone.json is that file, made from BackupTests.household()),
+# unsealed, as {"mode": ..., "payload": ...} with no passphrase, under the
+# app's full token (CopyToServerTests checks the request on the phone's
+# side). The app reads `imported`'s accounts, recurring, transactions and
+# transfers.
+def _phone(app, browser, access):
+    from fastapi.testclient import TestClient
+    r = browser.post("/api/tokens", json={"name": "iPhone", "access": access})
+    assert r.status_code == 200, r.text
+    phone = TestClient(app)
+    phone.headers["Authorization"] = f"Bearer {r.json()['token']}"
+    return phone
+
+
+def _copy(phone, payload, mode):
+    return phone.post("/api/backup/import", json={"mode": mode, "payload": payload})
+
+
+def test_copy_to_a_server_imports_the_plain_backup_with_merge_and_replace(app_started):
+    browser, _ = register(app_started)
+    phone = _phone(app_started, browser, "full")
+    payload = open_sealed(_load("from-phone"), PASSPHRASE)
+    assert "walletweather" not in payload  # the backup itself, not the sealed file
+
+    # Add to what's there, onto an empty account.
+    r = _copy(phone, payload, "merge")
+    assert r.status_code == 200, r.text
+    answer = r.json()
+    assert answer["ok"] is True and answer["encrypted"] is False
+    counts = answer["imported"]
+    assert (counts["accounts"], counts["recurring"], counts["transactions"], counts["transfers"]) == (2, 6, 6, 1)
+    assert all(isinstance(counts[k], int) for k in ("categories", "tags"))
+    assert forecasts(phone) == _load("forecast")
+
+    # Again: added beside what's there.
+    r = _copy(phone, payload, "merge")
+    assert r.status_code == 200, r.text
+    assert r.json()["imported"]["accounts"] == 2
+    assert len(phone.get("/api/accounts").json()) == 4
+
+    # Replace what's there: the accounts, categories and tags go first.
+    r = _copy(phone, payload, "replace")
+    assert r.status_code == 200, r.text
+    counts = r.json()["imported"]
+    assert (counts["accounts"], counts["recurring"], counts["transactions"], counts["transfers"]) == (2, 6, 6, 1)
+    assert sorted(a["name"] for a in phone.get("/api/accounts").json()) == ["Checking", "Épargne 🍕"]
+    assert forecasts(phone) == _load("forecast")
+
+
+def test_copy_to_a_server_is_refused_to_a_read_only_token(app_started):
+    browser, _ = register(app_started)
+    reader = _phone(app_started, browser, "read")
+    r = _copy(reader, open_sealed(_load("from-phone"), PASSPHRASE), "merge")
+    assert r.status_code == 403, r.text
+    assert browser.get("/api/accounts").json() == []

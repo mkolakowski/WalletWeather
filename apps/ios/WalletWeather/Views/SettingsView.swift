@@ -319,6 +319,7 @@ struct SettingsView: View {
         let named = SettingsPage.debugPath(AppModel.debugSetting("WW_DEBUG_SETTINGS"))
         if !named.isEmpty { return named }
         if AppModel.debugSetting("WW_DEBUG_TAGS") == "1" { return [.tags] }
+        if AppModel.debugSetting("WW_DEBUG_COPY") != nil { return [.move] }
         if AppModel.debugSetting("WW_DEBUG_BANK") != nil || AppModel.debugSetting("WW_DEBUG_UNMATCHED") != nil { return [.bank] }
         return []
     }

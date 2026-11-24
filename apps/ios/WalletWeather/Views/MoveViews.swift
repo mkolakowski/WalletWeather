@@ -8,9 +8,12 @@ import WalletWeatherKit
 /// sealed backup, which the web app's Settings → Restore takes; **Import a
 /// server backup** replaces the household with one a server made, after
 /// asking (decided 2026-11-18). The passphrase is chosen the first time and
-/// kept in iCloud Keychain (open question 4).
+/// kept in iCloud Keychain (open question 4). **Copy to a server…** (#328)
+/// sends the household to a saved server inside the app
+/// (`CopyToServerSheet`).
 struct MoveRows: View {
     @Environment(AppModel.self) private var model
+    @State private var copyingToServer = false
     @State private var choosingPassphrase = false
     @State private var exportFile: BackupDocument?
     @State private var exporting = false
@@ -21,6 +24,20 @@ struct MoveRows: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // Offered with a household and a saved server; never with the
+            // demo in front (the lock's, #301).
+            let copy = CopyAvailability.decide(householdExists: model.hasHousehold, saved: model.connections,
+                                               demoInFront: model.isDemo)
+            if copy != .hidden {
+                Button { outcome = nil; copyingToServer = true } label: {
+                    row("Copy to a server…", symbol: "doc.on.doc")
+                }
+                .disabled(working || copy != .available)
+                if let note = copy.footnote {
+                    Text(note).font(.footnote).foregroundStyle(.secondary).padding(.bottom, 8)
+                }
+                Divider()
+            }
             Button { startExport() } label: {
                 row("Export for a server", symbol: "square.and.arrow.up")
             }
@@ -53,6 +70,11 @@ struct MoveRows: View {
             }
         }
         .backupImporter(isPresented: $importing) { message, failed in report(message, failed: failed) }
+        .sheet(isPresented: $copyingToServer) { CopyToServerSheet() }
+        .onAppear {
+            // Debug pictures (`WW_DEBUG_COPY`): the sheet open with no taps.
+            if AppModel.debugSetting("WW_DEBUG_COPY") != nil, !model.isDemo { copyingToServer = true }
+        }
     }
 
     private func row(_ title: String, symbol: String) -> some View {

@@ -107,8 +107,8 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
     case dateFormat, followAccount
     // iCloud & backup.
     case syncWithICloud, backupToICloudDrive, backupPassphrase
-    // Move to a server.
-    case exportForServer, importServerBackup
+    // Move to a server. Copy to a server (#328) first.
+    case copyToServer, exportForServer, importServerBackup
     // Help & Getting started.
     case showGettingStarted, privacyPolicy, setupGuide
 
@@ -158,6 +158,7 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
         case .syncWithICloud: "Sync with iCloud"
         case .backupToICloudDrive: "Back up to iCloud Drive"
         case .backupPassphrase: "Backup passphrase"
+        case .copyToServer: "Copy to a server…"
         case .exportForServer: "Export for a server"
         case .importServerBackup: "Import a server backup"
         case .showGettingStarted: "Show Getting started again"
@@ -172,7 +173,7 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
              .appearance, .tabBar, .privacyLock, .datesDisplay, .notice, .help, .keep, .savedConnection:
             .page
         case .addServer, .useOnThisPhone, .restoreFromICloud, .addAccount, .importCSV, .showGettingStarted,
-             .backupPassphrase, .exportForServer, .importServerBackup:
+             .backupPassphrase, .copyToServer, .exportForServer, .importServerBackup:
             .action
         case .openWebApp, .privacyPolicy, .setupGuide:
             .link
@@ -373,7 +374,7 @@ public struct SettingsLayout: Equatable, Sendable {
         case .display: return [.dateFormat, .followAccount]
         case .privacy: return (hasBiometry ? [.lock] + (lockOn ? [.lockShowsDemo] : []) : []) + [.appSwitcher]
         case .backup: return household == .thisIPhone ? [.syncWithICloud, .backupToICloudDrive, .backupPassphrase] : []
-        case .move: return household == .thisIPhone ? [.exportForServer, .importServerBackup] : []
+        case .move: return household == .thisIPhone ? [.copyToServer, .exportForServer, .importServerBackup] : []
         case .help: return [.showGettingStarted, .privacyPolicy] + (household == .thisIPhone ? [.setupGuide] : [])
         case .tags, .tabBar, .notice: return []
         }

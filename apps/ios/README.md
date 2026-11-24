@@ -198,6 +198,14 @@ Debug only.
 Add transaction with "Gr" typed as the name (#325), so the remembered-name
 suggestions show, each with its category, and the "Will be tagged ..." note
 when a tag rule matches. Debug only.
+`SIMCTL_CHILD_WW_DEBUG_COPY=sample` opens Settings → Move to a server with
+Copy to a server… over it (#328), the first server whose sign-in hasn't
+ended already chosen and what goes counted; `replace` also chooses Replace
+what's there and shows its confirmation. Use it with
+`SIMCTL_CHILD_WW_DEBUG_CONNECTIONS=sample` and
+`SIMCTL_CHILD_WW_DEBUG_LOCAL=sample` (the household must be in front for
+Move to a server to show). It never checks a sign-in or sends anything:
+Copy says "Debug: nothing was sent". Debug only.
 Drag and drop (#308) can't be driven from a script either:
 `SIMCTL_CHILD_WW_DEBUG_DROP=csv` shows Forecast's (and the Dashboard's) drop
 highlight as if a bank's CSV were held over the page, and
@@ -561,7 +569,15 @@ in backup version 5 (`LocalBackup.swift`, as `export_user`), and saves it
 with the system's Save to Files; the server's Settings → Restore takes it.
 **Import a server backup** opens one the server made and replaces the
 household after asking (decided 2026-11-18), as the server's "replace"
-import does, with its checks. Tags, tag rules and bank and email-alert links
+import does, with its checks. **Copy to a server…** (#328,
+`CopyToServer.swift`, `CopyToServerViews.swift`) does Export for a server's
+trip inside the app: pick a saved server (its sign-in checked for full
+access with `/api/me`; one whose sign-in ended can't be picked), see what
+goes, choose Add to what's there (merge) or Replace what's there (replace,
+confirmed), and the same backup goes, unsealed, to the server's
+`POST /api/backup/import` over HTTPS under that server's own token. The
+connection in front stays, and the phone keeps its copy. `CopyToServerTests`
+and `test_backup_moves.py` check it from both sides. Tags, tag rules and bank and email-alert links
 aren't kept on the phone. The backup passphrase is chosen the first time and
 kept in iCloud Keychain (`BackupPassphrase` in `Keychain.swift`, synced);
 Settings → iCloud & backup → Backup passphrase shows it after Face ID, Touch ID or the

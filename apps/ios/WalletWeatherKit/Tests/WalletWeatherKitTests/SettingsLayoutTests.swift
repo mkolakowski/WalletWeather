@@ -39,7 +39,7 @@ struct SettingsLayoutTests {
         ])
         #expect(layout.rows(on: .connection) == [.aboutThisIPhone, .deleteEverything])
         #expect(layout.rows(on: .backup) == [.syncWithICloud, .backupToICloudDrive, .backupPassphrase])
-        #expect(layout.rows(on: .move) == [.exportForServer, .importServerBackup])
+        #expect(layout.rows(on: .move) == [.copyToServer, .exportForServer, .importServerBackup])
         #expect(layout.rows(on: .display) == [.dateFormat, .followAccount])
         #expect(layout.rows(on: .help) == [.showGettingStarted, .privacyPolicy, .setupGuide])
         #expect(layout.rows(on: .connections) == [.savedConnection, .demoConnection, .addServer])
@@ -48,7 +48,7 @@ struct SettingsLayoutTests {
             .connection, .morePages, .tags, .bankSync, .iCloudBackup, .moveToServer, .addAccount, .importCSV,
             .appearance, .tabBar, .privacyLock, .datesDisplay, .notice, .help, .versions, .savedConnection, .demoConnection, .addServer,
             .aboutThisIPhone, .deleteEverything, .bankCard, .looks, .lock, .appSwitcher, .dateFormat, .followAccount,
-            .syncWithICloud, .backupToICloudDrive, .backupPassphrase, .exportForServer, .importServerBackup,
+            .syncWithICloud, .backupToICloudDrive, .backupPassphrase, .copyToServer, .exportForServer, .importServerBackup,
             .showGettingStarted, .privacyPolicy, .setupGuide,
         ])
     }

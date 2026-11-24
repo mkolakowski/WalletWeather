@@ -6,13 +6,15 @@ Tracking issue: #333
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Widgets and the summary they read | #318 | Not started |
+| 1. Widgets and the summary they read | #318 | Built in iOS 0.64.0; pictures and phone check to come |
 | 2. Reminders worked out on the phone | #319 | Not started |
 | 3. Open To confirm and What's my balance | #320 | Not started |
 | 4. Bills and accounts in the phone's search | #331 | Not started |
 | 5. Add a transaction and Mark a bill paid | #332 | Not started |
 
 Planned 2026-11-23 (about 11:00 PM ET), from #318, #319 and #320 (ideas F1 to F3 of the iOS review), on iOS 0.63.0.
+
+- **Phase 1:** iOS 0.64.0, 2026-11-23 (042eea0). Verified: 16 new Kit tests on the summary (written, read, refused while locked, deleted on sign-out, on Nothing and on Delete everywhere, no numbers for Nothing) in a full `swift test` of 468 that passed; the app and widget extension build for the simulator. Not yet: simulator pictures (the shared simulator lock refused while the external SSD was unplugged) and the check on the phone from TestFlight.
 
 Sessions: may span — five iOS versions, each tried on your phone from TestFlight before the next builds on it.
 

@@ -384,6 +384,24 @@ net.iptater.walletweather <file>.apns`, a payload with `"category":
 "net.iptater.walletweather.reminder"` in `aps` and the `kind`, `connection`,
 `item` and `day` keys beside it.
 
+**Siri and Shortcuts** (#320, `ShortcutAnswers.swift` in WalletWeatherKit,
+`Shortcuts.swift` in the app): two App Intents in the app itself (no
+extension), offered as App Shortcuts with Siri phrases, so they're also in
+Shortcuts, Spotlight and on the Action button without setup. Their type names,
+`OpenToConfirmIntent` and `BalanceIntent`, are stable identifiers. Neither
+keeps anything new or reaches a server. **Open To confirm** opens the app (in
+front, where the app lock still asks) on the connection in front
+(`OutsideSettings.front`) at the account with the most lines waiting, through
+the same route as the To confirm widget. **What's my balance** runs without
+opening the app, with `authenticationPolicy = .requiresAuthentication`, so a
+locked phone asks to be unlocked first (and the summary is closed then
+anyway). It reads the front connection's summary and answers with each
+account's balance, the connection's name and how old the numbers are ("as of
+2 hours ago"). With the app lock on (`OutsideSettings.lockOn`) it asks for
+Face ID or the passcode before any amount. A server set to Nothing gets "keeps
+no numbers on this iPhone", and with no saved connection (only the demo) it
+says there's nothing kept to tell.
+
 Signing out of a server (its page, from Connections) ends that server's
 token first (`DELETE /api/tokens/current`, sent with that connection's own
 sign-in, so it works for one that isn't in front: a token may revoke itself,

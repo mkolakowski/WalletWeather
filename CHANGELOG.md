@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.1** · Web version: **1.116.0** · Schema version: **39** · iOS version: **0.65.1**
+App version: **1.98.1** · Web version: **1.116.0** · Schema version: **39** · iOS version: **0.66.0**
+
+### Added
+
+- **iPhone: Siri, Shortcuts and the Action button.** Two actions are ready without any setup. **Open To confirm** ("Open To confirm in WalletWeather") opens the app on the lines waiting to confirm, on the connection you're using. **What's my balance** ("What's my balance in WalletWeather") tells each account's balance on that connection, naming it and saying how old the numbers are ("as of 2 hours ago"), without opening the app. It answers only on an unlocked iPhone, asks for Face ID first while WalletWeather's lock is on, and for a server set to keep Nothing it says no numbers are kept. It reads the same summary as the widgets and never contacts your server; the privacy policy says so. Assign either to the Action button in Settings → Action Button → Shortcut (iOS 0.66.0).
 
 ## [1.98.1] — 2026-11-24
 

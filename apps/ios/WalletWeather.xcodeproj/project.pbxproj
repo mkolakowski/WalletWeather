@@ -36,6 +36,7 @@
 		4E47E421774FF04019F80AA1 /* MoveMoneySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F10AF2509F0101D7139AD73 /* MoveMoneySheet.swift */; };
 		55BE2153B1D9850CFDFD5234 /* TagViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E9ED45DC22B1C2B1AFC65C /* TagViews.swift */; };
 		5674B2C7B6BE02CCE7EB0BA9 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = D477F5ED78FD4EA9DBFD3630 /* Keychain.swift */; };
+		5D43EC9BBC6804713C13E386 /* Shortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6331B9F43CF5FF38F4EB78BE /* Shortcuts.swift */; };
 		66D0E0D108EE2E5B6E19A390 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CB3A8CA4A133C6BA5A01D89 /* SettingsView.swift */; };
 		69134DA34F6EE1EFE219CBE5 /* ChartViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFB26B2201D3541193633A07 /* ChartViews.swift */; };
 		769AEB2CED36BFC4608187F6 /* DebugBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5BA074FBBDD01FF1B577DD8 /* DebugBridge.swift */; };
@@ -137,6 +138,7 @@
 		57CA23B0750CAA45E8AC60BD /* StandaloneViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandaloneViews.swift; sourceTree = "<group>"; };
 		5B996A28417EBEFEBDF64CE1 /* UndoBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UndoBar.swift; sourceTree = "<group>"; };
 		60D4A1DCD8715B9A0F59BB88 /* ConnectionChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionChip.swift; sourceTree = "<group>"; };
+		6331B9F43CF5FF38F4EB78BE /* Shortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shortcuts.swift; sourceTree = "<group>"; };
 		75BD1096AF0D745FED33F38E /* GettingStartedViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GettingStartedViews.swift; sourceTree = "<group>"; };
 		760DE072423DD9D965E38BEE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		795D7F25402606692C251B7E /* ScopedToConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScopedToConnection.swift; sourceTree = "<group>"; };
@@ -322,6 +324,7 @@
 				A9169F21461AD0525C4C7017 /* NameHistory.swift */,
 				760DE072423DD9D965E38BEE /* PrivacyInfo.xcprivacy */,
 				23E54550D8B3003D32A01453 /* ReminderCenter.swift */,
+				6331B9F43CF5FF38F4EB78BE /* Shortcuts.swift */,
 				A5B7EE513A73A7A19A6F7A07 /* SignInSheet.swift */,
 				13149321E10C325276768DD5 /* Theme.swift */,
 				3B50EE1D83429562642B2DCA /* ThemeCloud.swift */,
@@ -548,6 +551,7 @@
 				80669495013A8E87A3743E59 /* SearchView.swift in Sources */,
 				2E4B6985EA92C2FAEFF88C7D /* SettingsPages.swift in Sources */,
 				66D0E0D108EE2E5B6E19A390 /* SettingsView.swift in Sources */,
+				5D43EC9BBC6804713C13E386 /* Shortcuts.swift in Sources */,
 				1B91942AA2AD6B61B89A0CA2 /* SignInSheet.swift in Sources */,
 				2B6E20C2C6B57F2469053035 /* StandaloneViews.swift in Sources */,
 				D13FCDB6E06382F99755241E /* TabBar.swift in Sources */,
@@ -661,7 +665,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.65.1;
+				MARKETING_VERSION = 0.66.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -729,7 +733,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.65.1;
+				MARKETING_VERSION = 0.66.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

@@ -170,6 +170,22 @@ until you turn them on, which is when the iPhone asks to allow notifications.
   are kept in the app's settings on the iPhone. Signing out of the connection
   you're using removes its reminders.
 
+**Siri and Shortcuts** in the iOS app (also on the Action button) offer two
+actions: **Open To confirm**, which opens the app on the lines waiting to
+confirm, and **What's my balance**, which answers with each account's balance
+on the connection you're using, naming it and saying when its numbers are from.
+
+- What's my balance answers from the same summary and never contacts a server.
+  Nothing new is kept for it.
+- It answers only while the iPhone is unlocked: on a locked iPhone, Siri asks
+  you to unlock first. While WalletWeather's own lock is on, it asks for Face
+  ID (or your passcode) before telling any amount.
+- For a server set to keep **Nothing**, it says no numbers are kept on the
+  iPhone, and tells no amount. The demo has no summary, so it has nothing to
+  tell.
+- What Siri shows and says is handled by the iPhone like any other Siri answer.
+  Open To confirm only opens the app, where its own lock still applies.
+
 Removing the app removes all of it.
 
 The app asks for the camera only when you choose **Scan a QR code** to sign

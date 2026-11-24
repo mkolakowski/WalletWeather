@@ -54,6 +54,8 @@ struct WalletWeatherApp: App {
                 .task {
                     // A tapped reminder opens its page, as a widget does (#319).
                     ReminderDelegate.open = { [model] in model.widgetOpen = $0 }
+                    // So does Open To confirm from Siri or Shortcuts (#320).
+                    ShortcutOpen.handler = { [model] in model.widgetOpen = $0 }
                     // Locked in the demo, a real connection asks first (#301).
                     model.authenticateToLeaveDemo = { [settings] in await settings.mayOpenYourNumbers() }
                     model.start { settings.lockAtLaunch(front: $0) }

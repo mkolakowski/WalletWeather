@@ -37,6 +37,21 @@ struct LocalTests {
         try await client.add(draft, account: account)
     }
 
+    /// A search row names its category as the server's does, `category_name`
+    /// (#330: the household hands the core `category`, which it renames).
+    @Test func aSearchRowNamesItsCategory() async throws {
+        let checking = try await account("Checking", 1000)
+        let groceries = try #require(try await client.categories().first { $0.name == "Groceries" })
+        var draft = NewTransactionDraft(today: day)
+        draft.name = "Grocery store"
+        draft.amountText = "84.20"
+        draft.categoryId = groceries.id
+        try await client.add(draft, account: checking)
+        let hit = try #require(try await client.searchTransactions("grocery").results.first)
+        #expect(hit.categoryName == "Groceries")
+        #expect(hit.categoryId == groceries.id)
+    }
+
     @Test func aNewHouseholdStartsEmptyWithTheServersCategories() async throws {
         #expect(try await client.checkServer().appVersion == LocalServer.answersAs)
         #expect(try await client.accounts(today: day).isEmpty)

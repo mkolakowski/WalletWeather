@@ -32,12 +32,12 @@ Sessions: may span — five iOS versions, each tried on your phone from TestFlig
 
 ## Open questions
 
-Each has the assumption its phase is built on if it isn't settled first.
+Each open one has the assumption its phase is built on if it isn't settled first. Questions 1 to 4 are settled; phase 2 no longer waits on anything.
 
-1. **When does "bill due tomorrow" arrive?** Blocks phase 2. Assumed: 9:00 AM the day before, one time for every bill, changeable under the switch.
-2. **Are the three reminder switches on or off to start?** Blocks phase 2. Assumed: off, so iOS asks for permission only when the first is turned on.
-3. **How far ahead does "balance heading under" warn, and how often?** Blocks phase 2. Assumed: when the forecast first goes under the amount within the next 7 days, once for each time it dips.
-4. **If the expanded reminder can't show the amount reliably, what then?** Blocks phase 2 only if the approach below fails on a real phone. Assumed: reminders carry no amount at all, which still meets the locked rule; you'd be asked before it ships that way.
+1. ~~**When does "bill due tomorrow" arrive?**~~ 9:00 AM the day before, one time for every bill, changeable under the switch ([decided 2026-11-23](../docs/dev/decisions/ios-review.md#2026-11-23-when-reminders-arrive-and-how-they-start)).
+2. ~~**Are the three reminder switches on or off to start?**~~ Off; iOS asks for permission when the first is turned on ([decided 2026-11-23](../docs/dev/decisions/ios-review.md#2026-11-23-when-reminders-arrive-and-how-they-start)).
+3. ~~**How far ahead does "balance heading under" warn, and how often?**~~ When the forecast first goes under the amount within the next 7 days, once for each dip ([decided 2026-11-23](../docs/dev/decisions/ios-review.md#2026-11-23-when-reminders-arrive-and-how-they-start)).
+4. ~~**If the expanded reminder can't show the amount reliably, what then?**~~ Reminders carry no amount at all, and Matthew is told before it ships that way ([decided 2026-11-23](../docs/dev/decisions/ios-review.md#2026-11-23-when-reminders-arrive-and-how-they-start)).
 5. **Which connections go into the phone's search?** Blocks phase 4. Assumed: the household on this iPhone and servers that keep Last-known numbers. Servers set to Nothing and the demo aren't indexed, and signing out of a server removes its entries.
 6. **Do Add a transaction and Mark a bill paid finish without opening the app?** Blocks phase 5. Assumed: Add a transaction opens the app's Add transaction sheet, filled in from the Shortcut. Mark a bill paid runs without opening the app (after Face ID) and says what it did.
 
@@ -116,7 +116,7 @@ Today nothing of WalletWeather shows outside the app, and the app switcher hides
 - Turn each switch on in the TestFlight build and wait for a reminder.
 - Check one on the locked phone (name, no amount) and expanded after unlocking (amount).
 
-**Done when:** Kit tests cover what gets scheduled for each switch (and nothing when it's off, for the demo, or for Nothing). Simulator pictures show the settings page and a delivered reminder. Your check on the phone passes. Open questions 1 to 3 are settled or built on their assumptions.
+**Done when:** Kit tests cover what gets scheduled for each switch (and nothing when it's off, for the demo, or for Nothing). Simulator pictures show the settings page and a delivered reminder. Your check on the phone passes. Built as open questions 1 to 4 settled.
 
 ### Phase 3: Open To confirm and What's my balance (#320)
 

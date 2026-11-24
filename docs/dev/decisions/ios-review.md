@@ -84,3 +84,12 @@ Two more, settled the same day while planning them ([Plans/outside-the-app.md](.
 
 4. **With the app's own lock on, amounts stay hidden outside the app even on an unlocked phone.** Widgets show ••••, Siri asks for Face ID before answering, and names still show in the phone's search. Only the phone's lock counting was the other option.
 5. **A server set to keep Nothing gets a widget with no numbers:** the widget names the connection and says to turn on Last-known numbers to see numbers there. Keeping the widget's few numbers anyway was the other option.
+
+## 2026-11-23: when reminders arrive, and how they start
+
+**Decided:** 2026-11-23, by Matthew, before phase 2 of [Plans/outside-the-app.md](../../../Plans/outside-the-app.md) (#319) is built. **Status:** accepted.
+
+1. **Bill due tomorrow arrives at 9:00 AM the day before,** one time for every bill, changeable with a time picker under the switch. 6 PM the day before and the morning of the due day were the other options.
+2. **The three switches start off.** iOS asks for permission only when the first is turned on. Offering reminders once with all three on, and bills on by default, were the other options.
+3. **Balance heading under warns when the forecast first goes under the amount within the next 7 days, once for each dip.** Another reminder comes only after the balance is back above and dips again. Three days ahead, and a choice of days, were the other options.
+4. **If the expanded reminder can't show the amount reliably, reminders carry no amount at all.** Opening one shows the amount in the app. Matthew is told before it ships that way. Leaving it open until tried was the other option.

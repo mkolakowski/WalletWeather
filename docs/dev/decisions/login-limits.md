@@ -59,3 +59,18 @@ Decisions made while planning [`Plans/login-limits.md`](../../../Plans/login-lim
 **The decision:** 180 days by default, set with `AUDIT_RETENTION_DAYS` and never less than a day. The panel shows "user #7 (bob@example.com)" while user 7 exists and "user #7" once they're deleted; the log keeps only the number, so the #139 rule still holds.
 
 **What it changes:** #134 (app 1.49.0, web 1.71.0): `GET /api/admin/audit` and `prune_audit_events` in `apps/server/app/main.py`, the Audit log panel in `apps/web/index.html`, `.env.example`, `docker-compose.yml`, the README settings table and `PRIVACY.md`.
+
+## 2026-11-24: the limit's numbers, what a sign-in event keeps, and Google sign-in
+
+**Decided:** 2026-11-24, by Matthew, confirming what shipped in 1.44.0 and 1.49.0 on working assumptions. **Status:** accepted. Settles open questions 1, 2 and 4 (#339).
+
+**The questions:** how many wrong passwords block sign-in and for how long; what an audit event stores; whether Google sign-in and registration are limited too.
+
+**Options considered:** the plan's working assumptions, as built, or something else. None of them had been confirmed until now.
+
+**The decision:**
+- **The limit:** 5 wrong passwords for the same email from the same address within 15 minutes block that pair until 15 minutes have passed since the last failure. A correct password before that clears the count. Both numbers are settings in `.env` (`LOGIN_MAX_FAILURES`, `LOGIN_WINDOW_MINUTES`) with those defaults.
+- **An event keeps:** when it happened, what it was, the email involved (typed text, cut to 320 characters), the user if there is one, the address the request came from when known, and a short detail. Never a password, never the browser's user-agent string. It's personal data and is in the privacy policy. A deleted user's entries lose the email and the link to the user (decided 2026-11-15).
+- **Google sign-in and registration aren't limited:** Google handles its own password guessing, and `ALLOWED_EMAILS` and `ALLOW_REGISTRATION` already control who can sign up. Revisit if registration is ever left open on a public address.
+
+**What it changes:** nothing in the code. It's how 1.44.0 and 1.49.0 already work; the plan's questions are struck.

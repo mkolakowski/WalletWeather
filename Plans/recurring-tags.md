@@ -30,7 +30,7 @@ Sessions: may span — each phase ends with a release and your look on your own 
 
 ## Open questions
 
-- **Should auto-tag rules tag recurring items themselves?** Today rules run when a transaction is created or edited, so lines made from a recurring item already get rule tags then. Tagging the item too would show rule tags on projected lines before they're saved. Blocks nothing: the plan assumes **no** (rules keep running on transactions only).
+- ~~**Should auto-tag rules tag recurring items themselves?**~~ Decided 2026-11-24 ([decision](../docs/dev/decisions/recurring-tags.md#2026-11-24-auto-tag-rules-tag-lines-not-bills), #339): no, as built. Today rules run when a transaction is created or edited, so lines made from a recurring item already get rule tags then. Tagging the item too would show rule tags on projected lines before they're saved. Blocks nothing: the plan assumes **no** (rules keep running on transactions only).
 
 ## The plan
 

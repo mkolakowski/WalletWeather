@@ -250,15 +250,28 @@ public enum SummaryRead: Equatable, Sendable {
 /// - A connection's file goes when it's signed out of (`ConnectionStore.remove`,
 ///   which leaving the household and Delete everywhere also pass through), and
 ///   choosing Nothing replaces it with one that holds only the name.
+/// - In the app (not the extensions), the phone's search follows the files
+///   (#331): writing one replaces its connection's entries, deleting one
+///   removes them.
 public struct SummaryStore: Sendable {
     public let directory: URL
     /// Whether protected files can be read now. The widgets pass nothing and
     /// find out by trying; tests pass false to stand in for a locked phone.
     private let protectedDataAvailable: @Sendable () -> Bool
+    /// The phone's search, kept in step with the summaries; nil in the
+    /// extensions, which only read.
+    public let searchIndex: (any SearchIndexing)?
 
-    public init(directory: URL, protectedDataAvailable: @escaping @Sendable () -> Bool = { true }) {
+    public init(directory: URL, protectedDataAvailable: @escaping @Sendable () -> Bool = { true },
+                searchIndex: (any SearchIndexing)? = nil) {
         self.directory = directory
         self.protectedDataAvailable = protectedDataAvailable
+        self.searchIndex = searchIndex
+    }
+
+    /// The same store, keeping `index` in step with what it writes and deletes.
+    public func searchable(_ index: any SearchIndexing) -> SummaryStore {
+        SummaryStore(directory: directory, protectedDataAvailable: protectedDataAvailable, searchIndex: index)
     }
 
     /// The group's own, or nil without the group.
@@ -294,6 +307,9 @@ public struct SummaryStore: Sendable {
             try data.write(to: url, options: .atomic)
             #endif
             try Self.excludeFromBackup(&url)
+            // Its entries in the phone's search become this summary's: none
+            // for a server set to Nothing (#331).
+            searchIndex?.replace(connection: summary.id, with: SearchEntry.entries(for: summary))
             return true
         } catch {
             return false
@@ -330,6 +346,7 @@ public struct SummaryStore: Sendable {
 
     public func delete(_ id: UUID) {
         try? FileManager.default.removeItem(at: file(for: id))
+        searchIndex?.remove(connection: id)
     }
 
     /// Removes the summaries of connections no longer saved (one left
@@ -341,6 +358,17 @@ public struct SummaryStore: Sendable {
     /// Every summary, and the folder.
     public func deleteAll() {
         try? FileManager.default.removeItem(at: directory)
+        searchIndex?.removeAll()
+    }
+
+    /// The phone's search made again from every summary (#331): when the app
+    /// starts, so summaries written before an update to the app reach the
+    /// search, and anything left by a crash goes. Only while protected files
+    /// can be read: a locked phone would make every summary look gone.
+    public func reindex() {
+        guard let searchIndex, protectedDataAvailable() else { return }
+        searchIndex.removeAll()
+        for summary in all() { searchIndex.replace(connection: summary.id, with: SearchEntry.entries(for: summary)) }
     }
 
     private static func excludeFromBackup(_ url: inout URL) throws {

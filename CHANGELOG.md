@@ -69,10 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.2** · Web version: **1.116.1** · Schema version: **39** · iOS version: **0.66.1**
+App version: **1.98.2** · Web version: **1.116.1** · Schema version: **39** · iOS version: **0.67.0**
 
 ### Added
 
+- **iPhone: bills and accounts in the iPhone's search.** Swipe down on the Home Screen and type a bill's, paycheck's or account's name to find it; picking it opens Bills & income, or the account in Forecast, on its connection. Entries show the name and where it lives ("Bill · Checking · Home"), never an amount, and can be searched only while your iPhone is unlocked. The household on this iPhone and servers that keep Last-known numbers are included; servers set to keep Nothing and the demo aren't. Deleted bills leave the search the next time WalletWeather loads, and signing out or switching a server to Nothing removes its entries. To leave WalletWeather out of search, turn off Search under Settings → Apps → WalletWeather (iOS 0.67.0).
 - **iPhone: Siri, Shortcuts and the Action button.** Two actions are ready without any setup. **Open To confirm** ("Open To confirm in WalletWeather") opens the app on the lines waiting to confirm, on the connection you're using. **What's my balance** ("What's my balance in WalletWeather") tells each account's balance on that connection, naming it and saying how old the numbers are ("as of 2 hours ago"), without opening the app. It answers only on an unlocked iPhone, asks for Face ID first while WalletWeather's lock is on, and for a server set to keep Nothing it says no numbers are kept. It reads the same summary as the widgets and never contacts your server; the privacy policy says so. Assign either to the Action button in Settings → Action Button → Shortcut (iOS 0.66.0).
 
 ### Changed

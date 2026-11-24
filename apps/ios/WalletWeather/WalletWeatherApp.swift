@@ -1,3 +1,4 @@
+import CoreSpotlight
 import SwiftUI
 import UserNotifications
 import WalletWeatherKit
@@ -50,6 +51,11 @@ struct WalletWeatherApp: App {
                     // Switching to a server with none saved yet clears the
                     // last one's (#300).
                     if let saved = model.saved, saved.kind == .server { settings.serverTheme = saved.webTheme }
+                }
+                // A bill or account picked in the phone's search opens where
+                // it lives, as a widget does (#331).
+                .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                    if let open = PhoneSearchIndex.opens(activity) { model.widgetOpen = open }
                 }
                 .task {
                     // A tapped reminder opens its page, as a widget does (#319).

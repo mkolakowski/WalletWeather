@@ -402,6 +402,23 @@ Face ID or the passcode before any amount. A server set to Nothing gets "keeps
 no numbers on this iPhone", and with no saved connection (only the demo) it
 says there's nothing kept to tell.
 
+**The phone's search** (#331, `PhoneSearch.swift` in WalletWeatherKit,
+`PhoneSearchIndex` in the app): one Core Spotlight entry per bill, paycheck
+and account in a summary, by name with "Bill · Checking · Home" beside it, no
+amount or date. The index follows `SummaryStore` itself: writing a summary
+replaces that connection's entries (none for a server set to Nothing), and
+deleting one, deleting them all or pruning removes them, so signing out,
+leaving the household and Delete everywhere take the entries with them. When
+the app starts (phone unlocked) it builds the index again from the summaries
+(`reindex`). The extensions' store has no index. It's a named index,
+`net.iptater.walletweather.search`, with complete protection; the item ids
+(`<connection>/bill/<id>`, `<connection>/account/<id>`, `SearchLink`) and the
+domains (the connection's id) are stable. Picking a result continues
+`CSSearchableItemActionType` and opens Bills & income, or the account in
+Forecast, on its connection through the widgets' route. People who want it
+out of search use the system's own per-app Search switch, so the app has no
+setting of its own.
+
 Signing out of a server (its page, from Connections) ends that server's
 token first (`DELETE /api/tokens/current`, sent with that connection's own
 sign-in, so it works for one that isn't in front: a token may revoke itself,

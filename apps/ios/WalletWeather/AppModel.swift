@@ -153,7 +153,9 @@ final class AppModel {
 
     init(defaults: UserDefaults = .standard, store: ConnectionStore? = nil) {
         self.store = store ?? Self.debugConnections()
-            ?? ConnectionStore(secrets: KeychainConnectionSecrets(), defaults: defaults, summaries: SummaryStore.shared)
+            ?? ConnectionStore(secrets: KeychainConnectionSecrets(), defaults: defaults,
+                               // The phone's search follows the summaries (#331).
+                               summaries: SummaryStore.shared?.searchable(PhoneSearchIndex()))
     }
 
     /// Debug only: `WW_DEBUG_CONNECTIONS=sample` keeps the connections in
@@ -291,6 +293,8 @@ final class AppModel {
     private func pruneSummaries() {
         guard let summaries = store.summaries, UIApplication.shared.isProtectedDataAvailable else { return }
         summaries.prune(keeping: Set(store.all().map(\.id)))
+        // The phone's search made again from what's left (#331).
+        summaries.reindex()
     }
 
     /// Follows a widget's tap: its connection comes in front (asking first

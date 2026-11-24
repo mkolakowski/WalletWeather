@@ -186,6 +186,22 @@ on the connection you're using, naming it and saying when its numbers are from.
 - What Siri shows and says is handled by the iPhone like any other Siri answer.
   Open To confirm only opens the app, where its own lock still applies.
 
+**The iPhone's search** (swipe down on the Home Screen) finds your bills,
+income and accounts by name, and opens each where it lives in the app.
+
+- Each entry holds a name, what it is and where it lives ("Bill · Checking ·
+  Home"), never an amount or a date. The entries are made on the iPhone from
+  the same summary, are kept in the iPhone's own search index, and are
+  searchable only while the iPhone is unlocked.
+- The household on this iPhone and servers that keep Last-known numbers are
+  included. Servers set to keep **Nothing** and the demo aren't.
+- A bill or account you delete leaves the search the next time the summary is
+  written. A server's entries go when you sign out of it or switch it to
+  Nothing; the household's go when you leave it, delete everything on this
+  iPhone, or delete everywhere.
+- To keep WalletWeather out of the search altogether, turn off its Search
+  setting in the iPhone's Settings → Apps → WalletWeather.
+
 Removing the app removes all of it.
 
 The app asks for the camera only when you choose **Scan a QR code** to sign

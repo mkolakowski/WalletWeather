@@ -3164,7 +3164,7 @@ const WEB_VERSION = "1.117.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
-// 1.117.0 (2026-11-24, claude+mkolakowski): (#342, #343) Settings → Bank sync: one card per provider (SimpleFIN Bridge, Teller, Plaid; _bankConnectHtml) holding its setup guide line (_bankGuideHtml from BANK_GUIDE_STEPS: Through SimpleFIN, Add your own Teller or Plaid keys, Through Teller or Plaid), its own pages (_bankProviderLinks(key, true) leaves the guide out), its keys (_bankKeysCardHtml now an inner .bank-keys block; _bankKeysHtml became _bankKeysShown) and its Connect. Connected banks follow under "Your banks" with Match your accounts and If sync keeps failing links. .bank-grid lays providers ~300px and banks ~620px each, side by side as room allows, and the Settings column widens to 1600px while Bank sync is shown on a window 1000px or wider. The shared connect code field names what it's for.
+// 1.117.0 (2026-11-24, claude+mkolakowski): (#342, #343) Settings → Bank sync: one card per provider (SimpleFIN Bridge, Teller, Plaid; _bankConnectHtml, after the connected banks) holding its setup guide line (_bankGuideHtml from BANK_GUIDE_STEPS: Through SimpleFIN, Add your own Teller or Plaid keys, Through Teller or Plaid), its own pages (_bankProviderLinks(key, true) leaves the guide out), its keys (_bankKeysCardHtml now an inner .bank-keys block; _bankKeysHtml became _bankKeysShown) and its Connect. Connected banks come first, under "Your banks", with Match your accounts and If sync keeps failing links. .bank-grid lays providers ~300px and banks ~620px each, side by side as room allows, and the Settings column widens to 1600px while Bank sync is shown on a window 1000px or wider. The shared connect code field names what it's for.
 // 1.116.1 (2026-11-24, claude+mkolakowski): (#336) Links to the bank sync guide on GitHub Pages. BANK_GUIDE is the guide's address; BANK_PROVIDERS entries carry `guide` (SimpleFIN: #through-simplefin) or a 'WalletWeather guide' link (Teller, Plaid: #add-your-own-teller-or-plaid-keys) that _bankProviderLinks draws, and Connect a bank says "Step by step: the bank sync guide".
 // 1.116.0 (2026-11-24, claude+mkolakowski): (#334) Bank sync setup links and a card per provider. BANK_PROVIDERS gains teller and plaid (name, home, links[]); _bankProviderLinks draws a provider's `links` when it has them. The Teller and Plaid key steps link to the provider's dashboard, quickstart, certificates and Keys pages (_bankLink). _bankConnectHtml draws Teller, Plaid and SimpleFIN Bridge each as a bordered .bank-provider card (title, provider links, what it does, its connect button; SimpleFIN's token form stays inside its card), the same look as the .bank-keys cards.
 // 1.115.3 (2026-11-23, claude+mkolakowski): (#292) two design calls from the code review: Settings and Admin open with a real <h1> in a .settings-nav wrapper that holds the heading and the tab list (it replaces the ::before text on .settings-tabs; on a wide window the wrapper is the sticky left column, the heading 26px; on a phone the heading is 22px above the scrolling tabs), and the wide-window active section in the list uses the 10% tint with --accent-ink like the other pills (it was left at 15% and --accent); a Calendar event with no category colour gets class uncat and shows its kind by a tint (green in, red out, an outline for a transfer; on a phone its colour bar takes the kind's colour).
@@ -10204,13 +10204,12 @@ async function loadBank() {
   }
   const conns = bankState.connections || [];
   const anyAccounts = conns.some(c => (c.accounts || []).length);
-  // One card per provider to set it up, then the banks already connected
-  // (#343, decided 2026-11-24: setup cards side by side, banks below).
+  // The banks already connected, then one card per provider to connect
+  // another (#343, decided 2026-11-24: cards side by side; the banks first).
   const providersHtml = _bankConnectHtml(conns.length > 0);
-  body.innerHTML = providersHtml
-    + (!providersHtml && bankState.enabled ? `<p style="color:var(--muted);font-size:13px;margin:0 0 16px">An admin hasn't let you connect ${conns.length ? 'another bank' : 'a bank of your own'}. They can in Admin → Users.</p>` : '')
-    + (conns.length ? `
-      <h3 class="backup-subhead" style="margin-top:${providersHtml ? 24 : 0}px">Your banks</h3>
+  const above = conns.length > 0 || shared.length > 0;
+  body.innerHTML = (conns.length ? `
+      <h3 class="backup-subhead" style="margin-top:0">Your banks</h3>
       <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
         Match each bank account to one of your own accounts; nothing dated before its start date comes in
         (at most ${bankState.start_max_days} days back). Only accounts you own can be matched, and each of
@@ -10219,9 +10218,11 @@ async function loadBank() {
       <div class="bank-grid bank-conns">${conns.map(c => _bankConnHtml(c, owned)).join('')}</div>`
       + (anyAccounts ? `<div style="margin-top:12px"><button class="ghost" id="bankSaveBtn" onclick="bankSaveLinks()">Save matches</button></div>` : '')
     : '')
-    + (shared.length ? _bankSharedHtml(shared, conns.length > 0 || !!providersHtml) : '')
+    + (shared.length ? _bankSharedHtml(shared, conns.length > 0) : '')
     + (conns.length || shared.length ? '<div id="bankLog" class="hidden" style="margin-top:14px;max-width:720px"></div>' : '')
-    + (conns.length ? _bankCategoriesHtml() : '');
+    + (conns.length ? _bankCategoriesHtml() : '')
+    + (providersHtml ? `<div style="margin-top:${above ? 28 : 0}px">${providersHtml}</div>` : '')
+    + (!providersHtml && bankState.enabled ? `<p style="color:var(--muted);font-size:13px;margin:${above ? 16 : 0}px 0 0">An admin hasn't let you connect ${conns.length ? 'another bank' : 'a bank of your own'}. They can in Admin → Users.</p>` : '');
 }
 
 // Accounts someone shares with you that sync from their bank connection

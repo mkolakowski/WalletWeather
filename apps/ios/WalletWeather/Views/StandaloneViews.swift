@@ -247,9 +247,9 @@ struct NewAccountSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .problemBanner($problem)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.keyShortcut(.cancel) }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") { Task { await add() } }.disabled(draft.body == nil || saving)
+                    Button("Add") { Task { await add() } }.keyShortcut(.save).disabled(draft.body == nil || saving)
                 }
             }
             .onAppear { nameFocused = true }

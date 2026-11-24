@@ -40,6 +40,7 @@ struct ForecastView: View {
     /// the count that gives the success haptic.
     @State private var undoOffer: UndoOffer?
     @State private var paidCount = 0
+    @State private var debugMenuLine: ForecastLine?
 
     private var shownMonth: YearMonth { YearMonth(monthText) ?? YearMonth(.today()) }
     private var account: Account? {
@@ -78,6 +79,12 @@ struct ForecastView: View {
             MoveMoneySheet(accounts: editableAccounts, draft: $moveDraft) { await loadMonth() }
         }
         .csvImporter(isPresented: $importingCSV, account: account?.id) { await loadMonth() }
+        .pageShortcuts(.forecast, shortcuts)
+        // Debug only: `WW_DEBUG_CONTEXT=1` shows the first line's long-press menu as a sheet (#307).
+        .sheet(item: $debugMenuLine) { line in
+            RowMenuSheet(title: line.description,
+                         actions: RowAction.forLine(canChange: editable && line.canEdit(onEditableAccount: true), isPaid: line.isPaid))
+        }
         .confirmationDialog(pendingDelete.map(deleteTitle) ?? "", isPresented: Binding(
             get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
                             titleVisibility: .visible, presenting: pendingDelete) { line in
@@ -151,6 +158,7 @@ struct ForecastView: View {
                         ForEach(data.rows) { line in
                             Button { openLine(line) } label: { LineCard(line: line, today: .today()) }
                                 .buttonStyle(.plain)
+                                .pointerCard()
                                 .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onEdit: openLine,
                                                      onDelete: { pendingDelete = $0 }))
                         }
@@ -217,6 +225,7 @@ struct ForecastView: View {
                                         }
                                 }
                                 .buttonStyle(.plain)
+                                .pointerCard()
                                 .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onEdit: openLine,
                                                      onDelete: { pendingDelete = $0 }))
                                 .listRowSeparator(.hidden)
@@ -229,6 +238,7 @@ struct ForecastView: View {
                                     LineTableRow(line: line, selected: open?.id == line.id)
                                 }
                                 .buttonStyle(.plain)
+                                .pointerRow()
                                 .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onEdit: openLine,
                                                      onDelete: { pendingDelete = $0 }))
                             }
@@ -326,10 +336,7 @@ struct ForecastView: View {
             }
         }
         if editable {
-            AddMenu(addTitle: "Add transaction", canMove: editableAccounts.count > 1, onAdd: {
-                newDraft = NewTransactionDraft(today: shownMonth.contains(.today()) ? .today() : shownMonth.start)
-                adding = true
-            }, onMove: {
+            AddMenu(addTitle: "Add transaction", canMove: editableAccounts.count > 1, onAdd: startAdding, onMove: {
                 moveDraft = MoveMoneyDraft(today: .today(), from: account?.id)
                 moving = true
             }, onImport: { importingCSV = true })
@@ -337,6 +344,20 @@ struct ForecastView: View {
     }
 
     // MARK: - Actions
+
+    /// The keyboard (#307): ⌘N, ⌘R, ⌘[ and ⌘] for the months, ⌘T.
+    private var shortcuts: [ShortcutHandler] {
+        [ShortcutHandler(.addTransaction, enabled: editable && account != nil) { startAdding() },
+         ShortcutHandler(.refresh) { Task { await loadMonth() } },
+         ShortcutHandler(.previousMonth) { move(-1) },
+         ShortcutHandler(.nextMonth) { move(1) },
+         ShortcutHandler(.thisMonth, enabled: shownMonth != YearMonth(.today())) { jump(to: YearMonth(.today())) }]
+    }
+
+    private func startAdding() {
+        newDraft = NewTransactionDraft(today: shownMonth.contains(.today()) ? .today() : shownMonth.start)
+        adding = true
+    }
 
     private func openLine(_ line: ForecastLine) {
         guard let account else { return }
@@ -438,6 +459,7 @@ struct ForecastView: View {
         if AppModel.debugSetting("WW_DEBUG_COMPARE") != nil { comparing = true }
         if let name = AppModel.debugSetting("WW_DEBUG_OPEN_LINE"),
            let line = month.value?.rows.first(where: { $0.description == name }) { openLine(line) }
+        if AppModel.debugSetting("WW_DEBUG_CONTEXT") == "1", let first = month.value?.rows.first { debugMenuLine = first }
         // Debug only: `WW_DEBUG_UNDO=<line name>` shows the Undo bar for that line, saving nothing (#315).
         if let name = AppModel.debugSetting("WW_DEBUG_UNDO"), month.value?.rows.contains(where: { $0.description == name }) == true {
             undoOffer = UndoOffer(message: "\(name) marked paid", undo: { false }, stays: true)
@@ -501,6 +523,15 @@ struct LineSwipes: ViewModifier {
                 .swipeActions(edge: .trailing) {
                     Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
                 }
+                // The same actions on a long-press or a right-click (#307).
+                .modifier(RowMenu(actions: RowAction.forLine(canChange: true, isPaid: isPaid)) { action in
+                    switch action {
+                    case .markPaid: onPaid()
+                    case .edit: onEdit()
+                    case .delete: onDelete()
+                    default: break
+                    }
+                })
         } else {
             content
         }

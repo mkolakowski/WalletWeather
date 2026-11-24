@@ -32,6 +32,7 @@
 		80669495013A8E87A3743E59 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDE64033EF7589F61FD10A90 /* SearchView.swift */; };
 		86C2917221963763A2AA523A /* LargeText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE6D34667F5BB86D58712D /* LargeText.swift */; };
 		8DC91904DD11611BE2773B20 /* GettingStartedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75BD1096AF0D745FED33F38E /* GettingStartedViews.swift */; };
+		9317F089EDBA8F73446BEFB4 /* KeyboardAndPointer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8954E314055BADF11713BF9 /* KeyboardAndPointer.swift */; };
 		961F8837BB7456E29B052F79 /* UndoBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B996A28417EBEFEBDF64CE1 /* UndoBar.swift */; };
 		993C5B78D1DE13E67283D85E /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C580FBC80891DCC74238FFCA /* CalendarView.swift */; };
 		A19BE4DB8A2A39AC4CEF0D71 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAC7A791EEE3C72BA42ED155 /* AppSettings.swift */; };
@@ -92,6 +93,7 @@
 		99597682BE06C6A4C37D1188 /* BackupViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupViews.swift; sourceTree = "<group>"; };
 		A3E9C40EFE3CCE23D41AA8C7 /* ConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectView.swift; sourceTree = "<group>"; };
 		A5B7EE513A73A7A19A6F7A07 /* SignInSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInSheet.swift; sourceTree = "<group>"; };
+		A8954E314055BADF11713BF9 /* KeyboardAndPointer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardAndPointer.swift; sourceTree = "<group>"; };
 		A91553B7086BC583359B4E5F /* LineEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineEditor.swift; sourceTree = "<group>"; };
 		A98C31592C4A8C02D24C2584 /* QRScanSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScanSheet.swift; sourceTree = "<group>"; };
 		AAC7A791EEE3C72BA42ED155 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
@@ -152,6 +154,7 @@
 				7E7678658EAB739DFC9B70A4 /* FoldLayout.swift */,
 				067F8A5A4984B672631E4818 /* ForecastView.swift */,
 				75BD1096AF0D745FED33F38E /* GettingStartedViews.swift */,
+				A8954E314055BADF11713BF9 /* KeyboardAndPointer.swift */,
 				94AE6D34667F5BB86D58712D /* LargeText.swift */,
 				A91553B7086BC583359B4E5F /* LineEditor.swift */,
 				4EF6456B5FCCB4251D23495E /* LoadState.swift */,
@@ -308,6 +311,7 @@
 				AD7809EEDA5F3AC5990C3828 /* FoldLayout.swift in Sources */,
 				BB489358CA96FB9596EE2902 /* ForecastView.swift in Sources */,
 				8DC91904DD11611BE2773B20 /* GettingStartedViews.swift in Sources */,
+				9317F089EDBA8F73446BEFB4 /* KeyboardAndPointer.swift in Sources */,
 				5674B2C7B6BE02CCE7EB0BA9 /* Keychain.swift in Sources */,
 				86C2917221963763A2AA523A /* LargeText.swift in Sources */,
 				B9DF71AA4970ECC6F0927401 /* LineEditor.swift in Sources */,
@@ -395,7 +399,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.51.0;
+				MARKETING_VERSION = 0.52.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -463,7 +467,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.51.0;
+				MARKETING_VERSION = 0.52.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

@@ -73,10 +73,7 @@ struct DashboardView: View {
             .toolbar { NewWindowItem(place: .dashboard) }
             .toolbar {
                 if !editableAccounts.isEmpty {
-                    AddMenu(addTitle: "Add transaction", canMove: editableAccounts.count > 1, onAdd: {
-                        newDraft = NewTransactionDraft(today: .today())
-                        adding = true
-                    }, onMove: {
+                    AddMenu(addTitle: "Add transaction", canMove: editableAccounts.count > 1, onAdd: startAdding, onMove: {
                         moveDraft = MoveMoneyDraft(today: .today())
                         moving = true
                     }, onImport: { importingCSV = true })
@@ -101,6 +98,8 @@ struct DashboardView: View {
             MoveMoneySheet(accounts: editableAccounts, draft: $moveDraft) { await load() }
         }
         .csvImporter(isPresented: $importingCSV, account: nil) { await load() }
+        .pageShortcuts(.dashboard, [ShortcutHandler(.addTransaction, enabled: !editableAccounts.isEmpty) { startAdding() },
+                                    ShortcutHandler(.refresh) { Task { await load() } }])
         .task(id: window) { await loadCharts() }
         .sheet(item: $startTask) { StartTaskSheet(task: $0) }
         .sheet(isPresented: $addingAccount) { NewAccountSheet { model.accountAdded() } }
@@ -111,6 +110,11 @@ struct DashboardView: View {
                 startTask = debug == "tour" ? .tabBar : StartTask(rawValue: debug)
             }
         }
+    }
+
+    private func startAdding() {
+        newDraft = NewTransactionDraft(today: .today())
+        adding = true
     }
 
     // MARK: - Layouts

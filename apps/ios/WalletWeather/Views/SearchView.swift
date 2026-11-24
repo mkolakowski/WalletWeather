@@ -17,6 +17,10 @@ struct SearchView: View {
     @Environment(\.openPlace) private var openPlace
     @SceneStorage("search.text") private var text = ""
     @FocusState private var fieldFocused: Bool
+    /// The system field's focus on the iPhone (the open Duo draws its own, above), and ⌘F (#307).
+    @FocusState private var searchFieldFocused: Bool
+    @Environment(\.searchFocusRequest) private var focusRequest
+    @State private var hitActions = HitActions()
 
     @State private var found: Loadable<SearchResults>?
     @State private var accounts: [Account] = []
@@ -65,7 +69,7 @@ struct SearchView: View {
                     // keyboard stays down so it doesn't cover the results.
                     .onAppear { fieldFocused = text.trimmingCharacters(in: .whitespaces).isEmpty }
                 } else {
-                    results.searchable(text: $text, prompt: "Transactions, bills, accounts…")
+                    results.searchable(text: $text, prompt: "Transactions, bills, accounts…").searchFocused($searchFieldFocused)
                 }
             }
             // Pulling down the results (or the opened result) runs the search again (#304).
@@ -75,6 +79,11 @@ struct SearchView: View {
             .navigationBarTitleDisplayMode(regular ? .inline : .automatic)
             .navigationDestination(for: Shown.self) { page($0, embedded: false) }
             .opensForecast()
+        }
+        .pageShortcuts(.search, [ShortcutHandler(.refresh) { Task { await search() } }])
+        // ⌘F: the Search tab opens (`RootView`), then the cursor goes in the field.
+        .onChange(of: focusRequest, initial: true) { _, request in
+            if request > 0 { fieldFocused = true; searchFieldFocused = true }
         }
         .lineEditorSheet($openLine, categories: categories) { await search() }
         .billEditorSheet($openBill, categories: categories) { await search() }
@@ -166,7 +175,9 @@ struct SearchView: View {
                 result.navigationTitle(report.name).navigationBarTitleDisplayMode(.inline)
             }
         case let .transactions(filter, title):
+            // Its own `.opensForecast()`: a pushed page doesn't see the one on the stack's content.
             FilteredTransactions(filter: filter, title: title, embedded: embedded, accounts: accounts, categories: categories)
+                .opensForecast()
         }
     }
 
@@ -202,6 +213,8 @@ struct SearchView: View {
             Group {
                 group("Transactions", data.transactions) { hit in
                     Button { open(hit) } label: { SearchHitRow(hit: hit, selected: openLine?.line.transactionId == hit.id) }
+                        .pointerRow()
+                        .hitMenu(hit, accounts: accounts, state: hitActions, onEdit: { open(hit) }, reload: search)
                 } footer: {
                     if data.transactions.total > data.transactions.results.count {
                         Text("Showing the newest \(data.transactions.results.count) of \(data.transactions.total). Add a word to narrow it down.")
@@ -213,6 +226,9 @@ struct SearchView: View {
                                   trailingColor: item.isIncome ? Palette.good : Palette.bad,
                                   selected: openBill?.item?.id == item.id)
                     }
+                    .pointerRow()
+                    .modifier(BillMenu(item: item, editable: item.canEdit && model.me.map { !$0.isReadOnly } == true,
+                                       onEdit: { open($0) }, onSkip: { skipping = $0 }, onEnd: { ending = $0 }))
                 }
                 group("Accounts", data.accounts) { account in
                     OpenInForecastButton(account: account.id) {
@@ -252,6 +268,7 @@ struct SearchView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .hitActionsHost(hitActions, reload: search)
     }
 
     @ViewBuilder
@@ -458,6 +475,7 @@ struct FilteredTransactions: View {
     let categories: [TransactionCategory]
     @State private var found: Loadable<TransactionSearch> = .loading
     @State private var open: OpenLine?
+    @State private var hitActions = HitActions()
 
     var body: some View {
         Group {
@@ -476,6 +494,8 @@ struct FilteredTransactions: View {
                             ForEach(data.results) { hit in
                                 Button { open(hit) } label: { SearchHitRow(hit: hit, selected: open?.line.transactionId == hit.id) }
                                     .buttonStyle(.plain)
+                                    .pointerRow()
+                                    .hitMenu(hit, accounts: accounts, state: hitActions, onEdit: { open(hit) }, reload: load)
                             }
                         } footer: {
                             if data.total > data.results.count {
@@ -487,6 +507,7 @@ struct FilteredTransactions: View {
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
                     .refreshable { await load() }
+                    .hitActionsHost(hitActions, reload: load)
                 }
             }
         }

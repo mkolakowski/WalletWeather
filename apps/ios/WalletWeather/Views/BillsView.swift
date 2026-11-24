@@ -62,6 +62,8 @@ struct BillsView: View {
                     }
                 }
         }
+        .pageShortcuts(.bills, [ShortcutHandler(.addBill, enabled: !editableAccounts.isEmpty) { addBill() },
+                                ShortcutHandler(.refresh) { Task { await load() } }])
         .billEditorSheet($open, categories: categories) { await load() }
         .sheet(isPresented: $moving) {
             MoveMoneySheet(accounts: editableAccounts, draft: $moveDraft) { await load() }
@@ -144,7 +146,8 @@ struct BillsView: View {
                             BillCard(item: item, showAccount: account == nil, selected: open?.item?.id == item.id)
                         }
                         .buttonStyle(.plain)
-                        .modifier(BillSwipes(item: item, editable: canEdit(item),
+                        .pointerCard()
+                        .modifier(BillSwipes(item: item, editable: canEdit(item), onEdit: openItem,
                                              onSkip: { skipping = $0 }, onEnd: { ending = $0 }))
                     }
                 }
@@ -330,6 +333,7 @@ struct BillsSummaryView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .pointerRow()
                     }
                 }
                 .card()
@@ -440,10 +444,13 @@ struct BillCard: View {
 struct BillSwipes: ViewModifier {
     let item: RecurringItem
     let editable: Bool
+    /// Edit, for the long-press menu (#307); the swipes don't have one.
+    var onEdit: ((RecurringItem) -> Void)?
     let onSkip: (RecurringItem) -> Void
     let onEnd: (RecurringItem) -> Void
 
     func body(content: Content) -> some View {
+        let menu = BillMenu(item: item, editable: editable, onEdit: onEdit, onSkip: onSkip, onEnd: onEnd)
         if editable && !item.expired {
             content
                 .swipeActions(edge: .leading) {
@@ -454,8 +461,9 @@ struct BillSwipes: ViewModifier {
                 .swipeActions(edge: .trailing) {
                     Button("End", systemImage: "stop.circle") { onEnd(item) }.tint(Palette.bad)
                 }
+                .modifier(menu)
         } else {
-            content
+            content.modifier(menu)
         }
     }
 }
@@ -497,7 +505,7 @@ struct SkipDateSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .problemBanner($problem)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel", role: .cancel) { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel", role: .cancel) { dismiss() }.keyShortcut(.cancel) }
             }
             .confirmationDialog(confirm.map { "Skip \(item.description) on \($0.short)?" } ?? "",
                                 isPresented: Binding(get: { confirm != nil }, set: { if !$0 { confirm = nil } }),
@@ -552,7 +560,7 @@ struct EndBillSheet: View {
             .disabled(saving)
             .problemBanner($problem)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel", role: .cancel) { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel", role: .cancel) { dismiss() }.keyShortcut(.cancel) }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("End") { Task { await end() } }.buttonStyle(.glassProminent)
                 }
@@ -671,13 +679,13 @@ struct BillEditor: View {
         if embedded {
             VStack(spacing: 0) {
                 HStack(spacing: 12) {
-                    Button(open.editable ? "Cancel" : "Done", action: onClose).buttonStyle(.glass)
+                    Button(open.editable ? "Cancel" : "Done", action: onClose).buttonStyle(.glass).keyShortcut(.cancel)
                     Spacer(minLength: 0)
                     Text(title).font(.headline).lineLimit(1)
                     Spacer(minLength: 0)
                     if open.editable {
                         Button(isNew ? "Add" : "Save") { Task { await save() } }
-                            .buttonStyle(.glassProminent).disabled(!canSave)
+                            .buttonStyle(.glassProminent).keyShortcut(.save).disabled(!canSave)
                     }
                 }
                 .padding(.leading, edges.leading).padding(.trailing, edges.trailing).padding(.vertical, 8)
@@ -690,12 +698,12 @@ struct BillEditor: View {
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button(open.editable ? "Cancel" : "Done", role: .cancel, action: onClose)
+                            Button(open.editable ? "Cancel" : "Done", role: .cancel, action: onClose).keyShortcut(.cancel)
                         }
                         if open.editable {
                             ToolbarItem(placement: .confirmationAction) {
                                 Button(isNew ? "Add" : "Save") { Task { await save() } }
-                                    .buttonStyle(.glassProminent).disabled(!canSave)
+                                    .buttonStyle(.glassProminent).keyShortcut(.save).disabled(!canSave)
                             }
                         }
                     }

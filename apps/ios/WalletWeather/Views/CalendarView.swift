@@ -66,10 +66,7 @@ struct CalendarView: View {
                 .toolbar { NewWindowItem(place: .calendar) }
                 .toolbar {
                     if !editableAccounts.isEmpty {
-                        AddMenu(addTitle: "Add transaction", canMove: editableAccounts.count > 1, onAdd: {
-                            newDraft = NewTransactionDraft(today: selected ?? .today())
-                            adding = true
-                        }, onMove: {
+                        AddMenu(addTitle: "Add transaction", canMove: editableAccounts.count > 1, onAdd: startAdding, onMove: {
                             moveDraft = MoveMoneyDraft(today: selected ?? .today(), from: account?.id)
                             moving = true
                         })
@@ -85,6 +82,7 @@ struct CalendarView: View {
         .sheet(isPresented: $moving) {
             MoveMoneySheet(accounts: editableAccounts, draft: $moveDraft) { await load() }
         }
+        .pageShortcuts(.calendar, shortcuts)
         .lineEditorSheet($openLine, categories: categories) { await load() }
         .confirmationDialog(pendingDelete.map(deleteTitle) ?? "", isPresented: Binding(
             get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
@@ -202,6 +200,20 @@ struct CalendarView: View {
             }
         }
         .card()
+    }
+
+    /// The keyboard (#307): ⌘N, ⌘R, ⌘[ and ⌘] for the months, ⌘T.
+    private var shortcuts: [ShortcutHandler] {
+        [ShortcutHandler(.addTransaction, enabled: !editableAccounts.isEmpty) { startAdding() },
+         ShortcutHandler(.refresh) { Task { await load() } },
+         ShortcutHandler(.previousMonth) { move(-1) },
+         ShortcutHandler(.nextMonth) { move(1) },
+         ShortcutHandler(.thisMonth, enabled: shownMonth != YearMonth(.today())) { jump(to: YearMonth(.today())) }]
+    }
+
+    private func startAdding() {
+        newDraft = NewTransactionDraft(today: selected ?? .today())
+        adding = true
     }
 
     private func select(_ day: LocalDay) {
@@ -566,6 +578,7 @@ struct DayLines: View {
             ForEach(lines) { line in
                 Button { actions.open(line) } label: { CalendarLineRow(line: line, showAccount: showAccount).card() }
                     .buttonStyle(.plain)
+                    .pointerCard()
                     .accessibilityHint("Opens the line")
                     .modifier(LineSwipes(event: line, editable: actions.canEdit(line), onPaid: actions.paid,
                                          onEdit: actions.open, onDelete: actions.delete))

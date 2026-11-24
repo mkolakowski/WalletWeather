@@ -164,6 +164,12 @@ as on a phone; a simulator with no passcode set says no, and the demo stays.
 A script can't open a menu, so
 `SIMCTL_CHILD_WW_DEBUG_CHIP_MENU=1` shows the chip's choices as a sheet over
 the Dashboard instead.
+The keyboard and pointer (#307) can't be driven from a script either, so
+`SIMCTL_CHILD_WW_DEBUG_SHORTCUTS=1` shows the shortcut table (the Kit's
+`KeyShortcuts`: keys, title and where each works) as a sheet over the open
+page, and `SIMCTL_CHILD_WW_DEBUG_CONTEXT=1` shows the long-press menu of
+Forecast's first line (the Kit's `RowAction`s, as that person may use them)
+as a sheet over Forecast. Both are Debug only.
 On this Mac the simulators are shared with other projects' sessions, so run
 simulator commands through mkplus's `Scripts/with-simulator.sh`.
 

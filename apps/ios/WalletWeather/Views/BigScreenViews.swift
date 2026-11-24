@@ -132,10 +132,17 @@ struct CompareView: View {
                 .background(PageBackground().ignoresSafeArea())
                 .navigationTitle("Compare")
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.keyShortcut(.cancel) } }
         }
+        .pageShortcuts(.compare, [ShortcutHandler(.previousMonth) { moveBoth(-1) }, ShortcutHandler(.nextMonth) { moveBoth(1) }])
         .task(id: left) { leftMonth = await load(left) }
         .task(id: right) { rightMonth = await load(right) }
+    }
+
+    /// ⌘[ and ⌘]: both sides a month back or on, so they stay as far apart as they were (#307).
+    private func moveBoth(_ by: Int) {
+        left.month = by < 0 ? left.month.previous : left.month.next
+        right.month = by < 0 ? right.month.previous : right.month.next
     }
 
     @ViewBuilder

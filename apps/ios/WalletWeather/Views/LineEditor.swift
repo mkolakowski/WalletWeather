@@ -96,12 +96,14 @@ struct LineEditor: View {
         HStack(spacing: 12) {
             Button(open.editable ? "Cancel" : "Done", action: onClose)
                 .buttonStyle(.glass)
+                .keyShortcut(.cancel)
             Spacer(minLength: 0)
             Text(line.description).font(.headline).lineLimit(1)
             Spacer(minLength: 0)
             if open.editable {
                 Button("Save", action: save)
                     .buttonStyle(.glassProminent)
+                    .keyShortcut(.save)
                     .disabled(!canSave)
             }
         }
@@ -285,11 +287,13 @@ struct LineEditor: View {
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
             Button(open.editable ? "Cancel" : "Done", role: .cancel, action: onClose)
+                .keyShortcut(.cancel)
         }
         if open.editable {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save", action: save)
                     .buttonStyle(.glassProminent)
+                    .keyShortcut(.save)
                     .disabled(!canSave)
             }
         }
@@ -435,10 +439,12 @@ struct AddTransactionSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", role: .cancel) { dismiss() }
+                        .keyShortcut(.cancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") { Task { await add() } }
                         .buttonStyle(.glassProminent)
+                        .keyShortcut(.save)
                         .disabled(draft.problem != nil || draft.notes.count > 256)
                 }
             }

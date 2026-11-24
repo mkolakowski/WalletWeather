@@ -36,6 +36,9 @@ struct RootView: View {
     var start: Place?
     @SceneStorage("place") private var place: Place = .dashboard
     @State private var started = false
+    /// ⌘F's count, which Search watches (#307), and the Debug shortcut table.
+    @State private var searchFocusRequest = 0
+    @State private var showingShortcutTable = false
     /// The window's own bottom inset (the home indicator), and the open
     /// page's, which includes a bar along the bottom; nil until measured.
     @State private var windowBottom: CGFloat = 0
@@ -54,6 +57,21 @@ struct RootView: View {
 
     private var shown: [TabPage] { TabPage.shown(settings.tabs, onSide: barOnSide) }
 
+    /// The bar's places in order, for ⌘1 to ⌘5: the pages shown, then
+    /// Settings, then Search (#307). These only change tab, so they open no
+    /// connection and skip nothing the lock asks for.
+    private var tabShortcuts: [ShortcutHandler] {
+        let places: [(Place, String)] = shown.map { (Place($0), $0.title) } + [(.more, "Settings"), (.search, "Search")]
+        let actions: [ShortcutAction] = [.tab1, .tab2, .tab3, .tab4, .tab5]
+        let tabs = zip(actions, places).map { action, entry in
+            ShortcutHandler(action, title: "Go to \(entry.1)") { place = entry.0 }
+        }
+        return tabs + [ShortcutHandler(.search) {
+            searchFocusRequest += 1
+            place = .search
+        }]
+    }
+
     var body: some View {
         TabView(selection: $place) {
             ForEach(shown) { page in
@@ -70,6 +88,10 @@ struct RootView: View {
         }
         .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: { windowBottom = $0 }
         .environment(\.openPlace) { place = $0 }
+        .environment(\.searchFocusRequest, searchFocusRequest)
+        .pageShortcuts(.everywhere, tabShortcuts)
+        // Debug only: `WW_DEBUG_SHORTCUTS=1` shows the shortcut table as a sheet (#307).
+        .sheet(isPresented: $showingShortcutTable) { ShortcutTableSheet() }
         .environment(\.barOnSide, barOnSide)
         // A page taken out of the bar while open, or a fourth page when the
         // bar moves to the bottom: Settings, where it's listed now.
@@ -83,6 +105,7 @@ struct RootView: View {
                 openWindow(value: second)
             }
             started = true
+            if AppModel.debugSetting("WW_DEBUG_SHORTCUTS") == "1" { showingShortcutTable = true }
             // Debug only: `WW_DEBUG_SETTINGS=<page>` opens Settings on that page (#294).
             if AppModel.debugSetting("WW_DEBUG_SETTINGS") != nil { place = .more }
             if let debug = AppModel.debugSetting("WW_DEBUG_PLACE").flatMap(Place.init(rawValue:)) { place = debug }

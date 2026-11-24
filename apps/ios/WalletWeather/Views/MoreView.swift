@@ -37,6 +37,7 @@ struct NetWorthView: View {
         }
         .opensForecast()
         .refreshable { await load() }
+        .pageShortcuts(.netWorth, [ShortcutHandler(.refresh) { Task { await load() } }])
         .keptBar(kept)
         .background(PageBackground().ignoresSafeArea())
         .navigationTitle("Net worth")
@@ -161,6 +162,7 @@ struct BudgetsView: View {
             }
         }
         .refreshable { await load() }
+        .pageShortcuts(.budgets, [ShortcutHandler(.refresh) { Task { await load() } }])
         .keptBar(kept)
         .background(PageBackground().ignoresSafeArea())
         .navigationTitle("Budgets")
@@ -319,6 +321,7 @@ struct ReportsView: View {
             await load()
             refreshes += 1
         }
+        .pageShortcuts(.reports, [ShortcutHandler(.refresh) { Task { await load(); refreshes += 1 } }])
         .keptBar(kept)
         .background(PageBackground().ignoresSafeArea())
         .navigationTitle("Reports")

@@ -86,11 +86,12 @@ struct MoveMoneySheet: View {
             .problemBanner($problem)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", role: .cancel) { dismiss() }
+                    Button("Cancel", role: .cancel) { dismiss() }.keyShortcut(.cancel)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Move") { Task { await move() } }
                         .buttonStyle(.glassProminent)
+                        .keyShortcut(.save)
                         .disabled(draft.problem != nil)
                 }
             }

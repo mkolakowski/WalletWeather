@@ -51,6 +51,7 @@
 		D15E3123C4A13434AC0DE0F8 /* QRScanSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A98C31592C4A8C02D24C2584 /* QRScanSheet.swift */; };
 		D5D57BB1E4FEEC41226F4577 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 56BAA46087C2B76E94F0EE25 /* Assets.xcassets */; };
 		DA2C662A3F9E9B07C17BFC68 /* BillsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D0553102CA76CF6F2551892 /* BillsView.swift */; };
+		DA2CF520366BDACDA9908042 /* NameHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9169F21461AD0525C4C7017 /* NameHistory.swift */; };
 		E4B39C05F91B13F80EE5068D /* MoveViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6E160E5ACC028F9FCFF027 /* MoveViews.swift */; };
 		EC7FFE9E0118DB3EF0409912 /* MonthMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9819ED5346F2EC2B60C37AA5 /* MonthMenu.swift */; };
 		FB73D58433046DB107B7663B /* AccountFollower.swift in Sources */ = {isa = PBXBuildFile; fileRef = 853A48B5A75D9C9B343FE58A /* AccountFollower.swift */; };
@@ -98,6 +99,7 @@
 		A5B7EE513A73A7A19A6F7A07 /* SignInSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInSheet.swift; sourceTree = "<group>"; };
 		A8954E314055BADF11713BF9 /* KeyboardAndPointer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardAndPointer.swift; sourceTree = "<group>"; };
 		A91553B7086BC583359B4E5F /* LineEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineEditor.swift; sourceTree = "<group>"; };
+		A9169F21461AD0525C4C7017 /* NameHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NameHistory.swift; sourceTree = "<group>"; };
 		A98C31592C4A8C02D24C2584 /* QRScanSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScanSheet.swift; sourceTree = "<group>"; };
 		AAC7A791EEE3C72BA42ED155 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		ABF20F601A1EB2143ABA37C6 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -194,6 +196,7 @@
 				DFD2173D8B902D535067E208 /* CloudBackupModel.swift */,
 				B5BA074FBBDD01FF1B577DD8 /* DebugBridge.swift */,
 				D477F5ED78FD4EA9DBFD3630 /* Keychain.swift */,
+				A9169F21461AD0525C4C7017 /* NameHistory.swift */,
 				760DE072423DD9D965E38BEE /* PrivacyInfo.xcprivacy */,
 				A5B7EE513A73A7A19A6F7A07 /* SignInSheet.swift */,
 				13149321E10C325276768DD5 /* Theme.swift */,
@@ -327,6 +330,7 @@
 				462B717DCD44956EEC548ECB /* MoreView.swift in Sources */,
 				4E47E421774FF04019F80AA1 /* MoveMoneySheet.swift in Sources */,
 				E4B39C05F91B13F80EE5068D /* MoveViews.swift in Sources */,
+				DA2CF520366BDACDA9908042 /* NameHistory.swift in Sources */,
 				B789C70FB22BF28F157FB1A7 /* NoticeView.swift in Sources */,
 				FE6DB983F28367B5822AB69E /* OpenInForecast.swift in Sources */,
 				2A3F787DFA9A3BC6817806A5 /* PhoneBankViews.swift in Sources */,
@@ -407,7 +411,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.54.0;
+				MARKETING_VERSION = 0.58.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -475,7 +479,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.54.0;
+				MARKETING_VERSION = 0.58.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

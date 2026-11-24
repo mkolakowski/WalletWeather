@@ -435,6 +435,27 @@ struct AddTransactionSheet: View {
     @State private var addedCount = 0
     @State private var chosenAccount: Int?
     @FocusState private var amountFocused: Bool
+    /// Names used on past lines and the tag rules, read when the sheet
+    /// opens (#325); empty if they can't be, and Add works the same.
+    @State private var pastNames: [NameSuggestion] = []
+    @State private var tagRules: [TagRule] = []
+
+    private var suggestions: [NameSuggestion] { NameSuggestions.suggest(draft.name, in: pastNames) }
+
+    private func categoryName(of suggestion: NameSuggestion) -> String? {
+        categories.first { $0.id == suggestion.categoryId }?.name ?? suggestion.categoryName
+    }
+
+    /// Picking a name fills it and the category it was last used with.
+    private func pick(_ suggestion: NameSuggestion) {
+        draft.name = suggestion.name
+        if let id = suggestion.categoryId, categories.contains(where: { $0.id == id }) { draft.categoryId = id }
+    }
+
+    /// "Will be tagged Work", when a tag rule matches the name typed.
+    private var tagNote: String? {
+        TagRuleNote.text(rules: tagRules, name: draft.name, categoryId: draft.categoryId, alreadyTagged: draft.tagIds)
+    }
 
     private var target: Account { accountChoices.first { $0.id == chosenAccount } ?? account }
 
@@ -465,6 +486,24 @@ struct AddTransactionSheet: View {
                         }
                         TextField("Name", text: $draft.name)
                             .textInputAutocapitalization(.words)
+                        ForEach(suggestions) { suggestion in
+                            Button { pick(suggestion) } label: {
+                                HStack {
+                                    Label(suggestion.name, systemImage: "clock.arrow.circlepath")
+                                    Spacer(minLength: 8)
+                                    if let category = categoryName(of: suggestion) {
+                                        Text(category).font(.footnote).foregroundStyle(.secondary)
+                                    }
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(categoryName(of: suggestion).map { "\(suggestion.name), \($0)" } ?? suggestion.name)
+                            .accessibilityHint("Fills in the name and its category")
+                        }
+                        if let note = tagNote {
+                            Label(note, systemImage: "tag").font(.footnote).foregroundStyle(.secondary)
+                        }
                         DatePicker("Date", selection: Binding(get: { draft.date.date },
                                                               set: { draft.date = LocalDay.today(now: $0) }),
                                    displayedComponents: .date)
@@ -502,6 +541,10 @@ struct AddTransactionSheet: View {
                 }
             }
             .onAppear { amountFocused = draft.amountText.isEmpty }
+            .task {
+                pastNames = await model.nameSuggestions()
+                tagRules = (try? await model.client?.tagRules()) ?? []
+            }
             .sensoryFeedback(.success, trigger: addedCount)
         }
     }
@@ -519,6 +562,7 @@ struct AddTransactionSheet: View {
             return
         }
         addedCount += 1
+        model.forgetNameHistory()
         draft = NewTransactionDraft(today: .today())
         await onSaved()
         dismiss()

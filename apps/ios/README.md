@@ -188,6 +188,10 @@ first one this month) in the line editor with Change transfer already open
 over it (#324): the Move money form filled in. The demo has no transfers, so
 use it with `SIMCTL_CHILD_WW_DEBUG_LOCAL=sample`, whose household has one.
 Debug only.
+`SIMCTL_CHILD_WW_DEBUG_ADD_NAME=Gr` (with `WW_DEBUG_PLACE=forecast`) opens
+Add transaction with "Gr" typed as the name (#325), so the remembered-name
+suggestions show, each with its category, and the "Will be tagged ..." note
+when a tag rule matches. Debug only.
 Drag and drop (#308) can't be driven from a script either:
 `SIMCTL_CHILD_WW_DEBUG_DROP=csv` shows Forecast's (and the Dashboard's) drop
 highlight as if a bank's CSV were held over the page, and

@@ -245,6 +245,9 @@ public enum Demo {
         let found = transactions().filter { row in
             if let category { return row["category_id"] as? Int == category }
             if let tag { return tagIds("lines", of: row["id"] as? Int).contains(tag) }
+            // No text: every line, as the server answers (quick add's
+            // remembered names ask this way, #325).
+            if text.trimmingCharacters(in: .whitespaces).isEmpty { return true }
             return matches(row, text, keys: ["description", "notes"])
         }
         return json(["total": found.count, "results": found])

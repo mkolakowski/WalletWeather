@@ -478,6 +478,9 @@ struct ForecastView: View {
         if AppModel.debugSetting("WW_DEBUG_COMPARE") != nil { comparing = true }
         if let name = AppModel.debugSetting("WW_DEBUG_OPEN_LINE"),
            let line = month.value?.rows.first(where: { $0.description == name }) { openLine(line) }
+        // Debug only: `WW_DEBUG_ADD_NAME=<text>` opens Add transaction with that typed as the name, so the
+        // suggestions and the tag rule note show (#325).
+        if let typed = AppModel.debugSetting("WW_DEBUG_ADD_NAME"), editable { startAdding(); newDraft.name = typed }
         // Debug only: `WW_DEBUG_CHANGE_TRANSFER=1` opens Change transfer on the month's first transfer (#324).
         if AppModel.debugSetting("WW_DEBUG_CHANGE_TRANSFER") == "1", let line = month.value?.rows.first(where: \.isTransfer) { openLine(line) }
         if AppModel.debugSetting("WW_DEBUG_CONTEXT") == "1", let first = month.value?.rows.first { debugMenuLine = first }

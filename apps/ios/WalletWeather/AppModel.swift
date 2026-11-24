@@ -49,6 +49,10 @@ final class AppModel {
     /// pages showing lines read them again, and an editor open on that line
     /// closes, since what it holds is out of date.
     var lastLineMove: LineMove?
+    /// Names used on the last months' lines, for Add transaction's
+    /// suggestions (#325): kept in memory for the connection in front, for
+    /// a few minutes, never on disk. See `NameHistory.swift`.
+    @ObservationIgnored var nameHistory: (connection: Connection, at: Date, names: [NameSuggestion])?
     /// The first account was just added and the backup isn't decided yet:
     /// the app offers it.
     var offeringBackup = false
@@ -657,6 +661,7 @@ final class AppModel {
     /// `WW_DEBUG_KEEP` (what the phone keeps), `WW_DEBUG_LOOK` (the look), `WW_DEBUG_DATES` (iso or short),
     /// and `WW_DEBUG_CONFIRM`, `WW_DEBUG_COMPARE` and `WW_DEBUG_NEW_WINDOW`
     /// (Forecast's To confirm, Compare, and a second window on a page), and
+    /// `WW_DEBUG_ADD_NAME=<text>` (Forecast opens Add transaction with it typed as the name, #325),
     /// `WW_DEBUG_DEMO=1` (open in the demo), and `WW_DEBUG_CLOUDKIT_SCHEMA=1`
     /// (write the CloudKit schema to Development, #270), and
     /// `WW_DEBUG_CONNECTIONS=sample` (sample connections in memory, #300),

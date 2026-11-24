@@ -67,3 +67,15 @@ Decisions for `Plans/ios-settings.md` (#298), `Plans/connections.md` (#303), `Pl
 - R5's stacked layout covers half open like a laptop, as decided.
 
 Still to confirm on a real Duo: that it reports the same as the simulator.
+
+## 2026-11-23: what shows outside the app while the phone is locked
+
+**Decided:** 2026-11-23, by Matthew, before #318 to #320 are built. **Status:** accepted.
+
+Widgets, reminders, and Shortcuts, Siri and Spotlight each put numbers outside the app, which hides them in the app switcher. Each issue opened with the question of what shows while the phone is locked.
+
+1. **Widgets (#318): amounts hidden until the phone is unlocked.** Labels show, with •••• in place of amounts. Always showing amounts, a switch hidden by default, and not building widgets yet were the other options.
+2. **Reminders (#319): the bill's name, the amount hidden until unlocked** ("Rent is due tomorrow"). Name and amount, nothing specific ("A bill is due tomorrow"), and not building reminders yet were the other options.
+3. **Shortcuts, Siri and Spotlight (#320): Siri answers balance questions only when the phone is unlocked, and the phone's search lists bills and accounts by name, without amounts.** Amounts in search, always answering, and not building these yet were the other options.
+
+Each still updates `docs/privacy.md` and `apps/ios/README.md` ("What's kept on the phone") in the same change.

@@ -1353,12 +1353,23 @@
   #pageAdmin .panel > label:has(> input[type=checkbox]) { font-weight:550; gap:12px !important; }
   @media (prefers-reduced-motion: reduce) { #pageAdmin .panel > label > input[type=checkbox],
     #pageAdmin .panel > label > input[type=checkbox]::after { transition:none; } }
+  /* Bank sync (#343): a card per provider and one per connected bank, side by side as the
+     window allows (providers about 300px each, banks about 620px each, for their table). */
+  .bank-grid { display:grid; gap:14px; margin:0 0 14px; grid-template-columns:repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+  .bank-grid.bank-conns { grid-template-columns:repeat(auto-fit, minmax(min(100%, 620px), 1fr)); }
+  .bank-grid > * { margin:0 !important; max-width:none !important; min-width:0; }
+  .bank-grid .bank-provider { display:flex; flex-direction:column; }
+  .bank-grid .bank-provider > .bank-provider-end { margin-top:auto; padding-top:10px; }
+  .bank-guide { font-size:13px; margin:0 0 8px; }
+  .bank-keys { margin-top:12px; padding-top:12px; border-top:1px solid var(--border); }
   /* Wide windows: the sections list down the left under the page's name and stays in view;
      the content is a readable column. Phones keep the scrolling tabs. */
   @media (min-width:1000px) {
     #pageSettings:not(.hidden), #pageAdmin:not(.hidden) { display:grid; grid-template-columns:210px minmax(0, 840px);
       column-gap:44px; align-items:start; }
     #pageAdmin:not(.hidden) { grid-template-columns:210px minmax(0, 1060px); }
+    /* Bank sync's cards use a wide monitor's room (#343). */
+    #pageSettings:not(.hidden):has(> #bankPanel:not(.section-off)) { grid-template-columns:210px minmax(0, 1600px); }
     :is(#pageSettings, #pageAdmin) > .settings-nav { grid-column:1; grid-row:1 / span 30;
       position:sticky; top:calc(var(--bar-h) + 20px); }
     :is(#pageSettings, #pageAdmin) > .settings-nav > h1 { font-size:26px; padding:0 12px 14px; margin:0; line-height:1.2; }
@@ -3143,7 +3154,7 @@ const fmtShort = v => {
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.116.1";
+const WEB_VERSION = "1.117.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -3153,6 +3164,7 @@ const WEB_VERSION = "1.116.1";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.117.0 (2026-11-24, claude+mkolakowski): (#342, #343) Settings → Bank sync: one card per provider (SimpleFIN Bridge, Teller, Plaid; _bankConnectHtml) holding its setup guide line (_bankGuideHtml from BANK_GUIDE_STEPS: Through SimpleFIN, Add your own Teller or Plaid keys, Through Teller or Plaid), its own pages (_bankProviderLinks(key, true) leaves the guide out), its keys (_bankKeysCardHtml now an inner .bank-keys block; _bankKeysHtml became _bankKeysShown) and its Connect. Connected banks follow under "Your banks" with Match your accounts and If sync keeps failing links. .bank-grid lays providers ~300px and banks ~620px each, side by side as room allows, and the Settings column widens to 1600px while Bank sync is shown on a window 1000px or wider. The shared connect code field names what it's for.
 // 1.116.1 (2026-11-24, claude+mkolakowski): (#336) Links to the bank sync guide on GitHub Pages. BANK_GUIDE is the guide's address; BANK_PROVIDERS entries carry `guide` (SimpleFIN: #through-simplefin) or a 'WalletWeather guide' link (Teller, Plaid: #add-your-own-teller-or-plaid-keys) that _bankProviderLinks draws, and Connect a bank says "Step by step: the bank sync guide".
 // 1.116.0 (2026-11-24, claude+mkolakowski): (#334) Bank sync setup links and a card per provider. BANK_PROVIDERS gains teller and plaid (name, home, links[]); _bankProviderLinks draws a provider's `links` when it has them. The Teller and Plaid key steps link to the provider's dashboard, quickstart, certificates and Keys pages (_bankLink). _bankConnectHtml draws Teller, Plaid and SimpleFIN Bridge each as a bordered .bank-provider card (title, provider links, what it does, its connect button; SimpleFIN's token form stays inside its card), the same look as the .bank-keys cards.
 // 1.115.3 (2026-11-23, claude+mkolakowski): (#292) two design calls from the code review: Settings and Admin open with a real <h1> in a .settings-nav wrapper that holds the heading and the tab list (it replaces the ::before text on .settings-tabs; on a wide window the wrapper is the sticky left column, the heading 26px; on a phone the heading is 22px above the scrolling tabs), and the wide-window active section in the list uses the 10% tint with --accent-ink like the other pills (it was left at 15% and --accent); a Calendar event with no category colour gets class uncat and shows its kind by a tint (green in, red out, an outline for a transfer; on a phone its colour bar takes the kind's colour).
@@ -10100,6 +10112,18 @@ const BANK_PROVIDERS = {
             ['WalletWeather guide', BANK_GUIDE + '#add-your-own-teller-or-plaid-keys']],
   },
 };
+// Each provider's steps in the guide (#342), shown first on its card.
+const BANK_GUIDE_STEPS = {
+  simplefin: [['Connect through SimpleFIN', BANK_GUIDE + '#through-simplefin']],
+  teller: [['Add your Teller keys', BANK_GUIDE + '#add-your-own-teller-or-plaid-keys'],
+           ['Connect through Teller', BANK_GUIDE + '#through-teller-or-plaid']],
+  plaid: [['Add your Plaid keys', BANK_GUIDE + '#add-your-own-teller-or-plaid-keys'],
+          ['Connect through Plaid', BANK_GUIDE + '#through-teller-or-plaid']],
+};
+function _bankGuideHtml(key) {
+  const steps = BANK_GUIDE_STEPS[key] || [];
+  return steps.length ? `<div class="bank-guide"><strong>Setup guide:</strong> ${steps.map(([t, h]) => _bankLink(h, t)).join(' · ')}</div>` : '';
+}
 const BANK_PROVIDER = 'simplefin';   // whose pages Admin links to (#254)
 const SIMPLEFIN_CREATE_URL = BANK_PROVIDERS.simplefin.setup;
 function _bankLink(href, text) {
@@ -10107,14 +10131,16 @@ function _bankLink(href, text) {
 }
 // "SimpleFIN Bridge: Sign in · Your account · Make a setup token", each
 // opening the provider's site in a new tab.
-function _bankProviderLinks(key) {
+// `noGuide`: leave out the WalletWeather guide, for a card that shows its
+// own setup guide line (#342).
+function _bankProviderLinks(key, noGuide) {
   const p = BANK_PROVIDERS[key || BANK_PROVIDER];
   if (!p) return '';
-  const links = (p.links ? p.links.map(([t, h]) => _bankLink(h, t)) : [
+  const links = (p.links ? p.links.filter(([t]) => !(noGuide && t === 'WalletWeather guide')).map(([t, h]) => _bankLink(h, t)) : [
     p.signIn && _bankLink(p.signIn, 'Sign in'),
     p.account && _bankLink(p.account, 'Your account'),
     p.setup && _bankLink(p.setup, 'Make a setup token'),
-    p.guide && _bankLink(p.guide, 'WalletWeather guide'),
+    !noGuide && p.guide && _bankLink(p.guide, 'WalletWeather guide'),
   ]).filter(Boolean).join(' · ');
   return `<div style="font-size:13px;margin:0 0 12px"><strong>${_bankLink(p.home, p.name)}:</strong> ${links}</div>`;
 }
@@ -10137,9 +10163,9 @@ function _bankSay(msg, color) {
   el.textContent = msg || '';
   el.style.color = color || 'var(--muted)';
 }
-function _bankCodeField(id) {
+function _bankCodeField(id, label) {
   return (me && me.two_factor_enabled)
-    ? `<div style="max-width:240px;margin-top:8px"><label for="${id}">Code from your authenticator app</label>
+    ? `<div style="max-width:240px;margin-top:8px"><label for="${id}">${escapeHtml(label || 'Code from your authenticator app')}</label>
          <input id="${id}" inputmode="numeric" autocomplete="one-time-code" maxlength="40"></div>` : '';
 }
 function _bankWhen(iso) {
@@ -10163,11 +10189,11 @@ async function loadBank() {
   const mayConnect = bankState.enabled && (bankState.providers_allowed || []).length > 0;
   // Or while they're ticked for Teller or Plaid (to add their keys), or have
   // keys saved (to remove them) (#276).
-  const keysHtml = _bankKeysHtml();
+  const keysShown = _bankKeysShown();
   // Or while an account they own or edit syncs from someone else's
   // connection (#265).
   const shared = bankState.enabled ? (bankState.shared || []) : [];
-  tab.classList.toggle('hidden', !(mayConnect || bankState.connected || shared.length || keysHtml));
+  tab.classList.toggle('hidden', !(mayConnect || bankState.connected || shared.length || keysShown.length));
   let owned = [];
   if (bankState.connected) {
     try { owned = (await api('/api/accounts?include_archived=true')).filter(a => a.level === 'owner'); } catch (_) {}
@@ -10178,21 +10204,24 @@ async function loadBank() {
   }
   const conns = bankState.connections || [];
   const anyAccounts = conns.some(c => (c.accounts || []).length);
-  body.innerHTML = (conns.length ? `
+  // One card per provider to set it up, then the banks already connected
+  // (#343, decided 2026-11-24: setup cards side by side, banks below).
+  const providersHtml = _bankConnectHtml(conns.length > 0);
+  body.innerHTML = providersHtml
+    + (!providersHtml && bankState.enabled ? `<p style="color:var(--muted);font-size:13px;margin:0 0 16px">An admin hasn't let you connect ${conns.length ? 'another bank' : 'a bank of your own'}. They can in Admin → Users.</p>` : '')
+    + (conns.length ? `
+      <h3 class="backup-subhead" style="margin-top:${providersHtml ? 24 : 0}px">Your banks</h3>
       <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
         Match each bank account to one of your own accounts; nothing dated before its start date comes in
         (at most ${bankState.start_max_days} days back). Only accounts you own can be matched, and each of
-        your accounts takes lines from one bank account.</p>`
-      + conns.map(c => _bankConnHtml(c, owned)).join('')
+        your accounts takes lines from one bank account.
+        Step by step: ${_bankLink(BANK_GUIDE + '#match-your-accounts', 'Match your accounts')} · ${_bankLink(BANK_GUIDE + '#if-sync-keeps-failing', 'If sync keeps failing')}.</p>
+      <div class="bank-grid bank-conns">${conns.map(c => _bankConnHtml(c, owned)).join('')}</div>`
       + (anyAccounts ? `<div style="margin-top:12px"><button class="ghost" id="bankSaveBtn" onclick="bankSaveLinks()">Save matches</button></div>` : '')
     : '')
-    + (shared.length ? _bankSharedHtml(shared, conns.length > 0) : '')
+    + (shared.length ? _bankSharedHtml(shared, conns.length > 0 || !!providersHtml) : '')
     + (conns.length || shared.length ? '<div id="bankLog" class="hidden" style="margin-top:14px;max-width:720px"></div>' : '')
-    + (conns.length ? _bankCategoriesHtml() : '')
-    + keysHtml
-    + (mayConnect ? _bankConnectHtml(conns.length > 0 || !!keysHtml)
-      : keysHtml ? ''
-      : bankState.enabled ? `<p style="color:var(--muted);font-size:13px;margin-top:16px">An admin hasn't let you connect ${conns.length ? 'another bank' : 'a bank of your own'}. They can in Admin → Users.</p>` : '');
+    + (conns.length ? _bankCategoriesHtml() : '');
 }
 
 // Accounts someone shares with you that sync from their bank connection
@@ -10336,17 +10365,10 @@ function _bankTicked(key) {
   return !!(p && p.allowed);
 }
 
-function _bankKeysHtml() {
+// Teller and Plaid, whose keys card shows: keys saved, or ticked for it.
+function _bankKeysShown() {
   const keys = bankState.keys || {};
-  const show = ['teller', 'plaid'].filter(k => keys[k] || (bankState.enabled && _bankTicked(k)));
-  if (!show.length) return '';
-  return `
-    <h3 class="backup-subhead" style="margin-top:24px">Your Teller and Plaid keys</h3>
-    <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
-      Teller and Plaid each need keys from a developer account of your own, so your bank logins count against
-      your own account there. They're checked with the service before they're saved, kept encrypted on this
-      server, and the secret part is never shown again.</p>`
-    + show.map(_bankKeysCardHtml).join('');
+  return ['teller', 'plaid'].filter(k => keys[k] || (bankState.enabled && _bankTicked(k)));
 }
 
 function _bankKeysCardHtml(p) {
@@ -10368,8 +10390,9 @@ function _bankKeysCardHtml(p) {
       ${bankKeysReplacing[p] ? '' : _bankCodeField('bankKeysRemoveCode_' + p)}` : `
       <div style="font-size:13px;color:var(--muted)">Add your ${name} keys to connect a bank through ${name}.</div>`;
   const form = mayEdit && (!k || bankKeysReplacing[p]) ? (p === 'teller' ? _bankTellerForm() : _bankPlaidForm()) : '';
-  return `<div class="bank-keys" data-provider="${p}" style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin:0 0 14px;max-width:760px">
-    <h3 class="backup-subhead" style="margin:0 0 6px">Your ${name} keys</h3>
+  // Inside its provider's card (#343).
+  return `<div class="bank-keys" data-provider="${p}">
+    <h4 style="margin:0 0 6px;font-size:13px">Your ${name} keys</h4>
     ${saved}
     ${form}
     <div id="bankKeysStatus_${p}" role="status" style="margin-top:8px;font-size:13px"></div>
@@ -10498,29 +10521,25 @@ async function bankKeysRemove(p) {
 }
 
 function _bankConnectHtml(more) {
-  const teller = _bankOffered('teller'), plaid = _bankOffered('plaid'), simplefin = _bankOffered('simplefin');
-  // One card per provider (#334).
-  const card = (key, title, inner) => `<div class="bank-provider" data-provider="${key}" style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin:0 0 14px;max-width:760px">
-      <h3 class="backup-subhead" style="margin:0 0 6px">${title}</h3>${inner}</div>`;
-  const choice = (key, label, text) => card(key, escapeHtml(BANK_PROVIDERS[key].name), `
-      ${_bankProviderLinks(key)}
-      <p style="font-size:13px;color:var(--muted);margin:0 0 10px">${text}</p>
-      <button onclick="bankStartProvider('${key}')">${label}</button>`);
-  return `
-    <h3 class="backup-subhead" style="margin-top:${more ? 24 : 0}px">${more ? 'Connect another bank' : 'Connect a bank'}</h3>
-    <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
-      Bring transactions in from your bank by themselves. The service you pick can read your accounts, balances and
-      transactions; it can't move money. Only lines your bank has posted come in, as paid lines, and your auto-tag
-      rules run on them. Each bank login is a connection of its own.
-      Step by step: ${_bankLink(BANK_GUIDE, 'the bank sync guide')}.</p>
-    ${teller ? choice('teller', 'Connect with Teller', 'You sign in to your bank on Teller Connect, on a page of its own in a new tab.') : ''}
-    ${plaid ? choice('plaid', 'Connect with Plaid', "You sign in to your bank on Plaid's own site, in a new tab.") : ''}
-    ${(teller || plaid) ? _bankCodeField('bankConnectCode') : ''}
-    ${simplefin ? card('simplefin', 'SimpleFIN Bridge', `
-      ${_bankProviderLinks('simplefin')}
+  // One card per provider (#334), holding everything to set it up (#343):
+  // its setup guide (#342), its own pages, its keys and its Connect.
+  const keysShown = _bankKeysShown();
+  const offered = (k) => _bankOffered(k);
+  const show = ['simplefin', 'teller', 'plaid'].filter(k => offered(k) || keysShown.includes(k));
+  if (!show.length) return '';
+  const card = (key, inner) => `<div class="bank-provider" data-provider="${key}" style="border:1px solid var(--border);border-radius:10px;padding:12px 14px">
+      <h3 class="backup-subhead" style="margin:0 0 8px">${escapeHtml(BANK_PROVIDERS[key].name)}</h3>
+      ${_bankGuideHtml(key)}
+      ${_bankProviderLinks(key, true)}${inner}</div>`;
+  const keyed = (key, label, text) => card(key, `
+      <p style="font-size:13px;color:var(--muted);margin:0">${text}</p>
+      ${keysShown.includes(key) ? _bankKeysCardHtml(key) : ''}
+      ${offered(key) ? `<div class="bank-provider-end"><button onclick="bankStartProvider('${key}')">${label}</button></div>` : ''}`);
+  const cards = {
+    simplefin: () => card('simplefin', `
       <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
         SimpleFIN Bridge is a service you subscribe to yourself (about $15 a year).</p>
-      <details${(teller || plaid) ? '' : ' open'}>
+      <details${(offered('teller') || offered('plaid')) ? '' : ' open'}>
       <summary style="cursor:pointer;font-size:13px">Paste a SimpleFIN token</summary>
       <div style="margin-top:10px">
       <ol style="margin:0 0 12px 18px;padding:0;font-size:13px;line-height:1.6">
@@ -10535,7 +10554,22 @@ function _bankConnectHtml(more) {
       ${_bankCodeField('bankSimplefinCode')}
       <div style="margin-top:10px"><button onclick="bankConnect()">Connect</button></div>
       </div>
-      </details>`) : ''}`;
+      </details>`),
+    teller: () => keyed('teller', 'Connect with Teller', 'You sign in to your bank on Teller Connect, on a page of its own in a new tab.'),
+    plaid: () => keyed('plaid', 'Connect with Plaid', "You sign in to your bank on Plaid's own site, in a new tab."),
+  };
+  return `
+    <h3 class="backup-subhead" style="margin-top:0">${more ? 'Connect another bank' : 'Connect a bank'}</h3>
+    <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+      Bring transactions in from your bank by themselves. The service you pick can read your accounts, balances and
+      transactions; it can't move money. Only lines your bank has posted come in, as paid lines, and your auto-tag
+      rules run on them. Each bank login is a connection of its own.
+      ${keysShown.length ? `Teller and Plaid each need keys from a developer account of your own; they're checked with
+      the service before they're saved, kept encrypted on this server, and the secret part is never shown again.` : ''}
+      Step by step: ${_bankLink(BANK_GUIDE, 'the bank sync guide')}.</p>
+    <div class="bank-grid bank-providers">${show.map(k => cards[k]()).join('')}</div>
+    ${(offered('teller') || offered('plaid')) ? _bankCodeField('bankConnectCode',
+      `Code from your authenticator app, for Connect with ${['teller', 'plaid'].filter(offered).map(k => BANK_PROVIDERS[k].name).join(' or ')}`) : ''}`;
 }
 
 function _bankConnHtml(c, owned) {
@@ -10580,7 +10614,7 @@ function _bankConnHtml(c, owned) {
         : '');
   const left = c.syncs_left_today;
   const id = Number(c.id);
-  return `<div class="bank-conn" data-connection="${id}" style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin:0 0 14px;max-width:760px">
+  return `<div class="bank-conn" data-connection="${id}" style="border:1px solid var(--border);border-radius:10px;padding:12px 14px">
     <h3 class="backup-subhead" style="margin:0 0 4px">${escapeHtml(c.name || c.provider_name)}
       <span style="font-weight:normal;font-size:12px;color:var(--muted)">· through ${pname}</span></h3>
     <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Connected ${escapeHtml(_bankWhen(c.connected_at))}</div>

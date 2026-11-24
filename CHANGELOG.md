@@ -69,11 +69,16 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.3** · Web version: **1.116.1** · Schema version: **39** · iOS version: **0.69.0**
+App version: **1.98.3** · Web version: **1.117.0** · Schema version: **39** · iOS version: **0.69.0**
 
 ### Added
 
+- **Setup guide links for each bank service.** In Settings → Bank sync, SimpleFIN Bridge, Teller and Plaid each have a *Setup guide* line linking to their own steps in the bank sync guide (connecting through SimpleFIN; adding your own Teller or Plaid keys and connecting through them), beside their own sites' pages. Your banks link to *Match your accounts* and *If sync keeps failing* (web 1.117.0).
 - **iPhone: email alerts on the Bank sync page.** Under your banks, Settings → Bank sync now shows your email alerts: whether a mailbox is connected, when it was last checked and what came in, when it checks next, and how many alerts couldn't be read. A failed check, a mailbox to reconnect or an admin's pause is said in plain words, and the Bank sync row on Settings says so too when your banks are fine. **Check now** reads new alerts straight away (not with a read-only sign-in). Connecting a mailbox and teaching it your bank's alerts are still done in the web app's Settings → Email alerts (iOS 0.69.0).
+
+### Changed
+
+- **Bank sync's settings, a card per service, using a wide screen.** Settings → Bank sync now shows one card each for SimpleFIN Bridge, Teller and Plaid with everything to set it up: its guide, its pages, your keys (Teller and Plaid, no longer a separate section) and its Connect button. Your connected banks follow under *Your banks*. On a wide monitor the page widens and the cards sit side by side (the services up to three across, your banks two across); on a phone or a narrow window they stack as before (web 1.117.0).
 
 ## [1.98.3] — 2026-11-24
 

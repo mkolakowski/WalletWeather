@@ -6,8 +6,8 @@ Tracking issue: #333
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Widgets and the summary they read | #318 | On TestFlight (0.64.0, build 473); pictures and phone check to come |
-| 2. Reminders worked out on the phone | #319 | Built in iOS 0.65.0; TestFlight, pictures and phone check to come |
+| 1. Widgets and the summary they read | #318 | On TestFlight (0.65.0, build 479); pictures and phone check to come |
+| 2. Reminders worked out on the phone | #319 | On TestFlight (0.65.0, build 479); pictures and phone check to come |
 | 3. Open To confirm and What's my balance | #320 | Not started |
 | 4. Bills and accounts in the phone's search | #331 | Not started |
 | 5. Add a transaction and Mark a bill paid | #332 | Not started |

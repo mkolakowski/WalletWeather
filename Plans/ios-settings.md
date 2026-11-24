@@ -32,7 +32,7 @@ Sessions: may span — four phases, each ending with a look from Matthew at its 
 
 ## Open questions
 
-1. **How much of a custom theme can change?** Blocks phase 4. Working assumption: six colours (page, card, text, accent, money in, money out), with the warning and outline colours worked out from them. Accent only was the other option; it wasn't asked directly.
+1. ~~**How much of a custom theme can change?** Blocks phase 4.~~ **Decided 2026-11-23** by Matthew: six colours (page, card, text, accent, money in, money out), with the warning and outline colours worked out from them. Accent only, accent and page, and every colour were the other options.
 
 ## The plan
 
@@ -141,7 +141,7 @@ From the review: R19.5, asked for on 2026-11-23.
 **What changes:**
 
 - **My themes** sit under the built-in looks on the Appearance page. **New theme** starts as a copy of any look.
-- **The editor:** a name, six colours (page, card, text, accent, money in, money out; see the open question), and a live preview.
+- **The editor:** a name, six colours (page, card, text, accent, money in, money out; decided 2026-11-23), and a live preview.
 - **A readability line** checks text on card, money on card and accent on page against 4.5:1. A faint pair gets a warning and still saves (decided).
 - **Kept in iCloud** (decided): names and colours only, in the phone's iCloud key-value store, so they reach your other iPhones. That is a new entitlement in `apps/ios/project.yml`. With iCloud off they stay on this iPhone. `apps/ios/README.md` ("What's kept on the phone") and the privacy policy say so in the same change.
 - A custom theme is one more `Look`. The saved `appearance` value of a built-in look doesn't change, and a look that's no longer there falls back to Match the phone.

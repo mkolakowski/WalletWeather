@@ -22,7 +22,7 @@ Decisions for `Plans/ios-settings.md` (#298), `Plans/connections.md` (#303), `Pl
 5. **A faint pair of colours gets a warning and still saves.** Refusing to save under 4.5:1 was the other option.
 6. **Pages follow the same account, with a switch** (R9): picking an account on one page moves the others, on by default. Leaving each page on its own was the other option.
 
-**Not asked:** how much of a custom theme can change. The plan assumes six colours and lists it as an open question for phase 4.
+7. **A custom theme changes six colours** (decided 2026-11-23, by Matthew, before phase 4, #297): page, card, text, accent, money in and money out, with the warning and outline colours worked out from them. Accent only, accent and page, and every colour (about a dozen, warning and outline included) were the other options. This was the plan's one open question.
 
 ## 2026-11-23: connections, the demo and the lock
 

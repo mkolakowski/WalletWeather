@@ -38,6 +38,8 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable
     /// phase 2, #300); `connection` is one connection's own page, the one
     /// in front's when nothing says which.
     case connections, connection, bank, appearance, privacy, display, backup, move, help, keep, tags, tabBar, notice
+    /// Reminders (#319).
+    case reminders
 
     public var id: String { rawValue }
 
@@ -48,6 +50,7 @@ public enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable
         case .bank: "Bank sync"
         case .appearance: "Appearance"
         case .privacy: "Privacy & lock"
+        case .reminders: "Reminders"
         case .display: "Dates & display"
         case .backup: "iCloud & backup"
         case .move: "Move to a server"
@@ -81,7 +84,7 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
     // The root list.
     case connection, morePages
     case tags, bankSync, iCloudBackup, moveToServer, addAccount, importCSV
-    case appearance, tabBar, privacyLock, datesDisplay
+    case appearance, tabBar, privacyLock, datesDisplay, reminders
     case notice, help, versions
     // Connections (#300): one row per saved connection, opening its page;
     // On this iPhone before the household is set up, and the demo, last
@@ -111,6 +114,8 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
     case copyToServer, exportForServer, importServerBackup
     // Help & Getting started.
     case showGettingStarted, privacyPolicy, setupGuide
+    // Reminders (#319): three switches, all off to start.
+    case billsDueTomorrow, balanceUnder, newBankLines
 
     public var id: String { rawValue }
 
@@ -128,6 +133,7 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
         case .tabBar: "Tab bar"
         case .privacyLock: "Privacy & lock"
         case .datesDisplay: "Dates & display"
+        case .reminders: "Reminders"
         case .notice: "Important notice"
         case .help: "Help & Getting started"
         case .versions: "Versions"
@@ -164,20 +170,24 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
         case .showGettingStarted: "Show Getting started again"
         case .privacyPolicy: "Privacy policy"
         case .setupGuide: "How to set up a server"
+        case .billsDueTomorrow: "Bill due tomorrow"
+        case .balanceUnder: "Balance heading under"
+        case .newBankLines: "New bank lines to match"
         }
     }
 
     public var kind: Kind {
         switch self {
         case .connection, .morePages, .tags, .bankSync, .iCloudBackup, .moveToServer,
-             .appearance, .tabBar, .privacyLock, .datesDisplay, .notice, .help, .keep, .savedConnection:
+             .appearance, .tabBar, .privacyLock, .datesDisplay, .reminders, .notice, .help, .keep, .savedConnection:
             .page
         case .addServer, .useOnThisPhone, .restoreFromICloud, .addAccount, .importCSV, .showGettingStarted,
              .backupPassphrase, .copyToServer, .exportForServer, .importServerBackup:
             .action
         case .openWebApp, .privacyPolicy, .setupGuide:
             .link
-        case .lock, .lockShowsDemo, .followAccount, .syncWithICloud, .backupToICloudDrive:
+        case .lock, .lockShowsDemo, .followAccount, .syncWithICloud, .backupToICloudDrive,
+             .billsDueTomorrow, .balanceUnder, .newBankLines:
             .toggle
         case .keepNothing, .keepLastKnown, .looks, .dateFormat, .demoConnection:
             .choice
@@ -205,6 +215,7 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
         case .tabBar: .tabBar
         case .privacyLock: .privacy
         case .datesDisplay: .display
+        case .reminders: .reminders
         case .notice: .notice
         case .help: .help
         case .keep: .keep
@@ -229,6 +240,7 @@ public enum SettingsRow: String, CaseIterable, Identifiable, Sendable {
         case .tabBar: "dock.rectangle"
         case .privacyLock: "lock"
         case .datesDisplay: "calendar"
+        case .reminders: "bell"
         case .notice: "doc.plaintext"
         case .help: "questionmark.circle"
         default: nil
@@ -348,7 +360,7 @@ public struct SettingsLayout: Equatable, Sendable {
             if canWrite { household.append(.importCSV) }
         }
         groups.append(SettingsGroup(section: .household, rows: household))
-        groups.append(SettingsGroup(section: .thisIPhone, rows: [.appearance, .tabBar, .privacyLock, .datesDisplay]))
+        groups.append(SettingsGroup(section: .thisIPhone, rows: [.appearance, .tabBar, .privacyLock, .datesDisplay, .reminders]))
         groups.append(SettingsGroup(section: .about, rows: [.notice, .help, .versions]))
         return groups
     }
@@ -372,6 +384,7 @@ public struct SettingsLayout: Equatable, Sendable {
         case .bank: return [.bankCard]
         case .appearance: return [.looks]
         case .display: return [.dateFormat, .followAccount]
+        case .reminders: return [.billsDueTomorrow, .balanceUnder, .newBankLines]
         case .privacy: return (hasBiometry ? [.lock] + (lockOn ? [.lockShowsDemo] : []) : []) + [.appSwitcher]
         case .backup: return household == .thisIPhone ? [.syncWithICloud, .backupToICloudDrive, .backupPassphrase] : []
         case .move: return household == .thisIPhone ? [.copyToServer, .exportForServer, .importServerBackup] : []
@@ -454,6 +467,7 @@ public struct SettingsLayout: Equatable, Sendable {
         case .appearance: "paintpalette"
         case .privacy: "lock"
         case .display: "calendar"
+        case .reminders: "bell"
         case .backup: "icloud"
         case .move: "arrow.left.arrow.right.square"
         case .help: "questionmark.circle"
@@ -479,6 +493,7 @@ public struct SettingsLayout: Equatable, Sendable {
         case .appearance: "The app's colours, light or dark, or a theme from the web app."
         case .privacy: "Locking the app, and the numbers hidden in the app switcher."
         case .display: "How dates are written, and whether the pages that pick an account all follow the same one."
+        case .reminders: "Bills due tomorrow, a balance heading low, and new bank lines, worked out on this iPhone."
         case .backup: "Syncing with iCloud, and the copies kept in iCloud Drive."
         case .move: "Taking your numbers to a server of your own, or bringing them back."
         case .help: "The Getting started card again, and the privacy policy."

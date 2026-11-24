@@ -136,7 +136,8 @@ Screen, the Lock Screen and in StandBy) read a small summary the app keeps on
 the iPhone for each connection, in storage the app shares only with its own
 widgets: the connection's name, when the summary was made, each account's name,
 balance and the month's lowest forecast balance, your bills and income with
-their names, amounts and next dates, and how many lines wait to be confirmed.
+their names, amounts and next dates, each account's lowest forecast balance on
+each of the next 7 days, and how many lines wait to be confirmed.
 
 - The app writes it while the iPhone is unlocked, when its pages load and when
   you open or leave the app. The widgets only read it and never contact a
@@ -152,6 +153,22 @@ their names, amounts and next dates, and how many lines wait to be confirmed.
 - A server's summary is deleted when you sign out of it. The summary of **On
   this iPhone** is deleted when you leave it, delete everything on this iPhone,
   or delete everywhere.
+
+**Reminders** in the iOS app (Settings → Reminders: a bill due tomorrow, a
+balance heading under an amount you pick, and new bank lines to match) are off
+until you turn them on, which is when the iPhone asks to allow notifications.
+
+- They're worked out on the iPhone from the same summary, for the connection
+  you're using, and scheduled with the iPhone's own notifications. Nothing is
+  sent anywhere, and no server sends them.
+- None are made for the demo or for a server set to keep **Nothing**.
+- A reminder's text names the bill or account and never shows an amount ("Rent
+  is due tomorrow"), so a locked iPhone shows no numbers. Pressing and holding
+  one shows the amount, which reads the summary, so it shows as •••• while the
+  iPhone is locked or WalletWeather's own lock is on.
+- Your choices (which switches are on, the time, the account and the amount)
+  are kept in the app's settings on the iPhone. Signing out of the connection
+  you're using removes its reminders.
 
 Removing the app removes all of it.
 

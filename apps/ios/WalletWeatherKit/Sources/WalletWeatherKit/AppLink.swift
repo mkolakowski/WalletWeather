@@ -15,8 +15,9 @@ import Foundation
 ///   hands back only the new connection's number, never anything from the bank.
 /// - `bank-keys?state=changed|closed|off`: the sheet's answer from the
 ///   server's "your bank keys" page (#278); never a key.
-/// - `open?page=dashboard|bills|to-confirm[&connection=…][&account=…]`: a
-///   widget tapped (#318), opening the page it shows on its connection.
+/// - `open?page=dashboard|bills|to-confirm|forecast[&connection=…][&account=…]`:
+///   a widget (#318) or a reminder (#319) tapped, opening its page on its
+///   connection.
 ///   Carries ids only, never a number.
 public enum AppLink: Sendable, Equatable {
     case signedIn(code: String, state: String, cloudflare: String?)
@@ -36,6 +37,8 @@ public enum AppLink: Sendable, Equatable {
         case dashboard
         case bills
         case toConfirm = "to-confirm"
+        /// An account in Forecast (a balance reminder, #319).
+        case forecast
     }
 
     /// The link for a widget: the page, on a connection, at an account.

@@ -29,11 +29,11 @@ public enum AppGroup {
 
 // MARK: - The summary
 
-/// What a widget (and later a reminder, Siri or the phone's search) may know
+/// What a widget, a reminder (and later Siri or the phone's search) may know
 /// about one connection: its name and kind, when this was made, and, unless
-/// it's a server set to keep Nothing, each account's balance and month's
-/// low, the bills and income with their next dates, and how many lines wait
-/// to confirm.
+/// it's a server set to keep Nothing, each account's balance, month's low and
+/// lowest forecast balance on each of the next 7 days, the bills and income
+/// with their next dates, and how many lines wait to confirm.
 public struct ConnectionSummary: Codable, Equatable, Sendable, Identifiable {
     /// Bumped when the file's shape changes in a way an older reader can't
     /// take; a reader skips a file of a newer version.
@@ -49,16 +49,36 @@ public struct ConnectionSummary: Codable, Equatable, Sendable, Identifiable {
         /// Lines on it due up to today and not confirmed; nil when this
         /// person can't change the account (To confirm doesn't show then).
         public let toConfirm: Int?
+        /// The lowest forecast balance on each day from today to 7 days on
+        /// that has a line, today always (#319, for Balance heading under).
+        /// Nil in a summary written before it was kept.
+        public let weekLows: [DayBalance]?
 
-        public init(id: Int, name: String, balance: Money, monthLow: Money, monthLowDate: LocalDay?, toConfirm: Int?) {
+        public init(id: Int, name: String, balance: Money, monthLow: Money, monthLowDate: LocalDay?, toConfirm: Int?,
+                    weekLows: [DayBalance]? = nil) {
             self.id = id
             self.name = name
             self.balance = balance
             self.monthLow = monthLow
             self.monthLowDate = monthLowDate
             self.toConfirm = toConfirm
+            self.weekLows = weekLows
         }
     }
+
+    /// A day's lowest forecast balance.
+    public struct DayBalance: Codable, Equatable, Sendable {
+        public let date: LocalDay
+        public let low: Money
+
+        public init(date: LocalDay, low: Money) {
+            self.date = date
+            self.low = low
+        }
+    }
+
+    /// How far ahead `weekLows` looks, in days after today.
+    public static let weekAhead = 7
 
     /// A repeating bill or paycheck.
     public struct Bill: Codable, Equatable, Sendable, Identifiable {
@@ -124,11 +144,12 @@ public struct ConnectionSummary: Codable, Equatable, Sendable, Identifiable {
     /// many lines wait on each account this person can change. A server set
     /// to keep Nothing gets `nameOnly`, whatever was loaded.
     public static func make(_ saved: SavedConnection, dashboard: Dashboard, recurring: RecurringList,
-                            toConfirm: [Int: Int], madeAt: Date = .now) -> ConnectionSummary {
+                            toConfirm: [Int: Int], weekLows: [Int: [DayBalance]] = [:],
+                            madeAt: Date = .now) -> ConnectionSummary {
         guard keepsNumbers(saved) else { return nameOnly(saved, madeAt: madeAt) }
         let accounts = dashboard.cards.map { card in
             Account(id: card.id, name: card.name, balance: card.currentBalance, monthLow: card.forecastLow,
-                    monthLowDate: card.forecastLowDate, toConfirm: toConfirm[card.id])
+                    monthLowDate: card.forecastLowDate, toConfirm: toConfirm[card.id], weekLows: weekLows[card.id])
         }
         let bills = recurring.items.filter { $0.active && !$0.expired }.map { item in
             Bill(id: item.id, name: item.description, accountId: item.accountId, accountName: item.accountName,
@@ -148,15 +169,35 @@ public struct ConnectionSummary: Codable, Equatable, Sendable, Identifiable {
         guard keepsNumbers(saved) else { return nameOnly(saved, madeAt: now) }
         let dashboard = try await client.dashboard(today: today)
         let recurring = try await client.recurring(today: today)
+        let editable = Set(try await client.accounts(today: today).filter(\.canEdit).map(\.id))
+        let month = YearMonth(today)
+        let lastDay = today.adding(days: weekAhead)
         var toConfirm: [Int: Int] = [:]
-        if !readOnly {
-            let month = YearMonth(today)
-            for account in try await client.accounts(today: today) where account.canEdit {
-                toConfirm[account.id] = try await client.forecast(account: account.id, month: month, today: today)
-                    .toConfirm(today: today).count
+        var weekLows: [Int: [DayBalance]] = [:]
+        for card in dashboard.cards {
+            let here = try await client.forecast(account: card.id, month: month, today: today)
+            var rows = here.rows
+            if YearMonth(lastDay) != month {
+                rows += try await client.forecast(account: card.id, month: month.next, today: today).rows
             }
+            if !readOnly, editable.contains(card.id) { toConfirm[card.id] = here.toConfirm(today: today).count }
+            weekLows[card.id] = lows(rows, balance: card.currentBalance, today: today)
         }
-        return make(saved, dashboard: dashboard, recurring: recurring, toConfirm: toConfirm, madeAt: now)
+        return make(saved, dashboard: dashboard, recurring: recurring, toConfirm: toConfirm, weekLows: weekLows,
+                    madeAt: now)
+    }
+
+    /// Each day's lowest forecast balance from today to `weekAhead` days on:
+    /// today starts at the balance now, and each other day with lines has
+    /// the lowest balance its lines leave.
+    static func lows(_ rows: [ForecastLine], balance: Money, today: LocalDay) -> [DayBalance] {
+        let lastDay = today.adding(days: weekAhead)
+        var byDay: [LocalDay: Money] = [today: balance]
+        for row in rows {
+            guard let day = row.plannedDate, day >= today, day <= lastDay else { continue }
+            byDay[day] = min(byDay[day] ?? row.forecastBalance, row.forecastBalance)
+        }
+        return byDay.sorted { $0.key < $1.key }.map { DayBalance(date: $0.key, low: $0.value) }
     }
 
     // MARK: What the widgets show

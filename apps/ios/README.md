@@ -352,7 +352,35 @@ redacts them to ••••; names, labels and counts still show. A widget's ta
 ids only. The app group, the file names, the widget kinds
 (`net.iptater.walletweather.balance`, `.next-bills`, `.to-confirm`) and the
 link's pages are stable identifiers. `KeptResponses` and the household's store
-stay in the app's own container: nothing moved into the group.
+stay in the app's own container: nothing moved into the group. Since #319 it
+also holds each account's lowest forecast balance on each of the next 7 days
+(`weekLows`), from that account's Forecast (and next month's, when the week
+crosses into it).
+
+**Reminders** (#319, `Reminders.swift` in WalletWeatherKit, `ReminderCenter`
+in the app): Settings → Reminders has Bill due tomorrow (9:00 AM the day
+before, changeable), Balance heading under (one account, picked, starting at
+$100; told once when the forecast first goes under within 7 days, again only
+after it's back above) and New bank lines to match (after bank sync on this
+iPhone, when more lines wait than last time). All three start off; turning the
+first on asks iOS for permission. The choices are in the app's preferences
+(`reminders.settings`), and what's been told (`reminders.state`: the dip warned
+of, the last count of bank lines) beside them. Each time the connection in
+front's summary is written, and when another saved connection comes in front,
+the app replaces its scheduled bill reminders (at most 50, iOS keeps 64) from
+that summary; the demo leaves them as they were, and signing out, or a server
+set to Nothing, leaves none. A reminder's title and body never carry an
+amount; its `userInfo` holds ids and a day only. Its category
+(`net.iptater.walletweather.reminder`) opens the expanded view, the
+`WalletWeatherNotifications` content extension (`Notifications/`, bundle
+`net.iptater.walletweather.notifications`), which reads the amount from the
+summary and shows •••• when the summary can't be read (phone locked) or the
+app lock is on. Tapping a reminder opens Bills & income, the account in
+Forecast, or the Dashboard, through the same route as a widget. To see one on
+the simulator without waiting, send it with `xcrun simctl push <udid>
+net.iptater.walletweather <file>.apns`, a payload with `"category":
+"net.iptater.walletweather.reminder"` in `aps` and the `kind`, `connection`,
+`item` and `day` keys beside it.
 
 Signing out of a server (its page, from Connections) ends that server's
 token first (`DELETE /api/tokens/current`, sent with that connection's own

@@ -13,7 +13,7 @@ struct SettingsLayoutTests {
         #expect(layout.groups.map(\.section) == [.connection, .morePages, .household, .thisIPhone, .about])
         #expect(layout.groups.map(\.rows) == [
             [.connection], [.morePages], [.tags, .bankSync, .importCSV],
-            [.appearance, .tabBar, .privacyLock, .datesDisplay], [.notice, .help, .versions],
+            [.appearance, .tabBar, .privacyLock, .datesDisplay, .reminders], [.notice, .help, .versions],
         ])
         #expect(layout.rows(on: .connections) == [.savedConnection, .demoConnection, .addServer])
         #expect(layout.rows(on: .connection) == [.connectionName, .address, .signedInAs, .cloudflare, .keep, .openWebApp, .signOut])
@@ -21,12 +21,12 @@ struct SettingsLayoutTests {
         #expect(layout.rows(on: .privacy) == [.lock, .appSwitcher])
         #expect(layout.rows(on: .display) == [.dateFormat, .followAccount])
         #expect(layout.rows(on: .help) == [.showGettingStarted, .privacyPolicy])
-        #expect(Set(layout.reachablePages) == [.connections, .connection, .keep, .tags, .bank, .appearance, .tabBar, .privacy, .display, .notice, .help])
+        #expect(Set(layout.reachablePages) == [.connections, .connection, .keep, .tags, .bank, .appearance, .tabBar, .privacy, .display, .reminders, .notice, .help])
         #expect(Set(layout.reachableRows) == [
-            .connection, .morePages, .tags, .bankSync, .importCSV, .appearance, .tabBar, .privacyLock, .datesDisplay,
+            .connection, .morePages, .tags, .bankSync, .importCSV, .appearance, .tabBar, .privacyLock, .datesDisplay, .reminders,
             .notice, .help, .versions, .savedConnection, .demoConnection, .addServer,
             .connectionName, .address, .signedInAs, .cloudflare, .keep, .openWebApp, .signOut,
-            .keepNothing, .keepLastKnown, .bankCard, .looks, .lock, .appSwitcher, .dateFormat, .followAccount, .showGettingStarted, .privacyPolicy,
+            .keepNothing, .keepLastKnown, .bankCard, .looks, .lock, .appSwitcher, .dateFormat, .followAccount, .billsDueTomorrow, .balanceUnder, .newBankLines, .showGettingStarted, .privacyPolicy,
         ])
     }
 
@@ -35,7 +35,7 @@ struct SettingsLayoutTests {
         #expect(layout.groups.map(\.rows) == [
             [.connection], [.morePages],
             [.tags, .bankSync, .iCloudBackup, .moveToServer, .addAccount, .importCSV],
-            [.appearance, .tabBar, .privacyLock, .datesDisplay], [.notice, .help, .versions],
+            [.appearance, .tabBar, .privacyLock, .datesDisplay, .reminders], [.notice, .help, .versions],
         ])
         #expect(layout.rows(on: .connection) == [.aboutThisIPhone, .deleteEverything])
         #expect(layout.rows(on: .backup) == [.syncWithICloud, .backupToICloudDrive, .backupPassphrase])
@@ -43,11 +43,11 @@ struct SettingsLayoutTests {
         #expect(layout.rows(on: .display) == [.dateFormat, .followAccount])
         #expect(layout.rows(on: .help) == [.showGettingStarted, .privacyPolicy, .setupGuide])
         #expect(layout.rows(on: .connections) == [.savedConnection, .demoConnection, .addServer])
-        #expect(Set(layout.reachablePages) == [.connections, .connection, .tags, .bank, .backup, .move, .appearance, .tabBar, .privacy, .display, .notice, .help])
+        #expect(Set(layout.reachablePages) == [.connections, .connection, .tags, .bank, .backup, .move, .appearance, .tabBar, .privacy, .display, .reminders, .notice, .help])
         #expect(Set(layout.reachableRows) == [
             .connection, .morePages, .tags, .bankSync, .iCloudBackup, .moveToServer, .addAccount, .importCSV,
-            .appearance, .tabBar, .privacyLock, .datesDisplay, .notice, .help, .versions, .savedConnection, .demoConnection, .addServer,
-            .aboutThisIPhone, .deleteEverything, .bankCard, .looks, .lock, .appSwitcher, .dateFormat, .followAccount,
+            .appearance, .tabBar, .privacyLock, .datesDisplay, .reminders, .notice, .help, .versions, .savedConnection, .demoConnection, .addServer,
+            .aboutThisIPhone, .deleteEverything, .bankCard, .looks, .lock, .appSwitcher, .dateFormat, .followAccount, .billsDueTomorrow, .balanceUnder, .newBankLines,
             .syncWithICloud, .backupToICloudDrive, .backupPassphrase, .copyToServer, .exportForServer, .importServerBackup,
             .showGettingStarted, .privacyPolicy, .setupGuide,
         ])
@@ -57,17 +57,17 @@ struct SettingsLayoutTests {
         let layout = SettingsLayout(household: .demo, canWrite: true, morePages: more, hasBiometry: true)
         #expect(layout.groups.map(\.rows) == [
             [.connection], [.morePages], [.tags, .bankSync, .importCSV],
-            [.appearance, .tabBar, .privacyLock, .datesDisplay], [.notice, .help, .versions],
+            [.appearance, .tabBar, .privacyLock, .datesDisplay, .reminders], [.notice, .help, .versions],
         ])
         #expect(layout.rows(on: .connection) == [.aboutDemo])
         // The demo is a row of the list, last (#301): choosing another
         // connection leaves it, so its card and Leave the demo went.
         #expect(layout.rows(on: .connections) == [.savedConnection, .demoConnection, .addServer])
         #expect(layout.rows(on: .display) == [.dateFormat, .followAccount])
-        #expect(Set(layout.reachablePages) == [.connections, .connection, .tags, .bank, .appearance, .tabBar, .privacy, .display, .notice, .help])
+        #expect(Set(layout.reachablePages) == [.connections, .connection, .tags, .bank, .appearance, .tabBar, .privacy, .display, .reminders, .notice, .help])
         #expect(Set(layout.reachableRows) == [
-            .connection, .morePages, .tags, .bankSync, .importCSV, .appearance, .tabBar, .privacyLock, .datesDisplay,
-            .notice, .help, .versions, .aboutDemo, .savedConnection, .demoConnection, .addServer, .bankCard, .looks, .lock, .appSwitcher, .dateFormat, .followAccount,
+            .connection, .morePages, .tags, .bankSync, .importCSV, .appearance, .tabBar, .privacyLock, .datesDisplay, .reminders,
+            .notice, .help, .versions, .aboutDemo, .savedConnection, .demoConnection, .addServer, .bankCard, .looks, .lock, .appSwitcher, .dateFormat, .followAccount, .billsDueTomorrow, .balanceUnder, .newBankLines,
             .showGettingStarted, .privacyPolicy,
         ])
     }
@@ -203,7 +203,7 @@ struct SettingsLayoutTests {
             [.open(.page(.connections))],
             more.map { .open(.app($0)) },
             [.open(.page(.tags)), .open(.page(.bank)), .open(.page(.backup)), .open(.page(.move)), .act(.addAccount), .act(.importCSV)],
-            [.open(.page(.appearance)), .open(.page(.tabBar)), .open(.page(.privacy)), .open(.page(.display))],
+            [.open(.page(.appearance)), .open(.page(.tabBar)), .open(.page(.privacy)), .open(.page(.display)), .open(.page(.reminders))],
             [.open(.page(.notice)), .open(.page(.help)), .info(.versions)],
         ])
         for household in SettingsHousehold.allCases {

@@ -100,3 +100,12 @@ Two more, settled the same day while planning them ([Plans/outside-the-app.md](.
 
 1. **The phone's search holds the bills and accounts of the household on this iPhone and of servers that keep Last-known numbers,** by name only. Servers set to Nothing and the demo aren't indexed, and signing out of a server removes its entries. Every real connection, and only the one in front, were the other options.
 2. **Add a transaction opens the app's Add transaction sheet, filled in from the Shortcut, for a last look; Mark a bill paid runs without opening the app (after Face ID) and says what it did.** Both running in the background, and both opening the app, were the other options.
+
+## 2026-11-24: which balance and which connection reminders watch
+
+**Decided:** 2026-11-24, by Matthew, while building phase 2 of [Plans/outside-the-app.md](../../../Plans/outside-the-app.md) (#319). **Status:** accepted.
+
+1. **Balance heading under watches one account, picked under the switch,** starting on the first account (usually Checking). A credit card's balance is always below any amount, so watching every account would warn about it at once. Every account, and the total of all accounts, were the other options.
+2. **Reminders follow the connection in front.** Switching to another saved connection replaces them, signing out of it removes them, and the demo (also when the lock brings it forward) leaves them as they were. Every connection with numbers, and the household on this iPhone only, were the other options.
+3. **Balance heading under starts at $100,** changeable with the field under the switch. $500 and $0 were the other options.
+

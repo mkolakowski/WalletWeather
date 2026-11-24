@@ -1,12 +1,17 @@
 import SwiftUI
+import UserNotifications
 import WalletWeatherKit
 
 /// Registers for CloudKit's silent pushes, which bring another device's
 /// changes in, also while the app is in the background (#238).
 final class AppDelegate: NSObject, UIApplicationDelegate {
+    /// Reminders shown while the app is open, and tapped (#319).
+    private let reminders = ReminderDelegate()
+
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         application.registerForRemoteNotifications()
+        UNUserNotificationCenter.current().delegate = reminders
         return true
     }
 }
@@ -47,6 +52,8 @@ struct WalletWeatherApp: App {
                     if let saved = model.saved, saved.kind == .server { settings.serverTheme = saved.webTheme }
                 }
                 .task {
+                    // A tapped reminder opens its page, as a widget does (#319).
+                    ReminderDelegate.open = { [model] in model.widgetOpen = $0 }
                     // Locked in the demo, a real connection asks first (#301).
                     model.authenticateToLeaveDemo = { [settings] in await settings.mayOpenYourNumbers() }
                     model.start { settings.lockAtLaunch(front: $0) }

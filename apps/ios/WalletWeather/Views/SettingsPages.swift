@@ -29,6 +29,7 @@ struct SettingsPageView: View {
             case .appearance: AppearancePage()
             case .privacy: PrivacyPage()
             case .display: DatesDisplayPage()
+            case .reminders: RemindersPage()
             case .backup: BackupPage()
             case .move: MovePage()
             case .help: HelpPage()
@@ -858,5 +859,108 @@ struct NoticePage: View {
         .background(PageBackground().ignoresSafeArea())
         .navigationTitle("Important notice")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Reminders (#319): three switches, all off to start, each with its note.
+/// Turning the first on asks iOS for permission. Bill due tomorrow has its
+/// time under it, Balance heading under its account and amount. Reminders
+/// are worked out on this iPhone for the connection in front, and their text
+/// never carries an amount.
+private struct RemindersPage: View {
+    @Environment(AppModel.self) private var model
+    @State private var accounts: [Account] = []
+    @State private var amount: Decimal = ReminderSettings.startAmount.amount
+
+    private var reminders: ReminderCenter { model.reminders }
+    private var settings: ReminderSettings { reminders.settings }
+
+    private func toggle(_ row: SettingsRow, _ value: Bool, _ set: @escaping (inout ReminderSettings, Bool) -> Void) -> some View {
+        Toggle(row.title, isOn: Binding(get: { value }, set: { on in Task { await reminders.change { set(&$0, on) } } }))
+            .frame(minHeight: 44)
+    }
+
+    /// The time Bill due tomorrow arrives, as a date today.
+    private var billTime: Binding<Date> {
+        Binding(get: {
+            Calendar.current.date(bySettingHour: settings.billHour, minute: settings.billMinute, second: 0, of: .now) ?? .now
+        }, set: { date in
+            let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+            Task { await reminders.change { $0.billHour = parts.hour ?? 9; $0.billMinute = parts.minute ?? 0 } }
+        })
+    }
+
+    /// The account watched on the connection in front: the one picked, else the first.
+    private var watched: Binding<Int> {
+        Binding(get: {
+            guard let id = model.saved?.id else { return 0 }
+            let picked = settings.balanceAccount(for: id)
+            return accounts.contains { $0.id == picked } ? picked ?? 0 : accounts.first?.id ?? 0
+        }, set: { account in
+            guard let id = model.saved?.id else { return }
+            Task { await reminders.change { $0.setBalanceAccount(account, for: id) } }
+        })
+    }
+
+    var body: some View {
+        SettingsPageFrame(title: "Reminders") {
+            if reminders.denied {
+                Text("Notifications are off for WalletWeather. Turn them on in the Settings app → Notifications → WalletWeather, then come back.")
+                    .font(.callout).card()
+                Gap()
+            }
+            VStack(spacing: 0) {
+                toggle(.billsDueTomorrow, settings.billsOn) { $0.billsOn = $1 }
+                if settings.billsOn {
+                    Divider()
+                    DatePicker("At", selection: billTime, displayedComponents: .hourAndMinute).frame(minHeight: 44)
+                }
+            }
+            .card()
+            SettingNote("The day before each bill is due, at this time: \"Rent is due tomorrow\".")
+            Gap()
+            VStack(spacing: 0) {
+                toggle(.balanceUnder, settings.balanceOn) { $0.balanceOn = $1 }
+                if settings.balanceOn {
+                    if model.saved != nil, !accounts.isEmpty {
+                        Divider()
+                        Picker("Account", selection: watched) {
+                            ForEach(accounts) { Text($0.name).tag($0.id) }
+                        }
+                        .frame(minHeight: 44)
+                    }
+                    Divider()
+                    HStack {
+                        Text("Under")
+                        Spacer()
+                        TextField("Amount", value: $amount, format: .currency(code: "USD"))
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 160)
+                            .onSubmit(saveAmount)
+                    }
+                    .frame(minHeight: 44)
+                }
+            }
+            .card()
+            SettingNote("When this account's forecast first goes under the amount in the next 7 days. Once for each dip.")
+            Gap()
+            toggle(.newBankLines, settings.bankLinesOn) { $0.bankLinesOn = $1 }.card()
+            SettingNote("When bank sync on this iPhone brings in lines that wait to be matched.")
+            Gap()
+            SettingNote("Reminders are worked out on this iPhone for the connection in front, and none for the demo or a server set to keep Nothing. They name the bill or account, never an amount: press and hold one to see the amount, which stays hidden while your iPhone or WalletWeather is locked.")
+        }
+        .task(id: model.generation) {
+            amount = settings.balanceAmount.amount
+            accounts = model.saved == nil ? [] : (try? await model.client?.accounts()) ?? []
+        }
+        .task { await reminders.refreshPermission() }
+        .onChange(of: amount) { _, _ in saveAmount() }
+    }
+
+    private func saveAmount() {
+        let typed = Money(amount)
+        guard typed != settings.balanceAmount else { return }
+        Task { await reminders.change { $0.balanceAmount = typed } }
     }
 }

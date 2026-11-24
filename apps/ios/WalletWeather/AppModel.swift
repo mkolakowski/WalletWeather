@@ -213,9 +213,11 @@ final class AppModel {
 
     // MARK: - The widgets' summary (Plans/outside-the-app.md, phase 1, #318)
 
-    /// A widget tapped: the page to open, on its connection. A window's
-    /// pages take it (`RootView`) and clear it.
+    /// A widget or a reminder tapped: the page to open, on its connection.
+    /// A window's pages take it (`RootView`) and clear it.
     var widgetOpen: WidgetOpen?
+    /// Reminders (#319): Settings → Reminders, scheduled from the summary.
+    let reminders = ReminderCenter()
     /// The last summary written: for which connection and load, and when, so
     /// coming back to the app doesn't ask the server again every time.
     @ObservationIgnored private var lastSummary: (key: String, at: Date)?
@@ -264,6 +266,23 @@ final class AppModel {
         guard !Task.isCancelled, saved?.id == front.id, let current = store.load(front.id) else { return }
         if !ConnectionSummary.keepsNumbers(current) { summary = .nameOnly(current) }
         if summaries.write(summary) { WidgetCenter.shared.reloadAllTimelines() }
+        // The reminders follow the numbers just written (#319).
+        reminders.replan(summary)
+    }
+
+    /// The reminders for the saved connection now in front (#319), from its
+    /// summary as written; none in front removes them. A summary the phone
+    /// can't read now leaves them as they are.
+    private func replanReminders(for front: SavedConnection?) {
+        guard let front else {
+            reminders.replan(nil)
+            return
+        }
+        switch store.summaries?.read(front.id) ?? .missing {
+        case let .found(summary): reminders.replan(summary)
+        case .missing: reminders.replan(nil)
+        case .unreadable: break
+        }
     }
 
     /// Summaries of connections no longer saved go (a crash between signing
@@ -293,6 +312,12 @@ final class AppModel {
             if let account = open.account {
                 forecastRequest = account
                 forecastToConfirm = true
+            }
+            return .forecast
+        case .forecast:
+            if let account = open.account {
+                forecastRequest = account
+                forecastToConfirm = false
             }
             return .forecast
         }
@@ -337,6 +362,9 @@ final class AppModel {
                 WidgetCenter.shared.reloadAllTimelines()
             }
         }
+        // Reminders follow the saved connection in front; the demo isn't
+        // one, so it leaves them as they were (#319).
+        replanReminders(for: front)
     }
 
     /// Reads the saved connections again, for Connections.
@@ -632,7 +660,10 @@ final class AppModel {
         // Behind a server or the demo too (#301, #302): what it lands never
         // reloads the pages unless the household is what's in front.
         guard householdMayRun, phase == .ready else { return }
-        if let result = await phoneBank.syncIfDue(), result.added + result.matched > 0, isLocal { generation += 1 }
+        if let result = await phoneBank.syncIfDue() {
+            if result.added + result.matched > 0, isLocal { generation += 1 }
+            reminders.bankSynced(waiting: phoneBank.state.unmatched)
+        }
         scheduleBankRefresh()
     }
 
@@ -641,10 +672,13 @@ final class AppModel {
     /// locked phone keeps it closed).
     func backgroundBankSync() async {
         guard phoneBank.connected, householdMayRun else { return }
-        if let result = await phoneBank.syncIfDue(), result.added + result.matched > 0, isLocal {
-            generation += 1
-            // New lines change the widgets' numbers (#318).
-            await writeSummary()
+        if let result = await phoneBank.syncIfDue() {
+            reminders.bankSynced(waiting: phoneBank.state.unmatched)
+            if result.added + result.matched > 0, isLocal {
+                generation += 1
+                // New lines change the widgets' numbers (#318) and the reminders (#319).
+                await writeSummary()
+            }
         }
         scheduleBankRefresh()
     }

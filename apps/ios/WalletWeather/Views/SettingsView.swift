@@ -275,6 +275,10 @@ struct SettingsView: View {
             return settings.tabs == TabPage.defaultBar ? "Usual" : settings.tabs.map(\.title).joined(separator: ", ")
         case .privacyLock:
             return SettingsLayout.privacyValue(biometry: settings.biometryName, lockOn: settings.lockEnabled)
+        case .reminders:
+            let on = model.reminders.settings
+            let count = [on.billsOn, on.balanceOn, on.bankLinesOn].filter { $0 }.count
+            return count == 0 ? "Off" : "\(count) on"
         default:
             return nil
         }

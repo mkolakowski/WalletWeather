@@ -26,11 +26,13 @@
 		342087AFBFCCAD445AFB2659 /* CloudBackupModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFD2173D8B902D535067E208 /* CloudBackupModel.swift */; };
 		34B3D211AEFC9C768C051569 /* WalletWeatherApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC920553659CFFE6259EBA9C /* WalletWeatherApp.swift */; };
 		3517A60C2350816D3F25BC07 /* BigScreenViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 948E8EEE1A65AFD31A880000 /* BigScreenViews.swift */; };
+		38257DC87ED5876D4DD010FF /* NotificationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8E7ABEDFC526160C1791D2D /* NotificationViewController.swift */; };
 		3890DA3AB0F11364FACBAA42 /* ConnectionChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60D4A1DCD8715B9A0F59BB88 /* ConnectionChip.swift */; };
 		3C7FEC0BD2D0BDE5A25C002C /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = FA70A59EE4D421A6E2841A3A /* PrivacyInfo.xcprivacy */; };
 		3D7A5B5BE64924E4AE8BF00A /* LoadState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EF6456B5FCCB4251D23495E /* LoadState.swift */; };
 		3FEA21661C0EC749243EA63E /* WidgetGallery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D2B5EF21E87F451E0EA50C4 /* WidgetGallery.swift */; };
 		462B717DCD44956EEC548ECB /* MoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8612988B4A68458DECAB4745 /* MoreView.swift */; };
+		4AC1D2D1DB149BD32EBF95A8 /* WalletWeatherNotifications.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DBF83CE463D1DA7FB421457A /* WalletWeatherNotifications.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		4E47E421774FF04019F80AA1 /* MoveMoneySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F10AF2509F0101D7139AD73 /* MoveMoneySheet.swift */; };
 		55BE2153B1D9850CFDFD5234 /* TagViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E9ED45DC22B1C2B1AFC65C /* TagViews.swift */; };
 		5674B2C7B6BE02CCE7EB0BA9 /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = D477F5ED78FD4EA9DBFD3630 /* Keychain.swift */; };
@@ -41,6 +43,7 @@
 		80669495013A8E87A3743E59 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDE64033EF7589F61FD10A90 /* SearchView.swift */; };
 		86C2917221963763A2AA523A /* LargeText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE6D34667F5BB86D58712D /* LargeText.swift */; };
 		8DC91904DD11611BE2773B20 /* GettingStartedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75BD1096AF0D745FED33F38E /* GettingStartedViews.swift */; };
+		903A93C2E5C8D31E309A0177 /* ReminderCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23E54550D8B3003D32A01453 /* ReminderCenter.swift */; };
 		9317F089EDBA8F73446BEFB4 /* KeyboardAndPointer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8954E314055BADF11713BF9 /* KeyboardAndPointer.swift */; };
 		945C6F0FBBEEA88681FA2302 /* Views.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E7C0698DD43BBAA1A0A748C /* Views.swift */; };
 		961F8837BB7456E29B052F79 /* UndoBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B996A28417EBEFEBDF64CE1 /* UndoBar.swift */; };
@@ -56,6 +59,7 @@
 		B9DF71AA4970ECC6F0927401 /* LineEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A91553B7086BC583359B4E5F /* LineEditor.swift */; };
 		BB489358CA96FB9596EE2902 /* ForecastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 067F8A5A4984B672631E4818 /* ForecastView.swift */; };
 		BE29514A7471421B5298A92B /* CSVImportViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3382C27760DB4FDDB484054 /* CSVImportViews.swift */; };
+		C52DD92D5DC2076928D02D08 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9DE59A9B8F882B4D413418A0 /* PrivacyInfo.xcprivacy */; };
 		C5B163FC5C298AF57896CC3F /* WalletWeatherWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19EF8BE2DD8ADD84D02AB538 /* WalletWeatherWidgets.swift */; };
 		CA8A6A4039A2495FB3EC052F /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 354C1F47B2C105A157D90B7C /* AppModel.swift */; };
 		D13FCDB6E06382F99755241E /* TabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 145D05F53CFC95EA650B720C /* TabBar.swift */; };
@@ -64,8 +68,10 @@
 		D60F8C07456A589A71AC453E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 562DA68807BECD48C02DE3F0 /* WidgetKit.framework */; };
 		DA2C662A3F9E9B07C17BFC68 /* BillsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D0553102CA76CF6F2551892 /* BillsView.swift */; };
 		DA2CF520366BDACDA9908042 /* NameHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9169F21461AD0525C4C7017 /* NameHistory.swift */; };
+		DDD251443207A1D1E26F09FE /* UserNotificationsUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2FCAF548B43D070CF3DD1A70 /* UserNotificationsUI.framework */; };
 		E4B39C05F91B13F80EE5068D /* MoveViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6E160E5ACC028F9FCFF027 /* MoveViews.swift */; };
 		EC7FFE9E0118DB3EF0409912 /* MonthMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9819ED5346F2EC2B60C37AA5 /* MonthMenu.swift */; };
+		FA80FC528E02EC8EC61C42F5 /* WalletWeatherKit in Frameworks */ = {isa = PBXBuildFile; productRef = 282D294D0DEDCC0726327963 /* WalletWeatherKit */; };
 		FB73D58433046DB107B7663B /* AccountFollower.swift in Sources */ = {isa = PBXBuildFile; fileRef = 853A48B5A75D9C9B343FE58A /* AccountFollower.swift */; };
 		FC679BF76B513DDEC977EA25 /* AppearanceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F9C229869953F8F6C9FAB0 /* AppearanceViews.swift */; };
 		FE6DB983F28367B5822AB69E /* OpenInForecast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 477E3FB4D8EDDD73201F110E /* OpenInForecast.swift */; };
@@ -79,6 +85,13 @@
 			remoteGlobalIDString = 73219E7113EBE8A0AFD389EF;
 			remoteInfo = WalletWeatherWidgets;
 		};
+		B642262D7B1C1A8EDBCCB526 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EAD44CB0905FB41B97366002 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CF606764EC7D825CD3B313A5;
+			remoteInfo = WalletWeatherNotifications;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -89,6 +102,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				0374688D6C5067EF291CFB5F /* WalletWeatherWidgets.appex in Embed Foundation Extensions */,
+				4AC1D2D1DB149BD32EBF95A8 /* WalletWeatherNotifications.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -104,6 +118,8 @@
 		1844B10DF38719D1B7F37F6D /* Provider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Provider.swift; sourceTree = "<group>"; };
 		19EF8BE2DD8ADD84D02AB538 /* WalletWeatherWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletWeatherWidgets.swift; sourceTree = "<group>"; };
 		1CB3A8CA4A133C6BA5A01D89 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		23E54550D8B3003D32A01453 /* ReminderCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderCenter.swift; sourceTree = "<group>"; };
+		2FCAF548B43D070CF3DD1A70 /* UserNotificationsUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotificationsUI.framework; path = System/Library/Frameworks/UserNotificationsUI.framework; sourceTree = SDKROOT; };
 		304B013EE2D42E8B86135A77 /* WalletWeatherWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = WalletWeatherWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		319D4205BFCC35DC6757600B /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		34D31157F799FA2DD3673952 /* WalletWeather.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WalletWeather.entitlements; sourceTree = "<group>"; };
@@ -138,6 +154,7 @@
 		9819ED5346F2EC2B60C37AA5 /* MonthMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthMenu.swift; sourceTree = "<group>"; };
 		99597682BE06C6A4C37D1188 /* BackupViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupViews.swift; sourceTree = "<group>"; };
 		9D2B5EF21E87F451E0EA50C4 /* WidgetGallery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetGallery.swift; sourceTree = "<group>"; };
+		9DE59A9B8F882B4D413418A0 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A3E9C40EFE3CCE23D41AA8C7 /* ConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectView.swift; sourceTree = "<group>"; };
 		A5B7EE513A73A7A19A6F7A07 /* SignInSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInSheet.swift; sourceTree = "<group>"; };
 		A8954E314055BADF11713BF9 /* KeyboardAndPointer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardAndPointer.swift; sourceTree = "<group>"; };
@@ -153,11 +170,14 @@
 		D3382C27760DB4FDDB484054 /* CSVImportViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVImportViews.swift; sourceTree = "<group>"; };
 		D4460223E3EE434655554208 /* CopyToServerViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopyToServerViews.swift; sourceTree = "<group>"; };
 		D477F5ED78FD4EA9DBFD3630 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		DBF83CE463D1DA7FB421457A /* WalletWeatherNotifications.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = WalletWeatherNotifications.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		DFB26B2201D3541193633A07 /* ChartViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartViews.swift; sourceTree = "<group>"; };
 		DFD2173D8B902D535067E208 /* CloudBackupModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudBackupModel.swift; sourceTree = "<group>"; };
 		EC920553659CFFE6259EBA9C /* WalletWeatherApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletWeatherApp.swift; sourceTree = "<group>"; };
 		EFE45031D964385DAC6CD4F5 /* Configuration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Configuration.swift; sourceTree = "<group>"; };
 		F383D873EAEC9D479D07F6AE /* WalletWeatherWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WalletWeatherWidgets.entitlements; sourceTree = "<group>"; };
+		F486A98DA4B3254963879F00 /* WalletWeatherNotifications.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WalletWeatherNotifications.entitlements; sourceTree = "<group>"; };
+		F8E7ABEDFC526160C1791D2D /* NotificationViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationViewController.swift; sourceTree = "<group>"; };
 		FA6E160E5ACC028F9FCFF027 /* MoveViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveViews.swift; sourceTree = "<group>"; };
 		FA70A59EE4D421A6E2841A3A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -181,6 +201,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		ECB70FD82371145859B6253C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FA80FC528E02EC8EC61C42F5 /* WalletWeatherKit in Frameworks */,
+				DDD251443207A1D1E26F09FE /* UserNotificationsUI.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -196,6 +225,7 @@
 			isa = PBXGroup;
 			children = (
 				38A0E0386259C1431BB7F2D1 /* WalletWeather.app */,
+				DBF83CE463D1DA7FB421457A /* WalletWeatherNotifications.appex */,
 				304B013EE2D42E8B86135A77 /* WalletWeatherWidgets.appex */,
 			);
 			name = Products;
@@ -247,10 +277,21 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
+		765E8EC53B14E298FE3A2D3E /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				F8E7ABEDFC526160C1791D2D /* NotificationViewController.swift */,
+				9DE59A9B8F882B4D413418A0 /* PrivacyInfo.xcprivacy */,
+				F486A98DA4B3254963879F00 /* WalletWeatherNotifications.entitlements */,
+			);
+			path = Notifications;
+			sourceTree = "<group>";
+		};
 		8BED532D1EFC1DEBE9C9B4F9 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				7C576CC856B8150E7FEE283B /* SwiftUI.framework */,
+				2FCAF548B43D070CF3DD1A70 /* UserNotificationsUI.framework */,
 				562DA68807BECD48C02DE3F0 /* WidgetKit.framework */,
 			);
 			name = Frameworks;
@@ -280,6 +321,7 @@
 				D477F5ED78FD4EA9DBFD3630 /* Keychain.swift */,
 				A9169F21461AD0525C4C7017 /* NameHistory.swift */,
 				760DE072423DD9D965E38BEE /* PrivacyInfo.xcprivacy */,
+				23E54550D8B3003D32A01453 /* ReminderCenter.swift */,
 				A5B7EE513A73A7A19A6F7A07 /* SignInSheet.swift */,
 				13149321E10C325276768DD5 /* Theme.swift */,
 				3B50EE1D83429562642B2DCA /* ThemeCloud.swift */,
@@ -302,6 +344,7 @@
 			isa = PBXGroup;
 			children = (
 				3276110CCBEAB5A18BEAA990 /* Config */,
+				765E8EC53B14E298FE3A2D3E /* Notifications */,
 				FBE1057AD8EFF8AA61767C88 /* Packages */,
 				E6A1DF4DFA8FB7010F626A4D /* WalletWeather */,
 				BF983C2BFEB3BC4619D25FA7 /* Widgets */,
@@ -333,6 +376,26 @@
 			productReference = 304B013EE2D42E8B86135A77 /* WalletWeatherWidgets.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		CF606764EC7D825CD3B313A5 /* WalletWeatherNotifications */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A3E4AE4E6A05F6F37FA5A70B /* Build configuration list for PBXNativeTarget "WalletWeatherNotifications" */;
+			buildPhases = (
+				49291A4DDBD442527FFFC2E4 /* Sources */,
+				898DD5C38B7C7FCE987B245C /* Resources */,
+				ECB70FD82371145859B6253C /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WalletWeatherNotifications;
+			packageProductDependencies = (
+				282D294D0DEDCC0726327963 /* WalletWeatherKit */,
+			);
+			productName = WalletWeatherNotifications;
+			productReference = DBF83CE463D1DA7FB421457A /* WalletWeatherNotifications.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		EE42AA4A3EDCE4723C0243BD /* WalletWeather */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = B961D19CE649F25CD2CA7866 /* Build configuration list for PBXNativeTarget "WalletWeather" */;
@@ -346,6 +409,7 @@
 			);
 			dependencies = (
 				B32678082E0E3C1A768F4196 /* PBXTargetDependency */,
+				5686FC9DE13F829C852CBDCC /* PBXTargetDependency */,
 			);
 			name = WalletWeather;
 			packageProductDependencies = (
@@ -365,6 +429,9 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					73219E7113EBE8A0AFD389EF = {
+						ProvisioningStyle = Automatic;
+					};
+					CF606764EC7D825CD3B313A5 = {
 						ProvisioningStyle = Automatic;
 					};
 					EE42AA4A3EDCE4723C0243BD = {
@@ -391,6 +458,7 @@
 			targets = (
 				EE42AA4A3EDCE4723C0243BD /* WalletWeather */,
 				73219E7113EBE8A0AFD389EF /* WalletWeatherWidgets */,
+				CF606764EC7D825CD3B313A5 /* WalletWeatherNotifications */,
 			);
 		};
 /* End PBXProject section */
@@ -410,6 +478,14 @@
 			files = (
 				D5D57BB1E4FEEC41226F4577 /* Assets.xcassets in Resources */,
 				A1AD9EF2A808C2C34BB79713 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		898DD5C38B7C7FCE987B245C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C52DD92D5DC2076928D02D08 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -466,6 +542,7 @@
 				2A3F787DFA9A3BC6817806A5 /* PhoneBankViews.swift in Sources */,
 				1FCF02B71067FD3EBB3F9DE1 /* ProblemBanner.swift in Sources */,
 				D15E3123C4A13434AC0DE0F8 /* QRScanSheet.swift in Sources */,
+				903A93C2E5C8D31E309A0177 /* ReminderCenter.swift in Sources */,
 				B29B4373B3A526BF9E85393F /* RootView.swift in Sources */,
 				AA6E7808084DB08B97F7A142 /* ScopedToConnection.swift in Sources */,
 				80669495013A8E87A3743E59 /* SearchView.swift in Sources */,
@@ -484,9 +561,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		49291A4DDBD442527FFFC2E4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				38257DC87ED5876D4DD010FF /* NotificationViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		5686FC9DE13F829C852CBDCC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CF606764EC7D825CD3B313A5 /* WalletWeatherNotifications */;
+			targetProxy = B642262D7B1C1A8EDBCCB526 /* PBXContainerItemProxy */;
+		};
 		B32678082E0E3C1A768F4196 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 73219E7113EBE8A0AFD389EF /* WalletWeatherWidgets */;
@@ -571,7 +661,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.64.0;
+				MARKETING_VERSION = 0.65.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -639,7 +729,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.64.0;
+				MARKETING_VERSION = 0.65.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -695,6 +785,44 @@
 			};
 			name = Debug;
 		};
+		D3D2684A154222B37B493A62 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Notifications/WalletWeatherNotifications.entitlements;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Support/Notifications-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = net.iptater.walletweather.notifications;
+				PRODUCT_NAME = WalletWeatherNotifications;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		E5B838FD1CA56F4C3225988C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Notifications/WalletWeatherNotifications.entitlements;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Support/Notifications-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = net.iptater.walletweather.notifications;
+				PRODUCT_NAME = WalletWeatherNotifications;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		F2B7C2BDED4658E48893E715 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -722,6 +850,15 @@
 			buildConfigurations = (
 				397E38B0A97BBEBC1AB122D1 /* Debug */,
 				4F0F6CC62DF10D843060AC02 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A3E4AE4E6A05F6F37FA5A70B /* Build configuration list for PBXNativeTarget "WalletWeatherNotifications" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D3D2684A154222B37B493A62 /* Debug */,
+				E5B838FD1CA56F4C3225988C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -754,6 +891,10 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		282D294D0DEDCC0726327963 /* WalletWeatherKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WalletWeatherKit;
+		};
 		2AE115007E026D4BEDB8852D /* WalletWeatherKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WalletWeatherKit;

@@ -20,7 +20,7 @@ settings:
     SWIFT_APPROACHABLE_CONCURRENCY: YES
     # The iOS app's version (CHANGELOG.md tracks it beside the app, web and
     # schema versions). Keep AppInfo.version in WalletWeatherKit equal to it.
-    MARKETING_VERSION: "0.64.0"
+    MARKETING_VERSION: "0.65.0"
     CURRENT_PROJECT_VERSION: "1"
     IPHONEOS_DEPLOYMENT_TARGET: "26.0"
     # iPhone only for now (decided 2026-11-14): no iPad, no Mac.
@@ -47,6 +47,8 @@ targets:
       - package: WalletWeatherKit
       # The widgets (#318), embedded in the app.
       - target: WalletWeatherWidgets
+      # A reminder's expanded view (#319).
+      - target: WalletWeatherNotifications
     info:
       path: Support/Info.plist
       properties:
@@ -106,6 +108,9 @@ targets:
             UTTypeDescription: WalletWeather line
             UTTypeConformsTo: [public.data]
             UTTypeTagSpecification: {}
+    # The scheme the builds and Scripts/testflight.sh use, kept in the
+    # project (xcshareddata) so it doesn't depend on Xcode making one.
+    scheme: {}
     # iCloud Drive (#237): the backup of the household on this iPhone goes to
     # this container's Backups folder. Xcode registers the container with the
     # team the first time it signs the app with this capability.
@@ -165,3 +170,40 @@ targets:
         SKIP_INSTALL: YES
         # WidgetKit and App Intents call in from any thread.
         SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated
+
+  # A reminder's expanded view (Plans/outside-the-app.md, phase 2, #319):
+  # the amount the reminder is about, read from the summary in the app group,
+  # or •••• while the phone or the app is locked.
+  WalletWeatherNotifications:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Notifications
+    dependencies:
+      - package: WalletWeatherKit
+      - sdk: UserNotificationsUI.framework
+    info:
+      path: Support/Notifications-Info.plist
+      properties:
+        CFBundleDisplayName: WalletWeather
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.content-extension
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationViewController
+          NSExtensionAttributes:
+            # Stable: the reminders' category (WalletWeatherKit's ReminderPlan).
+            UNNotificationExtensionCategory: net.iptater.walletweather.reminder
+            UNNotificationExtensionInitialContentSizeRatio: 0.25
+            UNNotificationExtensionDefaultContentHidden: false
+    entitlements:
+      path: Notifications/WalletWeatherNotifications.entitlements
+      properties:
+        com.apple.security.application-groups: [group.net.iptater.walletweather]
+    settings:
+      base:
+        # Stable.
+        PRODUCT_BUNDLE_IDENTIFIER: net.iptater.walletweather.notifications
+        PRODUCT_NAME: WalletWeatherNotifications
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES

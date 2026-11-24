@@ -71,6 +71,12 @@ same commit (or session) that introduces it.
 
 App version: **1.98.2** · Web version: **1.116.1** · Schema version: **39** · iOS version: **0.67.0**
 
+## [1.98.2] — 2026-11-24
+
+App version: **1.98.2** · Web version: **1.116.1** · Schema version: **39** · iOS version: **0.67.0**
+
+The bank sync guide on GitHub Pages is up to date and has a table of each service's own pages (SimpleFIN Bridge, Teller, Plaid), and the web app and the iPhone app link each service's setup steps to the matching part of it. This release also carries the iPhone's new Siri and Shortcuts actions and its Spotlight search for bills and accounts; see the iPhone entries below.
+
 ### Added
 
 - **iPhone: bills and accounts in the iPhone's search.** Swipe down on the Home Screen and type a bill's, paycheck's or account's name to find it; picking it opens Bills & income, or the account in Forecast, on its connection. Entries show the name and where it lives ("Bill · Checking · Home"), never an amount, and can be searched only while your iPhone is unlocked. The household on this iPhone and servers that keep Last-known numbers are included; servers set to keep Nothing and the demo aren't. Deleted bills leave the search the next time WalletWeather loads, and signing out or switching a server to Nothing removes its entries. To leave WalletWeather out of search, turn off Search under Settings → Apps → WalletWeather (iOS 0.67.0).
@@ -2925,7 +2931,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.98.1...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.98.2...HEAD
+[1.98.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.2
 [1.98.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.1
 [1.98.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.0
 [1.97.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.97.0

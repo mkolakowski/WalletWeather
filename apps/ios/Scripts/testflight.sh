@@ -12,8 +12,10 @@
 #
 # The build number is the count of commits on HEAD, so every upload from a
 # newer commit is higher than the last. MARKETING_VERSION comes from
-# project.yml as usual. Builds are for internal testers only until the name
-# is cleared (#49); TESTFLIGHT_INTERNAL_ONLY=false lifts that.
+# project.yml as usual. Builds can go to external testers (decided
+# 2026-11-24, #335, before the name check in #49): a build uploaded as
+# internal-only can never be given to them. TESTFLIGHT_INTERNAL_ONLY=true
+# keeps one internal.
 set -euo pipefail
 
 IOS_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -34,7 +36,7 @@ source "$CONFIG/AppStoreConnect.local.env"
 ASC_KEY_PATH="${ASC_KEY_PATH:-$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8}"
 [[ -f "$ASC_KEY_PATH" ]] || fail "API key not found at $ASC_KEY_PATH"
 
-INTERNAL_ONLY="${TESTFLIGHT_INTERNAL_ONLY:-true}"
+INTERNAL_ONLY="${TESTFLIGHT_INTERNAL_ONLY:-false}"
 [[ "$INTERNAL_ONLY" == true || "$INTERNAL_ONLY" == false ]] || fail "TESTFLIGHT_INTERNAL_ONLY must be true or false"
 BUILD_NUMBER="$(git -C "$IOS_DIR" rev-list --count HEAD)"
 AUTH=(-allowProvisioningUpdates

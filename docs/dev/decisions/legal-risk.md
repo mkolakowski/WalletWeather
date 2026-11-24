@@ -106,3 +106,12 @@ Decisions made while planning [`Plans/legal-risk.md`](../../../Plans/legal-risk.
 **The decision:** `LICENSE` reads `Copyright (c) 2026 Matthew Kolakowski`. The terms stay MIT.
 
 **What it changes:** `LICENSE` only; no app version (#242).
+
+## 2026-11-24: TestFlight opens to external testers before the name check
+
+**Decided:** 2026-11-24, by Matthew (#335). **Status:** accepted.
+
+Builds go to external TestFlight testers from iOS 0.65.0, before the name check in #49 (the USPTO and store search, and the employment-agreement check) is done. Matthew accepted the risk for a small external beta; #49 stays open and still gates any store listing. `apps/ios/Scripts/testflight.sh` now uploads builds external testers can be given by default (`TESTFLIGHT_INTERNAL_ONLY=true` keeps one internal), since a build uploaded as internal-only can never go to them.
+
+**The public link stays out of this repo** for now: not in the README, issues, commits or changelog, until Matthew says otherwise. Waiting for #49, and preparing without switching on, were the other options.
+

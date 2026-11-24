@@ -13,8 +13,8 @@ AMOLED black, Sepia), the app lock and the app-switcher cover; phase 7
 (#100) adds email and password and QR-code sign-in; phase 10 (#112) makes
 Search find everything through the server's `/api/search` (server 1.56.0;
 an older server searches transactions only). It works with a server on
-1.54.0 or later. It's on TestFlight for internal testers (from iOS 0.17.1) but
-not on the App Store yet (phase 6, #92); otherwise it's built from source and
+1.54.0 or later. It's on TestFlight (internal testers from iOS 0.17.1,
+external testers from iOS 0.65.0, #335) but not on the App Store yet (phase 6, #92); otherwise it's built from source and
 put on a phone from Xcode. **Try the
 demo** on the Connect screen opens it on sample numbers with no server; since
 iOS 0.18.0 its Dashboard, charts, Forecast, Calendar and balances are worked
@@ -95,8 +95,10 @@ distribution certificate and profile itself if they're missing. It needs:
   ```
 
 The build number is the number of commits on `HEAD`, so commit before
-uploading again. Builds are for internal testers only until the name is
-cleared (#49); `TESTFLIGHT_INTERNAL_ONLY=false` lifts that.
+uploading again. Builds can go to external testers (#335, decided
+2026-11-24): `TESTFLIGHT_INTERNAL_ONLY=true` keeps one internal-only, which
+can never be given to external testers later. The External Testing group's
+public link is kept out of this repo for now.
 
 **Screenshots without signing in by hand.** In Debug builds only, the app
 opens signed in when it's launched with a server and a token:

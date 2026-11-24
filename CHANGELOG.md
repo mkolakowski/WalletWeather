@@ -69,10 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.60.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.61.0**
 
 ### Added
 
+- **iPhone: filter Forecast by category or tag.** A row of chips under All lines and To confirm lists the month's categories (most spending first) and tags. Choose one to see only its lines, with their count and total for the month; All puts everything back (iOS 0.61.0).
 - **iPhone: open a bank's CSV in WalletWeather.** WalletWeather now shows up for a CSV in Files, Mail and the share sheet, and opens its import on that file. If WalletWeather is locked, the import waits until you unlock it (iOS 0.60.0).
 - **iPhone: quick add remembers names.** As you type a name in Add transaction, names you've used in the last six months are offered with their category; tapping one fills both. When a tag rule will apply, a note says so ("Will be tagged Work"). Nothing new is kept on the iPhone (iOS 0.59.0).
 - **iPhone: change a transfer.** Open a transfer and tap Change transfer: the Move money form opens filled in, and saving changes both of its lines together, with a server and for the household on this iPhone. Before, a transfer could only be deleted in the app and changed in the web app (iOS 0.58.0).

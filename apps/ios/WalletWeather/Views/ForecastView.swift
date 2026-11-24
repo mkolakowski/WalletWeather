@@ -22,6 +22,8 @@ struct ForecastView: View {
     /// The "To confirm" switch (#90): only the lines due up to today and
     /// not yet paid, each with Paid as planned and a box for another amount.
     @SceneStorage("forecast.confirming") private var confirming = false
+    /// The category or tag chosen under the picker (#327), as `ForecastFilter.rawValue`; empty is All.
+    @SceneStorage("forecast.filter") private var filterText = ""
 
     @State private var accounts: Loadable<[Account]> = .loading
     @State private var month: Loadable<ForecastMonth> = .loading
@@ -109,9 +111,12 @@ struct ForecastView: View {
         .scopedToConnection($accountId, memo: $accountMemo)
         // The bar belongs to the account and month it was shown on, and goes
         // when the editor opens or the connection changes.
-        .onChange(of: accountId) { undoOffer = nil }
+        .onChange(of: accountId) { old, _ in
+            undoOffer = nil
+            if old != 0 { filterText = "" }   // the first pick (0 → an account) isn't a change of account
+        }
         .onChange(of: monthText) { undoOffer = nil }
-        .onChange(of: model.generation) { undoOffer = nil }
+        .onChange(of: model.generation) { undoOffer = nil; filterText = "" }
         .onChange(of: open != nil) { _, isOpen in if isOpen { undoOffer = nil } }
         // A line dragged onto a Calendar day, in this window or another (#308).
         .onChange(of: model.lastLineMove) { _, move in
@@ -162,6 +167,7 @@ struct ForecastView: View {
                 Section {
                     header(data)
                     confirmSwitch(data)
+                    filterBlock(data)
                 }
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
@@ -170,8 +176,8 @@ struct ForecastView: View {
                     if showingConfirm {
                         confirmRows(data)
                     } else {
-                        if data.rows.isEmpty { emptyMonth }
-                        ForEach(data.rows) { line in
+                        if data.rows.isEmpty { emptyMonth } else if shown(data).isEmpty { emptyFilter }
+                        ForEach(shown(data)) { line in
                             Button { openLine(line) } label: { LineCard(line: line, today: .today()) }
                                 .buttonStyle(.plain)
                                 .pointerCard()
@@ -219,6 +225,7 @@ struct ForecastView: View {
                             .card()
                     }
                     confirmSwitch(data)
+                    filterBlock(data)
                 }
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
@@ -230,8 +237,8 @@ struct ForecastView: View {
                             .listRowInsets(EdgeInsets(top: 5, leading: edges.leading, bottom: 5, trailing: edges.trailing))
                     } else {
                         if typeSize.isAccessibilitySize {
-                            if data.rows.isEmpty { emptyMonth }
-                            ForEach(data.rows) { line in
+                            if data.rows.isEmpty { emptyMonth } else if shown(data).isEmpty { emptyFilter }
+                            ForEach(shown(data)) { line in
                                 Button { openLine(line) } label: {
                                     LineCard(line: line, today: .today())
                                         .overlay {
@@ -250,8 +257,8 @@ struct ForecastView: View {
                                 .listRowInsets(EdgeInsets(top: 5, leading: edges.leading, bottom: 5, trailing: edges.trailing))
                             }
                         } else {
-                            if data.rows.isEmpty { emptyMonth } else { LineTableHeader().listRowSeparator(.hidden) }
-                            ForEach(data.rows) { line in
+                            if data.rows.isEmpty { emptyMonth } else if shown(data).isEmpty { emptyFilter } else { LineTableHeader().listRowSeparator(.hidden) }
+                            ForEach(shown(data)) { line in
                                 Button { openLine(line) } label: {
                                     LineTableRow(line: line, selected: open?.id == line.id)
                                 }
@@ -314,10 +321,53 @@ struct ForecastView: View {
         }
     }
 
+    // MARK: - Category and tag filter (#327)
+
+    /// The chosen filter, when this month still has it: a category or tag
+    /// that isn't in the month shows as All (and is forgotten once the month loads).
+    private func activeFilter(_ data: ForecastMonth) -> ForecastFilter? {
+        guard let chosen = ForecastFilter(rawValue: filterText),
+              ForecastFilter.chips(for: data.rows).contains(where: { $0.filter == chosen }) else { return nil }
+        return chosen
+    }
+
+    /// The month's lines under the chosen filter (every line on All).
+    private func shown(_ data: ForecastMonth) -> [ForecastLine] {
+        ForecastFilter.apply(activeFilter(data), to: data.rows)
+    }
+
+    /// The row of chips, and under it the small total of what the list
+    /// shows; nothing when the month has no categories or tags.
+    @ViewBuilder
+    private func filterBlock(_ data: ForecastMonth) -> some View {
+        let chips = ForecastFilter.chips(for: data.rows)
+        if !chips.isEmpty {
+            let active = activeFilter(data)
+            ForecastFilterChips(chips: chips, selected: active) { filterText = $0?.rawValue ?? "" }
+            if let active {
+                let lines = showingConfirm
+                    ? ForecastFilter.apply(active, to: data.toConfirm(today: .today()))
+                    : active.apply(to: data.rows)
+                Text(active.summary(of: lines))
+                    .font(.footnote.weight(.medium)).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityLabel("Filter: " + active.summary(of: lines))
+            }
+        }
+    }
+
+    private var emptyFilter: some View {
+        Text("No lines here for this filter.")
+            .font(.callout).foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity).padding(.vertical, 24)
+    }
+
     @ViewBuilder
     private func confirmRows(_ data: ForecastMonth) -> some View {
-        let lines = data.toConfirm(today: .today())
-        if lines.isEmpty {
+        let lines = ForecastFilter.apply(activeFilter(data), to: data.toConfirm(today: .today()))
+        if lines.isEmpty, activeFilter(data) != nil {
+            emptyFilter
+        } else if lines.isEmpty {
             Text(shownMonth.start > .today() ? "Nothing to confirm yet in \(shownMonth.label)." : "Everything up to today is confirmed.")
                 .font(.callout).foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity).padding(.vertical, 24)
@@ -476,6 +526,9 @@ struct ForecastView: View {
         await loadMonth()
         if AppModel.debugSetting("WW_DEBUG_CONFIRM") != nil { confirming = true }
         if AppModel.debugSetting("WW_DEBUG_COMPARE") != nil { comparing = true }
+        // Debug only: `WW_DEBUG_FILTER=<category or tag name>` starts Forecast filtered by it (#327).
+        if let name = AppModel.debugSetting("WW_DEBUG_FILTER"),
+           let filter = ForecastFilter.named(name, in: month.value?.rows ?? []) { filterText = filter.rawValue }
         if let name = AppModel.debugSetting("WW_DEBUG_OPEN_LINE"),
            let line = month.value?.rows.first(where: { $0.description == name }) { openLine(line) }
         // Debug only: `WW_DEBUG_ADD_NAME=<text>` opens Add transaction with that typed as the name, so the
@@ -493,11 +546,62 @@ struct ForecastView: View {
     private func loadMonth() async {
         guard let client = model.client(kept), let account else { return }
         do {
-            month = .loaded(try await client.forecast(account: account.id, month: shownMonth))
+            let loaded = try await client.forecast(account: account.id, month: shownMonth)
+            month = .loaded(loaded)
+            // A month without the chosen category or tag goes back to All; one that has it keeps it.
+            if activeFilter(loaded) == nil, !filterText.isEmpty { filterText = "" }
         } catch {
             month = .failed(error)
             kept.clear()
         }
+    }
+}
+
+// MARK: - Filter chips (#327)
+
+/// "All", then the month's categories and tags as capsules in a row that
+/// scrolls sideways; the chosen one in the accent. Chips grow with the text
+/// size and the row keeps scrolling.
+struct ForecastFilterChips: View {
+    let chips: [ForecastFilter.Chip]
+    let selected: ForecastFilter?
+    let onChoose: (ForecastFilter?) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                chip("All", dot: nil, on: selected == nil) { onChoose(nil) }
+                ForEach(chips) { item in
+                    chip(item.filter.name, dot: item.filter.kind == .tag ? tagDot(item) : nil, on: selected == item.filter) {
+                        onChoose(item.filter)
+                    }
+                    .accessibilityLabel("\(item.filter.kind == .tag ? "Tag" : "Category") \(item.filter.name), \(item.count) \(item.count == 1 ? "line" : "lines")")
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        // Clipped to the row, so chips never run out beside the tab bar.
+    }
+
+    private func tagDot(_ item: ForecastFilter.Chip) -> Color {
+        Palette.category(item.color, name: item.filter.name)
+    }
+
+    private func chip(_ title: String, dot: Color?, on: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                if let dot { Circle().fill(dot).frame(width: 8, height: 8) }
+                Text(title).lineLimit(1)
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(on ? Color.white : Color.primary)
+            .padding(.horizontal, 12).padding(.vertical, 6)
+            .background(on ? Palette.accent : Color.clear, in: .capsule)
+            .background(.quaternary, in: .capsule)
+            .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 }
 

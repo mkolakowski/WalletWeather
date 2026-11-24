@@ -78,7 +78,7 @@ App version: **1.98.3** · Web version: **1.117.0** · Schema version: **39** ·
 
 ### Changed
 
-- **Bank sync's settings, a card per service, using a wide screen.** Settings → Bank sync now shows one card each for SimpleFIN Bridge, Teller and Plaid with everything to set it up: its guide, its pages, your keys (Teller and Plaid, no longer a separate section) and its Connect button. Your connected banks come first, under *Your banks*, with the cards to connect another below them. On a wide monitor the page widens and the cards sit side by side (the services up to three across, your banks two across); on a phone or a narrow window they stack as before (web 1.117.0).
+- **Bank sync's settings, a card per service, using a wide screen.** Settings → Bank sync now shows one card each for SimpleFIN Bridge, Teller and Plaid with everything to set it up: its guide, its pages, your keys (Teller and Plaid, no longer a separate section) and its Connect button. Your connected banks come first, under *Your banks*, with the cards to connect another below them. On a wide monitor the page widens and the cards sit side by side (the services up to three across, your banks two across); on a phone or a narrow window they stack as before. With two-factor sign-in on, the code field for Disconnect, Remove (keys) and Connect stays hidden until you press the button: the first press asks for the code, the next goes ahead (web 1.117.0).
 
 ## [1.98.3] — 2026-11-24
 

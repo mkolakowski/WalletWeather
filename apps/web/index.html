@@ -3164,7 +3164,7 @@ const WEB_VERSION = "1.117.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
-// 1.117.0 (2026-11-24, claude+mkolakowski): (#342, #343) Settings → Bank sync: one card per provider (SimpleFIN Bridge, Teller, Plaid; _bankConnectHtml, after the connected banks) holding its setup guide line (_bankGuideHtml from BANK_GUIDE_STEPS: Through SimpleFIN, Add your own Teller or Plaid keys, Through Teller or Plaid), its own pages (_bankProviderLinks(key, true) leaves the guide out), its keys (_bankKeysCardHtml now an inner .bank-keys block; _bankKeysHtml became _bankKeysShown) and its Connect. Connected banks come first, under "Your banks", with Match your accounts and If sync keeps failing links. .bank-grid lays providers ~300px and banks ~620px each, side by side as room allows, and the Settings column widens to 1600px while Bank sync is shown on a window 1000px or wider. The shared connect code field names what it's for.
+// 1.117.0 (2026-11-24, claude+mkolakowski): (#342, #343) Settings → Bank sync: one card per provider (SimpleFIN Bridge, Teller, Plaid; _bankConnectHtml, after the connected banks) holding its setup guide line (_bankGuideHtml from BANK_GUIDE_STEPS: Through SimpleFIN, Add your own Teller or Plaid keys, Through Teller or Plaid), its own pages (_bankProviderLinks(key, true) leaves the guide out), its keys (_bankKeysCardHtml now an inner .bank-keys block; _bankKeysHtml became _bankKeysShown) and its Connect. Connected banks come first, under "Your banks", with Match your accounts and If sync keeps failing links. .bank-grid lays providers ~300px and banks ~620px each, side by side as room allows, and the Settings column widens to 1600px while Bank sync is shown on a window 1000px or wider. Two-factor code fields for Disconnect, removing keys and Connect with Teller or Plaid stay hidden until the button is pressed (_bankCodeLater, _bankAskCode): the first press shows the field and focuses it, the next goes ahead; Connect's field is in each card (bankConnectCode_teller, _plaid).
 // 1.116.1 (2026-11-24, claude+mkolakowski): (#336) Links to the bank sync guide on GitHub Pages. BANK_GUIDE is the guide's address; BANK_PROVIDERS entries carry `guide` (SimpleFIN: #through-simplefin) or a 'WalletWeather guide' link (Teller, Plaid: #add-your-own-teller-or-plaid-keys) that _bankProviderLinks draws, and Connect a bank says "Step by step: the bank sync guide".
 // 1.116.0 (2026-11-24, claude+mkolakowski): (#334) Bank sync setup links and a card per provider. BANK_PROVIDERS gains teller and plaid (name, home, links[]); _bankProviderLinks draws a provider's `links` when it has them. The Teller and Plaid key steps link to the provider's dashboard, quickstart, certificates and Keys pages (_bankLink). _bankConnectHtml draws Teller, Plaid and SimpleFIN Bridge each as a bordered .bank-provider card (title, provider links, what it does, its connect button; SimpleFIN's token form stays inside its card), the same look as the .bank-keys cards.
 // 1.115.3 (2026-11-23, claude+mkolakowski): (#292) two design calls from the code review: Settings and Admin open with a real <h1> in a .settings-nav wrapper that holds the heading and the tab list (it replaces the ::before text on .settings-tabs; on a wide window the wrapper is the sticky left column, the heading 26px; on a phone the heading is 22px above the scrolling tabs), and the wide-window active section in the list uses the 10% tint with --accent-ink like the other pills (it was left at 15% and --accent); a Calendar event with no category colour gets class uncat and shows its kind by a tint (green in, red out, an outline for a transfer; on a phone its colour bar takes the kind's colour).
@@ -10168,6 +10168,23 @@ function _bankCodeField(id, label) {
     ? `<div style="max-width:240px;margin-top:8px"><label for="${id}">${escapeHtml(label || 'Code from your authenticator app')}</label>
          <input id="${id}" inputmode="numeric" autocomplete="one-time-code" maxlength="40"></div>` : '';
 }
+// A code field kept out of sight until its button is pressed (#343): the
+// first press shows it and asks for the code, the next one goes ahead.
+function _bankCodeLater(id, button) {
+  const field = _bankCodeField(id);
+  return field ? `<div class="bank-code-later hidden" data-for="${id}">${field}
+    <div style="font-size:12px;color:var(--muted);margin-top:4px">Enter the code, then press ${escapeHtml(button)} again.</div></div>` : '';
+}
+// True when the code still had to be asked for: shows its field and puts the
+// cursor in it, and the button's action waits for the next press.
+function _bankAskCode(id) {
+  const box = document.querySelector(`.bank-code-later[data-for="${id}"]`);
+  if (!box || !box.classList.contains('hidden')) return false;
+  box.classList.remove('hidden');
+  const el = document.getElementById(id);
+  if (el) el.focus();
+  return true;
+}
 function _bankWhen(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -10388,7 +10405,7 @@ function _bankKeysCardHtml(p) {
         <span style="flex:1"></span>
         ${bankKeysReplacing[p] ? '' : `<button class="danger" onclick="bankKeysRemove('${p}')">Remove</button>`}
       </div>
-      ${bankKeysReplacing[p] ? '' : _bankCodeField('bankKeysRemoveCode_' + p)}` : `
+      ${bankKeysReplacing[p] ? '' : _bankCodeLater('bankKeysRemoveCode_' + p, 'Remove')}` : `
       <div style="font-size:13px;color:var(--muted)">Add your ${name} keys to connect a bank through ${name}.</div>`;
   const form = mayEdit && (!k || bankKeysReplacing[p]) ? (p === 'teller' ? _bankTellerForm() : _bankPlaidForm()) : '';
   // Inside its provider's card (#343).
@@ -10507,6 +10524,7 @@ async function bankKeysSave(p) {
 }
 
 async function bankKeysRemove(p) {
+  if (_bankAskCode('bankKeysRemoveCode_' + p)) return;
   const name = p === 'teller' ? 'Teller' : 'Plaid';
   if (!(await confirmDialog(`Remove your ${name} keys? You can add them again later.`,
                             { title: `Remove ${name} keys`, okLabel: 'Remove', danger: true }))) return;
@@ -10535,7 +10553,8 @@ function _bankConnectHtml(more) {
   const keyed = (key, label, text) => card(key, `
       <p style="font-size:13px;color:var(--muted);margin:0">${text}</p>
       ${keysShown.includes(key) ? _bankKeysCardHtml(key) : ''}
-      ${offered(key) ? `<div class="bank-provider-end"><button onclick="bankStartProvider('${key}')">${label}</button></div>` : ''}`);
+      ${offered(key) ? `<div class="bank-provider-end"><button onclick="bankStartProvider('${key}')">${label}</button>
+        ${_bankCodeLater('bankConnectCode_' + key, label)}</div>` : ''}`);
   const cards = {
     simplefin: () => card('simplefin', `
       <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
@@ -10568,9 +10587,7 @@ function _bankConnectHtml(more) {
       ${keysShown.length ? `Teller and Plaid each need keys from a developer account of your own; they're checked with
       the service before they're saved, kept encrypted on this server, and the secret part is never shown again.` : ''}
       Step by step: ${_bankLink(BANK_GUIDE, 'the bank sync guide')}.</p>
-    <div class="bank-grid bank-providers">${show.map(k => cards[k]()).join('')}</div>
-    ${(offered('teller') || offered('plaid')) ? _bankCodeField('bankConnectCode',
-      `Code from your authenticator app, for Connect with ${['teller', 'plaid'].filter(offered).map(k => BANK_PROVIDERS[k].name).join(' or ')}`) : ''}`;
+    <div class="bank-grid bank-providers">${show.map(k => cards[k]()).join('')}</div>`;
 }
 
 function _bankConnHtml(c, owned) {
@@ -10629,7 +10646,7 @@ function _bankConnHtml(c, owned) {
       <span style="flex:1"></span>
       <button class="danger" onclick="bankDisconnect(${id})">Disconnect</button>
     </div>
-    ${_bankCodeField('bankDisconnectCode' + id)}
+    ${_bankCodeLater('bankDisconnectCode' + id, 'Disconnect')}
     <div style="font-size:12px;color:var(--muted);margin-top:6px">${simplefin
       ? `Disconnecting forgets the connection here; lines already brought in stay. To stop SimpleFIN reading your bank too, disable the token in ${_bankLink(BANK_PROVIDERS.simplefin.account, 'your SimpleFIN Bridge account')}.`
       : `Disconnecting removes it at ${pname} too; lines already brought in stay.`}</div>
@@ -11145,11 +11162,13 @@ async function bankConnect() {
 const BANK_NAMES = { simplefin: 'SimpleFIN', teller: 'Teller', plaid: 'Plaid' };
 let _bankWaitTimer = null;
 async function bankStartProvider(provider) {
+  // Its card's code field, asked for on the first press (#343).
+  if (_bankAskCode('bankConnectCode_' + provider)) return;
   const name = BANK_NAMES[provider] || provider;
   // Opened now, in the click, so the browser doesn't block it; pointed at
   // the provider once the server has the address.
   const tab = window.open('', '_blank');
-  const codeEl = document.getElementById('bankConnectCode');
+  const codeEl = document.getElementById('bankConnectCode_' + provider);
   _bankSay(`Opening ${name}…`);
   let r;
   try {
@@ -11263,6 +11282,7 @@ async function bankSyncNow(connectionId) {
 }
 
 async function bankDisconnect(connectionId) {
+  if (_bankAskCode('bankDisconnectCode' + connectionId)) return;
   const c = ((bankState && bankState.connections) || []).find(x => x.id === connectionId);
   const simplefin = !c || c.provider === 'simplefin';
   const label = c ? `${c.name} (${c.provider_name})` : 'this bank';

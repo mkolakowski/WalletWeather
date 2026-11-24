@@ -69,10 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.53.0**
+App version: **1.98.0** · Web version: **1.115.3** · Schema version: **39** · iOS version: **0.54.0**
 
 ### Added
 
+- **iPhone: themes of your own.** Settings → Appearance → My themes: New theme starts from any look, and you choose six colours (page, card, text, accent, money in and money out) with a live preview. A line under the colours warns when a pair is hard to read (under 4.5:1); the theme still saves. Tap a theme to use it; ⋯ or a long press edits, duplicates or deletes it. Your themes' names and colours (nothing else) are kept in your own iCloud, so they reach your other iPhones; with iCloud off they stay on this iPhone. The privacy policy says so (iOS 0.54.0).
 - **iPhone: drag and drop.** Drop a bank's CSV from Files on Forecast or the Dashboard and the import opens on it, starting on the account that page shows. Drag a one-off line from Forecast or the Calendar onto another Calendar day, in the same window or another WalletWeather window, to move its planned date; Undo puts it back. Lines that come from a bill, and paid lines, stay where they are (iOS 0.53.0).
 - **iPhone: keyboard shortcuts and long-press menus.** With a keyboard attached, hold ⌘ to see them: ⌘N add (a transaction, or a bill on Bills & income), ⌘F Search, ⌘1 to ⌘5 the tabs, ⌘R refresh, ⌘[ and ⌘] the previous and next month, ⌘T this month, ⌘↩ save an editor and Escape close it. Long-press (or right-click) any line or bill, on Forecast, To confirm, the Calendar, Bills & income or in Search, for the same actions as its swipes; a Search result also offers Open in Forecast. With a pointer, rows and cards light up under it (iOS 0.52.0).
 - **iPhone: match bank lines from the phone, with a server too.** Settings → Bank sync shows "N lines to match" under each bank connection and shared account with lines waiting; it opens the Unmatched list, where each line can pay a bill or line it's close to (Pay this, with "Always match" to make it a rule) or be left as its own line, as in the web app. With the Duo open, the list and a line's choices sit side by side over the whole screen. The Bank sync row in Settings reads "3 to match" while lines wait. A read-only sign-in can look but not change. The demo has two sample lines (iOS 0.51.0).

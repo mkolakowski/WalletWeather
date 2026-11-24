@@ -104,9 +104,19 @@ private struct SettingsPageFrame<Content: View>: View {
             }
             .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 24)
         }
+        .debugScrollAnchor()
         .background(PageBackground().ignoresSafeArea())
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+extension View {
+    /// `WW_DEBUG_SCROLL=bottom` (Debug) opens a Settings page or the theme
+    /// editor scrolled to its end, for pictures of what's below the first
+    /// screen (#297). Nothing in a Release build.
+    func debugScrollAnchor() -> some View {
+        defaultScrollAnchor(AppModel.debugSetting("WW_DEBUG_SCROLL") == "bottom" ? .bottom : nil)
     }
 }
 
@@ -609,12 +619,16 @@ private struct MovePage: View {
 
 // MARK: - This iPhone
 
-/// Appearance: every look as a tile of previews, the chosen one ringed (#296).
+/// Appearance: every look as a tile of previews, the chosen one ringed
+/// (#296), then My themes (#297).
 private struct AppearancePage: View {
     var body: some View {
         SettingsPageFrame(title: "Appearance") {
             LookGrid()
             SettingNote("Pick one and the app changes straight away. Match the web app uses the theme you chose in the web app's Settings.")
+            Gap()
+            // Themes the person made, under the built-in looks (#297).
+            MyThemes()
         }
     }
 }

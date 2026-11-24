@@ -23,7 +23,7 @@ struct WalletWeatherApp: App {
         WindowGroup(for: RootView.Place.self) { $start in
             AppRoot(start: start)
                 // Every page reads its colours and its dates again.
-                .id("\(settings.shownLook.rawValue)/\(settings.dateStyle.rawValue)")
+                .id("\(settings.shownLook.renderKey)/\(settings.dateStyle.rawValue)")
                 .environment(model)
                 .environment(settings)
                 .tint(Palette.accent)

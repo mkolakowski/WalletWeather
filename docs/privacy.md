@@ -5,7 +5,7 @@ nav_order: 4
 
 # WalletWeather privacy policy
 
-Last updated: November 22, 2026
+Last updated: November 23, 2026
 
 This policy covers the WalletWeather apps for iOS and Android and the
 WalletWeather web app. WalletWeather is self-hosted: the apps connect to a
@@ -78,6 +78,14 @@ server's address, the sign-in it was given, what the phone keeps for it and
 the name of the theme saved on it (for "Match the web app"). And the app's
 own settings: the look you picked, whether the app lock is on, which pages
 are in the tab bar and which Getting started steps you've done.
+
+Themes you make yourself in the iOS app (Settings → Appearance → My themes)
+are kept in your iPhone's iCloud key-value storage, in your own iCloud
+account, so they reach your other iPhones signed in to the same Apple ID, and
+also on the iPhone itself, so with iCloud off they stay on that iPhone. Only
+each theme's name and colours go there: never a number or anything else.
+WalletWeather's authors can't see them. Deleting a theme deletes it on your
+other iPhones too.
 
 What the phone keeps is your choice for each server, asked when you sign in
 and changeable in the app's settings:

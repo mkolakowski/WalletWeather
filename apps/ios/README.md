@@ -135,6 +135,16 @@ it, and these choose that page there; the open page is kept per window
 `SIMCTL_CHILD_WW_DEBUG_DATES=iso` (or `short`) forces how dates are written
 (Settings → Dates & display → Date format, #296), whatever is chosen there or
 saved in the web app; `WW_DEBUG_LOOK=<look>` picks the look the same way.
+`SIMCTL_CHILD_WW_DEBUG_CUSTOM_THEMES=sample` puts two sample custom themes
+(#297) in memory, never in iCloud or the preferences: "Paper" (light, with its
+money in faint on the card, so the editor's readability warning shows) and
+"Deep sea" (dark). `WW_DEBUG_LOOK=custom-light` or `custom-dark` then shows
+the app in one of them, and with `WW_DEBUG_SETTINGS=appearance`,
+`SIMCTL_CHILD_WW_DEBUG_THEME_EDITOR=custom-light` (or `custom-dark`, a
+theme's name, or `new` for a copy of the look in use) opens the theme editor
+over Settings → Appearance. Debug only.
+`SIMCTL_CHILD_WW_DEBUG_SCROLL=bottom` opens a Settings page, or the theme
+editor, scrolled to its end.
 `SIMCTL_CHILD_WW_DEBUG_UNDO=Rent` shows the Forecast's Undo bar for that line
 once the page has loaded (#315); it saves nothing and stays until dismissed.
 `SIMCTL_CHILD_WW_DEBUG_FAIL_SAVE=offline` opens every editor and sheet (the
@@ -273,7 +283,16 @@ Several sign-ins are kept at once, one item each, and signing out of one
 deletes only its item, its keep choice and its kept numbers; the others stay
 signed in. The app's own settings (the look,
 whether the lock is on and whether it was offered, the tab bar and Getting
-started) are in its preferences, and stay after signing out. Balances and
+started) are in its preferences, and stay after signing out. Themes the
+person makes (Settings → Appearance → My themes, #297) are kept in the iPhone's
+iCloud key-value store (`NSUbiquitousKeyValueStore`, key `themes.custom`), so
+they reach their other iPhones signed in to the same Apple ID, and mirrored in
+the preferences under the same key, so with iCloud off they stay on this
+iPhone: each theme's name and six colours only, never a number or anything
+else. A theme changed on another iPhone arrives through the store's
+external-change notification; the look saved while one is chosen is
+`custom:<uuid>`, and if that theme is deleted the app falls back to Match this
+iPhone. Balances and
 transactions are kept only when the person chooses Last-known numbers
 (phase 8, `KeptResponses`), in a folder per server
 (`Application Support/Kept/<id>/`); signing out of that server deletes them.

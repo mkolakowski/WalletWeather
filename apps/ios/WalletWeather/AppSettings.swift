@@ -72,6 +72,49 @@ final class AppSettings {
         }
     }
 
+    /// Themes the person made (#297), in the order they were made: kept in
+    /// iCloud's key-value store and mirrored here (`ThemeCloud`). Changed
+    /// only through `saveTheme` and `deleteTheme`, or by iCloud.
+    private(set) var customThemes: [CustomTheme]
+    /// Nil while `WW_DEBUG_CUSTOM_THEMES=sample` keeps sample themes in
+    /// memory only.
+    private var themeCloud: ThemeCloud?
+
+    /// Adds a theme, or replaces the one with its id; the look follows when
+    /// that theme is the one in use.
+    func saveTheme(_ theme: CustomTheme) {
+        if let index = customThemes.firstIndex(where: { $0.id == theme.id }) {
+            customThemes[index] = theme
+        } else {
+            customThemes.append(theme)
+        }
+        themeCloud?.save(customThemes)
+        if case let .custom(inUse) = look, inUse.id == theme.id { look = .custom(theme) }
+    }
+
+    /// Deletes a theme; when it was in use, the app goes back to Match this
+    /// iPhone.
+    func deleteTheme(_ id: UUID) {
+        customThemes.removeAll { $0.id == id }
+        themeCloud?.save(customThemes)
+        if case let .custom(inUse) = look, inUse.id == id { look = .system }
+    }
+
+    /// iCloud brought the themes as another iPhone left them: the look in
+    /// use takes its new colours, falls back to Match this iPhone when its
+    /// theme was deleted there, or comes back when the theme it was saved
+    /// with has only now arrived.
+    private func themesArrived(_ themes: [CustomTheme]) {
+        customThemes = themes
+        if case let .custom(inUse) = look {
+            let now = themes.first { $0.id == inUse.id }
+            if now != inUse { look = now.map(Look.custom) ?? .system }
+        } else if look == .system, let saved = defaults.string(forKey: Keys.look),
+                  saved.hasPrefix(CustomTheme.prefix), let back = Look(rawValue: saved, themes: themes) {
+            look = back
+        }
+    }
+
     /// The look on screen: Match the web app resolved to the server's theme.
     var shownLook: Look {
         look == .web ? .matching(ServerTheme(serverTheme)) : look
@@ -170,9 +213,25 @@ final class AppSettings {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        // Debug only: `WW_DEBUG_LOOK=<look>` for screenshots in each look.
-        let debug = AppModel.debugSetting("WW_DEBUG_LOOK").flatMap(Look.init(rawValue:))
-        let saved = debug ?? Look(rawValue: defaults.string(forKey: Keys.look) ?? "") ?? .system
+        // Debug only: `WW_DEBUG_CUSTOM_THEMES=sample` puts two sample themes
+        // in memory, never in iCloud or the preferences (#297).
+        let themes: [CustomTheme]
+        if AppModel.debugSetting("WW_DEBUG_CUSTOM_THEMES") == "sample" {
+            themes = CustomThemeStore.samples
+            themeCloud = nil
+        } else {
+            let cloud = ThemeCloud(defaults: defaults)
+            themes = cloud.load()
+            themeCloud = cloud
+        }
+        customThemes = themes
+        // Debug only: `WW_DEBUG_LOOK=<look>` for screenshots in each look;
+        // `custom-light` and `custom-dark` name the sample themes.
+        let debugName = AppModel.debugSetting("WW_DEBUG_LOOK")
+        let debug = CustomThemeStore.sample(named: debugName).map(Look.custom)
+            ?? debugName.flatMap { Look(rawValue: $0, themes: themes) }
+        // A saved look that's no longer there falls back to Match this iPhone.
+        let saved = debug ?? Look(rawValue: defaults.string(forKey: Keys.look) ?? "", themes: themes) ?? .system
         look = saved
         serverTheme = defaults.string(forKey: Keys.serverTheme)
         // Debug only: `WW_DEBUG_TABS=forecast,netWorth` for screenshots.
@@ -200,6 +259,7 @@ final class AppSettings {
         locked = enabled && !showsDemo && !debugLockedDemo && AppModel.debugSetting("WW_DEBUG_SERVER") == nil
         Palette.look = shownLook
         DateDisplay.style = dateStyle
+        themeCloud?.arrived = { [weak self] in self?.themesArrived($0) }
     }
 
     // MARK: - The lock

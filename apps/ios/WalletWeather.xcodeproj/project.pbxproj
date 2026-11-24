@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0C5DF9B455A3B52FEC494735 /* WalletWeatherKit in Frameworks */ = {isa = PBXBuildFile; productRef = 2AE115007E026D4BEDB8852D /* WalletWeatherKit */; };
 		0E50FD7DF2A071A170661300 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 319D4205BFCC35DC6757600B /* DashboardView.swift */; };
+		102AC5BCA56361DDB495EB03 /* ThemeCloud.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B50EE1D83429562642B2DCA /* ThemeCloud.swift */; };
 		12B45AEEC84F77C8BF0B4F8F /* BackupViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99597682BE06C6A4C37D1188 /* BackupViews.swift */; };
 		1B91942AA2AD6B61B89A0CA2 /* SignInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B7EE513A73A7A19A6F7A07 /* SignInSheet.swift */; };
 		1FCF02B71067FD3EBB3F9DE1 /* ProblemBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D8B8F746C4489B2D9FC26F6 /* ProblemBanner.swift */; };
@@ -68,6 +69,7 @@
 		34D31157F799FA2DD3673952 /* WalletWeather.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WalletWeather.entitlements; sourceTree = "<group>"; };
 		354C1F47B2C105A157D90B7C /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		38A0E0386259C1431BB7F2D1 /* WalletWeather.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = WalletWeather.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3B50EE1D83429562642B2DCA /* ThemeCloud.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeCloud.swift; sourceTree = "<group>"; };
 		3D8B8F746C4489B2D9FC26F6 /* ProblemBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProblemBanner.swift; sourceTree = "<group>"; };
 		3FF8DF9E3C8A01A950E0D995 /* NoticeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoticeView.swift; sourceTree = "<group>"; };
 		477E3FB4D8EDDD73201F110E /* OpenInForecast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenInForecast.swift; sourceTree = "<group>"; };
@@ -195,6 +197,7 @@
 				760DE072423DD9D965E38BEE /* PrivacyInfo.xcprivacy */,
 				A5B7EE513A73A7A19A6F7A07 /* SignInSheet.swift */,
 				13149321E10C325276768DD5 /* Theme.swift */,
+				3B50EE1D83429562642B2DCA /* ThemeCloud.swift */,
 				34D31157F799FA2DD3673952 /* WalletWeather.entitlements */,
 				EC920553659CFFE6259EBA9C /* WalletWeatherApp.swift */,
 				3BBD0C2DC31B446157032CB9 /* Views */,
@@ -339,6 +342,7 @@
 				D13FCDB6E06382F99755241E /* TabBar.swift in Sources */,
 				55BE2153B1D9850CFDFD5234 /* TagViews.swift in Sources */,
 				7F55D88A9F9D45F195025027 /* Theme.swift in Sources */,
+				102AC5BCA56361DDB495EB03 /* ThemeCloud.swift in Sources */,
 				961F8837BB7456E29B052F79 /* UndoBar.swift in Sources */,
 				34B3D211AEFC9C768C051569 /* WalletWeatherApp.swift in Sources */,
 			);
@@ -403,7 +407,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.53.0;
+				MARKETING_VERSION = 0.54.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -471,7 +475,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.53.0;
+				MARKETING_VERSION = 0.54.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

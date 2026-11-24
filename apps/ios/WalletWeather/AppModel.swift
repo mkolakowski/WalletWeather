@@ -663,7 +663,11 @@ final class AppModel {
     /// and `WW_DEBUG_LOCKED_DEMO=1` (start as if the lock had just sent the
     /// app to the demo) and `WW_DEBUG_CHIP_MENU=1` (the demo chip's choices
     /// as a sheet, #301), and `WW_DEBUG_DROP=csv` or `day` (a drop
-    /// highlight with nothing dragged, #308).
+    /// highlight with nothing dragged, #308), and
+    /// `WW_DEBUG_CUSTOM_THEMES=sample` (two sample custom themes in memory,
+    /// which `WW_DEBUG_LOOK=custom-light` or `custom-dark` shows) and
+    /// `WW_DEBUG_THEME_EDITOR` (the theme editor on one, over Settings →
+    /// Appearance, #297).
     /// Always nil in a
     /// Release build.
     static func debugSetting(_ name: String) -> String? {

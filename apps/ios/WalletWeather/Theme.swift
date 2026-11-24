@@ -9,9 +9,12 @@ import WalletWeatherKit
 /// phone keeps its own choice; Match the web app follows the theme saved on
 /// the server, and choosing on the phone never changes the web app (decided
 /// 2026-11-15). The raw values are stored in the app's preferences.
+/// A theme the person made (`custom`, #297) is one more look, saved as
+/// `custom:<uuid>`; the built-in looks' values never change.
 enum Look: Hashable, Identifiable {
     case system, web, light, dark, amoled, sepia
     case theme(WebTheme)
+    case custom(CustomTheme)
 
     /// In the order the Appearance page lists them (`LookPreview.rawValues`).
     static let allCases: [Look] = LookPreview.rawValues.compactMap { Look(rawValue: $0) }
@@ -19,7 +22,42 @@ enum Look: Hashable, Identifiable {
     /// The screens a tile draws for this look; `server` is the theme saved
     /// on the server, which Match the web app shows (#296).
     func swatches(server: String?) -> [LookPreview.Swatch] {
-        LookPreview.swatches(for: rawValue, server: ServerTheme(server)) ?? []
+        if case let .custom(theme) = self { return [LookPreview.Swatch(theme.colors)] }
+        return LookPreview.swatches(for: rawValue, server: ServerTheme(server)) ?? []
+    }
+
+    /// A saved value among the built-in looks and `themes`; nil for one
+    /// that's no longer there (the caller falls back to Match this iPhone).
+    init?(rawValue: String, themes: [CustomTheme]) {
+        if let theme = themes.first(where: { $0.rawValue == rawValue }) {
+            self = .custom(theme)
+        } else {
+            self.init(rawValue: rawValue)
+        }
+    }
+
+    /// The colours a new theme copies from this look (#297): Match this
+    /// iPhone's are Light's or Dark's as the phone is now, Match the web
+    /// app's those of the look it shows.
+    func colors(dark: Bool, server: String?) -> WebTheme.Colors {
+        switch self {
+        case .system: (dark ? BuiltInLook.dark : BuiltInLook.light).colors
+        case .web: Look.matching(ServerTheme(server)).colors(dark: dark, server: nil)
+        case .light: BuiltInLook.light.colors
+        case .dark: BuiltInLook.dark.colors
+        case .amoled: BuiltInLook.amoled.colors
+        case .sepia: BuiltInLook.sepia.colors
+        case let .theme(theme): theme.colors
+        case let .custom(theme): theme.colors
+        }
+    }
+
+    /// What the app root rebuilds its pages on: the raw value, plus a
+    /// custom theme's colours, so recolouring the theme in use redraws.
+    var renderKey: String {
+        guard case let .custom(theme) = self else { return rawValue }
+        return [theme.page, theme.card, theme.text, theme.accent, theme.moneyIn, theme.moneyOut]
+            .reduce(rawValue) { $0 + "/" + CustomTheme.hex($1) }
     }
 
     init?(rawValue: String) {
@@ -45,6 +83,7 @@ enum Look: Hashable, Identifiable {
         case .amoled: "amoled"
         case .sepia: "sepia"
         case let .theme(theme): theme.rawValue
+        case let .custom(theme): theme.rawValue
         }
     }
 
@@ -59,6 +98,7 @@ enum Look: Hashable, Identifiable {
         case .amoled: "AMOLED black"
         case .sepia: "Sepia"
         case let .theme(theme): theme.title
+        case let .custom(theme): theme.name
         }
     }
 
@@ -79,6 +119,7 @@ enum Look: Hashable, Identifiable {
         case .light, .sepia: .light
         case .dark, .amoled: .dark
         case let .theme(theme): theme.colors.isDark ? .dark : .light
+        case let .custom(theme): theme.isDark ? .dark : .light
         }
     }
 }
@@ -91,10 +132,13 @@ enum Palette {
     /// read again).
     nonisolated(unsafe) static var look: Look = .system
 
-    /// A web theme's colours, when one is shown.
+    /// A web theme's or a custom theme's colours, when one is shown.
     private static var theme: WebTheme.Colors? {
-        if case let .theme(theme) = look { return theme.colors }
-        return nil
+        switch look {
+        case let .theme(theme): theme.colors
+        case let .custom(theme): theme.colors
+        default: nil
+        }
     }
 
     // The literals for the looks that have their own are `BuiltInLook`'s,
@@ -211,7 +255,7 @@ struct PageBackground: View {
         switch Palette.look {
         case .amoled: 0.18
         case .sepia: 0.24
-        case .theme: 0.20
+        case .theme, .custom: 0.20
         default: scheme == .dark ? 0.30 : 0.22
         }
     }
@@ -243,7 +287,7 @@ struct Card: ViewModifier {
                     padded.glassEffect(.regular.tint(Palette.panel.opacity(0.7)), in: shape)
                         .overlay(shape.strokeBorder(Palette.outline, lineWidth: 1))
                         .shadow(color: Palette.hex(BuiltInLook.sepia.colors.text).opacity(0.14), radius: 3, y: 2)
-                case .theme:
+                case .theme, .custom:
                     // The theme's panel colour under the glass, so text in
                     // the theme's colour stays on the colour it was made for.
                     padded.glassEffect(.regular.tint(Palette.panel.opacity(0.85)), in: shape)

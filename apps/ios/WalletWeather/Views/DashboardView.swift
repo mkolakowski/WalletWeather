@@ -114,6 +114,7 @@ struct DashboardView: View {
             if now == nil { Task { await loadBank() } }
         }
         .scopedToConnection($chosenId, memo: $accountMemo)
+        .onChange(of: "\(model.addRequest != nil)/\(editableAccounts.count)", initial: true) { _, _ in takeAddRequest() }
         .sheet(isPresented: $adding) {
             if let target = editableAccounts.first {
                 AddTransactionSheet(account: target, accountChoices: editableAccounts,
@@ -140,6 +141,15 @@ struct DashboardView: View {
 
     private func startAdding() {
         newDraft = NewTransactionDraft(today: .today())
+        adding = true
+    }
+
+    /// Add a transaction from a Shortcut (#332): the sheet opens filled in,
+    /// once there's an account to add it to.
+    private func takeAddRequest() {
+        guard let request = model.addRequest, !model.isDemo, !editableAccounts.isEmpty else { return }
+        model.addRequest = nil
+        newDraft = request
         adding = true
     }
 

@@ -402,6 +402,23 @@ Face ID or the passcode before any amount. A server set to Nothing gets "keeps
 no numbers on this iPhone", and with no saved connection (only the demo) it
 says there's nothing kept to tell.
 
+Two more (#332, `ShortcutActions.swift` in WalletWeatherKit), stable as
+`AddTransactionIntent` and `MarkBillPaidIntent`. **Add a transaction** (amount,
+description, date) opens the app on the connection in front and the
+Dashboard's Add transaction sheet, filled in (`WidgetOpen.draft`, then
+`AppModel.addRequest`), for a last look before Save; the app lock asks as the
+app opens. **Mark a bill paid** runs in the background (`requiresAuthentication`;
+Face ID while the app lock is on): its bill (`BillEntity`, id = the bill's
+`SearchLink`) is picked from the front connection's summary, and
+`MarkPaidCheck` refuses the demo, a locked phone, a server set to Nothing, a
+bill not on the connection in front and an account the sign-in can't change.
+Then `BillPaying` marks the bill's earliest unpaid date this month (or next)
+paid as planned, the same `save` as a swipe on Forecast, through the
+connection's own client from the Keychain, writes the summary again and
+reloads the widgets. Not checked yet: whether, with iCloud sync on, a change
+made this way reaches iCloud before the app next opens (the household's store
+is opened in the app's process, as for the app).
+
 **The phone's search** (#331, `PhoneSearch.swift` in WalletWeatherKit,
 `PhoneSearchIndex` in the app): one Core Spotlight entry per bill, paycheck
 and account in a summary, by name with "Bill · Checking · Home" beside it, no

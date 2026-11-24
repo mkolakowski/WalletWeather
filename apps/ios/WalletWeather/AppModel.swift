@@ -218,6 +218,9 @@ final class AppModel {
     /// A widget or a reminder tapped: the page to open, on its connection.
     /// A window's pages take it (`RootView`) and clear it.
     var widgetOpen: WidgetOpen?
+    /// Add a transaction from a Shortcut (#332), for the Dashboard to open
+    /// its sheet with once its accounts are loaded; it clears it.
+    var addRequest: NewTransactionDraft?
     /// Reminders (#319): Settings → Reminders, scheduled from the summary.
     let reminders = ReminderCenter()
     /// The last summary written: for which connection and load, and when, so
@@ -309,6 +312,7 @@ final class AppModel {
         }
         switch open.page {
         case .dashboard:
+            addRequest = open.draft
             return .dashboard
         case .bills:
             return .bills
@@ -1493,6 +1497,9 @@ struct WidgetOpen: Equatable {
     let page: AppLink.OpenPage
     let connection: UUID?
     let account: Int?
+    /// Add a transaction from a Shortcut (#332): the Dashboard's Add
+    /// transaction sheet opens filled in with it, once its connection is in front.
+    var draft: NewTransactionDraft? = nil
 }
 
 /// The background time asked for while a summary is written.

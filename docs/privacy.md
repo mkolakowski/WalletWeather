@@ -186,6 +186,20 @@ on the connection you're using, naming it and saying when its numbers are from.
 - What Siri shows and says is handled by the iPhone like any other Siri answer.
   Open To confirm only opens the app, where its own lock still applies.
 
+Two more actions change your numbers, on the connection you're using:
+**Add a transaction** opens the app's Add transaction form filled in with the
+amount, description and date you gave, for you to check and save; **Mark a bill
+paid** marks a bill's next date paid, as planned, without opening the app, and
+says what it did.
+
+- Mark a bill paid offers the bills from the same summary, and sends the change
+  to your server (or the household on this iPhone) the same way the app does
+  when you mark a line paid. It runs only while the iPhone is unlocked, and asks
+  for Face ID (or your passcode) first while WalletWeather's own lock is on.
+- It isn't offered for a server set to keep **Nothing** (no bills are kept to
+  pick from) or the demo.
+- Nothing new is kept on the iPhone for either.
+
 **The iPhone's search** (swipe down on the Home Screen) finds your bills,
 income and accounts by name, and opens each where it lives in the app.
 

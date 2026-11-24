@@ -32,14 +32,14 @@ Sessions: may span — five iOS versions, each tried on your phone from TestFlig
 
 ## Open questions
 
-Each open one has the assumption its phase is built on if it isn't settled first. Questions 1 to 4 are settled; phase 2 no longer waits on anything.
+None left: all six were settled on 2026-11-23, so no phase waits on a choice.
 
 1. ~~**When does "bill due tomorrow" arrive?**~~ 9:00 AM the day before, one time for every bill, changeable under the switch ([decided 2026-11-23](../docs/dev/decisions/ios-review.md#2026-11-23-when-reminders-arrive-and-how-they-start)).
 2. ~~**Are the three reminder switches on or off to start?**~~ Off; iOS asks for permission when the first is turned on ([decided 2026-11-23](../docs/dev/decisions/ios-review.md#2026-11-23-when-reminders-arrive-and-how-they-start)).
 3. ~~**How far ahead does "balance heading under" warn, and how often?**~~ When the forecast first goes under the amount within the next 7 days, once for each dip ([decided 2026-11-23](../docs/dev/decisions/ios-review.md#2026-11-23-when-reminders-arrive-and-how-they-start)).
 4. ~~**If the expanded reminder can't show the amount reliably, what then?**~~ Reminders carry no amount at all, and Matthew is told before it ships that way ([decided 2026-11-23](../docs/dev/decisions/ios-review.md#2026-11-23-when-reminders-arrive-and-how-they-start)).
-5. **Which connections go into the phone's search?** Blocks phase 4. Assumed: the household on this iPhone and servers that keep Last-known numbers. Servers set to Nothing and the demo aren't indexed, and signing out of a server removes its entries.
-6. **Do Add a transaction and Mark a bill paid finish without opening the app?** Blocks phase 5. Assumed: Add a transaction opens the app's Add transaction sheet, filled in from the Shortcut. Mark a bill paid runs without opening the app (after Face ID) and says what it did.
+5. ~~**Which connections go into the phone's search?**~~ The household on this iPhone and servers that keep Last-known numbers; not servers set to Nothing, not the demo, and signing out removes a server's entries ([decided 2026-11-23](../docs/dev/decisions/ios-review.md#2026-11-23-what-goes-into-the-phones-search-and-which-actions-open-the-app)).
+6. ~~**Do Add a transaction and Mark a bill paid finish without opening the app?**~~ Add a transaction opens the filled-in Add transaction sheet; Mark a bill paid runs without opening the app (after Face ID) and says what it did ([decided 2026-11-23](../docs/dev/decisions/ios-review.md#2026-11-23-what-goes-into-the-phones-search-and-which-actions-open-the-app)).
 
 Settled while planning (2026-11-23, recorded in [ios-review.md](../docs/dev/decisions/ios-review.md)):
 
@@ -141,7 +141,7 @@ Today nothing of WalletWeather shows outside the app, and the app switcher hides
 
 **What you have to do:** search for a bill and an account on your phone and open each. Then sign out of a test server and check its entries are gone.
 
-**Done when:** Kit tests cover what's indexed for each connection kind and what's removed, and that no amount goes in. Your check on the phone passes. Open question 5 is settled or built on its assumption.
+**Done when:** Kit tests cover what's indexed for each connection kind and what's removed, and that no amount goes in. Your check on the phone passes. Built as open question 5 settled.
 
 ### Phase 5: Add a transaction and Mark a bill paid (#332, split from #320)
 
@@ -155,4 +155,4 @@ Today nothing of WalletWeather shows outside the app, and the app switcher hides
 
 **What you have to do:** add a transaction and mark a bill paid from Shortcuts and from the Action button. Check that each shows in the app.
 
-**Done when:** Kit tests cover each action against the household on this iPhone and against a test server's answers, and the refusals (locked, Nothing, the demo). Your check on the phone passes. Open question 6 is settled or built on its assumption.
+**Done when:** Kit tests cover each action against the household on this iPhone and against a test server's answers, and the refusals (locked, Nothing, the demo). Your check on the phone passes. Built as open question 6 settled.

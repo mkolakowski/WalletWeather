@@ -93,3 +93,10 @@ Two more, settled the same day while planning them ([Plans/outside-the-app.md](.
 2. **The three switches start off.** iOS asks for permission only when the first is turned on. Offering reminders once with all three on, and bills on by default, were the other options.
 3. **Balance heading under warns when the forecast first goes under the amount within the next 7 days, once for each dip.** Another reminder comes only after the balance is back above and dips again. Three days ahead, and a choice of days, were the other options.
 4. **If the expanded reminder can't show the amount reliably, reminders carry no amount at all.** Opening one shows the amount in the app. Matthew is told before it ships that way. Leaving it open until tried was the other option.
+
+## 2026-11-23: what goes into the phone's search, and which actions open the app
+
+**Decided:** 2026-11-23, by Matthew, before phases 4 and 5 of [Plans/outside-the-app.md](../../../Plans/outside-the-app.md) (#331, #332) are built. **Status:** accepted.
+
+1. **The phone's search holds the bills and accounts of the household on this iPhone and of servers that keep Last-known numbers,** by name only. Servers set to Nothing and the demo aren't indexed, and signing out of a server removes its entries. Every real connection, and only the one in front, were the other options.
+2. **Add a transaction opens the app's Add transaction sheet, filled in from the Shortcut, for a last look; Mark a bill paid runs without opening the app (after Face ID) and says what it did.** Both running in the background, and both opening the app, were the other options.

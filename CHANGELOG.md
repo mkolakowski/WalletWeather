@@ -69,11 +69,15 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.2** · Web version: **1.116.1** · Schema version: **39** · iOS version: **0.68.0**
+App version: **1.98.2** · Web version: **1.116.1** · Schema version: **39** · iOS version: **0.68.1**
 
 ### Added
 
 - **iPhone: Add a transaction and Mark a bill paid from Siri, Shortcuts and the Action button.** **Add a transaction** ("Add a transaction in WalletWeather") takes an amount, a description and a date, and opens Add transaction on the connection you're using, filled in, for you to check and save. **Mark a bill paid** ("Mark Rent paid in WalletWeather") picks one of that connection's bills, marks its next date paid as planned without opening the app, and says what it did ("Rent is marked paid on Nov 24, $1,500.00, on Home"). It needs your iPhone unlocked and asks for Face ID first while WalletWeather's lock is on. It isn't offered for a server set to keep Nothing, the demo, or an account your sign-in can't change (iOS 0.68.0).
+
+### Fixed
+
+- **iPhone: the Siri and Shortcuts actions no longer keep the app off TestFlight.** Apple turned away iOS 0.66.0 to 0.68.0 because two actions' descriptions named the iPhone, so What's my balance, Open To confirm, the iPhone's search, Add a transaction and Mark a bill paid reach testers only from 0.68.1. The upload script now checks for this before uploading (iOS 0.68.1).
 
 ## [1.98.2] — 2026-11-24
 

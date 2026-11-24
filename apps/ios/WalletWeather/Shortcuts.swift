@@ -13,6 +13,10 @@ import WidgetKit
 //
 // The intents' type names are their identifiers in people's shortcuts and on
 // the Action button: never rename them.
+//
+// Their titles, descriptions and phrases must not name Apple's products
+// ("iPhone", "iPad", "Siri", "Apple"): App Store Connect turns the build away
+// (ITMS-90626, #337), and Scripts/testflight.sh checks before uploading.
 
 /// Opens the app on the lines waiting to confirm, on the connection in front,
 /// as the To confirm widget does. The app's own lock still asks first.
@@ -37,7 +41,7 @@ nonisolated struct OpenToConfirmIntent: AppIntent {
 nonisolated struct BalanceIntent: AppIntent {
     static let title: LocalizedStringResource = "What's my balance"
     static let description = IntentDescription(
-        "Tells the balance of each account on the connection in front, and when the numbers are from. Needs your iPhone unlocked, and Face ID while WalletWeather's lock is on.")
+        "Tells the balance of each account on the connection in front, and when the numbers are from. Needs the phone unlocked, and Face ID while WalletWeather's lock is on.")
     static let supportedModes: IntentModes = .background
     static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
@@ -93,7 +97,7 @@ struct AddTransactionIntent: AppIntent {
 struct MarkBillPaidIntent: AppIntent {
     static let title: LocalizedStringResource = "Mark a bill paid"
     static let description = IntentDescription(
-        "Marks a bill's next date paid, as planned, on the connection in front, and says what it did. Needs your iPhone unlocked, and Face ID while WalletWeather's lock is on.")
+        "Marks a bill's next date paid, as planned, on the connection in front, and says what it did. Needs the phone unlocked, and Face ID while WalletWeather's lock is on.")
     static let supportedModes: IntentModes = .background
     static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 

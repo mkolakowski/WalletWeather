@@ -100,6 +100,14 @@ uploading again. Builds can go to external testers (#335, decided
 can never be given to external testers later. The External Testing group's
 public link is kept out of this repo for now.
 
+"Uploaded" means the upload was accepted, not that the build is good:
+App Store Connect processes it afterwards and can still turn it away, and
+then it never shows in TestFlight (the email, or the API's `buildUploads` on
+the app, says why). Builds 482 to 489 were lost that way (#337), because an
+App Intent's description said "iPhone" (ITMS-90626). So before uploading, the
+script checks the archive's App Intents metadata (`Metadata.appintents`) for
+"iPhone", "iPad", "Siri" or "Apple" in anything people see, and stops.
+
 **Screenshots without signing in by hand.** In Debug builds only, the app
 opens signed in when it's launched with a server and a token:
 

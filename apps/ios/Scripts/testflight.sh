@@ -73,6 +73,29 @@ xcodebuild archive \
   CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
   "${AUTH[@]}"
 
+# App Store Connect turns a build away after the upload is accepted when an
+# App Intent's title, description or phrase names Apple's products (ITMS-90626
+# "Invalid Siri Support"); builds 482 to 489 were lost that way (#337).
+echo "testflight: checking the App Intents metadata"
+python3 -I - "$BUILD_DIR/WalletWeather.xcarchive" <<'PY' || fail "an App Intent names an Apple product (see above); reword it in WalletWeather/Shortcuts.swift"
+import json, pathlib, re, sys
+bad = re.compile(r"(?i)\b(iphone|ipad|siri|apple)\b")
+found = []
+def walk(value, where):
+    if isinstance(value, dict):
+        for item in value.values(): walk(item, where)
+    elif isinstance(value, list):
+        for item in value: walk(item, where)
+    # Words people see, not identifiers such as com.apple.link.….
+    elif isinstance(value, str) and bad.search(value) and not re.fullmatch(r"[\w$-]+(\.[\w$-]+)+", value):
+        found.append((where, value))
+for data in pathlib.Path(sys.argv[1]).rglob("Metadata.appintents/extract.actionsdata"):
+    walk(json.loads(data.read_text()), data.parent.parent.name)
+for where, text in found:
+    print(f"testflight: {where}: {text}")
+sys.exit(1 if found else 0)
+PY
+
 echo "testflight: exporting and uploading"
 xcodebuild -exportArchive \
   -archivePath "$BUILD_DIR/WalletWeather.xcarchive" \
@@ -80,4 +103,5 @@ xcodebuild -exportArchive \
   -exportPath "$BUILD_DIR/export" \
   "${AUTH[@]}"
 
-echo "testflight: uploaded build $BUILD_NUMBER; App Store Connect processes it before it shows in TestFlight"
+echo "testflight: uploaded build $BUILD_NUMBER; App Store Connect processes it before it shows in TestFlight."
+echo "testflight: \"uploaded\" isn't \"accepted\": if it never shows, its processing failed (App Store Connect's email, or buildUploads in the API, says why)"

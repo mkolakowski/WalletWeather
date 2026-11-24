@@ -6,8 +6,8 @@ Tracking issue: #312
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Labels and rows | #310 | Built in iOS 0.42.0, 2026-11-23; waits for Matthew's look and a release |
-| 2. Large text and problems | #311 | Built in iOS 0.48.0, 2026-11-23; waits for Matthew's look and a release |
+| 1. Labels and rows | #310 | Built in iOS 0.42.0, 2026-11-23; checked on Matthew's phone; released in 1.98.2 (2026-11-24) |
+| 2. Large text and problems | #311 | Built in iOS 0.48.0, 2026-11-23; checked on Matthew's phone; released in 1.98.2 (2026-11-24) |
 
 Phase 2 built 2026-11-23 in iOS 0.48.0 (no server change), by an orchestrated run (an Opus worker wrote it; this thread took pictures at three text sizes and sent back three faults, then checked the fixes): `@ScaledMetric` for the fixed frames (the Calendar's day circle, capped at 44 points; the Forecast table's columns; the summaries' date columns; icon tiles); `FitsAcross`, `FigureRow`, `LabeledLine` and `wholeFigure` (`LargeText.swift`) stack figures above Large, always one to a row at the accessibility sizes, and leave everything as it was up to Large; `MonthBar` gives the month its own row at the accessibility sizes; the open Duo's Forecast uses line cards there. `ProblemBanner` replaces the editors' save alerts (`APIError.wayForward` picks Try again, Sign in to Cloudflare or Sign in again); changes from a list keep an alert worded the same way. Verified: `swift test`, 318 passed (new `ProblemTests`); Duo simulator pictures at Large (identical to 0.47.0, pixel for pixel, on the Dashboard and Calendar), Extra Extra Extra Large and Accessibility Large, and of the banner, on the picture page linked from #311.
 

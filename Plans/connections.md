@@ -6,10 +6,10 @@ Tracking issue: #303
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. The list underneath | #299 | Built in iOS 0.35.0, 2026-11-23; waits for a check on Matthew's phone and a release |
-| 2. Connections in Settings | #300 | Built in iOS 0.46.0, 2026-11-23; waits for a check on Matthew's phone with two servers and a release |
-| 3. This iPhone, the demo, and the lock | #301 | Built in iOS 0.49.0, 2026-11-23; waits for Face ID on Matthew's phone and a release |
-| 4. Quick switch, and what runs behind | #302 | Built in iOS 0.50.0, 2026-11-23; waits for a check on Matthew's phone and a release |
+| 1. The list underneath | #299 | Built in iOS 0.35.0, 2026-11-23; checked on Matthew's phone; released in 1.98.2 (2026-11-24) |
+| 2. Connections in Settings | #300 | Built in iOS 0.46.0, 2026-11-23; checked on Matthew's phone; released in 1.98.2 (2026-11-24) |
+| 3. This iPhone, the demo, and the lock | #301 | Built in iOS 0.49.0, 2026-11-23; checked on Matthew's phone; released in 1.98.2 (2026-11-24) |
+| 4. Quick switch, and what runs behind | #302 | Built in iOS 0.50.0, 2026-11-23; checked on Matthew's phone; released in 1.98.2 (2026-11-24) |
 
 Phase 4 built 2026-11-23 in iOS 0.50.0 (no server change), by an orchestrated run (a Sonnet worker wrote it; this thread checked it): `ConnectionChip` (was `DemoChip`) names the connection in front under the Dashboard's title and at the top of Settings, shown when there's more than one thing to switch between (`ConnectionChipState` in the Kit). A token expired or revoked answer marks that saved connection (`SavedConnection.signInEnded`, optional), shown as ⚠ Sign in again in Connections, the chip's menu and on the chip; a new sign-in clears it. `HouseholdRuns.mayRun` lets the household's backup and bank sync run whatever is in front, without reloading a server's pages, including at launch. Every phase of the plan is now built. Verified: `swift test`, 344 passed (11 new in `ConnectionChipTests`); Duo simulator pictures of the chip, its choices, Connections with an ended sign-in, the chip while locked, and no chip with one connection, on the picture page linked from #302.
 

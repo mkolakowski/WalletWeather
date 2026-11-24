@@ -6,11 +6,11 @@ Tracking issue: #309
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. One fold layout | #304 | Built in iOS 0.43.0, 2026-11-23; waits for a try on Matthew's Duo and a release |
-| 2. Tap through | #305 | Built in iOS 0.47.0, 2026-11-23; waits for a try on Matthew's Duo and a release |
-| 3. Match bank lines in the app | #306 | Built in iOS 0.51.0, 2026-11-23; waits for a try with a real bank and a release |
-| 4. Keyboard and pointer | #307 | Built in iOS 0.52.0, 2026-11-23; waits for a try with a keyboard on Matthew's Duo and a release |
-| 5. Drag and drop | #308 | Built in iOS 0.53.0, 2026-11-23; waits for a try on Matthew's Duo and a release |
+| 1. One fold layout | #304 | Built in iOS 0.43.0, 2026-11-23; checked on Matthew's phone; released in 1.98.2 (2026-11-24) |
+| 2. Tap through | #305 | Built in iOS 0.47.0, 2026-11-23; checked on Matthew's phone; released in 1.98.2 (2026-11-24) |
+| 3. Match bank lines in the app | #306 | Built in iOS 0.51.0, 2026-11-23; checked on Matthew's phone; released in 1.98.2 (2026-11-24) |
+| 4. Keyboard and pointer | #307 | Built in iOS 0.52.0, 2026-11-23; checked on Matthew's phone; released in 1.98.2 (2026-11-24) |
+| 5. Drag and drop | #308 | Built in iOS 0.53.0, 2026-11-23; checked on Matthew's phone; released in 1.98.2 (2026-11-24) |
 
 Phase 5 built 2026-11-23 in iOS 0.53.0 (no server change), by an orchestrated run (an Opus worker wrote it; this thread checked it): a bank CSV dropped on Forecast or the Dashboard opens the import sheet, starting on the page's account, only where + offers Import a CSV; an unpaid one-off line (the #316 rule) dragged from Forecast or the Calendar onto a Calendar day moves its planned date through `LineDraft`, with Undo. The dragged line's type (`net.iptater.walletweather.line`) is visible only to WalletWeather's own process. Paid lines and lines in To confirm aren't draggable. Verified: `swift test`, 379 passed (15 new in `DragAndDropTests`); simulator pictures of the drop zone on Forecast and the Dashboard and a highlighted Calendar day, closed and open (from `WW_DEBUG_DROP`, since a script can't drag), on the picture page linked from #308. Not checked: a real drag from Files, and between two WalletWeather windows, on a Duo.
 

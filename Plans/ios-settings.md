@@ -6,10 +6,10 @@ Tracking issue: #298
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Sections and pages | #294 | Built in iOS 0.36.0, 2026-11-23; waits for Matthew's look and a release |
-| 2. A sidebar when the Duo is open | #295 | Built in iOS 0.44.0, 2026-11-23; waits for a try on Matthew's Duo and a release |
-| 3. Appearance previews, Dates & display | #296 | Built in iOS 0.45.0, 2026-11-23; waits for Matthew's look and a release |
-| 4. Custom themes | #297 | Built in iOS 0.54.0, 2026-11-23; waits for a try on Matthew's phone and a release |
+| 1. Sections and pages | #294 | Built in iOS 0.36.0, 2026-11-23; checked on Matthew's phone; released in 1.98.2 (2026-11-24) |
+| 2. A sidebar when the Duo is open | #295 | Built in iOS 0.44.0, 2026-11-23; checked on Matthew's phone; released in 1.98.2 (2026-11-24) |
+| 3. Appearance previews, Dates & display | #296 | Built in iOS 0.45.0, 2026-11-23; checked on Matthew's phone; released in 1.98.2 (2026-11-24) |
+| 4. Custom themes | #297 | Built in iOS 0.54.0, 2026-11-23; checked on Matthew's phone; released in 1.98.2 (2026-11-24) |
 
 Phase 4 built 2026-11-23 in iOS 0.54.0 (no server change), by an orchestrated run (an Opus worker wrote it; this thread checked it): My themes under the built-in looks, New theme from any look, an editor with six colours (decided 2026-11-23), a live preview and a readability line that warns under 4.5:1 and still saves. Themes are a `Look.custom` case saved as `custom:<id>`; names and colours go to the iCloud key-value store (new entitlement), mirrored on the iPhone. README and docs/privacy.md updated. Verified: `swift test`, 390 passed (11 new in `CustomThemeTests`); simulator pictures of the list, the editor with its warning, and Dashboard and Forecast in a light and a dark theme, on the picture page linked from #297. Not checked: iCloud reaching a second iPhone, and opening the editor by tap on the open Duo (the Debug setting opens it only closed).
 

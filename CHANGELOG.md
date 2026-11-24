@@ -69,7 +69,13 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.3** · Web version: **1.117.0** · Schema version: **39** · iOS version: **0.69.0**
+App version: **1.98.4** · Web version: **1.117.0** · Schema version: **39** · iOS version: **0.69.0**
+
+## [1.98.4] — 2026-11-24
+
+App version: **1.98.4** · Web version: **1.117.0** · Schema version: **39** · iOS version: **0.69.0**
+
+Settings → Bank sync in the web app has a card for each service (SimpleFIN Bridge, Teller, Plaid) with links to its setup steps in the bank sync guide, your keys and its Connect button, below your banks, and uses the room of a wide monitor. The iPhone app shows your email alerts on its Bank sync page, with Check now.
 
 ### Added
 
@@ -2954,7 +2960,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.98.3...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.98.4...HEAD
+[1.98.4]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.4
 [1.98.3]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.3
 [1.98.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.2
 [1.98.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.1

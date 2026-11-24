@@ -64,6 +64,15 @@ struct ForecastTests {
         #expect(s.comingCount == 0 && s.overdue.isEmpty)
     }
 
+    @Test func lowestIsTheMonthsLowForecastBalanceWithItsDay() throws {
+        let month: ForecastMonth = try sample("forecast")
+        #expect(month.lowest.balance.formatted == "$2,242.88" && month.lowest.date == LocalDay("2026-11-11"))
+        // The first of equal lows wins, as the summary always read it.
+        let empty = ForecastMonth(openingBalance: Money(Decimal(120)), forecastEndingBalance: Money(Decimal(120)),
+                                  actualEndingBalance: Money(Decimal(120)), currentBalance: Money(Decimal(120)), rows: [])
+        #expect(empty.lowest.balance == Money(Decimal(120)) && empty.lowest.date == nil)
+    }
+
     @Test func categoriesAndMe() throws {
         let cats: [TransactionCategory] = try sample("categories")
         #expect(cats.contains { $0.id == 5 && $0.name == "Rent/Mortgage" })

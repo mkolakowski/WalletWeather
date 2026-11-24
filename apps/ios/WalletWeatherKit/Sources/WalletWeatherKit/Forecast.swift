@@ -66,6 +66,15 @@ public struct ForecastMonth: Sendable, Codable, Equatable {
 }
 
 extension ForecastMonth {
+    /// The month's lowest forecast balance and the day it falls on, for the
+    /// header's strip (#322) and the open Duo's summary. An empty month is
+    /// its opening balance, with no day.
+    public var lowest: (balance: Money, date: LocalDay?) {
+        guard var best = rows.first else { return (openingBalance, nil) }
+        for line in rows where line.forecastBalance < best.forecastBalance { best = line }
+        return (best.forecastBalance, best.plannedDate)
+    }
+
     /// A line as it is in this month, found again after a reload (#315): by
     /// its transaction when it had one, else, for a projected date of a
     /// repeating bill or paycheck that was saved as a new transaction since,
@@ -163,11 +172,10 @@ public struct ForecastSummary: Sendable, Equatable {
     public var differing: [ForecastLine] = []
 
     public init(_ month: ForecastMonth, today: LocalDay) {
-        low = (month.openingBalance, nil)
+        low = month.lowest
         high = (month.openingBalance, nil)
         var first = true
         for line in month.rows {
-            if first || line.forecastBalance < low.balance { low = (line.forecastBalance, line.plannedDate) }
             if first || line.forecastBalance > high.balance { high = (line.forecastBalance, line.plannedDate) }
             first = false
             if line.differsFromPlan { differing.append(line) }

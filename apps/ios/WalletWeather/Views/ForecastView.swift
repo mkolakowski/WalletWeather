@@ -591,44 +591,58 @@ struct MonthHeader: View {
                 }
             }
             MonthBar(month: month, onMove: onMove, onPick: onJump)
+            // The balance today leads; the month's other figures sit in one
+            // strip under it, as the web draws it since 1.98.0 (#322).
+            VStack(alignment: .leading, spacing: 2) {
+                Caption("Today")
+                Text(data.currentBalance.formatted)
+                    .font(.system(.largeTitle, design: .rounded, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(Palette.amount(data.currentBalance.isNegative))
+                    .wholeFigure(defaultScale: 0.6)
+                    // The same cap as the Dashboard's balance (#311).
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+            }
+            .accessibilityElement(children: .combine)
+            let low = data.lowest
             FitsAcross {
-                Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
-                    GridRow(alignment: .bottom) {
-                        Caption("Today")
-                        Caption("Forecast end").fixedSize(horizontal: false, vertical: true)
-                        Caption("Actual end").fixedSize(horizontal: false, vertical: true)
-                    }
-                    GridRow {
-                        figure(data.currentBalance)
-                        figure(data.forecastEndingBalance)
-                        figure(data.actualEndingBalance)
-                    }
+                HStack(alignment: .top, spacing: 12) {
+                    stripFigure("Forecast end", data.forecastEndingBalance)
+                    stripFigure("Actual end", data.actualEndingBalance)
+                    stripFigure("Lowest", low.balance, on: low.date)
                 }
+                // Its full height, or the Lowest column (a line taller, with
+                // its date) shrinks its figure to fit.
+                .fixedSize(horizontal: false, vertical: true)
             } stacked: {
                 // The larger text sizes: one to a row, the label over it (#311).
                 VStack(alignment: .leading, spacing: 10) {
-                    stackedFigure("Today", data.currentBalance)
-                    stackedFigure("Forecast end", data.forecastEndingBalance)
-                    stackedFigure("Actual end", data.actualEndingBalance)
+                    stripFigure("Forecast end", data.forecastEndingBalance)
+                    stripFigure("Actual end", data.actualEndingBalance)
+                    stripFigure("Lowest", low.balance, on: low.date)
                 }
             }
+            .padding(.horizontal, 12).padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Palette.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .card()
     }
 
-    private func figure(_ value: Money) -> some View {
-        Text(value.formatted)
-            .font(.callout.weight(.semibold).monospacedDigit())
-            .foregroundStyle(Palette.amount(value.isNegative))
-            .wholeFigure(defaultScale: 0.7)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func stackedFigure(_ label: String, _ value: Money) -> some View {
+    /// One of the strip's figures: its label, the amount, and the day under
+    /// it when it has one (the lowest point's).
+    private func stripFigure(_ label: String, _ value: Money, on day: LocalDay? = nil) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Caption(label)
-            figure(value)
+            Caption(label).fixedSize(horizontal: false, vertical: true)
+            Text(value.formatted)
+                .font(.callout.weight(.semibold).monospacedDigit())
+                .foregroundStyle(Palette.amount(value.isNegative))
+                .wholeFigure(defaultScale: 0.7)
+            if let day {
+                Text(day.short).font(.caption2).foregroundStyle(.secondary)
+            }
         }
+        // From zero, so the three columns share the strip equally.
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 }

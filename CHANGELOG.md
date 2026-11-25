@@ -66,6 +66,10 @@ useless — it gives a false sense of history. Record the change in the
 same commit (or session) that introduces it.
 
 -->
+### Changed
+
+- **iPhone app: Connections lists the phone only once it's set up.** Settings → Connections (and the connection chip's menu) used to list **Use on this iPhone** as if it were a connection even when you had never set one up. It now lists **On this iPhone** only once a household is kept on the phone; until then **Use on this iPhone** is a button under **Add a server**, beside **Restore from an iCloud backup**. (#373)
+
 
 ## [Unreleased]
 

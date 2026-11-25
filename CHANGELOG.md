@@ -66,16 +66,14 @@ useless — it gives a false sense of history. Record the change in the
 same commit (or session) that introduces it.
 
 -->
-### Changed
-
-- **iPhone app: Connections lists the phone only once it's set up.** Settings → Connections (and the connection chip's menu) used to list **Use on this iPhone** as if it were a connection even when you had never set one up. It now lists **On this iPhone** only once a household is kept on the phone; until then **Use on this iPhone** is a button under **Add a server**, beside **Restore from an iCloud backup**. (#373)
-
 
 ## [Unreleased]
 
 App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.9**
 
 ### Changed
+
+- **iPhone app: Connections lists the phone only once it's set up.** Settings → Connections (and the connection chip's menu) used to list **Use on this iPhone** as if it were a connection even when you had never set one up. It now lists **On this iPhone** only once a household is kept on the phone; until then **Use on this iPhone** is a button under **Add a server**, beside **Restore from an iCloud backup**. (#373)
 
 - **iPhone app: Reports' list sits in a card.** The saved reports used to be plain rows with hairlines straight on the page, unlike every other page. They are now in one card with a divider between them, with the same margins as Budgets, on the iPhone and in the left half of the open Duo. (#370)
 

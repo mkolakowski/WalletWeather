@@ -104,7 +104,7 @@ App version: **1.99.0** · Web version: **1.118.0** · Schema version: **40** ·
 
 ## [1.98.6] — 2026-11-25
 
-App version: **1.98.6** · Web version: **1.118.0** · Schema version: **39** · iOS version: **0.71.1**
+App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.1**
 
 In the iPhone app, a line waiting in Forecast's To confirm list can be given the day it really cleared, and To confirm and Bills & income gain a Sort button. The bank sync guide is split into a page for each part, and the app's Step by step links open the right one. No database change.
 

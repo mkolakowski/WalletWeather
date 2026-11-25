@@ -8,14 +8,25 @@ import WalletWeatherKit
 /// A line still to confirm, made for ticking off with your bank's app open
 /// beside WalletWeather: Paid as planned in one tap, or the amount it really
 /// came to and Paid; Edit opens it in the editor (#157), and it swipes like
-/// any other line.
+/// any other line. The Paid on chip (#349) sets the day both buttons record,
+/// starting on the day a swipe would use, so a bill that cleared on another
+/// day needs no trip into Edit.
 struct ConfirmRow: View {
     let line: ForecastLine
     let onEdit: () -> Void
-    let onConfirm: (String?) async -> Void
+    /// The amount typed (nil for Paid as planned), and the day it was paid.
+    let onConfirm: (String?, LocalDay) async -> Void
 
     @State private var amount = ""
     @State private var saving = false
+    @State private var paidOn: LocalDay
+
+    init(line: ForecastLine, onEdit: @escaping () -> Void, onConfirm: @escaping (String?, LocalDay) async -> Void) {
+        self.line = line
+        self.onEdit = onEdit
+        self.onConfirm = onConfirm
+        _paidOn = State(initialValue: LineDraft.paidOn(line, today: .today()))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -35,6 +46,13 @@ struct ConfirmRow: View {
                     .buttonStyle(.borderless)
                     .accessibilityLabel("Edit \(line.description)")
             }
+            DatePicker("Paid on", selection: Binding(get: { paidOn.date }, set: { paidOn = LocalDay.today(now: $0) }),
+                       in: ...Date.now, displayedComponents: .date)
+                .datePickerStyle(.compact)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize()
+                .accessibilityLabel("Paid on, for \(line.description)")
             HStack(spacing: 8) {
                 Button {
                     Task { await run(nil) }
@@ -74,7 +92,7 @@ struct ConfirmRow: View {
 
     private func run(_ typed: String?) async {
         saving = true
-        await onConfirm(typed)
+        await onConfirm(typed, paidOn)
         saving = false
         amount = ""
     }

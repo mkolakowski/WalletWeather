@@ -26,6 +26,22 @@ struct BigScreenTests {
         #expect(LineDraft.paid(gym, amountText: "", today: today).problem != nil)
     }
 
+    /// The row's paid-on chip (#349): both buttons record the day picked,
+    /// a day still to come is taken as today, and the amount still applies.
+    @Test func confirmedOnThePickedDay() throws {
+        let gym = try #require(try month().rows.first { $0.description == "Gym" })
+        let tenth = LocalDay(year: 2026, month: 11, day: 10)
+        let asPlanned = LineDraft.confirmed(gym, amountText: nil, on: tenth, today: today)
+        #expect(asPlanned.paid && asPlanned.paidOn == tenth && asPlanned.paidAmount == Decimal(39))
+        let typed = LineDraft.confirmed(gym, amountText: "41.50", on: tenth, today: today)
+        #expect(typed.paidOn == tenth && typed.paidAmount == Decimal(string: "41.50"))
+        let later = LineDraft.confirmed(gym, amountText: nil, on: LocalDay(year: 2026, month: 11, day: 20), today: today)
+        #expect(later.paidOn == today)
+        // Left on the chip's first day, it's the day a swipe would use.
+        #expect(LineDraft.confirmed(gym, amountText: nil, on: LineDraft.paidOn(gym, today: today), today: today)
+                == LineDraft.paidAsPlanned(gym, today: today))
+    }
+
     @Test func compareLinesUpByDayOfMonth() throws {
         let m = try month()
         let days = Compare.days(left: m.rows, right: Array(m.rows.prefix(3)))

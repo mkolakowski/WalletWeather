@@ -24,6 +24,8 @@ struct ForecastView: View {
     @SceneStorage("forecast.confirming") private var confirming = false
     /// The category or tag chosen under the picker (#327), as `ForecastFilter.rawValue`; empty is All.
     @SceneStorage("forecast.filter") private var filterText = ""
+    /// To confirm's order from the sort button (#350), as `ListSort.rawValue`; empty is oldest first.
+    @SceneStorage("forecast.confirmSort") private var confirmSortText = ""
 
     @State private var accounts: Loadable<[Account]> = .loading
     @State private var month: Loadable<ForecastMonth> = .loading
@@ -362,7 +364,8 @@ struct ForecastView: View {
 
     @ViewBuilder
     private func confirmRows(_ data: ForecastMonth) -> some View {
-        let lines = ForecastFilter.apply(activeFilter(data), to: data.toConfirm(today: .today()))
+        let lines = ListSort.stored(confirmSortText, default: .toConfirmDefault)
+            .apply(to: ForecastFilter.apply(activeFilter(data), to: data.toConfirm(today: .today())))
         if lines.isEmpty, activeFilter(data) != nil {
             emptyFilter
         } else if lines.isEmpty {
@@ -371,17 +374,17 @@ struct ForecastView: View {
                 .frame(maxWidth: .infinity).padding(.vertical, 24)
         }
         ForEach(lines) { line in
-            ConfirmRow(line: line, onEdit: { openLine(line) }) { amount in await confirm(line, amount: amount) }
+            ConfirmRow(line: line, onEdit: { openLine(line) }) { amount, day in await confirm(line, amount: amount, on: day) }
                 .modifier(LineSwipes(line: line, editable: editable, onPaid: markPaid, onEdit: openLine,
                                      onDelete: { pendingDelete = $0 }))
         }
     }
 
-    /// Paid as planned (no amount), or paid at the amount typed.
-    private func confirm(_ line: ForecastLine, amount: String?) async {
+    /// Paid as planned (no amount), or paid at the amount typed, on the
+    /// day picked on the row (#349).
+    private func confirm(_ line: ForecastLine, amount: String?, on day: LocalDay) async {
         guard let account else { return }
-        let draft = amount.map { LineDraft.paid(line, amountText: $0, today: .today()) }
-            ?? .paidAsPlanned(line, today: .today())
+        let draft = LineDraft.confirmed(line, amountText: amount, on: day, today: .today())
         if await change(line, { try await $0.save(line, draft: draft, account: account.id) }) {
             settings.start.done.insert(.markPaid)  // Getting started (#177)
             offerUndo(line, account: account.id)
@@ -401,6 +404,10 @@ struct ForecastView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Compare", systemImage: "rectangle.split.2x1") { comparing = true }
             }
+        }
+        // Sort (#350): To confirm only; All lines stays in date order for its running balance.
+        if showingConfirm {
+            SortMenu(stored: $confirmSortText, fallback: .toConfirmDefault)
         }
         if editable {
             AddMenu(addTitle: "Add transaction", canMove: editableAccounts.count > 1, onAdd: startAdding, onMove: {

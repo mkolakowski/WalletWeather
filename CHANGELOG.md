@@ -69,7 +69,12 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.5** · Web version: **1.117.0** · Schema version: **39** · iOS version: **0.70.0**
+App version: **1.98.5** · Web version: **1.117.0** · Schema version: **39** · iOS version: **0.71.0**
+
+### Added
+
+- iPhone app: each line in Forecast's **To confirm** list has a **Paid on** date you can tap to pick the day it really cleared your bank, so **Paid as planned** and **Paid** record that day without opening Edit. It starts on the day a swipe would use (the due date, or today if that's earlier) (#349).
+- iPhone app: a **Sort** button beside **+** sorts Forecast's **To confirm** list and the **Bills & income** list by date, amount or name, either way round. Each list remembers its choice and starts in the order it had before (To confirm oldest first, Bills & income by name); Forecast's **All lines** stays in date order so its running balance reads day by day (#350).
 
 ## [1.98.5] — 2026-11-24
 

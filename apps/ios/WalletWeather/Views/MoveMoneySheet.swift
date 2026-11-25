@@ -29,6 +29,36 @@ struct AddMenu: ToolbarContent {
     }
 }
 
+/// The sort button beside + (#350), where the page shows a list that can be
+/// sorted: by date, amount or name, either way round. The choice is kept by
+/// the page (`stored`, a `ListSort.rawValue`); empty is the list's own order.
+struct SortMenu: ToolbarContent {
+    @Binding var stored: String
+    let fallback: ListSort
+    /// The list's dates are still to come (Bills) rather than gone by (To confirm).
+    var future = false
+
+    var body: some ToolbarContent {
+        let current = ListSort.stored(stored, default: fallback)
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Picker("Sort", selection: Binding(get: { current }, set: { stored = $0.rawValue })) {
+                    ForEach(ListSort.Key.allCases, id: \.self) { key in
+                        Section(key.title) {
+                            ForEach(ListSort.choices.filter { $0.key == key }, id: \.self) {
+                                Text($0.title(future: future)).tag($0)
+                            }
+                        }
+                    }
+                }
+            } label: {
+                Label("Sort", systemImage: "arrow.up.arrow.down")
+            }
+            .accessibilityValue(current.spoken(future: future))
+        }
+    }
+}
+
 /// Move money between two accounts you may edit. It's recorded as paid on
 /// the day you pick, on both accounts. Given `changing`, the id of a
 /// transfer, it's Change transfer instead: the same form filled in, and

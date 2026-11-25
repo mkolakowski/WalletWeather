@@ -17,6 +17,8 @@ struct BillsView: View {
     @Environment(AppSettings.self) private var settings
     private let follower = AccountFollower()
     @SceneStorage("bills.ended") private var showEnded = false
+    /// The list's order from the sort button (#350), as `ListSort.rawValue`; empty is by name.
+    @SceneStorage("bills.sort") private var sortText = ""
 
     @State private var accounts: [Account] = []
     @State private var list: Loadable<RecurringList> = .loading
@@ -51,6 +53,9 @@ struct BillsView: View {
                 .pageTitle("Bills & income")
                 .toolbar { NewWindowItem(place: .bills) }
                 .toolbar {
+                    if list.value != nil {
+                        SortMenu(stored: $sortText, fallback: .billsDefault, future: !showEnded)
+                    }
                     if !editableAccounts.isEmpty {
                         AddMenu(addTitle: "Add bill or income", canMove: editableAccounts.count > 1,
                                 onAdd: addBill, onMove: {
@@ -139,7 +144,7 @@ struct BillsView: View {
                             .font(.callout).foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity).padding(.vertical, 24)
                     }
-                    ForEach(data.items) { item in
+                    ForEach(ListSort.stored(sortText, default: .billsDefault).apply(to: data.items)) { item in
                         Button { openItem(item) } label: {
                             BillCard(item: item, showAccount: account == nil, selected: open?.item?.id == item.id)
                         }

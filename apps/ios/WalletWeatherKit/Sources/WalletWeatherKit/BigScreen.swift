@@ -23,6 +23,15 @@ extension LineDraft {
         draft.amountText = amountText.trimmingCharacters(in: .whitespaces)
         return draft
     }
+
+    /// A To confirm row's Paid as planned (no amount) or Paid (the amount
+    /// typed), on the day picked on the row's chip (#349). A day still to
+    /// come is taken as today: nothing is paid in the future.
+    public static func confirmed(_ line: ForecastLine, amountText: String?, on day: LocalDay, today: LocalDay) -> LineDraft {
+        var draft = amountText.map { paid(line, amountText: $0, today: today) } ?? paidAsPlanned(line, today: today)
+        draft.paidOn = min(day, today)
+        return draft
+    }
 }
 
 // MARK: - Compare

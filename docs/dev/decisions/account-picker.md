@@ -79,3 +79,16 @@ Decisions for [`Plans/account-picker.md`](../../../Plans/account-picker.md).
 
 **The decision:** B. It sits at the right of + as a bare circle (no shared glass), on the phone, the closed Duo and the open Duo; in Settings' sidebar on the open Duo it stays in the header, with a 44-point tap area (#384).
 
+
+## 2026-11-25: on the open Duo, the chip's room stays
+
+**Decided:** 2026-11-25, by Matthew. **Status:** accepted (#385).
+
+**The question:** with the chip gone (0.73.0), the Dashboard's first card on the open Duo started right under the title capsule, inside the pane's soft blur, where Apple's contrast audit never finished and the first line could read faded. How should it be fixed?
+
+**Options considered:**
+- **Room below the capsule:** on the open Duo only, the left pane's first card starts where it sat with the chip.
+- **Skip that audit in the walk:** nothing changes for people, but the walk stops checking contrast there.
+- **Dig further first,** for a fix with no visible change.
+
+**The decision:** room below the capsule (iOS 0.73.2): the pane that carries the capsule says so (`paneUnderTitle`), and the Dashboard keeps the chip's room there. The phone and the half-open Duo are unchanged.

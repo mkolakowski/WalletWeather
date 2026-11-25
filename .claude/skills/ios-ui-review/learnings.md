@@ -47,6 +47,9 @@ line of why; the reasoning in full goes here.
   test has run a couple of minutes with no result (a worktree's first build
   is about 8 minutes). A watchdog that matches on a path also matches the
   build, and an older run's log looks stuck: key it to this run's log.
+  #385's cause, found that way: the first card's text sat in the open
+  Duo's soft blur under the title capsule. Text there, with nothing above
+  it, is what the dark contrast audit can't finish on.
 - **Menus, alerts the system owns, drag and drop, the keyboard and pointer,
   Face ID, the camera:** the app has Debug launch settings that show each as
   a sheet or a state (`apps/ios/README.md`). A new one of these needs a new

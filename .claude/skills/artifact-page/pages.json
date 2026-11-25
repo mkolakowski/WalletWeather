@@ -57,6 +57,16 @@
       "group": "reviews"
     },
     {
+      "slug": "account-picker-built",
+      "kind": "dated",
+      "short": "Account picker, built",
+      "title": "Account picker: as built",
+      "about": "The iPhone app's round picture button as built in iOS 0.73.0, on the Dashboard and Settings, in light, dark and large text, in the demo and locked, with its menu.",
+      "updated": "2026-11-25",
+      "issue": 379,
+      "group": "reviews"
+    },
+    {
       "slug": "account-picker-placement",
       "kind": "dated",
       "short": "Account picker",

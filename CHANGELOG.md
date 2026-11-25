@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.6**
+App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.7**
+
+### Changed
+
+- **iPhone app: Reports' list sits in a card.** The saved reports used to be plain rows with hairlines straight on the page, unlike every other page. They are now in one card with a divider between them, with the same margins as Budgets, on the iPhone and in the left half of the open Duo. (#370)
 
 ### Fixed
 

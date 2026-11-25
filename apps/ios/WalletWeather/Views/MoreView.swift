@@ -296,8 +296,8 @@ struct ReportsView: View {
                                            description: Text("Build and save a report in the web app's Reports page, and it shows here."))
                 } else if sizeClass == .regular {
                     // Half open like a laptop (#304): the list above, the report below.
-                    FoldLayout { _ in
-                        reportList(list)
+                    FoldLayout { edges in
+                        reportList(list, leading: edges.leading, trailing: edges.trailing)
                     } trailing: { edges in
                         if let chosen {
                             ScrollView {
@@ -311,7 +311,7 @@ struct ReportsView: View {
                         }
                     }
                 } else {
-                    reportList(list)
+                    reportList(list, leading: 16, trailing: 16)
                 }
             }
         }
@@ -329,33 +329,37 @@ struct ReportsView: View {
         .task(id: model.generation) { await load() }
     }
 
-    /// Plain rows like Bills & income and Search: the page's text colour, a
-    /// chevron at the right, and on the open Duo the open report tinted.
-    private func reportList(_ list: [SavedReport]) -> some View {
-        List(list) { report in
-            Group {
-                if sizeClass == .regular {
-                    Button { chosen = report } label: { row(report, selected: chosen?.id == report.id, chevron: true) }
-                        .buttonStyle(.plain)
-                } else {
-                    NavigationLink {
-                        ScrollView { ReportResult(report: report).padding(.horizontal, 16) }
-                            .background(PageBackground().ignoresSafeArea())
-                            .navigationTitle(report.name)
-                            .navigationBarTitleDisplayMode(.inline)
-                    } label: { row(report, selected: false, chevron: false) }
+    /// The saved reports in one card, as Budgets and the other pages put
+    /// their content (#370): each row's name, a chevron at the right, a
+    /// divider between them, and on the open Duo the open report tinted.
+    private func reportList(_ list: [SavedReport], leading: CGFloat, trailing: CGFloat) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(list.enumerated()), id: \.element.id) { index, report in
+                    if index > 0 { Divider() }
+                    if sizeClass == .regular {
+                        Button { chosen = report } label: { row(report, selected: chosen?.id == report.id) }
+                            .buttonStyle(.plain)
+                    } else {
+                        NavigationLink {
+                            ScrollView { ReportResult(report: report).padding(.horizontal, 16) }
+                                .background(PageBackground().ignoresSafeArea())
+                                .navigationTitle(report.name)
+                                .navigationBarTitleDisplayMode(.inline)
+                        } label: { row(report, selected: false) }
+                            .buttonStyle(.plain)
+                    }
                 }
             }
-            .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+            .card()
+            .padding(.leading, leading).padding(.trailing, trailing)
+            .padding(.bottom, 24)
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
     }
 
-    /// The system draws the chevron of a pushed link itself; the open Duo's
-    /// rows are buttons, so they draw their own.
-    private func row(_ report: SavedReport, selected: Bool, chevron: Bool) -> some View {
+    /// A row of the card: the report's name, its pin, and a chevron (the list
+    /// is no longer a system List, which drew the pushed link's chevron itself).
+    private func row(_ report: SavedReport, selected: Bool) -> some View {
         HStack(spacing: 10) {
             Text(report.name).font(.body.weight(.medium)).lineLimit(2)
             Spacer(minLength: 8)
@@ -363,13 +367,12 @@ struct ReportsView: View {
                 Image(systemName: "pin.fill").font(.caption).foregroundStyle(.secondary)
                     .accessibilityLabel("Pinned to the Dashboard")
             }
-            if chevron {
-                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
-            }
+            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 10)
         .padding(.horizontal, 6)
+        .frame(minHeight: 44)
         .background(selected ? Palette.accent.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
     }

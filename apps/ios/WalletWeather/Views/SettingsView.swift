@@ -97,8 +97,8 @@ struct SettingsView: View {
             }
             .background(PageBackground().ignoresSafeArea())
             .navigationTitle("Settings")
-            // Who's in front, and the way to switch, on the title's line (#379).
-            .accountPickerTitle("Settings") { open(.page(.connections)) }
+            // Who's in front, and the way to switch, at the top right (#379, #383).
+            .accountPickerItem { open(.page(.connections)) }
             .toolbar { NewWindowItem(place: .more) }
             .navigationDestination(for: SettingsPage.self) { SettingsPageView(page: $0) }
             .navigationDestination(for: ConnectionRoute.self) { ConnectionPage(id: $0.id) }
@@ -149,7 +149,7 @@ struct SettingsView: View {
                 // A plain column, not a navigation stack: a stack here kept
                 // the tab bar's inset although it's at the other edge.
                 VStack(alignment: .leading, spacing: 0) {
-                    // The account picker on the title's line, at the right (#379).
+                    // The account picker on the sidebar title's line, at the right (#379).
                     HStack {
                         Text("Settings").font(.headline)
                             .accessibilityAddTraits(.isHeader)

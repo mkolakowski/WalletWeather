@@ -1,8 +1,9 @@
 import Foundation
 
 /// The account picker (Plans/account-picker.md, phase 3, #379): a round
-/// button on the title's line at the right of the Dashboard and Settings,
-/// in place of the connection chip of #302 (decided 2026-11-25). It shows
+/// button among the bar's buttons at the top right of the Dashboard and
+/// Settings (#383), in place of the connection chip of #302 (decided
+/// 2026-11-25). It shows
 /// the picture of whoever is signed in to the server in front (their
 /// initials until one is set), and opens the menu of the connections the
 /// chip had.

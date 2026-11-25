@@ -65,3 +65,17 @@ Decisions for [`Plans/account-picker.md`](../../../Plans/account-picker.md).
 - **As the chip did:** people with one server would never see their picture on the phone.
 
 **The decision:** always. With one server, the picture still says who's signed in, and its menu still offers the demo and Manage connections….
+
+## 2026-11-25: the picture moves to the bar's buttons
+
+**Decided:** 2026-11-25, by Matthew, from the UI review of 0.73.0 (#382, finding B1). **Status:** accepted (#383). Changes "the picture replaces the connection chip" above: still in its place, but at the top right among the bar's buttons rather than on the large title's line.
+
+**The question:** on the phone the picture sat on the large title's line as a `.largeTitle` toolbar item, which isn't in the accessibility tree: VoiceOver, Switch Control and Voice Control couldn't reach it, and with it the way out of the demo. How should it be fixed?
+
+**Options considered:**
+- **A, keep it on the title's line and try to make it reachable:** nothing visible changes, if SwiftUI allows it at all.
+- **B, move it into the bar beside +,** as the open Duo already had it: reachable for certain, and the system's large title comes back.
+- **C, draw the title row in the page itself:** reachable and on the title's line, but more code, and it scrolls away with the page.
+
+**The decision:** B. It sits at the right of + as a bare circle (no shared glass), on the phone, the closed Duo and the open Duo; in Settings' sidebar on the open Duo it stays in the header, with a 44-point tap area (#384).
+

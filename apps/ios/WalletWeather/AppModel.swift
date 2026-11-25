@@ -517,7 +517,7 @@ final class AppModel {
         return isLocal ? .household : .unsaved
     }
 
-    /// What the account picker shows, on the title's line of the Dashboard
+    /// What the account picker shows, at the top right of the Dashboard
     /// and Settings (#379), or nil with nothing in front.
     func accountPicker(locked: Bool) -> AccountPickerState? {
         let person = isDemo ? nil : me.map { Initials.Person(name: $0.name, email: $0.email) }

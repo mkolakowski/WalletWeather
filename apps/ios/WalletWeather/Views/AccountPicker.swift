@@ -4,8 +4,9 @@ import WalletWeatherKit
 
 /// The account picker (Plans/account-picker.md, phase 3, #379): a round
 /// button with the picture of whoever is signed in to the server in front
-/// (their initials until one is set), on the title's line at the right of
-/// the Dashboard and Settings, in place of the connection chip of #302
+/// (their initials until one is set), among the bar's buttons at the top
+/// right of the Dashboard and Settings (#383; in Settings' sidebar on the
+/// open Duo, its header), in place of the connection chip of #302
 /// (decided 2026-11-25). The household on this iPhone shows its iPhone
 /// icon; the demo shows the picture of the server it goes back to with a
 /// small sparkles badge, also while locked (`AccountPickerState.make`). It
@@ -52,6 +53,9 @@ struct AccountPicker: View {
                 Button("Manage connections…", systemImage: "arrow.left.arrow.right.circle") { manageConnections() }
             } label: {
                 AccountFace(state: state, picture: picture(state), size: size)
+                    // At least 44 points to tap wherever it sits (#384).
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(.rect)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(state.label)
@@ -163,41 +167,29 @@ struct AccountFace: View {
 }
 
 extension View {
-    /// The page's large title with the account picker at its right (#379),
-    /// for the Dashboard and Settings. On the phone it takes the large
-    /// title's place on its line (the bar's own title shows once the page
-    /// scrolls); on the open Duo, where the title is a capsule (#341), it
-    /// joins the bar's buttons. Not on a page shown inside another.
-    func accountPickerTitle(_ title: String, manage: (() -> Void)? = nil, debugSheet: Bool = false) -> some View {
-        modifier(AccountPickerTitle(title: title, manage: manage, debugSheet: debugSheet))
+    /// The account picker among the bar's buttons, at the top right of the
+    /// Dashboard and Settings (#379), on the phone as on the open Duo. It
+    /// was on the large title's line first, as a `.largeTitle` toolbar
+    /// item, but that item isn't in the accessibility tree, so VoiceOver
+    /// couldn't reach it (#383, decided 2026-11-25). It shows bare, without
+    /// the bar's shared glass. Not on a page shown inside another.
+    func accountPickerItem(manage: (() -> Void)? = nil, debugSheet: Bool = false) -> some View {
+        modifier(AccountPickerItem(manage: manage, debugSheet: debugSheet))
     }
 }
 
-private struct AccountPickerTitle: ViewModifier {
-    let title: String
+private struct AccountPickerItem: ViewModifier {
     let manage: (() -> Void)?
     let debugSheet: Bool
-    @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.embeddedPage) private var embedded
 
     func body(content: Content) -> some View {
         if embedded {
             content
-        } else if sizeClass == .regular {
-            content.toolbar {
-                ToolbarItem(placement: .topBarTrailing) { AccountPicker(manage: manage, debugSheet: debugSheet) }
-            }
         } else {
             content.toolbar {
-                ToolbarItem(placement: .largeTitle) {
-                    HStack(alignment: .center, spacing: 12) {
-                        Text(title)
-                            .font(.largeTitle.bold())
-                            .accessibilityAddTraits(.isHeader)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        AccountPicker(manage: manage, debugSheet: debugSheet)
-                    }
-                }
+                ToolbarItem(placement: .topBarTrailing) { AccountPicker(manage: manage, debugSheet: debugSheet) }
+                    .sharedBackgroundVisibility(.hidden)
             }
         }
     }

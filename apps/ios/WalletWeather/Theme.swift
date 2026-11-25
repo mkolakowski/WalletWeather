@@ -213,7 +213,10 @@ enum Palette {
 
     static func hex(_ value: UInt32) -> Color { Color(UIColor(hex: value)) }
 
-    static func dynamic(light: UInt32, dark: UInt32) -> Color {
+    /// `nonisolated`: UIKit resolves the colour for a look on whatever queue
+    /// is drawing, and the app's default main-actor isolation would make it
+    /// trap there (#371).
+    nonisolated static func dynamic(light: UInt32, dark: UInt32) -> Color {
         Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(hex: dark) : UIColor(hex: light) })
     }
 
@@ -232,7 +235,7 @@ enum Palette {
 }
 
 extension UIColor {
-    convenience init(hex: UInt32) {
+    nonisolated convenience init(hex: UInt32) {
         self.init(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
                   blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
     }

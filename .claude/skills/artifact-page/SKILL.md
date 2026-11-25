@@ -24,6 +24,8 @@ Add it to `pages.json` (or change its `updated` date when updating one):
   after page), `dated` for one written once (a review, a write-up).
 - `title`, `about` (one line, what a person finds there), `updated`
   (`YYYY-MM-DD`, Eastern), `issue`.
+- `short`: the page's name in the bar at the top, a few words. The bar lists
+  every page on every page, the kept-up-to-date ones first.
 
 ## 2. Write the page's content
 
@@ -39,6 +41,16 @@ Pictures: a few small ones can be embedded as `data:` URIs. Many, or large
 ones, go beside the page as files (`<slug>/<name>.jpg`, referenced
 relatively) so the page stays light; put them under
 `apps/ios/build/artifact/<slug>/`.
+
+Navigation is the builder's job, not the page's. Home is also the frame the
+other pages show in: a link in the bar is `#<slug>`, and Home's script swaps
+that page's `<main>` and its own styles into view, then lists the page's
+`<h2>` headings under the bar as "On this page". So:
+
+- a page is plain HTML and CSS: a `<script>` in it won't run in that frame;
+- give a page `<h2>` headings a person would jump to, and an `id` on any
+  that other pages link to (`#<slug>--<id>` is the link);
+- a link to a place on the same page is an ordinary `href="#<id>"`.
 
 A page built by a script (the UI review's `review_kit.py`, the before and
 after page's `ui-compare.py`) writes this content file itself.
@@ -59,7 +71,10 @@ In a session that hasn't published the artifact yet, read it first
 (`Artifact`, `action: "read"`, the `url` from `pages.json`), then publish
 with that `url`. Publish `apps/ios/build/artifact/index.html` as the page,
 `root` set to that folder, and in `files` only what changed: `pages.css`,
-the page's `<slug>.html`, and its pictures. Files left out of a publish stay
+the page's `<slug>.html`, and its pictures. A new page changes the bar, so
+Home (the page itself) always goes with it; the other pages' own copies of
+the bar catch up the next time each is wrapped, which only shows when one is
+opened by itself. Files left out of a publish stay
 as they are, so the other pages don't need to be on this Mac.
 
 A page is removed only when Matthew asks: take it out of `pages.json`,

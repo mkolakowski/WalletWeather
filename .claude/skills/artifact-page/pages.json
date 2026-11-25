@@ -8,7 +8,8 @@
       "title": "What changed for the iPhone UI review suite",
       "about": "The source check, the simulator walk, the scripts and every file added on 24 November, with what the suite found on its first runs.",
       "updated": "2026-11-24",
-      "issue": 348
+      "issue": 348,
+      "short": "UI review suite: what changed"
     }
   ],
   "elsewhere": [

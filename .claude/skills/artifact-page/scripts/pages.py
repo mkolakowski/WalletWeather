@@ -5,6 +5,11 @@
     pages.py wrap <slug> <body.html>   wraps a page's content in the shared header, as <slug>.html
     pages.py list                      prints the pages
 
+Home is also the frame the other pages show in: the bar at the top lists every
+page, a link is #slug, and Home's script swaps that page's <main> and its own
+styles into view. So a page is plain HTML and CSS: a <script> in it won't run
+there. Each page is also a whole document, for opening by itself.
+
 Everything lands in apps/ios/build/artifact/ (not tracked), which is the folder
 published: index.html is the page, the rest go as its files. pages.json, beside
 this script's skill, is the list of pages: Home is written from it and from
@@ -31,10 +36,18 @@ body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.55 v
 img { max-width: 100%; } [hidden] { display: none !important; }
 main, .ww-top { max-width: 920px; margin: 0 auto; }
 main { display: flex; flex-direction: column; gap: 22px; }
-.ww-top { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; padding-bottom: 14px; margin-bottom: 22px; border-bottom: 1px solid var(--rule); font-size: 0.9rem; }
-.ww-top a { color: var(--accent); text-decoration: none; } .ww-top a:hover, .ww-top a:focus-visible { text-decoration: underline; }
-.ww-top .ww-name { font-weight: 600; color: var(--ink); }
-.ww-top .ww-here { color: var(--soft); }
+.ww-top { display: flex; gap: 6px; align-items: center; padding-bottom: 12px; margin-bottom: 20px; border-bottom: 1px solid var(--rule);
+  overflow-x: auto; scrollbar-width: thin; }
+.ww-top a { flex: none; color: var(--ink); text-decoration: none; font-size: 0.88rem; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--rule); background: var(--panel); white-space: nowrap; }
+.ww-top a:hover { border-color: var(--accent); }
+.ww-top a:focus-visible, .ww-jump a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ww-top a[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: var(--paper); font-weight: 600; }
+.ww-top a.ww-name { font-weight: 600; border-color: transparent; background: none; padding-left: 0; }
+.ww-top a.ww-name[aria-current="page"] { color: var(--accent); background: none; }
+.ww-jump { max-width: 920px; margin: 0 auto 18px; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; font-size: 0.85rem; }
+.ww-jump span { font: 600 0.72rem var(--mono); letter-spacing: 0.05em; color: var(--soft); }
+.ww-jump a { color: var(--accent); text-decoration: none; } .ww-jump a:hover { text-decoration: underline; }
+.ww-wait { color: var(--soft); }
 h1 { font: 600 1.9rem/1.15 var(--sans); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
 h2 { font: 600 1.25rem/1.25 var(--sans); margin: 14px 0 0; padding-top: 16px; border-top: 2px solid var(--ink); text-wrap: balance; }
 h3 { font: 600 1rem/1.3 var(--sans); margin: 0; }
@@ -60,11 +73,85 @@ def pages():
     return json.loads((SKILL / "pages.json").read_text())
 
 
-def top(here=None):
-    """The header every page carries: the name, Home, and where you are."""
-    where = f'<span class="ww-here">{esc(here)}</span>' if here else '<span class="ww-here">Home</span>'
-    home = '<a href="index.html">Home</a>' if here else ""
-    return f'<nav class="ww-top" aria-label="WalletWeather pages"><span class="ww-name">WalletWeather</span>{home}{where}</nav>'
+def ordered(data):
+    """Every page in the bar's order: the ones kept up to date, then the rest, newest first."""
+    rank = {"standing": 0, "dated": 1}
+    return sorted(data["pages"], key=lambda p: (rank.get(p["kind"], 2), tuple(-int(n) for n in p["updated"].split("-")), p["slug"]))
+
+
+def top(here=None, shell=False):
+    """The bar every page carries: Home and every page, the one in view marked. In Home's own
+    document the links are `#slug` (its script swaps the page in); in a page opened by itself
+    they go back through Home."""
+    data = pages()
+    base = "" if shell else "index.html"
+    links = [f'<a class="ww-name" href="{base or "#"}"{"" if here else " aria-current=page"} data-slug="">WalletWeather</a>']
+    for page in ordered(data):
+        current = ' aria-current="page"' if page["slug"] == here else ""
+        links.append(f'<a href="{base}#{page["slug"]}" data-slug="{page["slug"]}"{current}>{esc(page.get("short") or page["title"])}</a>')
+    return '<nav class="ww-top" aria-label="WalletWeather pages">' + "".join(links) + "</nav>"
+
+
+# Home is also the frame the other pages show in: a page's link is #slug, and this swaps its
+# <main> and its own styles into view, so the bar stays put and the address says where you are.
+# #slug--part is a place within a page. A page that can't be fetched falls back to its own file.
+ROUTER = """<script>
+(function () {
+  var view = document.getElementById("ww-view"), jump = document.getElementById("ww-jump");
+  var home = view.innerHTML, kept = {}, slugs = SLUGS;
+  function mark(slug) {
+    document.querySelectorAll(".ww-top a").forEach(function (a) {
+      if (a.dataset.slug === slug) { a.setAttribute("aria-current", "page"); a.scrollIntoView({ block: "nearest", inline: "nearest" }); }
+      else { a.removeAttribute("aria-current"); }
+    });
+  }
+  function load(slug) {
+    if (kept[slug]) { return Promise.resolve(kept[slug]); }
+    return fetch(slug + ".html").then(function (answer) {
+      if (!answer.ok) { throw new Error(answer.status); }
+      return answer.text();
+    }).then(function (text) {
+      var page = new DOMParser().parseFromString(text, "text/html"), main = page.querySelector("main");
+      var styles = Array.prototype.map.call(page.querySelectorAll("body style"), function (s) { return s.outerHTML; }).join("");
+      kept[slug] = styles + (main ? main.outerHTML : page.body.innerHTML);
+      return kept[slug];
+    });
+  }
+  function settle(slug, part) {
+    // Links to a place on the page keep the page in the address; headings become the jump list.
+    view.querySelectorAll('a[href^="#"]').forEach(function (a) {
+      var name = a.getAttribute("href").slice(1);
+      if (name && slugs.indexOf(name) < 0 && name.indexOf("--") < 0) { a.setAttribute("href", "#" + slug + "--" + name); }
+    });
+    var heads = view.querySelectorAll("h2"), links = [];
+    heads.forEach(function (h, i) {
+      if (!h.id) { h.id = "part-" + (i + 1); }
+      links.push('<a href="#' + slug + "--" + h.id + '">' + h.textContent.replace(/[<>&]/g, "") + "</a>");
+    });
+    jump.innerHTML = slug && links.length > 2 ? "<span>ON THIS PAGE</span>" + links.join("") : "";
+    jump.hidden = !jump.innerHTML;
+    var target = part && document.getElementById(part);
+    if (target) { target.scrollIntoView(); } else { window.scrollTo(0, 0); }
+  }
+  var showing = null;
+  function route() {
+    var parts = location.hash.replace(/^#/, "").split("--"), slug = parts[0], part = parts[1];
+    if (slugs.indexOf(slug) < 0) { slug = ""; }
+    if (slug === showing) { settle(slug, part); return; }
+    mark(slug);
+    if (!slug) { view.innerHTML = home; showing = ""; settle("", null); return; }
+    view.innerHTML = '<main><p class="ww-wait">Opening…</p></main>';
+    load(slug).then(function (content) {
+      view.innerHTML = content; showing = slug; settle(slug, part);
+    }).catch(function () {
+      showing = null;
+      view.innerHTML = '<main><p>This page didn\u2019t load here. <a href="' + slug + '.html">Open it by itself</a>.</p></main>';
+    });
+  }
+  window.addEventListener("hashchange", route);
+  route();
+})();
+</script>"""
 
 
 def home():
@@ -72,7 +159,8 @@ def home():
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "pages.css").write_text(CSS)
     parts = ['<title>WalletWeather</title>', '<meta name="claude:viewport-fit-sides" content="cover">', FONTS,
-             '<link rel="stylesheet" href="pages.css">', top(), "<main>",
+             '<link rel="stylesheet" href="pages.css">', top(shell=True), '<nav class="ww-jump" id="ww-jump" aria-label="On this page" hidden></nav>',
+             '<div id="ww-view">', "<main>",
              "<h1>WalletWeather</h1>", f'<p class="lede">{data["lede"]}</p>']
     kinds = [("standing", "Kept up to date"), ("dated", "Written once")]
     for kind, title in kinds:
@@ -83,7 +171,7 @@ def home():
         parts.append(f"<h2>{title}</h2><ul class=\"ww-pages\">")
         for page in members:
             issue = f' · <a href="https://github.com/mkolakowski/WalletWeather/issues/{page["issue"]}">#{page["issue"]}</a>' if page.get("issue") else ""
-            parts.append(f'<li><a href="{page["slug"]}.html">{esc(page["title"])}</a><span>{esc(page["about"])}</span>'
+            parts.append(f'<li><a href="#{page["slug"]}">{esc(page["title"])}</a><span>{esc(page["about"])}</span>'
                          f'<small>{"updated" if kind == "standing" else "written"} {page["updated"]}{issue}</small></li>')
         parts.append("</ul>")
     if data.get("elsewhere"):
@@ -92,6 +180,8 @@ def home():
             parts.append(f'<li><a href="{item["url"]}">{esc(item["title"])}</a> ({item["date"]}): {esc(item["about"])}</li>')
         parts.append("</ul>")
     parts.append("</main>")
+    parts.append("</div>")
+    parts.append(ROUTER.replace("SLUGS", json.dumps([p["slug"] for p in ordered(data)])))
     (OUT / "index.html").write_text("\n".join(parts) + "\n")
     print(f"pages: Home lists {len(data['pages'])} page(s); {OUT / 'index.html'}")
 
@@ -115,7 +205,7 @@ def wrap(slug, body_file):
 <style>:root {{ padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }}</style>
 </head>
 <body>
-{top(page["title"])}
+{top(page["slug"])}
 {body}
 </body>
 </html>

@@ -57,6 +57,16 @@
       "group": "reviews"
     },
     {
+      "slug": "ios-ui-review-0-73-0",
+      "kind": "dated",
+      "short": "UI review 0.73.0",
+      "title": "iOS UI review: 0.73.0",
+      "about": "The walk over what iOS 0.73.0 changed (the account picker): two bugs, VoiceOver can't reach it on the phone and an accessibility audit that never finishes, and one small tap target.",
+      "updated": "2026-11-25",
+      "issue": 382,
+      "group": "reviews"
+    },
+    {
       "slug": "account-picker-built",
       "kind": "dated",
       "short": "Account picker, built",

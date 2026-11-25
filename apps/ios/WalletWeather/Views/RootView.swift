@@ -41,6 +41,8 @@ struct RootView: View {
     @State private var showingShortcutTable = false
     /// Debug only: `WW_DEBUG_WIDGETS=<mode>` shows the widgets' faces (#318).
     @State private var widgetGallery: String?
+    /// Debug only: `WW_DEBUG_FAULTS=1` shows the faults planted for the simulator walk (#345).
+    @State private var showingFaults = false
     /// The window's own bottom inset (the home indicator), and the open
     /// page's, which includes a bar along the bottom; nil until measured.
     @State private var windowBottom: CGFloat = 0
@@ -99,6 +101,7 @@ struct RootView: View {
         .fullScreenCover(item: Binding(get: { widgetGallery.map(GalleryMode.init) }, set: { widgetGallery = $0?.id })) {
             WidgetGallery(mode: $0.id)
         }
+        .fullScreenCover(isPresented: $showingFaults) { DebugFaults() }
         #endif
         .environment(\.barOnSide, barOnSide)
         // A page taken out of the bar while open, or a fourth page when the
@@ -128,6 +131,7 @@ struct RootView: View {
             }
             started = true
             if AppModel.debugSetting("WW_DEBUG_SHORTCUTS") == "1" { showingShortcutTable = true }
+            if AppModel.debugSetting("WW_DEBUG_FAULTS") == "1" { showingFaults = true }
             // Debug only: after the summary has had a moment to be written.
             if let mode = AppModel.debugSetting("WW_DEBUG_WIDGETS") {
                 Task {

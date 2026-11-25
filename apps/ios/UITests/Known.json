@@ -1,0 +1,4 @@
+{
+  "_about": "Findings of the simulator walk that are already judged, so Scripts/ui-report.py sets them aside instead of raising them on every run. One entry per judgement: 'check' (the check's id, or * for any), 'screen' (a name, with * as a wildcard), 'label' (a regular expression on the finding's label, optional), 'config' (optional, with *), 'why' (one line: the check is wrong about this because…, or Matthew chose this on <date> in #<issue>). The reasoning in full is in .claude/skills/ios-ui-review/learnings.md. An entry is removed when what it covers is gone.",
+  "known": []
+}

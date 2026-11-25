@@ -35,6 +35,20 @@ packages:
   WalletWeatherKit:
     path: WalletWeatherKit
 
+# The simulator walk's own scheme (Plans/ios-ui-review.md, #345), so the
+# app's scheme, and what testflight.sh archives, stay as they were.
+# Scripts/ui-walk.sh runs it; it's never part of `swift test`.
+schemes:
+  WalletWeatherUITests:
+    build:
+      targets:
+        WalletWeather: all
+        WalletWeatherUITests: [test]
+    test:
+      config: Debug
+      targets:
+        - WalletWeatherUITests
+
 targets:
   WalletWeather:
     type: application
@@ -207,3 +221,23 @@ targets:
         PRODUCT_NAME: WalletWeatherNotifications
         GENERATE_INFOPLIST_FILE: NO
         SKIP_INSTALL: YES
+
+  # The simulator walk (Plans/ios-ui-review.md, phase 2, #345): UI tests that
+  # open every screen in the demo, check it and save a picture. Simulator
+  # only; nothing here ships.
+  WalletWeatherUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: WalletWeather
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.iptater.walletweather.uitests
+        PRODUCT_NAME: WalletWeatherUITests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: WalletWeather
+        # XCTest's own classes aren't written for the app's MainActor default.
+        SWIFT_VERSION: "5.0"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: nonisolated

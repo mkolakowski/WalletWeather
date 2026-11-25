@@ -43,6 +43,8 @@ Changes in this folder don't trigger the container build.
 | `WalletWeatherKit/Sources/WalletWeatherKit/Core/` | A copy of the shared JavaScript core (`packages/core`), run in JavaScriptCore by `Core.swift`. `Scripts/copy-core.sh` refreshes it; `CoreTests` fails when it's out of date and runs the core over the whole answer key. |
 | `WalletWeather/PrivacyInfo.xcprivacy` | The privacy manifest: no tracking, no data collected, and why the app reads its settings and file dates. |
 | `Config/Base.xcconfig` | Shared build settings. It reads `Config/Signing.local.xcconfig` if it's there. |
+| `UITests/` | The simulator walk: UI tests that open every screen in the demo, check it and save a picture ("Reviewing the UI" below). Simulator only. |
+| `Scripts/ui-walk.sh`, `ui-report.py`, `ui-sheet.swift` | Run the walk once per configuration, turn a run into one report, and draw its contact sheets. |
 
 The app uses system frameworks only (SwiftUI, Swift Charts, the Keychain,
 AuthenticationServices, CryptoKit, JavaScriptCore) and no third-party packages, so there's
@@ -227,6 +229,9 @@ were held over it (the day after today, or the 15th when today isn't in the
 month shown; a `YYYY-MM-DD` in the month instead picks that day). Each shows
 only where the drop would be taken: an account that can change, and not
 while the lock has the demo in front. Debug only.
+`SIMCTL_CHILD_WW_DEBUG_FAULTS=1` shows a page of faults planted on purpose
+(`DebugFaults.swift`), which the simulator walk has to find ("Reviewing the
+UI" below). Debug only.
 On this Mac the simulators are shared with other projects' sessions, so run
 simulator commands through mkplus's `Scripts/with-simulator.sh`.
 
@@ -236,6 +241,67 @@ ends it) and `WW_LIVE_EDIT_TOKEN` (marks a line paid and undoes it, adds and
 deletes a one-off, on the demo's data). `WW_LIVE_EMAIL` and
 `WW_LIVE_PASSWORD` sign in with an email and password and end the token
 straight away.
+
+## Reviewing the UI
+
+Three layers look for bugs, inconsistencies and a dated look
+([`Plans/ios-ui-review.md`](../../Plans/ios-ui-review.md), #348). The
+`/ios-ui-review` skill runs them and writes up what they find.
+
+**The source check** is part of `swift test` (`UISourceTests`, no simulator):
+twelve rules read the app's own Swift for slips a screen shows only in one
+look, at one text size or to VoiceOver (a fixed font size, a colour outside
+the theme, styling Apple has replaced, a label in Title Case, a symbol-only
+button with no name, and so on; `UISourceCheck.swift` has each rule's reason
+and fix). The slips that were there when a rule arrived are in
+`WalletWeatherKit/Tests/UISourceBaseline.txt`, which only shrinks: a new slip
+fails the test. A line that's right as written says so:
+`// ui-check: allow <rule> — why`.
+
+**The simulator walk** is a UI-test target, `WalletWeatherUITests`
+(`UITests/`), with its own scheme; it's never part of `swift test`.
+`UITests/Screens.swift` lists every screen: a name, the Debug launch settings
+that open it, any taps that follow, and words that must be on it. On each one
+the walk saves a picture (and one per screenful below), runs Apple's
+accessibility audit, and runs the checks in `UITests/Checks.swift`: a label
+that leaks code, minus zero, a control with no name, capitals, a tap target
+under 44 points, something hanging off the side, text over text, a spinner
+that never stops, an all but empty screen, and amounts or dates written two
+ways on one screen. `testUse` then uses the app as a person would (tabs, a
+line opened and closed, a transaction added, months, search, Settings and
+back, leaving and returning) and notes a step it can't do or the app
+stopping. The first screen, `self-test`, is a Debug-only page of faults
+planted on purpose (`WW_DEBUG_FAULTS=1`, `DebugFaults.swift`): the walk fails
+if a check misses its fault, so a check that has stopped working is noticed.
+
+```sh
+Scripts/ui-walk.sh quick       # the closed Duo, light, Large: about 12 minutes
+Scripts/ui-walk.sh             # the standard run: an iPhone 17 and the Duo closed and open
+Scripts/ui-walk.sh --only forecast,line-editor --config iphone.dark.large
+Scripts/ui-walk.sh --help
+```
+
+It builds, takes the simulator lock for the whole run (`with-simulator.sh`),
+and runs the tests once per configuration: a device or Duo pose, a look, a
+text size, and how deep to go (`:deep`, `:scroll`, or the top of each screen).
+The standard run is an iPhone 17 in full, in dark, at Accessibility Large and
+with ISO dates, then the Duo closed and open on its side. It only uses the
+demo and the sample household (`WW_DEBUG_LOCAL=sample`, which replaces the
+household the simulator's own copy of the app holds); nothing reaches a
+server.
+
+A run lands in `build/ui-review/<run>/` (not tracked; the last three are
+kept): a folder per configuration with its pictures and `walk.json`,
+`crashes/` with any crash report the app left, `source.json` from the source
+check, contact sheets under `sheets/`, and `report.md` and `report.json` from
+`Scripts/ui-report.py`. The report folds a finding seen on many screens into
+one, sets aside what `UITests/Known.json` says is already judged, and
+compares screens with each other: left margins, title bars, how amounts and
+dates are written, words that mean the same thing, and in the ISO
+configuration any date that ignores Settings → Dates & display.
+
+A new page, sheet or state gets a line in `UITests/Screens.swift` in the
+change that adds it, with a Debug launch setting to open it when taps can't.
 
 ## How it signs in
 

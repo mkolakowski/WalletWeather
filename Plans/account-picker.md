@@ -7,8 +7,10 @@ Tracking issue: #380
 | Phase | Issue | State |
 | --- | --- | --- |
 | 1. Profile pictures on the server | #377 | Built 2026-11-25 in 1.99.0 (schema 40); open until released |
-| 2. Your picture in the web app | #378 | Open |
+| 2. Your picture in the web app | #378 | Built 2026-11-25 in web 1.118.0; open until released |
 | 3. The account picker on the iPhone | #379 | Open |
+
+Phase 2 built 2026-11-25 (web 1.118.0): Settings → Your account → Profile picture (choose, square cut and resize to 512 px in a canvas, JPEG under 256 KB, Save, Remove) and the picture on the top bar's account button, falling back to initials. Verified in Chromium against a stubbed server: a 600x300 image came out 300x300 with its middle (red and blue halves intact), PUT as image/jpeg, the button swapped to the picture and back after Remove, a non-image was refused with a message; `test_settings_wiring.py`, `test_pwa.py` and the picture tests pass. Not looked at in a real signed-in session or on a phone.
 
 Phase 1 built 2026-11-25 (46854f0, server 1.99.0, schema 40): `PUT`, `GET` and `DELETE /api/me/picture`, `picture_updated_at` in `/api/me`, Google's picture copied at sign-in when there's none. Verified: `tests/test_profile_picture.py` (15 tests: each endpoint, the 304, the type and size refusals, signed out, a read-only token, the demo's account, encryption at rest, each person seeing only their own, the Google copy and its host check) and the quick tier, 1195 passed. Found while building: the public demo's account is shared, so it can't have a picture (403).
 

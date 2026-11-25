@@ -37,7 +37,7 @@
       "short": "Changelog",
       "title": "Changelog",
       "about": "What each release changed, newest first, with what's landed since the last one at the top.",
-      "updated": "2026-11-24",
+      "updated": "2026-11-25",
       "issue": 351
     },
     {
@@ -64,7 +64,7 @@
       "short": "Decisions",
       "title": "Decisions",
       "about": "What's been decided and when, by subject: the choices behind the plans, with the options that were turned down.",
-      "updated": "2026-11-24",
+      "updated": "2026-11-25",
       "issue": 351
     },
     {

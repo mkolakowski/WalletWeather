@@ -25,11 +25,9 @@
     {
       "slug": "ios-ui-review",
       "kind": "standing",
-      "stub": true,
       "short": "iOS UI review",
       "title": "The iPhone app's UI review",
-      "about": "The latest review of the iPhone app: bugs, inconsistencies and design suggestions, each with a picture of today beside the proposal.",
-      "source": "<code>/ios-ui-review</code> writes it from a run of the source check and the simulator walk. The first one, on iOS 0.70.0, is being written now.",
+      "about": "The latest review: iOS 0.70.0, 24 November. Five bugs, seven inconsistencies and four design choices, each with today beside the proposal.",
       "updated": "2026-11-25",
       "issue": 346
     },

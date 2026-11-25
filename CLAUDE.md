@@ -49,6 +49,22 @@ toward the ~60 characters and is never shortened. Why: on the phone's session
 list it tells WalletWeather threads apart from other projects'.
 
 <!-- playbook:begin project-header 1.14.2 -->
+**The iPhone app's UI** (decided 2026-11-24, #348): `UISourceTests` in
+`swift test` holds the conventions a screen can't show by itself (text that
+follows the phone's text size, colours from the theme, sentence-case labels,
+no `Binding($optional)`): a new slip fails the test, and a line that's right
+as written is marked `// ui-check: allow <rule> — why`. A new page, sheet or
+state gets a line in `apps/ios/UITests/Screens.swift` in the change that adds
+it. `/ios-ui-review` (`.claude/skills/ios-ui-review/`, this project's own
+skill) runs the source check and the simulator walk and writes the review as
+a page of the WalletWeather artifact; run it before a TestFlight build that
+changes how screens look. After every TestFlight upload (decided 2026-11-25,
+#352): `apps/ios/Scripts/ui-snapshot.sh --keep`, then
+`apps/ios/Scripts/ui-before-after.py`, then publish the *iOS before and
+after* page with `/artifact-page`. Why: a fault a person would find by
+using the app is found by the walk first, and what each build changed can be
+seen rather than read. See `docs/dev/decisions/ios-ui-review.md`.
+
 **One artifact, a page for each thing** (decided 2026-11-24, #351): anything
 about WalletWeather that would be published as an artifact goes into the one
 WalletWeather artifact as a page, never a new artifact. Its link is the `url`

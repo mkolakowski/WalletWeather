@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """A review to start from. Copy it into the run's folder as review.py, fill it
-in and run it: it writes review.html beside itself, ready to publish.
+in and run it: it writes review.body.html beside itself, the content of the
+WalletWeather artifact's "iOS UI review" page.
 
-    cp .claude/skills/ios-ui-review/scripts/review-template.py apps/ios/build/ui-review/<run>/review.py
-    python3 apps/ios/build/ui-review/<run>/review.py
+    cp .claude/skills/ios-ui-review/scripts/review-template.py apps/ios/build/ui-kept/<run>/review.py
+    python3 apps/ios/build/ui-kept/<run>/review.py
+    python3 .claude/skills/artifact-page/scripts/pages.py wrap ios-ui-review apps/ios/build/ui-kept/<run>/review.body.html
 """
 import pathlib
 import sys
@@ -43,4 +45,4 @@ build({
     ],
     "findings": FINDINGS,
     "closing": "<h2>What this run couldn't see</h2><ul><li>…</li></ul>",
-}, RUN / "review.html")
+}, RUN / "review.body.html", fragment=True)

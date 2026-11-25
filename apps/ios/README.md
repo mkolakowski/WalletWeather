@@ -229,6 +229,10 @@ were held over it (the day after today, or the 15th when today isn't in the
 month shown; a `YYYY-MM-DD` in the month instead picks that day). Each shows
 only where the drop would be taken: an account that can change, and not
 while the lock has the demo in front. Debug only.
+`SIMCTL_CHILD_WW_DEBUG_TODAY=2026-11-15T10:00` pins what the app shows as today
+and now (the demo's numbers, "Synced today at…", "as of 2 h ago"), for
+pictures that compare across days (#352); what's stored, sent or scheduled
+keeps the real clock. Debug only.
 `SIMCTL_CHILD_WW_DEBUG_FAULTS=1` shows a page of faults planted on purpose
 (`DebugFaults.swift`), which the simulator walk has to find ("Reviewing the
 UI" below). Debug only.
@@ -302,6 +306,21 @@ configuration any date that ignores Settings → Dates & display.
 
 A new page, sheet or state gets a line in `UITests/Screens.swift` in the
 change that adds it, with a Debug launch setting to open it when taps can't.
+
+**Before and after** (#352). `Scripts/ui-snapshot.sh` takes a set of
+pictures: the top of every screen in light, on an iPhone 17 and on the Duo
+open on its side, with the app's date pinned to 15 November 2026
+(`WW_DEBUG_TODAY`, Debug only), so sets taken on different days differ only
+where the app does. A set is `build/ui-sets/<version>-<build>/`; `--keep`
+also files it on the `screenshots` branch. `Scripts/ui-before-after.py`
+compares each set with the one before it (`Scripts/ui-compare.swift`: a
+pixel counts when a channel is off by more than 48, a 12-pixel cell when a
+fifth of it counts, a picture when more than four cells do) and writes the
+*iOS before and after* page of the WalletWeather artifact: the screens that
+differ, the earlier build on the left, the changed part outlined, under the
+iOS commits between the two. `ui-snapshot.sh --check` takes two sets from one
+build and fails if anything differs. A set is taken after every TestFlight
+upload.
 
 ## How it signs in
 

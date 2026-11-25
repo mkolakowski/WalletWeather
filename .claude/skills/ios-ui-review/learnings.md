@@ -22,6 +22,21 @@ line of why; the reasoning in full goes here.
   `free-space.py list` shows what can be cleared; ask before clearing, they
   are another project's caches.
 
+- **2026-11-25 (#346):** the first standard run took 2 hours and was stopped by the session's
+  2-hour limit on a background command with two configurations to go: 52
+  minutes for the iPhone 17's four, then about 11 each for the Duo's, plus a
+  wait for the lock and one configuration that wrote nothing. Run the
+  standard set as two commands, the iPhone's configurations and then the
+  Duo's, each well inside the limit.
+- **2026-11-25 (#346):** `ui-walk.sh` keeps the last three runs and deletes
+  the rest. A run a review is being written from has to be moved out of
+  `build/ui-review/` first (the first review's is in `build/ui-kept/`), or
+  the next three short runs delete it.
+- **2026-11-25 (#352):** other sessions commit to this checkout while a run
+  is going: iOS went from 0.70.0 to 0.71.1 during the first review. Say
+  which version a run was built from, and never rebuild `build/sim-dd` while
+  a walk that was started with `--no-build` is using it.
+
 ## What a script can't reach, and the way round it
 
 - **Menus, alerts the system owns, drag and drop, the keyboard and pointer,
@@ -42,6 +57,13 @@ line of why; the reasoning in full goes here.
 - **A real phone:** everything here is the simulator, on the newest iOS
   Xcode has. A crash or a layout that depends on the iOS version has to be
   tried on Matthew's phone before it's called certain. (2026-11-24, #346)
+
+- **The open Duo's front screen is black,** and it's the one
+  `app.screenshot()` takes: every picture of the open Duo in the first
+  review was black, and nobody noticed for two hours because the checks read
+  the element tree, not the picture. The walk now takes every screen and
+  keeps the one the size of the app's window. Look at one picture from each
+  configuration as soon as it lands. (2026-11-25, #346)
 
 ## What the checks get wrong, and what was done about it
 
@@ -97,10 +119,36 @@ line of why; the reasoning in full goes here.
   ended `ui-walk.sh` under `set -e` the first time it ran after a commit.
   Scripts here end such a pipe with `|| true`. (2026-11-24, #345)
 
+- **`shows` has to be at the top of the screen at every text size.** At
+  Accessibility Large five screens were called `not-what-it-says` because
+  the words they're known by had moved below the fold ("Add a server", "All
+  lines"). Use the bar's title or the first heading. (2026-11-25, #346)
+- **An ordinary iPhone's tab bar holds three pages,** so a launch setting
+  that puts a fourth page in the bar opens something else. The Calendar's
+  screens put it first. (2026-11-25, #346)
+- **A crash in a flow marks the whole configuration FAILED** in
+  `ui-walk.sh`'s line, though every screen was walked. Read `report.md`'s
+  Crashes section, not the word. (2026-11-25, #346)
+- **Debug-only overlays trip the checks:** the drop highlight
+  (`forecast-drop`) and the widget gallery sit over or beside real content.
+  They're marked `expected` in the table or are in `Known.json`.
+  (2026-11-25, #346)
+
 ## Judged already: don't raise these again
 
 Filled in from each round of picking. A line here also has its entry in
 `apps/ios/UITests/Known.json` when a check would otherwise raise it.
+
+- **A bank's own text in capitals** ("VERIZON WIRELESS") is data, shown as
+  the bank wrote it. In `Known.json`. (2026-11-25, #346)
+- **Everything in the first review was picked for filing** (#357 to #370;
+  `docs/dev/decisions/ios-ui-review.md`), so nothing was turned down. Before
+  raising a finding again, check its issue is closed: an open issue means
+  it's known and waiting, not new.
+- **Decided, so not open questions any more:** content cards are solid and
+  glass is for what floats (#365); captions reach 4.5:1 (#365); every date
+  follows the date format, weekday included (#366); an entry is a "line"
+  (#367). A review now checks the app against these.
 
 ## What was worth the time, and what wasn't
 

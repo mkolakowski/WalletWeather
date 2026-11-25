@@ -42,11 +42,25 @@ The suite itself is in `apps/ios` ("Reviewing the UI" in its README):
 
 | Argument | Command | About |
 | --- | --- | --- |
-| (none) | `apps/ios/Scripts/ui-walk.sh` | 70 minutes |
+| (none) | the standard set, as two commands: the iPhone's configurations, then the Duo's (below) | 55 + 55 minutes |
 | `quick` | `apps/ios/Scripts/ui-walk.sh quick` | 12 minutes |
-| `full` | `apps/ios/Scripts/ui-walk.sh full` | several hours: ask first |
-| a page | `apps/ios/Scripts/ui-walk.sh --only <names>` with the standard configurations | 1 to 2 minutes a screen |
-| `since <version>` | `git diff --stat ios-<version>.. -- apps/ios/WalletWeather` (or the release's commit), then `--only` the screens those files draw | varies |
+| `full` | `apps/ios/Scripts/ui-walk.sh full` | several hours, over the limit on one background command: ask first, and split it by device |
+| a page | `apps/ios/Scripts/ui-walk.sh --only <names>` with the configurations that matter | 1 to 2 minutes a screen |
+| `since <version>` | `git diff --stat <that version's commit>.. -- apps/ios/WalletWeather`, then `--only` the screens those files draw | varies |
+
+The standard set, split so neither half meets the 2-hour limit on a
+background command:
+
+```bash
+apps/ios/Scripts/ui-walk.sh --config iphone.light.large:deep --config iphone.dark.large \
+    --config iphone.light.ax-l:scroll --config iphone.light.large.iso
+apps/ios/Scripts/ui-walk.sh --no-build --config duo-closed.light.large:scroll --config duo-closed.light.ax-l \
+    --config duo-open.light.large:scroll --config duo-open.dark.large --config duo-open.light.ax-l
+```
+
+Each makes its own run folder; move both into `apps/ios/build/ui-kept/<name>/`
+before doing anything else (only the last three runs are kept), and run
+`ui-report.py --sheets` on each.
 
 ## 2. Run it
 
@@ -107,11 +121,17 @@ using the app would recognise, where, the proof (which check or flow, which
 file and line), the fix and its size, and **a picture of today beside the
 proposal**: today cut from the run's pictures, the proposal drawn with the
 kit and marked as drawn. Where a script can't reach a screen, redraw today
-from the code and say so. A choice between shapes draws each option.
+from the code and say so. A choice between shapes draws each option, and
+lists them under the finding.
 
 Three groups, in this order: bugs, inconsistencies, design. Number them
-B1…, I1…, D1…. Publish `review.html` as an artifact (private to Matthew)
-and link it from the issue.
+B1…, I1…, D1…. Check the crops before publishing: draw every cut picture on
+one sheet with `ui-sheet.swift` and look at it once.
+
+The review is the *iOS UI review* page of the WalletWeather artifact, never
+an artifact of its own: `review.py` writes `review.body.html`, and
+`/artifact-page` wraps it as `ios-ui-review`, rebuilds Home and publishes.
+Link the page from the issue.
 
 ## 6. Ask, file, record
 

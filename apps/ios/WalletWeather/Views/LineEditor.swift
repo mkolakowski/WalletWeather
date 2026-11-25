@@ -27,6 +27,19 @@ struct OpenLine: Identifiable, Equatable {
     }
 }
 
+/// A binding to what's inside an optional, for the sheet or pane that shows
+/// it; nil when there's nothing to show. SwiftUI's own `Binding($open)` does
+/// the same but force-unwraps when it's read, and it is read once more after
+/// `open` becomes nil, while the sheet is still going away: closing an editor
+/// stopped the app (#357). This one answers that last read with the value it
+/// was made with, and ignores a write that arrives after the close.
+@MainActor
+func lasting<Value>(_ base: Binding<Value?>) -> Binding<Value>? {
+    guard let last = base.wrappedValue else { return nil }
+    return Binding(get: { base.wrappedValue ?? last },
+                   set: { if base.wrappedValue != nil { base.wrappedValue = $0 } })
+}
+
 extension View {
     /// On a compact width (any iPhone, the Duo closed) the open line is a
     /// sheet. On a regular width the page shows it in its right half
@@ -49,7 +62,7 @@ private struct LineEditorSheet: ViewModifier {
             // Only a swipe down on the front screen closes the line; the
             // sheet going away because the Duo opened keeps it.
             set: { if !$0 && sizeClass != .regular { open = nil } })) {
-            if let binding = Binding($open) {
+            if let binding = lasting($open) {
                 LineEditor(open: binding, categories: categories, onClose: { open = nil }, onSaved: onSaved)
                     .presentationDetents([.large])
             }

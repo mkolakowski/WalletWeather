@@ -161,7 +161,7 @@ struct CalendarView: View {
     /// day's lines, or today's, with the Undo bar on the lines' own half.
     @ViewBuilder
     private func sidePane(_ data: CalendarMonth, edges: FoldPanes.Edges) -> some View {
-        if let binding = Binding($openLine) {
+        if let binding = lasting($openLine) {
             LineEditor(open: binding, categories: categories, embedded: true, onClose: { openLine = nil }) { await load() }
                 .id(binding.wrappedValue.id)
         } else {

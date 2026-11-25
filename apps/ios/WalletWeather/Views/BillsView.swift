@@ -100,7 +100,7 @@ struct BillsView: View {
                 FoldLayout { edges in
                     listView(data, edges: edges)
                 } trailing: { edges in
-                    if let binding = Binding($open) {
+                    if let binding = lasting($open) {
                         BillEditor(open: binding, accounts: editableAccounts, categories: categories, embedded: true,
                                    onClose: { open = nil }, onSkip: { skipping = $0 }, onEnd: { ending = $0 }) { await load() }
                             .id(binding.wrappedValue.id)
@@ -638,7 +638,7 @@ private struct BillEditorSheet: ViewModifier {
             .sheet(isPresented: Binding(
                 get: { open != nil && sizeClass != .regular },
                 set: { if !$0 && sizeClass != .regular { open = nil } })) {
-                if let binding = Binding($open) {
+                if let binding = lasting($open) {
                     BillEditor(open: binding, accounts: accounts, categories: categories,
                                onClose: { open = nil },
                                onSkip: { item in open = nil; skipping = item },

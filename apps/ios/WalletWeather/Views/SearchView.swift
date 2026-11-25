@@ -132,10 +132,10 @@ struct SearchView: View {
 
     @ViewBuilder
     private func detail(_ edges: FoldPanes.Edges) -> some View {
-        if let binding = Binding($openLine) {
+        if let binding = lasting($openLine) {
             LineEditor(open: binding, categories: categories, embedded: true, onClose: { openLine = nil }) { await search() }
                 .id(binding.wrappedValue.id)
-        } else if let binding = Binding($openBill) {
+        } else if let binding = lasting($openBill) {
             BillEditor(open: binding, accounts: accounts.filter(model.canEdit), categories: categories, embedded: true,
                        onClose: { openBill = nil }, onSkip: { skipping = $0 }, onEnd: { ending = $0 }) { await search() }
                 .id(binding.wrappedValue.id)
@@ -514,7 +514,7 @@ struct FilteredTransactions: View {
         .background(PageBackground().ignoresSafeArea())
         .modifier(PushedTitle(title: embedded ? nil : title))
         .sheet(item: $open) { _ in
-            if let binding = Binding($open) {
+            if let binding = lasting($open) {
                 LineEditor(open: binding, categories: categories, embedded: false, onClose: { open = nil }) { await load() }
             }
         }

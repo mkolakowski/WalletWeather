@@ -2,7 +2,7 @@
 # in the app when each rule arrived, as rule<TAB>file<TAB>the line. It only
 # shrinks: fix a slip and delete its line here. A new slip is fixed or marked
 # where it stands (// ui-check: allow <rule> — why), never added here.
-# rules: fixed-font-size, colour-outside-theme, replaced-api, label-case, three-dots, icon-only-button, alert, motion, tap-without-button, date-outside-style, money-outside-format, fixed-frame
+# rules: fixed-font-size, colour-outside-theme, replaced-api, label-case, three-dots, icon-only-button, alert, motion, tap-without-button, unwrapping-binding, date-outside-style, money-outside-format, fixed-frame
 alert	WalletWeather/Views/BackupViews.swift	.alert("This backup's passphrase", isPresented: $asking) {
 alert	WalletWeather/Views/CSVImportViews.swift	.alert("Couldn't open the file", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
 alert	WalletWeather/Views/CSVImportViews.swift	.alert("Imported", isPresented: Binding(get: { done != nil }, set: { if !$0 { finish() } })) {

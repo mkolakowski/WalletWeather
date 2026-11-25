@@ -172,6 +172,13 @@ enum UISource {
             bad: [#"Text(amount.formatted(.currency(code: "USD")))"#],
             good: [#"Text(balance.text)"#]),
         Rule(
+            id: "unwrapping-binding",
+            why: "Binding($optional) force-unwraps when it's read, and SwiftUI reads it once more as its sheet closes: cancelling an editor stopped the app (#357).",
+            fix: "Use lasting($optional) (LineEditor.swift), which answers that last read with the value it was made with.",
+            patterns: [#"\bBinding\(\$\w+\)"#],
+            bad: [#"if let binding = Binding($open) {"#],
+            good: [#"if let binding = lasting($open) {"#, #"Toggle("Paid", isOn: Binding(get: { on }, set: { on = $0 }))"#]),
+        Rule(
             id: "fixed-frame",
             why: "A fixed width or height of 20 points or more doesn't grow with the phone's text size, so what's in it gets cut (decided 2026-11-23, #311).",
             fix: "Use minWidth or minHeight, or a @ScaledMetric for the number.",

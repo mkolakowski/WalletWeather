@@ -285,7 +285,7 @@ struct ForecastView: View {
     @ViewBuilder
     private func sidePane(_ data: ForecastMonth, edges: FoldPanes.Edges) -> some View {
         Group {
-            if let binding = Binding($open) {
+            if let binding = lasting($open) {
                 LineEditor(open: binding, categories: categories, embedded: true, onClose: { open = nil }) { await loadMonth() }
                     .id(binding.wrappedValue.id)
             } else {

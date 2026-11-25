@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.1**
+App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.2**
+
+### Fixed
+
+- **iPhone app: closing a line or a bill no longer closes the app.** On iOS 27.1, opening a line from Forecast and tapping **Cancel** could send you straight back to the Home Screen; the same fault sat behind the bill editor and the editors Search and the Calendar open. Cancel, Save and pulling the sheet down now close the editor and leave you where you were.
 
 ## [1.98.6] — 2026-11-25
 

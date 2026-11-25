@@ -8,7 +8,7 @@ Tracking issue: #380
 | --- | --- | --- |
 | 1. Profile pictures on the server | #377 | Open |
 | 2. Your picture in the web app | #378 | Open |
-| 3. The account picker on the iPhone | #379 | Open; waits for open question 1 |
+| 3. The account picker on the iPhone | #379 | Open; waits for open questions 1 and 3 |
 
 Planned 2026-11-25, asked for as "can you add an account picker to the ios app where the image is the users profile image from the profile/server. this will be used to change back from demo." Scoped the same morning in one round of questions: the server learns to keep a picture (nothing keeps one today), set from the web app's Your account and taken from Google at sign-in; the iPhone shows it, with initials until one is set. Where the button sits is shown both ways on the *Account picker: where it sits* page of the WalletWeather artifact, for Matthew to pick.
 
@@ -26,6 +26,7 @@ Sessions: may span — a server phase with a schema change, a web phase and an i
 
 1. **Where the picker sits** (blocks phase 3). In the top-right corner of the Dashboard and Settings, either *replacing* the connection chip under the title, or *beside* it with the chip kept. Both are drawn on the artifact page *Account picker: where it sits*.
 2. **Google's picture** (phase 1 builds the rest without it). Recommended: copy it at a Google sign-in only when the person has no picture yet, so one set by hand is never replaced. Other choices: copy it at every Google sign-in (follows a change at Google, overwrites one set by hand), or never (only a picture set by hand).
+3. **What the button shows in the demo** (blocks phase 3). The demo is where the picker matters most (it's the way back), and the lock usually puts you there. Recommended: your picture, from the connection the demo goes back to, with a small sparkles badge saying it's the demo; while locked, the same, since a picture shows no numbers, address or email. Other choices: the demo's sparkles alone (nothing of yours shows while locked, as Connections does now), or your picture only once unlocked.
 
 ## The plan
 
@@ -64,7 +65,7 @@ Sessions: may span — a server phase with a schema change, a web phase and an i
 
 ### Phase 3: The account picker on the iPhone
 
-- A round button with the picture of whoever is signed in to the server in front (initials until one is set; the demo's sparkles in the demo), placed as open question 1 decides. Tapping it opens the list of connections, each server with its own picture, the household and the demo with their icons, a tick on the one in front, then Manage connections….
+- A round button with the picture of whoever is signed in to the server in front (initials until one is set; in the demo, as open question 3 decides), placed as open question 1 decides. Tapping it opens the list of connections, each server with its own picture, the household and the demo with their icons, a tick on the one in front, then Manage connections….
 - Each saved server's picture is kept on the phone with that connection, fetched again when `picture_updated_at` changes while it's in front, and deleted with the connection. Nothing is fetched from a server that isn't in front.
-- Locked in the demo, the pictures don't show (initials don't either): names and icons only, as Connections does now.
+- Locked in the demo, the button and the menu follow open question 3.
 - A line in `apps/ios/UITests/Screens.swift` for the open menu.

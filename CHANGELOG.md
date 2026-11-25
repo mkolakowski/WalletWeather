@@ -69,7 +69,13 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.4** · Web version: **1.117.0** · Schema version: **39** · iOS version: **0.70.0**
+App version: **1.98.5** · Web version: **1.117.0** · Schema version: **39** · iOS version: **0.70.0**
+
+## [1.98.5] — 2026-11-24
+
+App version: **1.98.5** · Web version: **1.117.0** · Schema version: **39** · iOS version: **0.70.0**
+
+On the open iPhone Duo, each two-half page now shows its name in a small glass capsule at the top left, and scrolling one half no longer makes the other jump. Nothing changes on the server or in the web app.
 
 ### Changed
 
@@ -2968,7 +2974,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.98.4...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.98.5...HEAD
+[1.98.5]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.5
 [1.98.4]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.4
 [1.98.3]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.3
 [1.98.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.2

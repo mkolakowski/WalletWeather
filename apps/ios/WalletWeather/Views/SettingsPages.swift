@@ -146,6 +146,12 @@ private struct ConnectionsPage: View {
     @Environment(AppSettings.self) private var settings
     @State private var adding = false
     @State private var restoring = false
+    /// The row slid open to show its swipe actions, one at a time (#376).
+    @State private var swiped: ConnectionRow.Target?
+    /// A row's Edit, opening its own page (#376).
+    @State private var editing: ConnectionRoute?
+    /// A server's Sign out, asking first (#376).
+    @State private var signingOut: SavedConnection?
 
     private var visibility: ConnectionsVisibility { ConnectionsVisibility(locked: settings.lockedInDemo) }
 
@@ -164,7 +170,7 @@ private struct ConnectionsPage: View {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
                     if index > 0 { Divider() }
-                    ConnectionListRow(row: row)
+                    ConnectionListRow(row: row, swiped: $swiped, actions: swipeActions(for: row))
                 }
             }
             .card()
@@ -218,7 +224,34 @@ private struct ConnectionsPage: View {
         }
         .sheet(isPresented: $adding) { AddServerSheet() }
         .sheet(isPresented: $restoring) { RestoreFromICloudSheet { model.useOnThisPhone() } }
+        .navigationDestination(item: $editing) { ConnectionPage(id: $0.id) }
+        .confirmationDialog(signingOut.map { "Sign out of \($0.name) on this iPhone?" } ?? "",
+                            isPresented: Binding(get: { signingOut != nil }, set: { if !$0 { signingOut = nil } }),
+                            titleVisibility: .visible, presenting: signingOut) { connection in
+            Button("Sign out of \(connection.name)", role: .destructive) {
+                Task { await model.signOut(of: connection.id) }
+            }
+        }
         .onAppear { model.reloadConnections() }
+        // Locked, or the list changed: nothing stays slid open.
+        .onChange(of: visibility.locked) { swiped = nil }
+        .onChange(of: model.connections) { swiped = nil }
+    }
+
+    /// What swiping a row shows (#376), from the rule in the Kit
+    /// (`ConnectionRow.swipes`).
+    private func swipeActions(for row: ConnectionRow) -> [SwipeAction] {
+        guard case let .saved(id) = row.target else { return [] }
+        return row.swipes.map { swipe in
+            switch swipe {
+            case .edit:
+                SwipeAction(title: "Edit", symbol: "pencil", tint: Palette.accent) { editing = ConnectionRoute(id: id) }
+            case .signOut:
+                SwipeAction(title: "Sign out", symbol: "rectangle.portrait.and.arrow.right", tint: Palette.bad) {
+                    signingOut = model.connections.first { $0.id == id }
+                }
+            }
+        }
     }
 
     private var note: String {
@@ -242,6 +275,10 @@ private struct ConnectionListRow: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var typeSize
     let row: ConnectionRow
+    @Binding var swiped: ConnectionRow.Target?
+    /// Edit and Sign out, shown by swiping it left (#376); none for the demo,
+    /// or while locked in the demo.
+    let actions: [SwipeAction]
     // Grows with the text size, exactly as before at Large (#311).
     @ScaledMetric(relativeTo: .title3) private var infoWidth: CGFloat = 36
     @ScaledMetric(relativeTo: .title3) private var infoHeight: CGFloat = 44
@@ -253,6 +290,10 @@ private struct ConnectionListRow: View {
     }
 
     var body: some View {
+        SwipeRow(id: row.target, open: $swiped, actions: actions) { content }
+    }
+
+    private var content: some View {
         HStack(spacing: 8) {
             Group {
                 if row.ticked, row.opensPage, let savedID {
@@ -289,6 +330,12 @@ private struct ConnectionListRow: View {
             .contentShape(Rectangle())
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(row.ticked ? .isSelected : [])
+            // The swipes, for VoiceOver and Switch Control (#376).
+            .accessibilityActions {
+                ForEach(actions) { action in
+                    Button(action.title, action: action.run)
+                }
+            }
     }
 
     /// Its icon, name and detail, and the tick. No total: Connections is for
@@ -324,6 +371,143 @@ private struct ConnectionListRow: View {
                 Image(systemName: "checkmark").font(.body.weight(.semibold)).foregroundStyle(Palette.accent)
                     .accessibilityHidden(true)
             }
+        }
+    }
+}
+
+// MARK: - Swiping a row (#376)
+
+/// One action a row shows when it's swiped left.
+struct SwipeAction: Identifiable {
+    let title: String
+    let symbol: String
+    let tint: Color
+    let run: () -> Void
+    var id: String { title }
+}
+
+/// A row in a card that slides left to show its actions, as a List row's
+/// swipe actions do (#376): the Settings pages are cards, not Lists, so it
+/// draws its own. One row is open at a time (`open`); a tap on the row or a
+/// swipe back closes it, and tapping an action runs it and closes it. Only
+/// a sideways drag starts it, so the page still scrolls, and once it starts
+/// the row's own tap is cancelled. VoiceOver reads the actions on the row
+/// (`accessibilityActions` where the row is made).
+struct SwipeRow<Content: View>: View {
+    let id: ConnectionRow.Target
+    @Binding var open: ConnectionRow.Target?
+    let actions: [SwipeAction]
+    @ViewBuilder let content: Content
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var drag: CGFloat = 0
+    /// The actions' width with the gap before them, once measured.
+    @State private var reveal: CGFloat = 0
+    @ScaledMetric(relativeTo: .body) private var buttonWidth: CGFloat = 72
+
+    private var isOpen: Bool { open == id }
+
+    /// How far the row has slid: 0 closed, -`reveal` open, a little past
+    /// that with a give while dragged.
+    private var offset: CGFloat {
+        let resting = isOpen ? -reveal : 0
+        return min(0, max(-reveal - 24, resting + drag))
+    }
+
+    var body: some View {
+        if actions.isEmpty {
+            content
+        } else {
+            content
+                .overlay {
+                    // Open: a tap on the row closes it rather than choosing it.
+                    if isOpen {
+                        Button { settle(open: false) } label: { Color.clear.contentShape(Rectangle()) }
+                            .buttonStyle(.plain)
+                            .accessibilityHidden(true)
+                    }
+                }
+                .offset(x: offset)
+                .overlay(alignment: .trailing) {
+                    HStack(spacing: 6) {
+                        ForEach(actions) { action in
+                            Button {
+                                settle(open: false)
+                                action.run()
+                            } label: {
+                                VStack(spacing: 3) {
+                                    Image(systemName: action.symbol).font(.body.weight(.semibold))
+                                    Text(action.title).font(.caption.weight(.semibold))
+                                }
+                                .frame(minWidth: buttonWidth, maxHeight: .infinity)
+                            }
+                            .buttonStyle(.glassProminent)
+                            .buttonBorderShape(.roundedRectangle(radius: 14))
+                            .tint(action.tint)
+                        }
+                    }
+                    .padding(.vertical, 6)
+                    .padding(.leading, 8)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { reveal = $0 }
+                    .offset(x: reveal + offset)
+                    .opacity(offset < 0 ? 1 : 0)
+                    .accessibilityHidden(true)
+                }
+                .clipped()
+                .gesture(SidewaysPan(changed: { drag = $0; if open != id, open != nil { closeAnother() } },
+                                     ended: { translation, velocity in
+                    let resting = isOpen ? -reveal : 0
+                    let landing = resting + translation + velocity * 0.15
+                    settle(open: landing < -reveal / 2)
+                }))
+        }
+    }
+
+    private func settle(open opening: Bool) {
+        withAnimation(reduceMotion ? nil : .snappy) {
+            open = opening ? id : (isOpen ? nil : open)
+            drag = 0
+        }
+    }
+
+    /// This row slides while another is open: that one closes.
+    private func closeAnother() {
+        withAnimation(reduceMotion ? nil : .snappy) { open = nil }
+    }
+}
+
+/// A pan that starts only when the finger moves more sideways than up or
+/// down (#376), so a card's row can be swiped while the page scrolls, and
+/// that cancels the row's own tap once it starts.
+private struct SidewaysPan: UIGestureRecognizerRepresentable {
+    let changed: (CGFloat) -> Void
+    /// Where it was let go, and how fast it was moving then.
+    let ended: (CGFloat, CGFloat) -> Void
+
+    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
+        let pan = UIPanGestureRecognizer()
+        pan.delegate = context.coordinator
+        return pan
+    }
+
+    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        let translation = recognizer.translation(in: recognizer.view).x
+        switch recognizer.state {
+        case .changed:
+            changed(translation)
+        case .ended, .cancelled:
+            ended(translation, recognizer.velocity(in: recognizer.view).x)
+        default:
+            break
+        }
+    }
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator { Coordinator() }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
+            guard let pan = recognizer as? UIPanGestureRecognizer else { return true }
+            let velocity = pan.velocity(in: pan.view)
+            return abs(velocity.x) > abs(velocity.y)
         }
     }
 }

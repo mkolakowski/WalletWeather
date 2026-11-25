@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.11**
+App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.72.0**
+
+### Added
+
+- **iPhone app: swipe a connection to edit it or sign out.** In Settings → Connections, swipe a server to the left for **Edit**, which opens its page (where you can rename it), and **Sign out**, which asks first and then takes it off the phone. The household on this iPhone has **Edit** only, since removing it would erase its numbers; the demo has none, and nothing slides while the app is locked in the demo. VoiceOver offers the same two as actions on the row. (#376)
 
 ### Changed
 

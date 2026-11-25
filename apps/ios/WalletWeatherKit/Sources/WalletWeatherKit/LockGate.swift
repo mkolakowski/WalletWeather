@@ -188,6 +188,18 @@ public struct ConnectionRow: Equatable, Identifiable, Sendable {
     /// again" as the detail. Shown locked in the demo too: it says nothing
     /// of the numbers.
     public let warning: Bool
+    /// What swiping it shows (#376), in order.
+    public let swipes: [Swipe]
+
+    /// A row's swipe actions in Connections (#376): Edit opens its own page
+    /// (where it's renamed); Sign out signs out of a server and takes it off
+    /// the phone, after asking. The household on this iPhone has Edit only,
+    /// since taking it off would erase its numbers (that stays on its page,
+    /// as Delete everything). The demo, the phone before it's saved, and
+    /// every row while locked in the demo have none.
+    public enum Swipe: Hashable, Sendable {
+        case edit, signOut
+    }
 
     public var id: Target { target }
 
@@ -217,7 +229,9 @@ public struct ConnectionRow: Equatable, Identifiable, Sendable {
                                  detail: connection.needsSignIn ? signInAgainDetail : detail,
                                  symbol: connection.kind == .server ? "server.rack" : "iphone",
                                  ticked: inFront, opensPage: visibility.opensConnectionPages,
-                                 warning: connection.needsSignIn)
+                                 warning: connection.needsSignIn,
+                                 swipes: !visibility.opensConnectionPages ? []
+                                     : connection.kind == .server ? [.edit, .signOut] : [.edit])
         }
         // Listed once it's set up (#373): until then Use on this iPhone is
         // an action under Add a server, not a connection.
@@ -225,10 +239,10 @@ public struct ConnectionRow: Equatable, Identifiable, Sendable {
             rows.append(ConnectionRow(target: .thisIPhone, name: "On this iPhone",
                                       detail: "Your household, with no server",
                                       symbol: "iphone", ticked: front == .household, opensPage: false,
-                                      warning: false))
+                                      warning: false, swipes: []))
         }
         rows.append(ConnectionRow(target: .demo, name: demoName, detail: demoDetail, symbol: "sparkles",
-                                  ticked: front == .demo, opensPage: false, warning: false))
+                                  ticked: front == .demo, opensPage: false, warning: false, swipes: []))
         return rows
     }
 

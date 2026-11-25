@@ -122,6 +122,8 @@ struct LockGateTests {
         #expect(rows.map(\.ticked) == [true, false, false, false])
         #expect(rows.map(\.opensPage) == [true, true, true, false])
         #expect(rows.map(\.front) == [.saved(a.id), .saved(b.id), .saved(phone.id), .demo])
+        // Swipes (#376): servers Edit and Sign out, the household Edit only, the demo none.
+        #expect(rows.map(\.swipes) == [[.edit, .signOut], [.edit, .signOut], [.edit], []])
     }
 
     @Test func connectionsRowsWithNoHouseholdYet() {
@@ -138,6 +140,7 @@ struct LockGateTests {
         #expect(kept[1].name == "On this iPhone")
         #expect(kept[1].detail == "Your household, with no server")
         #expect(kept[1].front == .household)
+        #expect(kept[1].swipes.isEmpty)
         #expect(!kept[1].ticked)
         // In front but not saved (the Keychain wouldn't take it): listed and ticked.
         let front = ConnectionRow.rows(saved: [a], front: .household, householdExists: false,
@@ -173,6 +176,8 @@ struct LockGateTests {
         #expect(rows.map(\.name) == ["Home", "Server 1", "Server 2", "On this iPhone", "Demo"])
         #expect(rows.map(\.detail) == [nil, nil, nil, "Your household, with no server", "Sample numbers · nothing is saved"])
         #expect(rows.allSatisfy { !$0.opensPage })
+        // No swipes while locked (#376): Edit would open a page, Sign out leave the demo's rules.
+        #expect(rows.allSatisfy { $0.swipes.isEmpty })
         for row in rows {
             #expect(!row.name.contains("example"), "\(row.name)")
             #expect(!(row.detail ?? "").contains("@"), "\(row.detail ?? "")")

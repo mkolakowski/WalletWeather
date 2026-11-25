@@ -36,55 +36,45 @@
     {
       "slug": "changelog",
       "kind": "standing",
-      "stub": true,
       "short": "Changelog",
       "title": "Changelog",
       "about": "What each release changed, newest first, with what's landed since the last one at the top.",
-      "source": "Would be written from <code>CHANGELOG.md</code> by a script, at each release and whenever an entry lands under Unreleased.",
-      "updated": "2026-11-25",
+      "updated": "2026-11-24",
       "issue": 351
     },
     {
       "slug": "roadmap",
       "kind": "standing",
-      "stub": true,
       "short": "Roadmap",
       "title": "Roadmap",
       "about": "The ledger of ideas: what's done, what's planned and what's waiting, by its number.",
-      "source": "Would be written from <code>ROADMAP.md</code> by a script, with finished items struck through as they are there.",
-      "updated": "2026-11-25",
+      "updated": "2026-11-23",
       "issue": 351
     },
     {
       "slug": "plans",
       "kind": "standing",
-      "stub": true,
       "short": "Plans",
       "title": "Plans",
       "about": "Every plan and where each of its phases stands: built, released, waiting on a check, or open.",
-      "source": "Would be written from the Status table at the top of each file in <code>Plans/</code>, with links to the phase issues.",
-      "updated": "2026-11-25",
+      "updated": "2026-11-24",
       "issue": 351
     },
     {
       "slug": "decisions",
       "kind": "standing",
-      "stub": true,
       "short": "Decisions",
       "title": "Decisions",
       "about": "What's been decided and when, by subject: the choices behind the plans, with the options that were turned down.",
-      "source": "Would be written from the pages in <code>docs/dev/decisions/</code>: each page's title and its dated headings.",
-      "updated": "2026-11-25",
+      "updated": "2026-11-24",
       "issue": 351
     },
     {
       "slug": "waiting-on-you",
       "kind": "standing",
-      "stub": true,
       "short": "Waiting on you",
       "title": "Waiting on you",
       "about": "What only you can do: checks to make on the phone, questions left open in a plan, and issues that wait for a look.",
-      "source": "Would be written from the checklist issue (#338), each plan's Open questions, and open issues, by a script that reads GitHub.",
       "updated": "2026-11-25",
       "issue": 351
     }

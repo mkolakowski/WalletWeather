@@ -57,6 +57,11 @@ that page's `<main>` and its own styles into view, then lists the page's
   that other pages link to (`#<slug>--<id>` is the link);
 - a link to a place on the same page is an ordinary `href="#<id>"`.
 
+Five pages are written straight from the repo and never by hand:
+`python3 .claude/skills/artifact-page/scripts/repo_pages.py all` (or one of
+`changelog`, `roadmap`, `plans`, `decisions`, `waiting`) rebuilds them and
+Home. Publish the ones that changed.
+
 A page built by a script (the UI review's `review_kit.py`, the before and
 after page's `ui-compare.py`) writes this content file itself.
 

@@ -55,8 +55,14 @@ WalletWeather artifact as a page, never a new artifact. Its link is the `url`
 in `.claude/skills/artifact-page/pages.json`, the list Home is written from;
 `/artifact-page` (`.claude/skills/artifact-page/`, this project's own skill)
 lists the page, wraps it in the shared header, rebuilds Home and publishes
-the changed files to the same link. Why: one link on the phone holds every
-review and write-up, instead of a new one each time.
+the changed files to the same link. Five of its pages are written from the
+repo by `.claude/skills/artifact-page/scripts/repo_pages.py` (Changelog,
+Roadmap, Plans, Decisions, Waiting on you; decided 2026-11-25, #353): run
+`repo_pages.py all` and publish them again when a release is published, and
+at the end of a turn that changed `CHANGELOG.md`, `ROADMAP.md`, a plan's
+Status or a decision page. Why: one link on the phone holds every review and
+write-up, instead of a new one each time, and a page copied by hand goes
+stale.
 
 ## Rules from claude-playbook
 

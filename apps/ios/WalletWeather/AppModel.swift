@@ -853,7 +853,8 @@ final class AppModel {
     /// `WW_DEBUG_CUSTOM_THEMES=sample` (two sample custom themes in memory,
     /// which `WW_DEBUG_LOOK=custom-light` or `custom-dark` shows) and
     /// `WW_DEBUG_THEME_EDITOR` (the theme editor on one, over Settings →
-    /// Appearance, #297).
+    /// Appearance, #297), and `WW_DEBUG_TAG_EDITOR=1` (the New tag sheet,
+    /// over Settings → Tags, #360).
     /// Always nil in a
     /// Release build.
     static func debugSetting(_ name: String) -> String? {

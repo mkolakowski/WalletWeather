@@ -52,6 +52,16 @@ extension APIClient {
 /// The colours offered for a tag, as the web app's.
 public enum TagColors {
     public static let all = ["#58a6ff", "#3fb950", "#d29922", "#a371f7", "#f778ba", "#56d4dd", "#ff7b72", "#8b949e"]
+
+    /// What VoiceOver says for each colour, in the order of `all` (#360): a
+    /// name, never the hex code.
+    private static let names = ["Blue", "Green", "Amber", "Purple", "Pink", "Teal", "Red", "Grey"]
+
+    /// The name of a colour in `all`; "Colour" for any other value.
+    public static func name(of hex: String) -> String {
+        guard let index = all.firstIndex(of: hex.lowercased()) else { return "Colour" }
+        return names[index]
+    }
 }
 
 /// An auto-tag rule (`GET /api/tag-rules`; phone-tags phase 3, #252): a

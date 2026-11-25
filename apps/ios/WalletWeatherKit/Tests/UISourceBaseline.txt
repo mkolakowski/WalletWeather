@@ -46,11 +46,9 @@ fixed-frame	WalletWeather/Views/ChartViews.swift	.frame(width: 120, height: 120)
 fixed-frame	WalletWeather/Views/DashboardView.swift	.frame(width: 22)
 fixed-frame	WalletWeather/Views/ForecastView.swift	.frame(height: 170)
 fixed-frame	WalletWeather/Views/SettingsView.swift	.frame(height: 44).padding(.horizontal, 16).padding(.top, 12)  // level with the pane's title
-fixed-frame	WalletWeather/Views/TagViews.swift	Circle().fill(swatch).frame(width: 28, height: 28)
 label-case	WalletWeather/Views/ConnectView.swift	SecureField("Client Secret", text: $clientSecret)
 money-outside-format	WalletWeather/Views/SettingsPages.swift	TextField("Amount", value: $amount, format: .currency(code: "USD"))
 motion	WalletWeather/Views/GettingStartedViews.swift	.transition(.scale.combined(with: .opacity))
 motion	WalletWeather/Views/ProblemBanner.swift	.transition(.move(edge: .top).combined(with: .opacity))
 motion	WalletWeather/Views/UndoBar.swift	.transition(.move(edge: .bottom).combined(with: .opacity))
 tap-without-button	WalletWeather/Views/PhoneBankViews.swift	.onTapGesture { if sizeClass == .regular { matching = Matching(account: account, line: line) } }
-tap-without-button	WalletWeather/Views/TagViews.swift	.onTapGesture { color = color == hex ? nil : hex }

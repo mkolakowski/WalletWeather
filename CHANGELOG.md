@@ -69,10 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.3**
+App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.4**
 
 ### Fixed
 
+- **iPhone app: a tag's colours are named, and easy to hit.** In the New tag and Change tag sheets VoiceOver used to read each colour as a code such as "#58a6ff"; it now says "Blue", "Green", "Amber", "Purple", "Pink", "Teal", "Red" or "Grey", and each colour is a button with a full 44-point tap area, laid out four to a row. (#360)
 - **iPhone app: Connections' rows no longer run into each other.** Each connection in Settings → Connections now has space above and below it, so a row's last line no longer sits against the next row's name. Where it fits, the total moves to the right of the name; at the larger text sizes it stays under it, and a long address is shortened in the middle rather than broken mid-word (at the accessibility sizes it wraps in full instead, so nothing is cut). (#358)
 - **iPhone app: closing a line or a bill no longer closes the app.** On iOS 27.1, opening a line from Forecast and tapping **Cancel** could send you straight back to the Home Screen; the same fault sat behind the bill editor and the editors Search and the Calendar open. Cancel, Save and pulling the sheet down now close the editor and leave you where you were.
 

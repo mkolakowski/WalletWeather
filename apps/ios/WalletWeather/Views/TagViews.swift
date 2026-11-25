@@ -115,6 +115,9 @@ struct TagEditSheet: View {
     @State private var color: String?
     @State private var saving = false
     @State private var problem: String?
+    // A swatch and the cell around it, growing with the text size (#360).
+    @ScaledMetric(relativeTo: .body) private var swatchSize: CGFloat = 28
+    @ScaledMetric(relativeTo: .body) private var cellSize: CGFloat = 44
 
     var body: some View {
         NavigationStack {
@@ -125,17 +128,21 @@ struct TagEditSheet: View {
                     if let problem { Text(problem).foregroundStyle(Palette.bad) }
                 }
                 Section("Colour") {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 8), spacing: 12) {
+                    // Four to a row: eight 44-point cells don't fit across a phone (#360).
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 0) {
                         ForEach(TagColors.all, id: \.self) { hex in
                             let swatch = Palette.category(hex, name: "")
-                            Circle().fill(swatch).frame(width: 28, height: 28)
-                                .overlay { if color == hex { Image(systemName: "checkmark").font(.caption.bold()).foregroundStyle(.white) } }
-                                .onTapGesture { color = color == hex ? nil : hex }
-                                .accessibilityLabel(hex)
-                                .accessibilityAddTraits(color == hex ? .isSelected : [])
+                            Button { color = color == hex ? nil : hex } label: {
+                                Circle().fill(swatch).frame(width: swatchSize, height: swatchSize)
+                                    .overlay { if color == hex { Image(systemName: "checkmark").font(.caption.bold()).foregroundStyle(.white) } }
+                                    .frame(maxWidth: .infinity, minHeight: cellSize)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(TagColors.name(of: hex))
+                            .accessibilityAddTraits(color == hex ? .isSelected : [])
                         }
                     }
-                    .padding(.vertical, 4)
                 }
             }
             .navigationTitle(tag == nil ? "New tag" : "Change tag")
@@ -236,7 +243,11 @@ struct TagsPage: View {
                 ToolbarItem(placement: .topBarTrailing) { Button("Add tag", systemImage: "plus") { adding = true } }
             }
         }
-        .task(id: model.generation) { await load() }
+        .task(id: model.generation) {
+            await load()
+            // Debug only: `WW_DEBUG_TAG_EDITOR=1` opens the New tag sheet (#360).
+            if AppModel.debugSetting("WW_DEBUG_TAG_EDITOR") == "1", canEdit { adding = true }
+        }
         .refreshable { await load() }
         .sheet(item: $editing) { tag in TagEditSheet(tag: tag) { _ in Task { await load() } } }
         .sheet(item: $editingRule) { rule in

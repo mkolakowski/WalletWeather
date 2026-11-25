@@ -11,7 +11,7 @@ Tracking issue: #212
 | 3. Gmail and other mailboxes | Server, Web | #208 | Not started |
 | 4. Alerts matched to bills, and the first release | Server, Web | #209 | Released in 1.75.0 (2026-11-17), closed 2026-11-17; it isn't the first release (phase 1 shipped in 1.73.0) |
 | 5. Alerts joined to bank sync rows | Server, Web | #210 | Built 2026-11-22 for 1.94.0 (schema 37, web 1.105.0); released in v1.97.0 (2026-11-23) |
-| 6. Status and Check now in the iOS app | iOS | #211 | Built in iOS 0.69.0, 2026-11-24; released in 1.98.4; on TestFlight as build 496; your try left |
+| 6. Status and Check now in the iOS app | iOS | #211 | Built in iOS 0.69.0, 2026-11-24; released in 1.98.4; on TestFlight as build 496; your check passed 2026-11-24 (#338); closed |
 
 
 Phase 6 built 2026-11-24 in iOS 0.69.0 (no server change: `GET /api/mail/status` and `POST /api/mail/check` were already there). Placed and worded that day at your call: an Email alerts card on Settings → Bank sync under the bank cards (More is Settings now), in plain status lines, and the Bank sync row names the mailbox's trouble when the banks have none. Verified: 12 new Kit tests (`MailAlertsTests`: the status as the server sends it, each state in words, the row's value, Check now's request and refusal, an older server, the demo's sample, none for the household on this iPhone) in a full `swift test` of 532 that passed; the app builds for the simulator. Not yet: simulator pictures (PortSSD unplugged) and Check now from your phone.

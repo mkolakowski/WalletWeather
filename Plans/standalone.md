@@ -8,9 +8,9 @@ Tracking issue: #240
 | --- | --- | --- | --- |
 | 1. The answer key and first core numbers | Server (tests), Core | #232 | Done 2026-11-18, no version (tests only) |
 | 2. The server runs on the core | Server, Core | #233 | Built in 1.82.0, released 2026-11-18 (v1.82.0); waits for your look at the numbers |
-| 3. The core on the iPhone | iOS, Core | #234 | Built in iOS 0.18.0, 2026-11-18; on TestFlight in build 400 (iOS 0.33.0, 2026-11-23); waits for your try |
-| 4. Use without a server | Server, Core, iOS | #235 | Built in 1.83.0 and iOS 0.19.0, 2026-11-18; server released in v1.85.0; on TestFlight in build 400; waits for your try |
-| 5. Move between a server and the phone | iOS, Server | #236 | Built in 1.84.0 and iOS 0.20.0, 2026-11-18; server released in v1.85.0; on TestFlight in build 400; waits for your try |
+| 3. The core on the iPhone | iOS, Core | #234 | Built in iOS 0.18.0, 2026-11-18; on TestFlight in build 400 (iOS 0.33.0, 2026-11-23); your check passed 2026-11-24 (#338); closed |
+| 4. Use without a server | Server, Core, iOS | #235 | Built in 1.83.0 and iOS 0.19.0, 2026-11-18; server released in v1.85.0; on TestFlight in build 400; your check passed 2026-11-24 (#338); closed |
+| 5. Move between a server and the phone | iOS, Server | #236 | Built in 1.84.0 and iOS 0.20.0, 2026-11-18; server released in v1.85.0; on TestFlight in build 400; your check passed 2026-11-24 (#338); closed |
 | 6. Backup to iCloud Drive | iOS | #237 | Built in iOS 0.21.0, 2026-11-20; shipped alongside v1.85.0 (iOS 0.28.0), closed 2026-11-21 at your say; your try left on TestFlight build 400 (turn it on, delete the app, reinstall, restore) |
 | 9. CSV import from Files (runs after 6, before 7) | iOS, Core | #243 | Built in 1.85.0 (core 0.4.0) and iOS 0.23.0, 2026-11-20; released in v1.85.0 (2026-11-20), closed 2026-11-21; your check left: import a real bank export on TestFlight |
 | 7. Live iCloud sync between devices | iOS | #238 | Built in iOS 0.24.0, 2026-11-20; closed 2026-11-21 at your say; CloudKit schema in Production 2026-11-23 (#270); your try on two devices left on TestFlight build 400 |

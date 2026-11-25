@@ -6,11 +6,11 @@ Tracking issue: #333
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Widgets and the summary they read | #318 | On TestFlight (0.65.0, build 479); pictures and phone check to come |
-| 2. Reminders worked out on the phone | #319 | On TestFlight (0.65.0, build 479); pictures and phone check to come |
-| 3. Open To confirm and What's my balance | #320 | Released in 1.98.2 (iOS 0.66.0); on TestFlight from build 492 (0.68.1, #337); phone check to come |
-| 4. Bills and accounts in the phone's search | #331 | Released in 1.98.2 (iOS 0.67.0); on TestFlight from build 492 (0.68.1, #337); phone check to come |
-| 5. Add a transaction and Mark a bill paid | #332 | Released in 1.98.3 (iOS 0.68.0/0.68.1); on TestFlight as build 492; phone check to come |
+| 1. Widgets and the summary they read | #318 | Released in 1.98.2 (iOS 0.64.0/0.65.0); your check passed 2026-11-24 (#338); closed |
+| 2. Reminders worked out on the phone | #319 | Released in 1.98.2 (iOS 0.64.0/0.65.0); your check passed 2026-11-24 (#338); closed |
+| 3. Open To confirm and What's my balance | #320 | Released in 1.98.2 (iOS 0.66.0); on TestFlight from build 492 (0.68.1, #337); your check passed 2026-11-24 (#338); closed |
+| 4. Bills and accounts in the phone's search | #331 | Released in 1.98.2 (iOS 0.67.0); on TestFlight from build 492 (0.68.1, #337); your check passed 2026-11-24 (#338); closed |
+| 5. Add a transaction and Mark a bill paid | #332 | Released in 1.98.3 (iOS 0.68.0/0.68.1); on TestFlight as build 492; your check passed 2026-11-24 (#338); closed |
 
 Planned 2026-11-23 (about 11:00 PM ET), from #318, #319 and #320 (ideas F1 to F3 of the iOS review), on iOS 0.63.0.
 

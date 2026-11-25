@@ -10,7 +10,7 @@ Tracking issue: #198
 | 2. Connect a bank and Sync now | Server, Web | #194 | Released in 1.69.0 (2026-11-16); tried on your instance the same day: connected to SimpleFIN, and Sync now brought in your bank's lines. The lines carry the bank's full ACH text as their names |
 | 3. Daily sync and its status | Server, Web | #195 | Released in 1.70.0 (2026-11-16); waiting for three days of syncing on your instance |
 | 4. Bills matched automatically | Server, Web | #196 | Released in 1.73.0 (2026-11-17; web 1.87.0, schema 28); waits for a month of your real bills |
-| 5. Status and Sync now in the iOS app | iOS | #197 | Released in 1.76.0 (2026-11-17; iOS 0.17.0); waits for Sync now from your phone |
+| 5. Status and Sync now in the iOS app | iOS | #197 | Released in 1.76.0 (2026-11-17; iOS 0.17.0); Sync now from your phone passed 2026-11-24 (#338); closed |
 
 Added at your ask, 2026-11-17, outside the phases: #213 (shorter names for synced lines, released in 1.71.0) and #215 (make a new account from a bank account with no match, released in 1.76.0: "New account…" in the match list, the starting balance worked out from the bank's balance, one sync call, nothing made if the sync fails).
 

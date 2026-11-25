@@ -6,9 +6,11 @@ Tracking issue: #380
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. Profile pictures on the server | #377 | Built 2026-11-25 in 1.99.0 (schema 40); open until released |
-| 2. Your picture in the web app | #378 | Built 2026-11-25 in web 1.118.0; open until released |
-| 3. The account picker on the iPhone | #379 | Built 2026-11-25 in iOS 0.73.0; open until released |
+| 1. Profile pictures on the server | #377 | Released 2026-11-25 in 1.99.0 (schema 40) |
+| 2. Your picture in the web app | #378 | Released 2026-11-25 in 1.99.0 (web 1.118.0) |
+| 3. The account picker on the iPhone | #379 | Released 2026-11-25 in 1.99.0 (iOS 0.73.1, TestFlight build 557) |
+
+All three phases released 2026-11-25 in 1.99.0 (GHCR image built; iOS 0.73.1 uploaded to TestFlight as build 557). The plan is done.
 
 Phase 3 fixed 2026-11-25 (iOS 0.73.1) after the UI review of 0.73.0 (#382): on the title's line (a `.largeTitle` toolbar item) the picker wasn't in the accessibility tree, so VoiceOver couldn't reach it (#383). It now sits among the bar's buttons at the top right on every device, bare (no shared glass), and the system's large title is back; its tap area is at least 44 points (#384). Verified: the walk's element trees show the button ("Demo, sample numbers") on the Dashboard and Settings on the iPhone 17 (Large and Accessibility Large), the closed Duo and the open Duo, 44 × 44 in Settings' sidebar; `swift test` 552 passed. Still open from the review: the accessibility audit hangs on the locked demo, open Duo, dark (#385).
 

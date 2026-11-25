@@ -3154,7 +3154,7 @@ const fmtShort = v => {
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.117.0";
+const WEB_VERSION = "1.117.1";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -3164,6 +3164,7 @@ const WEB_VERSION = "1.117.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.117.1 (2026-11-25, claude+mkolakowski): (#355) The bank sync guide is now an overview with sub-pages (#354): BANK_GUIDE_STEPS, BANK_PROVIDERS' guide links and the Match your accounts / If sync keeps failing links point at bank-sync/simplefin.html, teller-plaid.html#…, match-and-sync.html#…; "the bank sync guide" (BANK_GUIDE alone) stays the overview. app-bank-keys.html and app-connect-bank.html likewise.
 // 1.117.0 (2026-11-24, claude+mkolakowski): (#342, #343) Settings → Bank sync: one card per provider (SimpleFIN Bridge, Teller, Plaid; _bankConnectHtml, after the connected banks) holding its setup guide line (_bankGuideHtml from BANK_GUIDE_STEPS: Through SimpleFIN, Add your own Teller or Plaid keys, Through Teller or Plaid), its own pages (_bankProviderLinks(key, true) leaves the guide out), its keys (_bankKeysCardHtml now an inner .bank-keys block; _bankKeysHtml became _bankKeysShown) and its Connect. Connected banks come first, under "Your banks", with Match your accounts and If sync keeps failing links. .bank-grid lays providers ~300px and banks ~620px each, side by side as room allows, and the Settings column widens to 1600px while Bank sync is shown on a window 1000px or wider. Two-factor code fields for Disconnect, removing keys and Connect with Teller or Plaid stay hidden until the button is pressed (_bankCodeLater, _bankAskCode): the first press shows the field and focuses it, the next goes ahead; Connect's field is in each card (bankConnectCode_teller, _plaid).
 // 1.116.1 (2026-11-24, claude+mkolakowski): (#336) Links to the bank sync guide on GitHub Pages. BANK_GUIDE is the guide's address; BANK_PROVIDERS entries carry `guide` (SimpleFIN: #through-simplefin) or a 'WalletWeather guide' link (Teller, Plaid: #add-your-own-teller-or-plaid-keys) that _bankProviderLinks draws, and Connect a bank says "Step by step: the bank sync guide".
 // 1.116.0 (2026-11-24, claude+mkolakowski): (#334) Bank sync setup links and a card per provider. BANK_PROVIDERS gains teller and plaid (name, home, links[]); _bankProviderLinks draws a provider's `links` when it has them. The Teller and Plaid key steps link to the provider's dashboard, quickstart, certificates and Keys pages (_bankLink). _bankConnectHtml draws Teller, Plaid and SimpleFIN Bridge each as a bordered .bank-provider card (title, provider links, what it does, its connect button; SimpleFIN's token form stays inside its card), the same look as the .bank-keys cards.
@@ -10085,7 +10086,7 @@ let bankCats = null;   // the provider-category table (#255)
 // to sign in or set up there. A later provider adds one entry. SimpleFIN's
 // pages are on beta-bridge.simplefin.org: bridge.simplefin.org now sends
 // every path to that site's homepage, losing the page asked for.
-// The guide on GitHub Pages (docs/bank-sync.md), one section per service (#336).
+// The guide on GitHub Pages (docs/bank-sync.md, its sub-pages in docs/bank-sync/), #336, #355.
 const BANK_GUIDE = 'https://mkolakowski.github.io/WalletWeather/bank-sync';
 const BANK_PROVIDERS = {
   simplefin: {
@@ -10094,7 +10095,7 @@ const BANK_PROVIDERS = {
     signIn: 'https://beta-bridge.simplefin.org/auth/login',
     account: 'https://beta-bridge.simplefin.org/my-account',
     setup: 'https://beta-bridge.simplefin.org/simplefin/create',
-    guide: BANK_GUIDE + '#through-simplefin',
+    guide: BANK_GUIDE + '/simplefin.html',
   },
   // Teller and Plaid (#334): pages for the key setup steps and the cards.
   teller: {
@@ -10102,23 +10103,23 @@ const BANK_PROVIDERS = {
     home: 'https://teller.io/',
     links: [['Quickstart', 'https://teller.io/docs/guides/quickstart'],
             ['Certificates', 'https://teller.io/docs/api/authentication'],
-            ['WalletWeather guide', BANK_GUIDE + '#add-your-own-teller-or-plaid-keys']],
+            ['WalletWeather guide', BANK_GUIDE + '/teller-plaid.html#add-your-own-teller-or-plaid-keys']],
   },
   plaid: {
     name: 'Plaid',
     home: 'https://dashboard.plaid.com/',
     links: [['Keys page', 'https://dashboard.plaid.com/developers/keys'],
             ['Docs', 'https://plaid.com/docs/quickstart/'],
-            ['WalletWeather guide', BANK_GUIDE + '#add-your-own-teller-or-plaid-keys']],
+            ['WalletWeather guide', BANK_GUIDE + '/teller-plaid.html#add-your-own-teller-or-plaid-keys']],
   },
 };
 // Each provider's steps in the guide (#342), shown first on its card.
 const BANK_GUIDE_STEPS = {
-  simplefin: [['Connect through SimpleFIN', BANK_GUIDE + '#through-simplefin']],
-  teller: [['Add your Teller keys', BANK_GUIDE + '#add-your-own-teller-or-plaid-keys'],
-           ['Connect through Teller', BANK_GUIDE + '#through-teller-or-plaid']],
-  plaid: [['Add your Plaid keys', BANK_GUIDE + '#add-your-own-teller-or-plaid-keys'],
-          ['Connect through Plaid', BANK_GUIDE + '#through-teller-or-plaid']],
+  simplefin: [['Connect through SimpleFIN', BANK_GUIDE + '/simplefin.html']],
+  teller: [['Add your Teller keys', BANK_GUIDE + '/teller-plaid.html#add-your-own-teller-or-plaid-keys'],
+           ['Connect through Teller', BANK_GUIDE + '/teller-plaid.html#through-teller-or-plaid']],
+  plaid: [['Add your Plaid keys', BANK_GUIDE + '/teller-plaid.html#add-your-own-teller-or-plaid-keys'],
+          ['Connect through Plaid', BANK_GUIDE + '/teller-plaid.html#through-teller-or-plaid']],
 };
 function _bankGuideHtml(key) {
   const steps = BANK_GUIDE_STEPS[key] || [];
@@ -10231,7 +10232,7 @@ async function loadBank() {
         Match each bank account to one of your own accounts; nothing dated before its start date comes in
         (at most ${bankState.start_max_days} days back). Only accounts you own can be matched, and each of
         your accounts takes lines from one bank account.
-        Step by step: ${_bankLink(BANK_GUIDE + '#match-your-accounts', 'Match your accounts')} · ${_bankLink(BANK_GUIDE + '#if-sync-keeps-failing', 'If sync keeps failing')}.</p>
+        Step by step: ${_bankLink(BANK_GUIDE + '/match-and-sync.html#match-your-accounts', 'Match your accounts')} · ${_bankLink(BANK_GUIDE + '/match-and-sync.html#if-sync-keeps-failing', 'If sync keeps failing')}.</p>
       <div class="bank-grid bank-conns">${conns.map(c => _bankConnHtml(c, owned)).join('')}</div>`
       + (anyAccounts ? `<div style="margin-top:12px"><button class="ghost" id="bankSaveBtn" onclick="bankSaveLinks()">Save matches</button></div>` : '')
     : '')

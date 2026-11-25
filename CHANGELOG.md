@@ -69,12 +69,19 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.5** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.1**
+App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.1**
+
+## [1.98.6] — 2026-11-25
+
+App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.1**
+
+In the iPhone app, a line waiting in Forecast's To confirm list can be given the day it really cleared, and To confirm and Bills & income gain a Sort button. The bank sync guide is split into a page for each part, and the app's Step by step links open the right one. No database change.
 
 ### Added
 
 - iPhone app: each line in Forecast's **To confirm** list has a **Paid on** date you can tap to pick the day it really cleared your bank, so **Paid as planned** and **Paid** record that day without opening Edit. It starts on the day a swipe would use (the due date, or today if that's earlier) (#349).
 - iPhone app: a **Sort** button beside **+** sorts Forecast's **To confirm** list and the **Bills & income** list by date, amount or name, either way round. Each list remembers its choice and starts in the order it had before (To confirm oldest first, Bills & income by name); Forecast's **All lines** stays in date order so its running balance reads day by day (#350).
+
 ### Fixed
 
 - The bank sync guide is now a short overview with a page for each part (server setup, Teller and Plaid, SimpleFIN, the iPhone, matching and syncing, and more). The **Step by step** links in Settings → Bank sync, on the Teller and Plaid keys page, on the phone's connect page and in the iPhone app now open the page they mean. **Match your accounts** and **If sync keeps failing** had been opening the top of the guide since it was split. (#354, #355)
@@ -2982,7 +2989,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.98.5...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.98.6...HEAD
+[1.98.6]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.6
 [1.98.5]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.5
 [1.98.4]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.4
 [1.98.3]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.3

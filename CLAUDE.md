@@ -49,6 +49,15 @@ toward the ~60 characters and is never shortened. Why: on the phone's session
 list it tells WalletWeather threads apart from other projects'.
 
 <!-- playbook:begin project-header 1.14.2 -->
+**One artifact, a page for each thing** (decided 2026-11-24, #351): anything
+about WalletWeather that would be published as an artifact goes into the one
+WalletWeather artifact as a page, never a new artifact. Its link is the `url`
+in `.claude/skills/artifact-page/pages.json`, the list Home is written from;
+`/artifact-page` (`.claude/skills/artifact-page/`, this project's own skill)
+lists the page, wraps it in the shared header, rebuilds Home and publishes
+the changed files to the same link. Why: one link on the phone holds every
+review and write-up, instead of a new one each time.
+
 ## Rules from claude-playbook
 
 These blocks come from claude-playbook v1.14.2 (a83fb42). Run `/playbook`

@@ -1,0 +1,22 @@
+{
+  "url": "https://claude.ai/artifact/W9sBSzEo3kphuf6SEq5dHB",
+  "lede": "Everything Claude publishes about WalletWeather, in one place: reviews, what changed, and the iPhone app before and after each build. Pictures are from the simulator, on the demo's sample numbers.",
+  "pages": [
+    {
+      "slug": "ui-review-suite-changes",
+      "kind": "dated",
+      "title": "What changed for the iPhone UI review suite",
+      "about": "The source check, the simulator walk, the scripts and every file added on 24 November, with what the suite found on its first runs.",
+      "updated": "2026-11-24",
+      "issue": 348
+    }
+  ],
+  "elsewhere": [
+    {
+      "title": "The iPhone app's design review",
+      "url": "https://claude.ai/artifact/YanSV7o5FqX9WC6SdzZkyj",
+      "date": "2026-11-23",
+      "about": "27 findings and twelve ideas on iOS 0.34.0, each with today beside the proposal."
+    }
+  ]
+}

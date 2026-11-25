@@ -427,7 +427,7 @@ final class WalkTests: XCTestCase {
 
     private func capture(_ name: String, part: String, state: State) -> Capture {
         let file = "\(name).\(part).jpg"
-        let image = app.screenshot().image
+        let image = picture(of: state.window)
         // Wide enough to read, small enough to keep a whole run.
         let pixels = image.size.width * image.scale
         let format = UIGraphicsImageRendererFormat()
@@ -437,6 +437,15 @@ final class WalkTests: XCTestCase {
         try? small.jpegData(compressionQuality: 0.82)?.write(to: options.out.appendingPathComponent(file))
         return Capture(file: file, part: part, measures: Checks.measure(state.seen, window: state.window),
                        findings: Checks.run(state.seen, window: state.window))
+    }
+
+    /// A picture of the screen the app is on. Open, the Duo has two screens and the front one is
+    /// black, which is the one `app.screenshot()` takes: so this takes every screen and keeps
+    /// the one the size of the app's window.
+    private func picture(of window: CGRect) -> UIImage {
+        let shots = XCUIScreen.screens.map { $0.screenshot().image }
+        func distance(_ image: UIImage) -> CGFloat { abs(image.size.width - window.width) + abs(image.size.height - window.height) }
+        return shots.min { distance($0) < distance($1) } ?? app.screenshot().image
     }
 
     /// Apple's own audit of what's on screen. Each issue becomes a finding; none fails the test.

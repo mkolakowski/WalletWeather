@@ -71,6 +71,12 @@ same commit (or session) that introduces it.
 
 App version: **1.99.0** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.1**
 
+## [1.99.0] — 2026-11-25
+
+App version: **1.99.0** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.1**
+
+You can now have a profile picture: set it in the web app's Settings → Your account (or it's taken from Google the first time you sign in with Google), and it shows on the web app's account button and on the iPhone app's new account picker, a round button at the top right of the Dashboard and Settings that replaces the connection chip and is the one-tap way back from the demo. The iPhone app also lets you swipe a connection to edit it or sign out, lists the household on the phone only once it's set up, and fixes a crash when closing an editor, a rare crash while drawing colours, and labels cut short at large text sizes. Database: schema 40, added on start-up.
+
 ### Added
 
 - **iPhone app: an account picker with your picture.** On the Dashboard and in Settings, a round button with your profile picture now sits at the top right, beside the other buttons there (your initials until you set a picture in the web app's Settings → Your account). Tap it for the same menu the connection chip had: your connections, each server with its own picture, a tick on the one in front, "Sign in again" where a sign-in has ended, then **Manage connections…**. It shows with a single connection too. The household on this iPhone shows its iPhone icon. In the demo, the button shows the picture of the connection the demo goes back to with a small sparkles badge, so getting back is one tap. VoiceOver reads it as the connection in front ("Demo, sample numbers" in the demo), and it's at least 44 points to tap everywhere (#383, #384). While the app is locked in the demo the menu still shows names and icons only, and choosing a real connection still asks for Face ID first. Each server's picture is kept on the phone with that connection, fetched again only when it changes (needs server 1.99.0), and deleted when you sign out of it; the app never asks a server for its picture unless that server is the one in front. (#379, #383, #384)
@@ -3024,7 +3030,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.98.6...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.99.0...HEAD
+[1.99.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.0
 [1.98.6]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.6
 [1.98.5]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.5
 [1.98.4]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.4

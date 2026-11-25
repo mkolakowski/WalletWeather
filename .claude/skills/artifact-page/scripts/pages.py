@@ -3,6 +3,7 @@
 
     pages.py home                      writes Home (index.html) and pages.css from pages.json
     pages.py wrap <slug> <body.html>   wraps a page's content in the shared header, as <slug>.html
+    pages.py stubs                     writes a placeholder page for every entry marked "stub": true
     pages.py list                      prints the pages
 
 Home is also the frame the other pages show in: the bar at the top lists every
@@ -48,6 +49,10 @@ main { display: flex; flex-direction: column; gap: 22px; }
 .ww-jump span { font: 600 0.72rem var(--mono); letter-spacing: 0.05em; color: var(--soft); }
 .ww-jump a { color: var(--accent); text-decoration: none; } .ww-jump a:hover { text-decoration: underline; }
 .ww-wait { color: var(--soft); }
+.ww-top a.ww-stub { border-style: dashed; color: var(--soft); background: none; }
+.ww-top a.ww-stub[aria-current="page"] { background: none; color: var(--accent); border-color: var(--accent); border-style: dashed; }
+.ww-tag { font: 600 0.7rem var(--mono); letter-spacing: 0.05em; color: var(--warn); border: 1px dashed currentColor; border-radius: 4px; padding: 1px 6px; align-self: flex-start; }
+.ww-stubnote { border: 1px dashed var(--rule); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
 h1 { font: 600 1.9rem/1.15 var(--sans); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
 h2 { font: 600 1.25rem/1.25 var(--sans); margin: 14px 0 0; padding-top: 16px; border-top: 2px solid var(--ink); text-wrap: balance; }
 h3 { font: 600 1rem/1.3 var(--sans); margin: 0; }
@@ -76,7 +81,7 @@ def pages():
 def ordered(data):
     """Every page in the bar's order: the ones kept up to date, then the rest, newest first."""
     rank = {"standing": 0, "dated": 1}
-    return sorted(data["pages"], key=lambda p: (rank.get(p["kind"], 2), tuple(-int(n) for n in p["updated"].split("-")), p["slug"]))
+    return sorted(data["pages"], key=lambda p: (2 if p.get("stub") else rank.get(p["kind"], 1), tuple(-int(n) for n in p["updated"].split("-")), p["slug"]))
 
 
 def top(here=None, shell=False):
@@ -88,7 +93,8 @@ def top(here=None, shell=False):
     links = [f'<a class="ww-name" href="{base or "#"}"{"" if here else " aria-current=page"} data-slug="">WalletWeather</a>']
     for page in ordered(data):
         current = ' aria-current="page"' if page["slug"] == here else ""
-        links.append(f'<a href="{base}#{page["slug"]}" data-slug="{page["slug"]}"{current}>{esc(page.get("short") or page["title"])}</a>')
+        stub = ' class="ww-stub"' if page.get("stub") else ""
+        links.append(f'<a href="{base}#{page["slug"]}" data-slug="{page["slug"]}"{stub}{current}>{esc(page.get("short") or page["title"])}</a>')
     return '<nav class="ww-top" aria-label="WalletWeather pages">' + "".join(links) + "</nav>"
 
 
@@ -162,9 +168,9 @@ def home():
              '<link rel="stylesheet" href="pages.css">', top(shell=True), '<nav class="ww-jump" id="ww-jump" aria-label="On this page" hidden></nav>',
              '<div id="ww-view">', "<main>",
              "<h1>WalletWeather</h1>", f'<p class="lede">{data["lede"]}</p>']
-    kinds = [("standing", "Kept up to date"), ("dated", "Written once")]
+    kinds = [("standing", "Kept up to date"), ("dated", "Written once"), ("stub", "Named, not filled in yet")]
     for kind, title in kinds:
-        members = [p for p in data["pages"] if p["kind"] == kind]
+        members = [p for p in data["pages"] if (kind == "stub") == bool(p.get("stub")) and (kind == "stub" or p["kind"] == kind)]
         if not members:
             continue
         members.sort(key=lambda p: p["updated"], reverse=True)
@@ -172,7 +178,7 @@ def home():
         for page in members:
             issue = f' · <a href="https://github.com/mkolakowski/WalletWeather/issues/{page["issue"]}">#{page["issue"]}</a>' if page.get("issue") else ""
             parts.append(f'<li><a href="#{page["slug"]}">{esc(page["title"])}</a><span>{esc(page["about"])}</span>'
-                         f'<small>{"updated" if kind == "standing" else "written"} {page["updated"]}{issue}</small></li>')
+                         f'<small>{ {"standing": "updated", "dated": "written", "stub": "named"}[kind] } {page["updated"]}{issue}</small></li>')
         parts.append("</ul>")
     if data.get("elsewhere"):
         parts.append('<h2>Older pages, at their own links</h2><ul>')
@@ -214,14 +220,36 @@ def wrap(slug, body_file):
     print(f"pages: {OUT / (slug + '.html')} ({len(doc) / 1e6:.2f} MB)")
 
 
+def stubs():
+    """A page for every entry marked `"stub": true`: its name, what it will hold and where that
+    will come from, all from pages.json. A stub stops being one when its entry loses the mark
+    and something wraps real content under its slug."""
+    made = 0
+    for page in pages()["pages"]:
+        if not page.get("stub"):
+            continue
+        issue = f' It\'s tracked in <a href="https://github.com/mkolakowski/WalletWeather/issues/{page["issue"]}">#{page["issue"]}</a>.' if page.get("issue") else ""
+        body = OUT / f'{page["slug"]}.stub.html'
+        OUT.mkdir(parents=True, exist_ok=True)
+        body.write_text(f'<main>\n<h1>{esc(page["title"])}</h1>\n<p class="lede">{esc(page["about"])}</p>\n'
+                        f'<div class="ww-stubnote"><span class="ww-tag">NOT FILLED IN YET</span>'
+                        f'<p>{page.get("source", "")}{issue}</p></div>\n</main>\n')
+        wrap(page["slug"], body)
+        body.unlink()
+        made += 1
+    print(f"pages: {made} stub(s)")
+
+
 if __name__ == "__main__":
     command = sys.argv[1] if len(sys.argv) > 1 else ""
     if command == "home":
         home()
     elif command == "wrap" and len(sys.argv) == 4:
         wrap(sys.argv[2], sys.argv[3])
+    elif command == "stubs":
+        stubs()
     elif command == "list":
         for page in pages()["pages"]:
-            print(f'{page["slug"]:28} {page["kind"]:9} {page["updated"]}  {page["title"]}')
+            print(f'{page["slug"]:28} {"stub" if page.get("stub") else page["kind"]:9} {page["updated"]}  {page["title"]}')
     else:
         sys.exit(__doc__)

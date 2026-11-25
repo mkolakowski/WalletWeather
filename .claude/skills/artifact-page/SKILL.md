@@ -27,6 +27,11 @@ Add it to `pages.json` (or change its `updated` date when updating one):
 - `short`: the page's name in the bar at the top, a few words. The bar lists
   every page on every page, the kept-up-to-date ones first.
 
+A page that's named but not written yet is a stub: its entry carries
+`"stub": true` and a `source` line saying where its content will come from,
+and `pages.py stubs` writes its placeholder from the entry. To fill one in,
+take the mark off its entry and wrap real content under the same slug.
+
 ## 2. Write the page's content
 
 A file with the page's own `<style>` (only what the shared style lacks) and

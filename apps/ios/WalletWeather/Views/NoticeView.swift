@@ -38,7 +38,7 @@ struct NoticeView: View {
                 .buttonStyle(.glassProminent)
                 .disabled(saving)
                 if model.isLocal {
-                    Button("Back") { model.leaveLocal() }
+                    Button("Back") { model.backFromNotice() }
                         .frame(maxWidth: .infinity)
                         .buttonStyle(.glass)
                 } else {

@@ -520,7 +520,44 @@ final class AppModel {
         case .thisIPhone:
             guard isDemo || !isLocal else { return }
             guard await mayLeaveDemo() else { return }
+            let left = LeftForHousehold(front: lockFront, beforeDemo: beforeDemo, householdWasNew: !LocalStore.exists)
             useOnThisPhone()
+            if isLocal { leftForHousehold = left }
+        }
+    }
+
+    /// What was in front when Use on this iPhone was chosen from
+    /// Connections or the chip (#374), for Back on the Important notice.
+    struct LeftForHousehold {
+        let front: LockGate.Front
+        let beforeDemo: LockGate.Front?
+        /// No household was on the phone: it was made for this attempt.
+        let householdWasNew: Bool
+    }
+
+    private var leftForHousehold: LeftForHousehold?
+
+    /// Back on the Important notice with the household on this iPhone in
+    /// front (#374). Chosen from Connections, it goes back to what was in
+    /// front then (a server, or the demo), and a household made only for
+    /// this attempt is taken off the phone again: it holds nothing but the
+    /// default categories, and leaving it would list the phone as set up.
+    /// Opened from the first screen, back to the first screen, as before.
+    func backFromNotice() {
+        guard isLocal else { return }
+        let left = leftForHousehold
+        leftForHousehold = nil
+        leaveLocal()
+        guard let left else { return }
+        if left.householdWasNew { LocalStore.erase() }
+        switch left.front {
+        case let .saved(id) where store.load(id) != nil:
+            switchTo(id)
+        case .demo:
+            tryDemo()
+            beforeDemo = left.beforeDemo
+        default:
+            break
         }
     }
 
@@ -572,6 +609,7 @@ final class AppModel {
     /// then say Sign in again. The household on this iPhone opens as On
     /// this iPhone does.
     func switchTo(_ id: UUID) {
+        leftForHousehold = nil
         connectError = nil
         connectNotice = nil
         connectionsNotice = nil
@@ -743,6 +781,7 @@ final class AppModel {
     /// iPhone opens it again.
     func leaveLocal() {
         guard isLocal else { return }
+        leftForHousehold = nil
         forgetFront()
         connection = nil
         me = nil
@@ -786,6 +825,7 @@ final class AppModel {
     /// kept, and none of a sign-in's set-up (the notice, what to keep, the
     /// lock). What was in front is remembered for leaving it (#301).
     func tryDemo() {
+        leftForHousehold = nil
         if !isDemo {
             beforeDemo = lockFront
         }
@@ -1380,6 +1420,7 @@ final class AppModel {
     func acknowledgeNotice() async throws(APIError) {
         guard let client else { return }
         try await client.acknowledgeNotice()
+        leftForHousehold = nil
         phase = .ready
         await refreshMe()
     }

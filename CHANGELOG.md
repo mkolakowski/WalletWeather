@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.9**
+App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.10**
 
 ### Changed
 
@@ -78,6 +78,8 @@ App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** ·
 - **iPhone app: Reports' list sits in a card.** The saved reports used to be plain rows with hairlines straight on the page, unlike every other page. They are now in one card with a divider between them, with the same margins as Budgets, on the iPhone and in the left half of the open Duo. (#370)
 
 ### Fixed
+
+- **iPhone app: Back on the Important notice no longer strands you.** Choosing **Use on this iPhone** from Settings → Connections and then tapping **Back** on the Important notice used to leave you on the first screen with no way back to your server, short of trying the demo and going through Connections. Back now returns you to the server (or the demo) you came from, and a household made only for that attempt is removed again, so the phone isn't listed as set up. (#374)
 
 - **iPhone app: a rare crash while a colour is drawn is fixed.** The app could stop on its own while a sheet such as the line editor was being drawn or closed, because the app's colours for Light and Dark were worked out on the wrong thread. They can now be worked out anywhere. (#371)
 - **iPhone app: labels are no longer cut short at large text sizes.** At the larger text sizes the connection chip ("Demo · sample numbers"), the Undo bar ("Rent marked paid"), the page tiles under Settings → More pages and the look tiles under Settings → Appearance ended in "…" or broke mid-word. Their words now wrap to a second line instead; at the accessibility sizes the Undo button sits under its message and More pages shows one tile to a row. At the default size they look as before. (#362)

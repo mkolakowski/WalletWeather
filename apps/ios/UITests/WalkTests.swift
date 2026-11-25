@@ -277,7 +277,9 @@ final class WalkTests: XCTestCase {
             try expect("Repeats")
             picture(&result, "open-bill", "editor")
             try tap("Cancel")
-            try expect("Bills a month")
+            // The list is still scrolled down to Rent, so its header is above the
+            // screen; the bar's title is there whatever the scroll (#372).
+            try expect("Bills & income")
         }
         flow("swipe-a-line-away") { _ in
             try tap("Forecast")

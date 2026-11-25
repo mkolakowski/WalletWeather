@@ -438,7 +438,7 @@ public final class PhoneBank {
     /// Claims a setup token, keeps the access address in the Keychain and
     /// lists the bank accounts (a call, as on the server). A listing that
     /// fails keeps the address: the next Sync now lists them again.
-    public func connect(token: String, now: Date = .now) async throws(SimpleFIN.Failure) {
+    public func connect(token: String, now: Date = .appNow) async throws(SimpleFIN.Failure) {
         let access = try await SimpleFIN.claim(token, session: session)
         guard secrets.write(access) else {
             throw SimpleFIN.Failure(message: "This iPhone couldn't keep the connection in its Keychain. Nothing was saved; make a new token and try again.")
@@ -490,7 +490,7 @@ public final class PhoneBank {
 
     /// Seconds until SimpleFIN may be asked again (the server's
     /// _bank_call_wait); 0 when it may.
-    public func waitSeconds(now: Date = .now) -> Int {
+    public func waitSeconds(now: Date = .appNow) -> Int {
         let calls = state.calls.filter { now.timeIntervalSince($0) < 86_400 }.sorted()
         guard calls.count >= Self.callsPerDay else { return 0 }
         let free = calls[calls.count - Self.callsPerDay].addingTimeInterval(86_400)
@@ -506,7 +506,7 @@ public final class PhoneBank {
     /// Whether a sync by itself is due: connected, an account matched, and
     /// 23½ hours since the last sync (by itself or Sync now, failed or not),
     /// under the daily limit, and not after SimpleFIN stopped taking it.
-    public func isDue(now: Date = .now) -> Bool {
+    public func isDue(now: Date = .appNow) -> Bool {
         guard connected, !state.links.isEmpty, !state.needsReconnect, waitSeconds(now: now) == 0 else { return false }
         guard let last = state.lastSyncAt else { return true }
         return now.timeIntervalSince(last) >= Self.syncEvery
@@ -515,7 +515,7 @@ public final class PhoneBank {
     /// When a sync by itself is next due, for the card.
     public func nextSyncAt() -> Date? {
         guard connected, !state.links.isEmpty, !state.needsReconnect else { return nil }
-        return state.lastSyncAt.map { $0.addingTimeInterval(Self.syncEvery) } ?? .now
+        return state.lastSyncAt.map { $0.addingTimeInterval(Self.syncEvery) } ?? .appNow
     }
 
     // MARK: Syncing
@@ -523,7 +523,7 @@ public final class PhoneBank {
     /// Syncs if one is due (the app opened, or iOS gave it background time);
     /// nil when none was.
     @discardableResult
-    public func syncIfDue(now: Date = .now) async -> PhoneBankResult? {
+    public func syncIfDue(now: Date = .appNow) async -> PhoneBankResult? {
         guard isDue(now: now), !busy else { return nil }
         return try? await sync(now: now)
     }
@@ -532,7 +532,7 @@ public final class PhoneBank {
     /// bank account's lines since the last sync (less two weeks, for lines
     /// posted late) and lands the new ones.
     @discardableResult
-    public func sync(now: Date = .now, today: LocalDay = .today()) async throws(SimpleFIN.Failure) -> PhoneBankResult {
+    public func sync(now: Date = .appNow, today: LocalDay = .today()) async throws(SimpleFIN.Failure) -> PhoneBankResult {
         guard let access = secrets.read() else {
             throw SimpleFIN.Failure(message: "No bank is connected on this iPhone.")
         }

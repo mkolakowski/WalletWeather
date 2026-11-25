@@ -38,7 +38,7 @@ public struct LocalDay: Sendable, Hashable, Comparable, Codable, CustomStringCon
     }
 
     /// The day it is now where the phone is.
-    public static func today(calendar: Calendar = .current, now: Date = .now) -> LocalDay {
+    public static func today(calendar: Calendar = .current, now: Date = .appNow) -> LocalDay {
         let c = calendar.dateComponents([.year, .month, .day], from: now)
         return LocalDay(year: c.year!, month: c.month!, day: c.day!)
     }

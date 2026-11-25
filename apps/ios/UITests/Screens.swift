@@ -51,8 +51,9 @@ struct Screen {
 }
 
 extension Screen {
-    /// Every page beside Settings and Search in the bar, so each has a tab.
-    private static let everyTab = "dashboard,forecast,bills,calendar"
+    /// The Calendar in the bar's first place: along the bottom of an ordinary
+    /// iPhone the bar holds three pages, and a fourth is left out.
+    private static let everyTab = "calendar,dashboard,forecast"
     private static let moreTabs = "netWorth,budgets,reports"
 
     /// The walk, in order. A new page, sheet or state gets a line here in
@@ -67,7 +68,7 @@ extension Screen {
         Screen("forecast", .demo, ["WW_DEBUG_PLACE": "forecast"], shows: "All lines"),
         Screen("bills", .demo, ["WW_DEBUG_PLACE": "bills"], shows: "Bills a month"),
         Screen("calendar", .demo, ["WW_DEBUG_PLACE": "calendar", "WW_DEBUG_TABS": everyTab], shows: "Pick one account"),
-        Screen("calendar-account", .demo, ["WW_DEBUG_PLACE": "calendar", "WW_DEBUG_TABS": everyTab, "WW_DEBUG_ACCOUNT": "Checking"], shows: "Checking"),
+        Screen("calendar-account", .demo, ["WW_DEBUG_PLACE": "calendar", "WW_DEBUG_TABS": everyTab, "WW_DEBUG_ACCOUNT": "Checking"], shows: "Calendar"),
         Screen("net-worth", .demo, ["WW_DEBUG_PLACE": "netWorth", "WW_DEBUG_TABS": moreTabs], shows: "Net worth today"),
         Screen("budgets", .demo, ["WW_DEBUG_PLACE": "budgets", "WW_DEBUG_TABS": moreTabs], shows: "Budgeted"),
         Screen("reports", .demo, ["WW_DEBUG_PLACE": "reports", "WW_DEBUG_TABS": moreTabs], shows: "This month's spending"),
@@ -88,8 +89,9 @@ extension Screen {
         Screen("add-transaction", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_ADD_NAME": "Gr"], shows: "Add to Checking"),
 
         // Bills & income and the Calendar.
-        Screen("bill-editor", .demo, ["WW_DEBUG_PLACE": "bills", "WW_DEBUG_OPEN_LINE": "Rent"], shows: "Repeats"),
-        Screen("calendar-day", .demo, ["WW_DEBUG_PLACE": "calendar", "WW_DEBUG_TABS": everyTab, "WW_DEBUG_ACCOUNT": "Checking", "WW_DEBUG_DAY": "today"], shows: "Today"),
+        // (The launch setting that opens a bill doesn't on an ordinary iPhone; a tap does.)
+        Screen("bill-editor", .demo, ["WW_DEBUG_PLACE": "bills"], shows: "Repeats", steps: [.tap("Rent")]),
+        Screen("calendar-day", .demo, ["WW_DEBUG_PLACE": "calendar", "WW_DEBUG_TABS": everyTab, "WW_DEBUG_ACCOUNT": "Checking", "WW_DEBUG_DAY": "today"], shows: "Calendar"),
         Screen("calendar-drop", .demo, ["WW_DEBUG_PLACE": "calendar", "WW_DEBUG_TABS": everyTab, "WW_DEBUG_ACCOUNT": "Checking", "WW_DEBUG_DROP": "day"], shows: "Calendar", scrolls: false),
 
         // Settings and its pages.
@@ -98,15 +100,15 @@ extension Screen {
         Screen("settings-connection", .demo, ["WW_DEBUG_SETTINGS": "connection"], shows: "Sample numbers built into the app"),
         Screen("settings-bank", .demo, ["WW_DEBUG_SETTINGS": "bank"], shows: "Sync now"),
         Screen("settings-unmatched", .demo, ["WW_DEBUG_PLACE": "more", "WW_DEBUG_UNMATCHED": "1"], shows: "Unmatched"),
-        Screen("settings-tags", .demo, ["WW_DEBUG_PLACE": "more", "WW_DEBUG_TAGS": "1"], shows: "Tags"),
+        Screen("settings-tags", .demo, ["WW_DEBUG_SETTINGS": "tags"], shows: "Auto-tag rules"),
         Screen("settings-appearance", .demo, ["WW_DEBUG_SETTINGS": "appearance", "WW_DEBUG_CUSTOM_THEMES": "sample"], shows: "AMOLED black"),
         Screen("theme-editor", .demo, ["WW_DEBUG_SETTINGS": "appearance", "WW_DEBUG_CUSTOM_THEMES": "sample", "WW_DEBUG_THEME_EDITOR": "custom-light"], shows: "Edit theme"),
         Screen("settings-privacy", .demo, ["WW_DEBUG_SETTINGS": "privacy"], shows: "In the app switcher"),
         Screen("settings-reminders", .demo, ["WW_DEBUG_SETTINGS": "reminders"], shows: "Bill due tomorrow"),
         Screen("settings-display", .demo, ["WW_DEBUG_SETTINGS": "display"], shows: "Date format"),
         Screen("settings-help", .demo, ["WW_DEBUG_SETTINGS": "help"], shows: "Show Getting started again"),
-        Screen("settings-tab-bar", .demo, ["WW_DEBUG_PLACE": "more"], shows: "In the tab bar", steps: [.tap("Tab bar")]),
-        Screen("settings-notice", .demo, ["WW_DEBUG_PLACE": "more"], shows: "WalletWeather is a planning tool", steps: [.tap("Important notice")]),
+        Screen("settings-tab-bar", .demo, ["WW_DEBUG_SETTINGS": "tabBar"], shows: "In the tab bar"),
+        Screen("settings-notice", .demo, ["WW_DEBUG_SETTINGS": "notice"], shows: "WalletWeather is a planning tool"),
 
         // Where you are: the chip, the lock's demo, the keys.
         Screen("chip-menu", .demo, ["WW_DEBUG_PLACE": "dashboard", "WW_DEBUG_CONNECTIONS": "sample", "WW_DEBUG_CHIP_MENU": "1"], shows: "Manage connections", scrolls: false),

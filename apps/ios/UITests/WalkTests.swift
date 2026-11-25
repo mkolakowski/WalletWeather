@@ -15,6 +15,7 @@ import XCTest
 /// - `WW_UI_LOOK`: `light`, `dark`, … (`WW_DEBUG_LOOK`).
 /// - `WW_UI_TEXT`: `large` (the default), `xxxl`, `ax-l`, `ax-xxxl`.
 /// - `WW_UI_DATES`: `iso` or `short` (`WW_DEBUG_DATES`).
+/// - `WW_UI_TODAY`: the app's date and clock, pinned, e.g. `2026-11-15T10:00`.
 /// - `WW_UI_ONLY`: screens to visit, by name or the start of one, with commas.
 /// - `WW_UI_AUDIT`: `all` of Apple's audit, only its `contrast` part (a dark
 ///   look), only its `text` parts (a large text size), or `0` for none. It's
@@ -33,6 +34,8 @@ final class WalkTests: XCTestCase {
         let audit: String
         let scroll: Int
         let rotate: Bool
+        /// `WW_UI_TODAY=2026-11-15T10:00`: the app's date and clock, pinned (`WW_DEBUG_TODAY`), for pictures that compare across days.
+        let today: String?
         /// `WW_UI_TREE=1`: also write each screen's element tree as text.
         let tree: Bool
 
@@ -48,6 +51,7 @@ final class WalkTests: XCTestCase {
             scroll = Int(environment["WW_UI_SCROLL"] ?? "") ?? 4
             rotate = environment["WW_UI_ROTATE"] == "1"
             tree = environment["WW_UI_TREE"] == "1"
+            today = environment["WW_UI_TODAY"].flatMap { $0.isEmpty ? nil : $0 }
         }
 
         func wants(_ name: String) -> Bool { only.isEmpty || only.contains { name == $0 || name.hasPrefix($0) } }
@@ -138,8 +142,9 @@ final class WalkTests: XCTestCase {
     private struct Stuck: Error { let why: String }
 
     /// Uses the app as a person would, in the demo: changes tabs, opens and
-    /// closes a line, adds a transaction, changes month, searches, goes into
-    /// Settings and back, leaves and returns. A step that can't be done, or
+    /// closes a line (by Cancel, by a pull down, by Save) and a bill, adds a
+    /// transaction, changes month, searches, goes into Settings and back,
+    /// leaves and returns. A step that can't be done, or
     /// the app stopping, is a finding; so is anything the checks see on the
     /// way. Written to `use.json` beside `walk.json`.
     func testUse() throws {
@@ -253,7 +258,6 @@ final class WalkTests: XCTestCase {
         flow("settings-and-back") { result in
             try tap("Settings")
             for page in ["Appearance", "Dates & display", "Privacy & lock"] {
-                try expect("More pages")
                 try tap(page)
                 _ = settle(timeout: 4)
                 let back = app.buttons["BackButton"].firstMatch
@@ -262,9 +266,43 @@ final class WalkTests: XCTestCase {
                     continue
                 }
                 back.tap()
+                try expect(page)   // its row again, wherever the list was scrolled to
             }
-            try expect("More pages")
             picture(&result, "settings-and-back", "back")
+        }
+        flow("open-bill") { result in
+            try tap("Bills & income")
+            try expect("Bills a month")
+            try tap("Rent")
+            try expect("Repeats")
+            picture(&result, "open-bill", "editor")
+            try tap("Cancel")
+            try expect("Bills a month")
+        }
+        flow("swipe-a-line-away") { _ in
+            try tap("Forecast")
+            try expect("All lines")
+            try tap("Rent")
+            try expect("Planned amount")
+            // Pull the sheet down by its bar, as a thumb would.
+            let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.14))
+            top.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)))
+            try expect("All lines")
+        }
+        flow("save-a-line") { result in
+            try tap("Forecast")
+            try tap("Rent")
+            try expect("Planned amount")
+            try tap("Paid")
+            try tap("Save")
+            let after = settle(timeout: 5)
+            guard app.state == .runningForeground else { throw Stuck(why: "The app stopped.") }
+            result.captures.append(capture("use-save-a-line", part: "after-save", state: after))
+            let saysWhy = after.seen.contains { $0.text.localizedCaseInsensitiveContains("demo") }
+            if !saysWhy, after.seen.contains(where: { $0.text == "Planned amount" }) {
+                result.findings.append(Finding(check: "nothing-happened", level: "bug", label: "Save", frame: [],
+                                               detail: "Save was tapped in the demo, the editor is still open, and nothing on it says why."))
+            }
         }
         flow("leave-and-return") { result in
             try tap("Dashboard")
@@ -342,7 +380,9 @@ final class WalkTests: XCTestCase {
         case .sample: environment["WW_DEBUG_LOCAL"] = "sample"
         case .asGiven: break
         }
-        let today = ISO8601DateFormatter.string(from: Date(), timeZone: .current, formatOptions: [.withFullDate])
+        let today = options.today.map { String($0.prefix(10)) }
+            ?? ISO8601DateFormatter.string(from: Date(), timeZone: .current, formatOptions: [.withFullDate])
+        if let pinned = options.today { environment["WW_DEBUG_TODAY"] = pinned }
         for (name, value) in screen.settings { environment[name] = value == "today" ? today : value }
         if let look = options.look { environment["WW_DEBUG_LOOK"] = look }
         if let dates = options.dates { environment["WW_DEBUG_DATES"] = dates }
@@ -441,7 +481,9 @@ final class WalkTests: XCTestCase {
             if regions.contains(where: { $0.intersection(frame).width > min($0.width, frame.width) * 0.6 }) { continue }
             regions.append(frame)
         }
-        let barTop = start.seen.filter { ($0.type == .tabBar && $0.frame.width > $0.frame.height) || $0.type == .keyboard }.map(\.frame.minY).min() ?? window.maxY
+        // A bar along the bottom, or a keyboard, is where a drag has to start above. (Open, the Duo's bar is along the top: not in the way.)
+        let barTop = start.seen.filter { (($0.type == .tabBar && $0.frame.width > $0.frame.height) || $0.type == .keyboard) && $0.frame.midY > window.midY }
+            .map(\.frame.minY).min() ?? window.maxY
         let origin = app.coordinate(withNormalizedOffset: .zero)
         for (index, region) in regions.sorted(by: { $0.minX < $1.minX }).enumerated() {
             var before = Checks.signature(start.seen.filter { $0.frame.intersects(region) })

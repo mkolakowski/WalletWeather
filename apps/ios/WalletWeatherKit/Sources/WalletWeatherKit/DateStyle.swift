@@ -72,7 +72,7 @@ extension LocalDay {
     /// The calendar day of a moment (a sync time, a last-updated stamp),
     /// written as `short` is, in the style the app has set; the year is
     /// added when it isn't `now`'s.
-    public static func display(of moment: Date, now: Date = .now, style: DateStyle = DateDisplay.style,
+    public static func display(of moment: Date, now: Date = .appNow, style: DateStyle = DateDisplay.style,
                                locale: Locale = .current) -> String {
         today(now: moment).display(style, today: today(now: now), locale: locale)
     }

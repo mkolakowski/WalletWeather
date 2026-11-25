@@ -145,7 +145,7 @@ struct PhoneBankCard: View {
         }
         if let detail { Text(detail).font(.footnote).foregroundStyle(.secondary) }
         if let next = bank.nextSyncAt() {
-            Text(next > .now ? "Syncs by itself again about \(KeptBar.when(next))." : "The next sync by itself is due now.")
+            Text(next > .appNow ? "Syncs by itself again about \(KeptBar.when(next))." : "The next sync by itself is due now.")
                 .font(.footnote).foregroundStyle(.secondary)
         }
     }

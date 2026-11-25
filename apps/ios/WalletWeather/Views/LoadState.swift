@@ -91,7 +91,7 @@ struct KeptBar: View {
     }
 
     /// "today at 3:12 PM", "yesterday at 9:05 AM", "Nov 12 at 6:40 PM".
-    static func when(_ date: Date, now: Date = .now) -> String {
+    static func when(_ date: Date, now: Date = .appNow) -> String {
         let calendar = Calendar.current
         let time = date.formatted(date: .omitted, time: .shortened)
         if calendar.isDate(date, inSameDayAs: now) { return "today at \(time)" }

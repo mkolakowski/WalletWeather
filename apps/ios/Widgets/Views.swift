@@ -21,14 +21,14 @@ struct SummaryEntry: TimelineEntry {
 
 extension SummaryEntry {
     /// The widget gallery and placeholders: made-up numbers, never anyone's.
-    static var sample: SummaryEntry { SummaryEntry(date: .now, connection: nil, content: .summary(sampleSummary, amountsHidden: false), account: 1) }
+    static var sample: SummaryEntry { SummaryEntry(date: .appNow, connection: nil, content: .summary(sampleSummary, amountsHidden: false), account: 1) }
 
     static var sampleSummary: ConnectionSummary {
         func day(_ ahead: Int) -> LocalDay {
-            LocalDay.today(now: Calendar.current.date(byAdding: .day, value: ahead, to: .now) ?? .now)
+            LocalDay.today(now: Calendar.current.date(byAdding: .day, value: ahead, to: .appNow) ?? .appNow)
         }
         return ConnectionSummary(
-            id: UUID(), name: "Home", kind: .server, madeAt: .now, keepsNumbers: true,
+            id: UUID(), name: "Home", kind: .server, madeAt: .appNow, keepsNumbers: true,
             accounts: [.init(id: 1, name: "Checking", balance: Money(4854.97), monthLow: Money(2291.58),
                              monthLowDate: day(6), toConfirm: 2)],
             bills: [.init(id: 1, name: "Rent", accountId: 1, accountName: "Checking", amount: Money(-1650.0), nextDate: day(2)),

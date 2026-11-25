@@ -29,7 +29,7 @@ struct WidgetGallery: View {
         case "nothing": content = .keepsNothing(name: "Mum & Dad")
         default: content = .summary(summary, amountsHidden: false)
         }
-        return SummaryEntry(date: .now, connection: summary.id, content: content, account: summary.accounts.first?.id)
+        return SummaryEntry(date: .appNow, connection: summary.id, content: content, account: summary.accounts.first?.id)
     }
 
     private var title: String {

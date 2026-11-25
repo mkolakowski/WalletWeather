@@ -134,7 +134,7 @@ public struct ConnectionSummary: Codable, Equatable, Sendable, Identifiable {
 
     /// A summary with the connection's name and nothing else, for a server
     /// set to keep Nothing.
-    public static func nameOnly(_ saved: SavedConnection, madeAt: Date = .now) -> ConnectionSummary {
+    public static func nameOnly(_ saved: SavedConnection, madeAt: Date = .appNow) -> ConnectionSummary {
         ConnectionSummary(id: saved.id, name: saved.name, kind: saved.kind, madeAt: madeAt, keepsNumbers: false,
                           accounts: [], bills: [])
     }
@@ -145,7 +145,7 @@ public struct ConnectionSummary: Codable, Equatable, Sendable, Identifiable {
     /// to keep Nothing gets `nameOnly`, whatever was loaded.
     public static func make(_ saved: SavedConnection, dashboard: Dashboard, recurring: RecurringList,
                             toConfirm: [Int: Int], weekLows: [Int: [DayBalance]] = [:],
-                            madeAt: Date = .now) -> ConnectionSummary {
+                            madeAt: Date = .appNow) -> ConnectionSummary {
         guard keepsNumbers(saved) else { return nameOnly(saved, madeAt: madeAt) }
         let accounts = dashboard.cards.map { card in
             Account(id: card.id, name: card.name, balance: card.currentBalance, monthLow: card.forecastLow,
@@ -165,7 +165,7 @@ public struct ConnectionSummary: Codable, Equatable, Sendable, Identifiable {
     /// accounts this person can change, under a token that isn't read-only.
     /// A server set to keep Nothing asks nothing.
     public static func fetch(_ saved: SavedConnection, client: APIClient, readOnly: Bool,
-                             today: LocalDay = .today(), now: Date = .now) async throws(APIError) -> ConnectionSummary {
+                             today: LocalDay = .today(), now: Date = .appNow) async throws(APIError) -> ConnectionSummary {
         guard keepsNumbers(saved) else { return nameOnly(saved, madeAt: now) }
         let dashboard = try await client.dashboard(today: today)
         let recurring = try await client.recurring(today: today)

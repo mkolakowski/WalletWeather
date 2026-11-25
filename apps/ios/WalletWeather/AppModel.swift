@@ -207,7 +207,7 @@ final class AppModel {
         }
         guard let data = try? JSONSerialization.data(withJSONObject: ["cards": cards]) else { return }
         keeper.save(data, for: KeptResponses.key(server: server, method: "GET", path: "/api/dashboard", query: [:]))
-        let when = Date().addingTimeInterval(-hoursAgo * 3600)
+        let when = Date.appNow.addingTimeInterval(-hoursAgo * 3600)
         let files = (try? FileManager.default.contentsOfDirectory(at: keeper.directory, includingPropertiesForKeys: nil)) ?? []
         for file in files { try? FileManager.default.setAttributes([.modificationDate: when], ofItemAtPath: file.path) }
     }

@@ -288,7 +288,7 @@ public enum Demo {
     /// A sample email alerts status (#211): a mailbox checked 35 minutes
     /// ago that brought in two lines, one alert it couldn't read, and the
     /// next check in 25 minutes.
-    static func mailStatus(now: Date = .now) -> Data {
+    static func mailStatus(now: Date = .appNow) -> Data {
         json([
             "enabled": true, "connected": true, "check_minutes": 60,
             "last_check_at": BankStatus.text(now.addingTimeInterval(-35 * 60)), "last_check_ok": true,
@@ -304,7 +304,7 @@ public enum Demo {
     /// next sync due tomorrow (#197, #257), ticked for both, plus one account
     /// shared with the demo that syncs from someone else's connection (#267),
     /// with its own Teller keys and ticked for Plaid without keys yet (#278).
-    static func bankStatus(now: Date = .now) -> Data {
+    static func bankStatus(now: Date = .appNow) -> Data {
         func connection(_ id: Int, _ provider: String, _ providerName: String, _ name: String, account: Int,
                         hoursAgo: Double, status: String, left: Int) -> [String: Any] {
             [

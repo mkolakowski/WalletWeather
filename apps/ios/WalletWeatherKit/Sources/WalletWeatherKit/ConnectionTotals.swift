@@ -68,7 +68,7 @@ public enum ConnectionTotals {
     /// The total and caption for a row, or nil: locked in the demo, or no
     /// number for it.
     public static func figure(for row: ConnectionRow, among readings: [ConnectionRow.Target: Reading],
-                              visibility: ConnectionsVisibility, now: Date = .now,
+                              visibility: ConnectionsVisibility, now: Date = .appNow,
                               calendar: Calendar = .current) -> Figure? {
         guard visibility.showsTotals, let reading = readings[row.target] else { return nil }
         switch reading {
@@ -81,7 +81,7 @@ public enum ConnectionTotals {
     /// How old a kept total is: "as of just now", "as of 12 min ago",
     /// "as of 2 h ago" (within today), "as of yesterday", then the date as
     /// the app writes dates ("as of Nov 22").
-    public static func asOf(_ date: Date, now: Date = .now, calendar: Calendar = .current) -> String {
+    public static func asOf(_ date: Date, now: Date = .appNow, calendar: Calendar = .current) -> String {
         let seconds = now.timeIntervalSince(date)
         if seconds < 60 { return "as of just now" }
         if calendar.isDate(date, inSameDayAs: now) {

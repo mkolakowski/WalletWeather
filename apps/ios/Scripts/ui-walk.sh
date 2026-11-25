@@ -24,9 +24,12 @@
 #           and the app used as a person would (testUse: tabs, a line opened
 #           and closed, a transaction added, months, search, Settings and back)
 #   :scroll every screenful, no audit
+#   :shot   the top of each screen and nothing else (Scripts/ui-snapshot.sh)
 #   :top    the top of each screen only (the default), with the part of the
 #           audit the configuration is for: contrast in a dark look, text at a
 #           large text size
+#
+# WW_UI_TODAY=2026-11-15T10:00 in front pins the app's date and clock (#352).
 #
 # It holds mkplus's simulator lock (with-simulator.sh) for the whole run, so
 # other sessions wait rather than have their simulator shut down half way. The
@@ -166,6 +169,7 @@ for config in "${configs[@]}"; do
     case "$depth" in
         deep) kinds=all; stops=4; turn=1; use=1 ;;
         scroll) kinds=0; stops=4; turn=0; use=0 ;;
+        shot) kinds=0; stops=0; turn=0; use=0 ;;   # one picture a screen, for Scripts/ui-snapshot.sh
         top) stops=0; turn=0; kinds=0; use=0
              case "$text" in ax-*|xxxl) kinds=text ;; esac
              case "$look" in dark|amoled) kinds=contrast ;; esac ;;
@@ -193,16 +197,20 @@ for config in "${configs[@]}"; do
     mkdir -p "$run/$config"
     began=$(date +%s)
     printf 'ui-walk: %-26s %-6s ' "$config" "$depth"
-    env TEST_RUNNER_WW_UI_OUT="$run" TEST_RUNNER_WW_UI_CONFIG="$config" TEST_RUNNER_WW_UI_LOOK="$look" \
-        TEST_RUNNER_WW_UI_TEXT="$text" TEST_RUNNER_WW_UI_DATES="$([ "$extra" = iso ] && echo iso || echo short)" \
-        TEST_RUNNER_WW_UI_ONLY="$only" TEST_RUNNER_WW_UI_TREE="${WW_UI_TREE:-0}" \
-        TEST_RUNNER_WW_UI_AUDIT="$kinds" TEST_RUNNER_WW_UI_SCROLL="$stops" TEST_RUNNER_WW_UI_ROTATE="$turn" \
-        xcodebuild test-without-building -xctestrun "$xctestrun" -destination "id=$udid" \
-            $([ "$only" = use ] || echo "-only-testing:WalletWeatherUITests/WalkTests/testWalk") \
-            $( { [ "$only" = use ] || { [ "$use" = 1 ] && [ -z "$only" ]; }; } && echo "-only-testing:WalletWeatherUITests/WalkTests/testUse") \
-            -collect-test-diagnostics never -test-timeouts-enabled YES \
-            -default-test-execution-time-allowance 3600 -maximum-test-execution-time-allowance 3600 \
-            >"$run/$config/xcodebuild.log" 2>&1 && outcome=ran || outcome="FAILED (see $config/xcodebuild.log)"
+    for attempt in 1 2; do
+        env TEST_RUNNER_WW_UI_OUT="$run" TEST_RUNNER_WW_UI_CONFIG="$config" TEST_RUNNER_WW_UI_LOOK="$look" \
+            TEST_RUNNER_WW_UI_TEXT="$text" TEST_RUNNER_WW_UI_DATES="$([ "$extra" = iso ] && echo iso || echo short)" \
+            TEST_RUNNER_WW_UI_ONLY="$only" TEST_RUNNER_WW_UI_TREE="${WW_UI_TREE:-0}" TEST_RUNNER_WW_UI_TODAY="${WW_UI_TODAY:-}" \
+            TEST_RUNNER_WW_UI_AUDIT="$kinds" TEST_RUNNER_WW_UI_SCROLL="$stops" TEST_RUNNER_WW_UI_ROTATE="$turn" \
+            xcodebuild test-without-building -xctestrun "$xctestrun" -destination "id=$udid" \
+                $([ "$only" = use ] || echo "-only-testing:WalletWeatherUITests/WalkTests/testWalk") \
+                $( { [ "$only" = use ] || { [ "$use" = 1 ] && [ -z "$only" ]; }; } && echo "-only-testing:WalletWeatherUITests/WalkTests/testUse") \
+                -collect-test-diagnostics never -test-timeouts-enabled YES \
+                -default-test-execution-time-allowance 3600 -maximum-test-execution-time-allowance 3600 \
+                >"$run/$config/xcodebuild.log" 2>&1 && outcome=ran || outcome="FAILED (see $config/xcodebuild.log)"
+        [ -f "$run/$config/walk.json" ] || [ -f "$run/$config/use.json" ] && break
+        [ "$attempt" = 1 ] && printf 'nothing written, trying once more… ' || true
+    done
     if [ -f "$run/$config/walk.json" ]; then
         python3 - "$run/$config/walk.json" <<'EOF'
 import json, sys

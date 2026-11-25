@@ -122,7 +122,7 @@ public struct BankStatus: Sendable, Codable, Equatable {
     /// way the app shows times ("today at 3:12 PM"). With one connection, or
     /// from a server that lists none, this is the whole story; with several,
     /// `connectionRows` has each one's.
-    public func summary(now: Date = .now, when: (Date) -> String) -> BankSyncSummary {
+    public func summary(now: Date = .appNow, when: (Date) -> String) -> BankSyncSummary {
         BankSyncSummary.make(
             provider: "SimpleFIN", enabled: enabled, connected: connected,
             matched: linkedAccountIds?.isEmpty == false, needsReconnect: needsReconnect == true,
@@ -134,7 +134,7 @@ public struct BankStatus: Sendable, Codable, Equatable {
     /// One row for each connection, in the server's order; empty when a
     /// person has none, bank sync is switched off, or the server is older
     /// than 1.86.0 (the row from `summary` stands for the one connection).
-    public func connectionRows(now: Date = .now, when: (Date) -> String) -> [BankConnectionRow] {
+    public func connectionRows(now: Date = .appNow, when: (Date) -> String) -> [BankConnectionRow] {
         guard enabled, connected else { return [] }
         return (connections ?? []).map { c in
             BankConnectionRow(id: c.id, title: c.name, provider: c.providerName,
@@ -182,7 +182,7 @@ public struct BankConnection: Sendable, Codable, Equatable, Identifiable {
     }
 
     /// This connection's state in plain words, naming its provider.
-    public func summary(now: Date = .now, when: (Date) -> String) -> BankSyncSummary {
+    public func summary(now: Date = .appNow, when: (Date) -> String) -> BankSyncSummary {
         BankSyncSummary.make(
             provider: providerName, enabled: true, connected: true, matched: !linkedAccountIds.isEmpty,
             needsReconnect: needsReconnect == true, lastSyncAt: lastSyncAt, lastSyncOk: lastSyncOk,
@@ -253,7 +253,7 @@ public struct SharedBankAccount: Sendable, Codable, Equatable, Identifiable {
 
     /// This account's state in plain words. `enabled` is whether an admin
     /// has bank sync switched on for the server.
-    public func summary(enabled: Bool = true, now: Date = .now, when: (Date) -> String) -> BankSyncSummary {
+    public func summary(enabled: Bool = true, now: Date = .appNow, when: (Date) -> String) -> BankSyncSummary {
         if !enabled {
             return BankSyncSummary(
                 tone: .neutral, headline: "Bank sync is switched off",

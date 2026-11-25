@@ -96,7 +96,7 @@ extension Screen {
 
         // Settings and its pages.
         Screen("settings", .demo, ["WW_DEBUG_PLACE": "more"], shows: "More pages"),
-        Screen("settings-connections", .demo, ["WW_DEBUG_SETTINGS": "connections", "WW_DEBUG_CONNECTIONS": "sample"], shows: "Add a server"),
+        Screen("settings-connections", .demo, ["WW_DEBUG_SETTINGS": "connections", "WW_DEBUG_CONNECTIONS": "sample"], shows: "Connections"),
         Screen("settings-connection", .demo, ["WW_DEBUG_SETTINGS": "connection"], shows: "Sample numbers built into the app"),
         Screen("settings-bank", .demo, ["WW_DEBUG_SETTINGS": "bank"], shows: "Sync now"),
         Screen("settings-unmatched", .demo, ["WW_DEBUG_PLACE": "more", "WW_DEBUG_UNMATCHED": "1"], shows: "Unmatched"),

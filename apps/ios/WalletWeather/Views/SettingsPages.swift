@@ -272,7 +272,7 @@ private struct ConnectionsPage: View {
 /// for the saved one in front, opens its page).
 private struct ConnectionListRow: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.settingsIsWide) private var settingsIsWide
+    @Environment(\.dynamicTypeSize) private var typeSize
     let row: ConnectionRow
     /// Its total today and how old that is; nil when it has none, or while
     /// locked in the demo (#329).
@@ -313,20 +313,18 @@ private struct ConnectionListRow: View {
                 .accessibilityLabel("About \(row.name)")
             }
         }
+        // Air above and below, so a row's last line doesn't sit on the
+        // divider and the next row's name (#358).
+        .padding(.vertical, 8)
     }
 
     private var label: some View {
-        // Beside the name in the open Duo's wide pane; under it on a closed
-        // phone, where the name, the tick and ⓘ leave it too little room, and
-        // at large text.
+        // At the trailing edge while it fits (#358); under the name once the
+        // name, the tick and ⓘ leave it too little room, as at large text.
         Group {
-            if settingsIsWide {
-                FitsAcross {
-                    labelRow(totalBelow: false)
-                } stacked: {
-                    labelRow(totalBelow: true)
-                }
-            } else {
+            FitsAcross {
+                labelRow(totalBelow: false)
+            } stacked: {
                 labelRow(totalBelow: true)
             }
         }
@@ -354,7 +352,11 @@ private struct ConnectionListRow: View {
                 }
                 if let detail = row.detail {
                     Text(detail)
-                        .font(.footnote).foregroundStyle(row.warning ? Palette.warn : .secondary).lineLimit(2)
+                        .font(.footnote).foregroundStyle(row.warning ? Palette.warn : .secondary)
+                        // A long address gives up its middle, not a word split mid-way,
+                        // but never at the accessibility sizes, where it wraps whole (#358).
+                        .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
+                        .truncationMode(.middle)
                         .multilineTextAlignment(.leading)
                 }
                 if totalBelow, let figure { totalView(figure, alignment: .leading) }

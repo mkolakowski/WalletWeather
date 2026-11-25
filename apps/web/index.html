@@ -623,6 +623,14 @@
                 background:color-mix(in srgb, var(--accent) 13%, var(--panel)); color:var(--accent-ink);
                 font-size:12px; font-weight:700; letter-spacing:.02em; border:1px solid var(--hair); }
     .user-btn:hover, .user-btn[aria-expanded="true"] { filter:none; border-color:var(--accent); }
+    .user-btn { overflow:hidden; }
+    .user-btn img { width:100%; height:100%; object-fit:cover; display:block; }
+    .user-btn img.hidden { display:none; }
+    .pic-row { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+    .pic-preview { width:96px; height:96px; border-radius:999px; overflow:hidden; flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+                   background:color-mix(in srgb, var(--accent) 13%, var(--panel)); color:var(--accent-ink); font-size:30px; font-weight:700; border:1px solid var(--hair); }
+    .pic-preview img { width:100%; height:100%; object-fit:cover; display:block; }
+    .pic-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
     .user-btn:focus-visible, .nav-btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
     .user-pop { top:calc(100% + 8px); right:0; z-index:600; min-width:240px; max-width:320px; border-radius:10px; padding:6px; }
     .user-pop.hidden { display:none; }
@@ -1568,7 +1576,7 @@
            holds the same (this whole div is hidden at 768px and narrower). -->
       <div id="userMenuWrap" class="user-wrap">
         <button type="button" id="userMenuBtn" class="user-btn" aria-haspopup="menu" aria-expanded="false"
-                aria-controls="userPop" aria-label="Account menu" title="Account" onclick="toggleUserMenu()"><span id="userInitials" aria-hidden="true"></span></button>
+                aria-controls="userPop" aria-label="Account menu" title="Account" onclick="toggleUserMenu()"><span id="userInitials" aria-hidden="true"></span><img id="userPicture" class="hidden" alt=""></button>
         <div id="userPop" class="acct-menu user-pop hidden">
           <div id="userEmail" class="user-who"></div>
           <div id="userMenu" class="user-items" role="menu" aria-label="Account">
@@ -2924,6 +2932,25 @@
         </div>
       </div>
 
+      <div class="panel" data-settings-section="your-account" id="profilePicturePanel">
+        <h2>Profile picture</h2>
+        <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
+          Shown on the round account button at the top and in the iPhone app's account picker. It's cut square from the middle of the image you choose and made small before it's saved. Until you set one, your initials show.
+        </p>
+        <div class="pic-row">
+          <div class="pic-preview" id="profilePicturePreview" aria-hidden="true"></div>
+          <div>
+            <div class="pic-actions">
+              <input id="profilePictureFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/*" class="hidden" onchange="profilePictureChosen(this)">
+              <button type="button" class="ghost" id="profilePictureChoose" onclick="document.getElementById('profilePictureFile').click()">Choose a picture…</button>
+              <button type="button" id="profilePictureSave" onclick="profilePictureSave()" disabled>Save picture</button>
+              <button type="button" class="ghost danger" id="profilePictureRemove" onclick="profilePictureRemove()">Remove</button>
+            </div>
+            <div id="profilePictureStatus" role="status" style="color:var(--muted);font-size:13px;margin-top:8px"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="panel" data-settings-section="your-account" id="changePasswordPanel">
         <h2>Change password</h2>
         <div id="changePasswordGoogle" class="hidden" style="color:var(--muted);font-size:13px">
@@ -3154,7 +3181,7 @@ const fmtShort = v => {
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.117.1";
+const WEB_VERSION = "1.118.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -3164,6 +3191,7 @@ const WEB_VERSION = "1.117.1";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.118.0 (2026-11-25, claude+mkolakowski): (#378) Profile picture (account-picker phase 2). Settings → Your account gains a "Profile picture" panel (#profilePicturePanel): Choose a picture… reads the file, profilePictureChosen/_squareJpeg cut it square from the middle in a canvas at 512 px at most and encode a JPEG under the server's 256 KB (quality steps down until it fits), the preview shows it, Save picture PUTs it to /api/me/picture (profilePictureSave) and Remove DELETEs it (profilePictureRemove); loadProfilePicture runs when Settings opens. The round account button (#userMenuBtn) shows the picture (#userPicture, from /api/me/picture?v=<picture_updated_at> so a new one is fetched and an old one kept) instead of the initials, and falls back to them when it can't load. No CSP change: the picture is same-origin and the preview is a data: URL.
 // 1.117.1 (2026-11-25, claude+mkolakowski): (#355) The bank sync guide is now an overview with sub-pages (#354): BANK_GUIDE_STEPS, BANK_PROVIDERS' guide links and the Match your accounts / If sync keeps failing links point at bank-sync/simplefin.html, teller-plaid.html#…, match-and-sync.html#…; "the bank sync guide" (BANK_GUIDE alone) stays the overview. app-bank-keys.html and app-connect-bank.html likewise.
 // 1.117.0 (2026-11-24, claude+mkolakowski): (#342, #343) Settings → Bank sync: one card per provider (SimpleFIN Bridge, Teller, Plaid; _bankConnectHtml, after the connected banks) holding its setup guide line (_bankGuideHtml from BANK_GUIDE_STEPS: Through SimpleFIN, Add your own Teller or Plaid keys, Through Teller or Plaid), its own pages (_bankProviderLinks(key, true) leaves the guide out), its keys (_bankKeysCardHtml now an inner .bank-keys block; _bankKeysHtml became _bankKeysShown) and its Connect. Connected banks come first, under "Your banks", with Match your accounts and If sync keeps failing links. .bank-grid lays providers ~300px and banks ~620px each, side by side as room allows, and the Settings column widens to 1600px while Bank sync is shown on a window 1000px or wider. Two-factor code fields for Disconnect, removing keys and Connect with Teller or Plaid stay hidden until the button is pressed (_bankCodeLater, _bankAskCode): the first press shows the field and focuses it, the next goes ahead; Connect's field is in each card (bankConnectCode_teller, _plaid).
 // 1.116.1 (2026-11-24, claude+mkolakowski): (#336) Links to the bank sync guide on GitHub Pages. BANK_GUIDE is the guide's address; BANK_PROVIDERS entries carry `guide` (SimpleFIN: #through-simplefin) or a 'WalletWeather guide' link (Teller, Plaid: #add-your-own-teller-or-plaid-keys) that _bankProviderLinks draws, and Connect a bank says "Step by step: the bank sync guide".
@@ -4264,7 +4292,7 @@ function showPage(name, opts) {
   document.getElementById('navAdmin').classList.toggle('active', name==='admin');
   document.getElementById('navSettings').classList.toggle('active', name==='settings');
   _syncPhoneNav(name);
-  if (name === 'settings') { showSettingsSection(settingsSection, { noHash: true }); loadThemePicker(); markChartPositionRadio(currentChartPosition()); markDisplayPrefs(); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); loadApiTokens(); loadChangePassword(); loadTwoFactor(); loadDeleteAccount(); loadBank(); loadMail(); }
+  if (name === 'settings') { showSettingsSection(settingsSection, { noHash: true }); loadThemePicker(); markChartPositionRadio(currentChartPosition()); markDisplayPrefs(); loadCategories(); loadTags(); loadTagRules(); loadPermissions(); loadExportAccounts(); loadManageAccounts(); loadBudgets(); loadApiTokens(); loadProfilePicture(); loadChangePassword(); loadTwoFactor(); loadDeleteAccount(); loadBank(); loadMail(); }
   if (name === 'dashboard') loadDashboard();
   if (name === 'networth') loadNetworth();
   if (name === 'subscriptions') {
@@ -4629,10 +4657,22 @@ function _userInitials(u) {
   const letters = parts.slice(0, 2).map(w => Array.from(w)[0]).join('');
   return (letters || '?').toUpperCase();
 }
+// The picture (#378): shown on the button when there is one. The address carries
+// when it last changed, so a new picture is fetched and an old one is kept.
+function _pictureUrl() {
+  return me && me.picture_updated_at ? '/api/me/picture?v=' + encodeURIComponent(me.picture_updated_at) : null;
+}
 function renderUserButton() {
   if (!me) return;
   document.getElementById('userEmail').textContent = me.email;
   document.getElementById('userInitials').textContent = _userInitials(me);
+  const pic = document.getElementById('userPicture'), url = _pictureUrl();
+  // A picture that can't be fetched falls back to the initials.
+  pic.onerror = () => { pic.classList.add('hidden'); document.getElementById('userInitials').classList.remove('hidden'); };
+  if (url) { if (pic.getAttribute('src') !== url) pic.src = url; }
+  else pic.removeAttribute('src');
+  pic.classList.toggle('hidden', !url);
+  document.getElementById('userInitials').classList.toggle('hidden', !!url);
   const btn = document.getElementById('userMenuBtn');
   btn.title = me.name ? me.name + ' (' + me.email + ')' : me.email;
   btn.setAttribute('aria-label', 'Account menu for ' + me.email);
@@ -6436,6 +6476,121 @@ async function revokeApiToken(id) {
   catch (e) { notifyError('Could not revoke the token', e); return; }
   await loadApiTokens();
 }
+// Settings → Your account → "Profile picture" (#378). The chosen image is cut
+// square from its middle and drawn at most PICTURE_SIZE px across in a canvas,
+// then sent as a JPEG (a PNG of a photo is often over the server's 256 KB), a
+// plain white behind anything see-through. The server checks it again.
+const PICTURE_SIZE = 512, PICTURE_LIMIT = 256 * 1024;
+let _pictureBlob = null;
+function _pictureStatus(text, bad) {
+  const el = document.getElementById('profilePictureStatus');
+  if (!el) return;
+  el.textContent = text || '';
+  el.style.color = bad ? 'var(--bad)' : 'var(--muted)';
+}
+function loadProfilePicture() {
+  const box = document.getElementById('profilePicturePreview');
+  if (!box) return;
+  _pictureBlob = null;
+  document.getElementById('profilePictureSave').disabled = true;
+  document.getElementById('profilePictureFile').value = '';
+  const url = _pictureUrl();
+  box.textContent = '';
+  if (url) {
+    const img = document.createElement('img');
+    img.alt = '';
+    img.onerror = () => { box.textContent = _userInitials(me); };
+    img.src = url;
+    box.appendChild(img);
+  } else {
+    box.textContent = _userInitials(me);
+  }
+  document.getElementById('profilePictureRemove').classList.toggle('hidden', !url);
+  _pictureStatus(url ? '' : 'No picture yet.');
+}
+function _squareJpeg(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('read'));
+      img.onload = () => {
+        const side = Math.min(img.naturalWidth, img.naturalHeight);
+        if (!side) { reject(new Error('read')); return; }
+        const out = Math.min(PICTURE_SIZE, side);
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = out;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, out, out);
+        ctx.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, out, out);
+        // A lower quality until it fits.
+        const tryQuality = q => canvas.toBlob(blob => {
+          if (!blob) { reject(new Error('read')); return; }
+          if (blob.size > PICTURE_LIMIT && q > 0.4) { tryQuality(q - 0.15); return; }
+          if (blob.size > PICTURE_LIMIT) { reject(new Error('big')); return; }
+          resolve({ blob, preview: canvas.toDataURL('image/jpeg', q) });
+        }, 'image/jpeg', q);
+        tryQuality(0.85);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+async function profilePictureChosen(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  _pictureStatus('Preparing…');
+  try {
+    const { blob, preview } = await _squareJpeg(file);
+    _pictureBlob = blob;
+    const box = document.getElementById('profilePicturePreview');
+    box.textContent = '';
+    const img = document.createElement('img');
+    img.alt = '';
+    img.src = preview;
+    box.appendChild(img);
+    document.getElementById('profilePictureSave').disabled = false;
+    _pictureStatus('Looks right? Save picture to use it.');
+  } catch (e) {
+    _pictureBlob = null;
+    document.getElementById('profilePictureSave').disabled = true;
+    _pictureStatus(e && e.message === 'big'
+      ? 'That picture is too big even when made small. Try another.'
+      : 'This browser couldn\'t read that image. Try a PNG, JPEG or WebP.', true);
+  }
+}
+async function profilePictureSave() {
+  if (!_pictureBlob) return;
+  const btn = document.getElementById('profilePictureSave');
+  btn.disabled = true;
+  try {
+    // Not api(): the body is the image itself, not JSON.
+    const res = await fetch('/api/me/picture', { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: _pictureBlob });
+    if (res.status === 401) { showLogin(); return; }
+    if (!res.ok) throw new Error(await res.text());
+    drain(res);
+  } catch (e) {
+    btn.disabled = false;
+    notifyError('Could not save the picture', e);
+    return;
+  }
+  try { me = await api('/api/me'); } catch { /* keep what we have */ }
+  renderUserButton();
+  loadProfilePicture();
+  notify('Profile picture saved.');
+}
+async function profilePictureRemove() {
+  try { await api('/api/me/picture', { method: 'DELETE' }); }
+  catch (e) { notifyError('Could not remove the picture', e); return; }
+  try { me = await api('/api/me'); } catch { /* keep what we have */ }
+  renderUserButton();
+  loadProfilePicture();
+  notify('Profile picture removed.');
+}
+
 // Settings → "Change password" (#133). Only for a user with a password; a
 // Google-only user gets a note instead. The server checks the current one.
 function loadChangePassword() {

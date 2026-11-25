@@ -69,9 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.0** · Web version: **1.117.1** · Schema version: **40** · iOS version: **0.72.0**
+App version: **1.99.0** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.72.0**
 
 ### Added
+
+- **Web app: a profile picture.** Settings → Your account has a new **Profile picture** panel: choose an image, see it cut square from the middle, and Save; **Remove** goes back to your initials. The picture shows on the round account button at the top (and will in the iPhone app's account picker). The image is made small in your browser before it's sent, so any ordinary photo works. (#378)
 
 - **A profile picture for each person (server).** The server can now keep a picture for you, for the web app's account button and the iPhone app's account picker to show (those come next). `PUT /api/me/picture` sets it from a PNG, JPEG or WebP of up to 256 KB (checked by the image's own bytes, not what the sender claims), `GET /api/me/picture` gives it back, and `DELETE /api/me/picture` removes it; `GET /api/me` gains `picture_updated_at`. The first time you sign in with Google and have no picture yet, your Google picture is copied in; a picture you've set is never replaced, and if Google's can't be fetched you're signed in as usual. A read-only token can read the picture but not change it, and the public demo's shared account can't have one. (#377)
 
@@ -102,7 +104,7 @@ App version: **1.99.0** · Web version: **1.117.1** · Schema version: **40** ·
 
 ## [1.98.6] — 2026-11-25
 
-App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.1**
+App version: **1.98.6** · Web version: **1.118.0** · Schema version: **39** · iOS version: **0.71.1**
 
 In the iPhone app, a line waiting in Forecast's To confirm list can be given the day it really cleared, and To confirm and Bills & income gain a Sort button. The bank sync guide is split into a page for each part, and the app's Step by step links open the right one. No database change.
 

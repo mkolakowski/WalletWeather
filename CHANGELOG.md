@@ -69,9 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.72.0**
+App version: **1.99.0** · Web version: **1.117.1** · Schema version: **40** · iOS version: **0.72.0**
 
 ### Added
+
+- **A profile picture for each person (server).** The server can now keep a picture for you, for the web app's account button and the iPhone app's account picker to show (those come next). `PUT /api/me/picture` sets it from a PNG, JPEG or WebP of up to 256 KB (checked by the image's own bytes, not what the sender claims), `GET /api/me/picture` gives it back, and `DELETE /api/me/picture` removes it; `GET /api/me` gains `picture_updated_at`. The first time you sign in with Google and have no picture yet, your Google picture is copied in; a picture you've set is never replaced, and if Google's can't be fetched you're signed in as usual. A read-only token can read the picture but not change it, and the public demo's shared account can't have one. (#377)
 
 - **iPhone app: swipe a connection to edit it or sign out.** In Settings → Connections, swipe a server to the left for **Edit**, which opens its page (where you can rename it), and **Sign out**, which asks first and then takes it off the phone. The household on this iPhone has **Edit** only, since removing it would erase its numbers; the demo has none, and nothing slides while the app is locked in the demo. VoiceOver offers the same two as actions on the row. (#376)
 
@@ -93,6 +95,10 @@ App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** ·
 - **iPhone app: a tag's colours are named, and easy to hit.** In the New tag and Change tag sheets VoiceOver used to read each colour as a code such as "#58a6ff"; it now says "Blue", "Green", "Amber", "Purple", "Pink", "Teal", "Red" or "Grey", and each colour is a button with a full 44-point tap area, laid out four to a row. (#360)
 - **iPhone app: Connections' rows no longer run into each other.** Each connection in Settings → Connections now has space above and below it, so a row's last line no longer sits against the next row's name. Where it fits, the total moves to the right of the name; at the larger text sizes it stays under it, and a long address is shortened in the middle rather than broken mid-word (at the accessibility sizes it wraps in full instead, so nothing is cut). (#358)
 - **iPhone app: closing a line or a bill no longer closes the app.** On iOS 27.1, opening a line from Forecast and tapping **Cancel** could send you straight back to the Home Screen; the same fault sat behind the bill editor and the editors Search and the Calendar open. Cancel, Save and pulling the sheet down now close the editor and leave you where you were.
+### Database
+
+- Schema 40: `users` gains `picture_enc` (the profile picture, encrypted like the other private fields), `picture_type` and `picture_updated_at`, all empty until a picture is set. Added on start-up; nothing to do. (#377)
+
 
 ## [1.98.6] — 2026-11-25
 

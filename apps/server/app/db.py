@@ -21,7 +21,7 @@ from cryptography.fernet import Fernet
 # already-up-to-date database (use `ADD COLUMN IF NOT EXISTS`,
 # `ON CONFLICT DO NOTHING`, etc).
 # -----------------------------------------------------------------------------
-SCHEMA_VERSION = "39"
+SCHEMA_VERSION = "40"
 
 # --- SCHEMA CHANGELOG ---------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -32,6 +32,11 @@ SCHEMA_VERSION = "39"
 # When you bump SCHEMA_VERSION, add the matching line here. Do not rewrite
 # history — only append new entries.
 #
+# v40 (2026-11-25, claude+mkolakowski): a profile picture per person
+#     (account-picker phase 1, #377). users.picture_enc (the image, encrypted
+#     like the other *_enc columns), users.picture_type ('image/png',
+#     'image/jpeg' or 'image/webp') and users.picture_updated_at; all NULL
+#     while there's none.
 # v39 (2026-11-23, claude+mkolakowski): two display settings per person
 #     (web-refresh phase 6, #286). users.date_format ('short' or 'iso') and
 #     users.row_height ('roomy' or 'compact'), stored like chart_position;
@@ -209,6 +214,18 @@ def decrypt_str(value: bytes | None) -> str | None:
     return _fernet.decrypt(value).decode("utf-8")
 
 
+def encrypt_bytes(value: bytes | None) -> bytes | None:
+    if value is None:
+        return None
+    return _fernet.encrypt(value)
+
+
+def decrypt_bytes(value: bytes | None) -> bytes | None:
+    if value is None:
+        return None
+    return _fernet.decrypt(value)
+
+
 def _json_of(value: bytes | None) -> dict | None:
     """An encrypted JSON object column's value, or None (#210)."""
     if not value:
@@ -283,9 +300,23 @@ class User(Base):
     totp_secret_enc = Column(LargeBinary, nullable=True)
     totp_enabled_at = Column(DateTime, nullable=True)
     totp_last_step = Column(BigInteger, nullable=True)
+    # The profile picture (#377): the image, encrypted like the financial
+    # fields, its type, and when it last changed (the clients' cue to fetch
+    # it again). All three NULL while there's none.
+    picture_enc = Column(LargeBinary, nullable=True)
+    picture_type = Column(String(20), nullable=True)
+    picture_updated_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     accounts = relationship("Account", back_populates="owner", cascade="all, delete-orphan")
+
+    @property
+    def picture(self) -> bytes | None:
+        return decrypt_bytes(self.picture_enc)
+
+    @picture.setter
+    def picture(self, v: bytes | None):
+        self.picture_enc = encrypt_bytes(v) if v else None
 
     @property
     def totp_secret(self) -> str | None:
@@ -1145,6 +1176,10 @@ def init_db():
     from sqlalchemy import text
     Base.metadata.create_all(engine)
     migrations = [
+        # v39 → v40: a profile picture per person (#377)
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS picture_enc BYTEA",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS picture_type VARCHAR(20)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS picture_updated_at TIMESTAMP",
         # v38 → v39: per-person date format and row height (#286)
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS date_format VARCHAR(10)",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS row_height VARCHAR(10)",

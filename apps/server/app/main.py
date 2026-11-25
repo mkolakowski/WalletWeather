@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.98.6"
+APP_VERSION = "1.99.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,15 @@ APP_VERSION = "1.98.6"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.99.0 (2026-11-25, claude+mkolakowski): (#377) A profile picture per
+#     person (account-picker phase 1; schema 40). PUT /api/me/picture takes
+#     the image as the body (PNG, JPEG or WebP by its first bytes, at most
+#     256 KB; 413 past it, 415 for anything else), GET /api/me/picture gives
+#     it back with an ETag (304 on If-None-Match, 404 when none), DELETE
+#     removes it. A read-only token may read it; the demo's shared account
+#     may not change it (403). GET /api/me gains `picture_updated_at`. A
+#     Google sign-in copies the account's Google picture when there's none
+#     yet; a failed fetch never stops the sign-in.
 # 1.98.0 (2026-11-23, claude+mkolakowski): (#286) Two display settings per
 #     person (web-refresh phase 6; schema 39). GET /api/me gains `date_format`
 #     ('short' or 'iso') and `row_height` ('roomy' or 'compact'), null while
@@ -671,6 +680,7 @@ APP_VERSION = "1.98.6"
 
 
 import bcrypt
+import httpx
 from fastapi import FastAPI, Depends, HTTPException, Request, status, Response
 from fastapi.responses import RedirectResponse, JSONResponse, FileResponse
 from fastapi.encoders import jsonable_encoder
@@ -2020,6 +2030,11 @@ async def auth_callback(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(403, "Account disabled")
     if is_new:
         seed_default_categories(db, user)
+    # The account's Google picture, only while there's none (#377).
+    if user.picture_enc is None and info.get("picture"):
+        found = await _fetch_google_picture(info.get("picture"))
+        if found:
+            _set_picture(db, user, found)
     record_event(db, "login", request, user=user, email=email,
                  detail="google; new user" if is_new else "google")
     _start_session(request, user)
@@ -2184,6 +2199,9 @@ def me(request: Request, user: User = Depends(current_user),
             "recurring_position": user.recurring_position,
             "date_format": user.date_format,
             "row_height": user.row_height,
+            # The profile picture (#377): when it last changed, null when
+            # there's none; GET /api/me/picture has the image.
+            "picture_updated_at": _iso(user.picture_updated_at),
             "notice_required": _notice_required(user),
             "notice_acknowledged_at": _iso(user.notice_ack_at),
             "has_password": user.password_hash is not None,
@@ -2194,6 +2212,108 @@ def me(request: Request, user: User = Depends(current_user),
             # (#168): the web app shows only the set-up screen.
             "two_factor_setup_required": must_set_up_two_factor(db, user),
             "recovery_codes_left": _recovery_codes_left(db, user) if two_factor else 0}
+
+
+# ---------- The profile picture (account-picker phase 1, #377) ----------
+# One picture per person, shown on the web app's account button and in the
+# iPhone app's account picker. The clients make it square and small before
+# sending it, so the server only checks it really is an image of an allowed
+# type and size, by its first bytes, and keeps it encrypted.
+PICTURE_MAX_BYTES = 256 * 1024
+GOOGLE_PICTURE_HOST = ".googleusercontent.com"
+GOOGLE_PICTURE_TIMEOUT = 5.0
+
+
+def _picture_type(data: bytes) -> str | None:
+    """The image's type from its first bytes, or None when it isn't a PNG,
+    a JPEG or a WebP. What the sender claims isn't trusted."""
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def _set_picture(db: Session, user: User, data: bytes | None) -> None:
+    kind = _picture_type(data) if data else None
+    user.picture = data if kind else None
+    user.picture_type = kind
+    user.picture_updated_at = datetime.utcnow() if kind else None
+    db.commit()
+
+
+def _picture_etag(user: User) -> str:
+    return '"' + hashlib.sha256(user.picture_enc or b"").hexdigest()[:32] + '"'
+
+
+async def _fetch_google_picture(url: str) -> bytes | None:
+    """The image at a Google sign-in's `picture` address, or None: only from
+    Google's own picture host, over https, within the size limit and a few
+    seconds. Never raises, so a sign-in never fails over a picture."""
+    try:
+        parts = urlsplit(url)
+        host = (parts.hostname or "").lower()
+        if parts.scheme != "https" or not host.endswith(GOOGLE_PICTURE_HOST):
+            return None
+        # Google's address ends in its size (=s96-c); ask for a sharper one.
+        url = re.sub(r"=s\d+-c$", "=s256-c", url)
+        async with httpx.AsyncClient(timeout=GOOGLE_PICTURE_TIMEOUT, follow_redirects=False) as client:
+            async with client.stream("GET", url) as answer:
+                if answer.status_code != 200:
+                    return None
+                data = b""
+                async for chunk in answer.aiter_bytes():
+                    data += chunk
+                    if len(data) > PICTURE_MAX_BYTES:
+                        return None
+        return data if _picture_type(data) else None
+    except Exception:
+        return None
+
+
+def _picture_changes_allowed(user: User) -> None:
+    # The public demo's account is shared by everyone trying it: no one's
+    # picture goes on it.
+    if is_demo_email(user.email):
+        raise HTTPException(403, "The demo's picture can't be changed")
+
+
+@app.get("/api/me/picture")
+def get_my_picture(request: Request, user: User = Depends(current_user)):
+    """The signed-in person's own picture. 404 when there's none; 304 when
+    the caller already has this one (If-None-Match)."""
+    if user.picture_enc is None or not user.picture_type:
+        raise HTTPException(404, "No picture")
+    etag = _picture_etag(user)
+    headers = {"ETag": etag, "Cache-Control": "private, no-cache",
+               "X-Content-Type-Options": "nosniff"}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    return Response(content=user.picture, media_type=user.picture_type, headers=headers)
+
+
+@app.put("/api/me/picture")
+async def put_my_picture(request: Request, user: User = Depends(current_user),
+                         db: Session = Depends(get_db)):
+    """Sets the picture from the request's body: a PNG, JPEG or WebP of at
+    most 256 KB, already square and small (the clients see to that)."""
+    _picture_changes_allowed(user)
+    data = await request.body()
+    if len(data) > PICTURE_MAX_BYTES:
+        raise HTTPException(413, f"A picture can be at most {PICTURE_MAX_BYTES // 1024} KB")
+    if not _picture_type(data):
+        raise HTTPException(415, "A picture must be a PNG, JPEG or WebP image")
+    _set_picture(db, user, data)
+    return {"ok": True, "picture_updated_at": _iso(user.picture_updated_at)}
+
+
+@app.delete("/api/me/picture")
+def delete_my_picture(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    _picture_changes_allowed(user)
+    _set_picture(db, user, None)
+    return {"ok": True, "picture_updated_at": None}
 
 
 @app.post("/api/me/acknowledge-notice")

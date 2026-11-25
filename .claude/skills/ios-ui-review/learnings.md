@@ -39,6 +39,14 @@ line of why; the reasoning in full goes here.
 
 ## What a script can't reach, and the way round it
 
+- **2026-11-25 (#382):** a hang in Apple's audit uses up the test's whole
+  1-hour limit (B2, #385: the locked demo on the open Duo in dark). To tell
+  the audit from the app: the same screen with `--no-audit`, and the app's
+  CPU while it waits. To find the commit: a worktree of each one, run with
+  `--only <screen> --config <one>` and a watchdog that stops it when the
+  test has run a couple of minutes with no result (a worktree's first build
+  is about 8 minutes). A watchdog that matches on a path also matches the
+  build, and an older run's log looks stuck: key it to this run's log.
 - **Menus, alerts the system owns, drag and drop, the keyboard and pointer,
   Face ID, the camera:** the app has Debug launch settings that show each as
   a sheet or a state (`apps/ios/README.md`). A new one of these needs a new
@@ -67,6 +75,16 @@ line of why; the reasoning in full goes here.
 
 ## What the checks get wrong, and what was done about it
 
+- **The element tree finds what the pictures can't** (2026-11-25, #382):
+  the account picker in a `.largeTitle` toolbar item was on screen but not
+  in the tree, so VoiceOver couldn't reach it (B1, #383). Run a review of a
+  new control with `WW_UI_TREE=1` and look for it in each configuration's
+  `.tree.txt`; a control that shows on one device and not another is the
+  sign.
+- **The `save-a-line` flow is stale** (2026-11-25, #382): it taps the word
+  "Paid", which doesn't flip the switch, so nothing changes, Save stays
+  greyed out and `nothing-happened` fires. It needs to tap the switch.
+  Not fixed yet: `WalkTests.swift` had another session's edits in it.
 - **A row read out as one** (a card or row with
   `accessibilityElement(children: .combine)`) appears as a text the size of
   the row with its words inside it. `text-overlap` skips a text that's
@@ -152,6 +170,12 @@ Filled in from each round of picking. A line here also has its entry in
 
 ## What was worth the time, and what wasn't
 
+- **Worth it:** `since <version>` with the screens a change draws, on
+  seven configurations, about 6 minutes of walking (2026-11-25, #382). It
+  found both of 0.73.0's bugs before the TestFlight build.
+- **A review gets a page of its own** (`ios-ui-review-<version>`), dated,
+  rather than replacing the *iOS UI review* page: the first review's issues
+  (#357 to #370) link to its findings. (2026-11-25, #382)
 - **Worth it:** the flows that use the app (`testUse`). The first run found
   the one crash, in a minute and a half, where fifty pictures showed
   nothing wrong. Add a flow for every new thing a person can do.

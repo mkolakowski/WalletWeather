@@ -6,10 +6,14 @@ Tracking issue: #348
 
 | Phase | Issue | State |
 | --- | --- | --- |
-| 1. The source check | #344 | Open |
-| 2. The simulator walk | #345 | Open |
+| 1. The source check | #344 | Built 2026-11-24, in `swift test`; closed |
+| 2. The simulator walk | #345 | Built 2026-11-24; `ui-walk.sh quick` ran clean on the closed Duo; closed |
 | 3. The first review | #346 | Open |
 | 4. The skill, with what was learned | #347 | Open |
+
+Phase 2 built 2026-11-24 (8596674; no version, nothing the app does changed): a UI-test target with its own scheme (`apps/ios/UITests`), 55 screens in `Screens.swift`, the checks in `Checks.swift`, seven flows that use the app (`testUse`), and `Scripts/ui-walk.sh`, `ui-report.py` and `ui-sheet.swift`. Verified: `ui-walk.sh quick` on the closed Duo (54 screens, 109 pictures, 12 minutes); a Debug-only page of ten planted faults opens every run and the test fails if a check misses one (it did on the first run: one check could never fire, and was dropped); `swift test`, 536 passed. While being built it found that cancelling the line editor stops the app, and that Compare breaks up on the Duo's front screen. A standard run is 70 to 100 minutes, not the 30 to 40 said when scoping: every screen needs a fresh launch.
+
+Phase 1 built 2026-11-24 (16e1c25, widened in 2254ae7; no version): `UISourceTests` in the Kit's tests, twelve rules over the app's own Swift, each with its reason, its fix and lines it must and mustn't catch. The baseline (`WalletWeatherKit/Tests/UISourceBaseline.txt`) holds 51 slips and only shrinks. Verified: `swift test`, 536 passed; a slip planted in `UndoBar.swift` failed the test three times over, once per rule, and was taken out again.
 
 Planned 2026-11-24, asked for as "can you plan and implement a user interface review/testing suite thats goal is to look for bugs and inconstancies in the ios app? please include user interface design in the review, I want to keep this app looking modern. use what you learn to create a skill to repeat the task with learnings". Scoped the same evening in one round of questions: build all of it; a standard run covers the iPhone Duo closed and open on its side plus an iPhone 17, in light and dark, at Large and Accessibility Large; findings go on a review page with pictures and Matthew picks what's filed.
 

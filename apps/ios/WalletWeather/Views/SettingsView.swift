@@ -549,11 +549,18 @@ private struct SettingsPane: View {
 /// the ones that need a server stay greyed and marked, opening the note.
 private struct PageTiles: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var typeSize
     let pages: [TabPage]
     let open: (TabPage) -> Void
 
+    /// Two across; one to a row at the accessibility sizes, where a name
+    /// would otherwise break in the middle of a word (#362).
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 12), count: typeSize.isAccessibilitySize ? 1 : 2)
+    }
+
     var body: some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+        LazyVGrid(columns: columns, spacing: 12) {
             ForEach(pages) { page in
                 let greyed = model.isLocal && page.needsServer
                 Button { open(page) } label: {
@@ -563,7 +570,7 @@ private struct PageTiles: View {
                         Image(systemName: page.symbol)
                             .foregroundStyle(greyed ? Color.secondary : Palette.accent)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(page.title).font(.subheadline.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.8)
+                            Text(page.title).font(.subheadline.weight(.semibold)).wrapsAboveLarge().minimumScaleFactor(0.8)
                             if greyed {
                                 Text("Needs a server").font(.caption2)
                             }

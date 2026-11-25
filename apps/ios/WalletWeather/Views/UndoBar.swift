@@ -22,25 +22,41 @@ struct UndoBar: View {
     let onUndo: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
-            Label {
-                Text(message)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Palette.text ?? Color.primary)
-                    .lineLimit(2)
-            } icon: {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(Palette.good)
+        // Side by side up to the default size; at larger sizes the message
+        // has the whole width and Undo sits under it, so it's never cut (#362).
+        FitsAcross {
+            HStack(spacing: 10) {
+                what
+                Spacer(minLength: 0)
+                undo
             }
-            Spacer(minLength: 0)
-            Button("Undo", action: onUndo)
-                .buttonStyle(.glass)
-                .tint(Palette.accent)
-                .accessibilityHint("Takes it back")
+        } stacked: {
+            VStack(alignment: .leading, spacing: 8) {
+                what
+                undo
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 14).padding(.vertical, 8)
         .glassEffect(.regular, in: .rect(cornerRadius: 14))
         .accessibilityElement(children: .contain)
+    }
+
+    private var what: some View {
+        Label {
+            Text(message)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Palette.text ?? Color.primary)
+        } icon: {
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(Palette.good)
+        }
+    }
+
+    private var undo: some View {
+        Button("Undo", action: onUndo)
+            .buttonStyle(.glass)
+            .tint(Palette.accent)
+            .accessibilityHint("Takes it back")
     }
 }
 

@@ -9,7 +9,11 @@ import WalletWeatherKit
 struct LookGrid: View {
     @Environment(AppSettings.self) private var settings
 
-    private let columns = [GridItem(.adaptive(minimum: 92), spacing: 12, alignment: .top)]
+    // A tile's least width grows with the text size, so a look's name fits
+    // whole under it (#362); exactly 92 at Large, and never so wide that
+    // fewer than two sit across a phone.
+    @ScaledMetric(relativeTo: .caption) private var tileWidth: CGFloat = 92
+    private var columns: [GridItem] { [GridItem(.adaptive(minimum: min(tileWidth, 150)), spacing: 12, alignment: .top)] }
 
     var body: some View {
         LazyVGrid(columns: columns, alignment: .center, spacing: 16) {
@@ -50,7 +54,6 @@ private struct LookTile: View {
                     .font(.caption.weight(selected ? .semibold : .regular))
                     .foregroundStyle(selected ? Palette.accent : (Palette.text ?? Color.primary))
                     .multilineTextAlignment(.center)
-                    .lineLimit(2)
                     .frame(maxWidth: .infinity)
             }
             .contentShape(Rectangle())

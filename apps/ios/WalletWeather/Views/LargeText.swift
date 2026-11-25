@@ -30,6 +30,22 @@ struct FitsAcross<Across: View, Stacked: View>: View {
     }
 }
 
+/// A one-line label: one line up to the default size, as it was, and
+/// wrapping to as many lines as it needs above it, so nothing ends in "…"
+/// at the larger text sizes (#362).
+private struct WrapsAboveLarge: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    func body(content: Content) -> some View {
+        content.lineLimit(typeSize > .large ? nil : 1)
+    }
+}
+
+extension View {
+    /// One line up to Large, then as many as it takes (#362).
+    func wrapsAboveLarge() -> some View { modifier(WrapsAboveLarge()) }
+}
+
 /// Figures that share a row, each a label over its value: in an `HStack`
 /// while they fit, one under the other past that (`FitsAcross`).
 struct FigureRow<Content: View>: View {

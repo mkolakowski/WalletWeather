@@ -102,7 +102,7 @@ extension Screen {
         Screen("settings-unmatched", .demo, ["WW_DEBUG_PLACE": "more", "WW_DEBUG_UNMATCHED": "1"], shows: "Unmatched"),
         Screen("settings-tags", .demo, ["WW_DEBUG_SETTINGS": "tags"], shows: "Auto-tag rules"),
         Screen("tag-editor", .demo, ["WW_DEBUG_SETTINGS": "tags", "WW_DEBUG_TAG_EDITOR": "1"], shows: "New tag", scrolls: false),
-        Screen("settings-appearance", .demo, ["WW_DEBUG_SETTINGS": "appearance", "WW_DEBUG_CUSTOM_THEMES": "sample"], shows: "AMOLED black"),
+        Screen("settings-appearance", .demo, ["WW_DEBUG_SETTINGS": "appearance", "WW_DEBUG_CUSTOM_THEMES": "sample"], shows: "Appearance"),
         Screen("theme-editor", .demo, ["WW_DEBUG_SETTINGS": "appearance", "WW_DEBUG_CUSTOM_THEMES": "sample", "WW_DEBUG_THEME_EDITOR": "custom-light"], shows: "Edit theme"),
         Screen("settings-privacy", .demo, ["WW_DEBUG_SETTINGS": "privacy"], shows: "In the app switcher"),
         Screen("settings-reminders", .demo, ["WW_DEBUG_SETTINGS": "reminders"], shows: "Bill due tomorrow"),

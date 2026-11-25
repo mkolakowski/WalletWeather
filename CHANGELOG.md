@@ -69,10 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.5**
+App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.6**
 
 ### Fixed
 
+- **iPhone app: labels are no longer cut short at large text sizes.** At the larger text sizes the connection chip ("Demo · sample numbers"), the Undo bar ("Rent marked paid"), the page tiles under Settings → More pages and the look tiles under Settings → Appearance ended in "…" or broke mid-word. Their words now wrap to a second line instead; at the accessibility sizes the Undo button sits under its message and More pages shows one tile to a row. At the default size they look as before. (#362)
 - **iPhone app: the month menu is in calendar order.** Tapping the month's name on Forecast, the Calendar or Compare used to list This month, the month before, six months ahead and then the earlier months backwards, which read as shuffled. It now lists This month, then the six months before and the six after in order, with a tick on the month you're looking at (a month further away than that is added in its place). (#364)
 - **iPhone app: a tag's colours are named, and easy to hit.** In the New tag and Change tag sheets VoiceOver used to read each colour as a code such as "#58a6ff"; it now says "Blue", "Green", "Amber", "Purple", "Pink", "Teal", "Red" or "Grey", and each colour is a button with a full 44-point tap area, laid out four to a row. (#360)
 - **iPhone app: Connections' rows no longer run into each other.** Each connection in Settings → Connections now has space above and below it, so a row's last line no longer sits against the next row's name. Where it fits, the total moves to the right of the name; at the larger text sizes it stays under it, and a long address is shortened in the middle rather than broken mid-word (at the accessibility sizes it wraps in full instead, so nothing is cut). (#358)

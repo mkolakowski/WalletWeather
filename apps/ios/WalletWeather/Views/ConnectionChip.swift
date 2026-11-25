@@ -92,7 +92,7 @@ private struct ChipLabel: View {
     var body: some View {
         HStack(spacing: 5) {
             Image(systemName: chip.symbol).imageScale(.small)
-            Text(chip.title).lineLimit(1)
+            Text(chip.title).wrapsAboveLarge()
             if chip.warning {
                 Image(systemName: ConnectionRow.warningSymbol).imageScale(.small).foregroundStyle(Palette.warn)
             }

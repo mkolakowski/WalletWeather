@@ -3,29 +3,25 @@ import Foundation
 // The months a page's month-name menu offers (#313): tap the name on Today
 // Forecast, Calendar or Compare to jump instead of paging with the arrows.
 
-/// The months offered next to "This month", in the order they are listed.
+/// The months offered under "This month", in calendar order (#364).
 public struct MonthMenuChoices: Sendable, Equatable {
-    /// The month before the one shown, then the month after it.
-    public let neighbours: [YearMonth]
-    /// The six months after this one, nearest first.
-    public let ahead: [YearMonth]
-    /// The six months before this one, nearest first.
-    public let behind: [YearMonth]
+    /// The six months before this one and the six after it, oldest first,
+    /// with the shown month among them when it's further away than that.
+    /// This month is left out: it's the menu's first item, "This month".
+    public let months: [YearMonth]
 
     /// All of them in listing order.
-    public var all: [YearMonth] { neighbours + ahead + behind }
+    public var all: [YearMonth] { months }
 
-    /// For the month `shown`, with `today` in this month. Neither the shown
-    /// month nor this month is listed (the page is already on one, and
-    /// "This month" is its own item), and no month is listed twice.
+    /// For the month `shown`, with `today` in this month. This month is not
+    /// listed ("This month" is its own item), and no month is listed twice.
     public init(shown: YearMonth, today: LocalDay) {
         let now = YearMonth(today)
-        var seen: Set<YearMonth> = [shown, now]
-        func fresh(_ months: [YearMonth]) -> [YearMonth] {
-            months.filter { seen.insert($0).inserted }
+        var list = (-6...6).filter { $0 != 0 }.map { YearMonth(index: now.index + $0) }
+        if shown != now, !list.contains(shown) {
+            list.append(shown)
+            list.sort { $0.index < $1.index }
         }
-        neighbours = fresh([shown.previous, shown.next])
-        ahead = fresh((1...6).map { YearMonth(index: now.index + $0) })
-        behind = fresh((1...6).map { YearMonth(index: now.index - $0) })
+        months = list
     }
 }

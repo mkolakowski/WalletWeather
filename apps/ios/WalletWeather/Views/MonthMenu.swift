@@ -2,8 +2,9 @@ import SwiftUI
 import WalletWeatherKit
 
 /// A page's month, as its name with a small chevron: tap for a menu that
-/// jumps straight to This month, the months either side of the one shown, or
-/// any of the six ahead and behind (#313). The arrows beside it stay.
+/// jumps straight to This month or to any of the six months before and after
+/// it, in calendar order with a tick on the one shown (#313, #364). The
+/// arrows beside it stay.
 struct MonthMenu: View {
     let month: YearMonth
     var font: Font = .headline
@@ -24,14 +25,9 @@ struct MonthMenu: View {
                 }
             }
             .disabled(isThisMonth)
+            // One list in calendar order, a tick on the month shown (#364).
             Section {
-                ForEach(choices.neighbours, id: \.self) { item($0) }
-            }
-            Section {
-                ForEach(choices.ahead, id: \.self) { item($0) }
-            }
-            Section {
-                ForEach(choices.behind, id: \.self) { item($0) }
+                ForEach(choices.months, id: \.self) { item($0) }
             }
         } label: {
             HStack(spacing: 4) {
@@ -48,7 +44,13 @@ struct MonthMenu: View {
     }
 
     private func item(_ target: YearMonth) -> some View {
-        Button(target.label) { onPick(target) }
+        Button { onPick(target) } label: {
+            if target == month {
+                Label(target.label, systemImage: "checkmark")
+            } else {
+                Text(target.label)
+            }
+        }
     }
 }
 

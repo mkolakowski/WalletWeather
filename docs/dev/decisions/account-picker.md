@@ -52,3 +52,16 @@ Decisions for [`Plans/account-picker.md`](../../../Plans/account-picker.md).
 - **Never.**
 
 **The decision:** only when there's none yet. A failure to fetch it never stops the sign-in.
+
+## 2026-11-25: the picker shows whenever something is in front
+
+**Decided:** 2026-11-25, by Matthew, while phase 3 was built. **Status:** accepted (#379).
+
+**The question:** the connection chip showed only with two or more connections, or in the demo. Does the picture button follow the same rule?
+
+**Options considered:**
+- **Always,** whenever something is in front: a server's picture or initials, the household on this iPhone's icon, the demo's picture with its badge. One rule, like the web app's account button.
+- **Always, but not the household alone,** which has no picture to show.
+- **As the chip did:** people with one server would never see their picture on the phone.
+
+**The decision:** always. With one server, the picture still says who's signed in, and its menu still offers the demo and Manage connections….

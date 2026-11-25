@@ -163,7 +163,7 @@ public struct ConnectionsVisibility: Equatable, Sendable {
     }
 }
 
-/// One row of Connections, or of the demo chip's menu: a saved connection,
+/// One row of Connections, or of the account picker's menu (#379): a saved connection,
 /// On this iPhone when it's on the phone but not saved, or the demo, always
 /// last.
 public struct ConnectionRow: Equatable, Identifiable, Sendable {
@@ -204,7 +204,7 @@ public struct ConnectionRow: Equatable, Identifiable, Sendable {
     public var id: Target { target }
 
     /// The small warning symbol beside a connection whose sign-in ended, in
-    /// Connections, the chip's menu and the chip.
+    /// Connections, the account picker's menu and the picker.
     public static let warningSymbol = "exclamationmark.triangle.fill"
     public static let signInAgainDetail = "Sign in again"
 

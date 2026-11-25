@@ -8,7 +8,9 @@ Tracking issue: #380
 | --- | --- | --- |
 | 1. Profile pictures on the server | #377 | Built 2026-11-25 in 1.99.0 (schema 40); open until released |
 | 2. Your picture in the web app | #378 | Built 2026-11-25 in web 1.118.0; open until released |
-| 3. The account picker on the iPhone | #379 | Open |
+| 3. The account picker on the iPhone | #379 | Built 2026-11-25 in iOS 0.73.0; open until released |
+
+Phase 3 built 2026-11-25 (iOS 0.73.0): the account picker on the title's line of the Dashboard and Settings (a `.largeTitle` toolbar item on the phone, beside the bar's buttons on the open Duo, in the sidebar's header in Settings' split), replacing the connection chip; the menu with each server's picture (initials until one is kept), its ticks, "Sign in again" and Manage connections…; the demo's sparkles badge; pictures kept in `Application Support/Pictures/` per connection, fetched with `If-None-Match` only when `picture_updated_at` changes while it's in front, deleted by `ConnectionStore.remove`. It shows whenever something is in front (decided 2026-11-25, below). Verified: `swift test` (all suites; `AccountPickerTests` and `ProfilePictureTests` new: the faces for a server, the household, the demo before a server, the household or nothing, the lock; initials as the web app writes them; keeping, touching and deleting a picture, and with the connection; when to fetch; each answer of `GET /api/me/picture`), the app builds, `test_app_shapes.py` pins `picture_updated_at`, and on the iPhone 17 simulator the Dashboard and Settings in the demo (light, dark, extra-large text), the menu's sheet (`WW_DEBUG_PICKER_MENU`) and the locked demo's icons-only menu. Not checked: a picture fetched from a real server, and the real menu (a script can't open one).
 
 Phase 2 built 2026-11-25 (web 1.118.0): Settings → Your account → Profile picture (choose, square cut and resize to 512 px in a canvas, JPEG under 256 KB, Save, Remove) and the picture on the top bar's account button, falling back to initials. Verified in Chromium against a stubbed server: a 600x300 image came out 300x300 with its middle (red and blue halves intact), PUT as image/jpeg, the button swapped to the picture and back after Remove, a non-image was refused with a message; `test_settings_wiring.py`, `test_pwa.py` and the picture tests pass. Not looked at in a real signed-in session or on a phone.
 
@@ -28,7 +30,7 @@ Sessions: may span — a server phase with a schema change, a web phase and an i
 
 ## Open questions
 
-None. All three were settled on 2026-11-25 (see "Decided" below and [`docs/dev/decisions/account-picker.md`](../docs/dev/decisions/account-picker.md)). A question that comes up while building goes here, with the phase it blocks.
+None. All three were settled on 2026-11-25, and a fourth (when the picker shows) while building phase 3 (see "Decided" below and [`docs/dev/decisions/account-picker.md`](../docs/dev/decisions/account-picker.md)). A question that comes up while building goes here, with the phase it blocks.
 
 ## The plan
 
@@ -44,6 +46,7 @@ None. All three were settled on 2026-11-25 (see "Decided" below and [`docs/dev/d
 - **The picture replaces the connection chip** on the Dashboard and Settings (option A): on the title's line at the right; the chip goes. The connection's name shows in the picture's menu and on Settings → Connections.
 - **In the demo, your picture with a small sparkles badge,** from the connection the demo goes back to, also while locked. Choosing a real connection still asks for Face ID first.
 - **Google's picture is copied only when there's none yet;** one set by hand is never replaced.
+- **The picker shows whenever something is in front** (decided while building phase 3), with one connection too: unlike the chip, which needed two or more or the demo.
 
 **Out of scope:**
 

@@ -85,8 +85,8 @@ final class AppModel {
     var forecastRequest: Int?
     /// With `forecastRequest`: open it on the To confirm list (#305).
     var forecastToConfirm = false
-    /// A Settings page to open, asked for by the demo's chip (Manage
-    /// connections…, #301); Settings takes it and clears it.
+    /// A Settings page to open, asked for by the account picker's Manage
+    /// connections… (#301, #379); Settings takes it and clears it.
     var settingsRequest: SettingsPage?
 
     private let sheet = SignInSheet()
@@ -155,7 +155,8 @@ final class AppModel {
         self.store = store ?? Self.debugConnections()
             ?? ConnectionStore(secrets: KeychainConnectionSecrets(), defaults: defaults,
                                // The phone's search follows the summaries (#331).
-                               summaries: SummaryStore.shared?.searchable(PhoneSearchIndex()))
+                               summaries: SummaryStore.shared?.searchable(PhoneSearchIndex()),
+                               pictures: ProfilePictureStore())
     }
 
     /// Debug only: `WW_DEBUG_CONNECTIONS=sample` keeps the connections in
@@ -163,8 +164,9 @@ final class AppModel {
     /// folder, with two sample servers, "Home" and "Mum & Dad" (whose
     /// sign-in has ended, so it carries the mark), and the
     /// household on this iPhone when there is one, for pictures of
-    /// Settings → Connections. Nothing contacts the sample servers unless
-    /// one is switched to.
+    /// Settings → Connections. "Home" has a drawn profile picture and "Mum &
+    /// Dad" none, so the account picker's menu shows both (#379). Nothing
+    /// contacts the sample servers unless one is switched to.
     private static func debugConnections() -> ConnectionStore? {
         #if DEBUG
         guard debugSetting("WW_DEBUG_CONNECTIONS") == "sample" else { return nil }
@@ -173,11 +175,19 @@ final class AppModel {
         defaults.removePersistentDomain(forName: suite)
         let root = FileManager.default.temporaryDirectory.appending(path: "ww-debug-connections", directoryHint: .isDirectory)
         try? FileManager.default.removeItem(at: root)
-        let store = ConnectionStore(secrets: MemoryConnectionSecrets(), defaults: defaults, keptRoot: root)
+        let pictures = ProfilePictureStore(root: root.appending(path: "Pictures", directoryHint: .isDirectory))
+        let store = ConnectionStore(secrets: MemoryConnectionSecrets(), defaults: defaults, keptRoot: root, pictures: pictures)
         let home = store.add(Connection(server: URL(string: "https://home.example.com")!, token: "ww_sample_home"),
                              name: "Home", keep: .lastKnown, account: "you@example.com")
         let parents = store.add(Connection(server: URL(string: "https://ww.parents.example")!, token: "ww_sample_parents"),
                                 name: "Mum & Dad", keep: .lastKnown, account: "you@example.com")
+        for var saved in [home, parents].compactMap({ $0 }) {
+            saved.personName = "Sam Rivera"
+            _ = store.update(saved)
+        }
+        if let home, let drawn = AccountFaces.debugSamplePicture() {
+            pictures.save(home.id, data: drawn, updatedAt: "sample", etag: nil)
+        }
         let phone = LocalStore.exists ? store.add(LocalServer.connection) : nil
         // "Mum & Dad" has had its sign-in end, for pictures of the mark (#302).
         if let parents { store.markSignInEnded(parents.id, token: "ww_sample_parents") }
@@ -351,9 +361,58 @@ final class AppModel {
         replanReminders(for: front)
     }
 
-    /// Reads the saved connections again, for Connections.
+    /// Reads the saved connections again, for Connections, and their kept
+    /// profile pictures for the account picker (#379).
     func reloadConnections() {
         connections = store.all()
+        reloadPictures()
+    }
+
+    // MARK: - Profile pictures (Plans/account-picker.md, phase 3, #379)
+
+    /// Each saved server's kept profile picture, made small, for the
+    /// account picker and its menu; a server with none isn't listed.
+    private(set) var pictures: [UUID: UIImage] = [:]
+
+    /// The kept pictures of the saved servers, read from the phone when
+    /// they aren't in memory yet; those of connections gone are let go.
+    private func reloadPictures() {
+        guard let kept = store.pictures else { return }
+        let servers = Set(connections.filter { $0.kind == .server }.map(\.id))
+        pictures = pictures.filter { servers.contains($0.key) }
+        for id in servers where pictures[id] == nil {
+            if let image = kept.load(id).flatMap({ AccountFaces.thumbnail($0.data) }) { pictures[id] = image }
+        }
+    }
+
+    /// Brings the picture of the server in front up to date, once `/api/me`
+    /// has said when it last changed: fetched again only when that changed
+    /// (with the kept one's ETag), deleted when the server has none. Only
+    /// the connection in front asks its own server, with its own client.
+    private func refreshPicture(of id: UUID, updatedAt: String?, client: APIClient) async {
+        guard let kept = store.pictures else { return }
+        switch PictureRefresh.decide(kept: kept.load(id), updatedAt: updatedAt) {
+        case .nothing:
+            return
+        case .delete:
+            kept.delete(id)
+            pictures[id] = nil
+        case let .fetch(etag):
+            guard let updatedAt, let answer = try? await client.picture(etag: etag) else { return }
+            // Signed out of while it was asked: nothing is kept for it.
+            guard store.load(id) != nil else { return }
+            switch answer {
+            case let .picture(data, tag):
+                guard let image = AccountFaces.thumbnail(data), kept.save(id, data: data, updatedAt: updatedAt, etag: tag)
+                else { return }
+                pictures[id] = image
+            case .unchanged:
+                kept.touch(id, updatedAt: updatedAt)
+            case .none:
+                kept.delete(id)
+                pictures[id] = nil
+            }
+        }
     }
 
     /// Debug only: `WW_DEBUG_KEEP=lastKnown|nothing` sets the choice of the
@@ -429,7 +488,7 @@ final class AppModel {
     }
 
     /// A request answered that a server's sign-in has ended: the connection
-    /// is marked, in the chip's menu and Connections, until a sign-in
+    /// is marked, in the account picker's menu and Connections, until a sign-in
     /// renews it (#302). Changes nothing on the pages: no reload.
     func markSignInEnded(_ id: UUID, token: String?) {
         guard let marked = store.markSignInEnded(id, token: token) else { return }
@@ -458,11 +517,12 @@ final class AppModel {
         return isLocal ? .household : .unsaved
     }
 
-    /// What the connection chip says, or nil when it doesn't show: under
-    /// the Dashboard's title and at the top of Settings (#302).
-    func connectionChip(locked: Bool) -> ConnectionChipState? {
-        ConnectionChipState.make(saved: connections, front: lockFront, householdExists: hasHousehold,
-                                 visibility: ConnectionsVisibility(locked: locked))
+    /// What the account picker shows, on the title's line of the Dashboard
+    /// and Settings (#379), or nil with nothing in front.
+    func accountPicker(locked: Bool) -> AccountPickerState? {
+        let person = isDemo ? nil : me.map { Initials.Person(name: $0.name, email: $0.email) }
+        return AccountPickerState.make(saved: connections, front: lockFront, beforeDemo: beforeDemo, person: person,
+                                       visibility: ConnectionsVisibility(locked: locked))
     }
 
     /// The household's iCloud Drive backup and bank sync may run now,
@@ -482,7 +542,7 @@ final class AppModel {
         await authenticateToLeaveDemo?() ?? true
     }
 
-    /// A row of Connections, or of the demo chip's menu, chosen: a real
+    /// A row of Connections, or of the account picker's menu, chosen: a real
     /// connection asks first while locked in the demo, then opens; the demo
     /// opens at once. The one in front stays.
     func choose(_ target: ConnectionRow.Target) async {
@@ -503,7 +563,7 @@ final class AppModel {
     }
 
     /// What was in front when Use on this iPhone was chosen from
-    /// Connections or the chip (#374), for Back on the Important notice.
+    /// Connections or the account picker (#374), for Back on the Important notice.
     struct LeftForHousehold {
         let front: LockGate.Front
         let beforeDemo: LockGate.Front?
@@ -863,8 +923,8 @@ final class AppModel {
     /// `WW_DEBUG_CONNECTIONS=sample` (sample connections in memory, #300),
     /// `WW_DEBUG_WIDGETS=amounts|applock|locked|nothing` (the widgets' faces, #318),
     /// and `WW_DEBUG_LOCKED_DEMO=1` (start as if the lock had just sent the
-    /// app to the demo) and `WW_DEBUG_CHIP_MENU=1` (the demo chip's choices
-    /// as a sheet, #301), and `WW_DEBUG_DROP=csv` or `day` (a drop
+    /// app to the demo) and `WW_DEBUG_PICKER_MENU=1` (the account picker's
+    /// choices as a sheet, #301, #379), and `WW_DEBUG_DROP=csv` or `day` (a drop
     /// highlight with nothing dragged, #308), and
     /// `WW_DEBUG_CUSTOM_THEMES=sample` (two sample custom themes in memory,
     /// which `WW_DEBUG_LOOK=custom-light` or `custom-dark` shows) and
@@ -1128,14 +1188,21 @@ final class AppModel {
             // Match the web app's theme, kept with this connection.
             // And who's signed in, which tells a new sign-in of the same
             // person from another's (#300).
+            // Their name too, for the account picker's initials (#379).
             if var saved, saved.connection == connection,
-               saved.webTheme != found.themePreference || saved.account != found.email {
+               saved.webTheme != found.themePreference || saved.account != found.email || saved.personName != found.name {
                 saved.webTheme = found.themePreference
                 saved.account = found.email
+                saved.personName = found.name
                 if store.update(saved) {
                     self.saved = saved
                     reloadConnections()
                 }
+            }
+            // Its profile picture, when it changed (#379).
+            if let saved, saved.kind == .server, saved.connection == connection {
+                let id = saved.id, updatedAt = found.pictureUpdatedAt
+                Task { await refreshPicture(of: id, updatedAt: updatedAt, client: client) }
             }
             if found.noticeRequired { phase = .notice }
         }

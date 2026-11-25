@@ -183,16 +183,18 @@ demo, so nothing is contacted. They're kept in memory and a throwaway
 settings suite only, never in the Keychain, and are gone at the next launch.
 Switching to a sample server tries to reach it, and fails. "Mum & Dad" has
 had its sign-in end (#302), so the warning symbol and "Sign in again" show on
-its row in Connections and in the chip's menu, and on the chip itself while
-it's in front; the chip shows whenever there are two or more connections.
+its row in Connections and in the account picker's menu, and on the picker
+itself while it's in front. Both are signed in as "Sam Rivera"; "Home" has a
+drawn profile picture and "Mum & Dad" none, so the picker's menu shows a
+picture and initials (#379).
 `SIMCTL_CHILD_WW_DEBUG_LOCKED_DEMO=1` starts as if the lock had just sent the
 app to the demo (#301), whether or not the lock is on: whatever is saved (or
 the sample connections, with `WW_DEBUG_CONNECTIONS=sample`) stays behind the
-demo, so the chip, its menu's contents and what Connections hides while
+demo, so the account picker (with its sparkles badge), its menu's contents and what Connections hides while
 locked can be pictured without Face ID. Choosing a real connection then asks
 as on a phone; a simulator with no passcode set says no, and the demo stays.
 A script can't open a menu, so
-`SIMCTL_CHILD_WW_DEBUG_CHIP_MENU=1` shows the chip's choices as a sheet over
+`SIMCTL_CHILD_WW_DEBUG_PICKER_MENU=1` shows the account picker's choices as a sheet over
 the Dashboard instead.
 The keyboard and pointer (#307) can't be driven from a script either, so
 `SIMCTL_CHILD_WW_DEBUG_SHORTCUTS=1` shows the shortcut table (the Kit's

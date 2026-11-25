@@ -5,7 +5,7 @@ public enum AppInfo {
     /// The iOS app's own version (CHANGELOG.md tracks it beside the app,
     /// web and schema versions). Keep it equal to MARKETING_VERSION in the
     /// Xcode project.
-    public static let version = "0.72.0"
+    public static let version = "0.73.0"
     /// The first server version with what the app's pages need: the
     /// phone's date on Net worth, Budgets and Reports (#91), on top of each
     /// bill's next dates (#89) and the Forecast's (#88).
@@ -119,6 +119,48 @@ public final class APIClient: Sendable {
 
     public func me() async throws(APIError) -> Me {
         try await get("/api/me")
+    }
+
+    /// The signed-in person's own profile picture (server 1.99.0, #377):
+    /// `GET /api/me/picture`, with the kept one's ETag as `If-None-Match`.
+    /// The demo and the household on this iPhone have none, and ask nothing.
+    /// Never kept with Last-known numbers: the account picker keeps it
+    /// (`ProfilePictureStore`).
+    public func picture(etag: String? = nil) async throws(APIError) -> PictureAnswer {
+        guard !connection.isDemo, !connection.isLocal else { return .none }
+        let path = "/api/me/picture"
+        var request = makeRequest("GET", path)
+        request.setValue("image/*", forHTTPHeaderField: "Accept")
+        if let etag { request.setValue(etag, forHTTPHeaderField: "If-None-Match") }
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request, delegate: NoRedirects())
+        } catch {
+            throw (error as? URLError).map { APIError.from($0, host: connection.host) } ?? .cannotReach(connection.host)
+        }
+        guard let http = response as? HTTPURLResponse else { throw .unexpectedResponse(path) }
+        return try Self.pictureAnswer(data: data, response: http, path: path)
+    }
+
+    /// Turns `GET /api/me/picture`'s answer into a picture, or the error it
+    /// stands for. A 404 that says "No picture" is none; any other 404 is
+    /// a server older than 1.99.0, which has no pictures either.
+    static func pictureAnswer(data: Data, response: HTTPURLResponse, path: String) throws(APIError) -> PictureAnswer {
+        if CloudflareAccess.isChallenge(response, body: data) { throw .cloudflareSignInNeeded }
+        switch response.statusCode {
+        case 304:
+            return .unchanged
+        case 404:
+            return .none
+        case 200:
+            let type = response.value(forHTTPHeaderField: "Content-Type") ?? ""
+            guard type.hasPrefix("image/"), !data.isEmpty else { throw .unexpectedResponse(path) }
+            return .picture(data, etag: response.value(forHTTPHeaderField: "ETag"))
+        default:
+            let _: EmptyAnswer = try decode(EmptyAnswer.self, data: data, response: response, path: path)
+            throw .unexpectedResponse(path)
+        }
     }
 
     public func acknowledgeNotice() async throws(APIError) {
@@ -340,17 +382,7 @@ public final class APIClient: Sendable {
                             timeout: TimeInterval = APIClient.timeout) async throws(APIError) -> T {
         if connection.isDemo, !Demo.allows(method, path) { throw .demoReadOnly }
         let key = keep ? KeptResponses.key(server: connection.server, method: method, path: path, query: query) : nil
-        var request = URLRequest(url: ServerAddress.url(connection.server, path, query: query),
-                                 cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: timeout)
-        request.httpMethod = method
-        request.httpShouldHandleCookies = false
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        if let token = connection.token {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-        for (name, value) in connection.cloudflare?.headers ?? [:] {
-            request.setValue(value, forHTTPHeaderField: name)
-        }
+        var request = makeRequest(method, path, query: query, timeout: timeout)
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = body
@@ -377,6 +409,24 @@ public final class APIClient: Sendable {
             await observer?(nil)
         }
         return value
+    }
+
+    /// A request to the server with the sign-in's headers: the token, and
+    /// Cloudflare Access's when it's in front.
+    private func makeRequest(_ method: String, _ path: String, query: [String: String] = [:],
+                             timeout: TimeInterval = APIClient.timeout) -> URLRequest {
+        var request = URLRequest(url: ServerAddress.url(connection.server, path, query: query),
+                                 cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: timeout)
+        request.httpMethod = method
+        request.httpShouldHandleCookies = false
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let token = connection.token {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        for (name, value) in connection.cloudflare?.headers ?? [:] {
+            request.setValue(value, forHTTPHeaderField: name)
+        }
+        return request
     }
 
     /// The kept copy, when the server can't be reached and there is one.

@@ -111,8 +111,8 @@ extension Screen {
         Screen("settings-tab-bar", .demo, ["WW_DEBUG_SETTINGS": "tabBar"], shows: "In the tab bar"),
         Screen("settings-notice", .demo, ["WW_DEBUG_SETTINGS": "notice"], shows: "WalletWeather is a planning tool"),
 
-        // Where you are: the chip, the lock's demo, the keys.
-        Screen("chip-menu", .demo, ["WW_DEBUG_PLACE": "dashboard", "WW_DEBUG_CONNECTIONS": "sample", "WW_DEBUG_CHIP_MENU": "1"], shows: "Manage connections", scrolls: false),
+        // Where you are: the account picker's menu (#379), the lock's demo, the keys.
+        Screen("picker-menu", .demo, ["WW_DEBUG_PLACE": "dashboard", "WW_DEBUG_CONNECTIONS": "sample", "WW_DEBUG_PICKER_MENU": "1"], shows: "Manage connections", scrolls: false),
         Screen("locked-demo", .asGiven, ["WW_DEBUG_LOCKED_DEMO": "1", "WW_DEBUG_CONNECTIONS": "sample", "WW_DEBUG_PLACE": "dashboard"], shows: "Dashboard", scrolls: false),
         Screen("shortcut-table", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_SHORTCUTS": "1"], shows: "Keyboard shortcuts"),
         Screen("widgets", .demo, ["WW_DEBUG_PLACE": "dashboard", "WW_DEBUG_WIDGETS": "amounts"], shows: "With amounts", steps: [.wait(3)],

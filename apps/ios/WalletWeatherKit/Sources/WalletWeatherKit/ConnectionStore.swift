@@ -31,6 +31,10 @@ public struct SavedConnection: Codable, Equatable, Identifiable, Sendable {
     /// a new sign-in of the same one. Nil until known, and in items saved
     /// before it was kept.
     public var account: String?
+    /// Their name, from `/api/me` while it's in front, for the account
+    /// picker's initials (#379). Nil until known, and in items saved before
+    /// it was kept.
+    public var personName: String?
     /// The server answered that this connection's sign-in has ended (token
     /// expired or revoked), so it needs Sign in again (phase 4, #302).
     /// Recorded when a request gets that answer and cleared by the next
@@ -44,7 +48,7 @@ public struct SavedConnection: Codable, Equatable, Identifiable, Sendable {
 
     public init(id: UUID = UUID(), connection: Connection, name: String? = nil, added: Date = .now,
                 lastUsed: Date? = nil, keep: KeepChoice = .nothing, webTheme: String? = nil,
-                account: String? = nil, signInEnded: Bool? = nil) {
+                account: String? = nil, signInEnded: Bool? = nil, personName: String? = nil) {
         self.id = id
         kind = connection.isLocal ? .thisPhone : .server
         self.name = name ?? Self.defaultName(for: connection)
@@ -55,6 +59,7 @@ public struct SavedConnection: Codable, Equatable, Identifiable, Sendable {
         self.webTheme = webTheme
         self.account = account
         self.signInEnded = signInEnded
+        self.personName = personName
     }
 
     /// The name a connection starts with: the server's host, or "On this
@@ -237,6 +242,8 @@ public final class MemoryConnectionSecrets: ConnectionSecretStore, @unchecked Se
 ///   `Application Support/Kept/<id>/`, deleted when it's removed.
 /// - Its summary for the widgets (`SummaryStore`, in the app group) is
 ///   deleted when it's removed too (#318).
+/// - Its profile picture (`ProfilePictureStore`, `Application
+///   Support/Pictures/`) too (#379).
 /// - The single sign-in kept before (account `connection`, with
 ///   `keep.choice` and `appearance.web` in the settings) is carried over
 ///   once by `carryOver()`, and removed only once its copy reads back.
@@ -256,6 +263,9 @@ public final class ConnectionStore: @unchecked Sendable {
     /// The widgets' summaries (#318); nil where there are none (tests that
     /// don't look at them, a build without the app group).
     public let summaries: SummaryStore?
+    /// Each saved server's profile picture (#379); nil where none are kept
+    /// (tests that don't look at them).
+    public let pictures: ProfilePictureStore?
     private let defaults: UserDefaults
     private let now: @Sendable () -> Date
 
@@ -278,11 +288,13 @@ public final class ConnectionStore: @unchecked Sendable {
 
     public init(secrets: ConnectionSecretStore, defaults: UserDefaults = .standard,
                 keptRoot: URL = ConnectionStore.standardKeptRoot, summaries: SummaryStore? = nil,
+                pictures: ProfilePictureStore? = nil,
                 now: @escaping @Sendable () -> Date = { Date() }) {
         self.secrets = secrets
         self.defaults = defaults
         self.keptRoot = keptRoot
         self.summaries = summaries
+        self.pictures = pictures
         self.now = now
     }
 
@@ -354,7 +366,7 @@ public final class ConnectionStore: @unchecked Sendable {
     }
 
     /// Notes that a server's sign-in has ended (its token expired or was
-    /// revoked), for the mark on Connections and the chip (#302). `token` is
+    /// revoked), for the mark on Connections and the account picker (#302). `token` is
     /// the token the request that was answered used: a late answer to an
     /// old token doesn't mark a sign-in renewed since. Returns the connection
     /// as saved, or nil when it isn't a saved server or the token has moved on.
@@ -385,11 +397,12 @@ public final class ConnectionStore: @unchecked Sendable {
         return write(saved)
     }
 
-    /// Removes a connection: its last-known numbers and its widgets'
-    /// summary, then its Keychain item.
+    /// Removes a connection: its last-known numbers, its widgets' summary
+    /// and its profile picture, then its Keychain item.
     public func remove(_ id: UUID) {
         kept(for: id).deleteAll()
         summaries?.delete(id)
+        pictures?.delete(id)
         secrets.delete(Self.account(for: id))
         if activeID == id { defaults.removeObject(forKey: Self.activeKey) }
     }

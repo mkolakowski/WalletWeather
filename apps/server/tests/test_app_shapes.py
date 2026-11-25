@@ -36,7 +36,9 @@ def test_version(client):
 def test_me(client, registered):
     has(client.get("/api/me").json(), {
         "id": int, "email": str, "is_admin": bool, "notice_required": bool,
-        "notice_acknowledged_at": (str, type(None)), "token_access": (str, type(None))})
+        "notice_acknowledged_at": (str, type(None)), "token_access": (str, type(None)),
+        # The account picker fetches the picture again when this changes (#379).
+        "picture_updated_at": (str, type(None))})
 
 
 def test_accounts(client, registered):

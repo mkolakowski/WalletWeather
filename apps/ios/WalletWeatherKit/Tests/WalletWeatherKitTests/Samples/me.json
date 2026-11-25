@@ -9,5 +9,6 @@
     "recurring_position": null,
     "notice_required": false,
     "notice_acknowledged_at": null,
-    "has_password": true
+    "has_password": true,
+    "picture_updated_at": null
 }

@@ -60,7 +60,7 @@ struct SettingsView: View {
         .csvImporter(isPresented: $importingCSV, account: nil) { model.reload() }
         .task(id: model.generation) { await loadValues() }
         .onAppear { start() }
-        // The demo chip's Manage connections… on another page (#301).
+        // The account picker's Manage connections… on another page (#301, #379).
         .onChange(of: model.settingsRequest) { _, page in takeRequest(page) }
         .onChange(of: sizeClass) { old, _ in if old != nil { follow() } }
         // Back on the list (a compact width): no page is open.
@@ -75,10 +75,6 @@ struct SettingsView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    // Above the connection card, with more than one connection or in the demo (#301, #302).
-                    if model.connectionChip(locked: settings.lockedInDemo) != nil {
-                        ConnectionChip { open(.page(.connections)) }
-                    }
                     ForEach(layout.groups) { group in
                         if let title = group.section.title { SectionTitle(title) }
                         switch group.section {
@@ -101,6 +97,8 @@ struct SettingsView: View {
             }
             .background(PageBackground().ignoresSafeArea())
             .navigationTitle("Settings")
+            // Who's in front, and the way to switch, on the title's line (#379).
+            .accountPickerTitle("Settings") { open(.page(.connections)) }
             .toolbar { NewWindowItem(place: .more) }
             .navigationDestination(for: SettingsPage.self) { SettingsPageView(page: $0) }
             .navigationDestination(for: ConnectionRoute.self) { ConnectionPage(id: $0.id) }
@@ -151,12 +149,14 @@ struct SettingsView: View {
                 // A plain column, not a navigation stack: a stack here kept
                 // the tab bar's inset although it's at the other edge.
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Settings").font(.headline)
-                        .frame(height: 44).padding(.horizontal, 16).padding(.top, 12)  // level with the pane's title
-                        .accessibilityAddTraits(.isHeader)
-                    if model.connectionChip(locked: settings.lockedInDemo) != nil {
-                        ConnectionChip { open(.page(.connections)) }.padding(.horizontal, 12).padding(.bottom, 6)
+                    // The account picker on the title's line, at the right (#379).
+                    HStack {
+                        Text("Settings").font(.headline)
+                            .accessibilityAddTraits(.isHeader)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        AccountPicker { open(.page(.connections)) }
                     }
+                    .frame(minHeight: 44).padding(.horizontal, 16).padding(.top, 12)  // level with the pane's title
                     SettingsSidebar(layout: layout, chosen: chosen, accounts: accountCount, versions: versions,
                                     value: { value(of: $0) }, open: { open($0) }, act: { act($0) })
                 }
@@ -219,7 +219,7 @@ struct SettingsView: View {
         }
     }
 
-    /// A page asked for from elsewhere (the demo chip's Manage
+    /// A page asked for from elsewhere (the account picker's Manage
     /// connections…): opened, and the request cleared.
     private func takeRequest(_ page: SettingsPage?) {
         guard let page else { return }

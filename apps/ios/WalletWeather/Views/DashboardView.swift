@@ -89,6 +89,8 @@ struct DashboardView: View {
             .background(PageBackground().ignoresSafeArea())
             // The large title on the phone; a glass capsule on the open Duo (#341).
             .pageTitle("Dashboard")
+            // Who's in front, and the way to switch, on the title's line (#379).
+            .accountPickerTitle("Dashboard", debugSheet: true)
             .toolbar { NewWindowItem(place: .dashboard) }
             .toolbar {
                 if !editableAccounts.isEmpty {
@@ -185,10 +187,6 @@ struct DashboardView: View {
 
     @ViewBuilder
     private func accountsColumn(_ dashboard: Dashboard) -> some View {
-        // Under the title: the connection in front, and the way to switch (#301, #302).
-        if model.connectionChip(locked: settings.lockedInDemo) != nil {
-            ConnectionChip(debugSheet: true)
-        }
         if settings.showsStartCard && !model.isDemo {
             GettingStartedCard { startTask = $0 }
         }

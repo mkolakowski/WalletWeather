@@ -27,6 +27,10 @@ public struct Me: Sendable, Codable, Equatable {
     /// from an older server, the demo and the household on this iPhone, which
     /// read as short (#296).
     public let dateFormat: String?
+    /// When the profile picture last changed (server 1.99.0, #377); nil
+    /// when there's none, from an older server, the demo and the household
+    /// on this iPhone. `GET /api/me/picture` has the image.
+    public let pictureUpdatedAt: String?
 
     /// A read-only token: the app shows no editing anywhere.
     public var isReadOnly: Bool { tokenAccess == "read" }

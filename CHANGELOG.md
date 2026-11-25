@@ -69,9 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.0** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.72.0**
+App version: **1.99.0** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.0**
 
 ### Added
+
+- **iPhone app: an account picker with your picture.** On the Dashboard and in Settings, a round button with your profile picture now sits on the title's line at the right (your initials until you set a picture in the web app's Settings → Your account). Tap it for the same menu the connection chip had: your connections, each server with its own picture, a tick on the one in front, "Sign in again" where a sign-in has ended, then **Manage connections…**. It shows with a single connection too. The household on this iPhone shows its iPhone icon. In the demo, the button shows the picture of the connection the demo goes back to with a small sparkles badge, so getting back is one tap; while the app is locked in the demo the menu still shows names and icons only, and choosing a real connection still asks for Face ID first. Each server's picture is kept on the phone with that connection, fetched again only when it changes (needs server 1.99.0), and deleted when you sign out of it; the app never asks a server for its picture unless that server is the one in front. (#379)
 
 - **Web app: a profile picture.** Settings → Your account has a new **Profile picture** panel: choose an image, see it cut square from the middle, and Save; **Remove** goes back to your initials. The picture shows on the round account button at the top (and will in the iPhone app's account picker). The image is made small in your browser before it's sent, so any ordinary photo works. (#378)
 
@@ -80,6 +82,8 @@ App version: **1.99.0** · Web version: **1.118.0** · Schema version: **40** ·
 - **iPhone app: swipe a connection to edit it or sign out.** In Settings → Connections, swipe a server to the left for **Edit**, which opens its page (where you can rename it), and **Sign out**, which asks first and then takes it off the phone. The household on this iPhone has **Edit** only, since removing it would erase its numbers; the demo has none, and nothing slides while the app is locked in the demo. VoiceOver offers the same two as actions on the row. (#376)
 
 ### Changed
+
+- **Breaking: iPhone app: the connection chip is gone.** The capsule under the Dashboard's title and at the top of Settings that named the connection in front ("Home ▾", "Demo · sample numbers ▾") is replaced by the account picker on the title's line, so the cards start higher. The connection's name now shows in the picker's menu and in Settings → Connections. (#379)
 
 - **iPhone app: Connections no longer shows a total beside each connection.** Settings → Connections is for choosing a connection, so each row now shows only its name, its address and who's signed in, with a tick on the one in front; the totals and how old they were are gone. Each connection's numbers are on its Dashboard. (#375)
 

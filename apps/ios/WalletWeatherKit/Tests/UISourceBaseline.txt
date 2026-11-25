@@ -14,6 +14,14 @@ alert	WalletWeather/WalletWeatherApp.swift	.alert("Lock WalletWeather with \(set
 alert	WalletWeather/WalletWeatherApp.swift	.alert("What should this iPhone keep?", isPresented: $askingKeep) {
 alert	WalletWeather/WalletWeatherApp.swift	.alert(model.openedCSVAlert?.title ?? "", isPresented: Binding(get: { model.openedCSVAlert != nil },
 colour-outside-theme	WalletWeather/Views/CalendarView.swift	.foregroundStyle(isToday ? Color.white : (selected ? Palette.accent : .primary))
+colour-outside-theme	WalletWeather/Views/ConnectView.swift	.background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+colour-outside-theme	WalletWeather/Views/ConnectView.swift	.background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+colour-outside-theme	WalletWeather/Views/ConnectView.swift	.background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+colour-outside-theme	WalletWeather/Views/ConnectView.swift	.background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+colour-outside-theme	WalletWeather/Views/ConnectView.swift	.background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+colour-outside-theme	WalletWeather/Views/ConnectView.swift	.background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+colour-outside-theme	WalletWeather/Views/ConnectView.swift	.background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+colour-outside-theme	WalletWeather/Views/ConnectView.swift	.background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
 colour-outside-theme	WalletWeather/Views/ForecastView.swift	.foregroundStyle(on ? Color.white : Color.primary)
 colour-outside-theme	WalletWeather/Views/TagViews.swift	.overlay { if color == hex { Image(systemName: "checkmark").font(.caption.bold()).foregroundStyle(.white) } }
 date-outside-style	Notifications/NotificationViewController.swift	day.map { $0.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()) } ?? ""

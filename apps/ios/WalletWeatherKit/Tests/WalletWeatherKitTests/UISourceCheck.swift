@@ -79,13 +79,17 @@ enum UISource {
                 #"\bColor\.(red|orange|yellow|green|mint|teal|cyan|blue|indigo|purple|pink|brown|white|gray|black)\b"#,
                 #"\.(foregroundStyle|tint|background|fill|stroke|border)\(\.(red|orange|yellow|green|mint|teal|cyan|blue|indigo|purple|pink|brown|white|gray|black)\b"#,
                 #"\bColor\(\s*(red|hue|white):"#, #"\bColor\(\.sRGB"#, #"#colorLiteral"#, #"\bUIColor\(hex:"#,
+                // A system colour is right only as what the theme falls back to (`Palette.row ?? Color(.…)`).
+                #"(?<!\?\? )\bColor\(\.(system|secondary|tertiary|quaternary|label|separator|opaqueSeparator|placeholderText)[A-Za-z]*\)"#,
             ],
             skipFiles: [
                 "Theme.swift": "where the theme's colours are made",
                 "AppearanceViews.swift": "draws each look's own colours as swatches, and the theme editor's wells",
             ],
-            bad: [#".foregroundStyle(.white)"#, #"Rectangle().fill(Color.red.opacity(0.2))"#, #"Color(red: 0.2, green: 0.3, blue: 0.4)"#],
-            good: [#".foregroundStyle(Palette.bad)"#, #".foregroundStyle(.secondary)"#, #"Color.clear.frame(height: 10)"#]),
+            bad: [#".foregroundStyle(.white)"#, #"Rectangle().fill(Color.red.opacity(0.2))"#, #"Color(red: 0.2, green: 0.3, blue: 0.4)"#,
+                  #".background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))"#],
+            good: [#".foregroundStyle(Palette.bad)"#, #".foregroundStyle(.secondary)"#, #"Color.clear.frame(height: 10)"#,
+                   #".background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))"#]),
         Rule(
             id: "replaced-api",
             why: "Apple has replaced it; the old one is how an app starts to look and behave dated.",

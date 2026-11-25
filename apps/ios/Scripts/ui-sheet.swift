@@ -8,7 +8,8 @@
 // picture, "rows": [[{"path": …, "label": …}]]}. Scripts/ui-report.py --sheets
 // writes one and calls this. It can also cut one piece out of a picture, for
 // a review page: a cell may carry "crop": [x, y, width, height] as fractions
-// of the picture. System frameworks only.
+// of the picture, and a sheet "bare": true for no border or caption. System
+// frameworks only.
 import AppKit
 import Foundation
 
@@ -21,6 +22,8 @@ struct Cell: Decodable {
 struct Sheet: Decodable {
     let out: String
     var height: Double?
+    /// One picture with no border and no caption, for a review page.
+    var bare: Bool?
     let rows: [[Cell]]
 }
 
@@ -30,11 +33,11 @@ guard CommandLine.arguments.count == 2, let data = FileManager.default.contents(
     exit(64)
 }
 
-let gap = 14.0
-let caption = 30.0
 var written = 0
 for sheet in sheets {
     let height = sheet.height ?? 800
+    let gap = sheet.bare == true ? 0.0 : 14.0
+    let caption = sheet.bare == true ? 0.0 : 30.0
     // Each cell: its picture (cropped if asked) and the size it's drawn at.
     var rows: [[(CGImage, CGSize, String)]] = []
     for row in sheet.rows {
@@ -47,8 +50,9 @@ for sheet in sheets {
                     .intersection(CGRect(x: 0, y: 0, width: picture.width, height: picture.height))
                 if let cut = picture.cropping(to: box) { picture = cut }
             }
-            let scale = height / Double(picture.height)
-            cells.append((picture, CGSize(width: Double(picture.width) * scale, height: height), cell.label))
+            // A bare picture is never drawn larger than it is.
+            let scale = sheet.bare == true ? min(1, height / Double(picture.height)) : height / Double(picture.height)
+            cells.append((picture, CGSize(width: Double(picture.width) * scale, height: Double(picture.height) * scale), cell.label))
         }
         if !cells.isEmpty { rows.append(cells) }
     }

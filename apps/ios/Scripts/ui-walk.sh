@@ -137,7 +137,7 @@ phone=$(xcrun simctl list devices available | sed -n 's/^ *iPhone 17 (\([0-9A-F-
 version=$(sed -n 's/^ *MARKETING_VERSION: *"\(.*\)"/\1/p' "$ios/project.yml" | head -1)
 started=$(TZ=America/New_York date '+%Y-%m-%d %-I:%M %p ET')
 commit=$(git -C "$ios" rev-parse --short HEAD)
-dirty=$(git -C "$ios" status --short -- . | grep -v '^??' | wc -l | tr -d ' ')
+dirty=$(git -C "$ios" status --short -- . | grep -cv '^??' || true)   # grep finds nothing in a clean checkout, and says so by failing
 
 booted=""
 boot() {   # the one simulator: shut the other down first

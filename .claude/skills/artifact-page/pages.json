@@ -32,6 +32,15 @@
       "issue": 346
     },
     {
+      "slug": "account-picker-placement",
+      "kind": "dated",
+      "short": "Account picker",
+      "title": "Account picker: where it sits",
+      "about": "The iPhone app's new profile-picture button drawn both ways, replacing the connection chip or beside it, on the Dashboard and Settings, for the choice still to make.",
+      "updated": "2026-11-25",
+      "issue": 380
+    },
+    {
       "slug": "changelog",
       "kind": "standing",
       "short": "Changelog",

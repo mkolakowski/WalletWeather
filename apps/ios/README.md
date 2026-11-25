@@ -181,10 +181,6 @@ Dad" (ww.parents.example), plus the household on this iPhone when the
 simulator has one, which is then in front; with none, the app opens in the
 demo, so nothing is contacted. They're kept in memory and a throwaway
 settings suite only, never in the Keychain, and are gone at the next launch.
-Both keep Last-known numbers with a sample Dashboard in a throwaway folder
-(#329), so Connections shows a total beside each: "Home" as of 2 h ago and
-"Mum & Dad" as of two days ago (a negative one, in the red); the household
-and the demo show their own totals as they would anyway.
 Switching to a sample server tries to reach it, and fails. "Mum & Dad" has
 had its sign-in end (#302), so the warning symbol and "Sign in again" show on
 its row in Connections and in the chip's menu, and on the chip itself while

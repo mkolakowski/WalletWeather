@@ -178,12 +178,6 @@ final class AppModel {
                              name: "Home", keep: .lastKnown, account: "you@example.com")
         let parents = store.add(Connection(server: URL(string: "https://ww.parents.example")!, token: "ww_sample_parents"),
                                 name: "Mum & Dad", keep: .lastKnown, account: "you@example.com")
-        // Sample totals beside them (#329): each keeps a Dashboard of sample
-        // balances, "Home" loaded two hours ago and "Mum & Dad" two days ago.
-        for (saved, balances, hoursAgo) in [(home, [4854.97, 12_310.40], 2.0), (parents, [-1_182.55, 940.0], 50.0)] {
-            if let saved { Self.keepSampleDashboard(in: store.kept(for: saved.id), server: saved.connection.server,
-                                               balances: balances, hoursAgo: hoursAgo) }
-        }
         let phone = LocalStore.exists ? store.add(LocalServer.connection) : nil
         // "Mum & Dad" has had its sign-in end, for pictures of the mark (#302).
         if let parents { store.markSignInEnded(parents.id, token: "ww_sample_parents") }
@@ -194,24 +188,6 @@ final class AppModel {
         return nil
         #endif
     }
-
-    #if DEBUG
-    /// A kept Dashboard of sample accounts, dated `hoursAgo`, so the sample
-    /// connections show a total and its age (#329). In the throwaway folder.
-    private static func keepSampleDashboard(in keeper: KeptResponses, server: URL, balances: [Double], hoursAgo: Double) {
-        let cards: [[String: Any]] = balances.enumerated().map { index, balance in
-            ["id": index + 1, "name": "Account \(index + 1)", "month_label": "November 2026", "opening_balance": balance,
-             "forecast_end": balance, "actual_end": balance, "forecast_high": balance, "forecast_high_date": NSNull(),
-             "forecast_low": balance, "forecast_low_date": NSNull(), "actual_high": balance, "actual_low": balance,
-             "upcoming_count": 0, "upcoming_net": 0, "current_balance": balance]
-        }
-        guard let data = try? JSONSerialization.data(withJSONObject: ["cards": cards]) else { return }
-        keeper.save(data, for: KeptResponses.key(server: server, method: "GET", path: "/api/dashboard", query: [:]))
-        let when = Date.appNow.addingTimeInterval(-hoursAgo * 3600)
-        let files = (try? FileManager.default.contentsOfDirectory(at: keeper.directory, includingPropertiesForKeys: nil)) ?? []
-        for file in files { try? FileManager.default.setAttributes([.modificationDate: when], ofItemAtPath: file.path) }
-    }
-    #endif
 
     // MARK: - The widgets' summary (Plans/outside-the-app.md, phase 1, #318)
 

@@ -69,9 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.10**
+App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.11**
 
 ### Changed
+
+- **iPhone app: Connections no longer shows a total beside each connection.** Settings → Connections is for choosing a connection, so each row now shows only its name, its address and who's signed in, with a tick on the one in front; the totals and how old they were are gone. Each connection's numbers are on its Dashboard. (#375)
 
 - **iPhone app: Connections lists the phone only once it's set up.** Settings → Connections (and the connection chip's menu) used to list **Use on this iPhone** as if it were a connection even when you had never set one up. It now lists **On this iPhone** only once a household is kept on the phone; until then **Use on this iPhone** is a button under **Add a server**, beside **Restore from an iCloud backup**. (#373)
 

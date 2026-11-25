@@ -146,51 +146,8 @@ private struct ConnectionsPage: View {
     @Environment(AppSettings.self) private var settings
     @State private var adding = false
     @State private var restoring = false
-    /// A total for each row that has one (#329), read when the page opens.
-    @State private var readings: [ConnectionRow.Target: ConnectionTotals.Reading] = [:]
 
     private var visibility: ConnectionsVisibility { ConnectionsVisibility(locked: settings.lockedInDemo) }
-
-    /// What the totals are read again for: another connection in front, a
-    /// change to what's saved, or the lock.
-    private struct TotalsKey: Equatable {
-        let saved: [SavedConnection]
-        let front: LockGate.Front
-        let locked: Bool
-    }
-
-    private var totalsKey: TotalsKey {
-        TotalsKey(saved: model.connections, front: model.lockFront, locked: visibility.locked)
-    }
-
-    /// Each connection's total today, as the Dashboard would show it (#329):
-    /// a server's from its own kept Dashboard (read the way the pages read
-    /// it, only when it keeps Last-known numbers; the one in front too, whose
-    /// kept copy is written at each load), the household's and the demo's
-    /// worked out on the phone. Nothing is requested from another server,
-    /// and while locked in the demo nothing is read at all.
-    private func loadTotals() async {
-        guard visibility.showsTotals else { readings = [:]; return }
-        let saved = model.connections, store = model.store
-        let kept = await Task.detached(priority: .utility) {
-            var found: [UUID: (total: Money, keptAt: Date)] = [:]
-            for connection in saved where connection.kind == .server && connection.keep == .lastKnown {
-                if let total = ConnectionTotals.kept(in: store.kept(for: connection.id), server: connection.connection.server) {
-                    found[connection.id] = total
-                }
-            }
-            return found
-        }.value
-        let household = LocalStore.exists || saved.contains { $0.kind == .thisPhone }
-            ? await Self.total(of: LocalServer.connection) : nil
-        let demo = await Self.total(of: Demo.connection)
-        readings = ConnectionTotals.readings(saved: saved, keptTotal: { kept[$0.id] }, household: household, demo: demo)
-    }
-
-    private static func total(of connection: Connection) async -> Money? {
-        guard let dashboard = try? await APIClient(connection: connection).dashboard() else { return nil }
-        return ConnectionTotals.total(of: dashboard)
-    }
 
     private var layoutRows: [SettingsRow] {
         SettingsLayout(household: model.settingsHousehold, hasHousehold: model.hasHousehold,
@@ -207,8 +164,7 @@ private struct ConnectionsPage: View {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
                     if index > 0 { Divider() }
-                    ConnectionListRow(row: row, figure: ConnectionTotals.figure(for: row, among: readings,
-                                                                                visibility: visibility))
+                    ConnectionListRow(row: row)
                 }
             }
             .card()
@@ -263,7 +219,6 @@ private struct ConnectionsPage: View {
         .sheet(isPresented: $adding) { AddServerSheet() }
         .sheet(isPresented: $restoring) { RestoreFromICloudSheet { model.useOnThisPhone() } }
         .onAppear { model.reloadConnections() }
-        .task(id: totalsKey) { await loadTotals() }
     }
 
     private var note: String {
@@ -287,9 +242,6 @@ private struct ConnectionListRow: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var typeSize
     let row: ConnectionRow
-    /// Its total today and how old that is; nil when it has none, or while
-    /// locked in the demo (#329).
-    let figure: ConnectionTotals.Figure?
     // Grows with the text size, exactly as before at Large (#311).
     @ScaledMetric(relativeTo: .title3) private var infoWidth: CGFloat = 36
     @ScaledMetric(relativeTo: .title3) private var infoHeight: CGFloat = 44
@@ -332,22 +284,16 @@ private struct ConnectionListRow: View {
     }
 
     private var label: some View {
-        // At the trailing edge while it fits (#358); under the name once the
-        // name, the tick and ⓘ leave it too little room, as at large text.
-        Group {
-            FitsAcross {
-                labelRow(totalBelow: false)
-            } stacked: {
-                labelRow(totalBelow: true)
-            }
-        }
-        .frame(minHeight: 52)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(row.ticked ? .isSelected : [])
+        labelRow
+            .frame(minHeight: 52)
+            .contentShape(Rectangle())
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(row.ticked ? .isSelected : [])
     }
 
-    private func labelRow(totalBelow: Bool) -> some View {
+    /// Its icon, name and detail, and the tick. No total: Connections is for
+    /// choosing a connection, and the Dashboard shows its numbers (#375).
+    private var labelRow: some View {
         HStack(spacing: 12) {
             Image(systemName: row.symbol)
                 .font(.body.weight(.semibold))
@@ -356,7 +302,7 @@ private struct ConnectionListRow: View {
                 .background(Palette.accent.opacity(0.14), in: .circle)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(row.name).lineLimit(totalBelow ? nil : 1)
+                    Text(row.name)
                     // The sign-in ended: "Sign in again" is the detail below (#302).
                     if row.warning {
                         Image(systemName: ConnectionRow.warningSymbol).font(.footnote).foregroundStyle(Palette.warn)
@@ -372,26 +318,13 @@ private struct ConnectionListRow: View {
                         .truncationMode(.middle)
                         .multilineTextAlignment(.leading)
                 }
-                if totalBelow, let figure { totalView(figure, alignment: .leading) }
             }
             Spacer(minLength: 4)
-            if !totalBelow, let figure { totalView(figure, alignment: .trailing) }
             if row.ticked {
                 Image(systemName: "checkmark").font(.body.weight(.semibold)).foregroundStyle(Palette.accent)
                     .accessibilityHidden(true)
             }
         }
-    }
-
-    /// The total in the money colours, the caption under it (#329).
-    private func totalView(_ figure: ConnectionTotals.Figure, alignment: HorizontalAlignment) -> some View {
-        VStack(alignment: alignment, spacing: 1) {
-            Text(figure.total.formatted)
-                .font(.subheadline.weight(.semibold).monospacedDigit())
-                .foregroundStyle(Palette.amount(figure.total.isNegative))
-            Text(figure.caption).font(.caption).foregroundStyle(.secondary)
-        }
-        .multilineTextAlignment(alignment == .leading ? .leading : .trailing)
     }
 }
 

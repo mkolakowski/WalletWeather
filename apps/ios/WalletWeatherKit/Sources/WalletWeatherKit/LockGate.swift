@@ -148,10 +148,6 @@ public struct ConnectionsVisibility: Equatable, Sendable {
     /// A line of detail under each name: the host and who's signed in.
     public var showsDetail: Bool { !locked }
 
-    /// A total beside each connection (#329): the numbers are as private as
-    /// the address.
-    public var showsTotals: Bool { !locked }
-
     /// The ⓘ beside a connection, opening its own page.
     public var opensConnectionPages: Bool { !locked }
 

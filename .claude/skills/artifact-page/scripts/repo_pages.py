@@ -151,7 +151,7 @@ main h4 { font: 600 0.9rem var(--sans); margin: 8px 0 0; color: var(--soft); }
 main s { color: var(--soft); }
 main blockquote { margin: 0; padding-left: 12px; border-left: 3px solid var(--rule); color: var(--soft); max-width: 66ch; }
 main hr { border: 0; border-top: 1px solid var(--rule); width: 100%; }
-.rp-card { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.rp-card { background: var(--panel); box-shadow: var(--shadow); border-radius: 22px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
 .rp-card header { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
 .rp-card header span { font: 0.82rem var(--mono); color: var(--soft); }
 .rp-open { color: var(--warn); } .rp-done { color: var(--good); }

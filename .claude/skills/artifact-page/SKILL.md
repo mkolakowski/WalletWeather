@@ -8,7 +8,10 @@ description: Add a page to the one WalletWeather artifact, or update one that's 
 # A page in the WalletWeather artifact
 
 WalletWeather has one artifact, with a Home page and a page for each thing
-that would otherwise be published separately. Its link is the `url` in
+that would otherwise be published separately. The bar has three tabs (decided
+2026-11-25, #381): **Home**, **The project** and **Reviews and designs**, the
+two groups in `pages.json`. A group's tab opens a list of its pages; a page
+shows its group above its title and the pages either side below it. Its link is the `url` in
 [`pages.json`](pages.json). This skill adds or updates a page there. It
 never makes a second artifact for this project, never puts a picture on
 `main`, and never puts anything private on a page (a token, a real server's
@@ -24,8 +27,15 @@ Add it to `pages.json` (or change its `updated` date when updating one):
   after page), `dated` for one written once (a review, a write-up).
 - `title`, `about` (one line, what a person finds there), `updated`
   (`YYYY-MM-DD`, Eastern), `issue`.
-- `short`: the page's name in the bar at the top, a few words. The bar lists
-  every page on every page, the kept-up-to-date ones first.
+- `group`: `project` (what changed, what's planned, decided or waiting:
+  Changelog, Roadmap, Plans, Decisions, Waiting on you) or `reviews` (a look
+  at the app, a design choice, a before and after). Every page has one; it's
+  where the page is listed and what its tab marks. The groups, their
+  descriptions and the order of the project's pages are `groups` in
+  `pages.json`; a group's other pages list newest first, a page not filled in
+  yet last. A new group is a new entry there, and a third tab.
+- `short`: the page's name on its group's card on Home and in the Previous
+  and Next links, a few words.
 
 A page that's named but not written yet is a stub: its entry carries
 `"stub": true` and a `source` line saying where its content will come from,
@@ -48,9 +58,10 @@ relatively) so the page stays light; put them under
 `apps/ios/build/artifact/<slug>/`.
 
 Navigation is the builder's job, not the page's. Home is also the frame the
-other pages show in: a link in the bar is `#<slug>`, and Home's script swaps
-that page's `<main>` and its own styles into view, then lists the page's
-`<h2>` headings under the bar as "On this page". So:
+other pages show in: a link to a page is `#<slug>` (a group's list is
+`#project` or `#reviews`), and Home's script swaps that page's `<main>` and
+its own styles into view, then lists the page's `<h2>` headings under the bar
+as "On this page". So:
 
 - a page is plain HTML and CSS: a `<script>` in it won't run in that frame;
 - give a page `<h2>` headings a person would jump to, and an `id` on any

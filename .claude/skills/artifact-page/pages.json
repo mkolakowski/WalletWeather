@@ -1,6 +1,28 @@
 {
   "url": "https://claude.ai/artifact/W9sBSzEo3kphuf6SEq5dHB",
   "lede": "Everything Claude publishes about WalletWeather, in one place: reviews, what changed, and the iPhone app before and after each build. Pictures are from the simulator, on the demo's sample numbers.",
+  "groups": [
+    {
+      "slug": "project",
+      "title": "The project",
+      "short": "Project",
+      "symbol": "●",
+      "about": "Where WalletWeather stands: what changed, what's planned and decided, and what's waiting on you.",
+      "order": [
+        "waiting-on-you",
+        "changelog",
+        "plans",
+        "decisions",
+        "roadmap"
+      ]
+    },
+    {
+      "slug": "reviews",
+      "title": "Reviews and designs",
+      "short": "Reviews",
+      "about": "Looks at the iPhone app and the choices still to make, each with today beside the proposal."
+    }
+  ],
   "pages": [
     {
       "slug": "ui-review-suite-changes",
@@ -9,7 +31,8 @@
       "about": "The source check, the simulator walk, the scripts and every file added on 24 November, with what the suite found on its first runs.",
       "updated": "2026-11-24",
       "issue": 348,
-      "short": "UI review suite: what changed"
+      "short": "UI review suite: what changed",
+      "group": "reviews"
     },
     {
       "slug": "ios-before-after",
@@ -20,7 +43,8 @@
       "about": "Each TestFlight build beside the one before it: the screens that changed, side by side, with the changed part outlined.",
       "source": "A script (<code>apps/ios/Scripts/ui-before-after.py</code>) writes it from the sets of pictures taken at each upload. Being built now.",
       "updated": "2026-11-25",
-      "issue": 352
+      "issue": 352,
+      "group": "reviews"
     },
     {
       "slug": "ios-ui-review",
@@ -29,7 +53,8 @@
       "title": "The iPhone app's UI review",
       "about": "The latest review: iOS 0.70.0, 24 November. Five bugs, seven inconsistencies and four design choices, each with today beside the proposal.",
       "updated": "2026-11-25",
-      "issue": 346
+      "issue": 346,
+      "group": "reviews"
     },
     {
       "slug": "account-picker-placement",
@@ -38,7 +63,8 @@
       "title": "Account picker: where it sits",
       "about": "The iPhone app's new profile-picture button drawn both ways, replacing the connection chip or beside it, on the Dashboard and Settings, for the choice still to make.",
       "updated": "2026-11-25",
-      "issue": 380
+      "issue": 380,
+      "group": "reviews"
     },
     {
       "slug": "changelog",
@@ -47,7 +73,8 @@
       "title": "Changelog",
       "about": "What each release changed, newest first, with what's landed since the last one at the top.",
       "updated": "2026-11-25",
-      "issue": 351
+      "issue": 351,
+      "group": "project"
     },
     {
       "slug": "roadmap",
@@ -56,7 +83,8 @@
       "title": "Roadmap",
       "about": "The ledger of ideas: what's done, what's planned and what's waiting, by its number.",
       "updated": "2026-11-23",
-      "issue": 351
+      "issue": 351,
+      "group": "project"
     },
     {
       "slug": "plans",
@@ -65,7 +93,8 @@
       "title": "Plans",
       "about": "Every plan and where each of its phases stands: built, released, waiting on a check, or open.",
       "updated": "2026-11-24",
-      "issue": 351
+      "issue": 351,
+      "group": "project"
     },
     {
       "slug": "decisions",
@@ -74,7 +103,8 @@
       "title": "Decisions",
       "about": "What's been decided and when, by subject: the choices behind the plans, with the options that were turned down.",
       "updated": "2026-11-25",
-      "issue": 351
+      "issue": 351,
+      "group": "project"
     },
     {
       "slug": "waiting-on-you",
@@ -83,7 +113,8 @@
       "title": "Waiting on you",
       "about": "What only you can do: checks to make on the phone, questions left open in a plan, and issues that wait for a look.",
       "updated": "2026-11-25",
-      "issue": 351
+      "issue": 351,
+      "group": "project"
     }
   ],
   "elsewhere": [

@@ -168,12 +168,13 @@ public struct ConnectionsVisibility: Equatable, Sendable {
 }
 
 /// One row of Connections, or of the demo chip's menu: a saved connection,
-/// On this iPhone before it's saved, or the demo, always last.
+/// On this iPhone when it's on the phone but not saved, or the demo, always
+/// last.
 public struct ConnectionRow: Equatable, Identifiable, Sendable {
     public enum Target: Hashable, Sendable {
         case saved(UUID)
-        /// The household on this iPhone, not saved: set it up, or open the
-        /// one already on the phone.
+        /// The household on this iPhone, not saved: open the one already on
+        /// the phone.
         case thisIPhone
         case demo
     }
@@ -203,8 +204,8 @@ public struct ConnectionRow: Equatable, Identifiable, Sendable {
     public static let demoDetail = "Sample numbers · nothing is saved"
 
     /// Connections' rows, top to bottom: the saved connections (oldest
-    /// first, as the store lists them), On this iPhone when it isn't one of
-    /// them, then the demo. `householdExists` is whether a household is on
+    /// first, as the store lists them), On this iPhone when it's on the
+    /// phone but isn't one of them, then the demo. `householdExists` is whether a household is on
     /// the phone already; `email` is who's signed in to the one in front.
     public static func rows(saved: [SavedConnection], front: LockGate.Front, householdExists: Bool,
                             email: String? = nil, visibility: ConnectionsVisibility) -> [ConnectionRow] {
@@ -222,11 +223,11 @@ public struct ConnectionRow: Equatable, Identifiable, Sendable {
                                  ticked: inFront, opensPage: visibility.opensConnectionPages,
                                  warning: connection.needsSignIn)
         }
-        if !saved.contains(where: { $0.kind == .thisPhone }) {
-            let open = householdExists || front == .household
-            rows.append(ConnectionRow(target: .thisIPhone,
-                                      name: open ? "On this iPhone" : "Use on this iPhone",
-                                      detail: open ? "Your household, with no server" : "A household kept on this iPhone, with no server",
+        // Listed once it's set up (#373): until then Use on this iPhone is
+        // an action under Add a server, not a connection.
+        if !saved.contains(where: { $0.kind == .thisPhone }), householdExists || front == .household {
+            rows.append(ConnectionRow(target: .thisIPhone, name: "On this iPhone",
+                                      detail: "Your household, with no server",
                                       symbol: "iphone", ticked: front == .household, opensPage: false,
                                       warning: false))
         }

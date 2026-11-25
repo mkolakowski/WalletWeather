@@ -268,15 +268,15 @@ struct SettingsLayoutTests {
     }
     // MARK: - This iPhone, the demo and the lock (connections phase 3, #301)
 
-    /// On this iPhone is always a row: Use on this iPhone, with Restore from
-    /// an iCloud backup beside Add a server, until a household is on the
-    /// phone; the demo is the last row, with a server, this iPhone or the
-    /// demo in front.
+    /// Until a household is on the phone, Use on this iPhone and Restore
+    /// from an iCloud backup are actions beside Add a server, not a row of
+    /// the list (#373); the demo is the last row, with a server, this iPhone
+    /// or the demo in front.
     @Test func connectionsListThisIPhoneAndTheDemo() {
         let noHousehold = SettingsLayout(household: .server, hasHousehold: false)
-        #expect(noHousehold.rows(on: .connections) == [.savedConnection, .useOnThisPhone, .demoConnection, .addServer, .restoreFromICloud])
+        #expect(noHousehold.rows(on: .connections) == [.savedConnection, .demoConnection, .addServer, .useOnThisPhone, .restoreFromICloud])
         #expect(SettingsLayout(household: .demo, hasHousehold: false).rows(on: .connections)
-                == [.savedConnection, .useOnThisPhone, .demoConnection, .addServer, .restoreFromICloud])
+                == [.savedConnection, .demoConnection, .addServer, .useOnThisPhone, .restoreFromICloud])
         // The household in front is one, whatever was passed.
         #expect(SettingsLayout(household: .thisIPhone, hasHousehold: false).rows(on: .connections)
                 == [.savedConnection, .demoConnection, .addServer])

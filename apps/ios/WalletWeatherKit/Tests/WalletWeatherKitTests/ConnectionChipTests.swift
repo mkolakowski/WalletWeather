@@ -83,14 +83,14 @@ struct ConnectionChipTests {
         let home = server("home.example.com", name: "Home")
         let parents = server("ww.parents.example", name: "Mum & Dad", ended: true)
         let rows = ConnectionRow.rows(saved: [home, parents], front: .saved(home.id), householdExists: false, visibility: open)
-        #expect(rows.map(\.warning) == [false, true, false, false])
+        #expect(rows.map(\.warning) == [false, true, false])
         #expect(rows[1].detail == "Sign in again")
         #expect(rows[1].name == "Mum & Dad")
         #expect(rows[0].detail == "home.example.com · me@example.com")
         // Locked in the demo it shows too: it reveals nothing.
         let locked = ConnectionRow.rows(saved: [home, parents], front: .demo, householdExists: false,
                                         visibility: ConnectionsVisibility(locked: true))
-        #expect(locked.map(\.warning) == [false, true, false, false])
+        #expect(locked.map(\.warning) == [false, true, false])
         #expect(locked[0].detail == nil)
         #expect(locked[1].detail == "Sign in again")
         #expect(locked[1].opensPage == false)

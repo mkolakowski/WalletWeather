@@ -370,10 +370,11 @@ public struct SettingsLayout: Equatable, Sendable {
     public func rows(on page: SettingsPage) -> [SettingsRow] {
         switch page {
         case .connections:
-            // The list (#301): the saved connections, On this iPhone until
-            // it's set up, the demo last; then the ways to add one.
-            return [.savedConnection] + (hasHousehold ? [] : [.useOnThisPhone]) + [.demoConnection, .addServer]
-                + (hasHousehold ? [] : [.restoreFromICloud])
+            // The list (#301): the saved connections, the demo last; then
+            // the ways to add one: Add a server, and until a household is on
+            // the phone, Use on this iPhone and Restore (#373).
+            return [.savedConnection, .demoConnection, .addServer]
+                + (hasHousehold ? [] : [.useOnThisPhone, .restoreFromICloud])
         case .connection:
             switch household {
             case .server: return Self.rows(forConnection: .server, inFront: true, hasCloudflare: hasCloudflare)

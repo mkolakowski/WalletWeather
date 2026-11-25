@@ -134,11 +134,11 @@ struct ConnectionRoute: Hashable {
 }
 
 /// Connections, opened by the card at the top of Settings: every saved
-/// connection, On this iPhone until it's set up, and the demo last, with a
+/// connection, On this iPhone once it's set up, and the demo last, with a
 /// tick on the one in front (#301). Tapping another switches to it, signing
 /// out of nothing; the ⓘ opens a saved one's own page. Add a server opens
-/// the sign-in screen as a sheet; Restore from an iCloud backup sits beside
-/// it until a household is on the phone. Locked in the demo, the rows show
+/// the sign-in screen as a sheet; Use on this iPhone and Restore from an
+/// iCloud backup sit beside it until a household is on the phone (#373). Locked in the demo, the rows show
 /// names and icons only, no connection's page opens, and anything that
 /// leaves the demo asks for Face ID first.
 private struct ConnectionsPage: View {
@@ -229,6 +229,19 @@ private struct ConnectionsPage: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(model.busy)
+                // Not a connection until it's set up (#373).
+                if layoutRows.contains(.useOnThisPhone) {
+                    Divider()
+                    Button { Task { await model.choose(.thisIPhone) } } label: {
+                        MoreRow {
+                            Label(SettingsRow.useOnThisPhone.title,
+                                  systemImage: SettingsRow.useOnThisPhone.symbol ?? "iphone")
+                                .foregroundStyle(Palette.accent)
+                        } trailing: { EmptyView() }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(model.busy)
+                }
                 if layoutRows.contains(.restoreFromICloud) {
                     Divider()
                     Button { leaveDemoThen { restoring = true } } label: {
@@ -244,7 +257,7 @@ private struct ConnectionsPage: View {
             }
             .card()
             SettingNote(layoutRows.contains(.restoreFromICloud)
-                        ? "Add a server signs in to a WalletWeather server and puts it in front. Restore brings back the numbers another iPhone backed up to iCloud Drive, kept on this iPhone."
+                        ? "Add a server signs in to a WalletWeather server and puts it in front. Use on this iPhone keeps a household on the phone, with no server. Restore brings back the numbers another iPhone backed up to iCloud Drive, kept on this iPhone."
                         : "Signs in to another WalletWeather server, or to the same one as someone else, and puts it in front.")
         }
         .sheet(isPresented: $adding) { AddServerSheet() }

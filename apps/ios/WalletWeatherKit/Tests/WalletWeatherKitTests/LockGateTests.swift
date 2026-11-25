@@ -128,20 +128,26 @@ struct LockGateTests {
         let a = server("home.example.com", name: "Home")
         let rows = ConnectionRow.rows(saved: [a], front: .saved(a.id), householdExists: false,
                                       visibility: ConnectionsVisibility(locked: false))
-        #expect(rows.map(\.target) == [.saved(a.id), .thisIPhone, .demo])
-        #expect(rows[1].name == "Use on this iPhone")
-        #expect(rows[1].detail == "A household kept on this iPhone, with no server")
-        #expect(rows[1].front == .household)
-        #expect(!rows[1].ticked)
+        // Not set up: the phone isn't listed (#373); Use on this iPhone is
+        // an action on the page instead.
+        #expect(rows.map(\.target) == [.saved(a.id), .demo])
         // A household on the phone but not among the saved ones opens as it is.
         let kept = ConnectionRow.rows(saved: [a], front: .saved(a.id), householdExists: true,
                                       visibility: ConnectionsVisibility(locked: false))
+        #expect(kept.map(\.target) == [.saved(a.id), .thisIPhone, .demo])
         #expect(kept[1].name == "On this iPhone")
         #expect(kept[1].detail == "Your household, with no server")
-        // Nothing saved at all: On this iPhone and the demo.
+        #expect(kept[1].front == .household)
+        #expect(!kept[1].ticked)
+        // In front but not saved (the Keychain wouldn't take it): listed and ticked.
+        let front = ConnectionRow.rows(saved: [a], front: .household, householdExists: false,
+                                       visibility: ConnectionsVisibility(locked: false))
+        #expect(front.map(\.target) == [.saved(a.id), .thisIPhone, .demo])
+        #expect(front[1].ticked)
+        // Nothing saved at all: the demo alone.
         let none = ConnectionRow.rows(saved: [], front: .nothing, householdExists: false,
                                       visibility: ConnectionsVisibility(locked: false))
-        #expect(none.map(\.target) == [.thisIPhone, .demo])
+        #expect(none.map(\.target) == [.demo])
     }
 
     @Test func connectionsRowsWithTheDemoInFront() {

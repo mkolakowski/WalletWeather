@@ -69,7 +69,7 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.8**
+App version: **1.98.6** · Web version: **1.117.1** · Schema version: **39** · iOS version: **0.71.9**
 
 ### Changed
 

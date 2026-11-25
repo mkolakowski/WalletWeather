@@ -324,7 +324,7 @@ private struct ThemeEditor: View {
             HStack {
                 Text(title)
                 Spacer()
-                Text(CustomTheme.hex(theme[keyPath: keyPath]).uppercased())
+                Text(CustomTheme.hex(theme[keyPath: keyPath]).uppercased())  // ui-check: allow label-case — a colour's hex code, not a label
                     .font(.footnote.monospaced()).foregroundStyle(.secondary)
                     .accessibilityHidden(true)
             }

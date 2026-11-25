@@ -1,0 +1,48 @@
+# The source check's baseline (UISourceCheck.swift, #344): the slips that were
+# in the app when each rule arrived, as rule<TAB>file<TAB>the line. It only
+# shrinks: fix a slip and delete its line here. A new slip is fixed or marked
+# where it stands (// ui-check: allow <rule> — why), never added here.
+# rules: fixed-font-size, colour-outside-theme, replaced-api, label-case, three-dots, icon-only-button, alert, motion, tap-without-button, date-outside-style, money-outside-format, fixed-frame
+alert	WalletWeather/Views/BackupViews.swift	.alert("This backup's passphrase", isPresented: $asking) {
+alert	WalletWeather/Views/CSVImportViews.swift	.alert("Couldn't open the file", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
+alert	WalletWeather/Views/CSVImportViews.swift	.alert("Imported", isPresented: Binding(get: { done != nil }, set: { if !$0 { finish() } })) {
+alert	WalletWeather/Views/ConnectView.swift	content.alert(model.pendingLink.map { "Connect to \($0.host)?" } ?? "",
+alert	WalletWeather/Views/DragAndDrop.swift	.alert("Couldn't open the file", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
+alert	WalletWeather/Views/MoveViews.swift	.alert("This backup's passphrase", isPresented: $askingPassphrase) {
+alert	WalletWeather/WalletWeatherApp.swift	.alert("Couldn't connect", isPresented: Binding(get: { model.linkProblem != nil },
+alert	WalletWeather/WalletWeatherApp.swift	.alert("Lock WalletWeather with \(settings.biometryName ?? "Face ID")?", isPresented: $offeringLock) {
+alert	WalletWeather/WalletWeatherApp.swift	.alert("What should this iPhone keep?", isPresented: $askingKeep) {
+alert	WalletWeather/WalletWeatherApp.swift	.alert(model.openedCSVAlert?.title ?? "", isPresented: Binding(get: { model.openedCSVAlert != nil },
+colour-outside-theme	WalletWeather/Views/CalendarView.swift	.foregroundStyle(isToday ? Color.white : (selected ? Palette.accent : .primary))
+colour-outside-theme	WalletWeather/Views/ForecastView.swift	.foregroundStyle(on ? Color.white : Color.primary)
+colour-outside-theme	WalletWeather/Views/TagViews.swift	.overlay { if color == hex { Image(systemName: "checkmark").font(.caption.bold()).foregroundStyle(.white) } }
+date-outside-style	Notifications/NotificationViewController.swift	day.map { $0.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()) } ?? ""
+date-outside-style	WalletWeather/Views/BackupViews.swift	Text(entry.day.date.formatted(date: .complete, time: .omitted))
+date-outside-style	WalletWeather/Views/BillsView.swift	Text(day.date.formatted(.dateTime.weekday(.wide).month(.wide).day().year()))
+date-outside-style	WalletWeather/Views/BillsView.swift	return "Next: \(next.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))"
+date-outside-style	WalletWeather/Views/CalendarView.swift	Text(day == .today() ? "Today" : day.date.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+date-outside-style	WalletWeather/Views/CalendarView.swift	var parts = [day.date.formatted(.dateTime.weekday(.wide).month(.wide).day())]
+date-outside-style	WalletWeather/Views/ForecastView.swift	AxisValueLabel(format: .dateTime.day()).foregroundStyle(.secondary)
+date-outside-style	WalletWeather/Views/LineEditor.swift	LabeledContent("Planned for", value: planned.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+date-outside-style	Widgets/Views.swift	return day.date.formatted(.dateTime.month(.abbreviated).day())
+fixed-font-size	WalletWeather/AppSettings.swift	Image(systemName: "cloud.sun.fill").font(.system(size: 52)).symbolRenderingMode(.multicolor)
+fixed-font-size	WalletWeather/AppSettings.swift	Image(systemName: "lock.fill").font(.system(size: 44)).foregroundStyle(Palette.accent)
+fixed-font-size	WalletWeather/Views/ConnectView.swift	.font(.system(size: 40))
+fixed-font-size	WalletWeather/Views/StandaloneViews.swift	.font(.system(size: 40))
+fixed-font-size	Widgets/Views.swift	Text(countText(count)).font(.system(size: 44, weight: .semibold, design: .rounded)).widgetAccentable()
+fixed-font-size	Widgets/Views.swift	Text(countText(count)).font(.system(size: 48, weight: .semibold, design: .rounded)).widgetAccentable()
+fixed-frame	WalletWeather/Views/AppearanceViews.swift	.frame(width: 44, height: 44)
+fixed-frame	WalletWeather/Views/AppearanceViews.swift	.frame(width: 46, height: 34)
+fixed-frame	WalletWeather/Views/ChartViews.swift	.frame(height: 150)
+fixed-frame	WalletWeather/Views/ChartViews.swift	.frame(width: 120, height: 120)
+fixed-frame	WalletWeather/Views/DashboardView.swift	.frame(width: 22)
+fixed-frame	WalletWeather/Views/ForecastView.swift	.frame(height: 170)
+fixed-frame	WalletWeather/Views/SettingsView.swift	.frame(height: 44).padding(.horizontal, 16).padding(.top, 12)  // level with the pane's title
+fixed-frame	WalletWeather/Views/TagViews.swift	Circle().fill(swatch).frame(width: 28, height: 28)
+label-case	WalletWeather/Views/ConnectView.swift	SecureField("Client Secret", text: $clientSecret)
+money-outside-format	WalletWeather/Views/SettingsPages.swift	TextField("Amount", value: $amount, format: .currency(code: "USD"))
+motion	WalletWeather/Views/GettingStartedViews.swift	.transition(.scale.combined(with: .opacity))
+motion	WalletWeather/Views/ProblemBanner.swift	.transition(.move(edge: .top).combined(with: .opacity))
+motion	WalletWeather/Views/UndoBar.swift	.transition(.move(edge: .bottom).combined(with: .opacity))
+tap-without-button	WalletWeather/Views/PhoneBankViews.swift	.onTapGesture { if sizeClass == .regular { matching = Matching(account: account, line: line) } }
+tap-without-button	WalletWeather/Views/TagViews.swift	.onTapGesture { color = color == hex ? nil : hex }

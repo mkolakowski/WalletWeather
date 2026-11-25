@@ -37,7 +37,6 @@
     {
       "slug": "ios-before-after",
       "kind": "standing",
-      "stub": true,
       "short": "iOS before and after",
       "title": "The iPhone app, before and after",
       "about": "Each TestFlight build beside the one before it: the screens that changed, side by side, with the changed part outlined.",

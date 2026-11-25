@@ -187,6 +187,9 @@ struct DashboardView: View {
 
     @ViewBuilder
     private func accountsColumn(_ dashboard: Dashboard) -> some View {
+        // On the open Duo, the first card starts clear of the title's soft
+        // blur, where the connection chip sat before 0.73.0 (#385).
+        RoomUnderPaneTitle()
         if settings.showsStartCard && !model.isDemo {
             GettingStartedCard { startTask = $0 }
         }
@@ -634,6 +637,22 @@ struct ChosenAccountPane: View {
                                     toConfirm: here.toConfirm(today: today).count))
         } catch {
             coming = .failed(error)
+        }
+    }
+}
+
+/// On the open Duo, the room the connection chip took at the top of the
+/// Dashboard's left pane until 0.73.0, kept so the first card starts below
+/// the title capsule's soft blur (#385): the card's text in that blur kept
+/// Apple's contrast audit from finishing, and read faded. Nothing anywhere
+/// else, and nothing in a pane without the capsule.
+private struct RoomUnderPaneTitle: View {
+    @Environment(\.paneUnderTitle) private var underTitle
+    @ScaledMetric(relativeTo: .subheadline) private var room: CGFloat = 31
+
+    var body: some View {
+        if underTitle {
+            Color.clear.frame(height: room).accessibilityHidden(true)
         }
     }
 }

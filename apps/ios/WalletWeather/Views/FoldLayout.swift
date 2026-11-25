@@ -26,6 +26,10 @@ extension EnvironmentValues {
     /// The page's name, for `FoldLayout` to show at the top of its panes on
     /// the open Duo (#341); nil on the phone and on a page pushed from Settings.
     @Entry var paneTitle: String?
+    /// This pane shows the page's title capsule at its top left (#341): its
+    /// first lines sit in the soft blur under it unless they keep clear
+    /// (#385).
+    @Entry var paneUnderTitle = false
 }
 
 extension View {
@@ -108,6 +112,7 @@ private struct PaneTop: ViewModifier {
     func body(content: Content) -> some View {
         let atTop = title != nil && frame.minY < 1
         content
+            .environment(\.paneUnderTitle, atTop && frame.minX < 1)
             .safeAreaBar(edge: .top, alignment: .leading, spacing: 0) {
                 if let title, atTop {
                     TitleCapsule(title: title, edges: edges)

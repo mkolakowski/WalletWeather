@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.0** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.1**
+App version: **1.99.0** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.2**
+
+### Fixed
+
+- **iPhone app: on the Duo open on its side, the Dashboard's first card starts clear of the title again.** Since the connection chip was replaced by the account picker (1.99.0), the first card on the left began right under the "Dashboard" title, inside the soft blur at the top of the pane, where its first line could read faded. It now starts a little lower, where it sat with the chip. The phone and the half-open Duo are unchanged. (#385)
 
 ## [1.99.0] — 2026-11-25
 

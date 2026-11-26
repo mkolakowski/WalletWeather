@@ -14,7 +14,9 @@ struct DebugFaults: View {
             Button { } label: { Image(systemName: "chart.bar.doc.horizontal") }  // symbol-name-label
             Button { } label: { Color.gray.frame(width: 20, height: 20) }    // unnamed-control, small-target
             Text("TOTAL DUE THIS MONTH")                                     // all-capitals
-            Text("This line hangs off the side of the window").fixedSize().offset(x: 260)  // off-edge
+            Text("This line hangs off the side of the window").fixedSize()   // off-edge: at the window's
+                .frame(maxWidth: .infinity, alignment: .trailing)               // right edge however wide
+                .offset(x: 120)                                                 // it is, then past it (#387)
             ZStack(alignment: .leading) {                                    // text-overlap
                 Text("One label")
                 Text("Another on top of it")

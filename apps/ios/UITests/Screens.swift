@@ -77,7 +77,7 @@ extension Screen {
         Screen("search-nothing", .demo, ["WW_DEBUG_PLACE": "search", "WW_DEBUG_SEARCH": "zzzz"], shows: "zzzz", scrolls: false),
 
         // Forecast's states and sheets.
-        Screen("forecast-filtered", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_FILTER": "Groceries"], shows: "Warehouse club"),
+        Screen("forecast-filtered", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_FILTER": "Groceries"], shows: "Groceries · "),  // the filter's own summary line (#386)
         Screen("forecast-confirm", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_CONFIRM": "1"], shows: "Paid as planned"),
         Screen("forecast-compare", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_COMPARE": "1"], shows: "Compare"),
         Screen("forecast-undo", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_UNDO": "Rent"], shows: "Rent marked paid", scrolls: false,
@@ -90,7 +90,7 @@ extension Screen {
 
         // Bills & income and the Calendar.
         // (The launch setting that opens a bill doesn't on an ordinary iPhone; a tap does.)
-        Screen("bill-editor", .demo, ["WW_DEBUG_PLACE": "bills"], shows: "Repeats", steps: [.tap("Rent")]),
+        Screen("bill-editor", .demo, ["WW_DEBUG_PLACE": "bills"], shows: "Repeats", steps: [.tap("Electric")]),  // the first bill: Rent is below the open Duo's fold (#386)
         Screen("calendar-day", .demo, ["WW_DEBUG_PLACE": "calendar", "WW_DEBUG_TABS": everyTab, "WW_DEBUG_ACCOUNT": "Checking", "WW_DEBUG_DAY": "today"], shows: "Calendar"),
         Screen("calendar-drop", .demo, ["WW_DEBUG_PLACE": "calendar", "WW_DEBUG_TABS": everyTab, "WW_DEBUG_ACCOUNT": "Checking", "WW_DEBUG_DROP": "day"], shows: "Calendar", scrolls: false),
 

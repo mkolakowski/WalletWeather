@@ -135,15 +135,10 @@ struct MyThemes: View {
 
     var body: some View {
         SectionTitle("My themes")
-        VStack(spacing: 0) {
-            ForEach(settings.customThemes) { theme in
-                row(theme)
-                Divider()
-            }
-            newTheme
-        }
-        .card()
-        SettingNote("Make a look of your own from six colours. Your themes are kept in iCloud, names and colours only, so they reach your other iPhones; with iCloud off they stay on this iPhone.")
+            // The editor, the delete question and the Debug hook hang off the
+            // heading, the section's first line: in a lazily loaded pane (the
+            // open Duo's Settings) the note at the bottom may not have loaded,
+            // and a sheet on it never shows (#386).
             .sheet(item: $draft) { draft in
                 ThemeEditor(draft: draft)
             }
@@ -158,6 +153,15 @@ struct MyThemes: View {
                      : "It's deleted on your other iPhones too.")
             }
             .task { openForDebug() }
+        VStack(spacing: 0) {
+            ForEach(settings.customThemes) { theme in
+                row(theme)
+                Divider()
+            }
+            newTheme
+        }
+        .card()
+        SettingNote("Make a look of your own from six colours. Your themes are kept in iCloud, names and colours only, so they reach your other iPhones; with iCloud off they stay on this iPhone.")
     }
 
     private func inUse(_ theme: CustomTheme?) -> Bool {

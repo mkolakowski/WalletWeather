@@ -69,7 +69,13 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.0** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.2**
+App version: **1.99.1** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.2**
+
+## [1.99.1] — 2026-11-25
+
+App version: **1.99.1** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.2**
+
+On the iPhone Duo open on its side, the Dashboard's first card starts clear of the title again (since the account picker replaced the connection chip it had begun inside the title's blur). No database change.
 
 ### Fixed
 
@@ -3034,7 +3040,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.99.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.99.1...HEAD
+[1.99.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.1
 [1.99.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.0
 [1.98.6]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.6
 [1.98.5]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.5

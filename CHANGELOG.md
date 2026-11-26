@@ -69,7 +69,13 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.1** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.3**
+App version: **1.99.2** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.3**
+
+## [1.99.2] — 2026-11-26
+
+App version: **1.99.2** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.3**
+
+On the iPhone Duo open on its side, Edit and New theme in Settings → Appearance open the theme editor again. No database change.
 
 ### Fixed
 
@@ -3044,7 +3050,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.99.1...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.99.2...HEAD
+[1.99.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.2
 [1.99.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.1
 [1.99.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.0
 [1.98.6]: https://github.com/mkolakowski/walletweather/releases/tag/v1.98.6

@@ -84,6 +84,13 @@ line of why; the reasoning in full goes here.
   new control with `WW_UI_TREE=1` and look for it in each configuration's
   `.tree.txt`; a control that shows on one device and not another is the
   sign.
+- **A screen that isn't what its name says on one device only** (2026-11-25,
+  #386): look at what's below that device's fold. On the open Duo's short
+  panes a step's target (Bills' "Rent") or a sheet hung off the end of a
+  section (My themes' note, in the lazily loaded Settings pane) can be off
+  screen, so the tap misses or the sheet never shows. A `shows` word that
+  depends on the date breaks under `WW_UI_TODAY`: check for something the
+  launch setting itself puts on screen.
 - **The `save-a-line` flow is stale** (2026-11-25, #382): it taps the word
   "Paid", which doesn't flip the switch, so nothing changes, Save stays
   greyed out and `nothing-happened` fires. It needs to tap the switch.

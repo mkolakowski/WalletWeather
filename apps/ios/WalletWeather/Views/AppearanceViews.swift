@@ -136,9 +136,7 @@ struct MyThemes: View {
     var body: some View {
         SectionTitle("My themes")
             // The editor, the delete question and the Debug hook hang off the
-            // heading, the section's first line: in a lazily loaded pane (the
-            // open Duo's Settings) the note at the bottom may not have loaded,
-            // and a sheet on it never shows (#386).
+            // heading, the section's first line.
             .sheet(item: $draft) { draft in
                 ThemeEditor(draft: draft)
             }
@@ -153,6 +151,10 @@ struct MyThemes: View {
                      : "It's deleted on your other iPhones too.")
             }
             .task { openForDebug() }
+            // Reads the draft, so this view updates when Edit or New theme
+            // sets it. Without that, in the open Duo's Settings pane the
+            // sheet was often never shown (#388).
+            .onChange(of: draft?.id) { }
         VStack(spacing: 0) {
             ForEach(settings.customThemes) { theme in
                 row(theme)

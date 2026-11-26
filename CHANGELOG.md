@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.1** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.2**
+App version: **1.99.1** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.3**
+
+### Fixed
+
+- **iPhone app: on the Duo open on its side, Edit and New theme open the theme editor again.** In Settings → Appearance → My themes, tapping Edit on one of your themes, or New theme and a look to start from, often did nothing on the open Duo. The editor now opens every time. On other iPhones it already worked. (#388)
 
 ## [1.99.1] — 2026-11-25
 

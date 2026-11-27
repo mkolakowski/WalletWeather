@@ -111,7 +111,7 @@
       "short": "Changelog",
       "title": "Changelog",
       "about": "What each release changed, newest first, with what's landed since the last one at the top.",
-      "updated": "2026-11-26",
+      "updated": "2026-11-27",
       "issue": 351,
       "group": "project"
     },
@@ -141,7 +141,7 @@
       "short": "Decisions",
       "title": "Decisions",
       "about": "What's been decided and when, by subject: the choices behind the plans, with the options that were turned down.",
-      "updated": "2026-11-26",
+      "updated": "2026-11-27",
       "issue": 351,
       "group": "project"
     },
@@ -151,7 +151,7 @@
       "short": "Waiting on you",
       "title": "Waiting on you",
       "about": "What only you can do: checks to make on the phone, questions left open in a plan, and issues that wait for a look.",
-      "updated": "2026-11-26",
+      "updated": "2026-11-27",
       "issue": 351,
       "group": "project"
     }

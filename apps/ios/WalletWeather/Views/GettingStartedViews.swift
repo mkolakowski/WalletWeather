@@ -12,7 +12,7 @@ struct GettingStartedCard: View {
     @Environment(AppSettings.self) private var settings
     let open: (StartTask) -> Void
     // Grows with the text size, exactly as before at Large (#311).
-    @ScaledMetric(relativeTo: .footnote) private var closeSize: CGFloat = 30
+    @ScaledMetric(relativeTo: .footnote) private var closeSize: CGFloat = 44
     @ScaledMetric(relativeTo: .title3) private var symbolWidth: CGFloat = 28
 
     var body: some View {

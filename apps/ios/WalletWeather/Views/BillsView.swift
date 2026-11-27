@@ -178,6 +178,8 @@ struct BillsView: View {
                     Image(systemName: "chevron.up.chevron.down").font(.footnote.weight(.semibold))
                 }
                 .foregroundStyle(.primary)
+                .frame(minHeight: 44)
+                .contentShape(.rect)
             }
             .accessibilityLabel("Showing \(account?.name ?? "all accounts"). Switch account")
         } else if let only = accounts.first {

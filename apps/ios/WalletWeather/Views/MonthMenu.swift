@@ -39,6 +39,8 @@ struct MonthMenu: View {
                 Image(systemName: "chevron.down").font(.caption2.weight(.semibold))
             }
             .foregroundStyle(.primary)
+            .frame(minHeight: 44)
+            .contentShape(.rect)
         }
         .accessibilityLabel("\(month.label). Choose a month")
     }
@@ -93,10 +95,12 @@ struct MonthBar: View {
     private var previous: some View {
         Button("Previous month", systemImage: "chevron.left") { onMove(-1) }
             .labelStyle(.iconOnly)
+            .frame(minWidth: 44, minHeight: 44)
     }
 
     private var next: some View {
         Button("Next month", systemImage: "chevron.right") { onMove(1) }
             .labelStyle(.iconOnly)
+            .frame(minWidth: 44, minHeight: 44)
     }
 }

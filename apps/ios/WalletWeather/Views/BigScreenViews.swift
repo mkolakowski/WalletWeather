@@ -44,6 +44,7 @@ struct ConfirmRow: View {
                     .labelStyle(.titleAndIcon)
                     .font(.subheadline)
                     .buttonStyle(.borderless)
+                    .tapTarget()
                     .accessibilityLabel("Edit \(line.description)")
             }
             DatePicker("Paid on", selection: Binding(get: { paidOn.date }, set: { paidOn = LocalDay.today(now: $0) }),
@@ -310,6 +311,8 @@ private struct SideHeader: View {
                     Image(systemName: "chevron.up.chevron.down").font(.caption.weight(.semibold))
                 }
                 .foregroundStyle(.primary)
+                .frame(minHeight: 44)
+                .contentShape(.rect)
             }
             MonthBar(month: side.month, font: .subheadline.weight(.semibold),
                      onMove: { side.month = $0 < 0 ? side.month.previous : side.month.next },

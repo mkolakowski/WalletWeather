@@ -53,6 +53,7 @@ struct WelcomeView: View {
                         Label("Try the demo", systemImage: "sparkles")
                     }
                     .buttonStyle(.borderless)
+                    .tapTarget()
                     Text("Sample numbers built into the app. Nothing you change is saved.")
                         .font(.footnote).foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

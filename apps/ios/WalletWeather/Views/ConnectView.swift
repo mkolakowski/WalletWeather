@@ -239,6 +239,7 @@ struct ConnectView: View {
                         .font(.subheadline)
                 }
                 .buttonStyle(.borderless)
+                .tapTarget()
                 .disabled(model.busy)
                 .padding(.bottom, 6)
                 Image(systemName: "cloud.sun.fill")

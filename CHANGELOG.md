@@ -69,9 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.2** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.4**
+App version: **1.99.2** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.5**
 
 ### Fixed
+
+- **iPhone app: more buttons are easy to hit.** The small buttons the UI review found now take a tap anywhere in a 44-point square, with no change to how they look: Edit on a To confirm card, Disconnect under Bank sync, Try the demo, Add in the tab bar's page list, the account menus on Forecast, Bills & income, Calendar and Compare, the month's name, Forecast's filter chips, Match… and Leave on the Unmatched list, and the Close button on Getting started. A few small ones are still to do: the month's arrows, Swap in the tab bar's page list, Paid as planned, and the sign-in options on the Connect page.
 
 - **iPhone app: Compare is readable on a narrow screen.** On the Duo closed, or any window narrower than about 600 points, Compare squeezed its two columns until the month turned into a tall capsule and amounts broke in the middle of a number. It now shows one side at a time, with a switch at the top naming each side (its account and month); the account and month pickers sit under it and apply to the side shown. Opened on the Duo lying open, Compare still shows the two sides together.
 

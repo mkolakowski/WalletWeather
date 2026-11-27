@@ -603,7 +603,8 @@ struct ForecastFilterChips: View {
             .padding(.horizontal, 12).padding(.vertical, 6)
             .background(on ? Palette.accent : Color.clear, in: .capsule)
             .background(.quaternary, in: .capsule)
-            .contentShape(.capsule)
+            .frame(minWidth: 44, minHeight: 44)   // the capsule stays as drawn; the tap takes 44 points (#361)
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(on ? .isSelected : [])
@@ -698,6 +699,8 @@ struct MonthHeader: View {
                             Image(systemName: "chevron.up.chevron.down").font(.footnote.weight(.semibold))
                         }
                         .foregroundStyle(.primary)
+                        .frame(minHeight: 44)
+                        .contentShape(.rect)
                     }
                     .accessibilityLabel("Account: \(account.name). Switch account")
                 } else {

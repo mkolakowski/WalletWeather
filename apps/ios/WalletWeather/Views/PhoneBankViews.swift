@@ -113,6 +113,7 @@ struct PhoneBankCard: View {
         }
         Button("Disconnect", role: .destructive) { confirmDisconnect = true }
             .font(.footnote)
+            .tapTarget()
             .disabled(syncing)
     }
 
@@ -406,8 +407,10 @@ struct UnmatchedListView: View {
             HStack(spacing: 10) {
                 Button("Match…") { matching = Matching(account: account, line: line) }
                     .buttonStyle(.glass)
+                    .frame(minHeight: 44)
                 Button("Leave") { Task { await leave(line, account: account) } }
                     .buttonStyle(.glass)
+                    .frame(minHeight: 44)
                     .disabled(!canWrite)
             }
         }

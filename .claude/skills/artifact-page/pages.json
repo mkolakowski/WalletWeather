@@ -25,6 +25,16 @@
   ],
   "pages": [
     {
+      "slug": "corner-radii",
+      "kind": "dated",
+      "short": "Corner radii",
+      "title": "Corner radii: before and after",
+      "about": "The iPhone app's twelve corner roundings reduced to four named ones, with before and after pictures of six screens.",
+      "updated": "2026-11-26",
+      "issue": 369,
+      "group": "reviews"
+    },
+    {
       "slug": "ui-review-suite-changes",
       "kind": "dated",
       "title": "What changed for the iPhone UI review suite",

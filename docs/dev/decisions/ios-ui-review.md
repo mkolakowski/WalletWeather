@@ -44,3 +44,13 @@ Decisions for `Plans/ios-ui-review.md` (#348), the one WalletWeather artifact (#
 2. **The switch names each side by its account and month** ("Checking, Nov 2026"), and the account and month pickers under it change the side shown. The open Duo keeps two columns.
 
 **What it changes:** `Compare.narrowWidth` and `Compare.days(of:left:right:)` in the Kit, `CompareView` in `BigScreenViews.swift`; iOS 0.73.4.
+
+## 2026-11-26: four corner radii
+
+**Decided:** 2026-11-26, by Matthew, when #369 was picked up. **Status:** accepted.
+
+1. **The app uses four corner radii: card 22, bar 14, row 10, tile 6** (D3, #369). Card 22, bar 14, row 12, tile 8, and card 24, bar 16, row 12, tile 8 were the other options.
+2. **Done on the current cards, apart from #365.** Waiting for the solid-cards choice, and skipping the work, were the other options. `Theme.swift` and `SettingsView.swift` were being edited for #365, so their four literals stay on the source check's baseline until that lands.
+3. **Each odd size snapped by what the shape is**, not only by distance: the 12s on fields and rows became 10, selected-row highlights of 8 became 10, 7s became 6, 24s and 18s went to a card's 22 or a bar's 14.
+
+**What it changes:** `Radius` (`Views/Radius.swift`), about fifty call sites, the source check's `corner-radius` rule and its survey; iOS 0.73.14. Pictures before and after are on the *Corner radii* page of the WalletWeather artifact.

@@ -8,8 +8,8 @@ Tracking issue: #348
 | --- | --- | --- |
 | 1. The source check | #344 | Built 2026-11-24, in `swift test`; closed |
 | 2. The simulator walk | #345 | Built 2026-11-24; `ui-walk.sh quick` ran clean on the closed Duo; closed |
-| 3. The first review | #346 | Open |
-| 4. The skill, with what was learned | #347 | Open |
+| 3. The first review | #346 | Done 2026-11-24 (the review page, iOS 0.70.0); its picks filed 2026-11-25 as #357 to #370; closed 2026-11-26 |
+| 4. The skill, with what was learned | #347 | Done 2026-11-24 (4427b7a: `/ios-ui-review`, its learnings and checklist, the rules in `CLAUDE.md`); used for the 0.73.0 review (#382) and the 0.73.1 to 0.73.3 fixes; closed 2026-11-26 |
 
 Phase 2 built 2026-11-24 (8596674; no version, nothing the app does changed): a UI-test target with its own scheme (`apps/ios/UITests`), 55 screens in `Screens.swift`, the checks in `Checks.swift`, seven flows that use the app (`testUse`), and `Scripts/ui-walk.sh`, `ui-report.py` and `ui-sheet.swift`. Verified: `ui-walk.sh quick` on the closed Duo (54 screens, 109 pictures, 12 minutes); a Debug-only page of ten planted faults opens every run and the test fails if a check misses one (it did on the first run: one check could never fire, and was dropped); `swift test`, 536 passed. While being built it found that cancelling the line editor stops the app, and that Compare breaks up on the Duo's front screen. A standard run is 70 to 100 minutes, not the 30 to 40 said when scoping: every screen needs a fresh launch.
 

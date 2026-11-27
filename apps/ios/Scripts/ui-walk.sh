@@ -200,6 +200,11 @@ for config in "${configs[@]}"; do
     began=$(date +%s)
     printf 'ui-walk: %-26s %-6s ' "$config" "$depth"
     for attempt in 1 2; do
+        # A first attempt that stopped may have left the simulator started again in its own pose: set it again (#393).
+        if [ "$attempt" = 2 ]; then
+            boot "$udid"
+            if [ -n "$want" ]; then SIMULATOR_UDID=$duo "$duo_set" "$want" >/dev/null || true; fi
+        fi
         env TEST_RUNNER_WW_UI_OUT="$run" TEST_RUNNER_WW_UI_CONFIG="$config" TEST_RUNNER_WW_UI_LOOK="$look" \
             TEST_RUNNER_WW_UI_TEXT="$text" TEST_RUNNER_WW_UI_DATES="$([ "$extra" = iso ] && echo iso || echo short)" \
             TEST_RUNNER_WW_UI_ONLY="$only" TEST_RUNNER_WW_UI_TREE="${WW_UI_TREE:-0}" TEST_RUNNER_WW_UI_TODAY="${WW_UI_TODAY:-}" \

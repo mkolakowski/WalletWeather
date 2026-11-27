@@ -81,7 +81,8 @@ extension Screen {
 
         // Forecast's states and sheets.
         Screen("forecast-filtered", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_FILTER": "Groceries"], shows: "Groceries · ",  // the filter's own summary line (#386)
-               steps: [.scrollTo("Filter: ")]),  // it is under the chip row, below the open Duo's fold (#392)
+               steps: [.scrollTo("Filter: ")],  // it is under the chip row, below the open Duo's fold (#392)
+               expected: ["text-overlap": "The page is scrolled to the filter's summary, so its list passes under the floating Forecast title, as a list does under glass (#393)."]),
         Screen("forecast-confirm", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_CONFIRM": "1"], shows: "Sort"),  // the bar's Sort button, there only on To confirm; "Paid as planned" is below the fold at Accessibility Large (#393)
         Screen("forecast-compare", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_COMPARE": "1"], shows: "Compare"),
         Screen("forecast-undo", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_UNDO": "Rent"], shows: "Rent marked paid", scrolls: false,

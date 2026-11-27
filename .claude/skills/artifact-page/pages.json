@@ -51,7 +51,7 @@
       "title": "The iPhone app, before and after",
       "about": "Each TestFlight build beside the one before it: the screens that changed, side by side, with the changed part outlined.",
       "source": "A script (<code>apps/ios/Scripts/ui-before-after.py</code>) writes it from the sets of pictures taken at each upload. Being built now.",
-      "updated": "2026-11-25",
+      "updated": "2026-11-27",
       "issue": 352,
       "group": "reviews"
     },

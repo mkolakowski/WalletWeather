@@ -71,6 +71,12 @@ same commit (or session) that introduces it.
 
 App version: **1.100.0** · Web version: **1.121.0** · Schema version: **40** · iOS version: **0.73.18**
 
+## [1.100.0] — 2026-11-27
+
+App version: **1.100.0** · Web version: **1.121.0** · Schema version: **40** · iOS version: **0.73.18**
+
+Email alerts can now come from Gmail, with an app password or with Google sign-in, and from other mailboxes that offer IMAP, beside Microsoft 365. Each way is switched off until the person who runs the server sets it up and an admin ticks who may use it. Tested only against stand-ins for Gmail and a mail server so far. No database change.
+
 ### Added
 
 - Email alerts can now come from Gmail and other mailboxes, not only Microsoft 365. In Settings → Email alerts, "Gmail or another mailbox" takes your address and an app password (for Gmail, made at myaccount.google.com/apppasswords with 2-Step Verification on); the server signs in over IMAP, opens your folder read-only and never marks anything read. It connects only to the mail servers in the new `IMAP_HOSTS` setting (Gmail's by default), on port 993 with a checked secure connection. To use another provider, the person who runs the server adds its server to `IMAP_HOSTS` as the setup guide describes. Tested only against a stand-in mail server so far. (#208)
@@ -3126,7 +3132,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.99.7...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.100.0...HEAD
+[1.100.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.100.0
 [1.99.7]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.7
 [1.99.6]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.6
 [1.99.5]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.5

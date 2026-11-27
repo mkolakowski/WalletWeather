@@ -69,7 +69,13 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.2** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.9**
+App version: **1.99.3** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.9**
+
+## [1.99.3] — 2026-11-26
+
+App version: **1.99.3** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.9**
+
+On the iPhone, Compare is readable on a narrow screen, small buttons are easier to hit, and every date written with a weekday follows your Date format. No database change.
 
 ### Fixed
 
@@ -3058,7 +3064,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.99.2...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.99.3...HEAD
+[1.99.3]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.3
 [1.99.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.2
 [1.99.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.1
 [1.99.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.0

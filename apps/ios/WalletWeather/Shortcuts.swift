@@ -61,9 +61,9 @@ nonisolated struct BalanceIntent: AppIntent {
 /// in from the Shortcut, for a last look before Save (decided 2026-11-23).
 /// The app's own lock asks first, as it does whenever the app opens.
 struct AddTransactionIntent: AppIntent {
-    static let title: LocalizedStringResource = "Add a transaction"
+    static let title: LocalizedStringResource = "Add a line"
     static let description = IntentDescription(
-        "Opens WalletWeather's Add transaction, filled in with the amount, description and date, on the connection in front. Check it and tap Save.")
+        "Opens WalletWeather's Add line, filled in with the amount, description and date, on the connection in front. Check it and tap Save.")
     static let supportedModes: IntentModes = .foreground
 
     @Parameter(title: "Amount")
@@ -224,9 +224,9 @@ nonisolated struct WalletWeatherShortcuts: AppShortcutsProvider {
                     shortTitle: "Mark a bill paid",
                     systemImageName: "checkmark.circle")
         AppShortcut(intent: AddTransactionIntent(),
-                    phrases: ["Add a transaction in \(.applicationName)",
+                    phrases: ["Add a line in \(.applicationName)",
                               "Add to \(.applicationName)"],
-                    shortTitle: "Add a transaction",
+                    shortTitle: "Add a line",
                     systemImageName: "plus.circle")
         AppShortcut(intent: OpenToConfirmIntent(),
                     phrases: ["Open To confirm in \(.applicationName)",

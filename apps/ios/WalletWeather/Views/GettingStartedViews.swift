@@ -327,12 +327,12 @@ private struct SearchTaskSheet: View {
         TaskSheetFrame(title: "Try Search") {
             Text("The magnifying glass at the end of the tab bar searches everything on every account you can see:")
             VStack(alignment: .leading, spacing: 10) {
-                Label("Transactions, and bills and income", systemImage: "arrow.left.arrow.right")
+                Label("Lines, and bills and income", systemImage: "arrow.left.arrow.right")
                 Label("Accounts, categories and tags", systemImage: "tag")
                 Label("Saved reports", systemImage: "doc.text.magnifyingglass")
             }
             .card()
-            Text("Tap a result to open it: a transaction or bill in its editor, an account in Forecast, a category or tag as its transactions.")
+            Text("Tap a result to open it: a line or bill in its editor, an account in Forecast, a category or tag as its lines.")
             Button {
                 dismiss()
                 openPlace(.search)

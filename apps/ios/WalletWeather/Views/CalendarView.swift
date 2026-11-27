@@ -67,7 +67,7 @@ struct CalendarView: View {
                 .toolbar { NewWindowItem(place: .calendar) }
                 .toolbar {
                     if !editableAccounts.isEmpty {
-                        AddMenu(addTitle: "Add transaction", canMove: editableAccounts.count > 1, onAdd: startAdding, onMove: {
+                        AddMenu(addTitle: "Add line", canMove: editableAccounts.count > 1, onAdd: startAdding, onMove: {
                             moveDraft = MoveMoneyDraft(today: selected ?? .today(), from: account?.id)
                             moving = true
                         })

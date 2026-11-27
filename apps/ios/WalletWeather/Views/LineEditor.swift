@@ -294,7 +294,7 @@ struct LineEditor: View {
 
     private var deleteSection: some View {
         Section {
-            Button(line.isTransfer ? "Delete transfer" : line.isProjection ? "Delete this date" : "Delete transaction", role: .destructive) {
+            Button(line.isTransfer ? "Delete transfer" : line.isProjection ? "Delete this date" : "Delete line", role: .destructive) {
                 confirmDelete = true
             }
             .foregroundStyle(Palette.bad)  // kept red under a look's own text colour
@@ -384,7 +384,7 @@ struct LineEditor: View {
 
     private var deleteTitle: String {
         if line.isTransfer { return "Delete this transfer?" }
-        return line.isProjection ? "Delete the \(line.plannedDate?.short ?? "") date?" : "Delete this transaction?"
+        return line.isProjection ? "Delete the \(line.plannedDate?.short ?? "") date?" : "Delete this line?"
     }
 
     private var deleteMessage: String {
@@ -537,7 +537,7 @@ struct AddTransactionSheet: View {
             }
             .scrollContentBackground(.hidden)
             .background(PageBackground().ignoresSafeArea())
-            .navigationTitle(accountChoices.count > 1 ? "Add transaction" : "Add to \(account.name)")
+            .navigationTitle(accountChoices.count > 1 ? "Add line" : "Add to \(account.name)")
             .navigationBarTitleDisplayMode(.inline)
             .disabled(saving)
             .problemBanner($problem)

@@ -410,7 +410,7 @@ struct ForecastView: View {
             SortMenu(stored: $confirmSortText, fallback: .toConfirmDefault)
         }
         if editable {
-            AddMenu(addTitle: "Add transaction", canMove: editableAccounts.count > 1, onAdd: startAdding, onMove: {
+            AddMenu(addTitle: "Add line", canMove: editableAccounts.count > 1, onAdd: startAdding, onMove: {
                 moveDraft = MoveMoneyDraft(today: .today(), from: account?.id)
                 moving = true
             }, onImport: { importingCSV = true })

@@ -94,7 +94,7 @@ struct DashboardView: View {
             .toolbar { NewWindowItem(place: .dashboard) }
             .toolbar {
                 if !editableAccounts.isEmpty {
-                    AddMenu(addTitle: "Add transaction", canMove: editableAccounts.count > 1, onAdd: startAdding, onMove: {
+                    AddMenu(addTitle: "Add line", canMove: editableAccounts.count > 1, onAdd: startAdding, onMove: {
                         moveDraft = MoveMoneyDraft(today: .today())
                         moving = true
                     }, onImport: { importingCSV = true })

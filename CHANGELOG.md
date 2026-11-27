@@ -69,13 +69,15 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.3** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.12**
+App version: **1.99.3** · Web version: **1.119.0** · Schema version: **40** · iOS version: **0.73.13**
 
 ### Fixed
 
 - **iPhone app: the main buttons are readable in Sepia and the other looks with their own text colour.** In Sepia, buttons such as Sign in, Save and Add an account had dark text on a dark brown button; they now have white text. The two buttons on the first screen (Open on this iPhone, Connect to my server) are a little taller, so they're easier to hit. The usual Light and Dark looks are unchanged.
 
 ### Changed
+
+- **One word for an entry: "line", in the web app and the iPhone app.** What some screens called a "transaction" and others a "line" is now a "line" everywhere you read it: Add line, Delete this line?, Search lines (and its Lines group on the iPhone), "1 line" and "5 lines" counts, the Import lines from CSV page, the help text under Categories, Tags and auto-tag rules, and the Add a line Shortcut and keyboard shortcut. Nothing stored or sent changes. "Recurring transaction" is still worded as before.
 
 - **iPhone app: small clean-ups from the UI review.** The Connect screen's fields now take the colours of the look you've chosen (in Sepia they're warm, not system grey); "Client Secret" reads "Client secret"; the app's big symbols on the Connect, welcome, lock and privacy screens grow with the phone's text size; and with Reduce Motion on, the Undo bar, the problem banner and Getting started's tab bar preview fade in instead of sliding or growing.
 

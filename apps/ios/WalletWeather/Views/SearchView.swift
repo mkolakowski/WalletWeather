@@ -69,7 +69,7 @@ struct SearchView: View {
                     // keyboard stays down so it doesn't cover the results.
                     .onAppear { fieldFocused = text.trimmingCharacters(in: .whitespaces).isEmpty }
                 } else {
-                    results.searchable(text: $text, prompt: "Transactions, bills, accounts…").searchFocused($searchFieldFocused)
+                    results.searchable(text: $text, prompt: "Lines, bills, accounts…").searchFocused($searchFieldFocused)
                 }
             }
             // Pulling down the results (or the opened result) runs the search again (#304).
@@ -110,7 +110,7 @@ struct SearchView: View {
     private var searchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
-            TextField("Transactions, bills, accounts…", text: $text)
+            TextField("Lines, bills, accounts…", text: $text)
                 .focused($fieldFocused)
                 .submitLabel(.search)
                 .textInputAutocapitalization(.never)
@@ -154,7 +154,7 @@ struct SearchView: View {
             .id(shown)
         } else {
             ContentUnavailableView("Tap a result", systemImage: "hand.tap",
-                                   description: Text("It opens here: a transaction or a bill to change, a category's transactions, a report."))
+                                   description: Text("It opens here: a line or a bill to change, a category's lines, a report."))
         }
     }
 
@@ -190,7 +190,7 @@ struct SearchView: View {
             ContentUnavailableView {
                 Label("Search everything", systemImage: "magnifyingglass")
             } description: {
-                Text("Find transactions, bills and income, accounts, categories, tags and saved reports, on every account you can see.")
+                Text("Find lines, bills and income, accounts, categories, tags and saved reports, on every account you can see.")
             }
         } else {
             switch found {
@@ -211,7 +211,7 @@ struct SearchView: View {
     private func list(_ data: SearchResults) -> some View {
         List {
             Group {
-                group("Transactions", data.transactions) { hit in
+                group("Lines", data.transactions) { hit in
                     Button { open(hit) } label: { SearchHitRow(hit: hit, selected: openLine?.line.transactionId == hit.id) }
                         .pointerRow()
                         .hitMenu(hit, accounts: accounts, state: hitActions, onEdit: { open(hit) }, reload: search)
@@ -258,7 +258,7 @@ struct SearchView: View {
                 }
                 if data.transactionsOnly {
                     Section {
-                        Text("Your server searches transactions only. Update it to WalletWeather 1.56.0 or later to find bills, accounts, categories, tags and reports too.")
+                        Text("Your server searches lines only. Update it to WalletWeather 1.56.0 or later to find bills, accounts, categories, tags and reports too.")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                 }
@@ -486,7 +486,7 @@ struct FilteredTransactions: View {
                 ProblemView(error: error) { Task { await load() } }
             case let .loaded(data):
                 if data.results.isEmpty {
-                    ContentUnavailableView("No transactions", systemImage: "tray",
+                    ContentUnavailableView("No lines", systemImage: "tray",
                                            description: Text("Nothing on the accounts you can see carries \(title) yet."))
                 } else {
                     List {

@@ -126,7 +126,7 @@ public enum KeyShortcuts {
     /// it is). Month moves use ⌘[ and ⌘], not ⌘← and ⌘→: those move the
     /// cursor in a text field, and the open Duo's editor sits beside the list.
     public static let all: [KeyShortcut] = [
-        KeyShortcut(.addTransaction, key: "n", title: "Add a transaction", on: [.dashboard, .forecast, .calendar]),
+        KeyShortcut(.addTransaction, key: "n", title: "Add a line", on: [.dashboard, .forecast, .calendar]),
         KeyShortcut(.addBill, key: "n", title: "Add bill or income", on: [.bills]),
         KeyShortcut(.search, key: "f", title: "Search", on: [.everywhere]),
         KeyShortcut(.tab1, key: "1", title: "Go to the first tab", on: [.everywhere]),

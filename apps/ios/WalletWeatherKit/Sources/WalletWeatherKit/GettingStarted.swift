@@ -26,7 +26,7 @@ public enum StartTask: String, CaseIterable, Identifiable, Sendable {
         case .lock: "Ask for Face ID or Touch ID when WalletWeather opens."
         case .look: "Light, Dark, Sepia, or one of the web app's themes."
         case .markPaid: "Confirm a line once it's gone through, from Forecast's To confirm list."
-        case .search: "Find transactions, bills, accounts, categories, tags and reports."
+        case .search: "Find lines, bills, accounts, categories, tags and reports."
         }
     }
 

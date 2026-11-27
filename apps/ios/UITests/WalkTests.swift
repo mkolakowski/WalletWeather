@@ -252,7 +252,7 @@ final class WalkTests: XCTestCase {
             guard field.waitForExistence(timeout: 3) else { throw Stuck(why: "Search has no field to type in.") }
             field.tap()
             app.typeText("rent")
-            try expect("Transactions")
+            try expect("Lines")
             picture(&result, "search", "typed")
         }
         flow("settings-and-back") { result in

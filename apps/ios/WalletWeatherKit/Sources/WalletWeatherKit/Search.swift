@@ -38,7 +38,7 @@ public struct SearchResults: Sendable, Codable, Equatable {
         public let color: String?
         public let transactionCount: Int
 
-        public var countText: String { transactionCount == 1 ? "1 transaction" : "\(transactionCount) transactions" }
+        public var countText: String { transactionCount == 1 ? "1 line" : "\(transactionCount) lines" }
     }
 
     public var isEmpty: Bool {

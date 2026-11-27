@@ -187,7 +187,7 @@ on the connection you're using, naming it and saying when its numbers are from.
   Open To confirm only opens the app, where its own lock still applies.
 
 Two more actions change your numbers, on the connection you're using:
-**Add a transaction** opens the app's Add transaction form filled in with the
+**Add a line** opens the app's Add line form filled in with the
 amount, description and date you gave, for you to check and save; **Mark a bill
 paid** marks a bill's next date paid, as planned, without opening the app, and
 says what it did.

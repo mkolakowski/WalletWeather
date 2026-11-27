@@ -113,6 +113,10 @@ MUST_BE_SESSION_ONLY = {
     ("DELETE", "/api/mail/senders/{sender_id}/kinds/{kind_id}"),
     ("GET", "/api/mail/checks"), ("GET", "/api/mail/checks/{run_id}"), ("GET", "/api/mail/unread"),
     ("DELETE", "/api/mail/unread/{unread_id}"), ("POST", "/api/mail/disconnect"),
+    # Gmail and other mailboxes (#208): connecting with an app password or
+    # Google sign-in is connecting too.
+    ("POST", "/api/mail/imap"), ("POST", "/api/mail/gmail/web"),
+    ("GET", "/api/mail/gmail/callback"),
     ("PUT", "/api/admin/mail-alerts"),
 }
 

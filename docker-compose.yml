@@ -52,6 +52,10 @@ services:
       MS_CLIENT_ID: ${MS_CLIENT_ID:-}
       MS_CLIENT_SECRET: ${MS_CLIENT_SECRET:-}
       MS_TENANT: ${MS_TENANT:-}
+      IMAP_HOSTS: ${IMAP_HOSTS:-}
+      GMAIL_API_ENABLED: ${GMAIL_API_ENABLED:-}
+      GMAIL_CLIENT_ID: ${GMAIL_CLIENT_ID:-}
+      GMAIL_CLIENT_SECRET: ${GMAIL_CLIENT_SECRET:-}
       # Teller and Plaid (#254): read once, on the upgrade to 1.95.0, to copy
       # them to the people already using them; not read after that (#276):
       # each person adds their own keys in Settings → Bank sync. Teller's

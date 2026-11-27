@@ -364,6 +364,24 @@ def sender_verified(sender: str, auth_results: list[str]) -> bool:
     return False
 
 
+def authserv_id(header: str) -> str:
+    """The server id an Authentication-Results header starts with (RFC 8601:
+    `mx.google.com; dkim=pass ...` or `mx.google.com 1; ...`), lowercased."""
+    head = re.sub(r"\([^)]*\)", " ", (header or "").split(";", 1)[0]).split()
+    return head[0].strip().lower() if head else ""
+
+
+def trusted_results(headers: list[str], authserv: str | None) -> list[str]:
+    """The headers, when the topmost one was written by the mailbox's own
+    server (its id is `authserv`); none otherwise, so the sender check fails.
+    A server that adds no header of its own leaves the sender's on top, and
+    a sender can write anything (decided 2026-11-27, #208)."""
+    want = (authserv or "").strip().lower()
+    if not want or not headers or authserv_id(headers[0]) != want:
+        return []
+    return headers
+
+
 def received_day(received: datetime, offset_minutes: int) -> date:
     """The day a mail arrived, in the user's own time (minutes east of UTC)."""
     return (received + timedelta(minutes=offset_minutes)).date()

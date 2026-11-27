@@ -303,7 +303,8 @@ is off until an admin allows it, and `PRIVACY.md`, `SECURITY.md` and
 now) shipped in 1.73.0 (#206), switched off by default and not yet tried with
 a real mailbox; the checking by itself, its status and log shipped in
 1.74.0 (#207); alerts paying your planned bills are built in 1.75.0 (#209),
-not released yet.
+not released yet. Gmail (an app password over IMAP, or Google sign-in) and
+other IMAP mailboxes are built for 1.100.0 (#208), not released yet.
 
 ### 31. Standalone iPhone app (no server)
 Use WalletWeather on an iPhone with no server: the data lives on the phone,

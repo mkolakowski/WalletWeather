@@ -11,18 +11,20 @@ and adds each one as a line, minutes after you pay.
 {: .fs-6 .fw-300 }
 
 You switch on "alert me for every transaction" at your bank, and WalletWeather
-reads those alerts from one folder of your Microsoft 365 or Outlook.com
-mailbox. It only reads: it never marks mail read, moves it or deletes it, and
+reads those alerts from one folder of your mailbox: Microsoft 365 or
+Outlook.com, Gmail, or another mailbox that offers IMAP. It only reads: it never marks mail read, moves it or deletes it, and
 it never sends mail.
 
 {: .important }
 > - **WalletWeather 1.75.0 or later** to have alerts pay your bills, 1.74.0 to have it check by itself (1.73.0 has Check now only). The version is in the app's footer.
 > - **Not yet tried with a real Microsoft mailbox.** Email alerts are new in 1.73.0 and were tested only against a stand-in for Microsoft. Tell us if something doesn't work.
-> - **The person who runs the server** registers a Microsoft app once and
->   switches email alerts on ([below](#for-the-person-who-runs-the-server)).
+> - **Gmail and other mailboxes need 1.100.0 or later.** They were tested only against stand-ins for Gmail and a mail server.
+> - **The person who runs the server** switches email alerts on, ticks who may
+>   use which way in, and sets up the ways they want: a Microsoft app, the
+>   mail servers for app passwords, or Gmail sign-in
+>   ([below](#for-the-person-who-runs-the-server)).
 > - **Each person connects their own mailbox** and teaches it their bank's
 >   alert once ([Connect your mailbox](#connect-your-mailbox)).
-> - Gmail and other mailboxes come in a later version.
 
 <details open markdown="block">
   <summary>On this page</summary>
@@ -93,26 +95,116 @@ personal Microsoft accounts only, `organizations` for work or school only, or
 your organization's tenant id. A work or school organization may ask its own
 admin to approve the app the first time someone signs in.
 
+### Gmail and other mailboxes with an app password
+
+Nothing to register. The server connects only to the mail servers listed in
+`IMAP_HOSTS` in its `.env`, by exact name, on port 993 with TLS, and checks
+each server's certificate. Empty means Gmail's, `imap.gmail.com`.
+
+To let people use another provider, add its IMAP server, with the **server
+id** its mail system writes at the top of each mail's
+`Authentication-Results` header:
+
+```
+IMAP_HOSTS=imap.gmail.com,imap.fastmail.com=fastmail.com
+```
+
+That id is how WalletWeather knows the "this really came from the bank"
+check was made by the provider and not written by the sender. To find it,
+open any mail in that mailbox, show the original message (the full headers),
+and take the first word after `Authentication-Results:` at the top, before
+the `;`. A server listed without an id can connect, but every alert from it
+lands under "May not be from your bank" instead of becoming a line. A mail
+server at home works too, once it's on the list with a certificate for its
+name.
+
+Then tick **Gmail or other (IMAP)** for each person in **Admin → Users**.
+
+### Optional: Gmail with Google sign-in
+
+"Connect Gmail" signs in with Google and asks for read-only access to the
+mail (Google's `gmail.readonly` permission), so no password is kept. It needs
+the server on an `https://` address (`APP_BASE_URL`): Google won't send a
+sign-in back to anything else, and has no sign-in with a code for Gmail.
+
+It uses the Google Cloud project you made for
+[Google sign-in](https://console.cloud.google.com/) (`GOOGLE_CLIENT_ID`). In
+that project:
+
+1. **APIs & Services → Library:** turn on the **Gmail API**.
+2. **Google Auth Platform → Data access → Add or remove scopes:** add
+   `https://www.googleapis.com/auth/gmail.readonly`. Google counts it as
+   *restricted*.
+3. **Clients:** open your web client and add `APP_BASE_URL` +
+   `/api/mail/gmail/callback` (for example
+   `https://money.example.com/api/mail/gmail/callback`) under **Authorized
+   redirect URIs**.
+4. **Audience:** choose how it's published.
+   - **In production**, without sending it to Google for review: anyone can
+     connect, and the sign-in lasts. Google first shows a warning that the app
+     isn't verified; people press **Advanced**, then **Go to …**. Google lets
+     an unverified app have 100 users over its whole life, plenty for a
+     household. This is what Google allows for an app with a limited audience
+     (fewer than 100 users).
+   - **Testing:** only the Google accounts you list as test users, and the
+     sign-in **lapses every 7 days**, so people connect again each week. Fine
+     to try it, not to live with.
+5. Set `GMAIL_API_ENABLED=true` in `.env`, restart, and tick **Gmail
+   sign-in** for each person in **Admin → Users**.
+
+**Just you?** A separate project in Google's **Personal** mode shows no
+warning and never lapses, but only the Google account that made it can sign
+in, and a project can't leave Personal mode later. Make one, do steps 1 to 3
+in it, and put its client id and secret in `GMAIL_CLIENT_ID` and
+`GMAIL_CLIENT_SECRET`; WalletWeather then uses it instead of the sign-in
+project for Gmail.
+
+Google's rules for Gmail data apply whichever you choose: the mail is used
+only to make your own lines, never passed on, and never used for advertising,
+lending decisions or training models. WalletWeather works that way already.
+What Google's pages say is recorded on the
+[decision page](https://github.com/mkolakowski/WalletWeather/blob/main/docs/dev/decisions/bank-alert-emails.md).
+
 ## Connect your mailbox
 
 ### At your bank, and in your mailbox
 
 1. In your bank's app or website, find its alerts and switch on an email
    alert for **every** transaction (often "purchases over $0.00" or "any
-   amount"). Have it sent to your Microsoft 365 or Outlook.com address.
-2. In Outlook, make a rule that moves mail from your bank's alert address
-   into a folder of its own, for example "Bank alerts". WalletWeather then
-   reads only that folder.
+   amount"). Have it sent to the mailbox you'll connect.
+2. File the alerts on their own: in Outlook, a rule that moves mail from your
+   bank's alert address into a folder such as "Bank alerts"; in Gmail, a
+   filter (search for the address, then **Create filter**) that applies a
+   label such as "Bank alerts". WalletWeather then reads only that folder or
+   label.
 
 ### In WalletWeather
 
 1. Open **Settings → Email alerts** (the tab appears once an admin has
    switched email alerts on).
-2. Press **Sign in with a code**. Go to the address shown, type the code, sign
-   in to Microsoft and allow WalletWeather to read your mail. The tab notices
-   by itself when you're done. (Or use **Connect with Microsoft** if your
-   server offers it.) With two-factor sign-in on, WalletWeather asks for a
-   code from your authenticator app first.
+2. With two-factor sign-in on, type a code from your authenticator app
+   first. Then connect one of the ways the tab offers you:
+   - **Microsoft 365 or Outlook.com:** press **Sign in with a code**, go to
+     the address shown, type the code, sign in to Microsoft and allow
+     WalletWeather to read your mail. The tab notices by itself when you're
+     done. (Or use **Connect with Microsoft** if your server offers it.)
+   - **Gmail, with Google sign-in:** press **Connect Gmail**, pick your
+     Google account and allow WalletWeather to view your email. If Google
+     says the app isn't verified, it's your server's own project: press
+     **Advanced**, then **Go to …**. Leave the box for reading mail ticked.
+   - **Gmail with an app password:** turn on
+     [2-Step Verification](https://myaccount.google.com/signinoptions/twosv),
+     then make an app password at
+     [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+     (name it "WalletWeather"). Type your Gmail address and paste the
+     16-letter password under **Gmail or another mailbox**, and press
+     **Connect**. Google doesn't offer app passwords on work or school
+     accounts, with Advanced Protection, or when 2-Step Verification uses
+     only security keys, and calls them a fallback: use Connect Gmail if
+     your server offers it.
+   - **Another mailbox:** the same card, with the password your provider
+     gives for mail apps (often an app password too) and its mail server,
+     picked from the ones your server allows.
 3. Pick the folder and the day to read alerts from (today, or up to 30 days
    back), and save.
 
@@ -189,9 +281,12 @@ Alerts from a bank you've taught that didn't become lines are listed under
 | Its account takes lines from bank sync | Pick another account, or wait for the version that joins alerts to bank sync. |
 
 Microsoft's sign-in renews each time it's used and lapses after about 90 days
-unused. If the tab says Microsoft no longer accepts the sign-in, disconnect
-and connect again; what you taught is forgotten when you disconnect, so
-you'll teach it again.
+unused. Google's lasts until you remove it, change your Google password or
+leave it unused for six months (every 7 days, if the server's project is in
+"Testing"). A Gmail app password is removed when you change your Google
+password. When the tab says the sign-in or password is no longer accepted,
+checking stops: disconnect and connect again; what you taught is forgotten
+when you disconnect, so you'll teach it again.
 
 ## Privacy
 
@@ -201,13 +296,17 @@ you'll teach it again.
   card digits), the sample you taught each bank from, and alerts it couldn't
   read so you can teach from them. Those go after 180 days (the audit log's
   `AUDIT_RETENTION_DAYS`) or when you dismiss them.
-- Microsoft's sign-in is stored encrypted with the server's `ENCRYPTION_KEY`,
+- The sign-in (Microsoft's or Google's) or app password is stored encrypted
+  with the server's `ENCRYPTION_KEY`,
   never shown or logged, and goes into encrypted backups only, never into
   "Download my data".
 - **Disconnect** forgets the sign-in, the senders taught and the couldn't-read
   list; the lines already brought in stay. To remove WalletWeather's access at
   Microsoft too, go to your Microsoft account's **Privacy → Apps and
-  services** (personal) or **My Apps** (work or school) and remove it.
+  services** (personal) or **My Apps** (work or school) and remove it. For
+  Google, remove WalletWeather under **Security → Your connections to
+  third-party apps & services**, or the app password under
+  [App passwords](https://myaccount.google.com/apppasswords).
 
 The [privacy policy](https://github.com/mkolakowski/WalletWeather/blob/main/PRIVACY.md#what-leaves-the-server)
 says what leaves the server.

@@ -181,8 +181,8 @@ def test_the_microsoft_app_not_being_set_up_offers_nothing_even_when_ticked(
 def test_an_admin_may_always_connect(app_started, admin, ms, switched_on):
     c, u = admin
     allow_mail(u["id"], [])
-    assert c.get("/api/mail").json()["providers_allowed"] == ["microsoft"]
-    assert c.get("/api/mail/status").json()["providers_allowed"] == ["microsoft"]
+    assert c.get("/api/mail").json()["providers_allowed"] == ["microsoft", "imap"]  # every provider set up (#208)
+    assert c.get("/api/mail/status").json()["providers_allowed"] == ["microsoft", "imap"]
     connect_with_code(c, ms)
     assert c.get("/api/mail/status").json().get("paused") is False
 
@@ -224,8 +224,8 @@ def test_the_same_list_again_records_nothing(app_started, admin):
 def test_mail_access_checks(app_started, admin):
     a, _ = admin
     _, u = register(app_started, mail=False)
-    r = a.put(f"/api/admin/users/{u['id']}/mail-access", json={"providers": ["gmail"]})
-    assert r.status_code == 400 and "gmail" in r.json()["detail"]
+    r = a.put(f"/api/admin/users/{u['id']}/mail-access", json={"providers": ["yahoo"]})
+    assert r.status_code == 400 and "yahoo" in r.json()["detail"]
     assert a.put("/api/admin/users/999999999/mail-access", json={"providers": []}).status_code == 404
     assert a.put(f"/api/admin/users/{u['id']}/mail-access", json={}).status_code == 422
     assert audit_details("mail_access_changed", like=f"user #{u['id']}:%") == []

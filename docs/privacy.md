@@ -64,11 +64,12 @@ with your other numbers on the iPhone, kept as described below. Disconnect
 in the same place forgets the connection; disable the token at SimpleFIN
 Bridge to stop it there too. Teller and Plaid can't be used without a server.
 
-If they have switched on email alerts and you connect your Microsoft mailbox
-in the web app, the server (not your phone) reads your bank's alert emails
-from the one folder you picked, read-only, whenever it checks. Microsoft sees
-that, and its privacy policy covers its part. The iOS app itself never talks
-to Microsoft.
+If they have switched on email alerts and you connect your mailbox in the web
+app (Microsoft 365, Gmail, or another mailbox with an app password), the
+server (not your phone) reads your bank's alert emails from the one folder
+you picked, read-only, whenever it checks. Microsoft, Google or your mail
+provider sees that, and its privacy policy covers its part. The iOS app
+itself never talks to any of them.
 
 ## What is kept on your device
 

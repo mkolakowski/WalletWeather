@@ -771,7 +771,10 @@ def test_the_admin_switch(admin, ms, app_started):
     c, u = admin
     assert c.get("/api/admin/mail-alerts").json() == {
         "enabled": False, "connected_users": c.get("/api/admin/mail-alerts").json()["connected_users"],
-        "microsoft_configured": True}
+        "microsoft_configured": True,
+        # Gmail and other mailboxes (#208): off without GMAIL_API_ENABLED;
+        # IMAP_HOSTS defaults to Gmail's.
+        "gmail_configured": False, "imap_hosts": ["imap.gmail.com"]}
     r = c.put("/api/admin/mail-alerts", json={"enabled": True})
     assert r.status_code == 200 and r.json()["enabled"] is True
     plain, pu = register(app_started)

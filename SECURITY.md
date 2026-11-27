@@ -74,7 +74,17 @@ encrypted the same way: it has read-only access to their whole mailbox, not
 just the folder they picked (Microsoft has no permission limited to one
 folder), so anyone who can read both the database and the key can read
 their mail until they disconnect and remove the app's access at Microsoft.
-That's why the setup guide has the bank's alerts filed into a folder of
+Gmail's sign-in (`gmail.readonly`) and an IMAP app password are the same: a
+Gmail app password can read, and over IMAP even change, the whole mailbox,
+and lasts until it's removed or the Google password changes. The server
+opens the folder read-only and fetches without marking anything read, and
+connects only to hosts on `IMAP_HOSTS`, by exact name, port 993 with TLS and
+the certificate checked, refused before any connection otherwise; but the
+stored password itself isn't limited, so the guide recommends Google
+sign-in where it's offered. An IMAP mailbox's sender check trusts the top
+Authentication-Results header only when the host's own server wrote it
+(`mx.google.com` for Gmail, or the id the operator lists), so a server that
+writes none can't be fooled by a header the sender wrote. That's why the setup guide has the bank's alerts filed into a folder of
 their own and the server reads only that folder. Alert emails are text
 written by strangers: the server reads them as plain text, follows no link,
 fetches no image, makes a line only from a mail that passed the mailbox

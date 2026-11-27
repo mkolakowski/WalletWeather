@@ -3181,7 +3181,7 @@ const fmtShort = v => {
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.120.0";
+const WEB_VERSION = "1.121.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -3191,6 +3191,7 @@ const WEB_VERSION = "1.120.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.121.0 (2026-11-27, claude+mkolakowski): (#208) Email alerts from Gmail and other mailboxes. Settings → Email alerts offers a card per way you're allowed (/api/mail providers_allowed): Microsoft 365 (as before), Connect Gmail (mailGmailStart → POST /api/mail/gmail/web, shown only when gmail_available) and "Gmail or another mailbox" (an address, an app password and, when the server lists more than one, the mail server from imap_hosts; mailImapConnect → POST /api/mail/imap). The two-factor code field is shared. Once connected, the wording follows the provider (MAIL_HOW: "signed in with Google", "with an app password", the Gmail label tip, who no longer accepts the sign-in). Admin → Users gets a tick each for Gmail sign-in and Gmail or other (IMAP), offered when /api/admin/mail-alerts says gmail_configured or lists imap_hosts; the admin status line says what's set up.
 // 1.120.0 (2026-11-26, claude+mkolakowski): (#390) "Recurring transaction" now reads "bill or income" (help texts and the update, delete and restore dialogs, and their titles); wording only.
 // 1.119.0 (2026-11-26, claude+mkolakowski): (#367) One word for an entry: "line". The labels, help text, dialogs and counts that said "transaction" for a line now say "line" (+ Add line, Search lines, Import lines from CSV, "Delete this line?", 1 line / n lines in Search, the settings help text). Wording only: ids, field names, API routes, stored values and the code stay as they are; "recurring transaction" is left as it was, to be decided.
 // 1.118.0 (2026-11-25, claude+mkolakowski): (#378) Profile picture (account-picker phase 2). Settings → Your account gains a "Profile picture" panel (#profilePicturePanel): Choose a picture… reads the file, profilePictureChosen/_squareJpeg cut it square from the middle in a canvas at 512 px at most and encode a JPEG under the server's 256 KB (quality steps down until it fits), the preview shows it, Save picture PUTs it to /api/me/picture (profilePictureSave) and Remove DELETEs it (profilePictureRemove); loadProfilePicture runs when Settings opens. The round account button (#userMenuBtn) shows the picture (#userPicture, from /api/me/picture?v=<picture_updated_at> so a new one is fetched and an old one kept) instead of the initials, and falls back to them when it can't load. No CSP change: the picture is same-origin and the preview is a data: URL.
@@ -11575,27 +11576,90 @@ async function mailCheckShared(accountId) {
   } catch (e) { _mailSay(errText(e), 'var(--bad)'); }
 }
 
+// The ways to connect (#208): a card for each one this person may use.
+const MAIL_HOW = {
+  microsoft: { name: 'Microsoft 365', who: 'Microsoft',
+               tip: 'Tip: make a mail rule in Outlook that files your bank\'s alerts into their own folder, and pick that folder here.' },
+  gmail: { name: 'Gmail', who: 'Google',
+           tip: 'Tip: make a filter in Gmail that puts a label on your bank\'s alerts, and pick that label here.' },
+  imap: { name: 'your mailbox', who: 'The mail server',
+          tip: 'Tip: make a filter or rule that files your bank\'s alerts into their own folder (in Gmail, a label), and pick it here.' },
+};
+
 function _renderMailConnect(body) {
+  const allowed = mailState.providers_allowed || [];
   const intro = `
     <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
       Turn on "alert me for every transaction" at your bank. WalletWeather reads those emails from one folder of your
-      Microsoft 365 or Outlook.com mailbox and turns each into a line. It only reads: it never changes, moves or
-      deletes your mail.</p>`;
-  if (!mailState.available) {
-    body.innerHTML = intro + `<p style="font-size:13px">This server has no Microsoft app set up yet. The person who runs it
-      needs to set <code>MS_CLIENT_ID</code> in the server's <code>.env</code>; the setup guide is
-      <code>docs/email-alerts.md</code>.</p><div id="mailStatus" role="status" style="margin-top:10px;font-size:13px"></div>`;
-    return;
-  }
+      mailbox and turns each into a line. It only reads: it never changes, moves or deletes your mail, and nothing is
+      marked as read.</p>`;
   const err = mailState.connect_error
     ? `<p style="color:var(--bad);font-size:13px;margin:0 0 10px">${escapeHtml(mailState.connect_error)}</p>` : '';
-  body.innerHTML = intro + err + `
-    ${_bankCodeField('mailConnectCode')}
-    <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+  const card = (title, inner) => `<div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin:0 0 14px;max-width:720px">
+      <h3 class="backup-subhead" style="margin:0 0 6px">${title}</h3>${inner}</div>`;
+  const cards = [];
+  if (allowed.includes('microsoft')) cards.push(card('Microsoft 365 or Outlook.com', `
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
       <button onclick="mailDeviceStart()">Sign in with a code</button>
       ${mailState.web_available ? '<button class="ghost" onclick="mailWebStart()">Connect with Microsoft</button>' : ''}
-    </div>
-    <div id="mailStatus" role="status" style="margin-top:10px;font-size:13px"></div>`;
+    </div>`));
+  if (allowed.includes('gmail')) cards.push(card('Gmail, with Google sign-in', `
+    <p style="color:var(--muted);margin:0 0 8px;font-size:13px">Google asks you to let WalletWeather read your email,
+      read-only. It may first say the app isn't verified by Google: it's this server's own Google project, set up by
+      the person who runs it.</p>
+    <button onclick="mailGmailStart()">Connect Gmail</button>`));
+  if (allowed.includes('imap')) {
+    const hosts = mailState.imap_hosts || [];
+    const hostField = hosts.length > 1 ? `
+      <div><label for="mailImapHost">Mail server</label>
+        <select id="mailImapHost">${hosts.map(h => `<option value="${escapeAttr(h)}">${escapeHtml(h === 'imap.gmail.com' ? 'Gmail (imap.gmail.com)' : h)}</option>`).join('')}</select></div>` : '';
+    cards.push(card('Gmail or another mailbox, with an app password', `
+      <p style="color:var(--muted);margin:0 0 8px;font-size:13px">For Gmail, turn on 2-Step Verification, then make an
+        app password at <span style="user-select:all">myaccount.google.com/apppasswords</span> and paste it here. Google
+        doesn't offer app passwords on work or school accounts. Changing your Google password removes the app password,
+        and checking stops until you connect again.</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+        <div><label for="mailImapAddress">Email address</label>
+          <input id="mailImapAddress" type="email" autocomplete="username" spellcheck="false" style="min-width:220px"></div>
+        <div><label for="mailImapPassword">App password</label>
+          <input id="mailImapPassword" type="password" autocomplete="off" spellcheck="false" style="min-width:180px"></div>
+        ${hostField}
+        <button onclick="mailImapConnect()">Connect</button>
+      </div>
+      <p style="color:var(--muted);margin:8px 0 0;font-size:12px">The server connects only to
+        ${hosts.map(h => '<code>' + escapeHtml(h) + '</code>').join(', ') || 'no mail servers yet'}, over a secure
+        connection. The person who runs it can add another in <code>IMAP_HOSTS</code>.</p>`));
+  }
+  body.innerHTML = intro + err + _bankCodeField('mailConnectCode')
+    + `<div style="margin-top:12px">${cards.join('')}</div>`
+    + '<div id="mailStatus" role="status" style="margin-top:10px;font-size:13px"></div>';
+}
+
+async function mailGmailStart() {
+  _mailSay('Opening Google…');
+  try {
+    const r = await api('/api/mail/gmail/web', { method: 'POST',
+      body: JSON.stringify({ code: _mailCode(), utc_offset_minutes: _mailOffset() }) });
+    location.href = r.url;
+  } catch (e) { _mailSay(errText(e), 'var(--bad)'); }
+}
+
+async function mailImapConnect() {
+  const address = (document.getElementById('mailImapAddress').value || '').trim();
+  const password = document.getElementById('mailImapPassword').value || '';
+  const hostSel = document.getElementById('mailImapHost');
+  if (!address || !password) return _mailSay('Give the email address and the app password.', 'var(--bad)');
+  const payload = { address, password, code: _mailCode(), utc_offset_minutes: _mailOffset() };
+  if (hostSel) payload.host = hostSel.value;
+  else if (!/@(gmail|googlemail)\.com$/i.test(address) && (mailState.imap_hosts || []).length === 1)
+    payload.host = mailState.imap_hosts[0];
+  _mailSay('Signing in to the mailbox…');
+  try {
+    await api('/api/mail/imap', { method: 'POST', body: JSON.stringify(payload) });
+    document.getElementById('mailImapPassword').value = '';
+    notify('Mailbox connected.');
+    await loadMail();
+  } catch (e) { _mailSay(errText(e), 'var(--bad)'); }
 }
 
 function _mailCode() {
@@ -11682,6 +11746,7 @@ function _mailKindText(k) {
 
 function _renderMailConnected(body, folders, unread, checks) {
   const m = mailState;
+  const how = MAIL_HOW[m.provider] || MAIL_HOW.microsoft;
   const today = new Date();
   const minDay = new Date(today); minDay.setDate(minDay.getDate() - (m.start_max_days - 1));
   const max = _isoDate(today), min = _isoDate(minDay);
@@ -11744,14 +11809,14 @@ function _renderMailConnected(body, folders, unread, checks) {
       </div>
     </div>`).join('');
   body.innerHTML = `
-    ${m.needs_reconnect ? `<p style="color:var(--bad);font-size:13px;margin:0 0 10px"><strong>Microsoft no longer accepts this sign-in, so checking has stopped.</strong>
-      Disconnect below and connect again.</p>` : ''}
+    ${m.needs_reconnect ? `<p style="color:var(--bad);font-size:13px;margin:0 0 10px"><strong>${escapeHtml(how.who)} no longer accepts this ${m.provider === 'imap' ? 'app password' : 'sign-in'}, so checking has stopped.</strong>
+      Disconnect below and connect again${m.provider === 'imap' ? ' with a new app password' : ''}.</p>` : ''}
     <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
       Connected to <strong>${m.address ? escapeHtml(m.address) : 'address unknown'}</strong>
-      (${m.auth_mode === 'web' ? 'signed in with Microsoft' : 'signed in with a code'}${m.connected_at ? ', ' + escapeHtml(_bankWhen(m.connected_at)) : ''}).
+      (${m.provider === 'imap' ? 'with an app password' : m.provider === 'gmail' ? 'signed in with Google' : m.auth_mode === 'web' ? 'signed in with Microsoft' : 'signed in with a code'}${m.connected_at ? ', ' + escapeHtml(_bankWhen(m.connected_at)) : ''}).
       Read-only: your mail is never changed, moved or deleted.</p>
     <h3 class="backup-subhead">Folder and start date</h3>
-    <p style="color:var(--muted);margin:0 0 8px;font-size:13px">Tip: make a mail rule in Outlook that files your bank's alerts into their own folder, and pick that folder here.</p>
+    <p style="color:var(--muted);margin:0 0 8px;font-size:13px">${escapeHtml(how.tip)}</p>
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
       <div><label for="mailFolder">Choose folder</label><select id="mailFolder">${fopts}</select></div>
       <div><label for="mailStart">Read alerts from</label>
@@ -12066,7 +12131,9 @@ function _adminMailShow(data) {
   status.style.color = '';
   status.textContent = (data.enabled ? 'On. ' : 'Off. ')
     + (n === 0 ? 'No user has a mailbox connected.' : n + ' user' + (n === 1 ? ' has a mailbox' : 's have a mailbox') + ' connected.')
-    + (data.microsoft_configured ? '' : ' Users can\'t connect until MS_CLIENT_ID is set in the server\'s .env.');
+    + ' Set up: ' + [data.microsoft_configured ? 'Microsoft 365' : 'Microsoft 365 needs MS_CLIENT_ID',
+                     data.gmail_configured ? 'Gmail sign-in' : 'Gmail sign-in needs GMAIL_API_ENABLED, a Google project and https://',
+                     (data.imap_hosts || []).length ? 'IMAP to ' + data.imap_hosts.join(', ') : 'no IMAP_HOSTS'].join('; ') + '.';
 }
 async function loadAdminMail() {
   try { _adminMailShow(await api('/api/admin/mail-alerts')); }
@@ -12176,7 +12243,7 @@ async function adminSetBankAccess(uid, box) {
 // Admin → Users, "Email alerts" column (#268): who may connect a mailbox.
 // Microsoft 365 is offered once the server has MS_CLIENT_ID (as
 // /api/admin/mail-alerts says); one already ticked stays shown.
-const MAIL_PROVIDER_NAMES = { microsoft: 'Microsoft 365' };
+const MAIL_PROVIDER_NAMES = { microsoft: 'Microsoft 365', gmail: 'Gmail sign-in', imap: 'Gmail or other (IMAP)' };
 let adminMailOffered = ['microsoft'];
 function _adminMailAccessHtml(u) {
   if (u.is_admin) return '<span style="color:var(--muted);font-size:12px" title="Admins may always connect a mailbox">Always</span>';
@@ -12206,7 +12273,8 @@ async function loadAdminUsers() {
     const [users, bankCfg, mailCfg] = await Promise.all([api('/api/admin/users'), api('/api/admin/bank-sync').catch(() => null),
                                                          api('/api/admin/mail-alerts').catch(() => null)]);
     if (bankCfg && bankCfg.providers) adminBankOffered = Object.keys(bankCfg.providers).filter(k => bankCfg.providers[k]);
-    if (mailCfg) adminMailOffered = mailCfg.microsoft_configured ? ['microsoft'] : [];
+    if (mailCfg) adminMailOffered = [mailCfg.microsoft_configured && 'microsoft', mailCfg.gmail_configured && 'gmail',
+                                     (mailCfg.imap_hosts || []).length && 'imap'].filter(Boolean);
     if (!users.length) {
       wrap.innerHTML = '<div style="color:var(--muted)">No users.</div>';
       return;

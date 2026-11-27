@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.99.7"
+APP_VERSION = "1.100.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,16 @@ APP_VERSION = "1.99.7"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.100.0 (2026-11-27, claude+mkolakowski): email alerts from Gmail and
+#     other mailboxes (bank-alert-emails phase 3, #208). POST /api/mail/imap
+#     {address, password, host?, code?, utc_offset_minutes} connects over
+#     IMAP with an app password (imapmail.py: hosts on IMAP_HOSTS only, port
+#     993 TLS, read-only); POST /api/mail/gmail/web and GET .../callback
+#     connect Gmail with Google sign-in (gmail.py; GMAIL_API_ENABLED, https
+#     only). Providers 'gmail' and 'imap' join 'microsoft' in the Admin ticks.
+#     /api/mail gains gmail_available, gmail_own_project and imap_hosts;
+#     /api/admin/mail-alerts gains gmail_configured and imap_hosts. Every
+#     kind of mailbox is read through the same Reader shape. No schema change.
 # 1.99.0 (2026-11-25, claude+mkolakowski): (#377) A profile picture per
 #     person (account-picker phase 1; schema 40). PUT /api/me/picture takes
 #     the image as the body (PNG, JPEG or WebP by its first bytes, at most
@@ -704,7 +714,7 @@ from .db import (
 from . import twofactor
 from . import simplefin, teller, plaid
 from . import bank_keys
-from . import mailbox, alerts
+from . import mailbox, alerts, gmail, imapmail
 from . import jscore
 from .forecast import (build_forecast, actual_balance_as_of, upcoming_dates, _occurrences, account_rows,
                        recurring_accounts, search_rows)
@@ -7037,7 +7047,8 @@ def mail_alerts_enabled(db: Session) -> bool:
 # an off-for-everyone kill switch. Unticking pauses the person's mailbox
 # (kept, never checked, Check now refused) until they're ticked again. A
 # mailbox doesn't pass on when its person is deleted (question 4).
-MAIL_PROVIDER_NAMES = {"microsoft": "Microsoft 365"}
+MAIL_PROVIDER_NAMES = {"microsoft": "Microsoft 365", "gmail": "Gmail",
+                       "imap": "Gmail or another mailbox"}
 
 
 def mail_access(db: Session, user: User) -> set[str]:
@@ -7052,7 +7063,9 @@ def _mail_providers_allowed(db: Session, user: User) -> list[str]:
     """What this person may connect, so a page or app knows whether to offer
     Connect: an admin's tick, and the server has that provider set up."""
     access = mail_access(db, user)
-    offered = {"microsoft": mailbox.available()}
+    offered = {"microsoft": mailbox.available(),
+               "gmail": gmail.web_available(_gmail_redirect_uri()),
+               "imap": bool(imapmail.allowed_hosts())}
     return [p for p in MAIL_PROVIDER_NAMES if p in access and offered.get(p)]
 
 
@@ -7108,6 +7121,10 @@ def _mail_redirect_uri() -> str:
     return APP_BASE_URL.strip().rstrip("/") + "/api/mail/microsoft/callback"
 
 
+def _gmail_redirect_uri() -> str:
+    return APP_BASE_URL.strip().rstrip("/") + "/api/mail/gmail/callback"
+
+
 def _mail_cards(sender: MailSender) -> dict:
     try:
         cards = json.loads(sender.cards_json or "{}")
@@ -7153,6 +7170,11 @@ def _mail_status(db: Session, user: User, request: Request | None = None) -> dic
     iso = lambda d: d.isoformat() + "Z" if d else None
     out = {"enabled": mail_alerts_enabled(db), "available": mailbox.available(),
            "web_available": mailbox.web_available(_mail_redirect_uri()),
+           # Gmail with Google sign-in (#208): switched on, a project, https.
+           "gmail_available": gmail.web_available(_gmail_redirect_uri()),
+           "gmail_own_project": gmail.own_project(),
+           # The mail servers an IMAP mailbox may be on (IMAP_HOSTS).
+           "imap_hosts": imapmail.allowed_hosts(),
            "connected": conn is not None, "start_max_days": MAIL_START_MAX_DAYS,
            "providers_allowed": _mail_providers_allowed(db, user),
            "shared": _mail_shared(db, user)}
@@ -7316,27 +7338,32 @@ def _mail_fail(db: Session, conn: MailConnection | None, e: mailbox.MailboxError
     raise HTTPException(e.status, str(e))
 
 
-def _mail_token(db: Session, conn: MailConnection) -> str:
-    """A working access token for the mailbox, renewing (and storing) the
-    sign-in when it's due. Raises MailboxError."""
+def _mail_token(db: Session, conn: MailConnection):
+    """What the mailbox's reader opens with: a working access token for
+    Microsoft or Gmail, renewing (and storing) the sign-in when it's due, or
+    the IMAP server, address and app password. Raises MailboxError."""
     try:
         tokens = json.loads(decrypt_str(conn.tokens_enc))
     except Exception:
         tokens = {}
     tokens = tokens if isinstance(tokens, dict) else {}
-    new = mailbox.fresh(tokens, conn.auth_mode)
+    provider = conn.provider or "microsoft"
+    if provider == "imap":
+        return tokens
+    new = gmail.fresh(tokens) if provider == "gmail" else mailbox.fresh(tokens, conn.auth_mode)
     if new is not tokens:
         conn.tokens_enc = encrypt_str(json.dumps(new))
         db.commit()
     return new["access"]
 
 
-def _mail_access(db: Session, conn: MailConnection) -> str:
-    """The same, with a failure answered as an HTTP error."""
-    try:
-        return _mail_token(db, conn)
-    except mailbox.MailboxError as e:
-        _mail_fail(db, conn, e)
+def _mail_reader(db: Session, conn: MailConnection):
+    """The mailbox's reader, not opened yet (#208): the same calls for every
+    kind of mailbox. Raises MailboxError."""
+    cred = _mail_token(db, conn)
+    provider = conn.provider or "microsoft"
+    module = {"gmail": gmail, "imap": imapmail}.get(provider, mailbox)
+    return module.Reader(cred, conn.folder_id)
 
 
 def _mail_today(offset_minutes: int) -> date:
@@ -7345,18 +7372,23 @@ def _mail_today(offset_minutes: int) -> date:
 
 
 def _mail_finish_connect(db: Session, user: User, tokens: dict, mode: str,
-                         request: Request | None, offset: int = 0) -> MailConnection:
-    try:
-        address = mailbox.mailbox_address(tokens["access"])
-    except mailbox.MailboxError:
-        address = None   # shown as unknown; reading mail is what matters
-    conn = MailConnection(user_id=user.id, provider="microsoft", auth_mode=mode,
+                         request: Request | None, offset: int = 0, provider: str = "microsoft",
+                         address: str | None = None, detail: str | None = None) -> MailConnection:
+    if address is None:
+        try:
+            module = gmail if provider == "gmail" else mailbox
+            address = module.Reader(tokens["access"]).address()
+        except mailbox.MailboxError:
+            address = None   # shown as unknown; reading mail is what matters
+    conn = MailConnection(user_id=user.id, provider=provider, auth_mode=mode,
                           tokens_enc=encrypt_str(json.dumps(tokens)),
                           address_enc=encrypt_str(address) if address else None,
                           start_date=_mail_today(offset), utc_offset_minutes=offset)
+    if provider == "imap":   # one folder to start from: alerts usually land there
+        conn.folder_id, conn.folder_name = "INBOX", "Inbox"
     db.add(conn)
     db.commit()
-    record_event(db, "mail_connected", request, user=user, detail=f"microsoft, {mode}")
+    record_event(db, "mail_connected", request, user=user, detail=detail or f"{provider}, {mode}")
     return conn
 
 
@@ -7366,12 +7398,20 @@ class MailCodeIn(BaseModel):
     utc_offset_minutes: int = Field(default=0, ge=-840, le=840)
 
 
-def _mail_connect_checks(db: Session, request: Request, user: User, code: str | None) -> None:
+def _mail_connect_checks(db: Session, request: Request, user: User, code: str | None,
+                         provider: str = "microsoft") -> None:
     _mail_allowed(db, user)
-    _mail_may_connect(db, user)
-    if not mailbox.available():
+    _mail_may_connect(db, user, provider)
+    if provider == "microsoft" and not mailbox.available():
         raise HTTPException(400, "This server has no Microsoft app set up yet: MS_CLIENT_ID is "
                                  "empty in its .env. See the email alerts setup guide.")
+    if provider == "gmail" and not gmail.web_available(_gmail_redirect_uri()):
+        raise HTTPException(400, "Connect Gmail needs GMAIL_API_ENABLED and a Google project "
+                                 "(GOOGLE_CLIENT_ID, or GMAIL_CLIENT_ID) in the server's .env, and the "
+                                 "server on an https:// address (APP_BASE_URL). Use an app password "
+                                 "instead, or see the email alerts setup guide.")
+    if provider == "imap" and not imapmail.allowed_hosts():
+        raise HTTPException(400, "This server has no mail servers on IMAP_HOSTS in its .env.")
     if _mail_connection(db, user):
         raise HTTPException(409, "You already have a mailbox connected. Disconnect it first.")
     _confirm_code_for(db, request, user, code, "mailbox connection")
@@ -7481,12 +7521,107 @@ def mail_web_callback(request: Request, code: str | None = None, state: str | No
     return back(None)
 
 
+@app.post("/api/mail/gmail/web")
+def mail_gmail_start(body: MailCodeIn, request: Request,
+                     user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Start Connect Gmail (#208): the address to send the browser to, asking
+    Google for read-only mail access. Only when GMAIL_API_ENABLED is set, a
+    Google project is configured and this server is on https://."""
+    _mail_connect_checks(db, request, user, body.code, "gmail")
+    s = gmail.start_web(_gmail_redirect_uri())
+    request.session["mail_gmail_oauth"] = {"state": s["state"], "verifier": s["verifier"],
+                                           "uid": user.id, "at": int(time.time()),
+                                           "offset": body.utc_offset_minutes}
+    return {"url": s["url"]}
+
+
+@app.get("/api/mail/gmail/callback")
+def mail_gmail_callback(request: Request, code: str | None = None, state: str | None = None,
+                        error: str | None = None,
+                        user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Google sends the browser back here after Connect Gmail."""
+    pending = request.session.pop("mail_gmail_oauth", None)
+
+    def back(problem: str | None):
+        if problem:
+            request.session["mail_oauth_result"] = problem
+        return RedirectResponse(MAIL_RETURN_PATH, status_code=303)
+
+    if (not isinstance(pending, dict) or pending.get("uid") != user.id or not state
+            or not secrets.compare_digest(str(pending.get("state", "")), state)
+            or time.time() - int(pending.get("at", 0)) > 900):
+        return back("The sign-in didn't match one started here, or took too long. Start again.")
+    if error or not code:
+        return back("The sign-in was cancelled or declined at Google.")
+    try:
+        _mail_allowed(db, user)
+        _mail_may_connect(db, user, "gmail")
+    except HTTPException as e:
+        return back(e.detail)
+    if not gmail.web_available(_gmail_redirect_uri()):
+        return back("Connect Gmail isn't switched on on this server any more.")
+    if _mail_connection(db, user):
+        return back("You already have a mailbox connected. Disconnect it first.")
+    try:
+        tokens = gmail.finish_web(code[:4000], pending["verifier"], _gmail_redirect_uri())
+    except mailbox.MailboxError as e:
+        return back(str(e))
+    offset = pending.get("offset")
+    _mail_finish_connect(db, user, tokens, "web", request,
+                         offset if isinstance(offset, int) and -840 <= offset <= 840 else 0,
+                         provider="gmail")
+    return back(None)
+
+
+class MailImapIn(BaseModel):
+    address: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=1, max_length=200)
+    # The mail server; left out for a Gmail address (imap.gmail.com).
+    host: str | None = Field(default=None, max_length=253)
+    code: str | None = Field(default=None, max_length=40)
+    utc_offset_minutes: int = Field(default=0, ge=-840, le=840)
+
+
+@app.post("/api/mail/imap")
+def mail_imap_connect(body: MailImapIn, request: Request,
+                      user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Connect Gmail or another mailbox over IMAP with an app password
+    (#208). The server must be on IMAP_HOSTS, which is checked before any
+    connection; the address and password are tried (sign in, list folders)
+    before they're kept, encrypted. Inbox is the folder to start with."""
+    _mail_connect_checks(db, request, user, body.code, "imap")
+    address = body.address.strip()
+    if "@" not in address or any(ch.isspace() for ch in address):
+        raise HTTPException(400, "That doesn't look like an email address.")
+    host = (body.host or "").strip() or imapmail.default_host(address)
+    if not host:
+        raise HTTPException(400, "Give the mail server's name (its IMAP server), for a mailbox "
+                                 "that isn't Gmail.")
+    try:
+        host = imapmail.checked_host(host)
+        cred = {"host": host, "user": address, "password": imapmail.clean_password(host, body.password)}
+        folders = imapmail.try_connect(cred)
+    except mailbox.MailboxError as e:
+        # Nothing is kept yet, so a refused password is a plain error here.
+        raise HTTPException(400 if e.status in (400, 409) else e.status, str(e))
+    if _mail_connection(db, user):
+        raise HTTPException(409, "You already have a mailbox connected. Disconnect it first.")
+    conn = _mail_finish_connect(db, user, cred, "imap", request, body.utc_offset_minutes,
+                                provider="imap", address=address, detail=f"imap, {host}")
+    inbox = next((f for f in folders if f["id"].upper() == "INBOX"), None)
+    if inbox is None:
+        conn.folder_id = conn.folder_name = None
+        db.commit()
+    return _mail_status(db, user)
+
+
 @app.get("/api/mail/folders")
 def mail_folders(user: User = Depends(current_session_user), db: Session = Depends(get_db)):
     """The mailbox's folders, to pick the one alerts are read from."""
     conn = _mail_needed(db, user)
     try:
-        return mailbox.folders(_mail_access(db, conn))
+        with _mail_reader(db, conn) as r:
+            return r.folders()
     except mailbox.MailboxError as e:
         _mail_fail(db, conn, e)
 
@@ -7506,7 +7641,8 @@ def mail_settings(body: MailSettingsIn, user: User = Depends(current_session_use
     conn = _mail_needed(db, user)
     if body.folder_id is not None and body.folder_id != conn.folder_id:
         try:
-            found = [f for f in mailbox.folders(_mail_access(db, conn)) if f["id"] == body.folder_id]
+            with _mail_reader(db, conn) as r:
+                found = [f for f in r.folders() if f["id"] == body.folder_id]
         except mailbox.MailboxError as e:
             _mail_fail(db, conn, e)
         if not found:
@@ -7537,7 +7673,8 @@ def mail_messages(user: User = Depends(current_session_user), db: Session = Depe
     if not conn.folder_id:
         raise HTTPException(400, "Pick the folder alerts are read from first.")
     try:
-        rows = mailbox.recent(_mail_access(db, conn), conn.folder_id)
+        with _mail_reader(db, conn) as r:
+            rows = r.recent()
     except mailbox.MailboxError as e:
         _mail_fail(db, conn, e)
     taught = {s.address for s in db.query(MailSender).filter_by(connection_id=conn.id)}
@@ -7563,7 +7700,8 @@ def _mail_source(db: Session, user: User, conn: MailConnection, body: MailSource
                 "text": decrypt_str(u.text_enc), "received": u.received_at,
                 "verified": u.reason != "unverified"}
     try:
-        m = mailbox.message(_mail_access(db, conn), body.message_id)
+        with _mail_reader(db, conn) as r:
+            m = r.message(body.message_id)
     except mailbox.MailboxError as e:
         _mail_fail(db, conn, e)
     return {"sender": m["sender"], "subject": m["subject"], "text": alerts.to_text(m["body"], m["html"]),
@@ -7851,14 +7989,15 @@ def _mail_check_locked(db: Session, user: User, conn: MailConnection, request: R
             matched += 1 if got.bank_match else 0
         else:
             u.reason, u.detail = got
+    reader = None
     try:
-        access = _mail_token(db, conn)
+        reader = _mail_reader(db, conn).open()
         if conn.scanned_through:
             after = conn.scanned_through - MAIL_OVERLAP
         else:
             start = datetime(conn.start_date.year, conn.start_date.month, conn.start_date.day)
             after = start - timedelta(minutes=conn.utc_offset_minutes)
-        listed = mailbox.since(access, conn.folder_id, after, MAIL_SCAN_LIMIT)
+        listed = reader.since(after, MAIL_SCAN_LIMIT, senders=list(senders))
         wanted = [m for m in listed if m["sender"] in senders]
         refs = {mail_ref(m["message_id"]): m for m in wanted}
         landed = {r for (r,) in db.query(Transaction.mail_ref).join(Account, Account.id == Transaction.account_id)
@@ -7884,7 +8023,7 @@ def _mail_check_locked(db: Session, user: User, conn: MailConnection, request: R
                 stopped = True
                 break
             opened += 1
-            full = mailbox.message(access, m["id"])
+            full = reader.message(m["id"])
             text = alerts.to_text(full["body"], full["html"])
             if not alerts.sender_verified(full["sender"], full["auth_results"]):
                 _mail_keep_unread(db, conn, ref, m["received"], m["sender"], m["subject"], text,
@@ -7926,6 +8065,9 @@ def _mail_check_locked(db: Session, user: User, conn: MailConnection, request: R
         record_event(db, "mail_check_failed", request, user=user,
                      detail=("revoked" if e.revoked else f"HTTP {e.status}") + f", {trigger}")
         raise HTTPException(e.status, str(e))
+    finally:
+        if reader is not None:
+            reader.close()
     status = (f"{added} new line{'' if added == 1 else 's'}"
               + (f", {matched} of them matched a bill" if matched else "")
               + f", {skipped} already here"
@@ -10077,7 +10219,9 @@ def admin_get_mail_alerts(user: User = Depends(current_admin), db: Session = Dep
     have, and whether the server has a Microsoft app (MS_CLIENT_ID)."""
     return {"enabled": mail_alerts_enabled(db),
             "connected_users": db.query(MailConnection).count(),
-            "microsoft_configured": mailbox.available()}
+            "microsoft_configured": mailbox.available(),
+            "gmail_configured": gmail.web_available(_gmail_redirect_uri()),
+            "imap_hosts": imapmail.allowed_hosts()}
 
 
 @app.put("/api/admin/mail-alerts")

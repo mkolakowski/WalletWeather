@@ -69,7 +69,17 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.7** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.18**
+App version: **1.100.0** · Web version: **1.121.0** · Schema version: **40** · iOS version: **0.73.18**
+
+### Added
+
+- Email alerts can now come from Gmail and other mailboxes, not only Microsoft 365. In Settings → Email alerts, "Gmail or another mailbox" takes your address and an app password (for Gmail, made at myaccount.google.com/apppasswords with 2-Step Verification on); the server signs in over IMAP, opens your folder read-only and never marks anything read. It connects only to the mail servers in the new `IMAP_HOSTS` setting (Gmail's by default), on port 993 with a checked secure connection. To use another provider, the person who runs the server adds its server to `IMAP_HOSTS` as the setup guide describes. Tested only against a stand-in mail server so far. (#208)
+- "Connect Gmail" signs in with Google and asks for read-only access to your mail, so no password is kept. It's offered when the server sets the new `GMAIL_API_ENABLED`, has a Google project and is on an `https://` address. It uses the Google sign-in project, or a project of its own when `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET` are set (for Google's Personal mode, with no warning screen). The setup guide covers adding the Gmail permission, Google's "unverified app" warning, and why "Testing" makes you connect again every 7 days. A sign-in Google stops accepting asks you to connect again and stops the schedule, as Microsoft's does. Tested only against a stand-in for Gmail so far. (#208)
+- Admin → Users has a tick each for Gmail sign-in and "Gmail or other (IMAP)" beside Microsoft 365, so an admin decides who may use which way in. Nobody but admins has them until ticked. (#208)
+
+### Security
+
+- An app-password mailbox's server must be on `IMAP_HOSTS` by its exact name; any other is refused before a connection is made, and a server without a valid secure connection on port 993 is refused too. The check that an alert really came from your bank now trusts the topmost Authentication-Results header only when your mail provider wrote it (`mx.google.com` for Gmail, or the id the server's `IMAP_HOSTS` entry gives), so a mail server that adds none can't be fooled by a header the sender wrote. (#208)
 
 ## [1.99.7] — 2026-11-27
 

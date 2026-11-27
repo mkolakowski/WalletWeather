@@ -42,8 +42,9 @@ server it runs on:
   to keep or take elsewhere, not encrypted. A user's bank connection and
   mailbox sign-in go into encrypted backups only, never into "Download my
   data".
-- **Email alerts, for a user who connects a mailbox:** Microsoft's sign-in
-  for it (encrypted with `ENCRYPTION_KEY`, never shown or logged), the
+- **Email alerts, for a user who connects a mailbox:** Microsoft's or
+  Google's sign-in for it, or for an IMAP mailbox its server name, address
+  and app password (encrypted with `ENCRYPTION_KEY`, never shown or logged), the
   mailbox's address (encrypted), the folder they picked and the day to read
   from. For each bank they teach: its sender address, the name they gave
   it, which account its lines go to and which card digits go to which
@@ -156,6 +157,19 @@ Nothing, with three exceptions the operator chooses:
   except those requests and the sign-in. Microsoft sees that the mailbox is
   read, and when; its own privacy policy covers its side. Users who don't
   connect a mailbox cause no calls at all.
+- **Email alerts from Gmail or another mailbox:** the same, by one of two
+  more ways, each allowed per person by an admin. **With an app password,**
+  the server signs in over IMAP to the mail server the user gave, which must
+  be on the operator's `IMAP_HOSTS` list (Gmail's `imap.gmail.com` unless
+  the operator adds another), over TLS on port 993. It opens the folder
+  read-only, so nothing is marked read. **With Google sign-in** ("Connect
+  Gmail", only when the operator sets `GMAIL_API_ENABLED`), the server calls
+  oauth2.googleapis.com and gmail.googleapis.com, nothing else, with
+  read-only access, and asks Gmail only for mail from the banks the user has
+  taught. Google, or the mail provider, sees that the mailbox is read, and
+  when. Google's rules for Gmail data apply to that route: what's read is
+  used only for the user's own lines, never passed on, never used for
+  advertising, lending or training models.
 
 ## If you run an instance for other people
 

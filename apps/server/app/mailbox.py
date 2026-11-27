@@ -354,3 +354,39 @@ def message(access: str, message_id: str) -> dict:
     s.update({"html": (body.get("contentType") or "").lower() == "html",
               "body": content[:400_000], "auth_results": headers[:10]})
     return s
+
+
+class Reader:
+    """The calls above in the shape every kind of mailbox has (#208): opened
+    for a `with` block, with the access token and the folder's id."""
+
+    def __init__(self, access: str, folder: str | None = None):
+        self.access = access
+        self.folder = folder
+
+    def open(self) -> "Reader":
+        return self
+
+    def close(self) -> None:
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def address(self) -> str:
+        return mailbox_address(self.access)
+
+    def folders(self) -> list[dict]:
+        return folders(self.access)
+
+    def recent(self, count: int = 25) -> list[dict]:
+        return recent(self.access, self.folder or "", count)
+
+    def since(self, after: datetime, limit: int, senders=None) -> list[dict]:
+        return since(self.access, self.folder or "", after, limit)
+
+    def message(self, message_id: str) -> dict:
+        return message(self.access, message_id)

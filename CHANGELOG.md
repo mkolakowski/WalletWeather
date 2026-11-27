@@ -69,7 +69,13 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.5** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.17**
+App version: **1.99.6** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.17**
+
+## [1.99.6] — 2026-11-27
+
+App version: **1.99.6** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.17**
+
+The tool that tests the iPhone app's screens no longer reports three faults on the iPhone Duo open on its side that were not the app's. Nothing changes on screen, and there is no server or database change.
 
 ### Changed
 
@@ -3100,7 +3106,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.99.5...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.99.6...HEAD
+[1.99.6]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.6
 [1.99.5]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.5
 [1.99.4]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.4
 [1.99.3]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.3

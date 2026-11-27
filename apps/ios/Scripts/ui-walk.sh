@@ -8,7 +8,8 @@
 #   Scripts/ui-walk.sh                 the standard run
 #   Scripts/ui-walk.sh quick           the closed Duo, light, Large: a few minutes
 #   Scripts/ui-walk.sh full            every Duo pose, every look, three text sizes
-#   Scripts/ui-walk.sh --only forecast,line-editor     only those screens (a name or the start of one)
+#   Scripts/ui-walk.sh --only forecast,line-editor     only those screens (a name or the start of one;
+#                                      'forecast$' for that screen alone)
 #   Scripts/ui-walk.sh --only use      only the flows that use the app (testUse)
 #   Scripts/ui-walk.sh --config duo-open.dark.large    only that configuration (may be given more than once)
 #   Scripts/ui-walk.sh --no-audit      leave out Apple's accessibility audit (about half the time)
@@ -17,7 +18,7 @@
 # A configuration is <device>.<look>.<text>[.iso][:<how deep>]:
 #   device  duo-closed, duo-open (open on its side), duo-open-up, duo-book-up,
 #           duo-book-side, duo-closed-side, iphone (an iPhone 17)
-#   look    light, dark, amoled, sepia
+#   look    light, dark, amoled, sepia, a web theme (nord, …), custom-light or custom-dark
 #   text    large, xxxl, ax-l, ax-xxxl
 #   .iso    dates written 2026-11-12, to find a date that ignores the setting
 #   :deep   every screenful, Apple's whole audit, the phone turned on its side,
@@ -29,7 +30,8 @@
 #           audit the configuration is for: contrast in a dark look, text at a
 #           large text size
 #
-# WW_UI_TODAY=2026-11-15T10:00 in front pins the app's date and clock (#352).
+# WW_UI_TODAY=2026-11-15T10:00 in front pins the app's date and clock (#352);
+# WW_UI_ENV=NAME=value,NAME=value adds launch settings to every screen's.
 #
 # It holds mkplus's simulator lock (with-simulator.sh) for the whole run, so
 # other sessions wait rather than have their simulator shut down half way. The
@@ -61,7 +63,7 @@ while [ $# -gt 0 ]; do
         --no-audit) audit=0 ;;
         --no-build) build=0 ;;
         --locked) locked=1; run=$2; shift ;;
-        -h|--help) sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,33p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) echo "ui-walk: don't know '$1' (try --help)" >&2; exit 64 ;;
     esac
     shift
@@ -201,6 +203,7 @@ for config in "${configs[@]}"; do
         env TEST_RUNNER_WW_UI_OUT="$run" TEST_RUNNER_WW_UI_CONFIG="$config" TEST_RUNNER_WW_UI_LOOK="$look" \
             TEST_RUNNER_WW_UI_TEXT="$text" TEST_RUNNER_WW_UI_DATES="$([ "$extra" = iso ] && echo iso || echo short)" \
             TEST_RUNNER_WW_UI_ONLY="$only" TEST_RUNNER_WW_UI_TREE="${WW_UI_TREE:-0}" TEST_RUNNER_WW_UI_TODAY="${WW_UI_TODAY:-}" \
+            TEST_RUNNER_WW_UI_ENV="${WW_UI_ENV:-}" \
             TEST_RUNNER_WW_UI_AUDIT="$kinds" TEST_RUNNER_WW_UI_SCROLL="$stops" TEST_RUNNER_WW_UI_ROTATE="$turn" \
             xcodebuild test-without-building -xctestrun "$xctestrun" -destination "id=$udid" \
                 $([ "$only" = use ] || echo "-only-testing:WalletWeatherUITests/WalkTests/testWalk") \

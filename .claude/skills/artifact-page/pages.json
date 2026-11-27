@@ -96,6 +96,16 @@
       "group": "reviews"
     },
     {
+      "slug": "solid-cards",
+      "kind": "dated",
+      "short": "Solid cards",
+      "title": "Solid cards, glass for what floats",
+      "about": "The iPhone app's cards are solid in every look, with glass kept for what floats: Dashboard and Reminders in Light, Dark, Sepia, AMOLED and a custom theme, as built.",
+      "updated": "2026-11-27",
+      "issue": 365,
+      "group": "reviews"
+    },
+    {
       "slug": "changelog",
       "kind": "standing",
       "short": "Changelog",

@@ -16,6 +16,7 @@ import XCTest
 /// - `WW_UI_TEXT`: `large` (the default), `xxxl`, `ax-l`, `ax-xxxl`.
 /// - `WW_UI_DATES`: `iso` or `short` (`WW_DEBUG_DATES`).
 /// - `WW_UI_TODAY`: the app's date and clock, pinned, e.g. `2026-11-15T10:00`.
+/// - `WW_UI_ENV`: more launch settings for every screen, `NAME=value,NAME=value`.
 /// - `WW_UI_ONLY`: screens to visit, by name or the start of one, with commas.
 /// - `WW_UI_AUDIT`: `all` of Apple's audit, only its `contrast` part (a dark
 ///   look), only its `text` parts (a large text size), or `0` for none. It's
@@ -38,6 +39,8 @@ final class WalkTests: XCTestCase {
         let today: String?
         /// `WW_UI_TREE=1`: also write each screen's element tree as text.
         let tree: Bool
+        /// `WW_UI_ENV=WW_DEBUG_TINT=none,…`: launch settings added to every screen's.
+        let extra: [String: String]
 
         init?(_ environment: [String: String]) {
             guard let out = environment["WW_UI_OUT"], !out.isEmpty else { return nil }
@@ -52,9 +55,16 @@ final class WalkTests: XCTestCase {
             rotate = environment["WW_UI_ROTATE"] == "1"
             tree = environment["WW_UI_TREE"] == "1"
             today = environment["WW_UI_TODAY"].flatMap { $0.isEmpty ? nil : $0 }
+            extra = Dictionary((environment["WW_UI_ENV"] ?? "").split(separator: ",").compactMap { pair in
+                let parts = pair.split(separator: "=", maxSplits: 1).map(String.init)
+                return parts.count == 2 ? (parts[0], parts[1]) : nil
+            }, uniquingKeysWith: { $1 })
         }
 
-        func wants(_ name: String) -> Bool { only.isEmpty || only.contains { name == $0 || name.hasPrefix($0) } }
+        /// A name or the start of one; `forecast$` is that screen alone.
+        func wants(_ name: String) -> Bool {
+            only.isEmpty || only.contains { $0.hasSuffix("$") ? name == $0.dropLast() : name.hasPrefix($0) }
+        }
 
         /// The launch arguments that set the app's text size, leaving the simulator's own alone.
         var textArguments: [String] {
@@ -386,7 +396,12 @@ final class WalkTests: XCTestCase {
             ?? ISO8601DateFormatter.string(from: Date(), timeZone: .current, formatOptions: [.withFullDate])
         if let pinned = options.today { environment["WW_DEBUG_TODAY"] = pinned }
         for (name, value) in screen.settings { environment[name] = value == "today" ? today : value }
-        if let look = options.look { environment["WW_DEBUG_LOOK"] = look }
+        if let look = options.look {
+            environment["WW_DEBUG_LOOK"] = look
+            // custom-light and custom-dark are the sample themes.
+            if look.hasPrefix("custom-") { environment["WW_DEBUG_CUSTOM_THEMES"] = "sample" }
+        }
+        environment.merge(options.extra) { $1 }
         if let dates = options.dates { environment["WW_DEBUG_DATES"] = dates }
         app.launchEnvironment = environment
         app.launchArguments = options.textArguments

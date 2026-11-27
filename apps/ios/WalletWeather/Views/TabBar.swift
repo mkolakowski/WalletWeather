@@ -85,9 +85,9 @@ struct TabBarSettingsView: View {
                     .onMove { settings.tabs.move(fromOffsets: $0, toOffset: $1) }
                     .onDelete { settings.tabs.remove(atOffsets: $0) }
                 } header: {
-                    Text("In the tab bar")
+                    SectionTitle("In the tab bar").foregroundStyle(.primary).textCase(nil)
                 } footer: {
-                    Text("Drag to change the order, Swap to put another page in that place, or delete to move a page into Settings. Settings and Search are always in the bar. Beside them fit \(TabPage.maxAtBottom) pages, or \(TabPage.maxInBar) when the bar runs down the side of a tall screen, as on the iPhone Duo.")
+                    SettingNote("Drag to change the order, Swap to put another page in that place, or delete to move a page into Settings. Settings and Search are always in the bar. Beside them fit \(TabPage.maxAtBottom) pages, or \(TabPage.maxInBar) when the bar runs down the side of a tall screen, as on the iPhone Duo.")
                 }
                 Section {
                     if others.isEmpty {
@@ -123,9 +123,9 @@ struct TabBarSettingsView: View {
                         .deleteDisabled(true)
                     }
                 } header: {
-                    Text("In Settings")
+                    SectionTitle("In Settings").foregroundStyle(.primary).textCase(nil)
                 } footer: {
-                    Text("These are under More pages in Settings.")
+                    SettingNote("These are under More pages in Settings.")
                 }
                 Section {
                     Button("Back to the usual tab bar") { settings.tabs = TabPage.defaultBar }

@@ -208,6 +208,7 @@ struct TagsPage: View {
             case let .loaded(list):
                 List {
                     Group {
+                      Section {
                         if list.isEmpty {
                             Text("No tags yet. Tags mark lines and bills across categories, such as a trip or a project.")
                                 .foregroundStyle(.secondary)
@@ -229,6 +230,9 @@ struct TagsPage: View {
                             }
                         }
                         if let problem { Text(problem).foregroundStyle(Palette.bad) }
+                      } header: {
+                          SectionTitle("Tags").foregroundStyle(.primary).textCase(nil)
+                      }
                         rulesSection(list)
                     }
                     .listRowBackground(Palette.row)
@@ -238,6 +242,7 @@ struct TagsPage: View {
         }
         .background(PageBackground().ignoresSafeArea())
         .navigationTitle("Tags")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if canEdit {
                 ToolbarItem(placement: .topBarTrailing) { Button("Add tag", systemImage: "plus") { adding = true } }
@@ -308,10 +313,10 @@ struct TagsPage: View {
             }
             if let applied { Text(applied).font(.footnote).foregroundStyle(.secondary) }
         } header: {
-            Text("Auto-tag rules")
+            SectionTitle("Auto-tag rules").foregroundStyle(.primary).textCase(nil)
         } footer: {
-            Text(list.isEmpty ? "Make a tag first, then a rule to add it by itself."
-                 : "A rule adds its tag to a line whose description contains the words, when it's added, changed or imported. Apply to existing lines adds it to the ones already here.")
+            SettingNote(list.isEmpty ? "Make a tag first, then a rule to add it by itself."
+                        : "A rule adds its tag to a line whose description contains the words, when it's added, changed or imported. Apply to existing lines adds it to the ones already here.")
         }
     }
 

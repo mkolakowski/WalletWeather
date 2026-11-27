@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.3** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.9**
+App version: **1.99.3** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.10**
+
+### Changed
+
+- **iPhone app: Tags and Tab bar look like the other Settings pages.** Settings → Tags no longer has a large title of its own, and both pages name their sections in the same bold type, with the notes under them in the same style, as Reminders and the other pages do. Swiping a tag to delete it and dragging a page to reorder the tab bar work as before.
 
 ## [1.99.3] — 2026-11-26
 

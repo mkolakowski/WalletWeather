@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.6** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.17**
+App version: **1.99.6** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.18**
+
+### Fixed
+
+- **iPhone app: the lines in Forecast's month summary on the iPhone Duo open on its side are 44 points tall to tap.** The "Past their date, not marked paid" and "Different from plan" lines were 18 points tall, 8 apart, so a finger often hit the line above or below; each is now a 44-point row with a hairline between rows, and the summary card is taller by the difference. Nothing else on the page changes.
 
 ## [1.99.6] — 2026-11-27
 

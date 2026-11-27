@@ -1096,7 +1096,7 @@ struct MonthSummaryView: View {
                     Divider()
                     Label("Past their date, not marked paid", systemImage: "clock.badge.exclamationmark")
                         .font(.subheadline.weight(.semibold)).foregroundStyle(Palette.warn)
-                    ForEach(s.overdue) { lineButton($0) }
+                    lineRows(s.overdue)
                 }
             }
             .card()
@@ -1111,7 +1111,7 @@ struct MonthSummaryView: View {
                 if s.differing.isEmpty {
                     Text("Everything paid so far matched its plan.").font(.callout)
                 } else {
-                    ForEach(s.differing) { lineButton($0, showingDiff: true) }
+                    lineRows(s.differing, showingDiff: true)
                 }
             }
             .card()
@@ -1152,6 +1152,16 @@ struct MonthSummaryView: View {
         .card()
     }
 
+    /// The summary's lines, one under another, a hairline between them (#393).
+    private func lineRows(_ lines: [ForecastLine], showingDiff: Bool = false) -> some View {
+        VStack(spacing: 0) {
+            ForEach(lines) { line in
+                if line.id != lines.first?.id { Divider() }
+                lineButton(line, showingDiff: showingDiff)
+            }
+        }
+    }
+
     private func lineButton(_ line: ForecastLine, showingDiff: Bool = false) -> some View {
         Button { onOpen(line) } label: {
             FitsAcross {
@@ -1173,6 +1183,7 @@ struct MonthSummaryView: View {
                 }
             }
             .font(.subheadline.monospacedDigit())
+            .frame(minHeight: 44)   // 44 points to hit, a row to itself (#393)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

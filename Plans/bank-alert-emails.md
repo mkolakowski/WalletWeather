@@ -8,7 +8,7 @@ Tracking issue: #212
 | --- | --- | --- | --- |
 | 1. Connect Microsoft 365 and Check now | Server, Web | #206 | Released in 1.73.0 (2026-11-17), ahead of the one-release plan; waiting for your try with a real mailbox |
 | 2. The mailbox checked by itself | Server, Web | #207 | Released in 1.74.0 (2026-11-17); closed 2026-11-17 |
-| 3. Gmail and other mailboxes | Server, Web | #208 | Not started |
+| 3. Gmail and other mailboxes | Server, Web | #208 | Started 2026-11-27: Google's terms checked, both routes stand; design next |
 | 4. Alerts matched to bills, and the first release | Server, Web | #209 | Released in 1.75.0 (2026-11-17), closed 2026-11-17; it isn't the first release (phase 1 shipped in 1.73.0) |
 | 5. Alerts joined to bank sync rows | Server, Web | #210 | Built 2026-11-22 for 1.94.0 (schema 37, web 1.105.0); released in v1.97.0 (2026-11-23) |
 | 6. Status and Check now in the iOS app | iOS | #211 | Built in iOS 0.69.0, 2026-11-24; released in 1.98.4; on TestFlight as build 496; your check passed 2026-11-24 (#338); closed |
@@ -136,6 +136,8 @@ All nine were settled on 2026-11-16. `/resolve-open-questions bank-alert-emails`
 - Teaching, Check now, the schedule, the log and the couldn't-read list work the same on every kind of mailbox; the sender check reads the result each provider stamps on the mail.
 - **Documents:** the setup guide gains Gmail and IMAP sections; `PRIVACY.md`, `docs/privacy.md`, `SECURITY.md`, `.env.example`, the changelog.
 - **Tests,** against a stand-in IMAP server and a stand-in Gmail: connect each way; a wrong password is a plain error; a host not on the list is refused before any connection; a server without TLS is refused; a check lands lines once; the mailbox is unchanged afterwards; the Gmail route is refused when not switched on; a lapsed Google sign-in is recorded and stops the schedule.
+
+- **Terms checked 2026-11-27** ([decision](../docs/dev/decisions/bank-alert-emails.md)): neither route is dropped. App passwords are Google's own (if "not recommended") way in over IMAP, not offered on work or school accounts. Read-only Gmail sign-in is a restricted permission, allowed without Google's review in Personal mode or for fewer than 100 users behind the warning screen; Google has no code-on-another-device sign-in for Gmail and wants an `https://` return address, so "Connect Gmail" is offered on `https://` only.
 
 **You:** make a Gmail app password (needs 2-Step Verification), and if you want the sign-in route too, add the permission to your Google Cloud project by the guide.
 

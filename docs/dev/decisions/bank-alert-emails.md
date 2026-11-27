@@ -95,3 +95,30 @@ Decisions made while planning and building [`Plans/bank-alert-emails.md`](../../
 **Why:** it can't affect anyone who doesn't switch it on, and trying it on a real mailbox early finds what a stand-in can't, before more is built on it.
 
 **What it changes:** phases 2 to 4 are released as they're ready, not together; phase 4 is no longer "the first release". The plan's other choices stand.
+
+## 2026-11-27: what Google's own pages say about the two Gmail routes
+
+**Checked:** 2026-11-27, at the start of phase 3 (#208), from Google's public help and developer pages. **Status:** both routes stand; neither is dropped.
+
+**Gmail by app password (IMAP):**
+- An app password is "a 16-digit passcode that gives a less secure app or device permission to access your Google Account", and "can only be used with accounts that have 2-Step Verification turned on" ([app passwords](https://support.google.com/accounts/answer/185833)).
+- Google now calls them a fallback: "App passwords aren't recommended and are unnecessary in most cases" (same page, and [Add Gmail to another email client](https://support.google.com/mail/answer/7126229)).
+- The option may not appear when 2-Step Verification is "set up only for security keys", on "a work, school, or another organization account", or with Advanced Protection.
+- "We revoke your app passwords when you change your Google Account password." No expiry by time is stated. Removed from the App Passwords page.
+- Since March 14, 2025, IMAP no longer takes the account's own password for any Google Account, "with the exception of app passwords" ([transition from less secure apps](https://knowledge.workspace.google.com/admin/sync/transition-from-less-secure-apps-to-oauth)).
+- Since January 2025 "IMAP access is always turned on in Gmail"; there's no setting to switch on.
+- The server name and port weren't on the pages read; `imap.gmail.com` on port 993 with TLS is what Gmail's clients use.
+
+**Gmail with Google sign-in (Gmail API):**
+- `gmail.readonly` is a **restricted** scope, and so is `gmail.metadata` (headers only, no bodies), so there's no narrower scope that reads an alert ([Gmail scopes](https://developers.google.com/workspace/gmail/api/auth/scopes)).
+- Reading bank alerts fits Google's fourth approved use: "Applications that use information from emails to provide reporting or monitoring services for the benefit of users ... (such as applications that automate travel itineraries or track flights or package delivery statuses)" ([Gmail API policy](https://developers.google.com/gmail/api/policy)). Finance isn't named either way.
+- **Verification isn't needed** ([when verification is not needed](https://support.google.com/cloud/answer/13464323)) when:
+  - the project is in **Personal mode** ("the only user of your app"): no verification, no warning screen, no user cap, no 7-day expiry, but only the account that made the project can sign in, and a project can't be changed out of Personal mode later ([app audience](https://support.google.com/cloud/answer/15549945));
+  - the app has "a limited audience (fewer than 100 users)": users click through the "unverified app" warning screen. Set to "In production", the cap is "100 new users in total", over "the entire lifetime of the project" and can't be reset;
+  - the project is in **Testing**: at most 100 listed test users, and "Authorizations by a test user will expire seven days from the time of consent" for any scope beyond name, email and profile, Gmail's included.
+- **The security assessment** (CASA) is part of verifying a restricted scope ([restricted scope verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification)). No page says in so many words that an app excused from verification is excused from the assessment too; that's the reading this plan builds on, as the plan said on 2026-11-16.
+- **Rules that apply anyway:** "All apps that integrate with Google APIs are required to comply with Google's API Services User Data Policy regardless of whether they have been verified." Its Limited Use rules: use the data only for "user-facing features that are prominent in the requesting application's user interface"; no transfers except for those features with consent, security or law; no human reads mail without the user's agreement; never for advertising, credit-worthiness or lending, or training AI models ([User Data Policy](https://developers.google.com/terms/api-services-user-data-policy), [Gmail API policy](https://developers.google.com/gmail/api/policy)). WalletWeather already works this way: the values stay on the instance, nothing is sent on, and no outside service reads the mail.
+- **Two limits on how it can be built:** Google's code-on-another-device flow is "supported only for" email, openid, profile and a few Drive and YouTube scopes, so Gmail can't be signed in with a code as Microsoft can ([limited-input devices](https://developers.google.com/identity/protocols/oauth2/limited-input-device)); and a web sign-in comes back to a redirect address that must be `https://` unless it's `localhost` ([web server apps](https://developers.google.com/identity/protocols/oauth2/web-server)). So "Connect Gmail" needs the instance on `https://`, as the Microsoft Connect button does.
+- A refresh token lapses when it's been unused for six months, when it's revoked, or when "The user changed passwords and the refresh token contains Gmail scopes" ([OAuth 2.0](https://developers.google.com/identity/protocols/oauth2)).
+
+**What it changes:** nothing is dropped. The guide says app passwords are Google's own fallback and unavailable on work or school accounts; the sign-in route is offered on `https://` only, and the guide explains Personal mode, "In production" with the warning screen, and why "Testing" makes you reconnect every 7 days.

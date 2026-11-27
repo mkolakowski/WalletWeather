@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.100.0** · Web version: **1.121.0** · Schema version: **40** · iOS version: **0.73.18**
+App version: **1.101.0** · Web version: **1.122.0** · Schema version: **40** · iOS version: **0.73.18**
+
+### Changed
+
+- Settings → Email alerts has a **Reconnect** section above Disconnect: when Microsoft or Google stops accepting the sign-in, or a Gmail app password is removed, sign in again or paste a new app password, and the banks you taught, the folder and the check log are kept. Before, you had to disconnect and teach every bank again. It's there before a lapse too, for example to swap in a new app password before removing the old one. It only reconnects the same mailbox: signing in to a different address is refused, and switching mailboxes is still Disconnect. (#394)
 
 ## [1.100.0] — 2026-11-27
 

@@ -285,8 +285,11 @@ unused. Google's lasts until you remove it, change your Google password or
 leave it unused for six months (every 7 days, if the server's project is in
 "Testing"). A Gmail app password is removed when you change your Google
 password. When the tab says the sign-in or password is no longer accepted,
-checking stops: disconnect and connect again; what you taught is forgotten
-when you disconnect, so you'll teach it again.
+checking stops until you press **Reconnect** (above Disconnect, in Settings →
+Email alerts): sign in again to the same mailbox, or paste a new app
+password. The banks you taught, the folder and the log are kept (1.101.0 or
+later). Reconnect works only for the same mailbox; to switch to another,
+disconnect, which forgets what you taught.
 
 ## Privacy
 

@@ -138,3 +138,17 @@ Decisions made while planning and building [`Plans/bank-alert-emails.md`](../../
 **Why:** a user-typed server name is a way to make the server connect somewhere, so the admin's list decides and nothing on it can be downgraded to plain text. A mail server that writes no header of its own leaves the sender's header on top, so a forged alert could pass a check that trusts whatever is first. Personal mode is the tidiest for one person, but a household on one instance needs the shared project. Separate ticks let an admin allow the app-password way without the Google project, or the other way round.
 
 **Set while building, not asked:** a revoked app password (Google revokes them when the account's password changes) is recorded as a sign-in to make again, as a lapsed Microsoft sign-in is, and stops the schedule; connecting again means disconnecting first, as with Microsoft.
+
+## 2026-11-27: reconnecting a mailbox keeps what was taught
+
+**Decided:** 2026-11-27, by Matthew (#394). **Status:** accepted.
+
+**The questions:** when a mailbox's sign-in is renewed in place, so the banks taught, the folder and the log are kept, may it sign in to a different mailbox address? And when is Reconnect offered?
+
+**The decisions, with the options not taken:**
+- **Same address only:** after signing in again, the server checks the mailbox's address; a different one is refused ("that's another mailbox: disconnect first to switch"). Not any address with the folder cleared.
+- **Always offered:** a Reconnect section above Disconnect, there whether or not the sign-in has lapsed (to swap in a new app password before the old one is removed), highlighted with a button in the red notice when it has. Not only after a lapse.
+
+**Why:** taught banks, cards and the folder belong to the mailbox they were set up on; switching mailboxes is what Disconnect is for. Swapping an app password early avoids a gap in checking.
+
+**What it changes:** the "Set while building" line of 2026-11-27 above (connecting again means disconnecting first) is replaced: a lapsed sign-in or revoked app password is renewed with Reconnect, keeping everything.

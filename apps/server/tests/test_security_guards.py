@@ -116,6 +116,8 @@ MUST_BE_SESSION_ONLY = {
     # Gmail and other mailboxes (#208): connecting with an app password or
     # Google sign-in is connecting too.
     ("POST", "/api/mail/imap"), ("POST", "/api/mail/gmail/web"),
+    # Reconnecting in place (#394): a new app password is connecting too.
+    ("POST", "/api/mail/imap/password"),
     ("GET", "/api/mail/gmail/callback"),
     ("PUT", "/api/admin/mail-alerts"),
 }

@@ -29,7 +29,7 @@ from urllib.parse import urlencode, urlsplit
 #      bump the WEB_VERSION constant in that file per the instructions
 #      at the top of it.
 # -----------------------------------------------------------------------------
-APP_VERSION = "1.100.0"
+APP_VERSION = "1.101.0"
 
 # --- APP CHANGELOG ------------------------------------------------------------
 # Format for every new line (keep newest at TOP):
@@ -41,6 +41,13 @@ APP_VERSION = "1.100.0"
 # history — only append new entries. If multiple changes ship in one
 # version, use a short multi-line entry under a single version header.
 #
+# 1.101.0 (2026-11-27, claude+mkolakowski): reconnect a mailbox in place,
+#     keeping the banks taught, the folder and the log (#394). MailCodeIn
+#     gains `reconnect`: POST /api/mail/microsoft/device, .../web and
+#     /api/mail/gmail/web with reconnect true renew the connected mailbox's
+#     sign-in (same provider, same address, else refused); POST
+#     /api/mail/imap/password {password, code?} swaps the app password after
+#     trying it. needs_reconnect is cleared; audit mail_reconnected.
 # 1.100.0 (2026-11-27, claude+mkolakowski): email alerts from Gmail and
 #     other mailboxes (bank-alert-emails phase 3, #208). POST /api/mail/imap
 #     {address, password, host?, code?, utc_offset_minutes} connects over
@@ -7394,12 +7401,55 @@ def _mail_finish_connect(db: Session, user: User, tokens: dict, mode: str,
 
 class MailCodeIn(BaseModel):
     code: str | None = Field(default=None, max_length=40)
+    # Renew the connected mailbox's sign-in in place, keeping what was taught
+    # (#394), instead of connecting a new one.
+    reconnect: bool = False
     # The browser's clock, minutes east of UTC, so "today" is the user's.
     utc_offset_minutes: int = Field(default=0, ge=-840, le=840)
 
 
+def _mail_reconnect_target(conn: MailConnection | None, provider: str) -> MailConnection:
+    """The mailbox a reconnect renews: it has to be there, and connected the
+    same way (#394)."""
+    if conn is None:
+        raise HTTPException(404, "No mailbox is connected.")
+    if (conn.provider or "microsoft") != provider:
+        raise HTTPException(409, f"Your mailbox is connected through "
+                                 f"{MAIL_PROVIDER_NAMES.get(conn.provider or 'microsoft', 'another way')}. "
+                                 "Reconnect it that way, or disconnect first to switch.")
+    return conn
+
+
+def _mail_reconnect_finish(db: Session, user: User, conn: MailConnection, tokens: dict, mode: str,
+                           request: Request | None, address: str | None = None) -> MailConnection:
+    """Store a renewed sign-in on the connected mailbox, keeping the banks
+    taught, the folder, the couldn't-read list and the log (#394). Only the
+    same mailbox: decided 2026-11-27, a different address is refused."""
+    provider = conn.provider or "microsoft"
+    if address is None:
+        module = gmail if provider == "gmail" else mailbox
+        try:
+            address = module.Reader(tokens["access"]).address()
+        except mailbox.MailboxError:
+            raise HTTPException(502, "Couldn't check which mailbox you signed in to, so nothing was "
+                                     "changed. Try again.")
+    old = decrypt_str(conn.address_enc) if conn.address_enc else None
+    if old and address and address.strip().lower() != old.strip().lower():
+        raise HTTPException(409, f"You signed in to {address[:120]}, but the connected mailbox is "
+                                 f"{old[:120]}. Nothing was changed. To switch mailboxes, disconnect "
+                                 "first.")
+    conn.tokens_enc = encrypt_str(json.dumps(tokens))
+    conn.auth_mode = mode
+    if address and not old:
+        conn.address_enc = encrypt_str(address)
+    conn.needs_reconnect = False
+    db.commit()
+    record_event(db, "mail_reconnected", request, user=user, detail=f"{provider}, {mode}")
+    return conn
+
+
 def _mail_connect_checks(db: Session, request: Request, user: User, code: str | None,
-                         provider: str = "microsoft") -> None:
+                         provider: str = "microsoft", reconnect: bool = False) -> None:
     _mail_allowed(db, user)
     _mail_may_connect(db, user, provider)
     if provider == "microsoft" and not mailbox.available():
@@ -7412,7 +7462,10 @@ def _mail_connect_checks(db: Session, request: Request, user: User, code: str | 
                                  "instead, or see the email alerts setup guide.")
     if provider == "imap" and not imapmail.allowed_hosts():
         raise HTTPException(400, "This server has no mail servers on IMAP_HOSTS in its .env.")
-    if _mail_connection(db, user):
+    conn = _mail_connection(db, user)
+    if reconnect:
+        _mail_reconnect_target(conn, provider)
+    elif conn:
         raise HTTPException(409, "You already have a mailbox connected. Disconnect it first.")
     _confirm_code_for(db, request, user, code, "mailbox connection")
 
@@ -7422,14 +7475,14 @@ def mail_device_start(body: MailCodeIn, request: Request,
                       user: User = Depends(current_session_user), db: Session = Depends(get_db)):
     """Start signing in with a code: the user types it at Microsoft's page,
     then the browser asks /poll until it's done."""
-    _mail_connect_checks(db, request, user, body.code)
+    _mail_connect_checks(db, request, user, body.code, reconnect=body.reconnect)
     try:
         d = mailbox.start_device()
     except mailbox.MailboxError as e:
         raise HTTPException(e.status, str(e))
     with _mail_pending_guard:
         _mail_pending[user.id] = {**d, "expires": time.time() + d["expires_in"], "next": 0.0,
-                                  "offset": body.utc_offset_minutes}
+                                  "offset": body.utc_offset_minutes, "reconnect": body.reconnect}
     return {"user_code": d["user_code"], "verification_uri": d["verification_uri"],
             "expires_in": d["expires_in"], "interval": d["interval"]}
 
@@ -7450,8 +7503,11 @@ def mail_device_poll(request: Request, user: User = Depends(current_session_user
         if time.time() < p["next"]:
             return {"status": "pending"}
         p["next"] = time.time() + p["interval"]
-        device_code, offset = p["device_code"], p.get("offset", 0)
-    if _mail_connection(db, user):
+        device_code, offset, again = p["device_code"], p.get("offset", 0), bool(p.get("reconnect"))
+    conn = _mail_connection(db, user)
+    if again:
+        _mail_reconnect_target(conn, "microsoft")
+    elif conn:
         raise HTTPException(409, "You already have a mailbox connected. Disconnect it first.")
     try:
         tokens = mailbox.poll_device(device_code)
@@ -7463,7 +7519,10 @@ def mail_device_poll(request: Request, user: User = Depends(current_session_user
         return {"status": "pending"}
     with _mail_pending_guard:
         _mail_pending.pop(user.id, None)
-    _mail_finish_connect(db, user, tokens, "device", request, offset)
+    if again:
+        _mail_reconnect_finish(db, user, conn, tokens, "device", request)
+    else:
+        _mail_finish_connect(db, user, tokens, "device", request, offset)
     return {"status": "connected", **_mail_status(db, user)}
 
 
@@ -7473,7 +7532,7 @@ def mail_web_start(body: MailCodeIn, request: Request,
     """Start signing in with the Connect button: the address to send the
     browser to. Only when this server is reached over https:// and has
     MS_CLIENT_SECRET."""
-    _mail_connect_checks(db, request, user, body.code)
+    _mail_connect_checks(db, request, user, body.code, reconnect=body.reconnect)
     redirect_uri = _mail_redirect_uri()
     if not mailbox.web_available(redirect_uri):
         raise HTTPException(400, "The Connect button needs this server on an https:// address "
@@ -7482,7 +7541,7 @@ def mail_web_start(body: MailCodeIn, request: Request,
     s = mailbox.start_web(redirect_uri)
     request.session["mail_oauth"] = {"state": s["state"], "verifier": s["verifier"],
                                      "uid": user.id, "at": int(time.time()),
-                                     "offset": body.utc_offset_minutes}
+                                     "offset": body.utc_offset_minutes, "reconnect": body.reconnect}
     return {"url": s["url"]}
 
 
@@ -7509,15 +7568,28 @@ def mail_web_callback(request: Request, code: str | None = None, state: str | No
         _mail_may_connect(db, user)
     except HTTPException as e:
         return back(e.detail)
-    if _mail_connection(db, user):
-        return back("You already have a mailbox connected. Disconnect it first.")
+    conn = _mail_connection(db, user)
+    again = bool(pending.get("reconnect"))
+    try:
+        if again:
+            _mail_reconnect_target(conn, "microsoft")
+        elif conn:
+            return back("You already have a mailbox connected. Disconnect it first.")
+    except HTTPException as e:
+        return back(e.detail)
     try:
         tokens = mailbox.finish_web(code[:4000], pending["verifier"], _mail_redirect_uri())
     except mailbox.MailboxError as e:
         return back(str(e))
     offset = pending.get("offset")
-    _mail_finish_connect(db, user, tokens, "web", request,
-                         offset if isinstance(offset, int) and -840 <= offset <= 840 else 0)
+    try:
+        if again:
+            _mail_reconnect_finish(db, user, conn, tokens, "web", request)
+        else:
+            _mail_finish_connect(db, user, tokens, "web", request,
+                                 offset if isinstance(offset, int) and -840 <= offset <= 840 else 0)
+    except HTTPException as e:
+        return back(e.detail)
     return back(None)
 
 
@@ -7527,11 +7599,11 @@ def mail_gmail_start(body: MailCodeIn, request: Request,
     """Start Connect Gmail (#208): the address to send the browser to, asking
     Google for read-only mail access. Only when GMAIL_API_ENABLED is set, a
     Google project is configured and this server is on https://."""
-    _mail_connect_checks(db, request, user, body.code, "gmail")
+    _mail_connect_checks(db, request, user, body.code, "gmail", reconnect=body.reconnect)
     s = gmail.start_web(_gmail_redirect_uri())
     request.session["mail_gmail_oauth"] = {"state": s["state"], "verifier": s["verifier"],
                                            "uid": user.id, "at": int(time.time()),
-                                           "offset": body.utc_offset_minutes}
+                                           "offset": body.utc_offset_minutes, "reconnect": body.reconnect}
     return {"url": s["url"]}
 
 
@@ -7560,16 +7632,29 @@ def mail_gmail_callback(request: Request, code: str | None = None, state: str | 
         return back(e.detail)
     if not gmail.web_available(_gmail_redirect_uri()):
         return back("Connect Gmail isn't switched on on this server any more.")
-    if _mail_connection(db, user):
-        return back("You already have a mailbox connected. Disconnect it first.")
+    conn = _mail_connection(db, user)
+    again = bool(pending.get("reconnect"))
+    try:
+        if again:
+            _mail_reconnect_target(conn, "gmail")
+        elif conn:
+            return back("You already have a mailbox connected. Disconnect it first.")
+    except HTTPException as e:
+        return back(e.detail)
     try:
         tokens = gmail.finish_web(code[:4000], pending["verifier"], _gmail_redirect_uri())
     except mailbox.MailboxError as e:
         return back(str(e))
     offset = pending.get("offset")
-    _mail_finish_connect(db, user, tokens, "web", request,
-                         offset if isinstance(offset, int) and -840 <= offset <= 840 else 0,
-                         provider="gmail")
+    try:
+        if again:
+            _mail_reconnect_finish(db, user, conn, tokens, "web", request)
+        else:
+            _mail_finish_connect(db, user, tokens, "web", request,
+                                 offset if isinstance(offset, int) and -840 <= offset <= 840 else 0,
+                                 provider="gmail")
+    except HTTPException as e:
+        return back(e.detail)
     return back(None)
 
 
@@ -7612,6 +7697,37 @@ def mail_imap_connect(body: MailImapIn, request: Request,
     if inbox is None:
         conn.folder_id = conn.folder_name = None
         db.commit()
+    return _mail_status(db, user)
+
+
+class MailImapPasswordIn(BaseModel):
+    password: str = Field(min_length=1, max_length=200)
+    code: str | None = Field(default=None, max_length=40)
+
+
+@app.post("/api/mail/imap/password")
+def mail_imap_password(body: MailImapPasswordIn, request: Request,
+                       user: User = Depends(current_session_user), db: Session = Depends(get_db)):
+    """Swap the connected IMAP mailbox's app password (#394), keeping the
+    banks taught, the folder and the log. The new one is tried (sign in,
+    list folders) on the same server and address before it's kept."""
+    _mail_connect_checks(db, request, user, body.code, "imap", reconnect=True)
+    conn = _mail_connection(db, user)
+    try:
+        old = json.loads(decrypt_str(conn.tokens_enc))
+    except Exception:
+        old = {}
+    if not isinstance(old, dict) or not old.get("host") or not old.get("user"):
+        raise HTTPException(409, "This mailbox's server isn't known any more. Disconnect, then "
+                                 "connect again.")
+    try:
+        host = imapmail.checked_host(str(old["host"]))
+        cred = {"host": host, "user": str(old["user"]),
+                "password": imapmail.clean_password(host, body.password)}
+        imapmail.try_connect(cred)
+    except mailbox.MailboxError as e:
+        raise HTTPException(400 if e.status in (400, 409) else e.status, str(e))
+    _mail_reconnect_finish(db, user, conn, cred, "imap", request, address=cred["user"])
     return _mail_status(db, user)
 
 
@@ -10700,7 +10816,7 @@ AUDIT_EVENT_TYPES = (
     "bank_balance_adjusted", "bank_sync_setting_changed", "bank_access_changed", "mail_access_changed",
     "bank_connection_passed", "bank_link_removed", "bank_keys_saved", "bank_keys_removed",
     "mail_connected", "mail_disconnected", "mail_sender_taught", "mail_check_run",
-    "mail_check_failed", "mail_alerts_setting_changed",
+    "mail_check_failed", "mail_alerts_setting_changed", "mail_reconnected",
 )
 _AUDIT_USER_REF = re.compile(r"\buser #(\d+)")
 

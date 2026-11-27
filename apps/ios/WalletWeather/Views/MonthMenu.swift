@@ -90,6 +90,7 @@ struct MonthBar: View {
             }
         }
         .buttonStyle(.glass)
+        .controlSize(.large)   // glass buttons measure their own size: large reaches 44 points (#361)
     }
 
     private var previous: some View {

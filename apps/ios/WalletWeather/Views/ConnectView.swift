@@ -126,6 +126,7 @@ struct ConnectView: View {
                         }
                         Button("Sign in with email and password", action: signInWithPassword)
                             .buttonStyle(.glass)
+                            .controlSize(.large)
                             .disabled(model.busy)
                         if lastWay == .password, model.connectError != nil {
                             problem(for: .password)

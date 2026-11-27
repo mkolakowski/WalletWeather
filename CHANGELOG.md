@@ -69,7 +69,13 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.3** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.14**
+App version: **1.99.4** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.14**
+
+## [1.99.4] — 2026-11-26
+
+App version: **1.99.4** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.14**
+
+On the iPhone and the web app, what some screens called a "transaction" is a "line" everywhere you read it; on the iPhone, Tags and Tab bar look like the other Settings pages, the main buttons are readable in Sepia, the corners are one set of four sizes, and more of the small clean-ups the UI review found. No database change.
 
 ### Fixed
 
@@ -3078,7 +3084,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.99.3...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.99.4...HEAD
+[1.99.4]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.4
 [1.99.3]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.3
 [1.99.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.2
 [1.99.1]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.1

@@ -109,16 +109,37 @@ struct NewWindowItem: ToolbarContent {
     /// Offered whatever the width here: Settings' pane is set to a compact
     /// width inside a wide window (#295).
     var wideWindow = false
+    /// On a page with the account picker among the bar's buttons (the bar
+    /// along the bottom): ⋯ is its own menu, declared after the picker's
+    /// `.toolbar`, so it sits left of the picture rather than last, as the
+    /// system's overflow would (#391).
+    var besideAccount = false
     @Environment(\.supportsMultipleWindows) private var supportsMultipleWindows
     @Environment(\.openWindow) private var openWindow
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.barDownSide) private var barDownSide
+    @Environment(\.embeddedPage) private var embedded
 
     var body: some ToolbarContent {
         if supportsMultipleWindows && (sizeClass == .regular || wideWindow) {
-            ToolbarItem(placement: .secondaryAction) {
-                Button("Open in new window", systemImage: "macwindow.badge.plus") { openWindow(value: place) }
+            if besideAccount && !barDownSide && !embedded {
+                // Its own circle, as the overflow's was, not one glass with +.
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        newWindow
+                    } label: {
+                        Label("More", systemImage: "ellipsis")
+                    }
+                }
+            } else {
+                ToolbarItem(placement: .secondaryAction) { newWindow }
             }
         }
+    }
+
+    private var newWindow: some View {
+        Button("Open in new window", systemImage: "macwindow.badge.plus") { openWindow(value: place) }
     }
 }
 

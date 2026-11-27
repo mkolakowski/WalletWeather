@@ -8,6 +8,10 @@ extension EnvironmentValues {
     /// The tab bar runs down the side of a screen tall enough for six
     /// buttons, so a fourth page fits (#174).
     @Entry var barOnSide = false
+    /// The tab bar runs down the side, whatever the window's height: unlike
+    /// `barOnSide`, also the closed Duo on its side. Where the account
+    /// picker goes (#391).
+    @Entry var barDownSide = false
 }
 
 /// The frame every page sits in: the pages chosen for the tab bar (#158),
@@ -55,8 +59,11 @@ struct RootView: View {
     /// Down the side when the page's bottom inset is no more than the
     /// window's (a bar along the bottom is at least 30 points tall), and in
     /// a window of regular height, where the side bar holds six buttons.
-    private var barOnSide: Bool {
-        guard let pageBottom, verticalSizeClass == .regular else { return false }
+    private var barOnSide: Bool { barDownSide && verticalSizeClass == .regular }
+
+    /// Down the side in any window (#391).
+    private var barDownSide: Bool {
+        guard let pageBottom else { return false }
         return pageBottom - windowBottom < 20
     }
 
@@ -104,6 +111,7 @@ struct RootView: View {
         .fullScreenCover(isPresented: $showingFaults) { DebugFaults() }
         #endif
         .environment(\.barOnSide, barOnSide)
+        .environment(\.barDownSide, barDownSide)
         // A page taken out of the bar while open, or a fourth page when the
         // bar moves to the bottom: Settings, where it's listed now.
         .onChange(of: shown) { _, shown in

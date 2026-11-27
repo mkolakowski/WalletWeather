@@ -97,9 +97,9 @@ struct SettingsView: View {
             }
             .background(PageBackground().ignoresSafeArea())
             .navigationTitle("Settings")
-            // Who's in front, and the way to switch, at the top right (#379, #383).
+            // Who's in front, and the way to switch: last at the top right, or above a side bar (#379, #391).
             .accountPickerItem { open(.page(.connections)) }
-            .toolbar { NewWindowItem(place: .more) }
+            .toolbar { NewWindowItem(place: .more, besideAccount: true) }
             .navigationDestination(for: SettingsPage.self) { SettingsPageView(page: $0) }
             .navigationDestination(for: ConnectionRoute.self) { ConnectionPage(id: $0.id) }
             .navigationDestination(for: TabPage.self) { $0.view(embedded: true) }
@@ -149,14 +149,12 @@ struct SettingsView: View {
                 // A plain column, not a navigation stack: a stack here kept
                 // the tab bar's inset although it's at the other edge.
                 VStack(alignment: .leading, spacing: 0) {
-                    // The account picker on the sidebar title's line, at the right (#379).
-                    HStack {
-                        Text("Settings").font(.headline)
-                            .accessibilityAddTraits(.isHeader)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        AccountPicker { open(.page(.connections)) }
-                    }
-                    .frame(minHeight: 44).padding(.horizontal, 16).padding(.top, 12)  // level with the pane's title
+                    // The account picker was at the right of this line; it's with the pane's
+                    // buttons now, or above a side bar (#391).
+                    Text("Settings").font(.headline)
+                        .accessibilityAddTraits(.isHeader)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .padding(.horizontal, 16).padding(.top, 12)  // level with the pane's title
                     SettingsSidebar(layout: layout, chosen: chosen, accounts: accountCount, versions: versions,
                                     value: { value(of: $0) }, open: { open($0) }, act: { act($0) })
                 }
@@ -171,7 +169,8 @@ struct SettingsView: View {
                 NavigationStack(path: $panePath) {
                     SettingsPane(entry: chosen)
                         .id(chosen)
-                        .toolbar { NewWindowItem(place: .more, wideWindow: true) }
+                        .accountPickerItem { open(.page(.connections)) }
+                        .toolbar { NewWindowItem(place: .more, wideWindow: true, besideAccount: true) }
                         .navigationDestination(for: SettingsPage.self) { SettingsPageView(page: $0) }
                         .navigationDestination(for: ConnectionRoute.self) { ConnectionPage(id: $0.id) }
                         .navigationDestination(for: TabPage.self) { $0.view(embedded: true) }

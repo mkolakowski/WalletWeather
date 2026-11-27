@@ -89,9 +89,9 @@ struct DashboardView: View {
             .background(PageBackground().ignoresSafeArea())
             // The large title on the phone; a glass capsule on the open Duo (#341).
             .pageTitle("Dashboard")
-            // Who's in front, and the way to switch, at the top right (#379, #383).
+            // Who's in front, and the way to switch: last at the top right, or above a side bar (#379, #391).
             .accountPickerItem(debugSheet: true)
-            .toolbar { NewWindowItem(place: .dashboard) }
+            .toolbar { NewWindowItem(place: .dashboard, besideAccount: true) }
             .toolbar {
                 if !editableAccounts.isEmpty {
                     AddMenu(addTitle: "Add line", canMove: editableAccounts.count > 1, onAdd: startAdding, onMove: {

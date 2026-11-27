@@ -4,9 +4,8 @@ import WalletWeatherKit
 
 /// The account picker (Plans/account-picker.md, phase 3, #379): a round
 /// button with the picture of whoever is signed in to the server in front
-/// (their initials until one is set), among the bar's buttons at the top
-/// right of the Dashboard and Settings (#383; in Settings' sidebar on the
-/// open Duo, its header), in place of the connection chip of #302
+/// (their initials until one is set), on the Dashboard and Settings, where
+/// `accountPickerItem` puts it (#391), in place of the connection chip of #302
 /// (decided 2026-11-25). The household on this iPhone shows its iPhone
 /// icon; the demo shows the picture of the server it goes back to with a
 /// small sparkles badge, also while locked (`AccountPickerState.make`). It
@@ -28,7 +27,10 @@ struct AccountPicker: View {
     /// Debug only: `WW_DEBUG_PICKER_MENU=1` shows the menu's choices as a
     /// sheet, since a script can't open a menu. Only the Dashboard's asks.
     var debugSheet = false
-    @ScaledMetric(relativeTo: .title) private var size: CGFloat = 36
+    /// The face's size: by default the bar's own round glass buttons', which
+    /// keep their size whatever the text size (#391); it was 36, scaled with
+    /// the text. Smaller only where the room above a side bar is short.
+    var size: CGFloat = SideTabBar.button
     @State private var showingChoices = false
 
     private var visibility: ConnectionsVisibility { ConnectionsVisibility(locked: settings.lockedInDemo) }
@@ -167,11 +169,18 @@ struct AccountFace: View {
 }
 
 extension View {
-    /// The account picker among the bar's buttons, at the top right of the
-    /// Dashboard and Settings (#379), on the phone as on the open Duo. It
-    /// was on the large title's line first, as a `.largeTitle` toolbar
+    /// The account picker on the Dashboard and Settings (#379), placed by
+    /// where the tab bar is (#391, decided 2026-11-27):
+    /// - **Bar down the side** (the Duo closed, or open on its side): out of
+    ///   the bar's buttons, right above the tab bar (at the right, or the
+    ///   left on the closed Duo on its side; `AboveSideBar`).
+    /// - **Bar along the bottom** (the Duo open upright, a phone): the last
+    ///   of the bar's buttons at the top right, after ⋯ (`NewWindowItem`'s
+    ///   `besideAccount`), the size of the bar's other buttons.
+    ///
+    /// It was on the large title's line first, as a `.largeTitle` toolbar
     /// item, but that item isn't in the accessibility tree, so VoiceOver
-    /// couldn't reach it (#383, decided 2026-11-25). It shows bare, without
+    /// couldn't reach it (#383); both places are. It shows bare, without
     /// the bar's shared glass. Not on a page shown inside another.
     func accountPickerItem(manage: (() -> Void)? = nil, debugSheet: Bool = false) -> some View {
         modifier(AccountPickerItem(manage: manage, debugSheet: debugSheet))
@@ -182,14 +191,145 @@ private struct AccountPickerItem: ViewModifier {
     let manage: (() -> Void)?
     let debugSheet: Bool
     @Environment(\.embeddedPage) private var embedded
+    @Environment(\.barDownSide) private var barDownSide
+    /// The tab bar's frame in the window while it runs down the side.
+    @State private var measured: SideTabBar.Spot?
+
+    /// Where to stand: above the side bar once it's been found, else (the
+    /// bar along the bottom, or not found) among the bar's buttons.
+    private var sideBar: SideTabBar.Spot? { barDownSide ? measured : nil }
 
     func body(content: Content) -> some View {
         if embedded {
             content
         } else {
-            content.toolbar {
-                ToolbarItem(placement: .topBarTrailing) { AccountPicker(manage: manage, debugSheet: debugSheet) }
-                    .sharedBackgroundVisibility(.hidden)
+            // Both places always applied, each empty when unused, so the
+            // page isn't rebuilt when the bar is found or moves.
+            content
+                .toolbar {
+                    if sideBar == nil {
+                        ToolbarItem(placement: .topBarTrailing) { AccountPicker(manage: manage, debugSheet: debugSheet) }
+                            .sharedBackgroundVisibility(.hidden)
+                    }
+                }
+                .overlay {
+                    if let sideBar {
+                        AboveSideBar(spot: sideBar) { AccountPicker(manage: manage, debugSheet: debugSheet, size: $0) }
+                    }
+                }
+                .background { SideTabBar.Probe { measured = $0 } }
+        }
+    }
+}
+
+/// Places the picture centred over the tab bar down the side and just
+/// above it (#391), 10 points clear of it. Where the room between the
+/// bar's buttons above and the tab bar is short (the closed Duo on its
+/// side has 50 points), the picture shrinks to fit, to 40 at the least,
+/// with the gaps either side shared out; its tap area stays 44.
+private struct AboveSideBar<Content: View>: View {
+    let spot: SideTabBar.Spot
+    /// Made with the face's size.
+    @ViewBuilder let content: (CGFloat) -> Content
+
+    var body: some View {
+        let room = spot.bar.minY - (spot.ceiling ?? -.infinity)
+        let size = min(SideTabBar.button, max(40, room - 8))
+        let gap = min(10, max(0, (room - size) / 2))
+        GeometryReader { proxy in
+            let page = proxy.frame(in: .global)
+            let centre = spot.bar.minY - gap - size / 2
+            content(size)
+                .fixedSize()
+                .position(x: spot.bar.midX - page.minX, y: centre - page.minY)
+        }
+        .ignoresSafeArea()
+    }
+}
+
+/// The system's tab bar, found in the window: the frame of its glass pill
+/// while it runs down the side, nil while it's along the bottom or hidden.
+/// SwiftUI doesn't say where the bar is, and the `UITabBar` itself spans
+/// the window's whole height there, so this looks for the pill the bar's
+/// buttons sit in (a `_UITabBarItemPlatterView` in iOS 27): the tallest one
+/// showing that's taller than wide. Down the side it's at the right, but for
+/// the closed Duo on its side, where it's at the left. Should a later iOS
+/// call it something else, nothing is found and the picture stays among the
+/// bar's buttons.
+///
+/// It also finds the lowest of the bar's glass buttons (+, ⋯) above the pill
+/// in its column, so the picture can fit between them.
+enum SideTabBar {
+    /// The bar's round glass buttons' size, 48 points in iOS 27.
+    static let button: CGFloat = 48
+
+    /// Where the bar is, in the window's points.
+    struct Spot: Equatable {
+        /// The pill's frame.
+        var bar: CGRect
+        /// The foot of the lowest glass button above it in its column; nil
+        /// when there's none.
+        var ceiling: CGFloat?
+    }
+
+    @MainActor static func spot(in window: UIWindow) -> Spot? {
+        var pill: CGRect?
+        var glass: [CGRect] = []
+        func look(_ view: UIView, inBar: Bool) {
+            guard !view.isHidden, view.alpha > 0.01 else { return }
+            let name = String(describing: type(of: view))
+            let frame = view.convert(view.bounds, to: window)
+            if name.contains("TabBarItemPlatterView") {
+                if frame.height > frame.width, frame.height > (pill?.height ?? 0) { pill = frame }
+                return
+            }
+            // Only the system's floating bars' own buttons: the picture's
+            // menu is glass too, and mustn't push itself down.
+            let inBar = inBar || name.contains("FloatingBar")
+            if inBar, name.contains("GlassInteractionView"), frame.minY >= 0 { glass.append(frame) }
+            view.subviews.forEach { look($0, inBar: inBar) }
+        }
+        look(window, inBar: false)
+        guard let pill else { return nil }
+        let above = glass.filter { $0.maxY <= pill.minY && $0.midX > pill.minX && $0.midX < pill.maxX }
+        return Spot(bar: pill, ceiling: above.map(\.maxY).max())
+    }
+
+    /// A view with no size that measures the bar whenever the page lays out.
+    struct Probe: UIViewRepresentable {
+        let found: (Spot?) -> Void
+
+        func makeUIView(context: Context) -> ProbeView { ProbeView() }
+        func updateUIView(_ view: ProbeView, context: Context) { view.found = found }
+
+        final class ProbeView: UIView {
+            var found: ((Spot?) -> Void)?
+            private var last: Spot??
+
+            override func didMoveToWindow() {
+                super.didMoveToWindow()
+                measureSoon()
+            }
+
+            override func layoutSubviews() {
+                super.layoutSubviews()
+                measureSoon()
+            }
+
+            /// Now, and again once the bar has settled after a turn or a fold.
+            private func measureSoon() {
+                measure()
+                for delay in [0.4, 1.2] {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.measure() }
+                }
+            }
+
+            private func measure() {
+                guard let window else { return }
+                let spot = SideTabBar.spot(in: window)
+                guard last != .some(spot) else { return }
+                last = .some(spot)
+                found?(spot)
             }
         }
     }

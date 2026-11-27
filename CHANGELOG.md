@@ -69,9 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.4** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.15**
+App version: **1.99.4** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.16**
 
 ### Changed
+
+- **iPhone app: your account picture moves on the iPhone Duo, and is the size of the buttons beside it.** With the tab bar down the side (the Duo closed, or open on its side), the round picture leaves the buttons at the top and sits on the right, right above the tab bar (on the closed Duo turned on its side, above the tab bar at the left). With the tab bar along the bottom (the Duo open upright, and other iPhones), it's the last button at the top right, after ⋯ rather than before it. On the open Duo's Settings it's with the buttons at the top right instead of beside the Settings heading. Everywhere, it's now the same size as the round buttons next to it.
 
 - **iPhone app: cards are solid in every look, and the small grey labels on them are darker.** The cards that hold your balances, lists and settings were frosted glass; they are now solid, in the look's own card colour (each look keeps its outline, and Sepia its soft shadow), so numbers and text sit on a flat colour. Glass stays on what floats over a page: the tab bar, toolbar buttons, the Undo bar and the problem banner. The small grey labels over a number and the notes under a setting are the look's text colour at 70%, so they read more clearly on a card.
 

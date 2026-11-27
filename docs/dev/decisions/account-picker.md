@@ -68,7 +68,7 @@ Decisions for [`Plans/account-picker.md`](../../../Plans/account-picker.md).
 
 ## 2026-11-25: the picture moves to the bar's buttons
 
-**Decided:** 2026-11-25, by Matthew, from the UI review of 0.73.0 (#382, finding B1). **Status:** accepted (#383). Changes "the picture replaces the connection chip" above: still in its place, but at the top right among the bar's buttons rather than on the large title's line.
+**Decided:** 2026-11-25, by Matthew, from the UI review of 0.73.0 (#382, finding B1). **Status:** accepted (#383); its placement on the Duo is replaced by [the picture goes where the tab bar is](#2026-11-27-the-picture-goes-where-the-tab-bar-is) (#391). Reachable by VoiceOver and 44 points to tap still hold. Changes "the picture replaces the connection chip" above: still in its place, but at the top right among the bar's buttons rather than on the large title's line.
 
 **The question:** on the phone the picture sat on the large title's line as a `.largeTitle` toolbar item, which isn't in the accessibility tree: VoiceOver, Switch Control and Voice Control couldn't reach it, and with it the way out of the demo. How should it be fixed?
 
@@ -92,3 +92,25 @@ Decisions for [`Plans/account-picker.md`](../../../Plans/account-picker.md).
 - **Dig further first,** for a fix with no visible change.
 
 **The decision:** room below the capsule (iOS 0.73.2): the pane that carries the capsule says so (`paneUnderTitle`), and the Dashboard keeps the chip's room there. The phone and the half-open Duo are unchanged.
+
+## 2026-11-27: the picture goes where the tab bar is
+
+**Decided:** 2026-11-27, by Matthew. **Status:** accepted (#391, iOS 0.73.16). Replaces the placement in "the picture moves to the bar's buttons" above.
+
+**The question:** on the Duo the picture sat among the bar's buttons, just after +, 36 points across (about three quarters of the 48-point glass buttons beside it). With the tab bar down the side, that left it high on the side strip, far from the tab bar, and on the closed Duo turned on its side there was room for one button only, so + and the picture both went into ⋯. Where should it go, and at what size?
+
+**Options considered:**
+- **Leave it among the bar's buttons:** no work, but the side-strip problems stay.
+- **Put it where the tab bar is (Matthew's ask):** with the bar down the side, on its own right above the tab bar; with the bar along the bottom, the last of the buttons at the top right, after ⋯ rather than before it; the size of the buttons beside it everywhere.
+
+**The decision:** where the tab bar is.
+
+- **Bar down the side** (the Duo closed, closed on its side, or open or folded on its side): out of the bar's buttons, centred over the tab bar's pill and 10 points above it. The closed Duo on its side has its bar at the left, so the picture is there too. That pose has only 50 points between + and the pill, so there the picture shrinks to fit (42 points; never under 40) with the gap shared either side; the tap area stays 44.
+- **Bar along the bottom** (the Duo open or folded upright, and an ordinary iPhone): + · ⋯ · picture. ⋯ (Open in new window) is its own menu on the Dashboard and Settings instead of the system's overflow, which always goes last, with a fixed spacer so + and ⋯ stay separate circles.
+- **Size:** 48 points, the glass buttons' size, which doesn't follow the text size (it used to scale from 36).
+- **Settings on the open Duo:** off the sidebar's heading and with the pane's buttons (after ⋯), or above a side bar, as on the other pages.
+
+**How the side bar is found:** SwiftUI doesn't say where the system's tab bar is, and the `UITabBar` view spans the window's whole height when it's down the side, so the app looks through the window for the pill the bar's buttons sit in (`_UITabBarItemPlatterView` in iOS 27, the tallest one showing that's taller than wide) and for the lowest glass button above it. A private class name can change: if nothing is found the picture stays among the bar's buttons, where it can still be reached. `SideTabBar` in `AccountPicker.swift`; `barDownSide` in `RootView` says where the bar is, also on the closed Duo on its side, which `barOnSide` (the side bar's room for pages) leaves out.
+
+**What it changes:** `AccountPicker.swift` (placement, size, the side-bar finder), `RootView.swift` (`barDownSide`), `NewWindowItem` (`besideAccount`), `SettingsView.swift` (the sidebar heading), iOS 0.73.16.
+

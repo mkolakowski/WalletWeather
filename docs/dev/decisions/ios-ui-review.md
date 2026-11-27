@@ -54,3 +54,13 @@ Decisions for `Plans/ios-ui-review.md` (#348), the one WalletWeather artifact (#
 3. **Each odd size snapped by what the shape is**, not only by distance: the 12s on fields and rows became 10, selected-row highlights of 8 became 10, 7s became 6, 24s and 18s went to a card's 22 or a bar's 14.
 
 **What it changes:** `Radius` (`Views/Radius.swift`), about fifty call sites, the source check's `corner-radius` rule and its survey; iOS 0.73.14. Pictures before and after are on the *Corner radii* page of the WalletWeather artifact.
+
+## 2026-11-27: solid cards are built without a before-and-after set
+
+**Decided:** 2026-11-27, by Matthew, when #365 was picked up again. **Status:** accepted.
+
+1. **Solid cards (D1) and darker captions (D2) are built now, without the before-and-after set the issue asked for first.** The 224 pictures from the paused work (25 November) were gone (the walk keeps its last three runs), and a smaller set, or the full set of several hundred pictures and about three hours, were the other options. The page tint behind the cards stays as it was.
+2. **Glass stays on what floats:** the tab bar, toolbar buttons, the Undo bar, the problem banner and the drop target.
+3. **No setting for it.** A solid-or-glass switch was not asked for and not added.
+
+**What it changes:** `Card` and `Caption` in `Theme.swift`, `SettingNote` in `SettingsView.swift`, the debug switches for the pictures are gone; iOS 0.73.15. The *Solid cards* page of the WalletWeather artifact shows Dashboard and Reminders in five looks, as built.

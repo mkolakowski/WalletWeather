@@ -230,6 +230,11 @@ enum Palette {
         return name == "Other" ? .secondary : Color(UIColor(hex: fallback[index]))
     }
 
+    /// Small labels on a card and notes under a setting: the look's text
+    /// colour at 70%, which reaches 4.5:1 on the card colour in every
+    /// built-in look (the system's grey measures about 3:1; #365).
+    static var caption: Color { (text ?? .primary).opacity(0.7) }
+
     /// Green for money in hand, red below zero, as the web app shows them.
     static func amount(_ negative: Bool) -> Color { negative ? bad : (text ?? .primary) }
 }
@@ -242,7 +247,7 @@ extension UIColor {
 }
 
 /// Behind every page: the look's page colour with a soft tint of its accent
-/// fading down from the top, so the glass has something to show.
+/// fading down from the top, behind the cards and the glass that floats over them.
 struct PageBackground: View {
     @Environment(\.colorScheme) private var scheme
 
@@ -255,55 +260,38 @@ struct PageBackground: View {
     }
 
     private var tint: Double {
-        switch Palette.look {
+        let base: Double = switch Palette.look {
         case .amoled: 0.18
         case .sepia: 0.24
         case .theme, .custom: 0.20
         default: scheme == .dark ? 0.30 : 0.22
         }
+        return base
     }
 }
 
-/// A card: Liquid Glass, solid when the phone asks for less transparency
-/// (Reduce Transparency) or more contrast (Increase Contrast), so the
-/// numbers on it stay easy to read in every case. AMOLED black's cards carry
-/// a thin outline on the black; Sepia's are cream with an outline and a
-/// soft shadow, as drawn in the mockups.
+/// A card: solid, in the look's card colour (decided 2026-11-25, #365; glass
+/// is kept for what floats over a page, such as the tab bar, the Undo bar
+/// and the problem banner). Increase Contrast gives it a firmer outline.
+/// AMOLED black's cards carry a thin outline on the black; Sepia's are cream
+/// with an outline and a soft shadow, as drawn in the mockups.
 struct Card: ViewModifier {
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
 
     func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
-        let padded = content.padding(16).frame(maxWidth: .infinity, alignment: .leading)
-        Group {
-            if reduceTransparency || contrast == .increased {
-                padded
-                    .background(solidFill, in: shape)
-                    .overlay(shape.strokeBorder(contrast == .increased ? Color.primary.opacity(0.6) : outline, lineWidth: 1))
-            } else {
-                switch Palette.look {
-                case .amoled:
-                    padded.glassEffect(.regular, in: shape)
-                        .overlay(shape.strokeBorder(Palette.outline, lineWidth: 1))
-                case .sepia:
-                    padded.glassEffect(.regular.tint(Palette.panel.opacity(0.7)), in: shape)
-                        .overlay(shape.strokeBorder(Palette.outline, lineWidth: 1))
-                        .shadow(color: Palette.hex(BuiltInLook.sepia.colors.text).opacity(0.14), radius: 3, y: 2)
-                case .theme, .custom:
-                    // The theme's panel colour under the glass, so text in
-                    // the theme's colour stays on the colour it was made for.
-                    padded.glassEffect(.regular.tint(Palette.panel.opacity(0.85)), in: shape)
-                        .overlay(shape.strokeBorder(Palette.outline, lineWidth: 1))
-                default:
-                    padded.glassEffect(.regular, in: shape)
-                }
-            }
-        }
+        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+        content.padding(16).frame(maxWidth: .infinity, alignment: .leading)
+            .background(solidFill, in: shape)
+            .overlay(shape.strokeBorder(contrast == .increased ? Color.primary.opacity(0.6) : outline, lineWidth: 1))
+            .shadow(color: shadow, radius: 3, y: 2)
     }
 
     private var solidFill: Color { Palette.panel }
     private var outline: Color { Palette.outline }
+    /// Sepia's soft shadow, as drawn in the mockups; none in the other looks.
+    private var shadow: Color {
+        Palette.look == .sepia ? Palette.hex(BuiltInLook.sepia.colors.text).opacity(0.14) : .clear
+    }
 }
 
 extension View {
@@ -316,6 +304,6 @@ struct Caption: View {
     init(_ text: String) { self.text = text }
 
     var body: some View {
-        Text(text).font(.caption).foregroundStyle(.secondary)
+        Text(text).font(.caption).foregroundStyle(Palette.caption)
     }
 }

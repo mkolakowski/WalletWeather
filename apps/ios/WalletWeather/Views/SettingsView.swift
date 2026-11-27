@@ -377,7 +377,7 @@ private struct ConnectionCard: View {
     @ScaledMetric(relativeTo: .title2) private var fullTile: CGFloat = 44
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
         Button(action: action) {
             HStack(spacing: compact ? 10 : 14) {
                 Image(systemName: layout.symbol(of: .connection))
@@ -506,7 +506,7 @@ private struct SidebarRow: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(tint)
                     .frame(width: tile, height: tile)
-                    .background(tint.opacity(0.16), in: .rect(cornerRadius: 8, style: .continuous))
+                    .background(tint.opacity(0.16), in: .rect(cornerRadius: Radius.tile, style: .continuous))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title)
                         .foregroundStyle(isAction ? Palette.accent : greyed ? Color.secondary : (Palette.text ?? Color.primary))
@@ -520,7 +520,7 @@ private struct SidebarRow: View {
             .padding(.horizontal, 10).padding(.vertical, 5)
             .frame(minHeight: 44)
             .background {
-                if chosen { RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.accent.opacity(0.18)) }
+                if chosen { RoundedRectangle(cornerRadius: Radius.row, style: .continuous).fill(Palette.accent.opacity(0.18)) }
             }
             .contentShape(Rectangle())
         }
@@ -636,14 +636,15 @@ struct SectionTitle: View {
 /// A note directly under the setting it explains (finding R21).
 struct SettingNote: View {
     let text: String
-    var color: Color = .secondary
-    init(_ text: String, color: Color = .secondary) {
+    /// Nil: the look's caption colour (`Palette.caption`).
+    var color: Color?
+    init(_ text: String, color: Color? = nil) {
         self.text = text
         self.color = color
     }
 
     var body: some View {
-        Text(text).font(.footnote).foregroundStyle(color).padding(.horizontal, 4)
+        Text(text).font(.footnote).foregroundStyle(color ?? Palette.caption).padding(.horizontal, 4)
             .fixedSize(horizontal: false, vertical: true)
     }
 }

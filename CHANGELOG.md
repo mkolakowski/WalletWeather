@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.4** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.14**
+App version: **1.99.4** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.15**
+
+### Changed
+
+- **iPhone app: cards are solid in every look, and the small grey labels on them are darker.** The cards that hold your balances, lists and settings were frosted glass; they are now solid, in the look's own card colour (each look keeps its outline, and Sepia its soft shadow), so numbers and text sit on a flat colour. Glass stays on what floats over a page: the tab bar, toolbar buttons, the Undo bar and the problem banner. The small grey labels over a number and the notes under a setting are the look's text colour at 70%, so they read more clearly on a card.
 
 ## [1.99.4] — 2026-11-26
 

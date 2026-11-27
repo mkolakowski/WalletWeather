@@ -16,7 +16,3 @@ fixed-frame	WalletWeather/Views/DashboardView.swift	.frame(width: 22)
 fixed-frame	WalletWeather/Views/ForecastView.swift	.frame(height: 170)
 money-outside-format	WalletWeather/Views/SettingsPages.swift	TextField("Amount", value: $amount, format: .currency(code: "USD"))
 tap-without-button	WalletWeather/Views/PhoneBankViews.swift	.onTapGesture { if sizeClass == .regular { matching = Matching(account: account, line: line) } }
-corner-radius	WalletWeather/Theme.swift	let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
-corner-radius	WalletWeather/Views/SettingsView.swift	let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
-corner-radius	WalletWeather/Views/SettingsView.swift	.background(tint.opacity(0.16), in: .rect(cornerRadius: 8, style: .continuous))
-corner-radius	WalletWeather/Views/SettingsView.swift	if chosen { RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.accent.opacity(0.18)) }

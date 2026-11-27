@@ -122,3 +122,19 @@ Decisions made while planning and building [`Plans/bank-alert-emails.md`](../../
 - A refresh token lapses when it's been unused for six months, when it's revoked, or when "The user changed passwords and the refresh token contains Gmail scopes" ([OAuth 2.0](https://developers.google.com/identity/protocols/oauth2)).
 
 **What it changes:** nothing is dropped. The guide says app passwords are Google's own fallback and unavailable on work or school accounts; the sign-in route is offered on `https://` only, and the guide explains Personal mode, "In production" with the warning screen, and why "Testing" makes you reconnect every 7 days.
+
+## 2026-11-27: the IMAP host guard, the sender check, the Gmail project and how the ways appear
+
+**Decided:** 2026-11-27, by Matthew, at the start of phase 3 (#208). **Status:** accepted.
+
+**The questions:** how strict the server is about the IMAP servers it connects to; how an IMAP mailbox's sender check is read, when a server other than Gmail may add no Authentication-Results header of its own; which Google Cloud project "Connect Gmail" uses; and how the new ways appear in Settings and Admin.
+
+**The decisions, with the options not taken:**
+- **Host guard:** exact host names on `IMAP_HOSTS` (default `imap.gmail.com`), no wildcards; port 993 with TLS from the first byte, the certificate and its name checked; no STARTTLS and no other port. A host not on the list is refused before any connection is made. A mail server at home works when the admin lists it. Not `host:port` entries; not STARTTLS on 143; not refusing home and loopback addresses that are listed.
+- **Sender check on IMAP:** the topmost Authentication-Results header counts only when its server id is the one that host stamps: `mx.google.com` is built in for `imap.gmail.com`, and another host gives its id on the list (`imap.fastmail.com=fastmail.com`). Without one, that mailbox's alerts land under "may not be from your bank", and the guide says how to find the id. Gmail through Google sign-in expects `mx.google.com` the same way. Not the topmost header whatever wrote it, as Microsoft's; not Gmail only for now.
+- **Gmail's project:** the instance's Google sign-in project (`GOOGLE_CLIENT_ID`), so anyone in the household can connect behind the warning screen; or, when `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET` are set, that project instead, which can be in Personal mode (no warning screen, only its creator can connect). Not the sign-in project only; not a project of its own only.
+- **How they appear:** three choices in Settings → Email alerts: Microsoft 365, Connect Gmail (shown only when `GMAIL_API_ENABLED` is set, a project is configured and the instance is on `https://`) and "Gmail or another mailbox" (an app password). Admin → Users ticks each of the three per person, as bank sync's providers. Not two choices with the Gmail ways grouped; not three choices under two ticks.
+
+**Why:** a user-typed server name is a way to make the server connect somewhere, so the admin's list decides and nothing on it can be downgraded to plain text. A mail server that writes no header of its own leaves the sender's header on top, so a forged alert could pass a check that trusts whatever is first. Personal mode is the tidiest for one person, but a household on one instance needs the shared project. Separate ticks let an admin allow the app-password way without the Google project, or the other way round.
+
+**Set while building, not asked:** a revoked app password (Google revokes them when the account's password changes) is recorded as a sign-in to make again, as a lapsed Microsoft sign-in is, and stops the schedule; connecting again means disconnecting first, as with Microsoft.

@@ -133,6 +133,13 @@ enum UISource {
             good: ["Button { add() } label: { Image(systemName: \"plus\") }.accessibilityLabel(\"Add\")",
                    "Button { add() } label: { Label(\"Add\", systemImage: \"plus\") }"]),
         Rule(
+            id: "corner-radius",
+            why: "A corner radius is one of the app's four named sizes, so shapes read as one design (decided 2026-11-26, #369).",
+            fix: "Use Radius.card, .bar, .row or .tile (Radius.swift) for a corner; a shadow's radius is not one.",
+            patterns: [#"cornerRadius:\s*[0-9]"#, #"roundedRectangle\(radius:\s*[0-9]"#],
+            bad: [#".background(.quaternary, in: RoundedRectangle(cornerRadius: 12))"#, #".buttonBorderShape(.roundedRectangle(radius: 14))"#],
+            good: [#".background(.quaternary, in: RoundedRectangle(cornerRadius: Radius.row))"#, #".shadow(color: .black, radius: 3)"#]),
+        Rule(
             id: "alert",
             why: "A failed save shows in ProblemBanner, with its way forward (decided 2026-11-23, #311). An alert is for a question that needs an answer, or a problem with nowhere else to show.",
             fix: "Report a failed save with .problemBanner. For a question, or a problem outside any editor, mark the line: // ui-check: allow alert — why.",
@@ -406,7 +413,7 @@ enum UISource {
             })
         }
         return [
-            "cornerRadius": count(#"cornerRadius:\s*([0-9.]+)"#),
+            "cornerRadius": count(#"cornerRadius:\s*(Radius\.[a-z]+|[0-9.]+)"#),
             "spacing": count(#"spacing:\s*([0-9.]+)"#),
             "padding": count(#"\.padding\((?:\.[a-zA-Z]+,\s*|\[[^\]]*\],\s*)?([0-9.]+)\)"#),
             "fonts": count(#"\.font\(\.([a-zA-Z0-9]+)"#),

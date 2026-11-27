@@ -57,7 +57,7 @@ struct ConnectView: View {
                         .submitLabel(.go)
                         .onSubmit { signIn() }
                         .padding(12)
-                        .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                        .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: Radius.row))
                         .accessibilityLabel("Server address")
                     VStack(alignment: .leading, spacing: 4) {
                         TextField("Name for this iPhone", text: $model.phoneName)
@@ -65,7 +65,7 @@ struct ConnectView: View {
                             .autocorrectionDisabled()
                             .submitLabel(.done)
                             .padding(12)
-                            .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                            .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: Radius.row))
                             .accessibilityLabel("Name for this iPhone")
                         Text("Shown beside this iPhone's sign-in in the web app's Settings → API tokens.")
                             .font(.caption).foregroundStyle(.secondary)
@@ -104,13 +104,13 @@ struct ConnectView: View {
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .padding(12)
-                            .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                            .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: Radius.row))
                         SecureField("Password", text: $password)
                             .textContentType(.password)
                             .submitLabel(.go)
                             .onSubmit { signInWithPassword() }
                             .padding(12)
-                            .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                            .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: Radius.row))
                         if model.needsTwoFactorCode {
                             TextField("Code", text: $code)
                                 .textContentType(.oneTimeCode)
@@ -120,7 +120,7 @@ struct ConnectView: View {
                                 .submitLabel(.go)
                                 .onSubmit { signInWithPassword() }
                                 .padding(12)
-                                .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                                .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: Radius.row))
                                 .accessibilityLabel("Two-factor code")
                             Text("This account has two-factor sign-in on. Type the code from your authenticator app, or one of your recovery codes.")
                                 .font(.caption).foregroundStyle(.secondary)
@@ -157,7 +157,7 @@ struct ConnectView: View {
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .padding(12)
-                            .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                            .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: Radius.row))
                             .accessibilityLabel("API token")
                         Button("Connect with this token") {
                             lastWay = .token
@@ -182,10 +182,10 @@ struct ConnectView: View {
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .padding(12)
-                            .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                            .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: Radius.row))
                         SecureField("Client secret", text: $clientSecret)
                             .padding(12)
-                            .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                            .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: Radius.row))
                     }
                     .padding(.top, 10)
                 }

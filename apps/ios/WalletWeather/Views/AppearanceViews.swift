@@ -40,13 +40,13 @@ private struct LookTile: View {
             VStack(spacing: 6) {
                 LookMiniature(swatches: swatches)
                     .aspectRatio(1.3, contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: Radius.row, style: .continuous)
                         .strokeBorder(Color.primary.opacity(0.18), lineWidth: 1))
                     .padding(3)
                     .overlay {
                         if selected {
-                            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                            RoundedRectangle(cornerRadius: Radius.bar, style: .continuous)
                                 .strokeBorder(Palette.accent, lineWidth: 3)
                         }
                     }
@@ -101,7 +101,7 @@ private struct MiniScreen: View {
                 }
                 .padding(box.size.width * 0.09)
                 .frame(width: inner, alignment: .leading)
-                .background(Color(UIColor(hex: swatch.card)), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .background(Color(UIColor(hex: swatch.card)), in: RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
             }
         }
     }
@@ -180,8 +180,8 @@ struct MyThemes: View {
                 HStack(spacing: 12) {
                     LookMiniature(swatches: [LookPreview.Swatch(theme.colors)])
                         .frame(width: 46, height: 34)
-                        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
                             .strokeBorder(Color.primary.opacity(0.18), lineWidth: 1))
                     Text(theme.name)
                         .foregroundStyle(Palette.text ?? Color.primary)
@@ -395,12 +395,12 @@ private struct ThemeSample: View {
                 .background(color(theme.accent), in: Capsule())
         }
         .padding(16)
-        .background(color(theme.card), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+        .background(color(theme.card), in: RoundedRectangle(cornerRadius: Radius.bar, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.bar, style: .continuous)
             .strokeBorder(color(theme.outline), lineWidth: 1))
         .padding(18)
         .frame(maxWidth: .infinity)
-        .background(color(theme.page), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(color(theme.page), in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .environment(\.colorScheme, theme.isDark ? .dark : .light)
     }
 }

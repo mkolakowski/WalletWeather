@@ -76,13 +76,13 @@ struct WidgetGallery: View {
 
     private func home(_ face: some View, width: CGFloat) -> some View {
         face.padding(16).frame(width: width, height: 170)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 
     private func lock(_ face: some View, width: CGFloat, height: CGFloat) -> some View {
         face.padding(4).frame(width: width, height: height)
             .foregroundStyle(.white)
-            .background(Color.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(Color.black.opacity(0.75), in: RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
             .environment(\.colorScheme, .dark)
     }
 }

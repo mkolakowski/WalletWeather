@@ -124,7 +124,7 @@ struct SearchView: View {
             }
         }
         .padding(.horizontal, 12).padding(.vertical, 9)
-        .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+        .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: Radius.row))
         .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 4)
     }
 
@@ -402,7 +402,7 @@ struct SearchHitRow: View {
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 6)
-        .background(selected ? Palette.accent.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: 8))
+        .background(selected ? Palette.accent.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: Radius.row))
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
@@ -457,7 +457,7 @@ struct SearchRow: View {
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 6)
-        .background(selected ? Palette.accent.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: 8))
+        .background(selected ? Palette.accent.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: Radius.row))
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }

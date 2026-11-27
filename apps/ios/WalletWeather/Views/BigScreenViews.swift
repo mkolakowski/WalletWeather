@@ -73,7 +73,7 @@ struct ConfirmRow: View {
                     .multilineTextAlignment(.trailing)
                     .monospacedDigit()
                     .padding(.horizontal, 10).padding(.vertical, 7)
-                    .background(.quaternary.opacity(0.6), in: .rect(cornerRadius: 10))
+                    .background(.quaternary.opacity(0.6), in: .rect(cornerRadius: Radius.row))
                     .frame(minWidth: 56, maxWidth: 96)
                     .accessibilityLabel("Different amount for \(line.description)")
                 Button("Paid") { Task { await run(amount) } }
@@ -279,7 +279,7 @@ struct CompareView: View {
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Palette.row ?? Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 12))
+        .background(Palette.row ?? Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: Radius.row))
         .accessibilityElement(children: .combine)
     }
 

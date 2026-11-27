@@ -38,7 +38,7 @@ struct UndoBar: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 14).padding(.vertical, 8)
-        .glassEffect(.regular, in: .rect(cornerRadius: 14))
+        .glassEffect(.regular, in: .rect(cornerRadius: Radius.bar))
         .accessibilityElement(children: .contain)
     }
 

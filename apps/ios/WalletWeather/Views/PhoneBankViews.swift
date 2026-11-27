@@ -416,7 +416,7 @@ struct UnmatchedListView: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, selected ? 8 : 0)
-        .background(selected ? Palette.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 10))
+        .background(selected ? Palette.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: Radius.row))
         .contentShape(Rectangle())
         .onTapGesture { if sizeClass == .regular { matching = Matching(account: account, line: line) } }
     }

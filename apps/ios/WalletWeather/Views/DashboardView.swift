@@ -505,10 +505,10 @@ struct AccountCard: View {
         .card()
         .overlay {
             if chosen {
-                RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Palette.accent, lineWidth: 2.5)
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Palette.accent, lineWidth: 2.5)
             }
         }
-        .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .accessibilityElement(children: .combine)
     }
 

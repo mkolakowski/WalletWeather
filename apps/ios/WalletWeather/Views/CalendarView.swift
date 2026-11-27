@@ -546,18 +546,18 @@ struct DayCell: View {
         }
         .frame(maxWidth: .infinity, minHeight: showsAmounts ? 100 : (showsBars ? 66 : 44), alignment: .top)
         .padding(.vertical, showsAmounts ? 4 : 2)
-        .background(selected ? Palette.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 10))
+        .background(selected ? Palette.accent.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: Radius.row))
         .overlay {
             if selected && !wide {
-                RoundedRectangle(cornerRadius: 10).strokeBorder(Palette.accent.opacity(0.6), lineWidth: 1)
+                RoundedRectangle(cornerRadius: Radius.row).strokeBorder(Palette.accent.opacity(0.6), lineWidth: 1)
                     .allowsHitTesting(false)
             }
         }
         .overlay {
             if dropTarget {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10).fill(Palette.accent.opacity(0.18))
-                    RoundedRectangle(cornerRadius: 10).strokeBorder(Palette.accent, lineWidth: 2.5)
+                    RoundedRectangle(cornerRadius: Radius.row).fill(Palette.accent.opacity(0.18))
+                    RoundedRectangle(cornerRadius: Radius.row).strokeBorder(Palette.accent, lineWidth: 2.5)
                 }
                 .allowsHitTesting(false)
             }

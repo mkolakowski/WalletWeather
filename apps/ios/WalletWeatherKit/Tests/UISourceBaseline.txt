@@ -2,7 +2,7 @@
 # in the app when each rule arrived, as rule<TAB>file<TAB>the line. It only
 # shrinks: fix a slip and delete its line here. A new slip is fixed or marked
 # where it stands (// ui-check: allow <rule> — why), never added here.
-# rules: fixed-font-size, colour-outside-theme, replaced-api, label-case, three-dots, icon-only-button, alert, motion, tap-without-button, unwrapping-binding, date-outside-style, money-outside-format, fixed-frame
+# rules: fixed-font-size, colour-outside-theme, replaced-api, label-case, three-dots, icon-only-button, alert, motion, tap-without-button, unwrapping-binding, date-outside-style, money-outside-format, fixed-frame, corner-radius
 colour-outside-theme	WalletWeather/Views/CalendarView.swift	.foregroundStyle(isToday ? Color.white : (selected ? Palette.accent : .primary))
 colour-outside-theme	WalletWeather/Views/ForecastView.swift	.foregroundStyle(on ? Color.white : Color.primary)
 colour-outside-theme	WalletWeather/Views/TagViews.swift	.overlay { if color == hex { Image(systemName: "checkmark").font(.caption.bold()).foregroundStyle(.white) } }
@@ -16,3 +16,7 @@ fixed-frame	WalletWeather/Views/DashboardView.swift	.frame(width: 22)
 fixed-frame	WalletWeather/Views/ForecastView.swift	.frame(height: 170)
 money-outside-format	WalletWeather/Views/SettingsPages.swift	TextField("Amount", value: $amount, format: .currency(code: "USD"))
 tap-without-button	WalletWeather/Views/PhoneBankViews.swift	.onTapGesture { if sizeClass == .regular { matching = Matching(account: account, line: line) } }
+corner-radius	WalletWeather/Theme.swift	let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
+corner-radius	WalletWeather/Views/SettingsView.swift	let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
+corner-radius	WalletWeather/Views/SettingsView.swift	.background(tint.opacity(0.16), in: .rect(cornerRadius: 8, style: .continuous))
+corner-radius	WalletWeather/Views/SettingsView.swift	if chosen { RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.accent.opacity(0.18)) }

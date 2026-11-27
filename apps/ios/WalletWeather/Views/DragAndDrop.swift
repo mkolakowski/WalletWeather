@@ -27,11 +27,11 @@ struct DropHighlight: View {
         ZStack {
             // Frosted, so the outline reads as a drop zone rather than
             // lines drawn through the figures under it.
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .fill(.ultraThinMaterial)
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .fill(Palette.accent.opacity(0.10))
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .strokeBorder(Palette.accent, style: StrokeStyle(lineWidth: 3, dash: [10, 6]))
             Label(label, systemImage: systemImage)
                 .font(.headline)
@@ -167,7 +167,7 @@ private struct LineDragPreview: View {
             Image(systemName: "calendar").foregroundStyle(Palette.accent)
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
-        .background(Palette.row ?? Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(Palette.row ?? Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: Radius.bar, style: .continuous))
     }
 }
 

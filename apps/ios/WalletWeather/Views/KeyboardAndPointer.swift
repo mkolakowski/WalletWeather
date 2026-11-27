@@ -268,7 +268,7 @@ extension View {
 
     /// A card that is a button: a pointer lifts it. Touch is unchanged.
     func pointerCard() -> some View {
-        contentShape(.hoverEffect, RoundedRectangle(cornerRadius: 22, style: .continuous)).hoverEffect(.lift)
+        contentShape(.hoverEffect, RoundedRectangle(cornerRadius: Radius.card, style: .continuous)).hoverEffect(.lift)
     }
 }
 

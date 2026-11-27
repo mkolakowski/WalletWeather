@@ -59,7 +59,7 @@ struct SettingsHeaderCard: View {
                 .font(.title2)
                 .foregroundStyle(Palette.accent)
                 .frame(width: tile, height: tile)
-                .background(Palette.accent.opacity(0.16), in: .rect(cornerRadius: 13, style: .continuous))
+                .background(Palette.accent.opacity(0.16), in: .rect(cornerRadius: Radius.bar, style: .continuous))
             VStack(alignment: .leading, spacing: 3) {
                 Text(page == .connection ? model.settingsHouseholdName : page.title)
                     .font(.title3.weight(.semibold))
@@ -441,7 +441,7 @@ struct SwipeRow<Content: View>: View {
                                 .frame(minWidth: buttonWidth, maxHeight: .infinity)
                             }
                             .prominentButton(tint: action.tint)
-                            .buttonBorderShape(.roundedRectangle(radius: 14))
+                            .buttonBorderShape(.roundedRectangle(radius: Radius.bar))
                         }
                     }
                     .padding(.vertical, 6)

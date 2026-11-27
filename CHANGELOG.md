@@ -69,13 +69,15 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.3** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.13**
+App version: **1.99.3** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.14**
 
 ### Fixed
 
 - **iPhone app: the main buttons are readable in Sepia and the other looks with their own text colour.** In Sepia, buttons such as Sign in, Save and Add an account had dark text on a dark brown button; they now have white text. The two buttons on the first screen (Open on this iPhone, Connect to my server) are a little taller, so they're easier to hit. The usual Light and Dark looks are unchanged.
 
 ### Changed
+
+- **iPhone app: the corners are one set of four sizes.** Cards, bars, rows and small tiles used twelve different corner roundings, from 6 to 24 points; they now share four (cards 22, bars 14, rows and fields 10, tiles 6). Most screens look the same; fields and highlighted rows are a touch squarer, and the drop-target outline on a card matches the card.
 
 - **One word for an entry: "line", in the web app and the iPhone app.** What some screens called a "transaction" and others a "line" is now a "line" everywhere you read it: Add line, Delete this line?, Search lines (and its Lines group on the iPhone), "1 line" and "5 lines" counts, the Import lines from CSV page, the help text under Categories, Tags and auto-tag rules, and the Add a line Shortcut and keyboard shortcut. Nothing stored or sent changes. In the web app, "recurring transaction" now reads "bill or income" too.
 

@@ -243,7 +243,7 @@ struct ForecastView: View {
                                     LineCard(line: line, today: .today())
                                         .overlay {
                                             if open?.id == line.id {
-                                                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                                                     .strokeBorder(Palette.accent, lineWidth: 2.5)
                                             }
                                         }
@@ -740,7 +740,7 @@ struct MonthHeader: View {
             }
             .padding(.horizontal, 12).padding(.vertical, 10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Palette.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(Palette.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: Radius.row, style: .continuous))
         }
         .card()
     }
@@ -950,7 +950,7 @@ struct LineTableRow: View {
         .font(.footnote.monospacedDigit())
         .padding(.vertical, 7)
         .padding(.horizontal, 6)
-        .background(selected ? Palette.accent.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: 8))
+        .background(selected ? Palette.accent.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: Radius.row))
         .opacity(line.isPaid ? 1 : 0.85)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)

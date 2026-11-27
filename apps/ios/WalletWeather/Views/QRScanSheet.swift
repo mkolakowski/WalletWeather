@@ -45,7 +45,7 @@ struct QRScanSheet: View {
                         .font(.callout)
                         .multilineTextAlignment(.center)
                         .padding(14)
-                        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16))
+                        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: Radius.bar))
                         .padding(20)
                         .accessibilityAddTraits(.updatesFrequently)
                 }

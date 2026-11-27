@@ -373,7 +373,7 @@ struct ReportsView: View {
         .padding(.vertical, 10)
         .padding(.horizontal, 6)
         .frame(minHeight: 44)
-        .background(selected ? Palette.accent.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: 8))
+        .background(selected ? Palette.accent.opacity(0.18) : .clear, in: RoundedRectangle(cornerRadius: Radius.row))
         .contentShape(Rectangle())
     }
 
@@ -652,7 +652,7 @@ struct BankSyncCard: View {
             }
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+            .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.row))
         }
         Text("Each needs keys from a developer account of your own. They're added on your server's page, signed in with a fresh code, and never kept on this iPhone. [Step by step](https://mkolakowski.github.io/WalletWeather/bank-sync/teller-plaid.html#add-your-own-teller-or-plaid-keys)." )
             .font(.footnote).foregroundStyle(.secondary)

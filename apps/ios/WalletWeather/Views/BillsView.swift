@@ -428,7 +428,7 @@ struct BillCard: View {
         .card()
         .overlay {
             if selected {
-                RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Palette.accent, lineWidth: 2)
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Palette.accent, lineWidth: 2)
             }
         }
         .contentShape(Rectangle())

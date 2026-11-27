@@ -92,10 +92,10 @@ private struct WayCard: View {
             .padding(.vertical, 2)
             Group {
                 if prominent {
-                    Button(action: action) { Text(button).frame(maxWidth: .infinity).padding(.vertical, 4) }
-                        .buttonStyle(.glassProminent)
+                    Button(action: action) { Text(button).frame(maxWidth: .infinity).padding(.vertical, 6) }
+                        .prominentButton()
                 } else {
-                    Button(action: action) { Text(button).frame(maxWidth: .infinity).padding(.vertical, 4) }
+                    Button(action: action) { Text(button).frame(maxWidth: .infinity).padding(.vertical, 6) }
                         .buttonStyle(.glass)
                 }
             }

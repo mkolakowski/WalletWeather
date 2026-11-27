@@ -31,7 +31,7 @@ struct ProblemView: View {
         } actions: {
             // A page that couldn't load always offers at least Try again.
             WayForwardButton(way: error.wayForward ?? .tryAgain, signingIn: $signingIn, retry: retry)
-                .buttonStyle(.glassProminent)
+                .prominentButton()
         }
         .sheet(isPresented: $signingIn) { AddServerSheet(server: model.connection?.server) }
     }

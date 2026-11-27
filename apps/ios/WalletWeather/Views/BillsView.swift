@@ -567,7 +567,7 @@ struct EndBillSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel", role: .cancel) { dismiss() }.keyShortcut(.cancel) }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("End") { Task { await end() } }.buttonStyle(.glassProminent)
+                    Button("End") { Task { await end() } }.prominentButton()
                 }
             }
         }
@@ -690,7 +690,7 @@ struct BillEditor: View {
                     Spacer(minLength: 0)
                     if open.editable {
                         Button(isNew ? "Add" : "Save") { Task { await save() } }
-                            .buttonStyle(.glassProminent).keyShortcut(.save).disabled(!canSave)
+                            .prominentButton().keyShortcut(.save).disabled(!canSave)
                     }
                 }
                 .padding(.leading, edges.leading).padding(.trailing, edges.trailing).padding(.vertical, 8)
@@ -708,7 +708,7 @@ struct BillEditor: View {
                         if open.editable {
                             ToolbarItem(placement: .confirmationAction) {
                                 Button(isNew ? "Add" : "Save") { Task { await save() } }
-                                    .buttonStyle(.glassProminent).keyShortcut(.save).disabled(!canSave)
+                                    .prominentButton().keyShortcut(.save).disabled(!canSave)
                             }
                         }
                     }

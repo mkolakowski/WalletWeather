@@ -128,7 +128,7 @@ struct CSVImportSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Import") { Task { await commit() } }
-                        .buttonStyle(.glassProminent)
+                        .prominentButton()
                         .disabled(importing || loading || accountId == nil || (preview?.rowCount ?? 0) == 0)
                 }
             }

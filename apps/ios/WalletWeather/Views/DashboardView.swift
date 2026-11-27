@@ -200,7 +200,7 @@ struct DashboardView: View {
             } description: {
                 Text("Start with the account your pay goes into, with its balance today. Bills, income and spending go on it next.")
             } actions: {
-                Button("Add an account") { addingAccount = true }.buttonStyle(.glassProminent)
+                Button("Add an account") { addingAccount = true }.prominentButton()
                 // Or bring a household from a server (#236).
                 Button("Import a server backup") { importingBackup = true }.buttonStyle(.borderless)
                 if let importNote { Text(importNote).font(.footnote).foregroundStyle(.secondary) }
@@ -576,7 +576,7 @@ struct ChosenAccountPane: View {
             OpenInForecastButton(account: card.id) {
                 Label("Open in Forecast", systemImage: "chart.line.uptrend.xyaxis").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.glassProminent)
+            .prominentButton()
             .tint(Palette.accent)
             .accessibilityHint("Opens in Forecast")
         }

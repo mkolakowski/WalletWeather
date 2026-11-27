@@ -400,7 +400,7 @@ struct LockView: View {
                 Label("Unlock with \(settings.biometryName ?? "passcode")", systemImage: "faceid")
                     .padding(.horizontal, 8).padding(.vertical, 4)
             }
-            .buttonStyle(.glassProminent)
+            .prominentButton()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(PageBackground().ignoresSafeArea())

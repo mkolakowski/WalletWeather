@@ -80,6 +80,7 @@
 		E4B39C05F91B13F80EE5068D /* MoveViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6E160E5ACC028F9FCFF027 /* MoveViews.swift */; };
 		EC7FFE9E0118DB3EF0409912 /* MonthMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9819ED5346F2EC2B60C37AA5 /* MonthMenu.swift */; };
 		F51D1460FFE29E3C29F1976B /* PhoneSearchIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = E707B8D7EB9DAE7B10EAB407 /* PhoneSearchIndex.swift */; };
+		F6FDD233218B6B8EBCBFC251 /* ProminentButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3836367C77C19B8411FE973D /* ProminentButton.swift */; };
 		FA80FC528E02EC8EC61C42F5 /* WalletWeatherKit in Frameworks */ = {isa = PBXBuildFile; productRef = 282D294D0DEDCC0726327963 /* WalletWeatherKit */; };
 		FB73D58433046DB107B7663B /* AccountFollower.swift in Sources */ = {isa = PBXBuildFile; fileRef = 853A48B5A75D9C9B343FE58A /* AccountFollower.swift */; };
 		FC679BF76B513DDEC977EA25 /* AppearanceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F9C229869953F8F6C9FAB0 /* AppearanceViews.swift */; };
@@ -142,6 +143,7 @@
 		34D31157F799FA2DD3673952 /* WalletWeather.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WalletWeather.entitlements; sourceTree = "<group>"; };
 		354C1F47B2C105A157D90B7C /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		36107672C089B4F7505E4115 /* WalkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalkTests.swift; sourceTree = "<group>"; };
+		3836367C77C19B8411FE973D /* ProminentButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProminentButton.swift; sourceTree = "<group>"; };
 		38A0E0386259C1431BB7F2D1 /* WalletWeather.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = WalletWeather.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B0E1505B8AAB097DE9F4411 /* Checks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Checks.swift; sourceTree = "<group>"; };
 		3B50EE1D83429562642B2DCA /* ThemeCloud.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeCloud.swift; sourceTree = "<group>"; };
@@ -291,6 +293,7 @@
 				477E3FB4D8EDDD73201F110E /* OpenInForecast.swift */,
 				501BC9A34865BA8B81980E67 /* PhoneBankViews.swift */,
 				3D8B8F746C4489B2D9FC26F6 /* ProblemBanner.swift */,
+				3836367C77C19B8411FE973D /* ProminentButton.swift */,
 				A98C31592C4A8C02D24C2584 /* QRScanSheet.swift */,
 				ABF20F601A1EB2143ABA37C6 /* RootView.swift */,
 				795D7F25402606692C251B7E /* ScopedToConnection.swift */,
@@ -630,6 +633,7 @@
 				2A3F787DFA9A3BC6817806A5 /* PhoneBankViews.swift in Sources */,
 				F51D1460FFE29E3C29F1976B /* PhoneSearchIndex.swift in Sources */,
 				1FCF02B71067FD3EBB3F9DE1 /* ProblemBanner.swift in Sources */,
+				F6FDD233218B6B8EBCBFC251 /* ProminentButton.swift in Sources */,
 				D15E3123C4A13434AC0DE0F8 /* QRScanSheet.swift in Sources */,
 				903A93C2E5C8D31E309A0177 /* ReminderCenter.swift in Sources */,
 				B29B4373B3A526BF9E85393F /* RootView.swift in Sources */,
@@ -757,7 +761,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.73.11;
+				MARKETING_VERSION = 0.73.12;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -825,7 +829,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.73.11;
+				MARKETING_VERSION = 0.73.12;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";

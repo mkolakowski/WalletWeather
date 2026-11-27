@@ -124,7 +124,7 @@ struct MoveMoneySheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(changing == nil ? "Move" : "Save") { Task { await move() } }
-                        .buttonStyle(.glassProminent)
+                        .prominentButton()
                         .keyShortcut(.save)
                         .disabled(draft.problem != nil)
                 }

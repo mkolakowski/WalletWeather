@@ -84,7 +84,7 @@ struct ConnectView: View {
                         .font(.headline)
                         .padding(.vertical, 6)
                     }
-                    .buttonStyle(.glassProminent)
+                    .prominentButton()
                     .disabled(model.busy)
                     Text("Opens your server's sign-in page: Cloudflare first if it's in front, then your email and password or Google.")
                         .font(.footnote).foregroundStyle(.secondary)

@@ -35,7 +35,7 @@ struct NoticeView: View {
                     }
                     .font(.headline).padding(.vertical, 6)
                 }
-                .buttonStyle(.glassProminent)
+                .prominentButton()
                 .disabled(saving)
                 if model.isLocal {
                     Button("Back") { model.backFromNotice() }

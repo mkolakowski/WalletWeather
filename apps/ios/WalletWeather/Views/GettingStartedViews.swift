@@ -269,7 +269,7 @@ private struct LookTaskSheet: View {
             } label: {
                 Text("Keep this look").frame(maxWidth: .infinity).padding(.vertical, 4)
             }
-            .buttonStyle(.glassProminent)
+            .prominentButton()
             Text("You can change it any time in Settings → Appearance.")
                 .font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 4)
         }
@@ -302,14 +302,14 @@ private struct MarkPaidTaskSheet: View {
                 } label: {
                     Text("Open To confirm").frame(maxWidth: .infinity).padding(.vertical, 4)
                 }
-                .buttonStyle(.glassProminent)
+                .prominentButton()
             } else {
                 NavigationLink {
                     TabPage.forecast.view(embedded: true)
                 } label: {
                     Text("Open To confirm").frame(maxWidth: .infinity).padding(.vertical, 4)
                 }
-                .buttonStyle(.glassProminent)
+                .prominentButton()
                 .simultaneousGesture(TapGesture().onEnded { confirming = true })
             }
             Text("Only people who can change an account see To confirm.")
@@ -339,7 +339,7 @@ private struct SearchTaskSheet: View {
             } label: {
                 Text("Search now").frame(maxWidth: .infinity).padding(.vertical, 4)
             }
-            .buttonStyle(.glassProminent)
+            .prominentButton()
         }
     }
 }

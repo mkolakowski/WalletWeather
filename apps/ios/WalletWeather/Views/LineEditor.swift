@@ -122,7 +122,7 @@ struct LineEditor: View {
             Spacer(minLength: 0)
             if open.editable {
                 Button("Save", action: save)
-                    .buttonStyle(.glassProminent)
+                    .prominentButton()
                     .keyShortcut(.save)
                     .disabled(!canSave)
             }
@@ -353,7 +353,7 @@ struct LineEditor: View {
         if open.editable {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save", action: save)
-                    .buttonStyle(.glassProminent)
+                    .prominentButton()
                     .keyShortcut(.save)
                     .disabled(!canSave)
             }
@@ -548,7 +548,7 @@ struct AddTransactionSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") { Task { await add() } }
-                        .buttonStyle(.glassProminent)
+                        .prominentButton()
                         .keyShortcut(.save)
                         .disabled(draft.problem != nil || draft.notes.count > 256)
                 }

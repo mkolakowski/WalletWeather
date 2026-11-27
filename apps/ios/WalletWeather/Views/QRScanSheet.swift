@@ -64,7 +64,7 @@ struct QRScanSheet: View {
                     Button("Open Settings") {
                         if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
                     }
-                    .buttonStyle(.glassProminent)
+                    .prominentButton()
                 }
             }
         }

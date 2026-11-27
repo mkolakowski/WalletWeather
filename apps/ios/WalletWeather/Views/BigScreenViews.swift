@@ -65,9 +65,8 @@ struct ConfirmRow: View {
                     .lineLimit(1)
                     .fixedSize()
                 }
-                .buttonStyle(.glassProminent)
+                .prominentButton(tint: Palette.good)
                 .controlSize(.large)
-                .tint(Palette.good)
                 Spacer(minLength: 4)
                 TextField(amountString(abs(line.plannedAmount.amount)), text: $amount)
                     .keyboardType(.decimalPad)

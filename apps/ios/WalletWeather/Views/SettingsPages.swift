@@ -440,9 +440,8 @@ struct SwipeRow<Content: View>: View {
                                 }
                                 .frame(minWidth: buttonWidth, maxHeight: .infinity)
                             }
-                            .buttonStyle(.glassProminent)
+                            .prominentButton(tint: action.tint)
                             .buttonBorderShape(.roundedRectangle(radius: 14))
-                            .tint(action.tint)
                         }
                     }
                     .padding(.vertical, 6)

@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.3** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.11**
+App version: **1.99.3** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.12**
+
+### Fixed
+
+- **iPhone app: the main buttons are readable in Sepia and the other looks with their own text colour.** In Sepia, buttons such as Sign in, Save and Add an account had dark text on a dark brown button; they now have white text. The two buttons on the first screen (Open on this iPhone, Connect to my server) are a little taller, so they're easier to hit. The usual Light and Dark looks are unchanged.
 
 ### Changed
 

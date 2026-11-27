@@ -69,7 +69,13 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.4** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.16**
+App version: **1.99.5** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.16**
+
+## [1.99.5] — 2026-11-27
+
+App version: **1.99.5** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.16**
+
+On the iPhone, cards are solid in every look with darker small labels, and on the iPhone Duo your account picture sits where the tab bar is, the size of the buttons beside it. No server or database change.
 
 ### Changed
 
@@ -3090,7 +3096,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.99.4...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.99.5...HEAD
+[1.99.5]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.5
 [1.99.4]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.4
 [1.99.3]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.3
 [1.99.2]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.2

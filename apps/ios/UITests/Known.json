@@ -5,6 +5,12 @@
       "check": "all-capitals",
       "screen": "*unmatched",
       "why": "A bank's own description of a line (VERIZON WIRELESS), shown as the bank wrote it. The check is right about labels and wrong about data. 2026-11-24, #346."
+    },
+    {
+      "check": "small-target",
+      "screen": "theme-editor",
+      "label": "^(Page|Card|Text|Accent|Money in|Money out), #",
+      "why": "A system ColorPicker row: the row already has a 44-point minimum height (rows are 44 points apart in the pictures) but the picker reports its inner 28-point element, and a frame can't change what it reports. Judged by Claude 2026-11-26, #361; Matthew hasn't ruled on it, so remove this entry if the rows turn out hard to hit on a phone."
     }
   ]
 }

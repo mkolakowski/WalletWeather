@@ -69,13 +69,13 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.2** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.8**
+App version: **1.99.2** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.9**
 
 ### Fixed
 
 - **iPhone app: every date follows the Date format you chose.** With Settings → Dates & display → Date format on 2026-11-12, the days written out with a weekday (the Calendar's day heading, a bill's "Next:" line, the line editor's "Planned for", a day in Backups, a reminder) were still written as "Sat, Dec 12" or "Saturday, December 12". They now read "Sat 2026-12-12" and "Saturday 2026-12-12"; on Nov 12 they read as before. The chart's day-of-month numbers stay as they are, and the home screen widget and reminders can't see the setting yet, so they still use Nov 12.
 
-- **iPhone app: more buttons are easy to hit.** The small buttons the UI review found now take a tap anywhere in a 44-point square, with no change to how they look: Edit on a To confirm card, Disconnect under Bank sync, Try the demo, Add in the tab bar's page list, the account menus on Forecast, Bills & income, Calendar and Compare, the month's name, Forecast's filter chips, Match… and Leave on the Unmatched list, and the Close button on Getting started. The month's arrows, Paid as planned and the Connect page's email sign-in button are a little larger to reach the same size. Swap, Swap in and Add, in Getting started's tab bar step and in Settings → Tab bar, are now small rounded buttons so they're easy to hit. Two are still to do: the Connect page's "Other ways to sign in" and the theme editor's colour rows.
+- **iPhone app: more buttons are easy to hit.** The small buttons the UI review found now take a tap anywhere in a 44-point square, with no change to how they look: Edit on a To confirm card, Disconnect under Bank sync, Try the demo, Add in the tab bar's page list, the account menus on Forecast, Bills & income, Calendar and Compare, the month's name, Forecast's filter chips, Match… and Leave on the Unmatched list, and the Close button on Getting started. The month's arrows, Paid as planned and the Connect page's email sign-in button are a little larger to reach the same size. Swap, Swap in and Add, in Getting started's tab bar step and in Settings → Tab bar, are now small rounded buttons so they're easy to hit. The Connect page's "Other ways to sign in" is a full-height row you can tap anywhere on. The theme editor's colour rows are left as they are: each is already a 44-point-tall row.
 
 - **iPhone app: Compare is readable on a narrow screen.** On the Duo closed, or any window narrower than about 600 points, Compare squeezed its two columns until the month turned into a tall capsule and amounts broke in the middle of a number. It now shows one side at a time, with a switch at the top naming each side (its account and month); the account and month pickers sit under it and apply to the side shown. Opened on the Duo lying open, Compare still shows the two sides together.
 

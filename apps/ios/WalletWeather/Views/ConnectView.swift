@@ -94,7 +94,7 @@ struct ConnectView: View {
                 }
                 .card()
 
-                DisclosureGroup("Other ways to sign in", isExpanded: $showOtherWays) {
+                DisclosureGroup(isExpanded: $showOtherWays) {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Email and password").font(.subheadline.weight(.semibold))
                         TextField("Email", text: $email)
@@ -167,6 +167,9 @@ struct ConnectView: View {
                         problem(for: .token)
                     }
                     .padding(.top, 10)
+                } label: {
+                    // The whole row opens it, at least 44 points tall (#361).
+                    Text("Other ways to sign in").frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).contentShape(.rect)
                 }
                 .card()
 

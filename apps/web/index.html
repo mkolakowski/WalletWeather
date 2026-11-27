@@ -2832,7 +2832,7 @@
       <div class="panel" data-settings-section="backup">
         <h2>Backup &amp; restore</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
-          A backup holds your accounts, recurring transactions, categories, tags and history,
+          A backup holds your accounts, bills and income, categories, tags and history,
           encrypted with a passphrase you choose. Only that passphrase opens it again.
         </p>
 
@@ -3057,7 +3057,7 @@
       <div class="panel" data-settings-section="your-account" id="myDataPanel">
         <h2>Download my data</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
-          A copy of your accounts, lines, recurring transactions, categories and tags as a
+          A copy of your accounts, lines, bills and income, categories and tags as a
           plain JSON file, for you to read or take elsewhere.
           <strong style="color:var(--warn)">It isn't a backup and isn't encrypted:</strong> anyone with
           the file can read it. To keep a copy you can restore, use Settings → Backup.
@@ -3069,7 +3069,7 @@
         <h2>Delete my account</h2>
         <p style="color:var(--muted);margin:0 0 12px;font-size:13px">
           Removes your sign-in and everything only you own: your accounts and their lines,
-          recurring transactions, transfers, categories, tags, budgets and saved reports.
+          bills and income, transfers, categories, tags, budgets and saved reports.
           <strong style="color:var(--warn)">This can't be undone.</strong>
         </p>
         <div id="deleteAccountBody"><span style="color:var(--muted)">Loading…</span></div>
@@ -3181,7 +3181,7 @@ const fmtShort = v => {
 //   3. If the change also touches backend behavior, also bump APP_VERSION
 //      in apps/server/app/main.py per the instructions there.
 // ----------------------------------------------------------------------------
-const WEB_VERSION = "1.119.0";
+const WEB_VERSION = "1.120.0";
 
 // --- WEB CHANGELOG ----------------------------------------------------------
 // Format for every new line (keep newest at TOP):
@@ -3191,6 +3191,7 @@ const WEB_VERSION = "1.119.0";
 //
 // When you bump WEB_VERSION, add the matching line here. Do not rewrite
 // history — only append new entries.
+// 1.120.0 (2026-11-26, claude+mkolakowski): (#390) "Recurring transaction" now reads "bill or income" (help texts and the update, delete and restore dialogs, and their titles); wording only.
 // 1.119.0 (2026-11-26, claude+mkolakowski): (#367) One word for an entry: "line". The labels, help text, dialogs and counts that said "transaction" for a line now say "line" (+ Add line, Search lines, Import lines from CSV, "Delete this line?", 1 line / n lines in Search, the settings help text). Wording only: ids, field names, API routes, stored values and the code stay as they are; "recurring transaction" is left as it was, to be decided.
 // 1.118.0 (2026-11-25, claude+mkolakowski): (#378) Profile picture (account-picker phase 2). Settings → Your account gains a "Profile picture" panel (#profilePicturePanel): Choose a picture… reads the file, profilePictureChosen/_squareJpeg cut it square from the middle in a canvas at 512 px at most and encode a JPEG under the server's 256 KB (quality steps down until it fits), the preview shows it, Save picture PUTs it to /api/me/picture (profilePictureSave) and Remove DELETEs it (profilePictureRemove); loadProfilePicture runs when Settings opens. The round account button (#userMenuBtn) shows the picture (#userPicture, from /api/me/picture?v=<picture_updated_at> so a new one is fetched and an old one kept) instead of the initials, and falls back to them when it can't load. No CSP change: the picture is same-origin and the preview is a data: URL.
 // 1.117.1 (2026-11-25, claude+mkolakowski): (#355) The bank sync guide is now an overview with sub-pages (#354): BANK_GUIDE_STEPS, BANK_PROVIDERS' guide links and the Match your accounts / If sync keeps failing links point at bank-sync/simplefin.html, teller-plaid.html#…, match-and-sync.html#…; "the bank sync guide" (BANK_GUIDE alone) stays the overview. app-bank-keys.html and app-connect-bank.html likewise.
@@ -8167,7 +8168,7 @@ async function runRecBulkUpdate() {
   }
   if (!changes.length) { status.textContent = 'Fill in at least one field to change.'; return; }
   const n = _recSelected.size;
-  if (!(await confirmDialog(`Update ${n} recurring transaction${n===1?'':'s'}?\n\n• ${changes.join('\n• ')}`, { title: 'Update recurring items', okLabel: 'Update', danger: false }))) return;
+  if (!(await confirmDialog(`Update ${n} bill or income item${n===1?'':'s'}?\n\n• ${changes.join('\n• ')}`, { title: 'Update bills and income', okLabel: 'Update', danger: false }))) return;
   status.textContent = 'Applying…';
   let resp;
   try {
@@ -8189,7 +8190,7 @@ async function runRecBulkDelete() {
   const status = document.getElementById('recBulkStatus');
   const n = _recSelected.size;
   if (n === 0) { status.textContent = 'No rows selected.'; return; }
-  if (!(await confirmDialog(`Delete ${n} recurring transaction template${n===1?'':'s'}? Past actuals already logged against them will remain, but no new occurrences will be projected.`, { title: 'Delete recurring items', okLabel: 'Delete', danger: true }))) return;
+  if (!(await confirmDialog(`Delete ${n} bill or income item${n===1?'':'s'}? Past actuals already logged against them will remain, but no new occurrences will be projected.`, { title: 'Delete bills and income', okLabel: 'Delete', danger: true }))) return;
   status.textContent = 'Deleting…';
   let resp;
   try {
@@ -8445,7 +8446,7 @@ async function saveRecurring(id, opts) {
 }
 
 async function delRecurring(id) {
-  if (!(await confirmDialog('Delete this recurring transaction template? Past actuals already logged against it will remain, but no new occurrences will be projected.', { title: 'Delete recurring item', okLabel: 'Delete', danger: true }))) return;
+  if (!(await confirmDialog('Delete this bill or income item? Past actuals already logged against it will remain, but no new occurrences will be projected.', { title: 'Delete bill or income', okLabel: 'Delete', danger: true }))) return;
   try {
     await api('/api/recurring/'+id, {method:'DELETE'});
   } catch (e) {
@@ -9338,7 +9339,7 @@ function _forecastDeleteBtn(r, cls, label) {
 
 async function deleteForecastRow(tid, fromRecurring) {
   const msg = fromRecurring
-    ? "Delete this line? This cannot be undone. Its recurring transaction stays, but this date won't be projected again (restore it from the recurring transaction's edit row)."
+    ? "Delete this line? This cannot be undone. Its bill or income stays, but this date won't be projected again (restore it from the bill or income's edit row)."
     : 'Delete this line? This cannot be undone.';
   if (!(await confirmDialog(msg, { title: 'Delete line', okLabel: 'Delete', danger: true }))) return;
   try {
@@ -9353,7 +9354,7 @@ async function deleteForecastRow(tid, fromRecurring) {
 }
 
 async function skipForecastOccurrence(recId, dateStr) {
-  if (!(await confirmDialog(`Delete this occurrence on ${fmtDate(dateStr)}? The recurring transaction keeps its other dates — only this one is removed. You can restore deleted dates from the recurring transaction's edit row.`, { title: 'Delete this date', okLabel: 'Delete', danger: true }))) return;
+  if (!(await confirmDialog(`Delete this occurrence on ${fmtDate(dateStr)}? The bill or income keeps its other dates — only this one is removed. You can restore deleted dates from its edit row.`, { title: 'Delete this date', okLabel: 'Delete', danger: true }))) return;
   try {
     await api(`/api/recurring/${recId}/skip`, { method: 'POST', body: JSON.stringify({ skip_date: dateStr }) });
   } catch (e) {
@@ -9365,7 +9366,7 @@ async function skipForecastOccurrence(recId, dateStr) {
 }
 
 async function restoreRecurringSkips(recId) {
-  if (!(await confirmDialog('Restore every deleted date for this recurring transaction? They will be projected in the forecast again.', { title: 'Restore deleted dates', okLabel: 'Restore', danger: false }))) return;
+  if (!(await confirmDialog('Restore every deleted date for this bill or income? They will be projected in the forecast again.', { title: 'Restore deleted dates', okLabel: 'Restore', danger: false }))) return;
   try {
     await api(`/api/recurring/${recId}/skips`, { method: 'DELETE' });
   } catch (e) {

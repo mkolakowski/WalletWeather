@@ -71,6 +71,12 @@ same commit (or session) that introduces it.
 
 App version: **1.101.0** · Web version: **1.122.0** · Schema version: **40** · iOS version: **0.73.18**
 
+## [1.101.0] — 2026-11-27
+
+App version: **1.101.0** · Web version: **1.122.0** · Schema version: **40** · iOS version: **0.73.18**
+
+A mailbox whose sign-in has lapsed, or whose app password was removed, can be reconnected without forgetting the banks you taught. No database change.
+
 ### Changed
 
 - Settings → Email alerts has a **Reconnect** section above Disconnect: when Microsoft or Google stops accepting the sign-in, or a Gmail app password is removed, sign in again or paste a new app password, and the banks you taught, the folder and the check log are kept. Before, you had to disconnect and teach every bank again. It's there before a lapse too, for example to swap in a new app password before removing the old one. It only reconnects the same mailbox: signing in to a different address is refused, and switching mailboxes is still Disconnect. (#394)
@@ -3136,7 +3142,8 @@ App version: **1.4.0** · Web version: **1.4.0** · Schema version: **6**
 
 Pre-versioning. See `git log` for history.
 
-[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.100.0...HEAD
+[Unreleased]: https://github.com/mkolakowski/walletweather/compare/v1.101.0...HEAD
+[1.101.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.101.0
 [1.100.0]: https://github.com/mkolakowski/walletweather/releases/tag/v1.100.0
 [1.99.7]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.7
 [1.99.6]: https://github.com/mkolakowski/walletweather/releases/tag/v1.99.6

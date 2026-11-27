@@ -144,6 +144,10 @@ enum Checks {
         }
         let texts = seen.filter { $0.type == .staticText && !$0.label.isEmpty }
         let inBars = { (element: Seen) in element.path.contains(.tabBar) || element.path.contains(.keyboard) || element.path.contains(.statusBar) }
+        // The system keyboard, and its row of typing predictions above the keys (three controls that aren't in the
+        // keyboard's own branch of the tree and have no names: the system's to name, not the app's) (#392).
+        let keyboardFrames = seen.filter { $0.type == .keyboard || $0.label == "Typing Predictions" }.map(\.frame)
+        let onKeyboard = { (element: Seen) in keyboardFrames.contains { $0.contains(CGPoint(x: element.frame.midX, y: element.frame.midY)) } }
 
         for element in seen where !inBars(element) {
             let text = element.text
@@ -161,7 +165,7 @@ enum Checks {
             }
             // (The system's own Back button has no label in the tree; VoiceOver has its own word for it.)
             if element.isControl, element.label.isEmpty, element.value.isEmpty, element.placeholder.isEmpty, element.frame.width > 1,
-               element.identifier != "BackButton",
+               element.identifier != "BackButton", !onKeyboard(element),
                !seen.contains(where: { other in
                    !other.text.isEmpty && (other.above.contains(element.index) || (other.index != element.index && near(other.frame, element.frame)))
                }) {

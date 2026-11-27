@@ -582,6 +582,15 @@ final class WalkTests: XCTestCase {
             }
             if case .tapIfThere = step { return nil }
             return "Nothing to tap called \"\(label)\"."
+        case let .scrollTo(label):
+            for _ in 0..<6 {
+                if find(label) != nil { return nil }
+                // A flick on the page's list: the first one in the tree, which is the left half on the open Duo (#392).
+                let list = app.collectionViews.element(boundBy: 0)
+                if list.exists { list.swipeUp(velocity: .slow) } else { app.swipeUp(velocity: .slow) }
+                Thread.sleep(forTimeInterval: 0.5)
+            }
+            return find(label) != nil ? nil : "Nothing scrolled into view called \"\(label)\"."
         case let .type(text):
             app.typeText(text)
             return nil

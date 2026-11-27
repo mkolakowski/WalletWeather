@@ -20,6 +20,9 @@ struct Screen {
         case tap(String)
         /// The same, when it's there; no finding when it isn't.
         case tapIfThere(String)
+        /// Scroll the page's list until something with this label (or starting with it) is on screen, for what
+        /// the open Duo's left half carries below its fold; no finding for the scroll itself (#392).
+        case scrollTo(String)
         case type(String)
         case wait(Double)
     }
@@ -77,13 +80,15 @@ extension Screen {
         Screen("search-nothing", .demo, ["WW_DEBUG_PLACE": "search", "WW_DEBUG_SEARCH": "zzzz"], shows: "zzzz", scrolls: false),
 
         // Forecast's states and sheets.
-        Screen("forecast-filtered", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_FILTER": "Groceries"], shows: "Groceries · "),  // the filter's own summary line (#386)
+        Screen("forecast-filtered", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_FILTER": "Groceries"], shows: "Groceries · ",  // the filter's own summary line (#386)
+               steps: [.scrollTo("Filter: ")]),  // it is under the chip row, below the open Duo's fold (#392)
         Screen("forecast-confirm", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_CONFIRM": "1"], shows: "Paid as planned"),
         Screen("forecast-compare", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_COMPARE": "1"], shows: "Compare"),
         Screen("forecast-undo", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_UNDO": "Rent"], shows: "Rent marked paid", scrolls: false,
                expected: ["text-overlap": "The Undo bar floats over the list, by design (#315)."]),
         Screen("forecast-line-menu", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_CONTEXT": "1"], shows: "Line menu", scrolls: false),
-        Screen("forecast-drop", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_DROP": "csv"], shows: "Drop to import", scrolls: false),
+        Screen("forecast-drop", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_DROP": "csv"], shows: "Drop to import", scrolls: false,
+               expected: ["text-overlap": "The drop highlight is a frosted sheet over the whole page, by design, so every label under it sits \"under\" it (#392)."]),
         Screen("line-editor", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_OPEN_LINE": "Rent"], shows: "Planned amount"),
         Screen("line-editor-save-failed", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_OPEN_LINE": "Rent", "WW_DEBUG_FAIL_SAVE": "offline"], shows: "You're offline", scrolls: false),
         Screen("add-transaction", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_ADD_NAME": "Gr"], shows: "Add to Checking"),

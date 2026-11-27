@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.5** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.16**
+App version: **1.99.5** · Web version: **1.120.0** · Schema version: **40** · iOS version: **0.73.17**
+
+### Changed
+
+- **iPhone app: nothing changes on screen; the picture check that tests the app is truer on the iPhone Duo open on its side.** It had reported three faults that weren't the app's: Forecast's "Groceries · 2 lines" line (which sits under the filter chips, below the fold of the open Duo) was counted as missing, the frosted "Drop to import" sheet was counted as sitting over the page's labels (it is meant to), and the three suggestion buttons above the system keyboard were counted as unnamed (they are the keyboard's own). The check now scrolls to the line, knows the sheet, and leaves the keyboard alone.
 
 ## [1.99.5] — 2026-11-27
 

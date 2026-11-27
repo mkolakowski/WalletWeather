@@ -52,6 +52,28 @@ struct BigScreenTests {
         #expect(first.left.map(\.description) == ["Rent"] && first.right.map(\.description) == ["Rent"])
     }
 
+    @Test func compareGoesToOneSideAtATimeUnderSixHundredPoints() throws {
+        // The closed Duo and an iPhone are narrow; the open Duo is not (#359).
+        #expect(Compare.isNarrow(width: 402))
+        #expect(Compare.isNarrow(width: 599.5))
+        #expect(!Compare.isNarrow(width: 600))
+        #expect(!Compare.isNarrow(width: 1000))
+    }
+
+    @Test func compareOneSideShowsOnlyItsOwnDays() throws {
+        let m = try month()
+        let first3 = Array(m.rows.prefix(3))
+        // The left has every line; the right only three, so on the right
+        // alone the days the left has and it hasn't are gone.
+        let right = Compare.days(of: .right, left: m.rows, right: first3)
+        #expect(right.allSatisfy { !$0.right.isEmpty })
+        #expect(right.count < Compare.days(left: m.rows, right: first3).count)
+        let left = Compare.days(of: .left, left: m.rows, right: first3)
+        #expect(left.map(\.day) == Compare.days(left: m.rows, right: first3).map(\.day))
+        // Nothing on a side gives nothing to show.
+        #expect(Compare.days(of: .right, left: m.rows, right: []).isEmpty)
+    }
+
     @Test func compareBalanceThroughADay() throws {
         let m = try month()
         #expect(Compare.balance(through: 0, in: m) == m.openingBalance)

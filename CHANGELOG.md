@@ -69,7 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.2** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.3**
+App version: **1.99.2** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.4**
+
+### Fixed
+
+- **iPhone app: Compare is readable on a narrow screen.** On the Duo closed, or any window narrower than about 600 points, Compare squeezed its two columns until the month turned into a tall capsule and amounts broke in the middle of a number. It now shows one side at a time, with a switch at the top naming each side (its account and month); the account and month pickers sit under it and apply to the side shown. Opened on the Duo lying open, Compare still shows the two sides together.
 
 ## [1.99.2] — 2026-11-26
 

@@ -142,6 +142,8 @@ struct CompareView: View {
     @State private var leftMonth: Loadable<ForecastMonth> = .loading
     @State private var rightMonth: Loadable<ForecastMonth> = .loading
     @State private var kept = KeptTracker()
+    /// Which side shows while the width is narrow (#359).
+    @State private var shown: CompareSide = .left
 
     var body: some View {
         NavigationStack {
@@ -175,32 +177,80 @@ struct CompareView: View {
             // equal columns 56 points apart, half open like a book one column
             // either side of the fold's band.
             FoldReader { size, band in
-                let panes = FoldPanes.layout(size: size, band: band.isUpright ? band : .flat)
-                let leftWidth = max(0, panes.leading.width - panes.leadingEdges.leading - panes.leadingEdges.trailing)
-                let rightWidth = max(0, panes.trailing.width - panes.trailingEdges.leading - panes.trailingEdges.trailing)
-                ScrollView {
-                    VStack(spacing: 12) {
-                        HStack(alignment: .top, spacing: panes.gap) {
-                            SideHeader(accounts: accounts, side: $left, data: l).frame(width: leftWidth)
-                            SideHeader(accounts: accounts, side: $right, data: r).frame(width: rightWidth)
-                        }
-                        LazyVStack(spacing: 8) {
-                            ForEach(Compare.days(left: l.rows, right: r.rows)) { day in
-                                HStack(alignment: .top, spacing: panes.gap) {
-                                    dayColumn(day.day, lines: day.left, month: l, side: left).frame(width: leftWidth)
-                                    dayColumn(day.day, lines: day.right, month: r, side: right).frame(width: rightWidth)
-                                }
-                                .fixedSize(horizontal: false, vertical: true)  // both cells as tall as the taller
-                            }
-                        }
-                    }
-                    .padding(.leading, panes.leadingEdges.leading).padding(.trailing, panes.trailingEdges.trailing)
-                    .padding(.bottom, 24)
+                if Compare.isNarrow(width: size.width) {
+                    narrowContent(left: l, right: r)
+                } else {
+                    wideContent(left: l, right: r, size: size, band: band)
                 }
             }
         default:
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    /// Two columns, for a width with room for both (the open Duo).
+    private func wideContent(left l: ForecastMonth, right r: ForecastMonth, size: CGSize, band: FoldBand) -> some View {
+        let panes = FoldPanes.layout(size: size, band: band.isUpright ? band : .flat)
+        let leftWidth = max(0, panes.leading.width - panes.leadingEdges.leading - panes.leadingEdges.trailing)
+        let rightWidth = max(0, panes.trailing.width - panes.trailingEdges.leading - panes.trailingEdges.trailing)
+        return ScrollView {
+            VStack(spacing: 12) {
+                HStack(alignment: .top, spacing: panes.gap) {
+                    SideHeader(accounts: accounts, side: $left, data: l).frame(width: leftWidth)
+                    SideHeader(accounts: accounts, side: $right, data: r).frame(width: rightWidth)
+                }
+                LazyVStack(spacing: 8) {
+                    ForEach(Compare.days(left: l.rows, right: r.rows)) { day in
+                        HStack(alignment: .top, spacing: panes.gap) {
+                            dayColumn(day.day, lines: day.left, month: l, side: left).frame(width: leftWidth)
+                            dayColumn(day.day, lines: day.right, month: r, side: right).frame(width: rightWidth)
+                        }
+                        .fixedSize(horizontal: false, vertical: true)  // both cells as tall as the taller
+                    }
+                }
+            }
+            .padding(.leading, panes.leadingEdges.leading).padding(.trailing, panes.trailingEdges.trailing)
+            .padding(.bottom, 24)
+        }
+    }
+
+    /// Under `Compare.narrowWidth` (the closed Duo, an iPhone, a narrow
+    /// window) two columns are squeezed, so one side shows at a time, with a
+    /// switch on top that names each side (#359). Opening the Duo again
+    /// brings back the two columns.
+    private func narrowContent(left l: ForecastMonth, right r: ForecastMonth) -> some View {
+        let sideBinding = shown == .left ? $left : $right
+        let data = shown == .left ? l : r
+        let side = shown == .left ? left : right
+        let days = Compare.days(of: shown, left: l.rows, right: r.rows)
+        return ScrollView {
+            VStack(spacing: 12) {
+                Picker("Side", selection: $shown) {
+                    Text(switchLabel(left)).tag(CompareSide.left)
+                    Text(switchLabel(right)).tag(CompareSide.right)
+                }
+                .pickerStyle(.segmented)
+                SideHeader(accounts: accounts, side: sideBinding, data: data)
+                LazyVStack(spacing: 8) {
+                    if days.isEmpty {
+                        Text("Nothing planned or recorded in \(side.month.label).")
+                            .font(.callout).foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity).padding(.vertical, 24)
+                    }
+                    ForEach(days) { day in
+                        dayColumn(day.day, lines: day.lines(on: shown), month: data, side: side)
+                    }
+                }
+            }
+            .padding(.horizontal, 16).padding(.bottom, 24)
+        }
+    }
+
+    /// A side's name on the switch: its account and month, e.g. "Checking, Nov 2026".
+    private func switchLabel(_ side: Side) -> String {
+        let name = accounts.first { $0.id == side.accountId }?.name ?? ""
+        let month = side.month.start.date.formatted(.dateTime.month(.abbreviated).year())  // ui-check: allow date-outside-style — a month, not a calendar day
+        return "\(name), \(month)"
     }
 
     /// One side's lines on a day, and its balance after them; an empty day

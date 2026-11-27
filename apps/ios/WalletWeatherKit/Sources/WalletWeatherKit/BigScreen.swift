@@ -44,9 +44,29 @@ public struct CompareDay: Sendable, Equatable, Identifiable {
     public let left: [ForecastLine]
     public let right: [ForecastLine]
     public var id: Int { day }
+
+    public func lines(on side: CompareSide) -> [ForecastLine] { side == .left ? left : right }
+}
+
+/// One side of Compare.
+public enum CompareSide: String, Sendable, CaseIterable {
+    case left, right
 }
 
 public enum Compare {
+    /// Under this width (points) two columns are too narrow to read, so
+    /// Compare shows one side at a time with a switch (#359). The closed
+    /// Duo, an iPhone and a narrow window are under it; the open Duo is not.
+    public static let narrowWidth: Double = 600
+
+    public static func isNarrow(width: Double) -> Bool { width < narrowWidth }
+
+    /// The days that have a line on one side only, in order: what that side
+    /// shows when it has the whole width to itself.
+    public static func days(of side: CompareSide, left: [ForecastLine], right: [ForecastLine]) -> [CompareDay] {
+        days(left: left, right: right).filter { !($0.lines(on: side)).isEmpty }
+    }
+
     /// Each day of the month that has a line on either side, in order.
     public static func days(left: [ForecastLine], right: [ForecastLine]) -> [CompareDay] {
         func byDay(_ lines: [ForecastLine]) -> [Int: [ForecastLine]] {

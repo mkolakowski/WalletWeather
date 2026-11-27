@@ -35,3 +35,12 @@ Decisions for `Plans/ios-ui-review.md` (#348), the one WalletWeather artifact (#
 7. **An entry is a "line" everywhere, on the iPhone and the web** (I5, #367). "Transaction" everywhere, and leaving it, were the other options.
 
 **What it changes:** issues #357 to #370; the source check's rules and baseline; the review skill's learnings, which record what was judged so the next review doesn't raise it again.
+
+## 2026-11-26: Compare on a narrow screen shows one side at a time
+
+**Decided:** 2026-11-26, by Matthew, when #359 was picked up. **Status:** accepted.
+
+1. **Under about 600 points Compare shows one side at a time, with a switch at the top** (B4, #359). Closing Compare when the width turns compact was the other option: smaller, but it loses the place and the feature with it.
+2. **The switch names each side by its account and month** ("Checking, Nov 2026"), and the account and month pickers under it change the side shown. The open Duo keeps two columns.
+
+**What it changes:** `Compare.narrowWidth` and `Compare.days(of:left:right:)` in the Kit, `CompareView` in `BigScreenViews.swift`; iOS 0.73.4.

@@ -70,6 +70,7 @@ extension View {
 }
 
 private struct UndoBarModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var offer: UndoOffer?
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
     @State private var undoneCount = 0
@@ -81,7 +82,7 @@ private struct UndoBarModifier: ViewModifier {
                 if let current = offer {
                     UndoBar(message: current.message) { undo(current) }
                         .padding(.horizontal, 16).padding(.bottom, 8)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                 }
             }
             .animation(.snappy, value: offer?.id)

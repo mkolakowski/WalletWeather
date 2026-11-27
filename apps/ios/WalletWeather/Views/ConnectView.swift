@@ -11,6 +11,7 @@ import WalletWeatherKit
 /// again, as a sheet (`AddServerSheet`, #300): `inSheet` leaves out the way
 /// back to the first screen.
 struct ConnectView: View {
+    @ScaledMetric(relativeTo: .largeTitle) private var symbolSize: CGFloat = 40
     var inSheet = false
     @Environment(AppModel.self) private var model
     @State private var pastedToken = ""
@@ -56,7 +57,7 @@ struct ConnectView: View {
                         .submitLabel(.go)
                         .onSubmit { signIn() }
                         .padding(12)
-                        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                        .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
                         .accessibilityLabel("Server address")
                     VStack(alignment: .leading, spacing: 4) {
                         TextField("Name for this iPhone", text: $model.phoneName)
@@ -64,7 +65,7 @@ struct ConnectView: View {
                             .autocorrectionDisabled()
                             .submitLabel(.done)
                             .padding(12)
-                            .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                            .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
                             .accessibilityLabel("Name for this iPhone")
                         Text("Shown beside this iPhone's sign-in in the web app's Settings → API tokens.")
                             .font(.caption).foregroundStyle(.secondary)
@@ -103,13 +104,13 @@ struct ConnectView: View {
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .padding(12)
-                            .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                            .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
                         SecureField("Password", text: $password)
                             .textContentType(.password)
                             .submitLabel(.go)
                             .onSubmit { signInWithPassword() }
                             .padding(12)
-                            .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                            .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
                         if model.needsTwoFactorCode {
                             TextField("Code", text: $code)
                                 .textContentType(.oneTimeCode)
@@ -119,7 +120,7 @@ struct ConnectView: View {
                                 .submitLabel(.go)
                                 .onSubmit { signInWithPassword() }
                                 .padding(12)
-                                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                                .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
                                 .accessibilityLabel("Two-factor code")
                             Text("This account has two-factor sign-in on. Type the code from your authenticator app, or one of your recovery codes.")
                                 .font(.caption).foregroundStyle(.secondary)
@@ -156,7 +157,7 @@ struct ConnectView: View {
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .padding(12)
-                            .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                            .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
                             .accessibilityLabel("API token")
                         Button("Connect with this token") {
                             lastWay = .token
@@ -181,10 +182,10 @@ struct ConnectView: View {
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .padding(12)
-                            .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
-                        SecureField("Client Secret", text: $clientSecret)
+                            .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                        SecureField("Client secret", text: $clientSecret)
                             .padding(12)
-                            .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
+                            .background(Palette.row ?? Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
                     }
                     .padding(.top, 10)
                 }
@@ -247,7 +248,7 @@ struct ConnectView: View {
                 .disabled(model.busy)
                 .padding(.bottom, 6)
                 Image(systemName: "cloud.sun.fill")
-                    .font(.system(size: 40))
+                    .font(.system(size: symbolSize))
                     .symbolRenderingMode(.multicolor)
                     .accessibilityHidden(true)
                 Text("WalletWeather").font(.largeTitle.bold())
@@ -335,7 +336,7 @@ struct ConnectLinkQuestion: ViewModifier {
     @Environment(AppModel.self) private var model
 
     func body(content: Content) -> some View {
-        content.alert(model.pendingLink.map { "Connect to \($0.host)?" } ?? "",
+        content.alert(model.pendingLink.map { "Connect to \($0.host)?" } ?? "",  // ui-check: allow alert — a question: whether to sign in to the server a link names
                       isPresented: Binding(get: { active && model.pendingLink != nil },
                                            set: { if !$0 { model.pendingLink = nil } }),
                       presenting: model.pendingLink) { link in

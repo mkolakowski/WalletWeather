@@ -69,9 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.3** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.10**
+App version: **1.99.3** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.11**
 
 ### Changed
+
+- **iPhone app: small clean-ups from the UI review.** The Connect screen's fields now take the colours of the look you've chosen (in Sepia they're warm, not system grey); "Client Secret" reads "Client secret"; the app's big symbols on the Connect, welcome, lock and privacy screens grow with the phone's text size; and with Reduce Motion on, the Undo bar, the problem banner and Getting started's tab bar preview fade in instead of sliding or growing.
 
 - **iPhone app: Tags and Tab bar look like the other Settings pages.** Settings → Tags no longer has a large title of its own, and both pages name their sections in the same bold type, with the notes under them in the same style, as Reminders and the other pages do. Swiping a tag to delete it and dragging a page to reorder the tab bar work as before.
 

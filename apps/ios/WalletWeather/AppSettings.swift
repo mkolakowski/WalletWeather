@@ -387,11 +387,12 @@ final class AppSettings {
 /// Over the app while it's locked: the name and an Unlock button, which
 /// asks at once when it appears.
 struct LockView: View {
+    @ScaledMetric(relativeTo: .largeTitle) private var symbolSize: CGFloat = 44
     @Environment(AppSettings.self) private var settings
 
     var body: some View {
         VStack(spacing: 18) {
-            Image(systemName: "lock.fill").font(.system(size: 44)).foregroundStyle(Palette.accent)
+            Image(systemName: "lock.fill").font(.system(size: symbolSize)).foregroundStyle(Palette.accent)
             Text("WalletWeather is locked").font(.title2.bold())
             Button {
                 Task { await settings.unlock() }
@@ -411,9 +412,10 @@ struct LockView: View {
 /// Centre, a Face ID prompt), so the numbers don't show in the app
 /// switcher's snapshot.
 struct PrivacyCover: View {
+    @ScaledMetric(relativeTo: .largeTitle) private var symbolSize: CGFloat = 52
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: "cloud.sun.fill").font(.system(size: 52)).symbolRenderingMode(.multicolor)
+            Image(systemName: "cloud.sun.fill").font(.system(size: symbolSize)).symbolRenderingMode(.multicolor)
             Text("WalletWeather").font(.title2.bold())
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

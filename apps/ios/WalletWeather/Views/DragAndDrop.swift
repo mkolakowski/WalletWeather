@@ -80,7 +80,7 @@ private struct CSVDropTarget: ViewModifier {
             }
             .animation(.snappy, value: highlighted)
             .sheet(item: $file) { CSVImportSheet(file: $0, startAccount: account, onImported: onImported) }
-            .alert("Couldn't open the file", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
+            .alert("Couldn't open the file", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {  // ui-check: allow alert — a dropped file that couldn't be opened, with no editor to show it in
                 Button("OK", role: .cancel) {}
             } message: { Text(problem ?? "") }
     }

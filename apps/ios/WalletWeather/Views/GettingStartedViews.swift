@@ -167,6 +167,7 @@ struct TabBarTour: View {
 /// A picture of the tab bar: the chosen pages, then Settings and Search
 /// (always there, so a little fainter). The page just swapped in is lit.
 private struct BarPreview: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let pages: [TabPage]
     let highlighted: TabPage?
 
@@ -174,7 +175,7 @@ private struct BarPreview: View {
         HStack(spacing: 0) {
             ForEach(pages) { page in
                 item(page.title, page.symbol, lit: page == highlighted)
-                    .transition(.scale.combined(with: .opacity))
+                    .transition(reduceMotion ? .opacity : .scale.combined(with: .opacity))
             }
             item("Settings", "gearshape", lit: false).opacity(0.55)
             item("Search", "magnifyingglass", lit: false).opacity(0.55)

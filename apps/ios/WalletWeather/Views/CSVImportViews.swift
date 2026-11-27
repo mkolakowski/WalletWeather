@@ -55,7 +55,7 @@ private struct CSVImporter: ViewModifier {
                 }
             }
             .sheet(item: $file) { CSVImportSheet(file: $0, startAccount: account, onImported: onImported) }
-            .alert("Couldn't open the file", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {
+            .alert("Couldn't open the file", isPresented: Binding(get: { problem != nil }, set: { if !$0 { problem = nil } })) {  // ui-check: allow alert — a file that couldn't be opened, with no editor to show it in
                 Button("OK", role: .cancel) {}
             } message: { Text(problem ?? "") }
     }
@@ -137,7 +137,7 @@ struct CSVImportSheet: View {
             .onChange(of: accountId) { old, new in if old != nil, new != nil { remember(reset: true) } }
             .onChange(of: body_.hasHeader) { Task { await refresh() } }
             .onChange(of: body_.signs) { Task { await refresh() } }
-            .alert("Imported", isPresented: Binding(get: { done != nil }, set: { if !$0 { finish() } })) {
+            .alert("Imported", isPresented: Binding(get: { done != nil }, set: { if !$0 { finish() } })) {  // ui-check: allow alert — the import's result, acknowledged before the sheet closes
                 Button("OK", role: .cancel) { finish() }
             } message: { Text(done.map(Self.describe) ?? "") }
         }

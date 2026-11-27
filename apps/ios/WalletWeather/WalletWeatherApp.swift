@@ -158,7 +158,7 @@ struct AppRoot: View {
             }
         }
         .onChange(of: model.phase) { _, phase in if phase == .connect { csvHere = nil } }
-        .alert(model.openedCSVAlert?.title ?? "", isPresented: Binding(get: { model.openedCSVAlert != nil },
+        .alert(model.openedCSVAlert?.title ?? "", isPresented: Binding(get: { model.openedCSVAlert != nil },  // ui-check: allow alert — a file opened from outside the app, with no page of its own
                                                                         set: { if !$0 { model.openedCSVAlert = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -181,13 +181,13 @@ struct AppRoot: View {
                 offeringLock = true
             }
         }
-        .alert("What should this iPhone keep?", isPresented: $askingKeep) {
+        .alert("What should this iPhone keep?", isPresented: $askingKeep) {  // ui-check: allow alert — a question, asked at each sign-in
             Button("Last-known numbers") { answerKeep(.lastKnown) }
             Button("Nothing", role: .cancel) { answerKeep(.nothing) }
         } message: {
             Text("With last-known numbers, WalletWeather still opens when your server can't be reached, showing the pages you last loaded and when they were loaded. They can't be read while this iPhone is locked, stay out of backups, and are deleted when you sign out. With nothing, the app needs a connection. You can change this in Settings.")
         }
-        .alert("Lock WalletWeather with \(settings.biometryName ?? "Face ID")?", isPresented: $offeringLock) {
+        .alert("Lock WalletWeather with \(settings.biometryName ?? "Face ID")?", isPresented: $offeringLock) {  // ui-check: allow alert — a question, offered once after sign-in
             Button("Lock with \(settings.biometryName ?? "Face ID")") { Task { await settings.setLock(true) } }
             Button("Not now", role: .cancel) { settings.lockOffered = true }
         } message: {
@@ -197,7 +197,7 @@ struct AppRoot: View {
         // A link adds its server, or signs in to it again, beside the others
         // (#300); while an Add a server sheet is open, it asks instead.
         .modifier(ConnectLinkQuestion(active: model.signInSheets == 0))
-        .alert("Couldn't connect", isPresented: Binding(get: { model.linkProblem != nil },
+        .alert("Couldn't connect", isPresented: Binding(get: { model.linkProblem != nil },  // ui-check: allow alert — a link that couldn't connect, outside any page
                                                         set: { if !$0 { model.linkProblem = nil } })) {
             Button("OK", role: .cancel) { model.linkProblem = nil }
         } message: {

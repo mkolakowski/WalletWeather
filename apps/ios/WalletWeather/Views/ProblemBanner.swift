@@ -121,6 +121,7 @@ extension View {
 }
 
 private struct ProblemBannerModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var problem: FormProblem?
     let edges: FoldPanes.Edges
 
@@ -131,7 +132,7 @@ private struct ProblemBannerModifier: ViewModifier {
                     ProblemBanner(error: problem.error, retry: problem.retry)
                         .padding(.leading, edges.leading).padding(.trailing, edges.trailing)
                         .padding(.top, 8).padding(.bottom, 6)
-                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
                 }
             }
             .animation(.default, value: problem?.id)

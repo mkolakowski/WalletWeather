@@ -6,6 +6,7 @@ import WalletWeatherKit
 /// server, each with what it gives and what it costs, and Try the demo,
 /// smaller, under both. Your own server goes on to the sign-in screen.
 struct WelcomeView: View {
+    @ScaledMetric(relativeTo: .largeTitle) private var symbolSize: CGFloat = 40
     @Environment(AppModel.self) private var model
     @State private var restoring = false
 
@@ -14,7 +15,7 @@ struct WelcomeView: View {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 6) {
                     Image(systemName: "cloud.sun.fill")
-                        .font(.system(size: 40))
+                        .font(.system(size: symbolSize))
                         .symbolRenderingMode(.multicolor)
                         .accessibilityHidden(true)
                     Text("WalletWeather").font(.largeTitle.bold())

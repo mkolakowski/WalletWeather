@@ -154,7 +154,7 @@ struct RestoreFromICloudSheet: View {
             } message: {
                 Text("Every account, bill and line on this iPhone is replaced with the backup's. This can't be undone.")
             }
-            .alert("This backup's passphrase", isPresented: $asking) {
+            .alert("This backup's passphrase", isPresented: $asking) {  // ui-check: allow alert — a question: only the person has the passphrase
                 SecureField("Passphrase", text: $typed)
                 Button("Open") { Task { await restore(passphrase: typed, typed: true) } }
                 Button("Cancel", role: .cancel) { file = nil }

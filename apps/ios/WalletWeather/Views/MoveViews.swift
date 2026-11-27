@@ -294,7 +294,7 @@ private struct BackupImporter: ViewModifier {
                     report(error.localizedDescription, true)
                 }
             }
-            .alert("This backup's passphrase", isPresented: $askingPassphrase) {
+            .alert("This backup's passphrase", isPresented: $askingPassphrase) {  // ui-check: allow alert — a question: only the person has the passphrase
                 SecureField("Passphrase", text: $typed)
                 Button("Open") { open(passphrase: typed, asked: true) }
                 Button("Cancel", role: .cancel) { file = nil }

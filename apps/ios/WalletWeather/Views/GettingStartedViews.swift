@@ -134,8 +134,11 @@ struct TabBarTour: View {
                         Button(other.title, systemImage: other.symbol) { change { draft = TabPage.swapping(page, for: other, in: draft) }; lastChanged = other }
                     }
                 } label: {
-                    Text("Swap").foregroundStyle(Palette.accent)
+                    Text("Swap")
                 }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .controlSize(.large)
                 .accessibilityLabel("Swap \(page.title) for another page")
             } else {
                 Text("Empty").foregroundStyle(.secondary)
@@ -145,8 +148,11 @@ struct TabBarTour: View {
                         Button(other.title, systemImage: other.symbol) { change { draft.append(other) }; lastChanged = other }
                     }
                 } label: {
-                    Text("Add").foregroundStyle(Palette.accent)
+                    Text("Add")
                 }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .controlSize(.large)
                 .disabled(place != draft.count)
             }
         }

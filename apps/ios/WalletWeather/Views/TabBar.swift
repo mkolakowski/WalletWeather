@@ -75,8 +75,8 @@ struct TabBarSettingsView: View {
                                 } label: {
                                     Text("Swap")
                                 }
-                                .tapTarget()
-                                .buttonStyle(.borderless)
+                                .buttonStyle(.bordered)
+                                .buttonBorderShape(.capsule)
                                 .controlSize(.large)
                                 .accessibilityLabel("Swap \(page.title) for another page")
                             }
@@ -99,9 +99,9 @@ struct TabBarSettingsView: View {
                             Spacer()
                             if !full {
                                 Button("Add") { settings.tabs.append(page) }
-                                    .buttonStyle(.borderless)
+                                    .buttonStyle(.bordered)
+                                    .buttonBorderShape(.capsule)
                                     .controlSize(.large)
-                                    .tapTarget()
                                     .accessibilityLabel("Add \(page.title) to the tab bar")
                             } else {
                                 Menu {
@@ -113,7 +113,9 @@ struct TabBarSettingsView: View {
                                 } label: {
                                     Text("Swap in")
                                 }
-                                .tapTarget()
+                                .buttonStyle(.bordered)
+                                .buttonBorderShape(.capsule)
+                                .controlSize(.large)
                                 .accessibilityLabel("Swap \(page.title) into the tab bar")
                             }
                         }

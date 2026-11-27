@@ -151,6 +151,11 @@ line of why; the reasoning in full goes here.
   Accessibility Large five screens were called `not-what-it-says` because
   the words they're known by had moved below the fold ("Add a server", "All
   lines"). Use the bar's title or the first heading. (2026-11-25, #346)
+  It came back on the open Duo at Accessibility Large for `forecast` ("All
+  lines") and `forecast-confirm` ("Paid as planned"), found by the walk of
+  0.73.18; they now use the bar's title and its Sort button, which is there
+  only on To confirm. A page that has to show something further down scrolls
+  to it with the `scrollTo` step (#392) rather than relying on it. (2026-11-27, #393)
 - **An ordinary iPhone's tab bar holds three pages,** so a launch setting
   that puts a fourth page in the bar opens something else. The Calendar's
   screens put it first. (2026-11-25, #346)

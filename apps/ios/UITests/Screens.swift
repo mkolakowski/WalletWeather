@@ -68,7 +68,7 @@ extension Screen {
 
         // The pages.
         Screen("dashboard", .demo, ["WW_DEBUG_PLACE": "dashboard"], shows: "Balance today"),
-        Screen("forecast", .demo, ["WW_DEBUG_PLACE": "forecast"], shows: "All lines"),
+        Screen("forecast", .demo, ["WW_DEBUG_PLACE": "forecast"], shows: "Forecast"),  // the bar's title: "All lines" is below the fold at Accessibility Large (#393)
         Screen("bills", .demo, ["WW_DEBUG_PLACE": "bills"], shows: "Bills a month"),
         Screen("calendar", .demo, ["WW_DEBUG_PLACE": "calendar", "WW_DEBUG_TABS": everyTab], shows: "Pick one account"),
         Screen("calendar-account", .demo, ["WW_DEBUG_PLACE": "calendar", "WW_DEBUG_TABS": everyTab, "WW_DEBUG_ACCOUNT": "Checking"], shows: "Calendar"),
@@ -82,7 +82,7 @@ extension Screen {
         // Forecast's states and sheets.
         Screen("forecast-filtered", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_FILTER": "Groceries"], shows: "Groceries · ",  // the filter's own summary line (#386)
                steps: [.scrollTo("Filter: ")]),  // it is under the chip row, below the open Duo's fold (#392)
-        Screen("forecast-confirm", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_CONFIRM": "1"], shows: "Paid as planned"),
+        Screen("forecast-confirm", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_CONFIRM": "1"], shows: "Sort"),  // the bar's Sort button, there only on To confirm; "Paid as planned" is below the fold at Accessibility Large (#393)
         Screen("forecast-compare", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_COMPARE": "1"], shows: "Compare"),
         Screen("forecast-undo", .demo, ["WW_DEBUG_PLACE": "forecast", "WW_DEBUG_UNDO": "Rent"], shows: "Rent marked paid", scrolls: false,
                expected: ["text-overlap": "The Undo bar floats over the list, by design (#315)."]),

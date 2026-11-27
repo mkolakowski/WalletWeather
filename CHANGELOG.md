@@ -69,9 +69,11 @@ same commit (or session) that introduces it.
 
 ## [Unreleased]
 
-App version: **1.99.2** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.5**
+App version: **1.99.2** · Web version: **1.118.0** · Schema version: **40** · iOS version: **0.73.6**
 
 ### Fixed
+
+- **iPhone app: every date follows the Date format you chose.** With Settings → Dates & display → Date format on 2026-11-12, the days written out with a weekday (the Calendar's day heading, a bill's "Next:" line, the line editor's "Planned for", a day in Backups, a reminder) were still written as "Sat, Dec 12" or "Saturday, December 12". They now read "Sat 2026-12-12" and "Saturday 2026-12-12"; on Nov 12 they read as before. The chart's day-of-month numbers stay as they are, and the home screen widget and reminders can't see the setting yet, so they still use Nov 12.
 
 - **iPhone app: more buttons are easy to hit.** The small buttons the UI review found now take a tap anywhere in a 44-point square, with no change to how they look: Edit on a To confirm card, Disconnect under Bank sync, Try the demo, Add in the tab bar's page list, the account menus on Forecast, Bills & income, Calendar and Compare, the month's name, Forecast's filter chips, Match… and Leave on the Unmatched list, and the Close button on Getting started. A few small ones are still to do: the month's arrows, Swap in the tab bar's page list, Paid as planned, and the sign-in options on the Connect page.
 

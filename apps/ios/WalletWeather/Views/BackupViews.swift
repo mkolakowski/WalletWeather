@@ -126,7 +126,7 @@ struct RestoreFromICloudSheet: View {
                         ForEach(entries) { entry in
                             Button { chosen = entry; confirming = true } label: {
                                 HStack {
-                                    Text(entry.day.date.formatted(date: .complete, time: .omitted))
+                                    Text(entry.day.written(width: .wide, withYear: true))
                                     Spacer()
                                     if !entry.downloaded { Image(systemName: "icloud.and.arrow.down").foregroundStyle(.secondary) }
                                 }

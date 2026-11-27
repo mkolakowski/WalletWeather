@@ -24,15 +24,6 @@ colour-outside-theme	WalletWeather/Views/ConnectView.swift	.background(Color(.te
 colour-outside-theme	WalletWeather/Views/ConnectView.swift	.background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12))
 colour-outside-theme	WalletWeather/Views/ForecastView.swift	.foregroundStyle(on ? Color.white : Color.primary)
 colour-outside-theme	WalletWeather/Views/TagViews.swift	.overlay { if color == hex { Image(systemName: "checkmark").font(.caption.bold()).foregroundStyle(.white) } }
-date-outside-style	Notifications/NotificationViewController.swift	day.map { $0.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()) } ?? ""
-date-outside-style	WalletWeather/Views/BackupViews.swift	Text(entry.day.date.formatted(date: .complete, time: .omitted))
-date-outside-style	WalletWeather/Views/BillsView.swift	Text(day.date.formatted(.dateTime.weekday(.wide).month(.wide).day().year()))
-date-outside-style	WalletWeather/Views/BillsView.swift	return "Next: \(next.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))"
-date-outside-style	WalletWeather/Views/CalendarView.swift	Text(day == .today() ? "Today" : day.date.formatted(.dateTime.weekday(.wide).month(.wide).day()))
-date-outside-style	WalletWeather/Views/CalendarView.swift	var parts = [day.date.formatted(.dateTime.weekday(.wide).month(.wide).day())]
-date-outside-style	WalletWeather/Views/ForecastView.swift	AxisValueLabel(format: .dateTime.day()).foregroundStyle(.secondary)
-date-outside-style	WalletWeather/Views/LineEditor.swift	LabeledContent("Planned for", value: planned.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
-date-outside-style	Widgets/Views.swift	return day.date.formatted(.dateTime.month(.abbreviated).day())
 fixed-font-size	WalletWeather/AppSettings.swift	Image(systemName: "cloud.sun.fill").font(.system(size: 52)).symbolRenderingMode(.multicolor)
 fixed-font-size	WalletWeather/AppSettings.swift	Image(systemName: "lock.fill").font(.system(size: 44)).foregroundStyle(Palette.accent)
 fixed-font-size	WalletWeather/Views/ConnectView.swift	.font(.system(size: 40))

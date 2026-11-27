@@ -440,7 +440,7 @@ struct BillCard: View {
         if item.expired, let end = item.endDate { return "Ended \(end.short)" }
         guard let next = item.nextDate else { return item.active ? "No dates ahead" : "Switched off" }
         if next == .today() { return "Next: today" }
-        return "Next: \(next.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))"
+        return "Next: \(next.written())"
     }
 }
 
@@ -493,7 +493,7 @@ struct SkipDateSheet: View {
                         ForEach(item.nextDates, id: \.self) { day in
                             Button { confirm = day } label: {
                                 HStack {
-                                    Text(day.date.formatted(.dateTime.weekday(.wide).month(.wide).day().year()))
+                                    Text(day.written(width: .wide, withYear: true))
                                     Spacer()
                                     if day == item.nextDate { Text("Next").font(.caption).foregroundStyle(.secondary) }
                                 }

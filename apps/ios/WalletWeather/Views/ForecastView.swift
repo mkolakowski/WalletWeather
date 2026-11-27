@@ -1029,7 +1029,7 @@ struct ForecastChart: View {
         .chartXAxis {
             AxisMarks(values: .stride(by: .day, count: 7)) { _ in
                 AxisGridLine()
-                AxisValueLabel(format: .dateTime.day()).foregroundStyle(.secondary)
+                AxisValueLabel(format: .dateTime.day()).foregroundStyle(.secondary)  // ui-check: allow date-outside-style — the day of the month on the chart's axis, not a date written out
             }
         }
         .chartLegend(position: .bottom, alignment: .leading)

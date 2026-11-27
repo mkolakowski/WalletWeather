@@ -80,4 +80,25 @@ extension LocalDay {
     /// Every date shown to the person: "Nov 3", "Nov 3, 2025" or
     /// "2026-11-03", by Date format in Settings → Dates & display.
     public var short: String { display(DateDisplay.style) }
+
+    /// How wide a written-out day is (#366): "Sat Dec 12" or "Saturday December 12".
+    public enum WrittenWidth: Sendable { case abbreviated, wide }
+
+    /// This day with its weekday, for the heading of a day or a line that
+    /// names one (#366). In `short` it is written as before ("Sat, Dec 12",
+    /// the year only when `withYear`); in `iso` the weekday goes in front of
+    /// the numbers ("Sat 2026-12-12"), so a day is never written in a way the
+    /// Date format setting didn't choose.
+    public func written(_ style: DateStyle = DateDisplay.style, width: WrittenWidth = .abbreviated,
+                        withYear: Bool = false, locale: Locale = .current) -> String {
+        let weekday: Date.FormatStyle.Symbol.Weekday = width == .wide ? .wide : .abbreviated
+        switch style {
+        case .iso:
+            return "\(date.formatted(Date.FormatStyle().weekday(weekday).locale(locale))) \(description)"
+        case .short:
+            var format = Date.FormatStyle().weekday(weekday).month(width == .wide ? .wide : .abbreviated).day()
+            if withYear { format = format.year() }
+            return date.formatted(format.locale(locale))
+        }
+    }
 }

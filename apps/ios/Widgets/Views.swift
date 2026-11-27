@@ -63,7 +63,7 @@ func dayText(_ day: LocalDay?, today: LocalDay = .today()) -> String {
     if let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today.date), day == LocalDay.today(now: tomorrow) {
         return "Tomorrow"
     }
-    return day.date.formatted(.dateTime.month(.abbreviated).day())
+    return day.short
 }
 
 /// Days from today to `day`.

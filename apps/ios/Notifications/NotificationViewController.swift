@@ -45,7 +45,7 @@ struct ReminderDetailView: View {
     let detail: ReminderDetail
 
     private func day(_ day: LocalDay?) -> String {
-        day.map { $0.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()) } ?? ""
+        day.map { $0.written() } ?? ""
     }
 
     var body: some View {

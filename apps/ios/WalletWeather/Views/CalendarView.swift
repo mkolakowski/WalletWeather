@@ -640,7 +640,7 @@ struct DayCell: View {
     }
 
     private var accessibilityText: String {
-        var parts = [day.date.formatted(.dateTime.weekday(.wide).month(.wide).day())]
+        var parts = [day.written(width: .wide)]
         if day == .today() { parts.append("today") }
         if summary.count > 0 { parts.append("\(summary.count) line\(summary.count == 1 ? "" : "s"), net \(summary.net.formatted)") }
         if let balance { parts.append("closing balance \(balance.formatted)") }
@@ -684,7 +684,7 @@ struct DayLines: View {
         Section {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(day == .today() ? "Today" : day.date.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                    Text(day == .today() ? "Today" : day.written(width: .wide))
                         .font(.headline)
                     Spacer()
                     if let onClose {

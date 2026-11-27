@@ -23,6 +23,17 @@ struct DateStyleTests {
         #expect(LocalDay(year: 2025, month: 1, day: 3).display(.iso, today: today) == "2025-01-03")
     }
 
+    @Test func aDayWithItsWeekdayFollowsTheStyle() {
+        let saturday = LocalDay(year: 2026, month: 12, day: 12)
+        // Short keeps the written form it had; iso puts the weekday before the numbers (#366).
+        #expect(saturday.written(.short, locale: us) == "Sat, Dec 12")
+        #expect(saturday.written(.iso, locale: us) == "Sat 2026-12-12")
+        #expect(saturday.written(.short, width: .wide, locale: us) == "Saturday, December 12")
+        #expect(saturday.written(.iso, width: .wide, locale: us) == "Saturday 2026-12-12")
+        #expect(saturday.written(.short, width: .wide, withYear: true, locale: us) == "Saturday, December 12, 2026")
+        #expect(saturday.written(.iso, width: .wide, withYear: true, locale: us) == "Saturday 2026-12-12")
+    }
+
     @Test func requestsAndStorageKeepTheirFormat() {
         #expect(LocalDay(year: 2025, month: 1, day: 3).description == "2025-01-03")
     }

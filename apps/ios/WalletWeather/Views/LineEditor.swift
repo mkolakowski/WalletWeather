@@ -231,7 +231,7 @@ struct LineEditor: View {
         Section {
             LabeledContent("Account", value: open.account.name)
             if let planned = line.plannedDate {
-                LabeledContent("Planned for", value: planned.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+                LabeledContent("Planned for", value: planned.written())
             }
             LabeledContent("Planned amount") {
                 Text(line.plannedAmount.formatted).monospacedDigit()
